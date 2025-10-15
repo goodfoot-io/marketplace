@@ -111,9 +111,6 @@ terraform/aws/temp-policy.json
 config.s3.tfbackend
 
 build
-# Test transcript files
-packages/models/tests/chat/transcripts/*.json
-packages/models/tests/chat/transcripts/*.yaml
 
 coverage
 

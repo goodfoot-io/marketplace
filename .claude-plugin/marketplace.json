@@ -1,0 +1,17 @@
+{
+  "name": "goodfoot-marketplace",
+  "displayName": "Goodfoot Marketplace",
+  "description": "Professional development workflows, MCP servers, and productivity tools from Goodfoot",
+  "version": "1.0.0",
+  "owner": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io",
+    "url": "https://goodfoot.io"
+  },
+  "homepage": "https://github.com/goodfoot-io/marketplace",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/goodfoot-io/marketplace.git"
+  },
+  "plugins": []
+}
