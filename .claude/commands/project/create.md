@@ -2,6 +2,10 @@
 description: Create project plans with automated quality assessment
 ---
 
+```!
+mkdir -p projects/new projects/pending projects/active projects/ready-for-review projects/complete projects/icebox
+```
+
 <user-message>
 $ARGUMENTS
 </user-message>
