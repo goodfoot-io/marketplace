@@ -1,0 +1,28 @@
+{
+  "include": [
+    "./*.mjs",
+    "./bin/*.ts",
+    "./packages/**/src/*.ts",
+    "./packages/**/tests/*.ts"
+  ],
+  "exclude": [
+    "./packages/**/dist",
+    "./packages/**/build"
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "declaration": true,
+    "declarationMap": true,
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "isolatedModules": true,
+    "outDir": "./build",
+    "typeRoots": ["./types", "./node_modules/@types"]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist", "build"],
+  "compilerOptions": {
+    "composite": true,
+    "declarationDir": "./build/types",
+    "outDir": "./build/dist",
+    "baseUrl": ".",
+    "paths": {
+      "@tools/scrape": ["../scrape/src/index.ts"],
+      "@tools/scrape/*": ["../scrape/src/*"]
+    }
+  },
+  "references": [{ "path": "../scrape" }]
+}
