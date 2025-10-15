@@ -1,0 +1,84 @@
+{
+  "name": "@goodfoot/example",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "scripts": {
+    "prettier": "prettier . --write --log-level warn",
+    "prettier:files": "prettier --write --log-level warn",
+    "eslint": "eslint --cache --fix ./src ./tests",
+    "eslint:files": "eslint --cache --fix",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "yarn build",
+    "print": "cd ../.. && yarn print ./* packages/models/**/* documentation/description.md -e packages/models/demo -e yarn.lock -e CLAUDE.md -e print.mjs -e dependencies.mjs",
+    "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
+    "build": "tsc --build && cp src/database.sql build/dist/src/database.sql",
+    "echo": "echo \"${0:-tests}\"",
+    "test": "NODE_OPTIONS=\"--experimental-vm-modules --no-node-snapshot ${INSPECT:+ --inspect-brk}\" NODE_ENV=test yarn exec jest --detectOpenHandles --runInBand -- ${*:-tests}"
+  },
+  "exports": {
+    ".": {
+      "import": "./build/dist/src/index.js",
+      "types": "./build/types/src/index.d.ts"
+    },
+    "./client": {
+      "import": "./build/dist/src/client.js",
+      "types": "./build/types/src/client.d.ts"
+    },
+    "./server": {
+      "import": "./build/dist/src/server.js",
+      "types": "./build/types/src/server.d.ts"
+    },
+    "./*": {
+      "import": "./build/dist/src/*.js",
+      "types": "./build/types/src/*.d.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "import": "./build/dist/src/index.js",
+        "types": "./build/types/src/index.d.ts"
+      },
+      "./client": {
+        "import": "./build/dist/src/client.js",
+        "types": "./build/types/src/client.d.ts"
+      },
+      "./server": {
+        "import": "./build/dist/src/server.js",
+        "types": "./build/types/src/server.d.ts"
+      },
+      "./*": {
+        "import": "./build/dist/src/*.js",
+        "types": "./build/types/src/*.d.ts"
+      }
+    }
+  },
+  "files": [
+    "build",
+    "tsconfig.json"
+  ],
+  "devDependencies": {
+    "@productivity-bot/test-utilities": "workspace:^",
+    "@types/jest": "^29",
+    "@types/node": "^22",
+    "@typescript-eslint/eslint-plugin": "^8.34.0",
+    "@typescript-eslint/parser": "^8.34.0",
+    "dotenv": "^16.5.0",
+    "eslint": "^9.28.0",
+    "jest": "^29",
+    "jest-diff": "^29",
+    "jest-matcher-utils": "^29",
+    "jest-util": "^30.0.2",
+    "postgres": "^3.4.7",
+    "prettier": "^3.5.3",
+    "ts-jest": "^29.3.4",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "postgres": "^3.4.7"
+  }
+}

@@ -1,0 +1,378 @@
+#!/bin/bash
+
+# claude-pretooluse-hook-jest-mock-prevention: Prevent Jest mock usage and guide to integration testing
+# Usage: Called by Claude Code before Write/Edit/MultiEdit tool usage
+# Returns: JSON with permission decision to allow or deny the tool usage
+# Exit code: 0 for success, non-zero for errors
+
+# Debug logging
+DEBUG=${DEBUG:-0}
+
+# Color utilities for error output
+if [ -t 2 ]; then
+    RED='\033[0;31m'
+    YELLOW='\033[0;33m'
+    GREEN='\033[0;32m'
+    CYAN='\033[0;36m'
+    GRAY='\033[0;90m'
+    BOLD='\033[1m'
+    NC='\033[0m'
+else
+    RED=''
+    YELLOW=''
+    GREEN=''
+    CYAN=''
+    GRAY=''
+    BOLD=''
+    NC=''
+fi
+
+debug() {
+    if [ "$DEBUG" = "1" ]; then
+        echo -e "${GRAY}DEBUG: $*${NC}" >&2
+    fi
+}
+
+# Function to check for Jest mock patterns in text
+check_for_mock_patterns() {
+    local content="$1"
+    local violations=()
+    
+    # Import patterns for mock utilities from jest or @jest/globals
+    if echo "$content" | grep -qE "import.*\{.*\b(mocked|fn|spyOn|Mock|Mocked|MockedFunction)\b.*\}.*from.*['\"](@jest/globals|jest)"; then
+        violations+=("Import of Jest mock utilities detected")
+    fi
+    
+    # Import of jest-mock package
+    if echo "$content" | grep -qE "from ['\"]jest-mock['\"]"; then
+        violations+=("Import from jest-mock package detected")
+    fi
+    
+    # Import of Mock/Mocked types
+    if echo "$content" | grep -qE "import.*type.*\{.*\b(Mock|Mocked|MockedFunction)\b.*\}"; then
+        violations+=("Import of Jest mock types detected")
+    fi
+    
+    # jest.fn() pattern
+    if echo "$content" | grep -qE "jest\.fn\(\)"; then
+        violations+=("jest.fn() mock function found")
+    fi
+    
+    # jest.mock() module mocking
+    if echo "$content" | grep -qE "jest\.mock\(['\"]"; then
+        violations+=("jest.mock() module mocking found")
+    fi
+    
+    # jest.spyOn() spying
+    if echo "$content" | grep -qE "jest\.spyOn\("; then
+        violations+=("jest.spyOn() spy found")
+    fi
+    
+    # jest.mocked() type helper
+    if echo "$content" | grep -qE "jest\.mocked\("; then
+        violations+=("jest.mocked() type helper found")
+    fi
+    
+    # jest.Mock type annotation
+    if echo "$content" | grep -qE "jest\.Mock<"; then
+        violations+=("jest.Mock<> type annotation found")
+    fi
+    
+    # jest.Mocked type
+    if echo "$content" | grep -qE "jest\.Mocked<"; then
+        violations+=("jest.Mocked<> type found")
+    fi
+    
+    # jest.createMockFromModule
+    if echo "$content" | grep -qE "jest\.createMockFromModule\("; then
+        violations+=("jest.createMockFromModule() found")
+    fi
+    
+    # jest.clearAllMocks/resetAllMocks/restoreAllMocks
+    if echo "$content" | grep -qE "jest\.(clearAllMocks|resetAllMocks|restoreAllMocks)\(\)"; then
+        violations+=("jest mock cleanup methods found (clearAllMocks, resetAllMocks, restoreAllMocks)")
+    fi
+    
+    # jest.requireActual/requireMock
+    if echo "$content" | grep -qE "jest\.(requireActual|requireMock)\("; then
+        violations+=("jest.requireActual() or jest.requireMock() found")
+    fi
+    
+    # jest.doMock/dontMock/unmock
+    if echo "$content" | grep -qE "jest\.(doMock|dontMock|unmock)\("; then
+        violations+=("jest mock control methods found (doMock, dontMock, unmock)")
+    fi
+    
+    # toHaveBeenCalled and related matchers
+    if echo "$content" | grep -qE "\.toHaveBeenCalled(With|Times|LastCalledWith|NthCalledWith)?\("; then
+        violations+=("Mock verification matchers found (toHaveBeenCalled, toHaveBeenCalledWith, etc.)")
+    fi
+    
+    # Type assertions with as jest.Mock
+    if echo "$content" | grep -qE "as jest\.(Mock|MockedFunction)"; then
+        violations+=("Type assertion with jest.Mock or jest.MockedFunction found")
+    fi
+    
+    # jest.MockedFunction type
+    if echo "$content" | grep -qE "jest\.MockedFunction<"; then
+        violations+=("jest.MockedFunction<> type found")
+    fi
+    
+    # Common mock patterns like mockReturnValue, mockResolvedValue, mockClear, mockReset
+    if echo "$content" | grep -qE "\.mock(Return|Resolved|Rejected|Implementation|Clear|Reset)"; then
+        violations+=("Mock configuration methods found (mockReturnValue, mockResolvedValue, mockClear, etc.)")
+    fi
+    
+    # Return violations array (only if not empty)
+    if [ ${#violations[@]} -gt 0 ]; then
+        printf '%s\n' "${violations[@]}"
+    fi
+}
+
+# Function to check if file path is a test file
+is_test_file() {
+    local file_path="$1"
+    case "$file_path" in
+        *.test.ts|*.test.tsx|*.test.js|*.test.jsx|\
+        *.spec.ts|*.spec.tsx|*.spec.js|*.spec.jsx|\
+        */__tests__/*|*/tests/*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Function to extract content and file path from tool input
+extract_content_from_input() {
+    local json_input="$1"
+    local tool_name
+    local content=""
+    local file_path=""
+    
+    tool_name=$(echo "$json_input" | jq -r '.tool_name // empty' 2>/dev/null)
+    debug "Tool name: $tool_name"
+    
+    case "$tool_name" in
+        "Write")
+            content=$(echo "$json_input" | jq -r '.tool_input.content // empty' 2>/dev/null)
+            file_path=$(echo "$json_input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+            ;;
+        "Edit")
+            content=$(echo "$json_input" | jq -r '.tool_input.new_string // empty' 2>/dev/null)
+            file_path=$(echo "$json_input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+            ;;
+        "MultiEdit")
+            file_path=$(echo "$json_input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+            # For MultiEdit, check all edit operations
+            local edit_count
+            edit_count=$(echo "$json_input" | jq -r '.tool_input.edits | length' 2>/dev/null)
+            if [ "$edit_count" != "null" ] && [ "$edit_count" -gt 0 ]; then
+                for i in $(seq 0 $((edit_count - 1))); do
+                    local new_string
+                    new_string=$(echo "$json_input" | jq -r ".tool_input.edits[$i].new_string // empty" 2>/dev/null)
+                    content="${content}${new_string}"$'\n'
+                done
+            fi
+            ;;
+        *)
+            debug "Unsupported tool: $tool_name"
+            return 0
+            ;;
+    esac
+    
+    # Check if this is a test file (only skip if file_path is provided AND it's not a test file)
+    if [ -n "$file_path" ] && ! is_test_file "$file_path"; then
+        debug "File is not a test file: $file_path, skipping check"
+        return 0
+    fi
+    
+    # If no file_path provided but we have content, still check it (assume it might be a test)
+    if [ -z "$file_path" ] && [ -n "$content" ]; then
+        debug "No file path provided, checking content anyway"
+    elif [ -n "$file_path" ]; then
+        debug "Test file detected: $file_path, checking content"
+    fi
+    
+    echo "$content"
+}
+
+# Function to output permission decision JSON
+output_decision() {
+    local decision="$1"
+    local reason="$2"
+    
+    cat << EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "$decision",
+    "permissionDecisionReason": "$reason"
+  }
+}
+EOF
+}
+
+# Function to build helpful guidance message
+build_guidance_message() {
+    local violations="$1"
+    
+    local msg="❌ Jest mocking detected. This codebase uses integration-first testing with real implementations.\n\n"
+    msg="${msg}**Violations found:**\n"
+    
+    while IFS= read -r violation; do
+        msg="${msg}  • $violation\n"
+    done <<< "$violations"
+    
+    msg="${msg}\n"
+    msg="${msg}**✅ Use Real Implementations Instead:**\n\n"
+    
+    msg="${msg}**1. Database Operations → Use getTestSql():**\n"
+    msg="${msg}\`\`\`typescript\n"
+    msg="${msg}import { getTestSql } from '@productivity-bot/test-utilities/sql';\n"
+    msg="${msg}import { initializeDatabase } from '../src/database.js';\n\n"
+    msg="${msg}describe('Feature', () => {\n"
+    msg="${msg}  it('performs database operation', async () => {\n"
+    msg="${msg}    const { sql } = await getTestSql(); // Real test database\n"
+    msg="${msg}    await initializeDatabase(sql);\n"
+    msg="${msg}    const handlers = createYourHandlers({ sql });\n"
+    msg="${msg}    \n"
+    msg="${msg}    const result = await handlers.operation(data);\n"
+    msg="${msg}    \n"
+    msg="${msg}    // Verify in real database\n"
+    msg="${msg}    const [dbRecord] = await sql\`SELECT * FROM table WHERE id = \${result.id}\`;\n"
+    msg="${msg}    expect(dbRecord).toMatchObject(expected);\n"
+    msg="${msg}  });\n"
+    msg="${msg}});\n"
+    msg="${msg}\`\`\`\n\n"
+    
+    msg="${msg}**2. File Operations → Use temp directories:**\n"
+    msg="${msg}\`\`\`typescript\n"
+    msg="${msg}const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'test-'));\n"
+    msg="${msg}const processor = createFileProcessor({ directory: tempDir });\n"
+    msg="${msg}await processor.writeFile('test.txt', 'content');\n"
+    msg="${msg}const result = await processor.readFile('test.txt');\n"
+    msg="${msg}expect(result).toBe('content');\n"
+    msg="${msg}\`\`\`\n\n"
+    
+    msg="${msg}**3. WebSockets → Use real ws server:**\n"
+    msg="${msg}\`\`\`typescript\n"
+    msg="${msg}import { WebSocketServer } from 'ws';\n"
+    msg="${msg}const wss = new WebSocketServer({ port: 0 }); // Random port\n"
+    msg="${msg}const address = wss.address() as AddressInfo;\n"
+    msg="${msg}const ws = new WebSocket(\`ws://localhost:\${address.port}\`);\n"
+    msg="${msg}\`\`\`\n\n"
+    
+    msg="${msg}**4. React Hooks/Stores → Use real implementations:**\n"
+    msg="${msg}\`\`\`typescript\n"
+    msg="${msg}// Don't mock hooks - use real store with test data\n"
+    msg="${msg}const store = createStore({ initialState: testData });\n"
+    msg="${msg}const { result } = renderHook(() => useStore(), { wrapper: StoreProvider });\n"
+    msg="${msg}\`\`\`\n\n"
+    
+    msg="${msg}**5. Internal Services → Use dependency injection:**\n"
+    msg="${msg}\`\`\`typescript\n"
+    msg="${msg}// Handler factory pattern (preferred)\n"
+    msg="${msg}export function createUserHandlers({ sql }: { sql: PostgresConnection }) {\n"
+    msg="${msg}  return {\n"
+    msg="${msg}    async addUser(data: UserData) {\n"
+    msg="${msg}      const [user] = await sql\`INSERT INTO users \${sql(data)} RETURNING *\`;\n"
+    msg="${msg}      return user;\n"
+    msg="${msg}    }\n"
+    msg="${msg}  };\n"
+    msg="${msg}}\n\n"
+    msg="${msg}// In tests - inject real database\n"
+    msg="${msg}const { sql } = await getTestSql();\n"
+    msg="${msg}const handlers = createUserHandlers({ sql });\n"
+    msg="${msg}\`\`\`\n\n"
+    
+    msg="${msg}**6. Background Processes → Use jestTeardownQueue:**\n"
+    msg="${msg}\`\`\`typescript\n"
+    msg="${msg}import { jestTeardownQueue } from '@productivity-bot/test-utilities/jest-teardown';\n"
+    msg="${msg}const unlisten = await startListener();\n"
+    msg="${msg}void jestTeardownQueue.add(unlisten); // Auto cleanup after test\n"
+    msg="${msg}\`\`\`\n\n"
+    
+    msg="${msg}**🚫 NO MOCKS ALLOWED - Handle External Services:**\n"
+    msg="${msg}  • Stripe/Payments → Use test mode with test API keys\n"
+    msg="${msg}  • Twilio/SMS → Use test credentials (won't send real messages)\n"
+    msg="${msg}  • OpenAI/LLMs → Create simple echo service for tests\n"
+    msg="${msg}  • Email → Use local SMTP server or service test mode\n"
+    msg="${msg}  • Rate-limited APIs → Use test endpoints or retry logic\n\n"
+    
+    msg="${msg}**Common Anti-Patterns to Avoid:**\n"
+    msg="${msg}  ❌ Don't mock internal hooks/services → Use real implementations\n"
+    msg="${msg}  ❌ Don't mock auth modules → Use real auth with test database\n"
+    msg="${msg}  ❌ Don't mock YJS/collaborative structures → Use real YJS Doc\n"
+    msg="${msg}  ❌ Don't mock database operations → Use getTestSql()\n\n"
+    
+    msg="${msg}**Resources:**\n"
+    msg="${msg}  • See .claude/agents/project/project-implementer.md for integration patterns\n"
+    msg="${msg}  • Mocking is NEVER allowed - use real implementations exclusively"
+    
+    echo "$msg"
+}
+
+# Main function
+main() {
+    # Read JSON input from stdin
+    local json_input
+    if ! json_input=$(cat); then
+        echo -e "${RED}Error: Failed to read input from stdin${NC}" >&2
+        output_decision "deny" "Failed to read input from stdin"
+        return 0
+    fi
+    
+    debug "Input JSON: $json_input"
+    
+    # Validate JSON input
+    if ! echo "$json_input" | jq . >/dev/null 2>&1; then
+        echo -e "${RED}Error: Invalid JSON input${NC}" >&2
+        output_decision "deny" "Invalid JSON input provided"
+        return 0
+    fi
+    
+    # Extract content to check
+    local content
+    content=$(extract_content_from_input "$json_input")
+    
+    if [ -z "$content" ]; then
+        debug "No content to check, allowing"
+        output_decision "allow" "No test content to check"
+        return 0
+    fi
+    
+    debug "Content to check: $content"
+    
+    # Check for mock patterns
+    local violations
+    readarray -t violations < <(check_for_mock_patterns "$content")
+    
+    if [ ${#violations[@]} -eq 0 ]; then
+        debug "No violations found, allowing"
+        output_decision "allow" "No Jest mocking patterns detected"
+        return 0
+    fi
+    
+    # Build guidance message
+    local guidance
+    guidance=$(build_guidance_message "$(printf '%s\n' "${violations[@]}")")
+    
+    echo -e "${RED}Jest mocking detected:${NC}" >&2
+    for violation in "${violations[@]}"; do
+        echo -e "  ${YELLOW}•${NC} $violation" >&2
+    done
+    echo -e "\n${CYAN}Use integration testing with real implementations instead.${NC}" >&2
+    echo -e "${CYAN}See .claude/agents/project/project-implementer.md for patterns.${NC}" >&2
+    
+    output_decision "deny" "$guidance"
+    return 0
+}
+
+# Error handling
+set -eE
+trap 'echo -e "${RED}Script error at line $LINENO${NC}" >&2; output_decision "deny" "Internal script error"' ERR
+
+# Run main function
+main "$@"

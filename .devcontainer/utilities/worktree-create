@@ -1,0 +1,208 @@
+#!/usr/bin/env zsh
+
+# Create a new git worktree with a new branch and launch Cursor with Claude Code
+# Usage: ./create-worktree.sh <project-name>
+
+set -e
+
+# Check if project name is provided
+if [[ -z "$1" ]]; then
+    echo "Error: Project name is required"
+    echo "Usage: $0 <project-name>"
+    exit 1
+fi
+
+PROJECT_NAME="$1"
+BRANCH_NAME="${PROJECT_NAME}"
+WORKTREE_DIR="/workspace/.worktrees/${BRANCH_NAME}"
+
+# Find the project in any of the project directories
+PROJECT_PATH=""
+for dir in projects/new projects/pending projects/active projects/ready-for-review; do
+    if [[ -d "/workspace/${dir}/${PROJECT_NAME}" ]]; then
+        PROJECT_PATH="${dir}/${PROJECT_NAME}"
+        break
+    fi
+done
+
+# Check if worktree already exists as a valid git worktree
+if git worktree list | grep -q "${WORKTREE_DIR}"; then
+    echo "Worktree '${WORKTREE_DIR}' already exists, skipping creation..."
+elif [[ -d "${WORKTREE_DIR}" ]]; then
+    echo "Directory '${WORKTREE_DIR}' exists but is not a valid worktree. Removing it..."
+    rm -rf "${WORKTREE_DIR}"
+    echo "Creating worktree for branch '${BRANCH_NAME}'..."
+    
+    # Create the worktree with a new branch
+    if ! git worktree add -b "${BRANCH_NAME}" "${WORKTREE_DIR}"; then
+        echo "Error: Failed to create worktree"
+        exit 1
+    fi
+    
+    echo "Worktree created at: ${WORKTREE_DIR}"
+else
+    echo "Creating worktree for branch '${BRANCH_NAME}'..."
+    
+    # Create the worktree with a new branch
+    if ! git worktree add -b "${BRANCH_NAME}" "${WORKTREE_DIR}"; then
+        echo "Error: Failed to create worktree"
+        exit 1
+    fi
+    
+    echo "Worktree created at: ${WORKTREE_DIR}"
+fi
+
+# Verify the worktree was created successfully before continuing
+if [[ ! -d "${WORKTREE_DIR}/.git" ]] && [[ ! -f "${WORKTREE_DIR}/.git" ]]; then
+    echo "Error: Worktree directory exists but .git file/folder is missing"
+    exit 1
+fi
+
+cd "${WORKTREE_DIR}"
+
+# Copy specific Git settings from main repository to worktree
+echo "Copying Git settings from main repository..."
+
+# Copy editor setting if it exists
+if git --git-dir=/workspace/.git config --get core.editor >/dev/null 2>&1; then
+    EDITOR_CONFIG=$(git --git-dir=/workspace/.git config --get core.editor)
+    git config core.editor "$EDITOR_CONFIG"
+    echo "  Copied: core.editor = $EDITOR_CONFIG"
+fi
+
+# Copy user settings if they exist
+if git --git-dir=/workspace/.git config --get user.name >/dev/null 2>&1; then
+    USER_NAME=$(git --git-dir=/workspace/.git config --get user.name)
+    git config user.name "$USER_NAME"
+    echo "  Copied: user.name = $USER_NAME"
+fi
+
+if git --git-dir=/workspace/.git config --get user.email >/dev/null 2>&1; then
+    USER_EMAIL=$(git --git-dir=/workspace/.git config --get user.email)
+    git config user.email "$USER_EMAIL"
+    echo "  Copied: user.email = $USER_EMAIL"
+fi
+
+# Copy other commonly useful settings
+for setting in core.autocrlf core.ignorecase pull.rebase; do
+    if git --git-dir=/workspace/.git config --get "$setting" >/dev/null 2>&1; then
+        VALUE=$(git --git-dir=/workspace/.git config --get "$setting")
+        git config "$setting" "$VALUE"
+        echo "  Copied: $setting = $VALUE"
+    fi
+done
+
+# Enable corepack for yarn
+echo "Enabling corepack..."
+CI=1 corepack enable
+
+# Run yarn install in the new worktree
+echo "Installing dependencies..."
+yarn install
+
+# Copy MCP servers from main workspace to the worktree
+echo "Copying MCP servers..."
+# Use hardcoded /workspace as main workspace since we're already in the worktree directory
+MAIN_WORKSPACE="/workspace"
+cd "$MAIN_WORKSPACE"
+if /workspace/.devcontainer/utilities/claude-copy-mcp-servers "${WORKTREE_DIR}"; then
+    echo "  MCP servers copied successfully"
+else
+    echo "  Warning: Failed to copy some MCP servers"
+fi
+cd "${WORKTREE_DIR}"
+
+# Link the projects directory from the root repository
+echo "Linking projects directory..."
+if [[ -d "/workspace/projects" ]]; then
+    ln -s "/workspace/projects" "${WORKTREE_DIR}/projects"
+    echo "  Linked: projects directory"
+fi
+
+# Link the reports directory from the root repository
+echo "Linking reports directory..."
+if [[ -d "/workspace/reports" ]]; then
+    ln -s "/workspace/reports" "${WORKTREE_DIR}/reports"
+    echo "  Linked: reports directory"
+fi
+
+
+# Copy all .env and .env.test files maintaining directory structure
+echo "Copying environment files..."
+cd /workspace
+find . -path "./.worktrees" -prune -o -path "./.git" -prune -o -type f \( -name ".env" -o -name ".env.test" \) -print | while read -r env_file; do
+    # Create the directory structure in the worktree
+    dir_path=$(dirname "$env_file")
+    mkdir -p "${WORKTREE_DIR}/${dir_path}"
+    
+    # Copy the file
+    cp "$env_file" "${WORKTREE_DIR}/${env_file}"
+    echo "  Copied: $env_file"
+done
+cd "${WORKTREE_DIR}"
+
+# Create a .vscode directory with workspace settings
+mkdir -p "${WORKTREE_DIR}/.vscode"
+
+# Initialize the command file for Claude
+COMMAND_FILE="${WORKTREE_DIR}/.claude-next-command"
+if [[ -n "${PROJECT_PATH}" ]]; then
+    # Project found - write simple argument format for automatic selection
+    echo "/project:begin ${PROJECT_NAME}" > "${COMMAND_FILE}"
+else
+    # No project found - write basic command
+    echo "/project:begin" > "${COMMAND_FILE}"
+fi
+
+# Create tasks.json to run Claude Code on startup
+cat > "${WORKTREE_DIR}/.vscode/tasks.json" << EOF
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Launch Claude Code",
+      "type": "shell",
+      "command": "while true; do claude \"\$(cat .claude-next-command)\"; echo \"Claude exited. Restarting...\"; done",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new",
+        "showReuseMessage": false,
+        "clear": false,
+        "group": "claude"
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
+EOF
+
+# Create settings.json to enable automatic task execution and configure terminal
+cat > "${WORKTREE_DIR}/.vscode/settings.json" << EOF
+{
+  "task.allowAutomaticTasks": "on",
+  "terminal.integrated.defaultLocation": "editor"
+}
+EOF
+
+# Launch Cursor IDE in the new worktree
+# Since we're already in the devcontainer, just open the folder directly
+echo "Launching Cursor IDE..."
+cursor editor "${WORKTREE_DIR}"
+
+echo ""
+echo "Worktree setup complete!"
+echo "Branch: ${BRANCH_NAME}"
+echo "Location: ${WORKTREE_DIR}"
+if [[ -n "${PROJECT_PATH}" ]]; then
+    echo "Project: ${PROJECT_NAME} found at ${PROJECT_PATH}"
+else
+    echo "Project: ${PROJECT_NAME} not found in project directories"
+fi
+echo ""
+echo "Note: Claude Code will launch automatically when Cursor opens."
+echo "The .claude-next-command file has been configured."

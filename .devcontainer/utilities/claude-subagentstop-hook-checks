@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# claude-subagentstop-hook-checks: Run all scripts in subagent-stop-checks directory
+# Usage: claude-subagentstop-hook-checks
+# Returns: exit code 0 if all checks pass, 1 if any returns 1, 2 if any returns >1
+
+# Define the directory containing check scripts
+CHECKS_DIR="subagent-stop-checks"
+
+# Check if the directory exists
+if [ ! -d "$CHECKS_DIR" ]; then
+    # No checks directory - exit successfully
+    exit 0
+fi
+
+# Find all executable scripts in the checks directory
+CHECK_SCRIPTS=()
+while IFS= read -r -d '' script; do
+    CHECK_SCRIPTS+=("$script")
+done < <(find "$CHECKS_DIR" -maxdepth 1 -type f -executable -print0 2>/dev/null)
+
+# If no scripts found, exit successfully
+if [ ${#CHECK_SCRIPTS[@]} -eq 0 ]; then
+    exit 0
+fi
+
+# Track highest exit code
+HIGHEST_EXIT_CODE=0
+
+# Run each check script
+for script in "${CHECK_SCRIPTS[@]}"; do
+    # Run the script and capture output and exit code
+    # If exit code is 1 or 2, redirect all output to stderr
+    if [ $HIGHEST_EXIT_CODE -eq 0 ]; then
+        # Create temp files for output capture
+        TEMP_STDOUT=$(mktemp)
+        TEMP_STDERR=$(mktemp)
+        
+        # Run the script and capture both stdout and stderr
+        # Use script command to fake TTY for better formatted output (e.g., TypeScript errors)
+        # We need to capture the exit code separately since script doesn't preserve it
+        TEMP_EXIT=$(mktemp)
+        script -q -c "$script 2>&1; echo \$? > $TEMP_EXIT" "$TEMP_STDOUT" >/dev/null 2>&1
+        EXIT_CODE=$(cat "$TEMP_EXIT")
+        rm -f "$TEMP_EXIT"
+        
+        # Clean up script command artifacts
+        if [ -f "$TEMP_STDOUT" ]; then
+            # Create a clean temp file without script command artifacts
+            TEMP_CLEAN=$(mktemp)
+            # Skip the first line (Script started...) and last two lines (exit code and Script done...)
+            sed -e '1d' -e '$d' -e '$d' -e 's/\r$//' "$TEMP_STDOUT" > "$TEMP_CLEAN"
+            mv "$TEMP_CLEAN" "$TEMP_STDOUT"
+        fi
+        
+        # If exit code is >= 1, redirect all output to stderr with proper formatting
+        if [ $EXIT_CODE -ge 1 ]; then
+            # Output all captured content to stderr, preserving formatting
+            cat "$TEMP_STDOUT" >&2
+        else
+            # Otherwise output normally (no script name for successful scripts)
+            # Since we combined stdout and stderr, just output everything
+            cat "$TEMP_STDOUT"
+        fi
+        
+        # Clean up temp files
+        rm -f "$TEMP_STDOUT" "$TEMP_STDERR"
+    else
+        # If we already have a failure, just run and redirect to stderr
+        "$script" 2>&1 >&2
+        EXIT_CODE=$?
+    fi
+    
+    # Track the highest exit code
+    if [ $EXIT_CODE -gt $HIGHEST_EXIT_CODE ]; then
+        HIGHEST_EXIT_CODE=$EXIT_CODE
+    fi
+done
+
+# Return appropriate exit code
+if [ $HIGHEST_EXIT_CODE -gt 1 ]; then
+    echo -e "\n\n===== QUALITY CHECK FAILED =====" >&2
+    exit 2
+elif [ $HIGHEST_EXIT_CODE -eq 1 ]; then
+    echo -e "\n\n===== QUALITY CHECK FAILED =====" >&2
+    exit 1
+else
+    exit 0
+fi

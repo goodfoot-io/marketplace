@@ -1,0 +1,252 @@
+#!/bin/bash
+
+# toggle-test-agent-mcp - Enable or disable the test-agent MCP server
+
+set -e
+
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Path to Claude configuration file
+CLAUDE_CONFIG="/home/node/.claude/.claude.json"
+
+# Path to test-agent server
+TEST_AGENT_SERVER="/workspace/.devcontainer/utilities/test-agent-mcp-server.js"
+
+# Default agent instructions directory
+AGENT_INSTRUCTIONS_DIR="/workspace/.claude/agents"
+
+# Check if jq is installed
+if ! command -v jq &> /dev/null; then
+    echo -e "${RED}Error: jq is not installed. Please install jq to use this utility.${NC}"
+    exit 1
+fi
+
+# Check if claude command exists
+if ! command -v claude &> /dev/null; then
+    echo -e "${RED}Error: claude command not found. Please ensure Claude CLI is installed.${NC}"
+    exit 1
+fi
+
+# Check if test-agent server exists
+if [ ! -f "$TEST_AGENT_SERVER" ]; then
+    echo -e "${RED}Error: test-agent MCP server not found at $TEST_AGENT_SERVER${NC}"
+    echo "Please build the server first with: cd /workspace/packages/mcp-servers && yarn build"
+    exit 1
+fi
+
+# Check if config file exists
+if [ ! -f "$CLAUDE_CONFIG" ]; then
+    echo -e "${YELLOW}Warning: Claude config file not found at $CLAUDE_CONFIG${NC}"
+    echo "Creating minimal config..."
+    mkdir -p "$(dirname "$CLAUDE_CONFIG")"
+    echo '{}' > "$CLAUDE_CONFIG"
+fi
+
+# Check if test-agent MCP server is currently installed
+is_installed() {
+    if claude mcp list 2>&1 | grep -q "^test-agent:"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Create example agent instruction files if they don't exist
+create_example_agents() {
+    if [ ! -d "$AGENT_INSTRUCTIONS_DIR" ]; then
+        echo -e "${CYAN}Creating example agent instruction files...${NC}"
+        mkdir -p "$AGENT_INSTRUCTIONS_DIR"
+
+        # Research Agent
+        cat > "$AGENT_INSTRUCTIONS_DIR/research-agent.md" << 'EOF'
+# Research Agent
+
+You are a specialized research agent focused on gathering and analyzing information.
+
+## Primary Objective
+Conduct thorough research on topics provided by the user.
+
+## Capabilities
+- Search for information using available tools
+- Analyze and synthesize findings
+- Provide comprehensive summaries
+- Identify key insights and patterns
+
+## Research Process
+1. Understand the research question
+2. Break down into sub-questions if needed
+3. Gather information from multiple sources
+4. Cross-reference and validate findings
+5. Synthesize into a coherent response
+
+## Output Format
+- Start with an executive summary
+- Present main findings with evidence
+- Include relevant code examples or data
+- End with conclusions and recommendations
+EOF
+
+        # Code Review Agent
+        cat > "$AGENT_INSTRUCTIONS_DIR/code-review-agent.md" << 'EOF'
+# Code Review Agent
+
+You are a senior engineer conducting code reviews.
+
+## Review Focus Areas
+- Code quality and maintainability
+- Performance considerations
+- Security vulnerabilities
+- Best practices adherence
+- Test coverage
+
+## Review Process
+1. Understand the code's purpose
+2. Check for logical errors
+3. Evaluate code structure
+4. Identify improvement opportunities
+5. Provide actionable feedback
+
+## Feedback Style
+- Be constructive and specific
+- Provide examples of improvements
+- Acknowledge good practices
+- Prioritize issues by severity
+EOF
+
+        # Documentation Agent
+        cat > "$AGENT_INSTRUCTIONS_DIR/documentation-agent.md" << 'EOF'
+# Documentation Agent
+
+You are a technical writer specializing in developer documentation.
+
+## Documentation Goals
+- Clear and concise explanations
+- Comprehensive coverage
+- Practical examples
+- Consistent formatting
+
+## Documentation Process
+1. Analyze the code/feature
+2. Identify key concepts
+3. Structure information logically
+4. Add code examples
+5. Include troubleshooting tips
+
+## Output Format
+- Overview section
+- Prerequisites
+- Step-by-step instructions
+- Code examples
+- Common issues and solutions
+EOF
+
+        # Testing Agent
+        cat > "$AGENT_INSTRUCTIONS_DIR/testing-agent.md" << 'EOF'
+# Testing Agent
+
+You are a QA engineer focused on comprehensive testing.
+
+## Testing Strategy
+- Unit test coverage
+- Integration testing
+- Edge case identification
+- Performance testing
+- Security testing
+
+## Test Creation Process
+1. Analyze functionality
+2. Identify test scenarios
+3. Write test cases
+4. Include positive and negative tests
+5. Document expected outcomes
+
+## Test Output
+- Test descriptions
+- Setup requirements
+- Test code
+- Expected results
+- Cleanup procedures
+EOF
+
+        echo -e "${GREEN}✓ Created example agent instruction files in $AGENT_INSTRUCTIONS_DIR${NC}"
+    fi
+}
+
+# Main logic
+if is_installed; then
+    echo -e "${YELLOW}Test-agent MCP server is currently enabled${NC}"
+    echo "Disabling test-agent MCP server..."
+
+    if claude mcp remove test-agent; then
+        echo -e "${GREEN}✓ Test-agent MCP server has been disabled${NC}"
+    else
+        echo -e "${RED}✗ Failed to disable test-agent MCP server${NC}"
+        exit 1
+    fi
+else
+    echo -e "${YELLOW}Test-agent MCP server is currently disabled${NC}"
+    echo "Enabling test-agent MCP server..."
+
+    # Create example agents if needed
+    create_example_agents
+
+    # Add the test-agent MCP server
+    if claude mcp add test-agent \
+        --env NODE_ENV=production \
+        -- node "$TEST_AGENT_SERVER"; then
+        echo -e "${GREEN}✓ Test-agent MCP server has been enabled${NC}"
+        echo -e "${BLUE}ℹ Features:${NC}"
+        echo "  • Custom agent system instructions from files"
+        echo "  • Execution logging to .agent-executions/"
+        echo "  • Task tool disabled (prevents recursive spawning)"
+        echo "  • Compatible with all Claude Code tools except Task"
+    else
+        echo -e "${RED}✗ Failed to enable test-agent MCP server${NC}"
+        exit 1
+    fi
+fi
+
+# Show current status
+echo
+echo "Current MCP server status:"
+if is_installed; then
+    echo -e "${GREEN}Test-agent MCP server: ENABLED${NC}"
+    echo -e "${BLUE}Server location: $TEST_AGENT_SERVER${NC}"
+    echo -e "${BLUE}Agent instructions: $AGENT_INSTRUCTIONS_DIR${NC}"
+else
+    echo -e "${RED}Test-agent MCP server: DISABLED${NC}"
+fi
+
+# Show available agents if enabled
+if is_installed && [ -d "$AGENT_INSTRUCTIONS_DIR" ]; then
+    echo
+    echo -e "${CYAN}Available agent instructions:${NC}"
+    for agent in "$AGENT_INSTRUCTIONS_DIR"/*.md; do
+        if [ -f "$agent" ]; then
+            basename="${agent##*/}"
+            name="${basename%.md}"
+            echo "  • $name: $agent"
+        fi
+    done
+fi
+
+# Show usage tips
+echo
+echo -e "${BLUE}Usage tips:${NC}"
+echo "  • Call the task tool with: mcp__test_agent__task"
+echo "  • Provide absolute path to instruction file"
+echo "  • Create custom agents in: $AGENT_INSTRUCTIONS_DIR"
+echo "  • View execution logs in: /workspace/.agent-executions/"
+echo
+echo -e "${CYAN}Example usage in Claude Code:${NC}"
+echo '  mcp__test_agent__task({'
+echo '    description: "Research task",'
+echo '    prompt: "Research WebAssembly performance optimizations",'
+echo '    system_instructions_file: "/workspace/.claude/agents/research-agent.md"'
+echo '  })'

@@ -1,0 +1,84 @@
+#!/usr/bin/env zsh
+
+# Write the next iteration command and kill the current Claude instance
+# Usage: complete-iteration [project-name]
+# If no project name is provided, will select next available project
+
+set -e
+
+# Get the worktree root (should be the current working directory or a parent)
+WORKTREE_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+COMMAND_FILE="${WORKTREE_ROOT}/.claude-next-command"
+
+# Check if project name is provided
+if [[ $# -eq 0 ]]; then
+    # No parameters - write basic command for next project
+    echo "/project:begin" > "${COMMAND_FILE}"
+    echo "Next command written to: ${COMMAND_FILE}"
+    echo "No project specified - will select next available project"
+else
+    # Project name provided
+    PROJECT_NAME="$1"
+    
+    # Find the project in any of the project directories
+    PROJECT_PATH=""
+    for dir in projects/new projects/pending projects/active projects/ready-for-review; do
+        if [[ -d "/workspace/${dir}/${PROJECT_NAME}" ]]; then
+            PROJECT_PATH="${dir}/${PROJECT_NAME}"
+            break
+        fi
+    done
+    
+    # Write the command to the file
+    if [[ -n "${PROJECT_PATH}" ]]; then
+        # Project found - write simple argument format for automatic selection
+        echo "/project:begin ${PROJECT_NAME}" > "${COMMAND_FILE}"
+        echo "Next command written to: ${COMMAND_FILE}"
+        echo "Project: ${PROJECT_NAME} found at ${PROJECT_PATH}"
+    else
+        # No project found - write basic command
+        echo "/project:begin" > "${COMMAND_FILE}"
+        echo "Next command written to: ${COMMAND_FILE}"
+        echo "Warning: Project ${PROJECT_NAME} not found in project directories"
+    fi
+fi
+
+# Find and kill the Claude process
+echo "Stopping Claude instance..."
+# Force flush output
+sync
+
+# Function to find claude process in the parent hierarchy
+find_claude_pid() {
+    local current_pid=$1
+    local max_depth=10
+    local depth=0
+    
+    while [[ $depth -lt $max_depth && $current_pid -gt 1 ]]; do
+        # Check if current PID is claude
+        if ps -p $current_pid -o comm= 2>/dev/null | grep -q "^claude$"; then
+            echo $current_pid
+            return 0
+        fi
+        
+        # Get parent PID
+        current_pid=$(ps -p $current_pid -o ppid= 2>/dev/null | tr -d ' ')
+        ((depth++))
+    done
+    
+    return 1
+}
+
+
+if CLAUDE_PID=$(find_claude_pid $$); then
+    echo "Found Claude process: PID $CLAUDE_PID"
+    echo "Sending SIGINT to PID $CLAUDE_PID..."
+    sync
+    kill -2 $CLAUDE_PID
+    echo "Kill command executed with exit code: $?"
+else
+    echo "Warning: Could not find claude process in parent hierarchy"
+    echo "Current process tree:"
+    ps -eo pid,ppid,comm | grep -E "($$|claude)" | head -20
+    exit 1
+fi

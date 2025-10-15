@@ -1,0 +1,977 @@
+#!/usr/bin/env node
+
+const { Project, ScriptTarget, ModuleKind, ModuleResolutionKind, SyntaxKind } = require('ts-morph');
+const path = require('path');
+const fs = require('fs');
+const { dump } = require('js-yaml');
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+let pwd;
+let paths = [];
+let typeFilters = [];
+
+// Check for parameters
+let i = 0;
+while (i < args.length) {
+  if (args[i] === '--pwd' && i + 1 < args.length) {
+    pwd = args[i + 1];
+    i += 2;
+  } else if (args[i] === '--type' && i + 1 < args.length) {
+    typeFilters.push(args[i + 1]);
+    i += 2;
+  } else {
+    paths.push(args[i]);
+    i++;
+  }
+}
+
+if (paths.length === 0) {
+  console.error('Usage: print-typescript-types [--pwd <directory>] [--type <typename>] <file-or-module-path> [<file-or-module-path> ...]');
+  console.error('  --pwd <directory>   Set the working directory for relative paths');
+  console.error('  --type <typename>   Filter output to only show specified type (can be used multiple times)');
+  process.exit(1);
+}
+
+// Initialize project with proper TypeScript configuration
+const project = new Project({
+  compilerOptions: {
+    target: ScriptTarget.ES2022,
+    module: ModuleKind.CommonJS,
+    strict: true,
+    skipLibCheck: true,
+    declaration: true,
+    emitDeclarationOnly: true,
+    esModuleInterop: true,
+    moduleResolution: ModuleResolutionKind.NodeJs
+  }
+});
+
+// Helper to get full type declaration as it would appear in a .d.ts file
+function getFullDeclaration(declaration) {
+  if (declaration.isKind(SyntaxKind.FunctionDeclaration)) {
+    // Get the full function signature
+    const name = declaration.getName();
+    const typeParams = declaration.getTypeParameters();
+    const params = declaration.getParameters();
+    const returnType = declaration.getReturnType();
+    
+    let sig = `function ${name}`;
+    
+    // Add type parameters if any
+    if (typeParams && typeParams.length > 0) {
+      sig += `<${typeParams.map(tp => tp.getText()).join(', ')}>`;
+    }
+    
+    // Add parameters
+    const paramStrs = params.map(p => {
+      const paramName = p.getName();
+      const paramType = p.getType();
+      const isOptional = p.hasQuestionToken();
+      const isRest = p.isRestParameter();
+      
+      let paramStr = isRest ? `...${paramName}` : paramName;
+      if (isOptional) paramStr += '?';
+      paramStr += `: ${paramType.getText()}`;
+      
+      return paramStr;
+    });
+    
+    const returnTypeText = returnType.getText();
+    // Clean up import paths in return type
+    const cleanedReturnType = cleanImportPath(returnTypeText);
+    sig += `(${paramStrs.join(', ')}): ${cleanedReturnType}`;
+    return sig;
+  } else if (declaration.isKind(SyntaxKind.VariableDeclaration)) {
+    const name = declaration.getName();
+    const type = declaration.getType();
+    const typeText = type.getText();
+    // Clean up import paths in type text
+    const cleanedType = cleanImportPath(typeText);
+    return `const ${name}: ${cleanedType}`;
+  } else if (declaration.isKind(SyntaxKind.TypeAliasDeclaration)) {
+    // Remove export keyword from declaration text
+    const text = declaration.getText();
+    return text.replace(/^export\s+/, '');
+  } else if (declaration.isKind(SyntaxKind.InterfaceDeclaration)) {
+    // Remove export keyword from declaration text
+    const text = declaration.getText();
+    return text.replace(/^export\s+/, '');
+  } else if (declaration.isKind(SyntaxKind.EnumDeclaration)) {
+    // Remove export keyword from declaration text
+    const text = declaration.getText();
+    return text.replace(/^export\s+/, '');
+  } else if (declaration.isKind(SyntaxKind.ClassDeclaration)) {
+    // For classes, we'll construct a cleaner representation
+    const name = declaration.getName();
+    let classStr = `class ${name}`;
+    
+    const typeParams = declaration.getTypeParameters();
+    if (typeParams && typeParams.length > 0) {
+      classStr += `<${typeParams.map(tp => tp.getText()).join(', ')}>`;
+    }
+    
+    const extendsClauses = declaration.getExtends();
+    if (extendsClauses && extendsClauses.length > 0) {
+      classStr += ` extends ${extendsClauses[0].getText()}`;
+    }
+    
+    const implementsClauses = declaration.getImplements();
+    if (implementsClauses && implementsClauses.length > 0) {
+      classStr += ` implements ${implementsClauses.map(i => i.getText()).join(', ')}`;
+    }
+    
+    classStr += ' {';
+    
+    // Add constructor
+    const constructors = declaration.getConstructors();
+    constructors.forEach(ctor => {
+      const hasPrivate = ctor.getModifiers && ctor.getModifiers().some(m => m.getKind() === SyntaxKind.PrivateKeyword);
+      if (!hasPrivate) {
+        const params = ctor.getParameters().map(p => {
+          const paramName = p.getName();
+          const paramType = p.getType();
+          const paramTypeText = paramType.getText();
+          const cleanedParamType = cleanImportPath(paramTypeText);
+          const isOptional = p.hasQuestionToken && p.hasQuestionToken();
+          return `${paramName}${isOptional ? '?' : ''}: ${cleanedParamType}`;
+        }).join(', ');
+        classStr += `\n  constructor(${params});`;
+      }
+    });
+    
+    // Add properties
+    declaration.getProperties().forEach(prop => {
+      const modifiers = prop.getModifiers ? prop.getModifiers() : [];
+      const hasPrivate = modifiers.some(m => m.getKind() === SyntaxKind.PrivateKeyword);
+      if (!hasPrivate) {
+        const propName = prop.getName();
+        const propType = prop.getType();
+        const hasStatic = modifiers.some(m => m.getKind() === SyntaxKind.StaticKeyword);
+        const hasReadonly = modifiers.some(m => m.getKind() === SyntaxKind.ReadonlyKeyword);
+        const modStrs = [];
+        if (hasStatic) modStrs.push('static');
+        if (hasReadonly) modStrs.push('readonly');
+        const modStr = modStrs.length > 0 ? modStrs.join(' ') + ' ' : '';
+        const propTypeText = propType.getText();
+        const cleanedPropType = cleanImportPath(propTypeText);
+        classStr += `\n  ${modStr}${propName}: ${cleanedPropType};`;
+      }
+    });
+    
+    // Add methods
+    declaration.getMethods().forEach(method => {
+      const modifiers = method.getModifiers ? method.getModifiers() : [];
+      const hasPrivate = modifiers.some(m => m.getKind() === SyntaxKind.PrivateKeyword);
+      if (!hasPrivate) {
+        const methodName = method.getName();
+        const typeParams = method.getTypeParameters();
+        const params = method.getParameters();
+        const returnType = method.getReturnType();
+        const hasStatic = modifiers.some(m => m.getKind() === SyntaxKind.StaticKeyword);
+        const hasAsync = modifiers.some(m => m.getKind() === SyntaxKind.AsyncKeyword);
+        
+        let methodStr = '';
+        if (hasStatic) methodStr += 'static ';
+        if (hasAsync) methodStr += 'async ';
+        methodStr += methodName;
+        
+        if (typeParams && typeParams.length && typeParams.length > 0) {
+          methodStr += `<${typeParams.map(tp => tp.getText()).join(', ')}>`;
+        }
+        
+        const paramStrs = params.map(p => {
+          const paramName = p.getName();
+          const paramType = p.getType();
+          const paramTypeText = paramType.getText();
+          const cleanedParamType = cleanImportPath(paramTypeText);
+          const isOptional = p.hasQuestionToken && p.hasQuestionToken();
+          return `${paramName}${isOptional ? '?' : ''}: ${cleanedParamType}`;
+        });
+        
+        const returnTypeText = returnType.getText();
+        const cleanedReturnType = cleanImportPath(returnTypeText);
+        methodStr += `(${paramStrs.join(', ')}): ${cleanedReturnType};`;
+        classStr += `\n  ${methodStr}`;
+      }
+    });
+    
+    classStr += '\n}';
+    return classStr;
+  }
+  
+  // Fallback to text representation
+  const text = declaration.getText();
+  return text.replace(/^export\s+/, '');
+}
+
+// Common type aliases for cleaner output
+const commonTypeAliases = {
+  'Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>': 'SocketIOServer',
+  'Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>': 'SocketIOServer',
+  'Socket<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>': 'SocketIOSocket',
+  'Sql<Record<string, PostgresType>>': 'PostgresConnection',
+  'TransactionSql<Record<string, PostgresType>>': 'PostgresTransactionConnection',
+  'Express.Request': 'ExpressRequest',
+  'Express.Response': 'ExpressResponse',
+  'Express.NextFunction': 'ExpressNext',
+  'ZodObject<any, any, any, any, any>': 'ZodObject',
+  'ZodType<any, any, any>': 'ZodType',
+  'ZodString': 'ZodString',
+  'ZodNumber': 'ZodNumber',
+  'ZodBoolean': 'ZodBoolean',
+  'ZodArray<any, any>': 'ZodArray',
+  'ZodOptional<any>': 'ZodOptional',
+  'ZodDefault<any>': 'ZodDefault',
+  'Promise<void>': 'Promise<void>',
+  'Promise<any>': 'Promise<any>',
+  'Record<string, any>': 'Record<string, any>',
+  'Record<string, unknown>': 'Record<string, unknown>'
+};
+
+// Helper to clean import paths from types
+function cleanImportPath(typeText) {
+  // Remove import("..."). patterns
+  let cleaned = typeText.replace(/import\("[^"]+"\)\./g, '');
+  
+  // Apply regex-based type simplifications first
+  cleaned = cleaned
+    // Simplify Zod types with complex generics
+    .replace(/ZodObject<[^>]+>/g, 'ZodObject')
+    .replace(/ZodArray<[^>]+>/g, 'ZodArray')
+    .replace(/ZodOptional<[^>]+>/g, 'ZodOptional')
+    .replace(/ZodDefault<[^>]+>/g, 'ZodDefault')
+    .replace(/ZodType<[^>]+>/g, 'ZodType')
+    // Simplify Socket.io Server types
+    .replace(/Server<[^>]*ClientToServerEvents[^>]*>/g, 'SocketIOServer')
+    .replace(/Server<[^>]*DefaultEventsMap[^>]*>/g, 'SocketIOServer')
+    .replace(/Socket<[^>]*DefaultEventsMap[^>]*>/g, 'SocketIOSocket')
+    // Simplify Postgres types
+    .replace(/Sql<[^>]*PostgresType[^>]*>/g, 'PostgresConnection')
+    .replace(/TransactionSql<[^>]*PostgresType[^>]*>/g, 'PostgresTransactionConnection');
+  
+  // Then check for exact matches
+  for (const [pattern, alias] of Object.entries(commonTypeAliases)) {
+    if (cleaned === pattern) {
+      cleaned = alias;
+      break;
+    }
+  }
+  
+  return cleaned;
+}
+
+// Helper to simplify function signatures
+function simplifySignature(sig, project, maxDepth = 10, visitedTypes = new Set()) {
+  const params = {};
+  const parameters = sig.getParameters();
+  
+  // Helper function defined within simplifySignature scope
+  function resolveType(t, depth = 0) {
+    return simplifyType(t, project, maxDepth - depth, visitedTypes);
+  }
+  
+  // Check if this is a destructured parameter
+  if (parameters.length === 1) {
+    const param = parameters[0];
+    const paramName = param.getName();
+    
+    // Check if parameter name contains destructuring syntax or is a generated name
+    if (paramName.includes('{') || paramName.includes('[') || paramName.startsWith('__')) {
+      const paramType = param.getTypeAtLocation(param.getValueDeclaration());
+      
+      // If it's an object type, extract individual properties
+      if (paramType.isObject() && paramType.getProperties().length > 0) {
+        // Instead of using the destructured syntax as key, use individual properties
+        paramType.getProperties().forEach(prop => {
+          try {
+            const propName = prop.getName();
+            const propDecl = prop.getValueDeclaration();
+            if (propDecl) {
+              const propType = prop.getTypeAtLocation(propDecl);
+              const isOptional = propDecl.hasQuestionToken && propDecl.hasQuestionToken();
+              const resolvedType = resolveType(propType, 0);
+              params[propName + (isOptional ? '?' : '')] = resolvedType;
+            }
+          } catch (err) {
+            // Skip properties that cause errors
+          }
+        });
+      } else {
+        // Fall back to showing the parameter type
+        params['...args'] = resolveType(paramType, 0);
+      }
+    } else {
+      // Regular single parameter
+      params[paramName] = resolveType(param.getTypeAtLocation(param.getValueDeclaration()), 0);
+    }
+  } else if (parameters.length > 1) {
+    // Regular parameters
+    parameters.forEach(param => {
+      const paramName = param.getName();
+      const paramType = param.getTypeAtLocation(param.getValueDeclaration());
+      params[paramName] = resolveType(paramType, 0);
+    });
+  }
+  
+  const returnType = sig.getReturnType();
+  return {
+    params: params,
+    return: resolveType(returnType, 0)
+  };
+}
+
+// Helper to recursively simplify a type (similar to SimplifyDeep<T>)
+function simplifyType(type, project, maxDepth = 10, visitedTypes = new Set()) {
+  
+  function resolveType(t, depth = 0) {
+    if (depth >= maxDepth) {
+      return '...';
+    }
+    
+    const typeText = t.getText();
+    
+    // Check for circular references
+    if (visitedTypes.has(typeText) && depth > 0) {
+      const symbol = t.getSymbol();
+      if (symbol) {
+        const name = symbol.getName();
+        if (name && name !== '__type') {
+          return name;
+        }
+      }
+      return typeText;
+    }
+    visitedTypes.add(typeText);
+    
+    // If type is too complex (too many properties), just return its name
+    const symbol = t.getSymbol();
+    if (symbol && t.isObject()) {
+      const properties = t.getProperties();
+      if (properties.length > 20) {
+        // For very complex types, just return the type name
+        const typeName = symbol.getName();
+        if (typeName && typeName !== '__type') {
+          return typeName;
+        }
+      }
+    }
+    
+    // Handle primitives and built-in types
+    const primitiveTypes = ['string', 'number', 'boolean', 'bigint', 'symbol', 'null', 'undefined', 'void', 'any', 'unknown', 'never'];
+    const builtinTypes = ['Date', 'RegExp', 'Error', 'Function'];
+    if (primitiveTypes.includes(typeText) || builtinTypes.includes(typeText)) {
+      return typeText;
+    }
+    
+    // Handle Promise<T> and other generic types
+    const typeSymbol = t.getSymbol();
+    if (typeSymbol && typeSymbol.getName() === 'Promise' && t.isObject()) {
+      const typeArgs = t.getTypeArguments();
+      if (typeArgs && typeArgs.length > 0) {
+        const innerType = resolveType(typeArgs[0], depth + 1);
+        return `Promise<${innerType}>`;
+      }
+    }
+    
+    // Handle string literals
+    if (typeText.startsWith('"') && typeText.endsWith('"')) {
+      return typeText;
+    }
+    
+    // Handle number/boolean literals
+    if (/^-?\d+$/.test(typeText) || typeText === 'true' || typeText === 'false') {
+      return typeText;
+    }
+    
+    // Handle arrays
+    if (t.isArray()) {
+      const elementType = t.getArrayElementType();
+      return `${resolveType(elementType, depth + 1)}[]`;
+    }
+    
+    // Handle tuples
+    if (t.isTuple()) {
+      const elements = t.getTupleElements();
+      return `[${elements.map(e => resolveType(e, depth + 1)).join(', ')}]`;
+    }
+    
+    // Handle function types
+    const callSignatures = t.getCallSignatures();
+    if (callSignatures.length > 0 && !t.isObject()) {
+      const sig = callSignatures[0];
+      const params = sig.getParameters().map(p => {
+        const paramType = p.getTypeAtLocation(p.getValueDeclaration());
+        return `${p.getName()}: ${resolveType(paramType, depth + 1)}`;
+      });
+      const returnType = sig.getReturnType();
+      return `(${params.join(', ')}) => ${resolveType(returnType, depth + 1)}`;
+    }
+    
+    // Handle union types
+    if (t.isUnion()) {
+      const unionTypes = t.getUnionTypes();
+      return unionTypes.map(ut => resolveType(ut, depth + 1)).join(' | ');
+    }
+    
+    // Handle intersection types
+    if (t.isIntersection()) {
+      const parts = t.getIntersectionTypes().map(it => resolveType(it, depth + 1));
+      // If all parts are objects, merge them
+      if (parts.every(p => p.startsWith('{') && p.endsWith('}'))) {
+        const merged = parts.map(p => p.slice(1, -1).trim()).filter(p => p).join(', ');
+        return `{ ${merged} }`;
+      }
+      return parts.join(' & ');
+    }
+    
+    // Handle object types
+    const objSymbol = t.getSymbol();
+    if (objSymbol && t.isObject()) {
+      const properties = t.getProperties();
+      
+      if (properties.length === 0) {
+        return '{}';
+      }
+      
+      // For generic types like RealtimeAgent<unknown>, show simplified form
+      const typeName = objSymbol.getName();
+      if (typeName && typeName !== '__type') {
+        const typeArgs = t.getTypeArguments();
+        if (typeArgs && typeArgs.length > 0) {
+          const argStrs = typeArgs.map(arg => resolveType(arg, depth + 1));
+          return `${typeName}<${argStrs.join(', ')}>`;
+        }
+        // Check if this is an interface that we should always expand
+        const shouldAlwaysExpand = ['RealtimeTransportLayer', 'EventEmitter'].includes(typeName);
+        
+        // If it's a known type with many properties, consider whether to expand
+        if (properties.length > 10 && !shouldAlwaysExpand) {
+          // Check if this is a well-known type that should be abbreviated
+          const wellKnownTypes = ['Date', 'Error', 'Promise', 'Array', 'Map', 'Set', 'WeakMap', 'WeakSet'];
+          if (wellKnownTypes.includes(typeName)) {
+            return typeName;
+          }
+          
+          // For interfaces, try to show at least some properties
+          if (depth < 2) {
+            // Continue to show properties
+          } else {
+            return typeName;
+          }
+        }
+      }
+      
+      // Check for base types/extended interfaces
+      const baseTypes = [];
+      if (objSymbol && objSymbol.getDeclarations) {
+        const declarations = objSymbol.getDeclarations();
+        if (declarations && declarations.length > 0) {
+          const decl = declarations[0];
+          if (decl.getKind && decl.getKind() === SyntaxKind.InterfaceDeclaration) {
+            const interfaceDecl = decl;
+            const heritage = interfaceDecl.getExtends && interfaceDecl.getExtends();
+            if (heritage && heritage.length > 0) {
+              heritage.forEach(h => {
+                const baseTypeText = h.getText();
+                baseTypes.push(cleanImportPath(baseTypeText));
+              });
+            }
+          }
+        }
+      }
+      
+      const propStrs = [];
+      // Show base types first if any
+      if (baseTypes.length > 0) {
+        propStrs.push(`[extends ${baseTypes.join(', ')}]`);
+      }
+      
+      // Limit the number of properties shown for readability
+      const propsToShow = properties.slice(0, 20);
+      const hasMore = properties.length > 20;
+      
+      propsToShow.forEach(prop => {
+        try {
+          const propName = prop.getName();
+          const propDecl = prop.getValueDeclaration();
+          if (!propDecl) return;
+          
+          const propType = prop.getTypeAtLocation(propDecl);
+          const isOptional = propDecl.hasQuestionToken && propDecl.hasQuestionToken();
+          
+          // Handle function properties
+          if (propType.getCallSignatures().length > 0) {
+            const sig = propType.getCallSignatures()[0];
+            const params = sig.getParameters().slice(0, 3).map(p => {
+              const paramType = p.getTypeAtLocation(p.getValueDeclaration());
+              return `${p.getName()}: ${resolveType(paramType, depth + 1)}`;
+            });
+            if (sig.getParameters().length > 3) {
+              params.push('...');
+            }
+            const returnType = sig.getReturnType();
+            propStrs.push(`${propName}${isOptional ? '?' : ''}: (${params.join(', ')}) => ${resolveType(returnType, depth + 1)}`);
+          } else {
+            const resolvedType = resolveType(propType, depth + 1);
+            propStrs.push(`${propName}${isOptional ? '?' : ''}: ${resolvedType}`);
+          }
+        } catch (err) {
+          // Skip properties that cause errors
+        }
+      });
+      
+      if (hasMore) {
+        propStrs.push('...');
+      }
+      
+      // Format as multiline if many properties
+      if (propStrs.length > 3) {
+        return `{\n  ${propStrs.join(',\n  ')}\n}`;
+      }
+      return `{ ${propStrs.join(', ')} }`;
+    }
+    
+    // Clean up import paths and apply type aliases before returning
+    return cleanImportPath(typeText);
+  }
+  
+  // Check if this is a function type at the top level
+  const callSignatures = type.getCallSignatures();
+  if (callSignatures.length > 0) {
+    return simplifySignature(callSignatures[0], project, maxDepth, visitedTypes);
+  }
+  
+  // Otherwise, simplify the type
+  return resolveType(type, 0);
+}
+
+// Process a source file and extract types
+function processSourceFile(sourceFile) {
+  const filePath = sourceFile.getFilePath();
+  const exports = [];
+  
+  // Get all exported declarations
+  const exportedDeclarations = sourceFile.getExportedDeclarations();
+  
+  exportedDeclarations.forEach((declarations, name) => {
+    declarations.forEach(declaration => {
+      let typeInfo = {
+        name: name
+      };
+      
+      try {
+        // Get the full declaration
+        typeInfo.declaration = getFullDeclaration(declaration);
+        
+        // Get the simplified type for supported declarations
+        if (declaration.isKind(SyntaxKind.TypeAliasDeclaration) ||
+            declaration.isKind(SyntaxKind.InterfaceDeclaration)) {
+          const type = declaration.getType();
+          typeInfo.simplified = simplifyType(type, project);
+        } else if (declaration.isKind(SyntaxKind.VariableDeclaration)) {
+          const type = declaration.getType();
+          // Check if this is a function type
+          const callSignatures = type.getCallSignatures();
+          if (callSignatures.length > 0) {
+            // Handle as function - already returns proper signature format
+            typeInfo.simplified = simplifyType(type, project);
+          } else {
+            // Regular variable
+            typeInfo.simplified = simplifyType(type, project);
+          }
+        } else if (declaration.isKind(SyntaxKind.FunctionDeclaration)) {
+          // For functions, use the same signature simplification logic
+          const functionType = declaration.getType();
+          const callSignatures = functionType.getCallSignatures();
+          if (callSignatures.length > 0) {
+            typeInfo.simplified = simplifySignature(callSignatures[0], project);
+          } else {
+            // Fallback to original logic
+            const params = {};
+            declaration.getParameters().forEach(param => {
+              const paramName = param.getName();
+              const paramType = param.getType();
+              params[paramName] = simplifyType(paramType, project);
+            });
+            
+            const returnType = declaration.getReturnType();
+            const simplifiedReturn = simplifyType(returnType, project);
+            
+            typeInfo.simplified = {
+              params: params,
+              return: simplifiedReturn
+            };
+          }
+        } else if (declaration.isKind(SyntaxKind.ClassDeclaration)) {
+          // For classes, simplify the instance type
+          const type = declaration.getType();
+          typeInfo.simplified = simplifyType(type, project);
+        }
+      } catch (err) {
+        typeInfo.error = err.message;
+      }
+      
+      exports.push(typeInfo);
+    });
+  });
+  
+  return {
+    file: filePath,
+    exports: exports
+  };
+}
+
+// Helper to resolve workspace packages
+function resolveWorkspacePackage(packageName, basePath) {
+  // Check if this is a workspace package by looking at the root package.json
+  const rootPackageJsonPath = path.join(basePath, '..', '..', 'package.json');
+  if (fs.existsSync(rootPackageJsonPath)) {
+    const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf-8'));
+    if (rootPackageJson.workspaces) {
+      // Extract the package name and subpath
+      const parts = packageName.split('/');
+      let mainPackageName = packageName;
+      let subPath = '';
+      
+      if (parts[0].startsWith('@')) {
+        // Scoped package like @productivity-bot/models
+        mainPackageName = parts.slice(0, 2).join('/');
+        subPath = parts.slice(2).join('/');
+      } else if (parts.length > 1) {
+        // Regular package with subpath
+        mainPackageName = parts[0];
+        subPath = parts.slice(1).join('/');
+      }
+      
+      // Search for workspace package
+      const workspaces = Array.isArray(rootPackageJson.workspaces) 
+        ? rootPackageJson.workspaces 
+        : rootPackageJson.workspaces.packages || [];
+      
+      for (const workspace of workspaces) {
+        const workspacePattern = workspace.replace('/*', '');
+        const workspacePath = path.join(basePath, '..', '..', workspacePattern);
+        
+        // Check each directory in the workspace pattern
+        if (fs.existsSync(workspacePath) && fs.statSync(workspacePath).isDirectory()) {
+          const dirs = workspace.includes('*') 
+            ? fs.readdirSync(workspacePath).map(d => path.join(workspacePath, d))
+            : [workspacePath];
+          
+          for (const dir of dirs) {
+            if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) continue;
+            
+            const pkgJsonPath = path.join(dir, 'package.json');
+            if (fs.existsSync(pkgJsonPath)) {
+              const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+              if (pkgJson.name === mainPackageName) {
+                // Found the workspace package
+                if (subPath) {
+                  // Handle subpath exports
+                  if (pkgJson.exports && pkgJson.exports['./' + subPath]) {
+                    const exportConfig = pkgJson.exports['./' + subPath];
+                    const typesPath = exportConfig.types || exportConfig.import;
+                    if (typesPath) {
+                      const resolvedPath = path.join(dir, typesPath);
+                      if (fs.existsSync(resolvedPath)) {
+                        return resolvedPath;
+                      }
+                    }
+                  }
+                  
+                  // Try common subpath locations
+                  const subPathLocations = [
+                    path.join(dir, 'build', 'types', 'src', subPath + '.d.ts'),
+                    path.join(dir, 'build', 'types', 'src', subPath, 'index.d.ts'),
+                    path.join(dir, 'build', 'dist', 'src', subPath + '.d.ts'),
+                    path.join(dir, 'dist', subPath + '.d.ts'),
+                    path.join(dir, 'dist', subPath, 'index.d.ts'),
+                    path.join(dir, subPath + '.d.ts'),
+                    path.join(dir, subPath, 'index.d.ts'),
+                    path.join(dir, 'src', subPath + '.ts'),
+                    path.join(dir, 'src', subPath, 'index.ts')
+                  ];
+                  
+                  for (const location of subPathLocations) {
+                    if (fs.existsSync(location)) {
+                      return location;
+                    }
+                  }
+                } else {
+                  // No subpath, use main export
+                  if (pkgJson.exports && pkgJson.exports['.']) {
+                    const exportConfig = pkgJson.exports['.'];
+                    const typesPath = exportConfig.types;
+                    if (typesPath) {
+                      const resolvedPath = path.join(dir, typesPath);
+                      if (fs.existsSync(resolvedPath)) {
+                        return resolvedPath;
+                      }
+                    }
+                  }
+                  
+                  // Fallback to types/typings field
+                  const typesField = pkgJson.types || pkgJson.typings;
+                  if (typesField) {
+                    const resolvedPath = path.join(dir, typesField);
+                    if (fs.existsSync(resolvedPath)) {
+                      return resolvedPath;
+                    }
+                  }
+                  
+                  // Try common locations
+                  const commonLocations = [
+                    path.join(dir, 'build', 'types', 'src', 'index.d.ts'),
+                    path.join(dir, 'build', 'dist', 'src', 'index.d.ts'),
+                    path.join(dir, 'dist', 'index.d.ts'),
+                    path.join(dir, 'index.d.ts'),
+                    path.join(dir, 'src', 'index.ts'),
+                    path.join(dir, 'src', 'index.d.ts')
+                  ];
+                  
+                  for (const location of commonLocations) {
+                    if (fs.existsSync(location)) {
+                      return location;
+                    }
+                  }
+                }
+                
+                console.error(`Could not find type definitions for workspace package '${mainPackageName}'. Try running 'yarn build' in the package directory.`);
+                return null;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  return null;
+}
+
+// Helper to resolve npm packages
+function resolveNpmPackage(packageName, basePath) {
+  // First try to resolve as a workspace package
+  const workspaceResult = resolveWorkspacePackage(packageName, basePath);
+  if (workspaceResult) {
+    return workspaceResult;
+  }
+  
+  // Check if this is a subpath import (e.g., @openai/agents/realtime)
+  const parts = packageName.split('/');
+  let mainPackageName = packageName;
+  let subPath = '';
+  
+  if (parts[0].startsWith('@')) {
+    // Scoped package like @openai/agents/realtime
+    mainPackageName = parts.slice(0, 2).join('/');
+    subPath = parts.slice(2).join('/');
+  } else if (parts.length > 1) {
+    // Regular package with subpath like lodash/debounce
+    mainPackageName = parts[0];
+    subPath = parts.slice(1).join('/');
+  }
+  
+  // Try to resolve using Node's module resolution algorithm
+  try {
+    // If there's a subpath, try to resolve the full package path first
+    if (subPath) {
+      try {
+        // Try to resolve the full path including subpath
+        const fullPath = require.resolve(packageName, { paths: [basePath] });
+        // Get the corresponding .d.ts file
+        const dtsPath = fullPath.replace(/\.js$/, '.d.ts').replace(/\.mjs$/, '.d.ts');
+        if (fs.existsSync(dtsPath)) {
+          return dtsPath;
+        }
+        return fullPath;
+      } catch {
+        // Fall back to manual resolution
+      }
+    }
+    
+    // Try to find package.json manually to avoid exports restrictions
+    let currentPath = basePath;
+    let packageDir = null;
+    
+    while (currentPath !== '/') {
+      const testPath = path.join(currentPath, 'node_modules', mainPackageName);
+      if (fs.existsSync(path.join(testPath, 'package.json'))) {
+        packageDir = testPath;
+        break;
+      }
+      currentPath = path.dirname(currentPath);
+    }
+    
+    if (!packageDir) {
+      throw new Error(`Package ${mainPackageName} not found`);
+    }
+    
+    const packageJsonPath = path.join(packageDir, 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    
+    // If there's a subpath, try to resolve it
+    if (subPath) {
+      // Check common locations for subpath
+      const subPathLocations = [
+        path.join(packageDir, 'dist', subPath + '.d.ts'),
+        path.join(packageDir, 'dist', subPath, 'index.d.ts'),
+        path.join(packageDir, subPath + '.d.ts'),
+        path.join(packageDir, subPath, 'index.d.ts'),
+        path.join(packageDir, 'lib', subPath + '.d.ts'),
+        path.join(packageDir, 'lib', subPath, 'index.d.ts')
+      ];
+      
+      for (const location of subPathLocations) {
+        if (fs.existsSync(location)) {
+          return location;
+        }
+      }
+      
+      console.error(`Could not find subpath '${subPath}' in package '${mainPackageName}'`);
+      return null;
+    }
+    
+    // Look for types field in package.json
+    if (packageJson.types || packageJson.typings) {
+      const typesPath = path.join(packageDir, packageJson.types || packageJson.typings);
+      if (fs.existsSync(typesPath)) {
+        return typesPath;
+      }
+    }
+  } catch (err) {
+    console.error(`Error resolving package '${mainPackageName}': ${err.message}`);
+    // Try to find in node_modules
+    let currentPath = basePath;
+    while (currentPath !== '/') {
+      const nodeModulesPath = path.join(currentPath, 'node_modules');
+      const packagePath = path.join(nodeModulesPath, ...packageName.split('/'));
+      
+      // Check for package.json
+      const packageJsonPath = path.join(packagePath, 'package.json');
+      if (fs.existsSync(packageJsonPath)) {
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+        const typesEntry = packageJson.types || packageJson.typings || 'index.d.ts';
+        const typesPath = path.join(packagePath, typesEntry);
+        if (fs.existsSync(typesPath)) {
+          return typesPath;
+        }
+      }
+      
+      // Check common locations
+      const possiblePaths = [
+        path.join(packagePath, 'index.d.ts'),
+        path.join(packagePath, 'dist', 'index.d.ts'),
+        path.join(packagePath, 'lib', 'index.d.ts'),
+        path.join(packagePath, 'index.ts')
+      ];
+      
+      for (const possiblePath of possiblePaths) {
+        if (fs.existsSync(possiblePath)) {
+          return possiblePath;
+        }
+      }
+      
+      currentPath = path.dirname(currentPath);
+    }
+  }
+  return null;
+}
+
+// Main processing
+const results = [];
+
+for (const inputPath of paths) {
+  let resolvedPath;
+  
+  // Check if it's an npm package:
+  // - Starts with @ (scoped package like @openai/agents-realtime)
+  // - Is a bare package name (no relative/absolute path indicators)
+  const isNpmPackage = inputPath.startsWith('@') || 
+    (!inputPath.startsWith('.') && !inputPath.startsWith('/') && !inputPath.match(/^[a-zA-Z0-9-]+\//));
+  
+  if (isNpmPackage) {
+    // Use pwd if provided, otherwise use current working directory
+    const basePath = pwd || process.cwd();
+    // Try to resolve as npm/workspace package
+    const packagePath = resolveNpmPackage(inputPath, basePath);
+    if (packagePath) {
+      resolvedPath = packagePath;
+    } else {
+      console.error(`Could not resolve package: ${inputPath}`);
+      continue;
+    }
+  } else {
+    resolvedPath = pwd ? path.resolve(pwd, inputPath) : path.resolve(inputPath);
+  }
+  
+  // Check if it's a file or a module
+  if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isFile()) {
+    // It's a file
+    const sourceFile = project.addSourceFileAtPath(resolvedPath);
+    results.push(processSourceFile(sourceFile));
+  } else if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isDirectory()) {
+    // Try to resolve as a module directory
+    try {
+      // Try to find package.json
+      const packageJsonPath = path.join(resolvedPath, 'package.json');
+      if (fs.existsSync(packageJsonPath)) {
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+        const typesEntry = packageJson.types || packageJson.typings || 'index.d.ts';
+        const typesPath = path.join(resolvedPath, typesEntry);
+        
+        if (fs.existsSync(typesPath)) {
+          const sourceFile = project.addSourceFileAtPath(typesPath);
+          results.push(processSourceFile(sourceFile));
+        }
+      } else {
+        // Try common type definition locations
+        const possiblePaths = [
+          path.join(resolvedPath, 'index.d.ts'),
+          path.join(resolvedPath, 'index.ts'),
+          path.join(resolvedPath, 'types.d.ts'),
+          path.join(resolvedPath, 'types', 'index.d.ts')
+        ];
+        
+        for (const possiblePath of possiblePaths) {
+          if (fs.existsSync(possiblePath)) {
+            const sourceFile = project.addSourceFileAtPath(possiblePath);
+            results.push(processSourceFile(sourceFile));
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error processing ${inputPath}: ${error.message}`);
+    }
+  }
+}
+
+// Filter results if type filters are specified
+let filteredResults = results;
+if (typeFilters.length > 0) {
+  filteredResults = results.map(fileResult => {
+    const filteredExports = fileResult.exports.filter(exp => 
+      typeFilters.includes(exp.name)
+    );
+    
+    // Only include files that have matching exports
+    if (filteredExports.length > 0) {
+      return {
+        ...fileResult,
+        exports: filteredExports
+      };
+    }
+    return null;
+  }).filter(result => result !== null);
+}
+
+// Output as YAML
+console.log(dump(filteredResults, { 
+  indent: 2, 
+  lineWidth: 120,
+  quotingType: '"',
+  forceQuotes: false,
+  noRefs: true
+}));

@@ -1,0 +1,146 @@
+#!/usr/bin/env zsh
+
+# Complete worktree work: commit, merge, and close
+# This script should be run from within a worktree created by create-worktree.sh
+
+set -e
+
+# Check if we're in a git worktree
+if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+    echo "Error: Not inside a git repository"
+    exit 1
+fi
+
+# Get the current branch name
+CURRENT_BRANCH=$(git branch --show-current)
+
+# Check if this is a worktree (not the main working tree)
+WORKTREE_PATH=$(git rev-parse --show-toplevel)
+if [[ ! "$WORKTREE_PATH" =~ "/.worktrees/" ]]; then
+    echo "Error: This script should be run from within a worktree (not the main repository)"
+    echo "Current path: $WORKTREE_PATH"
+    exit 1
+fi
+
+echo "Completing worktree for branch: $CURRENT_BRANCH"
+
+# Get the parent branch (usually main or master)
+# First, try to find the merge base with common default branches
+PARENT_BRANCH=""
+for branch in main master develop; do
+    if git show-ref --verify --quiet refs/heads/$branch; then
+        PARENT_BRANCH=$branch
+        break
+    fi
+done
+
+if [[ -z "$PARENT_BRANCH" ]]; then
+    echo "Error: Could not determine parent branch (tried: main, master, develop)"
+    exit 1
+fi
+
+echo "Parent branch: $PARENT_BRANCH"
+
+# Check for uncommitted changes
+if [[ -n $(git status --porcelain) ]]; then
+    echo "Found uncommitted changes. Generating commit message..."
+    
+    # Stage all changes
+    git add -A
+    
+    # Generate commit message using Claude Code in print mode
+    COMMIT_MSG=$(git diff --cached | claude --print "Based on these git changes, generate a concise commit message following conventional commit format (type: description). Focus on the 'why' not the 'what'. Keep it under 72 characters." 2>/dev/null || echo "")
+    
+    if [[ -z "$COMMIT_MSG" ]]; then
+        echo "Error: Failed to generate commit message with Claude Code"
+        echo "Please ensure Claude Code is installed and accessible"
+        exit 1
+    fi
+    
+    echo "Generated commit message: $COMMIT_MSG"
+    
+    # Commit the changes
+    git commit -m "$COMMIT_MSG"
+    echo "Changes committed successfully"
+else
+    echo "No uncommitted changes found"
+fi
+
+# Push the current branch
+echo "Pushing branch $CURRENT_BRANCH..."
+git push -u origin "$CURRENT_BRANCH"
+
+# Switch to parent branch
+echo "Switching to $PARENT_BRANCH branch..."
+cd /workspace
+git checkout "$PARENT_BRANCH"
+
+# Pull latest changes
+echo "Pulling latest changes for $PARENT_BRANCH..."
+git pull origin "$PARENT_BRANCH"
+
+# Attempt to merge the worktree branch
+echo "Merging $CURRENT_BRANCH into $PARENT_BRANCH..."
+if git merge --no-ff "$CURRENT_BRANCH" -m "Merge branch '$CURRENT_BRANCH' into $PARENT_BRANCH"; then
+    echo "Merge completed successfully"
+else
+    echo "Merge conflict detected. Asking Claude to resolve..."
+    
+    # Get the list of conflicted files
+    CONFLICTED_FILES=$(git diff --name-only --diff-filter=U)
+    
+    if [[ -z "$CONFLICTED_FILES" ]]; then
+        echo "Error: Git merge failed but no conflicts detected"
+        exit 1
+    fi
+    
+    echo "Conflicted files:"
+    echo "$CONFLICTED_FILES"
+    
+    # Use Claude to resolve the conflicts
+    echo "Resolving conflicts with Claude..."
+    cd /workspace
+    claude --print "I have a merge conflict while merging branch '$CURRENT_BRANCH' into '$PARENT_BRANCH'. The conflicted files are: $CONFLICTED_FILES. Please analyze and resolve these conflicts. If you are confident you can resolve them correctly, go ahead and fix all the conflicted files, stage them, and complete the merge with commit message 'Merge branch $CURRENT_BRANCH into $PARENT_BRANCH (conflicts resolved by Claude)'. If you are not confident or the conflicts are too complex, please abort the merge and exit with an error message explaining why."
+    
+    # Check if the merge was completed
+    if git rev-parse --verify MERGE_HEAD >/dev/null 2>&1; then
+        echo "Error: Claude could not complete the merge. Conflicts remain unresolved."
+        echo "Aborting merge..."
+        git merge --abort
+        exit 1
+    else
+        echo "Merge completed with Claude's assistance"
+    fi
+fi
+
+# Push the merge
+echo "Pushing merged changes..."
+git push origin "$PARENT_BRANCH"
+
+# Delete the remote branch
+echo "Deleting remote branch $CURRENT_BRANCH..."
+git push origin --delete "$CURRENT_BRANCH"
+
+# Remove the worktree
+echo "Removing worktree..."
+git worktree remove "$WORKTREE_PATH"
+
+# Delete the local branch
+echo "Deleting local branch $CURRENT_BRANCH..."
+git branch -d "$CURRENT_BRANCH"
+
+echo ""
+echo "✅ Worktree work complete!"
+echo "- Changes committed and pushed"
+echo "- Branch $CURRENT_BRANCH merged into $PARENT_BRANCH"
+echo "- Worktree and branch cleaned up"
+echo ""
+
+# Since we can't close the window programmatically from within the container,
+# create a marker file that could be monitored by an external script
+touch /tmp/.close-cursor-$CURRENT_BRANCH
+
+echo "Done!"
+echo ""
+echo "⚠️  Please close this Cursor window manually (Cmd+W or Ctrl+W)"
+echo "    The worktree has been successfully merged and cleaned up."

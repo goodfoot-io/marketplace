@@ -1,0 +1,160 @@
+name: Release Compare Branch Extension
+
+on:
+  push:
+    tags:
+      - 'compare-branch-v*'   # Trigger on tags like compare-branch-v0.5.67
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.5.67)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build extension
+        working-directory: packages/compare-branch-extension
+        run: yarn build
+
+      - name: Generate checksums
+        working-directory: packages/compare-branch-extension
+        run: |
+          sha256sum compare-branch-*.vsix > checksums.txt
+          cat checksums.txt
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#compare-branch-v}"  # Strip compare-branch-v prefix
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version to release: ${VERSION}"
+
+      - name: Generate release notes
+        id: notes
+        working-directory: packages/compare-branch-extension
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          cat > release-notes.md <<'EOF'
+          ## Compare Branch v${{ steps.version.outputs.version }}
+
+          ### Installation
+
+          1. Download `compare-branch-${{ steps.version.outputs.version }}.vsix`
+          2. Verify the SHA-256 checksum against `checksums.txt`
+          3. In VS Code: Extensions → `...` → Install from VSIX
+
+          ### Verification
+
+          ```bash
+          # Verify integrity
+          sha256sum -c checksums.txt
+          ```
+
+          See the [README](https://github.com/goodfoot-io/compare-branch-extension#readme) for full documentation.
+
+          ---
+
+          **Extension version:** ${{ steps.version.outputs.version }}
+          **VS Code:** ^1.85.0
+          **Node:** >=20.0.0
+          EOF
+          cat release-notes.md
+
+      - name: Create GitHub Release in Public Repository
+        env:
+          GH_TOKEN: ${{ secrets.GOODFOOT_IO_COMPARE_BRANCH_EXTENSION_GITHUB_PAT }}
+        working-directory: packages/compare-branch-extension
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Create release in PUBLIC repo
+          gh release create "v${VERSION}" \
+            --repo goodfoot-io/compare-branch-extension \
+            --title "Compare Branch v${VERSION}" \
+            --notes-file release-notes.md \
+            compare-branch-*.vsix \
+            checksums.txt
+
+      - name: Validate version consistency
+        working-directory: packages/compare-branch-extension
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ Version mismatch: package.json=$PACKAGE_VERSION, tag=$TAG_VERSION"
+            exit 1
+          fi
+          echo "✅ Version validated: $PACKAGE_VERSION"
+
+      - name: Verify VSIX package integrity
+        working-directory: packages/compare-branch-extension
+        run: |
+          if [ ! -f compare-branch-${{ steps.version.outputs.version }}.vsix ]; then
+            echo "❌ VSIX file not found!"
+            exit 1
+          fi
+
+          # Verify package integrity
+          sha256sum -c checksums.txt
+
+          echo "✅ VSIX package validated"
+
+      - name: Publish to Visual Studio Marketplace
+        id: publish_marketplace
+        uses: HaaLeo/publish-vscode-extension@v2
+        continue-on-error: true
+        with:
+          pat: ${{ secrets.COMPARE_BRANCH_EXTENSION_VS_MARKETPLACE_TOKEN }}
+          registryUrl: https://marketplace.visualstudio.com
+          extensionFile: packages/compare-branch-extension/compare-branch-${{ steps.version.outputs.version }}.vsix
+
+      - name: Publish to Open VSX Registry
+        id: publish_openvsx
+        uses: HaaLeo/publish-vscode-extension@v2
+        continue-on-error: true
+        with:
+          pat: ${{ secrets.COMPARE_BRANCH_EXTENSION_OPEN_VSX_TOKEN }}
+          extensionFile: packages/compare-branch-extension/compare-branch-${{ steps.version.outputs.version }}.vsix
+
+      - name: Summary
+        run: |
+          echo "✅ Release complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**GitHub Release:** https://github.com/goodfoot-io/compare-branch-extension/releases/tag/v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.publish_marketplace.outcome }}" == "success" ]; then
+            echo "**VS Marketplace:** ✅ Published to https://marketplace.visualstudio.com/items?itemName=goodfoot.compare-branch" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**VS Marketplace:** ❌ Publishing failed (check logs above)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.publish_openvsx.outcome }}" == "success" ]; then
+            echo "**Open VSX:** ✅ Published to https://open-vsx.org/extension/goodfoot/compare-branch" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Open VSX:** ❌ Publishing failed (check logs above)" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+# Multi-Armed Bandit Runner
+# Wrapper script to execute mab-runner.ts using Node's experimental strip types
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Execute the TypeScript file with node's experimental strip types
+# --no-warnings suppresses the MODULE_TYPELESS_PACKAGE_JSON warning
+exec node --no-warnings --experimental-strip-types "$SCRIPT_DIR/mab-runner.ts" "$@"

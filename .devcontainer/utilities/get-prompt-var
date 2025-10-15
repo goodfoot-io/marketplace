@@ -1,0 +1,175 @@
+#!/bin/bash
+
+# get-prompt-var: Retrieve a value for slash command template expansion
+#
+# Description:
+#   Retrieves a value previously stored by set-prompt-var using the specified key.
+#   MUST be used within embedded bash blocks (!`...`) in Claude Code slash commands.
+#   This utility is for template expansion only - Claude will not see or use these
+#   values directly. The retrieved values are substituted into the slash command
+#   template before Claude processes the command.
+#
+# Usage:
+#   Must be used in embedded bash blocks: !`get-prompt-var <key>`
+#
+# Arguments:
+#   key - The unique identifier used when storing the value with set-prompt-var.
+#         Must contain only alphanumeric characters and underscores.
+#
+# Returns:
+#   Outputs the retrieved value to stdout
+#   Exit code 0 on success, 1 on timeout, 2 on missing value file
+#
+# Timeout:
+#   Waits up to 3 seconds for the value to be available. This allows get-prompt-var
+#   to be called before or concurrently with set-prompt-var in slash commands.
+#
+# Examples in slash commands:
+#   !`get-prompt-var username`        # Expands to stored username
+#   !`get-prompt-var file_count`      # Expands to stored count
+#
+#   # Template expansion in slash command text:
+#   Analyze the !`get-prompt-var file_count` files in !`get-prompt-var directory`
+#
+#   # In concurrent embedded blocks:
+#   !`set-prompt-var result "$(complex_command)"`
+#   Process result: !`get-prompt-var result`
+#
+# Notes:
+#   - Values must be set within the current Claude Code session
+#   - Returns an error if the key doesn't exist or hasn't been set within 3 seconds
+#   - Multiple keys can be retrieved independently without interference
+#   - This is a templating utility - values are not visible to Claude directly
+
+# Get key argument
+KEY="$1"
+
+# Validate key
+if [ -z "$KEY" ]; then
+    cat >&2 <<'EOF'
+get-prompt-var: Retrieve a value for slash command template expansion
+
+USAGE:
+    Must be used in embedded bash blocks: !`get-prompt-var <key>`
+
+DESCRIPTION:
+    Retrieves a value previously stored by set-prompt-var using the specified key.
+    MUST be used within embedded bash blocks (!`...`) in Claude Code slash commands.
+
+    This utility is for TEMPLATE EXPANSION ONLY. Claude will not see or use these
+    values directly. The retrieved values are substituted into the slash command template
+    before Claude processes the command, allowing dynamic content insertion.
+
+ARGUMENTS:
+    <key>    The unique identifier used when storing the value with set-prompt-var.
+             Must contain only alphanumeric characters and underscores.
+
+TIMEOUT:
+    This utility will wait up to 3 seconds for the value to be available. This allows
+    get-prompt-var to be called before or concurrently with set-prompt-var in slash
+    commands with multiple embedded bash blocks.
+
+EXAMPLES IN SLASH COMMANDS:
+    !`get-prompt-var username`
+        Expands to the stored username value
+
+    !`get-prompt-var file_count`
+        Expands to the stored count
+
+    # Template expansion in slash command text:
+    Analyze the !`get-prompt-var file_count` files in !`get-prompt-var directory`
+        The values are substituted before Claude sees the command
+
+    # With concurrent embedded blocks:
+    !`set-prompt-var timestamp "$(date +%Y%m%d_%H%M%S)"`
+    !`set-prompt-var hostname "$(hostname)"`
+    Create backup at !`get-prompt-var timestamp` on !`get-prompt-var hostname`
+
+    # Retrieving command output stored earlier:
+    !`set-prompt-var git_status "$(git status --short)"`
+    Review these changes: !`get-prompt-var git_status`
+
+IMPORTANT:
+    - This is a TEMPLATING utility for slash command preprocessing
+    - Claude CANNOT access these values directly or call these utilities
+    - Values are substituted into the slash command BEFORE Claude sees it
+    - MUST be used within embedded bash blocks (!`...`)
+    - The output becomes part of the slash command text sent to Claude
+
+NOTES:
+    - Values must be set within the current Claude Code session
+    - Returns an error if the key doesn't exist or hasn't been set within 3 seconds
+    - Multiple keys can be retrieved independently without interference
+    - Output is sent to stdout for template substitution
+
+EXIT CODES:
+    0  Success - value was retrieved
+    1  Timeout - value was not available within 3 seconds
+    2  Error - sync file exists but value file is missing (data corruption)
+
+ERROR: Key name required
+EOF
+    exit 1
+fi
+
+# Validate key contains only alphanumeric characters and underscores
+if ! [[ "$KEY" =~ ^[a-zA-Z0-9_]+$ ]]; then
+    echo "Error: Key must contain only alphanumeric characters and underscores" >&2
+    exit 1
+fi
+
+# Source find-claude-pid utility
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -f "$SCRIPT_DIR/find-claude-pid" ]; then
+    source "$SCRIPT_DIR/find-claude-pid"
+else
+    echo "Error: Could not find find-claude-pid utility" >&2
+    exit 1
+fi
+
+# Get Claude PID
+if ! CLAUDE_PID=$(find_claude_pid); then
+    : # find_claude_pid returns fallback PID even on failure
+fi
+
+# Define var file path
+VAR_FILE="/tmp/prompt_var_${CLAUDE_PID}_${KEY}.sh"
+
+# Timeout is 3 seconds (30 iterations of 0.1s)
+MAX_ITERATIONS=30
+
+# Wait for a recent sync file to exist
+for ((i=1; i<=MAX_ITERATIONS; i++)); do
+    # Check for any sync file created within the last 5 seconds for this key
+    for sync_file in /tmp/prompt_var_sync_${CLAUDE_PID}_${KEY}_*; do
+        if [ -f "$sync_file" ]; then
+            # Extract timestamp from filename
+            FILE_TIMESTAMP=$(basename "$sync_file" | sed "s/prompt_var_sync_${CLAUDE_PID}_${KEY}_//")
+            if [ -n "$FILE_TIMESTAMP" ] && [ "$FILE_TIMESTAMP" -eq "$FILE_TIMESTAMP" ] 2>/dev/null; then
+                # Check if file was created within the last 5 seconds
+                CURRENT_TIME=$(date +%s)
+                if [ $((CURRENT_TIME - FILE_TIMESTAMP)) -lt 5 ]; then
+                    # Source the var file to get the value
+                    if [ -f "$VAR_FILE" ]; then
+                        source "$VAR_FILE"
+
+                        # Return the value
+                        printf '%s\n' "$PROMPT_VAR_VALUE"
+                        exit 0
+                    else
+                        # Sync file exists but var file doesn't - error condition
+                        echo "Error: Sync file found but value file missing for key '$KEY'" >&2
+                        exit 2
+                    fi
+                fi
+            fi
+        fi
+    done
+
+    # Sleep for 0.1 seconds
+    sleep 0.1
+done
+
+# Timeout reached
+echo "Error: Timeout waiting for value with key '$KEY' (3s)" >&2
+exit 1

@@ -1,0 +1,215 @@
+#!/bin/bash
+
+# claude-copy-mcp-servers - Copy MCP servers from current directory to target directory
+# Usage: claude-copy-mcp-servers <target-directory>
+#
+# This utility copies all MCP server configurations from the Claude instance
+# in the current working directory to the Claude instance in the target directory.
+
+set -e
+
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Check if target directory is provided
+if [[ -z "$1" ]]; then
+    echo -e "${RED}Error: Target directory is required${NC}"
+    echo "Usage: $0 <target-directory>"
+    exit 1
+fi
+
+TARGET_DIR="$1"
+
+# Check if target directory exists
+if [[ ! -d "$TARGET_DIR" ]]; then
+    echo -e "${RED}Error: Target directory does not exist: $TARGET_DIR${NC}"
+    exit 1
+fi
+
+# Check if claude command exists
+if ! command -v claude &> /dev/null; then
+    echo -e "${RED}Error: claude command not found. Please ensure Claude CLI is installed.${NC}"
+    exit 1
+fi
+
+# Check if jq is installed
+if ! command -v jq &> /dev/null; then
+    echo -e "${RED}Error: jq is not installed. Please install jq to use this utility.${NC}"
+    exit 1
+fi
+
+# Get the source directory (current working directory)
+SOURCE_DIR=$(pwd)
+CLAUDE_CONFIG="/home/node/.claude/.claude.json"
+
+echo -e "${BLUE}Copying MCP servers from $SOURCE_DIR to $TARGET_DIR${NC}"
+
+# Check if Claude config file exists
+if [[ ! -f "$CLAUDE_CONFIG" ]]; then
+    echo -e "${YELLOW}Warning: Claude config file not found at $CLAUDE_CONFIG${NC}"
+    echo "No MCP servers to copy."
+    exit 0
+fi
+
+# Get list of MCP servers from source directory config
+MCP_SERVERS=$(jq -r --arg source "$SOURCE_DIR" '.projects[$source].mcpServers // {} | to_entries[] | .key' "$CLAUDE_CONFIG" 2>/dev/null || echo "")
+
+if [[ -z "$MCP_SERVERS" ]]; then
+    echo -e "${YELLOW}No MCP servers found in source directory${NC}"
+    exit 0
+fi
+
+# Change to target directory for adding servers
+cd "$TARGET_DIR"
+
+# Counter for copied servers
+COPIED_COUNT=0
+FAILED_COUNT=0
+
+# Create temporary file for processing results
+TEMP_RESULTS="/tmp/mcp-copy-results-$$"
+touch "$TEMP_RESULTS"
+
+# Process each MCP server
+while IFS= read -r SERVER_NAME; do
+    echo -e "${BLUE}Processing: $SERVER_NAME${NC}"
+    
+    # Get server config from source directory
+    SERVER_CONFIG=$(jq -c --arg source "$SOURCE_DIR" --arg name "$SERVER_NAME" \
+        '.projects[$source].mcpServers[$name]' "$CLAUDE_CONFIG" 2>/dev/null)
+    
+    if [[ "$SERVER_CONFIG" == "null" ]] || [[ -z "$SERVER_CONFIG" ]]; then
+        echo -e "${YELLOW}  Warning: Could not retrieve configuration for $SERVER_NAME${NC}"
+        echo "FAILED" >> "$TEMP_RESULTS"
+        continue
+    fi
+    
+    # Parse the configuration
+    SERVER_TYPE=$(echo "$SERVER_CONFIG" | jq -r '.type')
+    
+    if [[ "$SERVER_TYPE" == "sse" ]]; then
+        # Handle SSE server type
+        SERVER_URL=$(echo "$SERVER_CONFIG" | jq -r '.url')
+        
+        # Remove existing server if it exists (to allow overwrite)
+        claude mcp remove "$SERVER_NAME" -s local 2>/dev/null || true
+        
+        if claude mcp add "$SERVER_NAME" "$SERVER_URL" -t sse -s local 2>/dev/null; then
+            echo -e "${GREEN}  ✓ Copied MCP server: $SERVER_NAME (SSE)${NC}"
+            echo "SUCCESS" >> "$TEMP_RESULTS"
+        else
+            echo -e "${RED}  ✗ Failed to copy: $SERVER_NAME${NC}"
+            echo "FAILED" >> "$TEMP_RESULTS"
+        fi
+        
+    elif [[ "$SERVER_TYPE" == "stdio" ]]; then
+        # Handle stdio server type
+        SERVER_COMMAND=$(echo "$SERVER_CONFIG" | jq -r '.command')
+
+        # Remove existing server if it exists (to allow overwrite)
+        claude mcp remove "$SERVER_NAME" -s local 2>/dev/null || true
+
+        # Build the command with args
+        # Options like -s local must come before the server name
+        # Use -- separator to indicate that following items are args, not options
+        CMD="claude mcp add -s local \"$SERVER_NAME\" \"$SERVER_COMMAND\""
+
+        # Check if we have any arguments
+        SERVER_ARGS=$(echo "$SERVER_CONFIG" | jq -r '.args[]?' 2>/dev/null)
+        if [[ -n "$SERVER_ARGS" ]]; then
+            # Add -- separator before args to prevent them from being interpreted as options
+            CMD="$CMD --"
+            while IFS= read -r arg; do
+                CMD="$CMD \"$arg\""
+            done <<< "$SERVER_ARGS"
+        fi
+
+        # Add environment variables if present
+        ENV_VARS=$(echo "$SERVER_CONFIG" | jq -r '.env // {} | to_entries[] | @sh "-e \(.key)=\(.value)"' 2>/dev/null)
+        if [[ -n "$ENV_VARS" ]]; then
+            while IFS= read -r env_var; do
+                # Remove the surrounding quotes added by @sh
+                env_var=$(eval echo "$env_var")
+
+
+                CMD="$CMD $env_var"
+            done <<< "$ENV_VARS"
+        fi
+
+        # Execute the command
+        if eval "$CMD" 2>/dev/null; then
+            echo -e "${GREEN}  ✓ Copied MCP server: $SERVER_NAME (stdio)${NC}"
+            echo "SUCCESS" >> "$TEMP_RESULTS"
+        else
+            echo -e "${RED}  ✗ Failed to copy: $SERVER_NAME${NC}"
+            echo "FAILED" >> "$TEMP_RESULTS"
+        fi
+        
+    elif [[ "$SERVER_TYPE" == "http" ]]; then
+        # Handle HTTP server type
+        SERVER_URL=$(echo "$SERVER_CONFIG" | jq -r '.url')
+        
+        # Remove existing server if it exists (to allow overwrite)
+        claude mcp remove "$SERVER_NAME" -s local 2>/dev/null || true
+        
+        # Build the command
+        CMD="claude mcp add \"$SERVER_NAME\" \"$SERVER_URL\" -t http"
+        
+        # Add headers if present
+        HEADERS=$(echo "$SERVER_CONFIG" | jq -r '.headers // {} | to_entries[] | @sh "-H \(.key): \(.value)"' 2>/dev/null)
+        if [[ -n "$HEADERS" ]]; then
+            while IFS= read -r header; do
+                header=$(eval echo "$header")
+                CMD="$CMD $header"
+            done <<< "$HEADERS"
+        fi
+        
+        CMD="$CMD -s local"
+        
+        if eval "$CMD" 2>/dev/null; then
+            echo -e "${GREEN}  ✓ Copied MCP server: $SERVER_NAME (HTTP)${NC}"
+            echo "SUCCESS" >> "$TEMP_RESULTS"
+        else
+            echo -e "${RED}  ✗ Failed to copy: $SERVER_NAME${NC}"
+            echo "FAILED" >> "$TEMP_RESULTS"
+        fi
+        
+    else
+        echo -e "${YELLOW}  Warning: Unknown server type: $SERVER_TYPE${NC}"
+        echo "FAILED" >> "$TEMP_RESULTS"
+    fi
+done <<< "$MCP_SERVERS"
+
+# Count results
+if [ -f "$TEMP_RESULTS" ]; then
+    COPIED_COUNT=$(grep -c "SUCCESS" "$TEMP_RESULTS" 2>/dev/null) || COPIED_COUNT=0
+    FAILED_COUNT=$(grep -c "FAILED" "$TEMP_RESULTS" 2>/dev/null) || FAILED_COUNT=0
+else
+    COPIED_COUNT=0
+    FAILED_COUNT=0
+fi
+
+# Clean up temp file
+rm -f "$TEMP_RESULTS"
+
+# Return to original directory
+cd "$SOURCE_DIR"
+
+# Summary
+echo
+echo -e "${BLUE}Summary:${NC}"
+echo -e "  Copied: ${GREEN}$COPIED_COUNT${NC} servers"
+if [[ "$FAILED_COUNT" -gt "0" ]]; then
+    echo -e "  Failed: ${RED}$FAILED_COUNT${NC} servers"
+fi
+
+# Exit with error if any servers failed to copy
+if [[ "$FAILED_COUNT" -gt "0" ]]; then
+    exit 1
+fi
+
+exit 0

@@ -1,0 +1,153 @@
+#!/bin/bash
+
+# set-prompt-var: Store a value for slash command template expansion
+#
+# Description:
+#   Stores a value associated with a key that can be retrieved by get-prompt-var.
+#   MUST be used within embedded bash blocks (!`...`) in Claude Code slash commands.
+#   This utility is for template expansion only - Claude will not see or use these
+#   values directly. The values are substituted into the slash command template
+#   before Claude processes the command.
+#
+# Usage:
+#   Must be used in embedded bash blocks: !`set-prompt-var <key> [value...]`
+#
+# Arguments:
+#   key    - A unique identifier for the stored value. Must contain only
+#            alphanumeric characters and underscores (e.g., mykey, data_1, CONFIG2)
+#   value  - The value to store. All arguments after the key are concatenated
+#            with spaces to form the value. Can be empty.
+#
+# Returns:
+#   Outputs the stored value to stdout for confirmation
+#   Exit code 0 on success, 1 on error
+#
+# Examples in slash commands:
+#   !`set-prompt-var username "John Doe"`
+#   !`set-prompt-var count $(ls | wc -l)`
+#   !`set-prompt-var branch $(git branch --show-current)`
+#
+# Notes:
+#   - Values persist only within the current Claude Code session
+#   - Storing a new value with an existing key overwrites the previous value
+#   - Special characters in values are automatically escaped for safe storage
+#   - This is a templating utility - values are not visible to Claude directly
+
+# Get first argument as key
+KEY="$1"
+shift  # Remove key from arguments
+
+# Remaining arguments are the value
+VALUE="$*"
+
+# Validate key
+if [ -z "$KEY" ]; then
+    cat >&2 <<'EOF'
+set-prompt-var: Store a value for slash command template expansion
+
+USAGE:
+    Must be used in embedded bash blocks: !`set-prompt-var <key> [value...]`
+
+DESCRIPTION:
+    Stores a value associated with a key that can be retrieved by get-prompt-var.
+    MUST be used within embedded bash blocks (!`...`) in Claude Code slash commands.
+
+    This utility is for TEMPLATE EXPANSION ONLY. Claude will not see or use these
+    values directly. The stored values are substituted into the slash command template
+    before Claude processes the command, allowing dynamic content generation.
+
+ARGUMENTS:
+    <key>       A unique identifier for the stored value. Must contain only
+                alphanumeric characters and underscores (e.g., mykey, data_1, CONFIG2)
+
+    [value...]  The value to store. All arguments after the key are concatenated
+                with spaces to form the value. Can be empty.
+
+EXAMPLES IN SLASH COMMANDS:
+    !`set-prompt-var username "John Doe"`
+        Store a name for template expansion
+
+    !`set-prompt-var file_count $(ls | wc -l)`
+        Store command output for later retrieval
+
+    !`set-prompt-var branch $(git branch --show-current)`
+        Store current git branch
+
+    !`set-prompt-var empty_value`
+        Store an empty value
+
+    # Multiple embedded blocks in one slash command:
+    !`set-prompt-var timestamp "$(date +%Y%m%d_%H%M%S)"`
+    !`set-prompt-var hostname "$(hostname)"`
+    Create backup at !`get-prompt-var timestamp` on !`get-prompt-var hostname`
+
+IMPORTANT:
+    - This is a TEMPLATING utility for slash command preprocessing
+    - Claude CANNOT access these values directly or call these utilities
+    - Values are substituted into the slash command BEFORE Claude sees it
+    - MUST be used within embedded bash blocks (!`...`)
+
+NOTES:
+    - Values persist only within the current Claude Code session
+    - Storing a new value with an existing key overwrites the previous value
+    - Special characters in values are automatically escaped for safe storage
+    - Works in conjunction with get-prompt-var for retrieving stored values
+
+EXIT CODES:
+    0  Success - value was stored
+    1  Error - invalid arguments or storage failure
+
+ERROR: Key name required
+EOF
+    exit 1
+fi
+
+# Validate key contains only alphanumeric characters and underscores
+if ! [[ "$KEY" =~ ^[a-zA-Z0-9_]+$ ]]; then
+    echo "Error: Key must contain only alphanumeric characters and underscores" >&2
+    exit 1
+fi
+
+# Source find-claude-pid utility
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -f "$SCRIPT_DIR/find-claude-pid" ]; then
+    source "$SCRIPT_DIR/find-claude-pid"
+else
+    echo "Error: Could not find find-claude-pid utility" >&2
+    exit 1
+fi
+
+# Get Claude PID
+if ! CLAUDE_PID=$(find_claude_pid); then
+    : # find_claude_pid returns fallback PID even on failure
+fi
+
+# Generate timestamp filename (rounded to nearest second)
+TIMESTAMP=$(date +%s)
+SYNC_FILE="/tmp/prompt_var_sync_${CLAUDE_PID}_${KEY}_${TIMESTAMP}"
+VAR_FILE="/tmp/prompt_var_${CLAUDE_PID}_${KEY}.sh"
+
+# Clean up ALL old sync files for this key and Claude instance
+for sync_file in /tmp/prompt_var_sync_${CLAUDE_PID}_${KEY}_*; do
+    if [ -f "$sync_file" ]; then
+        rm -f "$sync_file"
+    fi
+done
+
+# Write value to temp file
+rm -f "$VAR_FILE"
+# Escape special characters to prevent shell interpretation when sourced
+ESCAPED_VALUE=$(printf '%s' "$VALUE" | sed 's/\\/\\\\/g; s/"/\\"/g; s/`/\\`/g; s/\$/\\$/g')
+if ! printf 'export PROMPT_VAR_VALUE="%s"\n' "$ESCAPED_VALUE" > "$VAR_FILE"; then
+    echo "Error: Failed to write value to $VAR_FILE" >&2
+    exit 1
+fi
+
+# Signal that var file is ready by creating sync file
+if ! touch "$SYNC_FILE"; then
+    echo "Error: Failed to create sync file $SYNC_FILE" >&2
+    exit 1
+fi
+
+# Output the value for use in command substitution
+printf '%s\n' "$VALUE"

@@ -1,0 +1,195 @@
+#!/bin/bash
+
+# activate-project: Activate a project by moving it to active directory and preparing it
+# Usage: activate-project "projects/pending/project-name"
+# Returns: Path to activated project or empty if failed
+
+PROJECT_PATH="$1"
+
+# Validate input
+if [ -z "$PROJECT_PATH" ]; then
+    printf '%s\n' "Error: No project path provided" >&2
+    exit 1
+fi
+
+# Find workspace root by looking for projects directory
+WORKSPACE_ROOT=""
+current_dir="$(pwd)"
+while [ "$current_dir" != "/" ]; do
+    if [ -d "$current_dir/projects" ]; then
+        WORKSPACE_ROOT="$current_dir"
+        break
+    fi
+    current_dir="$(dirname "$current_dir")"
+done
+
+if [ -z "$WORKSPACE_ROOT" ]; then
+    printf '%s\n' "Error: Could not find workspace root with projects directory" >&2
+    exit 1
+fi
+
+cd "$WORKSPACE_ROOT"
+
+# Extract project name and source location from path
+# Handle both absolute and relative paths
+if [[ "$PROJECT_PATH" == /* ]]; then
+    # Absolute path
+    PROJECT_PATH="${PROJECT_PATH#$WORKSPACE_ROOT/}"
+fi
+
+# Remove trailing slash if present
+PROJECT_PATH="${PROJECT_PATH%/}"
+
+# Extract components
+if [[ "$PROJECT_PATH" =~ ^projects/(pending|active|ready-for-review)/(.+)$ ]]; then
+    SOURCE_DIR="${BASH_REMATCH[1]}"
+    PROJECT_NAME="${BASH_REMATCH[2]}"
+else
+    printf '%s\n' "Error: Invalid project path format. Expected: projects/{pending|active|ready-for-review}/project-name" >&2
+    exit 1
+fi
+
+# Check if project exists in source location
+if [ ! -d "projects/$SOURCE_DIR/$PROJECT_NAME" ]; then
+    printf '%s\n' "Error: Project not found at projects/$SOURCE_DIR/$PROJECT_NAME" >&2
+    exit 1
+fi
+
+# Determine if this is a new project or continuing project
+if [ "$SOURCE_DIR" = "active" ]; then
+    # Project is already active - this is a continuing project
+    
+    # Check for versioned plan files
+    VERSIONED_PLANS=$(ls -1 "projects/active/$PROJECT_NAME"/plan-v*.md 2>/dev/null | sort -V)
+    if [ -n "$VERSIONED_PLANS" ]; then
+        # Get the highest versioned plan
+        PLAN_FILE=$(printf '%s\n' "$VERSIONED_PLANS" | tail -1)
+        
+        # Backup existing plan.md if it exists
+        if [ -f "projects/active/$PROJECT_NAME/plan.md" ]; then
+            chmod 644 "projects/active/$PROJECT_NAME/plan.md"  # Make writable temporarily
+            mv "projects/active/$PROJECT_NAME/plan.md" "projects/active/$PROJECT_NAME/plan.md.backup-$(date +%Y%m%d-%H%M%S)"
+        fi
+        
+        # Rename highest versioned plan to plan.md
+        mv "$PLAN_FILE" "projects/active/$PROJECT_NAME/plan.md"
+        
+        # Make plan.md read-only
+        chmod 444 "projects/active/$PROJECT_NAME/plan.md"
+        
+        # Remove other versioned plans
+        rm -f "projects/active/$PROJECT_NAME"/plan-v*.md
+    elif [ -f "projects/active/$PROJECT_NAME/plan.md" ]; then
+        # Ensure existing plan.md is read-only
+        chmod 444 "projects/active/$PROJECT_NAME/plan.md"
+    fi
+    
+    # Handle versioned description files similarly
+    VERSIONED_DESCRIPTIONS=$(ls -1 "projects/active/$PROJECT_NAME"/description-v*.md 2>/dev/null | sort -V)
+    if [ -n "$VERSIONED_DESCRIPTIONS" ]; then
+        # Get the highest versioned description
+        DESCRIPTION_FILE=$(printf '%s\n' "$VERSIONED_DESCRIPTIONS" | tail -1)
+        
+        # Backup existing description.md if it exists
+        if [ -f "projects/active/$PROJECT_NAME/description.md" ]; then
+            chmod 644 "projects/active/$PROJECT_NAME/description.md"  # Make writable temporarily
+            mv "projects/active/$PROJECT_NAME/description.md" "projects/active/$PROJECT_NAME/description.md.backup-$(date +%Y%m%d-%H%M%S)"
+        fi
+        
+        # Rename highest versioned description to description.md
+        mv "$DESCRIPTION_FILE" "projects/active/$PROJECT_NAME/description.md"
+        
+        # Make description.md read-only
+        chmod 444 "projects/active/$PROJECT_NAME/description.md"
+        
+        # Remove other versioned descriptions
+        rm -f "projects/active/$PROJECT_NAME"/description-v*.md
+    elif [ -f "projects/active/$PROJECT_NAME/description.md" ]; then
+        # Ensure existing description.md is read-only
+        chmod 444 "projects/active/$PROJECT_NAME/description.md"
+    fi
+    
+    if [ -f "projects/active/$PROJECT_NAME/log.md" ]; then
+        : # log exists
+    fi
+    
+    # Output the active project path
+    printf '%s\n' "projects/active/$PROJECT_NAME"
+    exit 0
+fi
+
+# New project activation (from pending or ready-for-review)
+
+# Create active directory if it doesn't exist
+mkdir -p projects/active
+
+# Move project to active
+
+if ! mv "projects/$SOURCE_DIR/$PROJECT_NAME" "projects/active/" 2>/dev/null; then
+    printf '%s\n' "Error: Failed to move project to active directory" >&2
+    exit 1
+fi
+
+# Handle plan files for new projects from pending
+if [ "$SOURCE_DIR" = "pending" ]; then
+    # Find highest versioned plan file
+    PLAN_FILE=""
+    
+    # First check for versioned plans
+    VERSIONED_PLANS=$(ls -1 "projects/active/$PROJECT_NAME"/plan-v*.md 2>/dev/null | sort -V)
+    if [ -n "$VERSIONED_PLANS" ]; then
+        # Get the highest versioned plan
+        PLAN_FILE=$(printf '%s\n' "$VERSIONED_PLANS" | tail -1)
+        
+        # Rename to plan.md
+        mv "$PLAN_FILE" "projects/active/$PROJECT_NAME/plan.md"
+        
+        # Make plan.md read-only
+        chmod 444 "projects/active/$PROJECT_NAME/plan.md"
+        
+        # Remove other versioned plans
+        rm -f "projects/active/$PROJECT_NAME"/plan-v*.md
+    elif [ -f "projects/active/$PROJECT_NAME/plan.md" ]; then
+        # Already has plan.md - ensure it's read-only
+        chmod 444 "projects/active/$PROJECT_NAME/plan.md"
+    else
+        printf '%s\n' "Warning: No plan file found" >&2
+    fi
+    
+    # Handle versioned description files
+    VERSIONED_DESCRIPTIONS=$(ls -1 "projects/active/$PROJECT_NAME"/description-v*.md 2>/dev/null | sort -V)
+    if [ -n "$VERSIONED_DESCRIPTIONS" ]; then
+        # Get the highest versioned description
+        DESCRIPTION_FILE=$(printf '%s\n' "$VERSIONED_DESCRIPTIONS" | tail -1)
+        
+        # Rename to description.md
+        mv "$DESCRIPTION_FILE" "projects/active/$PROJECT_NAME/description.md"
+        
+        # Make description.md read-only
+        chmod 444 "projects/active/$PROJECT_NAME/description.md"
+        
+        # Remove other versioned descriptions
+        rm -f "projects/active/$PROJECT_NAME"/description-v*.md
+    elif [ -f "projects/active/$PROJECT_NAME/description.md" ]; then
+        # Already has description.md - ensure it's read-only
+        chmod 444 "projects/active/$PROJECT_NAME/description.md"
+    fi
+    
+    # Initialize log file if it doesn't exist
+    if [ ! -f "projects/active/$PROJECT_NAME/log.md" ]; then
+        # Ensure directory exists for nested projects
+        mkdir -p "projects/active/$PROJECT_NAME"
+        cat > "projects/active/$PROJECT_NAME/log.md" << EOF
+# Project Log: $PROJECT_NAME
+
+## Project Activated
+
+Project moved from pending to active on $(date '+%Y-%m-%d %H:%M:%S %Z').
+
+EOF
+    fi
+fi
+
+
+# Output the activated project path
+printf '%s\n' "projects/active/$PROJECT_NAME"
