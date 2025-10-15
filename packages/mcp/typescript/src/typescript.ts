@@ -4,6 +4,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { DependencyFinder } from './lib/DependencyFinder.js';
 import { InverseDependencyFinder } from './lib/InverseDependencyFinder.js';
+import { TypeAnalyzer } from './lib/TypeAnalyzer.js';
 
 const server = new Server(
   {
@@ -215,8 +216,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
 
-    case 'analysis':
-      throw new McpError(ErrorCode.InternalError, 'analysis tool not yet implemented');
+    case 'analysis': {
+      // Validate input parameters
+      if (!request.params.arguments || typeof request.params.arguments !== 'object') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing or invalid arguments object');
+      }
+
+      const args = request.params.arguments;
+
+      if (!Array.isArray(args.files)) {
+        throw new McpError(ErrorCode.InvalidParams, 'files must be an array of strings');
+      }
+
+      if (args.files.length === 0) {
+        throw new McpError(ErrorCode.InvalidParams, 'files array cannot be empty');
+      }
+
+      if (!args.files.every((file) => typeof file === 'string')) {
+        throw new McpError(ErrorCode.InvalidParams, 'All files elements must be strings');
+      }
+
+      try {
+        // Instantiate TypeAnalyzer with files
+        const analyzer = new TypeAnalyzer({
+          files: args.files
+        });
+
+        // Execute analysis
+        analyzer.analyze();
+
+        // Get YAML formatted output
+        const yamlOutput = analyzer.outputYAML();
+
+        // Return results as YAML text
+        return {
+          content: [
+            {
+              type: 'text',
+              text: yamlOutput
+            }
+          ]
+        };
+      } catch (error: unknown) {
+        // Handle errors during execution
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new McpError(ErrorCode.InternalError, `Failed to analyze TypeScript files: ${errorMessage}`);
+      }
+    }
 
     case 'types':
       throw new McpError(ErrorCode.InternalError, 'types tool not yet implemented');

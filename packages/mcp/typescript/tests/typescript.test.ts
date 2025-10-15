@@ -430,15 +430,226 @@ describe('typescript server', () => {
       });
     });
 
-    it('should return not implemented error for analysis tool', async () => {
-      await expect(
-        client.callTool({
+    describe('analysis tool', () => {
+      it('should analyze TypeScript files and return YAML format', async () => {
+        const result = await client.callTool({
           name: 'analysis',
           arguments: {
-            files: ['src/**/*.ts']
+            files: ['tests/fixtures/sample-types.ts']
           }
-        })
-      ).rejects.toThrow('analysis tool not yet implemented');
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+
+        // Verify YAML structure
+        expect(textContent).toContain('files:');
+        expect(textContent).toContain('path:');
+        expect(textContent).toContain('items:');
+        expect(textContent).toContain('summary:');
+
+        // Verify it contains expected types
+        expect(textContent).toContain('kind: interface');
+        expect(textContent).toContain('name: User');
+        expect(textContent).toContain('kind: type');
+        expect(textContent).toContain('name: UserId');
+        expect(textContent).toContain('kind: class');
+        expect(textContent).toContain('name: UserService');
+        expect(textContent).toContain('kind: enum');
+        expect(textContent).toContain('name: UserRole');
+        expect(textContent).toContain('kind: function');
+        expect(textContent).toContain('name: calculateComplexity');
+      });
+
+      it('should include properties for interfaces', async () => {
+        const result = await client.callTool({
+          name: 'analysis',
+          arguments: {
+            files: ['tests/fixtures/sample-types.ts']
+          }
+        });
+
+        const textContent = extractTextContent(result);
+
+        // Verify interface properties are included
+        expect(textContent).toContain('properties:');
+        expect(textContent).toContain('id: string');
+        expect(textContent).toContain('name: string');
+        expect(textContent).toContain('email: string');
+      });
+
+      it('should include members for classes', async () => {
+        const result = await client.callTool({
+          name: 'analysis',
+          arguments: {
+            files: ['tests/fixtures/sample-types.ts']
+          }
+        });
+
+        const textContent = extractTextContent(result);
+
+        // Verify class members are included
+        expect(textContent).toContain('members:');
+        expect(textContent).toContain('private users (property)');
+        expect(textContent).toContain('public addUser (method)');
+        expect(textContent).toContain('public getUser (method)');
+      });
+
+      it('should include enum members', async () => {
+        const result = await client.callTool({
+          name: 'analysis',
+          arguments: {
+            files: ['tests/fixtures/sample-types.ts']
+          }
+        });
+
+        const textContent = extractTextContent(result);
+
+        // Verify enum members are included
+        expect(textContent).toContain("Admin = 'admin'");
+        expect(textContent).toContain("User = 'user'");
+        expect(textContent).toContain("Guest = 'guest'");
+      });
+
+      it('should calculate cyclomatic complexity for functions', async () => {
+        const result = await client.callTool({
+          name: 'analysis',
+          arguments: {
+            files: ['tests/fixtures/sample-types.ts']
+          }
+        });
+
+        const textContent = extractTextContent(result);
+
+        // Verify complexity is calculated (should be > 1 due to if/else)
+        expect(textContent).toContain('complexity:');
+      });
+
+      it('should include function parameters and return types', async () => {
+        const result = await client.callTool({
+          name: 'analysis',
+          arguments: {
+            files: ['tests/fixtures/sample-types.ts']
+          }
+        });
+
+        const textContent = extractTextContent(result);
+
+        // Verify function details
+        expect(textContent).toContain('parameters:');
+        expect(textContent).toContain('value: number');
+        expect(textContent).toContain('returnType: string');
+      });
+
+      it('should track exported status', async () => {
+        const result = await client.callTool({
+          name: 'analysis',
+          arguments: {
+            files: ['tests/fixtures/sample-types.ts']
+          }
+        });
+
+        const textContent = extractTextContent(result);
+
+        // All items in sample file are exported
+        expect(textContent).toContain('exported: true');
+      });
+
+      it('should include summary counts', async () => {
+        const result = await client.callTool({
+          name: 'analysis',
+          arguments: {
+            files: ['tests/fixtures/sample-types.ts']
+          }
+        });
+
+        const textContent = extractTextContent(result);
+
+        // Verify summary section
+        expect(textContent).toContain('summary:');
+        expect(textContent).toContain('total:');
+        expect(textContent).toMatch(/classes: \d+/);
+        expect(textContent).toMatch(/enums: \d+/);
+        expect(textContent).toMatch(/functions: \d+/);
+        expect(textContent).toMatch(/interfaces: \d+/);
+        expect(textContent).toMatch(/methods: \d+/);
+        expect(textContent).toMatch(/types: \d+/);
+      });
+
+      it('should support glob patterns', async () => {
+        const result = await client.callTool({
+          name: 'analysis',
+          arguments: {
+            files: ['tests/fixtures/**/*.ts']
+          }
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        expect(textContent).toContain('files:');
+        expect(textContent).toContain('summary:');
+      });
+
+      it('should validate missing arguments', async () => {
+        await expect(
+          client.callTool({
+            name: 'analysis',
+            arguments: {}
+          })
+        ).rejects.toThrow('files must be an array');
+      });
+
+      it('should validate empty files array', async () => {
+        await expect(
+          client.callTool({
+            name: 'analysis',
+            arguments: {
+              files: []
+            }
+          })
+        ).rejects.toThrow('files array cannot be empty');
+      });
+
+      it('should validate files array contains only strings', async () => {
+        await expect(
+          client.callTool({
+            name: 'analysis',
+            arguments: {
+              files: ['src/**/*.ts', 123, null]
+            }
+          })
+        ).rejects.toThrow('All files elements must be strings');
+      });
+
+      it('should validate missing arguments object', async () => {
+        await expect(
+          client.callTool({
+            name: 'analysis'
+          })
+        ).rejects.toThrow('Missing or invalid arguments object');
+      });
+
+      it('should handle non-existent files gracefully', async () => {
+        const result = await client.callTool({
+          name: 'analysis',
+          arguments: {
+            files: ['nonexistent/**/*.ts']
+          }
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        // Should return empty results
+        expect(textContent).toContain('files:');
+        expect(textContent).toContain('summary:');
+        expect(textContent).toContain('total: 0');
+      });
     });
 
     it('should return not implemented error for types tool', async () => {
