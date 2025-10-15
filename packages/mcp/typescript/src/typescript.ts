@@ -3,6 +3,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { DependencyFinder } from './lib/DependencyFinder.js';
+import { InverseDependencyFinder } from './lib/InverseDependencyFinder.js';
 
 const server = new Server(
   {
@@ -158,8 +159,61 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
 
-    case 'inverse-dependencies':
-      throw new McpError(ErrorCode.InternalError, 'inverse-dependencies tool not yet implemented');
+    case 'inverse-dependencies': {
+      // Validate input parameters
+      if (!request.params.arguments || typeof request.params.arguments !== 'object') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing or invalid arguments object');
+      }
+
+      const args = request.params.arguments;
+
+      if (!Array.isArray(args.targetGlobs)) {
+        throw new McpError(ErrorCode.InvalidParams, 'targetGlobs must be an array of strings');
+      }
+
+      if (args.targetGlobs.length === 0) {
+        throw new McpError(ErrorCode.InvalidParams, 'targetGlobs array cannot be empty');
+      }
+
+      if (!args.targetGlobs.every((glob) => typeof glob === 'string')) {
+        throw new McpError(ErrorCode.InvalidParams, 'All targetGlobs elements must be strings');
+      }
+
+      // Validate optional projectPath if provided
+      if (args.projectPath !== undefined && typeof args.projectPath !== 'string') {
+        throw new McpError(ErrorCode.InvalidParams, 'projectPath must be a string');
+      }
+
+      try {
+        // Instantiate InverseDependencyFinder with targetGlobs and optional projectPath
+        const finder = new InverseDependencyFinder({
+          targetGlobs: args.targetGlobs,
+          projectPath: args.projectPath
+        });
+
+        // Execute and get results
+        const inverseDependencies = await finder.execute();
+
+        // Return results as JSON array with count summary
+        const result = {
+          files: inverseDependencies,
+          count: inverseDependencies.length
+        };
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2)
+            }
+          ]
+        };
+      } catch (error: unknown) {
+        // Handle errors during execution
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new McpError(ErrorCode.InternalError, `Failed to analyze inverse dependencies: ${errorMessage}`);
+      }
+    }
 
     case 'analysis':
       throw new McpError(ErrorCode.InternalError, 'analysis tool not yet implemented');

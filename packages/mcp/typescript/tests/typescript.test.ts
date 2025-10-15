@@ -276,15 +276,158 @@ describe('typescript server', () => {
       });
     });
 
-    it('should return not implemented error for inverse-dependencies tool', async () => {
-      await expect(
-        client.callTool({
+    describe('inverse-dependencies tool', () => {
+      it('should return inverse dependencies for valid glob pattern', async () => {
+        const result = await client.callTool({
           name: 'inverse-dependencies',
           arguments: {
-            targetGlobs: ['src/**/*.ts']
+            targetGlobs: ['src/lib/DependencyFinder.ts']
           }
-        })
-      ).rejects.toThrow('inverse-dependencies tool not yet implemented');
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        const response = JSON.parse(textContent) as { files: string[]; count: number };
+
+        expect(response).toHaveProperty('files');
+        expect(response).toHaveProperty('count');
+        expect(Array.isArray(response.files)).toBe(true);
+        expect(response.count).toBe(response.files.length);
+        // Should include typescript.ts which imports DependencyFinder
+        expect(response.files).toContain('src/typescript.ts');
+      });
+
+      it('should return empty array for files with no dependents', async () => {
+        const result = await client.callTool({
+          name: 'inverse-dependencies',
+          arguments: {
+            targetGlobs: ['nonexistent/**/*.ts']
+          }
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        const response = JSON.parse(textContent) as { files: string[]; count: number };
+
+        expect(Array.isArray(response.files)).toBe(true);
+        expect(response.files.length).toBe(0);
+        expect(response.count).toBe(0);
+      });
+
+      it('should validate missing arguments', async () => {
+        await expect(
+          client.callTool({
+            name: 'inverse-dependencies',
+            arguments: {}
+          })
+        ).rejects.toThrow('targetGlobs must be an array');
+      });
+
+      it('should validate empty targetGlobs array', async () => {
+        await expect(
+          client.callTool({
+            name: 'inverse-dependencies',
+            arguments: {
+              targetGlobs: []
+            }
+          })
+        ).rejects.toThrow('targetGlobs array cannot be empty');
+      });
+
+      it('should validate targetGlobs array contains only strings', async () => {
+        await expect(
+          client.callTool({
+            name: 'inverse-dependencies',
+            arguments: {
+              targetGlobs: ['src/**/*.ts', 123, null]
+            }
+          })
+        ).rejects.toThrow('All targetGlobs elements must be strings');
+      });
+
+      it('should validate missing arguments object', async () => {
+        await expect(
+          client.callTool({
+            name: 'inverse-dependencies'
+          })
+        ).rejects.toThrow('Missing or invalid arguments object');
+      });
+
+      it('should validate projectPath is a string when provided', async () => {
+        await expect(
+          client.callTool({
+            name: 'inverse-dependencies',
+            arguments: {
+              targetGlobs: ['src/**/*.ts'],
+              projectPath: 123
+            }
+          })
+        ).rejects.toThrow('projectPath must be a string');
+      });
+
+      it('should handle multiple glob patterns', async () => {
+        const result = await client.callTool({
+          name: 'inverse-dependencies',
+          arguments: {
+            targetGlobs: ['src/lib/DependencyFinder.ts', 'src/lib/InverseDependencyFinder.ts']
+          }
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        const response = JSON.parse(textContent) as { files: string[]; count: number };
+
+        expect(Array.isArray(response.files)).toBe(true);
+        expect(response.count).toBe(response.files.length);
+        // Should include typescript.ts which imports both
+        expect(response.files).toContain('src/typescript.ts');
+      });
+
+      it('should return sorted inverse dependencies', async () => {
+        const result = await client.callTool({
+          name: 'inverse-dependencies',
+          arguments: {
+            targetGlobs: ['src/lib/DependencyFinder.ts']
+          }
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        const response = JSON.parse(textContent) as { files: string[]; count: number };
+
+        expect(Array.isArray(response.files)).toBe(true);
+
+        // Verify array is sorted
+        const sorted = [...response.files].sort();
+        expect(response.files).toEqual(sorted);
+      });
+
+      it('should accept optional projectPath parameter', async () => {
+        const result = await client.callTool({
+          name: 'inverse-dependencies',
+          arguments: {
+            targetGlobs: ['src/lib/DependencyFinder.ts'],
+            projectPath: 'tsconfig.json'
+          }
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        const response = JSON.parse(textContent) as { files: string[]; count: number };
+
+        expect(Array.isArray(response.files)).toBe(true);
+        expect(response.count).toBe(response.files.length);
+      });
     });
 
     it('should return not implemented error for analysis tool', async () => {
