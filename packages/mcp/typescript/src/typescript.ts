@@ -5,6 +5,7 @@ import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } fr
 import { DependencyFinder } from './lib/DependencyFinder.js';
 import { InverseDependencyFinder } from './lib/InverseDependencyFinder.js';
 import { TypeAnalyzer } from './lib/TypeAnalyzer.js';
+import { TypeExtractor } from './lib/TypeExtractor.js';
 
 const server = new Server(
   {
@@ -264,8 +265,67 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
 
-    case 'types':
-      throw new McpError(ErrorCode.InternalError, 'types tool not yet implemented');
+    case 'types': {
+      // Validate input parameters
+      if (!request.params.arguments || typeof request.params.arguments !== 'object') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing or invalid arguments object');
+      }
+
+      const args = request.params.arguments;
+
+      if (!Array.isArray(args.paths)) {
+        throw new McpError(ErrorCode.InvalidParams, 'paths must be an array of strings');
+      }
+
+      if (args.paths.length === 0) {
+        throw new McpError(ErrorCode.InvalidParams, 'paths array cannot be empty');
+      }
+
+      if (!args.paths.every((path) => typeof path === 'string')) {
+        throw new McpError(ErrorCode.InvalidParams, 'All paths elements must be strings');
+      }
+
+      // Validate optional pwd if provided
+      if (args.pwd !== undefined && typeof args.pwd !== 'string') {
+        throw new McpError(ErrorCode.InvalidParams, 'pwd must be a string');
+      }
+
+      // Validate optional typeFilters if provided
+      if (args.typeFilters !== undefined) {
+        if (!Array.isArray(args.typeFilters)) {
+          throw new McpError(ErrorCode.InvalidParams, 'typeFilters must be an array of strings');
+        }
+        if (!args.typeFilters.every((filter) => typeof filter === 'string')) {
+          throw new McpError(ErrorCode.InvalidParams, 'All typeFilters elements must be strings');
+        }
+      }
+
+      try {
+        // Instantiate TypeExtractor with paths, pwd, and typeFilters
+        const extractor = new TypeExtractor({
+          paths: args.paths,
+          pwd: args.pwd,
+          typeFilters: args.typeFilters
+        });
+
+        // Execute and get results
+        const results = extractor.execute();
+
+        // Return results as JSON
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(results, null, 2)
+            }
+          ]
+        };
+      } catch (error: unknown) {
+        // Handle errors during execution
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new McpError(ErrorCode.InternalError, `Failed to extract types: ${errorMessage}`);
+      }
+    }
 
     default:
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${toolName}`);

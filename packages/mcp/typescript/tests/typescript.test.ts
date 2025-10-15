@@ -652,15 +652,232 @@ describe('typescript server', () => {
       });
     });
 
-    it('should return not implemented error for types tool', async () => {
-      await expect(
-        client.callTool({
+    describe('types tool', () => {
+      it('should extract types from valid TypeScript file', async () => {
+        const result = await client.callTool({
           name: 'types',
           arguments: {
-            paths: ['src/typescript.ts']
+            paths: ['tests/fixtures/type-exports.ts']
           }
-        })
-      ).rejects.toThrow('types tool not yet implemented');
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        const typeResults = JSON.parse(textContent) as Array<{ file: string; exports: Array<{ name: string }> }>;
+
+        expect(Array.isArray(typeResults)).toBe(true);
+        expect(typeResults.length).toBe(1);
+
+        const fileResult = typeResults[0];
+        expect(fileResult.file).toContain('type-exports.ts');
+        expect(Array.isArray(fileResult.exports)).toBe(true);
+
+        // Should export Config interface
+        const configExport = fileResult.exports.find((e) => e.name === 'Config');
+        expect(configExport).toBeDefined();
+        expect(configExport?.name).toBe('Config');
+
+        // Should export UserId type alias
+        const userIdExport = fileResult.exports.find((e) => e.name === 'UserId');
+        expect(userIdExport).toBeDefined();
+
+        // Should export Status type alias
+        const statusExport = fileResult.exports.find((e) => e.name === 'Status');
+        expect(statusExport).toBeDefined();
+
+        // Should export fetchData function
+        const fetchDataExport = fileResult.exports.find((e) => e.name === 'fetchData');
+        expect(fetchDataExport).toBeDefined();
+
+        // Should export API_VERSION constant
+        const apiVersionExport = fileResult.exports.find((e) => e.name === 'API_VERSION');
+        expect(apiVersionExport).toBeDefined();
+
+        // Should export Priority enum
+        const priorityExport = fileResult.exports.find((e) => e.name === 'Priority');
+        expect(priorityExport).toBeDefined();
+
+        // Should export DataStore class
+        const dataStoreExport = fileResult.exports.find((e) => e.name === 'DataStore');
+        expect(dataStoreExport).toBeDefined();
+      });
+
+      it('should include declaration and simplified forms', async () => {
+        const result = await client.callTool({
+          name: 'types',
+          arguments: {
+            paths: ['tests/fixtures/type-exports.ts']
+          }
+        });
+
+        const textContent = extractTextContent(result);
+        const typeResults = JSON.parse(textContent) as Array<{
+          file: string;
+          exports: Array<{ name: string; declaration?: string; simplified?: unknown }>;
+        }>;
+
+        const fileResult = typeResults[0];
+
+        // Check that exports have both declaration and simplified forms
+        const configExport = fileResult.exports.find((e) => e.name === 'Config');
+        expect(configExport?.declaration).toBeDefined();
+        expect(configExport?.simplified).toBeDefined();
+
+        // Check UserId type has declaration
+        const userIdExport = fileResult.exports.find((e) => e.name === 'UserId');
+        expect(userIdExport?.declaration).toBeDefined();
+        expect(userIdExport?.declaration).toContain('type UserId');
+      });
+
+      it('should support typeFilters parameter', async () => {
+        const result = await client.callTool({
+          name: 'types',
+          arguments: {
+            paths: ['tests/fixtures/type-exports.ts'],
+            typeFilters: ['Config', 'UserId']
+          }
+        });
+
+        const textContent = extractTextContent(result);
+        const typeResults = JSON.parse(textContent) as Array<{ file: string; exports: Array<{ name: string }> }>;
+
+        expect(typeResults.length).toBe(1);
+        const fileResult = typeResults[0];
+
+        // Should only include filtered types
+        expect(fileResult.exports.length).toBe(2);
+        expect(fileResult.exports.some((e) => e.name === 'Config')).toBe(true);
+        expect(fileResult.exports.some((e) => e.name === 'UserId')).toBe(true);
+        expect(fileResult.exports.some((e) => e.name === 'Status')).toBe(false);
+        expect(fileResult.exports.some((e) => e.name === 'fetchData')).toBe(false);
+      });
+
+      it('should handle multiple file paths', async () => {
+        const result = await client.callTool({
+          name: 'types',
+          arguments: {
+            paths: ['tests/fixtures/type-exports.ts', 'tests/fixtures/sample-types.ts']
+          }
+        });
+
+        const textContent = extractTextContent(result);
+        const typeResults = JSON.parse(textContent) as Array<{ file: string; exports: Array<{ name: string }> }>;
+
+        expect(typeResults.length).toBe(2);
+        expect(typeResults[0].file).toContain('type-exports.ts');
+        expect(typeResults[1].file).toContain('sample-types.ts');
+      });
+
+      it('should validate missing arguments', async () => {
+        await expect(
+          client.callTool({
+            name: 'types',
+            arguments: {}
+          })
+        ).rejects.toThrow('paths must be an array');
+      });
+
+      it('should validate empty paths array', async () => {
+        await expect(
+          client.callTool({
+            name: 'types',
+            arguments: {
+              paths: []
+            }
+          })
+        ).rejects.toThrow('paths array cannot be empty');
+      });
+
+      it('should validate paths array contains only strings', async () => {
+        await expect(
+          client.callTool({
+            name: 'types',
+            arguments: {
+              paths: ['src/**/*.ts', 123, null]
+            }
+          })
+        ).rejects.toThrow('All paths elements must be strings');
+      });
+
+      it('should validate missing arguments object', async () => {
+        await expect(
+          client.callTool({
+            name: 'types'
+          })
+        ).rejects.toThrow('Missing or invalid arguments object');
+      });
+
+      it('should validate pwd is a string when provided', async () => {
+        await expect(
+          client.callTool({
+            name: 'types',
+            arguments: {
+              paths: ['src/**/*.ts'],
+              pwd: 123
+            }
+          })
+        ).rejects.toThrow('pwd must be a string');
+      });
+
+      it('should validate typeFilters is an array when provided', async () => {
+        await expect(
+          client.callTool({
+            name: 'types',
+            arguments: {
+              paths: ['src/**/*.ts'],
+              typeFilters: 'Config'
+            }
+          })
+        ).rejects.toThrow('typeFilters must be an array');
+      });
+
+      it('should validate typeFilters array contains only strings', async () => {
+        await expect(
+          client.callTool({
+            name: 'types',
+            arguments: {
+              paths: ['src/**/*.ts'],
+              typeFilters: ['Config', 123, null]
+            }
+          })
+        ).rejects.toThrow('All typeFilters elements must be strings');
+      });
+
+      it('should handle non-existent files gracefully', async () => {
+        const result = await client.callTool({
+          name: 'types',
+          arguments: {
+            paths: ['nonexistent/file.ts']
+          }
+        });
+
+        const textContent = extractTextContent(result);
+        const typeResults = JSON.parse(textContent) as Array<{ file: string; exports: Array<{ name: string }> }>;
+
+        // Should return empty results for non-existent files
+        expect(Array.isArray(typeResults)).toBe(true);
+        expect(typeResults.length).toBe(0);
+      });
+
+      it('should accept optional pwd parameter', async () => {
+        const result = await client.callTool({
+          name: 'types',
+          arguments: {
+            paths: ['tests/fixtures/type-exports.ts'],
+            pwd: process.cwd()
+          }
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        const typeResults = JSON.parse(textContent) as Array<{ file: string; exports: Array<{ name: string }> }>;
+
+        expect(typeResults.length).toBeGreaterThan(0);
+      });
     });
   });
 });
