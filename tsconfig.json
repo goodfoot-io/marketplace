@@ -24,6 +24,6 @@
     "allowJs": true,
     "isolatedModules": true,
     "outDir": "./build",
-    "typeRoots": ["./types", "./node_modules/@types", "./node_modules"]
+    "typeRoots": ["./types", "./node_modules/@types"]
   }
 }

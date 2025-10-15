@@ -1883,18 +1883,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@playwright/mcp@npm:^0.0.40":
-  version: 0.0.40
-  resolution: "@playwright/mcp@npm:0.0.40"
-  dependencies:
-    playwright: "npm:1.56.0-alpha-1758750661000"
-    playwright-core: "npm:1.56.0-alpha-1758750661000"
-  bin:
-    mcp-server-playwright: cli.js
-  checksum: 10c0/ff64915832392abd1790562bb48f0beb013ead1c39710e1e727ffd544bbe42a7148d55f28f4476e7986a62970ee53e2e7bb8468e7c95ce89f4f318b085298af4
-  languageName: node
-  linkType: hard
-
 "@prettier/sync@npm:^0.6.1":
   version: 0.6.1
   resolution: "@prettier/sync@npm:0.6.1"
@@ -1905,38 +1893,6 @@ __metadata:
   checksum: 10c0/4cf6dd8c27f6425924ac749ca980693b447d39162b530e103f4613df470c1ec877f691d10796556b748ce8c954cc76e0f2a73e18e02b125d295168012c25df71
   languageName: node
   linkType: hard
-
-"@productivity-bot/mcp-servers@workspace:packages/mcp-servers":
-  version: 0.0.0-use.local
-  resolution: "@productivity-bot/mcp-servers@workspace:packages/mcp-servers"
-  dependencies:
-    "@anthropic-ai/claude-code": "npm:^2.0.0"
-    "@goodfoot/test-utilities": "workspace:^"
-    "@modelcontextprotocol/sdk": "npm:^1.18.2"
-    "@playwright/mcp": "npm:^0.0.40"
-    "@types/express": "npm:^5.0.0"
-    "@types/jest": "npm:^29.5.14"
-    "@types/js-yaml": "npm:^4.0.9"
-    "@types/node": "npm:^24.3.1"
-    "@types/ws": "npm:^8.18.1"
-    "@typescript-eslint/eslint-plugin": "npm:^8.34.0"
-    "@typescript-eslint/parser": "npm:^8.34.0"
-    esbuild: "npm:^0.25.9"
-    eslint: "npm:^9.28.0"
-    express: "npm:^4.21.2"
-    jest: "npm:^29"
-    jest-diff: "npm:^29"
-    jest-matcher-utils: "npm:^29"
-    jest-util: "npm:^30.0.2"
-    js-yaml: "npm:^4.1.0"
-    playwright: "npm:next"
-    prettier: "npm:^3.5.3"
-    ts-jest: "npm:^29.3.4"
-    tsx: "npm:^4.20.5"
-    typescript: "npm:^5.8.3"
-    ws: "npm:^8.18.3"
-  languageName: unknown
-  linkType: soft
 
 "@rtsao/scc@npm:^1.1.0":
   version: 1.1.0
@@ -3974,7 +3930,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"esbuild@npm:^0.25.9, esbuild@npm:~0.25.0":
+"esbuild@npm:~0.25.0":
   version: 0.25.11
   resolution: "esbuild@npm:0.25.11"
   dependencies:
@@ -4772,31 +4728,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fsevents@npm:2.3.2":
-  version: 2.3.2
-  resolution: "fsevents@npm:2.3.2"
-  dependencies:
-    node-gyp: "npm:latest"
-  checksum: 10c0/be78a3efa3e181cda3cf7a4637cb527bcebb0bd0ea0440105a3bb45b86f9245b307dc10a2507e8f4498a7d4ec349d1910f4d73e4d4495b16103106e07eee735b
-  conditions: os=darwin
-  languageName: node
-  linkType: hard
-
 "fsevents@npm:^2.3.2, fsevents@npm:^2.3.3, fsevents@npm:~2.3.3":
   version: 2.3.3
   resolution: "fsevents@npm:2.3.3"
   dependencies:
     node-gyp: "npm:latest"
   checksum: 10c0/a1f0c44595123ed717febbc478aa952e47adfc28e2092be66b8ab1635147254ca6cfe1df792a8997f22716d4cbafc73309899ff7bfac2ac3ad8cf2e4ecc3ec60
-  conditions: os=darwin
-  languageName: node
-  linkType: hard
-
-"fsevents@patch:fsevents@npm%3A2.3.2#optional!builtin<compat/fsevents>":
-  version: 2.3.2
-  resolution: "fsevents@patch:fsevents@npm%3A2.3.2#optional!builtin<compat/fsevents>::version=2.3.2&hash=df0bf1"
-  dependencies:
-    node-gyp: "npm:latest"
   conditions: os=darwin
   languageName: node
   linkType: hard
@@ -7509,54 +7446,6 @@ __metadata:
   dependencies:
     find-up: "npm:^4.0.0"
   checksum: 10c0/c56bda7769e04907a88423feb320babaed0711af8c436ce3e56763ab1021ba107c7b0cafb11cde7529f669cfc22bffcaebffb573645cbd63842ea9fb17cd7728
-  languageName: node
-  linkType: hard
-
-"playwright-core@npm:1.56.0-alpha-1758750661000":
-  version: 1.56.0-alpha-1758750661000
-  resolution: "playwright-core@npm:1.56.0-alpha-1758750661000"
-  bin:
-    playwright-core: cli.js
-  checksum: 10c0/776bf0c70bca5330fd72ad0d1ba3c5bc17e2b29a9340480650b0820880373ed25fc2fc28c53b1b39ac84461e479d80fe96b55a945683b3a7427c3bf2e06780a7
-  languageName: node
-  linkType: hard
-
-"playwright-core@npm:1.57.0-alpha-2025-10-15":
-  version: 1.57.0-alpha-2025-10-15
-  resolution: "playwright-core@npm:1.57.0-alpha-2025-10-15"
-  bin:
-    playwright-core: cli.js
-  checksum: 10c0/b7e275fc13ca186feeff05d982fa926e94f92073ffd202f09dd83729cd88e28b5419b253cca8fa49448197497d07ba428a0010157b1fc4c03dc9fcc6eff1e436
-  languageName: node
-  linkType: hard
-
-"playwright@npm:1.56.0-alpha-1758750661000":
-  version: 1.56.0-alpha-1758750661000
-  resolution: "playwright@npm:1.56.0-alpha-1758750661000"
-  dependencies:
-    fsevents: "npm:2.3.2"
-    playwright-core: "npm:1.56.0-alpha-1758750661000"
-  dependenciesMeta:
-    fsevents:
-      optional: true
-  bin:
-    playwright: cli.js
-  checksum: 10c0/8163ef3b2af60f57977dd8abcd7bd79de6787ec3518025f067bae5b64171d9847a391e7ae982c491e23907b97754ade47633ea606803fdefab2e147d593e7617
-  languageName: node
-  linkType: hard
-
-"playwright@npm:next":
-  version: 1.57.0-alpha-2025-10-15
-  resolution: "playwright@npm:1.57.0-alpha-2025-10-15"
-  dependencies:
-    fsevents: "npm:2.3.2"
-    playwright-core: "npm:1.57.0-alpha-2025-10-15"
-  dependenciesMeta:
-    fsevents:
-      optional: true
-  bin:
-    playwright: cli.js
-  checksum: 10c0/62cbec5712d47b87d560036181480a819743028c893330e0d9b1d0d946006ad2e18ba9a5636b0c3cfeeab28116a3cd4d5fa04d372e4d2ae1eb2c98f5bf2c50b4
   languageName: node
   linkType: hard
 
