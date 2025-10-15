@@ -1,5 +1,5 @@
 {
-  "name": "@goodfoot/typescript-mcp-server",
+  "name": "@goodfoot/ts-extra",
   "version": "0.1.0",
   "description": "MCP server for TypeScript analysis including dependencies, types, and complexity metrics",
   "private": true,

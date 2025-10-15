@@ -990,9 +990,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@goodfoot/typescript-mcp-server@workspace:packages/mcp/typescript":
+"@goodfoot/ts-extra@workspace:packages/mcp/ts-extra":
   version: 0.0.0-use.local
-  resolution: "@goodfoot/typescript-mcp-server@workspace:packages/mcp/typescript"
+  resolution: "@goodfoot/ts-extra@workspace:packages/mcp/ts-extra"
   dependencies:
     "@goodfoot/test-utilities": "workspace:^"
     "@manypkg/get-packages": "npm:^2.2.2"
