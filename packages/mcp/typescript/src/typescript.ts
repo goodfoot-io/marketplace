@@ -2,6 +2,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { DependencyFinder } from './lib/DependencyFinder.js';
 
 const server = new Server(
   {
@@ -112,8 +113,50 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   await Promise.resolve();
 
   switch (toolName) {
-    case 'dependencies':
-      throw new McpError(ErrorCode.InternalError, 'dependencies tool not yet implemented');
+    case 'dependencies': {
+      // Validate input parameters
+      if (!request.params.arguments || typeof request.params.arguments !== 'object') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing or invalid arguments object');
+      }
+
+      const args = request.params.arguments;
+
+      if (!Array.isArray(args.targetGlobs)) {
+        throw new McpError(ErrorCode.InvalidParams, 'targetGlobs must be an array of strings');
+      }
+
+      if (args.targetGlobs.length === 0) {
+        throw new McpError(ErrorCode.InvalidParams, 'targetGlobs array cannot be empty');
+      }
+
+      if (!args.targetGlobs.every((glob) => typeof glob === 'string')) {
+        throw new McpError(ErrorCode.InvalidParams, 'All targetGlobs elements must be strings');
+      }
+
+      try {
+        // Instantiate DependencyFinder with targetGlobs
+        const finder = new DependencyFinder({
+          targetGlobs: args.targetGlobs
+        });
+
+        // Execute and get results
+        const dependencies = await finder.execute();
+
+        // Return results as JSON array
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(dependencies, null, 2)
+            }
+          ]
+        };
+      } catch (error: unknown) {
+        // Handle errors during execution
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new McpError(ErrorCode.InternalError, `Failed to analyze dependencies: ${errorMessage}`);
+      }
+    }
 
     case 'inverse-dependencies':
       throw new McpError(ErrorCode.InternalError, 'inverse-dependencies tool not yet implemented');

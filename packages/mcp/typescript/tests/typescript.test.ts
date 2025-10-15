@@ -1,6 +1,29 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
+// Helper function to extract text content from MCP response
+function extractTextContent(result: unknown): string {
+  if (!result || typeof result !== 'object' || !('content' in result)) {
+    throw new Error('Expected result with content');
+  }
+
+  const { content } = result;
+  if (!Array.isArray(content) || content.length === 0) {
+    throw new Error('Expected content array');
+  }
+
+  const firstContent: unknown = content[0];
+  if (!firstContent || typeof firstContent !== 'object' || !('type' in firstContent) || !('text' in firstContent)) {
+    throw new Error('Expected text content');
+  }
+
+  if (firstContent.type !== 'text') {
+    throw new Error('Expected type to be text');
+  }
+
+  return String(firstContent.text);
+}
+
 describe('typescript server', () => {
   let client: Client;
   let transport: StdioClientTransport;
@@ -130,15 +153,127 @@ describe('typescript server', () => {
       ).rejects.toThrow('Unknown tool');
     });
 
-    it('should return not implemented error for dependencies tool', async () => {
-      await expect(
-        client.callTool({
+    describe('dependencies tool', () => {
+      it('should return dependencies for valid glob pattern', async () => {
+        const result = await client.callTool({
+          name: 'dependencies',
+          arguments: {
+            targetGlobs: ['src/typescript.ts']
+          }
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        const dependencies = JSON.parse(textContent) as string[];
+
+        expect(Array.isArray(dependencies)).toBe(true);
+        expect(dependencies.length).toBeGreaterThan(0);
+        // Should include the source file itself
+        expect(dependencies).toContain('src/typescript.ts');
+        // Should include the DependencyFinder
+        expect(dependencies).toContain('src/lib/DependencyFinder.ts');
+      });
+
+      it('should return empty array for non-existent files', async () => {
+        const result = await client.callTool({
+          name: 'dependencies',
+          arguments: {
+            targetGlobs: ['nonexistent/**/*.ts']
+          }
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        const dependencies = JSON.parse(textContent) as string[];
+
+        expect(Array.isArray(dependencies)).toBe(true);
+        expect(dependencies.length).toBe(0);
+      });
+
+      it('should validate missing arguments', async () => {
+        await expect(
+          client.callTool({
+            name: 'dependencies',
+            arguments: {}
+          })
+        ).rejects.toThrow('targetGlobs must be an array');
+      });
+
+      it('should validate empty targetGlobs array', async () => {
+        await expect(
+          client.callTool({
+            name: 'dependencies',
+            arguments: {
+              targetGlobs: []
+            }
+          })
+        ).rejects.toThrow('targetGlobs array cannot be empty');
+      });
+
+      it('should validate targetGlobs array contains only strings', async () => {
+        await expect(
+          client.callTool({
+            name: 'dependencies',
+            arguments: {
+              targetGlobs: ['src/**/*.ts', 123, null]
+            }
+          })
+        ).rejects.toThrow('All targetGlobs elements must be strings');
+      });
+
+      it('should validate missing arguments object', async () => {
+        await expect(
+          client.callTool({
+            name: 'dependencies'
+          })
+        ).rejects.toThrow('Missing or invalid arguments object');
+      });
+
+      it('should handle multiple glob patterns', async () => {
+        const result = await client.callTool({
+          name: 'dependencies',
+          arguments: {
+            targetGlobs: ['src/typescript.ts', 'src/lib/DependencyFinder.ts']
+          }
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        const dependencies = JSON.parse(textContent) as string[];
+
+        expect(Array.isArray(dependencies)).toBe(true);
+        expect(dependencies.length).toBeGreaterThan(0);
+        // Should include both source files
+        expect(dependencies).toContain('src/typescript.ts');
+        expect(dependencies).toContain('src/lib/DependencyFinder.ts');
+      });
+
+      it('should return sorted dependencies', async () => {
+        const result = await client.callTool({
           name: 'dependencies',
           arguments: {
             targetGlobs: ['src/**/*.ts']
           }
-        })
-      ).rejects.toThrow('dependencies tool not yet implemented');
+        });
+
+        expect(result.content).toBeDefined();
+        expect(result.content).toHaveLength(1);
+
+        const textContent = extractTextContent(result);
+        const dependencies = JSON.parse(textContent) as string[];
+
+        expect(Array.isArray(dependencies)).toBe(true);
+
+        // Verify array is sorted
+        const sorted = [...dependencies].sort();
+        expect(dependencies).toEqual(sorted);
+      });
     });
 
     it('should return not implemented error for inverse-dependencies tool', async () => {
