@@ -1,0 +1,64 @@
+{
+  "name": "@goodfoot/ts-extra",
+  "version": "0.1.0",
+  "description": "MCP server for TypeScript analysis including dependencies, types, and complexity metrics",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./build/dist/src/typescript.js",
+  "types": "./build/types/src/typescript.d.ts",
+  "scripts": {
+    "prettier": "prettier . --write --log-level warn",
+    "prettier:files": "prettier --write --log-level warn",
+    "eslint": "eslint --cache --fix ./src ./tests",
+    "eslint:files": "eslint --cache --fix",
+    "typecheck": "tsc --noEmit",
+    "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
+    "build": "tsc --build",
+    "test": "NODE_OPTIONS=\"--experimental-vm-modules --no-node-snapshot ${INSPECT:+ --inspect-brk}\" NODE_ENV=test yarn exec jest --detectOpenHandles --runInBand -- ${*:-tests}"
+  },
+  "exports": {
+    ".": {
+      "import": "./build/dist/src/typescript.js",
+      "types": "./build/types/src/typescript.d.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "import": "./build/dist/src/typescript.js",
+        "types": "./build/types/src/typescript.d.ts"
+      }
+    }
+  },
+  "files": [
+    "build",
+    "tsconfig.json"
+  ],
+  "devDependencies": {
+    "@goodfoot/test-utilities": "workspace:^",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^24.3.1",
+    "@typescript-eslint/eslint-plugin": "^8.34.0",
+    "@typescript-eslint/parser": "^8.34.0",
+    "eslint": "^9.28.0",
+    "jest": "^29",
+    "jest-diff": "^29",
+    "jest-matcher-utils": "^29",
+    "jest-util": "^30.0.2",
+    "prettier": "^3.5.3",
+    "ts-jest": "^29.3.4",
+    "tsx": "^4.20.5",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@manypkg/get-packages": "^2.2.2",
+    "@modelcontextprotocol/sdk": "^1.18.2",
+    "dependency-tree": "^11.2.0",
+    "glob": "^10.3.10",
+    "ts-morph": "^27.0.0"
+  }
+}

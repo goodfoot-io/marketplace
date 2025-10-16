@@ -990,6 +990,32 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@goodfoot/ts-extra@workspace:packages/mcp/ts-extra":
+  version: 0.0.0-use.local
+  resolution: "@goodfoot/ts-extra@workspace:packages/mcp/ts-extra"
+  dependencies:
+    "@goodfoot/test-utilities": "workspace:^"
+    "@manypkg/get-packages": "npm:^2.2.2"
+    "@modelcontextprotocol/sdk": "npm:^1.18.2"
+    "@types/jest": "npm:^29.5.14"
+    "@types/node": "npm:^24.3.1"
+    "@typescript-eslint/eslint-plugin": "npm:^8.34.0"
+    "@typescript-eslint/parser": "npm:^8.34.0"
+    dependency-tree: "npm:^11.2.0"
+    eslint: "npm:^9.28.0"
+    glob: "npm:^10.3.10"
+    jest: "npm:^29"
+    jest-diff: "npm:^29"
+    jest-matcher-utils: "npm:^29"
+    jest-util: "npm:^30.0.2"
+    prettier: "npm:^3.5.3"
+    ts-jest: "npm:^29.3.4"
+    ts-morph: "npm:^27.0.0"
+    tsx: "npm:^4.20.5"
+    typescript: "npm:^5.8.3"
+  languageName: unknown
+  linkType: soft
+
 "@humanfs/core@npm:^0.19.1":
   version: 0.19.1
   resolution: "@humanfs/core@npm:0.19.1"
@@ -1629,6 +1655,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@manypkg/find-root@npm:^2.2.2":
+  version: 2.2.3
+  resolution: "@manypkg/find-root@npm:2.2.3"
+  dependencies:
+    "@manypkg/tools": "npm:^1.1.2"
+  checksum: 10c0/fef84441d00ec9e69a12359c3faa635faa1a8e47d72f3641227cfd3ee86ba57cd6caf079973ab8d3d6984c8c4cc9deda0e59138800268f22ec17b40af7b973ea
+  languageName: node
+  linkType: hard
+
 "@manypkg/get-packages@npm:^1.1.3":
   version: 1.1.3
   resolution: "@manypkg/get-packages@npm:1.1.3"
@@ -1640,6 +1675,27 @@ __metadata:
     globby: "npm:^11.0.0"
     read-yaml-file: "npm:^1.1.0"
   checksum: 10c0/f05907d1174ae28861eaa06d0efdc144f773d9a4b8b65e1e7cdc01eb93361d335351b4a336e05c6aac02661be39e8809a3f7ad28bc67b6b338071434ab442130
+  languageName: node
+  linkType: hard
+
+"@manypkg/get-packages@npm:^2.2.2":
+  version: 2.2.2
+  resolution: "@manypkg/get-packages@npm:2.2.2"
+  dependencies:
+    "@manypkg/find-root": "npm:^2.2.2"
+    "@manypkg/tools": "npm:^1.1.1"
+  checksum: 10c0/3b4fabbf9f7ed90264b0f16d2477d7124625472772ca33c6b2f3d70104a9ca13fadd860963453e5891e0c7722b1e0c045abec4544153e649e5b48f4817ada73a
+  languageName: node
+  linkType: hard
+
+"@manypkg/tools@npm:^1.1.1, @manypkg/tools@npm:^1.1.2":
+  version: 1.1.2
+  resolution: "@manypkg/tools@npm:1.1.2"
+  dependencies:
+    fast-glob: "npm:^3.3.2"
+    jju: "npm:^1.4.0"
+    js-yaml: "npm:^4.1.0"
+  checksum: 10c0/54e4b8e0d2aeb2682dff2d660139a825ab583aac86f42262ae81c108d6cc54e6d6de7172270e845a2409aaac2e113e51d9a1442bd226207547bc1bb454c3a5b8
   languageName: node
   linkType: hard
 
@@ -4909,7 +4965,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"glob@npm:^10.2.2":
+"glob@npm:^10.2.2, glob@npm:^10.3.10":
   version: 10.4.5
   resolution: "glob@npm:10.4.5"
   dependencies:
@@ -6310,6 +6366,13 @@ __metadata:
   bin:
     jiti: lib/jiti-cli.mjs
   checksum: 10c0/79b2e96a8e623f66c1b703b98ec1b8be4500e1d217e09b09e343471bbb9c105381b83edbb979d01cef18318cc45ce6e153571b6c83122170eefa531c64b6789b
+  languageName: node
+  linkType: hard
+
+"jju@npm:^1.4.0":
+  version: 1.4.0
+  resolution: "jju@npm:1.4.0"
+  checksum: 10c0/f3f444557e4364cfc06b1abf8331bf3778b26c0c8552ca54429bc0092652172fdea26cbffe33e1017b303d5aa506f7ede8571857400efe459cb7439180e2acad
   languageName: node
   linkType: hard
 
