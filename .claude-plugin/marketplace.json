@@ -23,13 +23,7 @@
         "name": "Goodfoot",
         "email": "contact@goodfoot.io"
       },
-      "tags": ["project-management", "workflow", "planning", "implementation"],
-      "components": {
-        "commands": ["begin", "create", "describe", "worktree"],
-        "agents": ["assumption-tester", "implementation-evaluator", "project-implementer", "project-plan-assessor", "sledgehammer"],
-        "skills": [],
-        "hooks": []
-      }
+      "tags": ["project-management", "workflow", "planning", "implementation"]
     }
   ]
 }
