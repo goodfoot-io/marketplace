@@ -1,1 +1,3 @@
-Say: "The magic directory is !`${CLAUDE_PLUGIN_ROOT}`"
+Say: "The magic directory is !`echo ${CLAUDE_PLUGIN_ROOT}`"
+
+

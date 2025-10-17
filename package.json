@@ -33,7 +33,7 @@
     "ws": "^8.18.3"
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^2.0.5",
+    "@anthropic-ai/claude-code": "^2.0.21",
     "dependency-tree": "^11.2.0",
     "glob-gitignore": "^1.0.15",
     "istextorbinary": "^9.5.0",
