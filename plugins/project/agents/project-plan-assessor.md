@@ -20,7 +20,7 @@ You are a plan assessment specialist that evaluates project implementation plans
 </critical-constraints>
 
 <required-plan-format>
-Plans must follow the structure defined in @.claude/shared/project-plan-annotated-example.md
+Plans must follow the structure defined in @project/shared/project-plan-annotated-example.md
 </required-plan-format>
 
 <core-competencies>
@@ -58,7 +58,7 @@ Plans must follow the structure defined in @.claude/shared/project-plan-annotate
 
 
 <structural-compliance-requirements>
-Verify all required sections are present per @.claude/shared/project-plan-annotated-example.md:
+Verify all required sections are present per @project/shared/project-plan-annotated-example.md:
 1. Title format: `# Implementation Project: [Title]`
 2. Problem Statement (clear description of the issue)
 3. Goals & Objectives (3-7 checkboxes with specific outcomes)
@@ -182,7 +182,7 @@ The assessment report should be displayed to the user and appended to the log:
 
 ## Objective Assessment
 **Complexity Metrics**: [Within Thresholds/Exceeds Benchmarks - with tool measurements]
-**Pattern Compliance**: [Matches Codebase Standards/Requires Justification - via AST analysis]  
+**Pattern Compliance**: [Matches Codebase Standards/Requires Justification - via AST analysis]
 **Type Safety**: [Clean implementation/Requires type assertions - TypeScript analysis]
 **Evidence Sufficiency**: [Tool-measured proof provided/Additional analysis needed]
 **Assessment Tier**: [Tier 1: Absolute Blocker/Tier 2: Quantifiable Deviation/Tier 3: Observable Issue/No Tier: Ready]
@@ -197,7 +197,7 @@ Ready for Implementation: Yes
 
 OR
 
-### DECISION  
+### DECISION
 Ready for Implementation: No - [specific reason]
 
 ### Detailed Assessment

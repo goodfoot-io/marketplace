@@ -101,12 +101,12 @@ test_results:
     result: "YES"  # or "NO"
     confidence: "[High/Medium/Low]"
     evidence_summary: "[1-line summary]"
-    
+
 artifacts:
   - path: "projects/[status]/[project]/scratchpad/[test]/findings.md"
-  
+
 key_findings:
   - "[Most important discovery]"
-  
+
 test_location: "projects/[status]/[project]/scratchpad/[test]/"
 ```

@@ -13,5 +13,23 @@
     "type": "git",
     "url": "https://github.com/goodfoot-io/marketplace.git"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "project",
+      "source": "./plugins/project",
+      "description": "Project management and implementation workflows with plan creation, assessment, and execution",
+      "version": "1.0.0",
+      "author": {
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
+      },
+      "tags": ["project-management", "workflow", "planning", "implementation"],
+      "components": {
+        "commands": ["begin", "create", "describe", "worktree"],
+        "agents": ["assumption-tester", "implementation-evaluator", "project-implementer", "project-plan-assessor", "sledgehammer"],
+        "skills": [],
+        "hooks": []
+      }
+    }
+  ]
 }

@@ -320,14 +320,14 @@ Use these thresholds to assess risk:
 </dependency-analysis-requirements>
 
 <plan-structure-requirements>
-Create your plan following the EXACT structure defined in @.claude/shared/project-plan-annotated-example.md
+Create your plan following the EXACT structure defined in @project/shared/project-plan-annotated-example.md
 
 **CRITICAL**: 
 - Do not deviate from this structure. The assessor validates against this exact format.
 - Each plan must be a complete, self-contained document
 - Never reference other plan versions (e.g., "as in v2", "from previous plan", "defer to v3")
 
-Refer to @.claude/shared/project-plan-annotated-example.md for:
+Refer to @project/shared/project-plan-annotated-example.md for:
 - Complete section structure and order
 - Required subsections (especially Scope's Include/Exclude)
 - Formatting requirements for each section
@@ -651,7 +651,7 @@ Based on the assumption-tester's structured return:
 ## Phase 2: Plan Creation
 
 ### Step 1: Verify Plan Structure
-Create your plan following the EXACT structure defined in @.claude/shared/project-plan-annotated-example.md
+Create your plan following the EXACT structure defined in @project/shared/project-plan-annotated-example.md
 
 ### Step 2: Pre-Creation Checklist
 Before running create-plan-version, verify ALL checklist items in the pre-plan-creation-checklist section above.
@@ -663,7 +663,7 @@ Before running create-plan-version, verify ALL checklist items in the pre-plan-c
 create-plan-version "add-user-auth" "[PLAN_CONTENT]"
 ```
 
-[PLAN_CONTENT] must follow the structure defined in @.claude/shared/project-plan-annotated-example.md
+[PLAN_CONTENT] must follow the structure defined in @project/shared/project-plan-annotated-example.md
 
 ## Phase 3: Quality Assessment
 

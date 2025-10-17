@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc --build",
     "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
-    "test": "NODE_OPTIONS=\"--experimental-vm-modules\" NODE_ENV=test yarn exec jest --runInBand --detectOpenHandles -- tests"
+    "test": "NODE_OPTIONS=\"--experimental-vm-modules\" NODE_ENV=test yarn exec jest --runInBand --detectOpenHandles -- tests",
+    "release": "bash ../../scripts/release-package.sh test-utilities",
+    "release:dry-run": "bash ../../scripts/release-package.sh test-utilities --dry-run"
   },
   "exports": {
     "./*": {

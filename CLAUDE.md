@@ -27,6 +27,7 @@ Do NOT:
 Always dig until you find the specific technical reason and can demonstrate it with evidence.
 </root-cause-analysis>
 
+
 <workspace_information>
 This workspace uses Yarn 4.9.2 as a package manager. Do not use other package managers such as 'npm'.
 
@@ -237,4 +238,4 @@ mcp__vscode__open_files(
 
 </vscode>
 
-
+Review @documentation/claude-code-plugins.md 
