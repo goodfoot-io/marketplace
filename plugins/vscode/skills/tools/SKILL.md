@@ -1,5 +1,5 @@
 ---
-name: VSCode
+name: Tools
 description: Symbol lookups, type information, diagnostics, refactoring, and workspace commands with the VSCode language server
 ---
 
