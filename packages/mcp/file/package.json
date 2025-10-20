@@ -2,7 +2,6 @@
   "name": "@goodfoot/file-mcp-server",
   "version": "0.1.0",
   "description": "MCP server for file operations (append)",
-  "private": false,
   "sideEffects": false,
   "type": "module",
   "main": "./build/dist/src/append.js",

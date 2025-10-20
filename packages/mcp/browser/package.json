@@ -1,15 +1,12 @@
 {
   "name": "@goodfoot/browser-mcp-server",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "MCP server for browser automation using Chrome DevTools Protocol",
-  "private": false,
   "sideEffects": false,
   "type": "module",
   "main": "./build/dist/src/browser.js",
   "types": "./build/types/src/browser.d.ts",
-  "bin": {
-    "browser-mcp-server": "./build/dist/src/browser.js"
-  },
+  "bin": "./build/dist/src/browser.js",
   "scripts": {
     "prettier": "prettier . --write --log-level warn",
     "prettier:files": "prettier --write --log-level warn",

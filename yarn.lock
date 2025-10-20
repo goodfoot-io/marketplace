@@ -856,6 +856,8 @@ __metadata:
     ts-jest: "npm:^29.3.4"
     typescript: "npm:^5.8.3"
     zod: "npm:^3.24.1"
+  bin:
+    browser-mcp-server: ./build/dist/src/browser.js
   languageName: unknown
   linkType: soft
 
@@ -876,6 +878,8 @@ __metadata:
     ts-jest: "npm:^29.3.4"
     typescript: "npm:^5.8.3"
     zod: "npm:^3.24.1"
+  bin:
+    codebase-mcp-server: ./build/dist/src/codebase.js
   languageName: unknown
   linkType: soft
 
@@ -991,6 +995,8 @@ __metadata:
     ts-jest: "npm:^29.3.4"
     typescript: "npm:^5.8.3"
     zod: "npm:^3.24.1"
+  bin:
+    test-agent-mcp-server: ./build/dist/src/test-agent.js
   languageName: unknown
   linkType: soft
 
