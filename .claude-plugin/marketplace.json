@@ -78,6 +78,23 @@
         "lsp",
         "code-intelligence"
       ]
+    },
+    {
+      "name": "goodfoot",
+      "source": "./plugins/goodfoot",
+      "description": "Core development tools and workflows including test automation, documentation generation, investigation, and code analysis",
+      "version": "1.0.0",
+      "author": {
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
+      },
+      "tags": [
+        "testing",
+        "documentation",
+        "investigation",
+        "code-analysis",
+        "workflow"
+      ]
     }
   ]
 }
