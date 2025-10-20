@@ -2,7 +2,7 @@
   "name": "@goodfoot/codebase-mcp-server",
   "version": "0.1.0",
   "description": "MCP server for codebase analysis and code search",
-  "private": true,
+  "private": false,
   "sideEffects": false,
   "type": "module",
   "main": "./build/dist/src/codebase.js",

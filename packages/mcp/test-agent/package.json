@@ -2,7 +2,7 @@
   "name": "@goodfoot/test-agent-mcp-server",
   "version": "0.1.0",
   "description": "MCP server for launching custom agents with configurable system instructions",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./build/dist/src/test-agent.js",
   "types": "./build/types/src/test-agent.d.ts",
