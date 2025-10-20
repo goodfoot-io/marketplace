@@ -84,7 +84,7 @@ Proceed with documented assumptions if the ambiguity only affects implementation
 
 For EVERY file path you plan to include, you MUST verify in this exact sequence:
 
-```
+<tool-use-template>
 # Step 1: Find the file (if unsure of exact path)
 Glob(pattern="**/filename.ts")
 
@@ -98,7 +98,7 @@ Task({
 # Step 3: Read for line numbers (when planning modifications)
 Read(file_path="/workspace/packages/website/app/hooks/yjs.ts")
 # Only use "new file" for files that don't exist yet
-```
+</tool-use-template>
 
 #### When to Use Sequential vs Parallel Research
 - **Sequential**: When each query depends on previous results or exploring unknown areas
@@ -174,7 +174,7 @@ Validate assumptions when dealing with:
 
 <tool-use-template>
 Task(description="Validate [specific assumption]",
-     subagent_type="assumption-tester",
+     subagent_type="project:assumption-tester",
      prompt="<project>
      Name: [PROJECT_NAME]
      Directory: @projects/[STATUS]/[PROJECT_NAME]
@@ -195,7 +195,7 @@ Task(description="Validate [specific assumption]",
 ##### Type Export Verification
 <tool-use-template>
 Task(description="Verify type exports",
-     subagent_type="assumption-tester",
+     subagent_type="project:assumption-tester",
      prompt="<project>
      Name: add-user-auth
      Directory: @projects/new/add-user-auth
@@ -212,7 +212,7 @@ Task(description="Verify type exports",
 ##### API Behavior Testing
 <tool-use-template>
 Task(description="Test API responses",
-     subagent_type="assumption-tester",
+     subagent_type="project:assumption-tester",
      prompt="<project>
      Name: add-user-auth
      Directory: @projects/new/add-user-auth
@@ -229,7 +229,7 @@ Task(description="Test API responses",
 ##### Framework Feature Detection
 <tool-use-template>
 Task(description="Test framework support",
-     subagent_type="assumption-tester",
+     subagent_type="project:assumption-tester",
      prompt="<project>
      Name: add-form-handling
      Directory: @projects/new/add-form-handling
@@ -246,7 +246,7 @@ Task(description="Test framework support",
 ##### Version-Specific Feature Testing
 <tool-use-template>
 Task(description="Test React version features",
-     subagent_type="assumption-tester",
+     subagent_type="project:assumption-tester",
      prompt="<project>
      Name: add-suspense-boundaries
      Directory: @projects/new/add-suspense-boundaries
@@ -263,7 +263,7 @@ Task(description="Test React version features",
 
 #### Processing Test Results
 
-The assumption-tester returns structured results in this format:
+The project:assumption-tester returns structured results in this format:
 
 ```yaml
 ## Task Completion Summary
@@ -298,7 +298,7 @@ Do not test assumptions for:
 
 #### Test Environment Commands
 
-The assumption-tester uses these utilities automatically:
+The project:assumption-tester uses these utilities automatically:
 - `create-scratchpad-jest-test [project] [test-name]` - For integration tests
 - `create-scratchpad-playwright-test [project] [test-name]` - For E2E/browser tests
 
@@ -332,14 +332,18 @@ Use these thresholds to assess risk:
 </dependency-analysis-requirements>
 
 <plan-structure-requirements>
-Create your plan following the EXACT structure defined in @project/shared/project-plan-annotated-example.md
+Create your plan following the EXACT structure defined in the project:plan skill. Load the complete plan structure guide:
 
-**CRITICAL**: 
+<tool-use-template>
+Skill({ command: "project:plan" })
+</tool-use-template>
+
+**CRITICAL**:
 - Do not deviate from this structure. The assessor validates against this exact format.
 - Each plan must be a complete, self-contained document
 - Never reference other plan versions (e.g., "as in v2", "from previous plan", "defer to v3")
 
-Refer to @project/shared/project-plan-annotated-example.md for:
+The project:plan skill provides:
 - Complete section structure and order
 - Required subsections (especially Scope's Include/Exclude)
 - Formatting requirements for each section
@@ -477,7 +481,7 @@ Task({
 #### For Validating Assumptions
 <tool-use-template>
 Task(description="Verify library behavior",
-     subagent_type="assumption-tester",
+     subagent_type="project:assumption-tester",
      prompt="<project>
      Name: [PROJECT_NAME]
      Directory: @projects/[STATUS]/[PROJECT_NAME]
@@ -499,7 +503,7 @@ Task(description="Verify library behavior",
 #### For Version Compatibility Issues
 <tool-use-template>
 Task(description="Verify version compatibility",
-     subagent_type="assumption-tester",
+     subagent_type="project:assumption-tester",
      prompt="<project>
      Name: [PROJECT_NAME]
      Directory: @projects/[STATUS]/[PROJECT_NAME]
@@ -610,7 +614,7 @@ Task({
 
 ### Step 5: Validate Assumptions and Version Compatibility (Optional)
 
-Use the assumption-tester agent to verify technical behaviors that cannot be confirmed through code inspection alone, including framework version-specific features.
+Use the project:assumption-tester agent to verify technical behaviors that cannot be confirmed through code inspection alone, including framework version-specific features.
 
 ### Step 6: Analyze Dependencies
 
@@ -657,7 +661,7 @@ Based on the identified versions:
 - [Framework] [version]: [Specific considerations]
 
 ### Assumption Test Results (if applicable)
-Based on the assumption-tester's structured return:
+Based on the project:assumption-tester's structured return:
 - [test_name]: [result] with [confidence] confidence
   - Evidence: [evidence_summary from return]
   - Version compatibility: [confirmed for X.X.X]
@@ -679,7 +683,11 @@ Based on the assumption-tester's structured return:
 ## Phase 2: Plan Creation
 
 ### Step 1: Verify Plan Structure
-Create your plan following the EXACT structure defined in @project/shared/project-plan-annotated-example.md
+Create your plan following the EXACT structure defined in the project:plan skill:
+
+<tool-use-template>
+Skill({ command: "project:plan" })
+</tool-use-template>
 
 ### Step 2: Pre-Creation Checklist
 Before running create-plan-version, verify ALL checklist items in the pre-plan-creation-checklist section above.
@@ -691,7 +699,11 @@ Before running create-plan-version, verify ALL checklist items in the pre-plan-c
 create-plan-version "add-user-auth" "[PLAN_CONTENT]"
 ```
 
-[PLAN_CONTENT] must follow the structure defined in @project/shared/project-plan-annotated-example.md
+[PLAN_CONTENT] must follow the structure defined in the project:plan skill:
+
+<tool-use-template>
+Skill({ command: "project:plan" })
+</tool-use-template>
 
 ## Phase 3: Quality Assessment
 
@@ -699,7 +711,7 @@ create-plan-version "add-user-auth" "[PLAN_CONTENT]"
 
 <tool-use-template>
 Task(description="Assessment - add-user-auth",
-     subagent_type="project-plan-assessor",
+     subagent_type="project:plan-assessor",
      prompt="<project>
      Name: add-user-auth
      Directory: @projects/new/add-user-auth
@@ -708,7 +720,7 @@ Task(description="Assessment - add-user-auth",
      </project>
 
      Assess the project plan.
-     Verify it follows the structure from .claude/shared/project-plan-annotated-example.md")
+     Verify it follows the structure from the project:plan skill")
 </tool-use-template>
 
 ### Step 2: Interpret Assessment Results and Take Action

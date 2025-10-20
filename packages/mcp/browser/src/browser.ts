@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { parseArgs, promisify } from 'util';
-import { query } from '@anthropic-ai/claude-code';
+import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
@@ -727,7 +727,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
 
     // Configure query options
     const queryOptions: Parameters<typeof query>[0]['options'] = {
-      customSystemPrompt: CHROME_SYSTEM_INSTRUCTIONS,
+      systemPrompt: CHROME_SYSTEM_INSTRUCTIONS,
       maxTurns: 100,
       includePartialMessages: true,
       abortController,

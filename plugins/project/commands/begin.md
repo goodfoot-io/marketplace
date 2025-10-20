@@ -46,7 +46,7 @@ CRITICAL: The orchestrator ONLY coordinates - it does NOT implement.
 - ANY user feature requests
 
 ### Golden Rule
-If the user asks you to implement something → Create todo → Delegate to project-implementer
+If the user asks you to implement something → Create todo → Delegate to project:implementer
 Never use Read/Write/Edit/MultiEdit for feature implementation.
 Only use TodoWrite and Task tools for coordination.
 
@@ -73,20 +73,22 @@ setupFiles: ['jest-preset'] // ✅ Just fix it
 Delegate:
 typescript
 // Test failing with "Expected 5 got undefined"
-// → Needs investigation, delegate to project-implementer
+// → Needs investigation, delegate to project:implementer
 
 // "Connection pool exhausted"
-// → Complex issue, delegate to project-implementer
+// → Complex issue, delegate to project:implementer
 
 ### Delegation Protocol
 
 If investigation is needed, do it first:
 
+<tool-use-template>
 Task({
   subagent_type: "vscode:Analysis",
   description: "Type mismatch root cause",
   prompt: "TypeScript error TS2322 at packages/api/src/auth.ts:45: 'Type X not assignable to Y'. Show BOTH type definitions and explain the mismatch."
 })
+</tool-use-template>
 
 // Then: Include findings in delegation
 
@@ -102,7 +104,7 @@ fi
 
 echo "Task("
 echo '  description="Fix type mismatch",'
-echo '  subagent_type="project-implementer",'
+echo '  subagent_type="project:implementer",'
 echo '  prompt=`'
 echo "    Name: $PROJECT_NAME"
 echo "    Directory: @$PROJECT_PATH"
@@ -258,7 +260,7 @@ fi
 
 echo "Task("
 echo '  description="Delete and rebuild failing code",'
-echo '  subagent_type="sledgehammer",'
+echo '  subagent_type="project:sledgehammer",'
 echo '  prompt=`'
 echo "    Name: $PROJECT_NAME"
 echo "    Path: $PROJECT_PATH"
@@ -309,7 +311,7 @@ Use same format but include:
 <task-prompt-template>
 ## Task Prompt Template
 
-Use this template for all Task delegations to project-implementer:
+Use this template for all Task delegations to project:implementer:
 
 ```!
 # Get project path and name
@@ -323,7 +325,7 @@ fi
 
 echo "Task("
 echo '  description="[Task description from todo]",'
-echo '  subagent_type="project-implementer",'
+echo '  subagent_type="project:implementer",'
 echo '  prompt=`'
 echo "    Name: $PROJECT_NAME"
 echo "    Path: $PROJECT_PATH"
@@ -401,6 +403,7 @@ Capture from output:
 
 Execute parallel analysis for discovered errors:
 
+<tool-use-template>
 Task({
   subagent_type: "vscode:Analysis",
   description: "Type assignment error analysis",
@@ -424,6 +427,7 @@ Task({
   description: "Requirements implementation check",
   prompt: "Does packages/api/src/services/user.ts implement ALL requirements from plan.md section 2.1? Show the actual implementation code and compare with each requirement."
 })
+</tool-use-template>
 
 ### Success Criteria
 
@@ -682,10 +686,10 @@ TodoWrite({
 
 All todos flow through the same Phase 4-6 execution pipeline with:
 - Checkpointing before execution
-- Delegation to project-implementer
+- Delegation to project:implementer
 - Validation with zero-tolerance policy
 - Unified recovery mechanisms in Phase 6
-- Up to 5 total attempts (3 normal, 1 sledgehammer, then blocked)
+- Up to 5 total attempts (3 normal, 1 project:sledgehammer, then blocked)
 
 ## Phase 4: Prepare Implementation
 
@@ -894,7 +898,7 @@ fi
 
 echo "Task("
 echo '  description="Evaluation",'
-echo '  subagent_type="implementation-evaluator",'
+echo '  subagent_type="project:implementation-evaluator",'
 echo '  prompt=`'
 echo "    Name: $PROJECT_NAME"
 echo "    Path: $PROJECT_PATH"

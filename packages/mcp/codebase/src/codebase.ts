@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { promises as fs } from 'fs';
 import path from 'path';
-import { query, type SDKMessage } from '@anthropic-ai/claude-code';
+import { query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
@@ -812,7 +812,7 @@ ${question}
     for await (const message of query({
       prompt,
       options: {
-        customSystemPrompt,
+        systemPrompt: customSystemPrompt,
         maxTurns: 100,
         includePartialMessages: true,
         abortController,

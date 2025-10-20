@@ -1,3 +1,8 @@
+---
+name: plan
+description: Create implementation project plans with clear structure, specific goals, and actionable steps
+---
+
 # Annotated Project Plan Example
 
 This document provides a comprehensive example of an excellent project plan with clear instructions for each section. The example demonstrates implementing a notification system with real-time updates and user preferences.
@@ -15,7 +20,7 @@ Project plans follow a versioning convention:
 <example>
 ```yaml
 ---
-dependencies: 
+dependencies:
   - user-preferences-api     # Only list actual blocking dependencies
   - event-bus-setup         # Must complete before this project
 preventAutoProgress: true   # Add only when user review is critical before code changes
@@ -76,7 +81,7 @@ Write 2-4 sentences that:
 ```markdown
 ## Goals & Objectives
 - [ ] Create notification queue with priority-based ordering
-- [ ] Implement real-time delivery via WebSocket connections  
+- [ ] Implement real-time delivery via WebSocket connections
 - [ ] Build notification center UI with read/unread states
 - [ ] Add user preference controls for notification types
 - [ ] Ensure notifications persist across page refreshes
@@ -217,7 +222,7 @@ Populate from technology stack identification in analysis phase.
 - **Evidence**: Scratchpad test sent 1000 numbered events, all received in sequence
 - **Impact**: Can rely on event ordering for notification batching logic
 
-### Browser Storage Limits Test  
+### Browser Storage Limits Test
 - **Question**: What happens when localStorage approaches quota limit?
 - **Result**: QuotaExceededError thrown at ~5MB (varies by browser)
 - **Evidence**: Test filled storage incrementally, caught exception at 5,242,880 bytes
@@ -372,7 +377,7 @@ Keep examples minimal - just enough to clarify without constraining implementati
 - packages/web/src/hooks/use-websocket.ts (521 imports) - WebSocket connection hook all real-time features use
 - packages/api/src/middleware/auth.ts (234 imports) - Auth required for notification filtering
 
-### Key Integration Points  
+### Key Integration Points
 - packages/web/src/components/layout/header.tsx - Where notification bell icon mounts
 - packages/api/src/services/event-emitter.ts - Central event dispatch for notifications
 - packages/web/src/stores/index.ts - Store registry for new notification store
@@ -424,7 +429,7 @@ For multiple packages:
 - Lint: 'cd packages/[package-1] && yarn lint'
 - Test: 'cd packages/[package-1] && yarn test'
 
-### packages/[package-2]  
+### packages/[package-2]
 - Lint: 'cd packages/[package-2] && yarn lint'
 - Test: 'cd packages/[package-2] && yarn test:e2e'
 ```

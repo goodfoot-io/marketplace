@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { promises as fs } from 'fs';
 import path from 'path';
-import { query, type SDKMessage } from '@anthropic-ai/claude-code';
+import { query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
@@ -255,9 +255,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
       permissionMode: queryOptions.permissionMode
     });
 
-    // Only add customSystemPrompt if provided
+    // Only add systemPrompt if provided
     if (customSystemPrompt) {
-      queryOptions.customSystemPrompt = customSystemPrompt;
+      queryOptions.systemPrompt = customSystemPrompt;
     }
 
     // Apply front matter settings if present

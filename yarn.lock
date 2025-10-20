@@ -5,9 +5,9 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
-"@anthropic-ai/claude-code@npm:^2.0.0":
-  version: 2.0.17
-  resolution: "@anthropic-ai/claude-code@npm:2.0.17"
+"@anthropic-ai/claude-agent-sdk@npm:^0.1.23":
+  version: 0.1.23
+  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.1.23"
   dependencies:
     "@img/sharp-darwin-arm64": "npm:^0.33.5"
     "@img/sharp-darwin-x64": "npm:^0.33.5"
@@ -15,6 +15,8 @@ __metadata:
     "@img/sharp-linux-arm64": "npm:^0.33.5"
     "@img/sharp-linux-x64": "npm:^0.33.5"
     "@img/sharp-win32-x64": "npm:^0.33.5"
+  peerDependencies:
+    zod: ^3.24.1
   dependenciesMeta:
     "@img/sharp-darwin-arm64":
       optional: true
@@ -28,9 +30,7 @@ __metadata:
       optional: true
     "@img/sharp-win32-x64":
       optional: true
-  bin:
-    claude: cli.js
-  checksum: 10c0/95bf8069a61d7cb3cd99e5793a8400f7ad48524ce0248b6ee2cdf1db6a1eff9894fe31d5a26924919686f0785a462d7a819fcfdb4d2ee0783b5e761ce525a977
+  checksum: 10c0/66037da9d772aca70286034aa4586c8a983509a89c980f70f5fd1d0b319aefc2137347869837e11aec2e18ca60fefb8d6beb7356b923c2b1ad4760acb2002359
   languageName: node
   linkType: hard
 
@@ -843,7 +843,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/browser-mcp-server@workspace:packages/mcp/browser"
   dependencies:
-    "@anthropic-ai/claude-code": "npm:^2.0.0"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.23"
     "@goodfoot/test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.18.2"
     "@types/jest": "npm:^29.5.14"
@@ -855,6 +855,7 @@ __metadata:
     prettier: "npm:^3.5.3"
     ts-jest: "npm:^29.3.4"
     typescript: "npm:^5.8.3"
+    zod: "npm:^3.24.1"
   languageName: unknown
   linkType: soft
 
@@ -862,7 +863,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/codebase-mcp-server@workspace:packages/mcp/codebase"
   dependencies:
-    "@anthropic-ai/claude-code": "npm:^2.0.0"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.23"
     "@goodfoot/test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.18.2"
     "@types/jest": "npm:^29.5.14"
@@ -874,6 +875,7 @@ __metadata:
     prettier: "npm:^3.5.3"
     ts-jest: "npm:^29.3.4"
     typescript: "npm:^5.8.3"
+    zod: "npm:^3.24.1"
   languageName: unknown
   linkType: soft
 
@@ -974,7 +976,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/test-agent-mcp-server@workspace:packages/mcp/test-agent"
   dependencies:
-    "@anthropic-ai/claude-code": "npm:^2.0.0"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.23"
     "@goodfoot/test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.18.2"
     "@types/jest": "npm:^29.5.14"
@@ -988,6 +990,7 @@ __metadata:
     prettier: "npm:^3.5.3"
     ts-jest: "npm:^29.3.4"
     typescript: "npm:^5.8.3"
+    zod: "npm:^3.24.1"
   languageName: unknown
   linkType: soft
 
@@ -9431,7 +9434,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:^3.23.8":
+"zod@npm:^3.23.8, zod@npm:^3.24.1":
   version: 3.25.76
   resolution: "zod@npm:3.25.76"
   checksum: 10c0/5718ec35e3c40b600316c5b4c5e4976f7fee68151bc8f8d90ec18a469be9571f072e1bbaace10f1e85cf8892ea12d90821b200e980ab46916a6166a4260a983c
