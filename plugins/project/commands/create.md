@@ -89,8 +89,10 @@ For EVERY file path you plan to include, you MUST verify in this exact sequence:
 Glob(pattern="**/filename.ts")
 
 # Step 2: Get dependency count (for impact assessment) - REQUIRED
-mcp__codebase__ask({
-  question: "What files depend on packages/website/app/hooks/yjs.ts and what is the impact if it changes?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "yjs.ts dependencies",
+  prompt: "What files depend on packages/website/app/hooks/yjs.ts and what is the impact if it changes?"
 })
 
 # Step 3: Read for line numbers (when planning modifications)
@@ -105,30 +107,38 @@ Read(file_path="/workspace/packages/website/app/hooks/yjs.ts")
 #### Core Research Pattern (Parallel Execution)
 When investigating multiple independent aspects, execute codebase analysis in parallel using a single message with multiple tool invocations:
 
-```
+<tool-use-template>
 # PARALLEL EXECUTION: Send all these tool calls in ONE message for simultaneous analysis
 # Note: The tool provides exhaustive results by default - complete code, all occurrences, line numbers
 
-# First investigation - overall architecture  
-mcp__codebase__ask({
-  question: "How is user authentication implemented in packages/api/src/auth including framework versions, auth flow, and entry points?"
+# First investigation - overall architecture
+Task({
+  subagent_type: "codebase-analysis",
+  description: "auth implementation",
+  prompt: "How is user authentication implemented in packages/api/src/auth including framework versions, auth flow, and entry points?"
 })
 
 # Second investigation - implementation patterns (runs in parallel)
-mcp__codebase__ask({
-  question: "What authentication and authorization patterns exist in packages/api including middleware functions, route protection, and role-based access?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "auth patterns",
+  prompt: "What authentication and authorization patterns exist in packages/api including middleware functions, route protection, and role-based access?"
 })
 
 # Third investigation - dependencies and impact (runs in parallel)
-mcp__codebase__ask({
-  question: "What would be affected if I change the auth system at packages/api/src/auth/?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "auth system impact",
+  prompt: "What would be affected if I change the auth system at packages/api/src/auth/?"
 })
 
 # Fourth investigation - testing infrastructure (runs in parallel)
-mcp__codebase__ask({
-  question: "What auth-related tests exist in packages/api/tests/ and packages/api/src/**/*.test.ts including test database setup and token handling?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "auth testing",
+  prompt: "What auth-related tests exist in packages/api/tests/ and packages/api/src/**/*.test.ts including test database setup and token handling?"
 })
-```
+</tool-use-template>
 
 **Important**: All four investigations above should be sent in a SINGLE message to run in parallel, not sequentially.
 </research-patterns>
@@ -300,11 +310,13 @@ Tests are created in: `projects/[status]/[project]/scratchpad/[test-name]/`
 After researching the codebase, identify critical dependencies:
 
 1. **MANDATORY**: Analyze dependencies for high-impact files using:
-```
-mcp__codebase__ask({
-  question: "What are the dependencies for packages/api/src/auth/middleware.ts and what needs updating if the interface changes?"
+<tool-use-template>
+Task({
+  subagent_type: "codebase-analysis",
+  description: "middleware dependencies",
+  prompt: "What are the dependencies for packages/api/src/auth/middleware.ts and what needs updating if the interface changes?"
 })
-```
+</tool-use-template>
 
 2. **MANDATORY**: Include the exact count in parentheses: "file.ts (23 imports)"
 3. Note external libraries needed (check if already in package.json)
@@ -427,30 +439,38 @@ The assessor provides:
 Address issues identified by the assessor or user. Execute multiple investigations in PARALLEL when addressing multiple issues:
 
 #### Parallel Revision Research (send all in ONE message)
-```
+<tool-use-template>
 # PARALLEL EXECUTION: Address multiple issues simultaneously
 # Note: Tool provides complete code and exact counts by default
 
 # Issue 1: Incorrect File Paths (example from assessment: "UserService not found")
-mcp__codebase__ask({
-  question: "Where is the UserService class located in packages/api/src/ and are there any duplicate classes?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "UserService location",
+  prompt: "Where is the UserService class located in packages/api/src/ and are there any duplicate classes?"
 })
 
 # Issue 2: Missing Dependencies (runs in parallel)
-mcp__codebase__ask({
-  question: "What are the dependencies for packages/api/src/services/user.service.ts including npm packages and circular dependencies?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "user.service dependencies",
+  prompt: "What are the dependencies for packages/api/src/services/user.service.ts including npm packages and circular dependencies?"
 })
 
-# Issue 3: Pattern Examples (runs in parallel)  
-mcp__codebase__ask({
-  question: "What Repository pattern implementations exist in packages/api/src/ including interface definitions and database connections?"
+# Issue 3: Pattern Examples (runs in parallel)
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Repository patterns",
+  prompt: "What Repository pattern implementations exist in packages/api/src/ including interface definitions and database connections?"
 })
 
 # Issue 4: Integration Points (runs in parallel)
-mcp__codebase__ask({
-  question: "How do packages/api and packages/web integrate for authentication including endpoints, token handling, and error patterns?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "api-web auth integration",
+  prompt: "How do packages/api and packages/web integrate for authentication including endpoints, token handling, and error patterns?"
 })
-```
+</tool-use-template>
 
 **Important**: When addressing multiple revision issues, investigate them in parallel by sending all queries in a single message.
 
@@ -554,29 +574,37 @@ Key aspects of this request:
 
 Execute parallel investigations to understand different aspects of the codebase simultaneously. Send ALL these tool calls in a SINGLE message:
 
-```
+<tool-use-template>
 # PARALLEL EXECUTION: Send all tool calls together for maximum efficiency
 
 # Investigation 1: Technology and architecture
-mcp__codebase__ask({
-  question: "What is the technology stack for OAuth authentication in packages/api including current auth framework and strategies?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "OAuth tech stack",
+  prompt: "What is the technology stack for OAuth authentication in packages/api including current auth framework and strategies?"
 })
 
 # Investigation 2: Implementation patterns (parallel)
-mcp__codebase__ask({
-  question: "What authentication implementations exist in packages/api/src/auth/ including endpoints, middleware, session handling, and password logic?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "auth implementations",
+  prompt: "What authentication implementations exist in packages/api/src/auth/ including endpoints, middleware, session handling, and password logic?"
 })
 
 # Investigation 3: Dependencies and integration (parallel)
-mcp__codebase__ask({
-  question: "Map dependencies for adding OAuth to packages/api/src/auth/ including files needing modification, web integration, and schema changes"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "OAuth dependencies",
+  prompt: "Map dependencies for adding OAuth to packages/api/src/auth/ including files needing modification, web integration, and schema changes"
 })
 
 # Investigation 4: Testing and validation (parallel)
-mcp__codebase__ask({
-  question: "What authentication testing patterns exist in packages/api/tests/ including test files, user creation, database setup, and token handling?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "auth testing patterns",
+  prompt: "What authentication testing patterns exist in packages/api/tests/ including test files, user creation, database setup, and token handling?"
 })
-```
+</tool-use-template>
 
 **Key Point**: The above investigations are independent and should run in parallel by sending them all in one message, not one at a time.
 

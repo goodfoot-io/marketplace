@@ -310,10 +310,10 @@ What do you need?
 ├─ Find files by name? → Use `Glob` tool
 ├─ List directory contents? → Use `Bash` with ls
 ├─ Run validation commands? → Use `Bash` tool
-└─ Complex code analysis? → Use `mcp__codebase__ask`
+└─ Complex code analysis? → Use `Task` tool with "codebase-analysis" subagent
 ```
 
-### When to Use `mcp__codebase__ask`
+### When to Use Task Tool with "codebase-analysis" Subagent
 - **Impact analysis**: "What would be affected if I change X? List EVERY file with code snippets."
 - **Error root cause**: "TypeScript error TS2322 at file:line: '[exact message]'. Show ALL type definitions involved."
 - **Pattern discovery**: "Find ALL implementations of X pattern, not just examples"
@@ -346,11 +346,12 @@ ls -la packages/website/app/hooks/
 ```
 
 **Step 2: Use discovered paths in questions**
-```javascript
-mcp__codebase__ask({
-  question: "How does useTranscriptSync in packages/website/app/hooks/transcript.ts handle state updates?"
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "useTranscriptSync state handling",
+  prompt: "How does useTranscriptSync in packages/website/app/hooks/transcript.ts handle state updates?"
 })
-```
 
 ### Question Quality Checklist
 ✅ **Always include:**
@@ -364,23 +365,30 @@ mcp__codebase__ask({
 ### Parallel Execution Pattern
 **CRITICAL: Send ALL related questions in ONE message for parallel execution:**
 
-```javascript
-// ✅ CORRECT - Single message with multiple tool calls
-mcp__codebase__ask({
-  question: "TypeScript error TS2322 at packages/api/src/auth.ts:45. Show ALL type definitions involved."
-})
-mcp__codebase__ask({
-  question: "What files import AuthUser type from packages/api/src/types/auth.ts?"
-})
-mcp__codebase__ask({
-  question: "How is authentication implemented in packages/api/src/middleware/auth.ts?"
+✅ CORRECT - Single message with multiple tool calls:
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "TypeScript error TS2322 analysis",
+  prompt: "TypeScript error TS2322 at packages/api/src/auth.ts:45. Show ALL type definitions involved."
 })
 
-// ❌ WRONG - Sequential calls in separate messages
+Task({
+  subagent_type: "codebase-analysis",
+  description: "AuthUser type imports",
+  prompt: "What files import AuthUser type from packages/api/src/types/auth.ts?"
+})
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Authentication implementation",
+  prompt: "How is authentication implemented in packages/api/src/middleware/auth.ts?"
+})
+
+❌ WRONG - Sequential calls in separate messages:
 // Call 1, wait for response, then Call 2...
-```
 
-### When NOT to Use `mcp__codebase__ask`
+### When NOT to Use Task Tool with "codebase-analysis" Subagent
 - ❌ Reading a single known file → Use `Read`
 - ❌ Simple text search → Use `Grep`
 - ❌ Finding files by name pattern → Use `Glob`
@@ -418,31 +426,40 @@ yarn lint 2>&1       # All linting issues
 #### Step 2: Analyze Discovered Issues (Parallel)
 **Only AFTER you have specific errors, analyze them with full paths:**
 
-```javascript
-// ✅ CORRECT - After discovering these specific errors:
-// packages/api/src/auth/handler.ts:45: error TS2322: Type 'User' not assignable to 'AuthUser'
-// packages/api/src/services/user.ts:89: error TS2554: Expected 2 arguments, but got 1
-// packages/api/tests/auth.test.ts: FAIL - Authentication › should validate token
+✅ CORRECT - After discovering these specific errors:
+- packages/api/src/auth/handler.ts:45: error TS2322: Type 'User' not assignable to 'AuthUser'
+- packages/api/src/services/user.ts:89: error TS2554: Expected 2 arguments, but got 1
+- packages/api/tests/auth.test.ts: FAIL - Authentication › should validate token
 
-// Send ALL analyses in ONE message for parallel execution:
-mcp__codebase__ask({
-  question: "TypeScript error TS2322 at packages/api/src/auth/handler.ts:45: 'Type User not assignable to AuthUser'. Show both type definitions, highlight the exact differences, and provide 3 different fix approaches with code."
+Send ALL analyses in ONE message for parallel execution:
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "TS2322 error analysis",
+  prompt: "TypeScript error TS2322 at packages/api/src/auth/handler.ts:45: 'Type User not assignable to AuthUser'. Show both type definitions, highlight the exact differences, and provide 3 different fix approaches with code."
 })
-mcp__codebase__ask({
-  question: "TypeScript error TS2554 at packages/api/src/services/user.ts:89: 'Expected 2 arguments but got 1'. Show the function signature, the call site, what the missing argument should be, and how to fix it."
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "TS2554 error analysis",
+  prompt: "TypeScript error TS2554 at packages/api/src/services/user.ts:89: 'Expected 2 arguments but got 1'. Show the function signature, the call site, what the missing argument should be, and how to fix it."
 })
-mcp__codebase__ask({
-  question: "Test failure 'Authentication › should validate token' in packages/api/tests/auth.test.ts. Show the test code, trace to the implementation in packages/api/src/auth/validator.ts, and explain why validation is failing."
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Auth test failure analysis",
+  prompt: "Test failure 'Authentication › should validate token' in packages/api/tests/auth.test.ts. Show the test code, trace to the implementation in packages/api/src/auth/validator.ts, and explain why validation is failing."
 })
-```
 
 **❌ WRONG - Using the tool for discovery:**
-```javascript
-// Don't do this - run validation commands instead!
-mcp__codebase__ask({
-  question: "What TypeScript errors exist in the project?"
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "General error discovery",
+  prompt: "What TypeScript errors exist in the project?"
 })
-```
+
+Don't do this - run validation commands instead!
 
 ### Fix ALL Pre-existing Issues
 
@@ -481,21 +498,31 @@ ls -la packages/api/src/services/database.ts
 ### Investigate Plan References (Parallel)
 **Send ALL investigations in ONE message with FULL paths:**
 
-```javascript
-// ✅ CORRECT - All queries include complete paths and specific requests
-mcp__codebase__ask({
-  question: "What is the current implementation at packages/api/src/handlers/user.ts lines 45-67? Show the EXACT code with line numbers, ALL type definitions used, and explain the pattern."
+✅ CORRECT - All queries include complete paths and specific requests:
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "User handler implementation",
+  prompt: "What is the current implementation at packages/api/src/handlers/user.ts lines 45-67? Show the EXACT code with line numbers, ALL type definitions used, and explain the pattern."
 })
-mcp__codebase__ask({
-  question: "What is the current structure at packages/models/src/user.ts lines 12-34? Show the EXACT code with line numbers, list ALL exported types, and show where they're imported."
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "User model structure",
+  prompt: "What is the current structure at packages/models/src/user.ts lines 12-34? Show the EXACT code with line numbers, list ALL exported types, and show where they're imported."
 })
-mcp__codebase__ask({
-  question: "How does packages/api/src/services/database.ts work? Show ALL interfaces, EVERY import statement, ALL exported functions, and provide usage examples from other files."
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Database service analysis",
+  prompt: "How does packages/api/src/services/database.ts work? Show ALL interfaces, EVERY import statement, ALL exported functions, and provide usage examples from other files."
 })
-mcp__codebase__ask({
-  question: "Are there existing Repository pattern implementations in packages/api/src/repositories/? Show ALL repository files with their complete implementations."
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Repository pattern search",
+  prompt: "Are there existing Repository pattern implementations in packages/api/src/repositories/? Show ALL repository files with their complete implementations."
 })
-```
 
 ### Simple Operations Use Simple Tools
 **Choose the right tool for the task:**
@@ -573,23 +600,28 @@ If validation fails, iterate internally (max 5 attempts):
    ```
 
 2. **Then: Analyze specific error with FULL context**
-   ```javascript
-   // Include the complete error details you just discovered
-   mcp__codebase__ask({
-     question: "TypeScript error TS2322 at packages/api/src/user.ts:45: 'Type User is not assignable to AuthUser'. Show BOTH complete type definitions, highlight EVERY difference, explain why they're incompatible, and provide 3 different fix approaches with code."
+
+   Include the complete error details you just discovered:
+
+   Task({
+     subagent_type: "codebase-analysis",
+     description: "TS2322 type incompatibility",
+     prompt: "TypeScript error TS2322 at packages/api/src/user.ts:45: 'Type User is not assignable to AuthUser'. Show BOTH complete type definitions, highlight EVERY difference, explain why they're incompatible, and provide 3 different fix approaches with code."
    })
-   ```
 
 3. **Find working examples (only for complex patterns)**
-   ```javascript
-   // Use codebase tool only for complex analysis
-   mcp__codebase__ask({
-     question: "Find ALL working Repository pattern implementations in packages/api/src/repositories/. Show COMPLETE implementation including constructor, methods, and type definitions."
+
+   Use codebase analysis for complex patterns:
+
+   Task({
+     subagent_type: "codebase-analysis",
+     description: "Repository pattern examples",
+     prompt: "Find ALL working Repository pattern implementations in packages/api/src/repositories/. Show COMPLETE implementation including constructor, methods, and type definitions."
    })
 
-   // For simple searches, use Grep instead:
+   For simple searches, use Grep instead:
+
    Grep(pattern="class.*Repository", output_mode="content")
-   ```
 
 3. **Apply fix patterns**:
    - Type errors → Add missing properties
@@ -610,17 +642,22 @@ If validation fails, iterate internally (max 5 attempts):
 When implementing changes that affect files listed in the plan's Dependency Analysis:
 
 1. **Find ALL consumers with FULL path context**:
-   ```javascript
-   // ✅ CORRECT - Complete path and specific request
-   mcp__codebase__ask({
-     question: "What files import the UserAuth type from packages/api/src/types/auth.ts? List EVERY importing file with FULL paths, show the exact import statements, show ALL usages in each file with line numbers, and categorize by risk (type-only vs runtime usage)."
+
+   ✅ CORRECT - Complete path and specific request:
+
+   Task({
+     subagent_type: "codebase-analysis",
+     description: "UserAuth type consumers",
+     prompt: "What files import the UserAuth type from packages/api/src/types/auth.ts? List EVERY importing file with FULL paths, show the exact import statements, show ALL usages in each file with line numbers, and categorize by risk (type-only vs runtime usage)."
    })
 
-   // ❌ WRONG - Missing path context
-   mcp__codebase__ask({
-     question: "What uses UserAuth type?"
+   ❌ WRONG - Missing path context:
+
+   Task({
+     subagent_type: "codebase-analysis",
+     description: "UserAuth usage",
+     prompt: "What uses UserAuth type?"
    })
-   ```
 
 2. **Update ALL in same commit** per <breaking-changes>:
    - Make the breaking change

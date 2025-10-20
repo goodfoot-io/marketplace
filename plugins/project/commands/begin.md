@@ -55,13 +55,13 @@ Only use TodoWrite and Task tools for coordination.
 When errors need investigation before delegation:
 
 1. Run validation to get specific errors
-2. Use `mcp__codebase__ask` with FULL paths for root cause
+2. Use Task tool with "codebase-analysis" subagent and FULL paths for root cause
 3. Include findings in the Task prompt to the subagent
 
 ### Examples
 
 Fix Directly:
-```typescript
+typescript
 // Error: Missing import extension
 import { foo } from './bar';  // ❌
 import { foo } from './bar.js';  // ✅ Just fix it
@@ -69,28 +69,26 @@ import { foo } from './bar.js';  // ✅ Just fix it
 // Error: Cannot find module 'jest-preset'
 setupFiles: ['jest'] // ❌
 setupFiles: ['jest-preset'] // ✅ Just fix it
-```
 
 Delegate:
-```typescript
+typescript
 // Test failing with "Expected 5 got undefined"
 // → Needs investigation, delegate to project-implementer
 
 // "Connection pool exhausted"
 // → Complex issue, delegate to project-implementer
-```
 
 ### Delegation Protocol
 
 If investigation is needed, do it first:
-```
-// First: Get root cause with FULL paths
-mcp__codebase__ask({
-  question: "TypeScript error TS2322 at packages/api/src/auth.ts:45: 'Type X not assignable to Y'. Show BOTH type definitions and explain the mismatch."
+
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Type mismatch root cause",
+  prompt: "TypeScript error TS2322 at packages/api/src/auth.ts:45: 'Type X not assignable to Y'. Show BOTH type definitions and explain the mismatch."
 })
 
 // Then: Include findings in delegation
-```
 
 ```!
 # Get project path and name for delegation
@@ -399,28 +397,33 @@ Capture from output:
 
 ### Stage 5: Deep Analysis (Only when errors discovered)
 
-⚠️ **CRITICAL**: The `mcp__codebase__ask` tool requires FULL paths in EVERY question.
+⚠️ **CRITICAL**: The Task tool with "codebase-analysis" subagent requires FULL paths in EVERY question.
 
 Execute parallel analysis for discovered errors:
 
-```
-// Example parallel analysis after discovering specific errors
-mcp__codebase__ask({
-  question: "TypeScript error TS2322 at packages/api/src/auth/handler.ts:45:8: 'Type User not assignable to AuthUser'. Show BOTH complete type definitions from their source files, highlight EVERY property difference, and provide 3 different ways to fix this with code examples."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Type assignment error analysis",
+  prompt: "TypeScript error TS2322 at packages/api/src/auth/handler.ts:45:8: 'Type User not assignable to AuthUser'. Show BOTH complete type definitions from their source files, highlight EVERY property difference, and provide 3 different ways to fix this with code examples."
 })
 
-mcp__codebase__ask({
-  question: "TypeScript error TS2554 at packages/api/src/services/user.ts:89:15: 'Expected 2 arguments but got 1'. Show the complete function signature, the exact call site with surrounding context, identify what the missing argument should be, and show the corrected code."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Missing argument analysis",
+  prompt: "TypeScript error TS2554 at packages/api/src/services/user.ts:89:15: 'Expected 2 arguments but got 1'. Show the complete function signature, the exact call site with surrounding context, identify what the missing argument should be, and show the corrected code."
 })
 
-mcp__codebase__ask({
-  question: "Test 'Authentication › should validate token' timing out in packages/api/tests/auth.test.ts. Show the COMPLETE test code, trace ALL async operations, check for missing awaits or unresolved promises, and identify why it's not completing."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Test timeout analysis",
+  prompt: "Test 'Authentication › should validate token' timing out in packages/api/tests/auth.test.ts. Show the COMPLETE test code, trace ALL async operations, check for missing awaits or unresolved promises, and identify why it's not completing."
 })
 
-mcp__codebase__ask({
-  question: "Does packages/api/src/services/user.ts implement ALL requirements from plan.md section 2.1? Show the actual implementation code and compare with each requirement."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Requirements implementation check",
+  prompt: "Does packages/api/src/services/user.ts implement ALL requirements from plan.md section 2.1? Show the actual implementation code and compare with each requirement."
 })
-```
 
 ### Success Criteria
 

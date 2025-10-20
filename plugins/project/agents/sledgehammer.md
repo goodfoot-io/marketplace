@@ -143,25 +143,33 @@ Your narrative should reveal:
 
 #### Step 2: Trace Impact with FULL Paths (Parallel)
 
-⚠️ **CRITICAL**: The `mcp__codebase__ask` tool has NO context. Include FULL paths in EVERY question.
+⚠️ **CRITICAL**: The codebase-analysis subagent has NO context. Include FULL paths in EVERY question.
 
-```javascript
+<tool-use-template>
 // ✅ CORRECT - All questions have complete paths and specific requests
-mcp__codebase__ask({
-  question: "What files import the UserAuth type from packages/api/src/types/auth.ts? List EVERY importing file with FULL paths, show the exact import statements and ALL usages. Mark which would break if UserAuth is deleted."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "UserAuth type imports",
+  prompt: "What files import the UserAuth type from packages/api/src/types/auth.ts? List EVERY importing file with FULL paths, show the exact import statements and ALL usages. Mark which would break if UserAuth is deleted."
 })
-mcp__codebase__ask({
-  question: "The test at packages/api/tests/user.test.ts:45 is failing. Show the COMPLETE test code, trace what implementation it tests in packages/api/src/services/user.ts, list ALL dependencies, and identify what changed to cause failure."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Failing test analysis",
+  prompt: "The test at packages/api/tests/user.test.ts:45 is failing. Show the COMPLETE test code, trace what implementation it tests in packages/api/src/services/user.ts, list ALL dependencies, and identify what changed to cause failure."
 })
-mcp__codebase__ask({
-  question: "Multiple TypeScript errors in packages/api/src/handlers/. Show ALL handler files, identify the common pattern causing errors, and list which handlers share this problematic pattern."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Handler error patterns",
+  prompt: "Multiple TypeScript errors in packages/api/src/handlers/. Show ALL handler files, identify the common pattern causing errors, and list which handlers share this problematic pattern."
 })
 
 // ❌ WRONG - Missing paths
-mcp__codebase__ask({
-  question: "What imports UserAuth?"  // No source path!
+Task({
+  subagent_type: "codebase-analysis",
+  description: "UserAuth imports",
+  prompt: "What imports UserAuth?"  // No source path!
 })
-```
+</tool-use-template>
 
 ### Regression Classification
 1. **Primary infection** = Files modified in failed attempt
@@ -192,18 +200,24 @@ ENOENT/spawn errors → Environmental, not code
 ```
 
 #### Analyze Pattern Spread (Parallel)
-```javascript
+<tool-use-template>
 // Find ALL instances of the failed pattern with FULL paths
-mcp__codebase__ask({
-  question: "Find ALL files in packages/ that use the pattern 'jest.fn()' or 'jest.mock()'. List EVERY file with FULL paths and show the exact usage with line numbers."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Mock pattern usage",
+  prompt: "Find ALL files in packages/ that use the pattern 'jest.fn()' or 'jest.mock()'. List EVERY file with FULL paths and show the exact usage with line numbers."
 })
-mcp__codebase__ask({
-  question: "Show ALL class-based services in packages/api/src/services/. List COMPLETE class definitions including constructors and methods. Identify which ones have similar structure to the failing UserService."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Class-based services",
+  prompt: "Show ALL class-based services in packages/api/src/services/. List COMPLETE class definitions including constructors and methods. Identify which ones have similar structure to the failing UserService."
 })
-mcp__codebase__ask({
-  question: "Find ALL async test cases in packages/api/tests/. Show which ones have proper cleanup with 'afterEach' or 'afterAll' hooks and which don't."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Async test cleanup",
+  prompt: "Find ALL async test cases in packages/api/tests/. Show which ones have proper cleanup with 'afterEach' or 'afterAll' hooks and which don't."
 })
-```
+</tool-use-template>
 
 ### Anti-Pattern Decision Matrix
 
@@ -224,28 +238,34 @@ Whatever pattern caused regression is now FORBIDDEN in reconstruction.
 ### Pre-Deletion Impact Check
 **Before deleting, understand what depends on the code:**
 
-```javascript
+<tool-use-template>
 // Check dependencies BEFORE deletion with FULL paths
-mcp__codebase__ask({
-  question: "If I delete the UserService class from packages/api/src/services/user.ts, what files would break? List EVERY file that imports it with FULL paths and show how they use it."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "UserService deletion impact",
+  prompt: "If I delete the UserService class from packages/api/src/services/user.ts, what files would break? List EVERY file that imports it with FULL paths and show how they use it."
 })
-mcp__codebase__ask({
-  question: "If I delete all mock-based tests from packages/api/tests/, which test utilities in packages/test-utilities/ would become unused?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Unused test utilities",
+  prompt: "If I delete all mock-based tests from packages/api/tests/, which test utilities in packages/test-utilities/ would become unused?"
 })
-```
+</tool-use-template>
 
 ### Execute Deletion Strategy
 
 1. **Find all pattern instances**:
-   ```javascript
+   <tool-use-template>
    // Use Grep for simple pattern search
    Grep(pattern="mockReturnValue|jest.fn|jest.mock", output_mode="files_with_matches")
 
-   // Use codebase tool for understanding impact
-   mcp__codebase__ask({
-     question: "Show ALL files in packages/ that use mock patterns. For each file, show the EXACT mock usage with line numbers and explain what it's mocking."
+   // Use codebase analysis for understanding impact
+   Task({
+     subagent_type: "codebase-analysis",
+     description: "Mock pattern analysis",
+     prompt: "Show ALL files in packages/ that use mock patterns. For each file, show the EXACT mock usage with line numbers and explain what it's mocking."
    })
-   ```
+   </tool-use-template>
 
 2. **Surgical removal**:
    - Delete specific functions/classes at error lines
@@ -266,15 +286,19 @@ mcp__codebase__ask({
 ### Find Working Examples First
 **Before building, learn from what works:**
 
-```javascript
+<tool-use-template>
 // Find successful patterns to copy (FULL paths required)
-mcp__codebase__ask({
-  question: "Show ALL working service implementations in packages/api/src/services/ that have passing tests. Display COMPLETE code including imports, types, and exported functions."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Working service implementations",
+  prompt: "Show ALL working service implementations in packages/api/src/services/ that have passing tests. Display COMPLETE code including imports, types, and exported functions."
 })
-mcp__codebase__ask({
-  question: "Find working test files in packages/api/tests/ that use getTestSql(). Show COMPLETE test structure including setup, teardown, and assertions."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Working test patterns",
+  prompt: "Find working test files in packages/api/tests/ that use getTestSql(). Show COMPLETE test structure including setup, teardown, and assertions."
 })
-```
+</tool-use-template>
 
 ### Simplicity Rules
 

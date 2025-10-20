@@ -73,8 +73,7 @@ MCP-provided tools are prefixed with `mcp__<server-name>__`:
 
 ```
 Built-in tools:    Read, Write, Edit, Bash, Glob, Grep
-MCP tools:         mcp__codebase__ask
-                   mcp__browser__prompt
+MCP tools:         mcp__browser__prompt
                    mcp__vscode__get_diagnostics
 ```
 
@@ -153,7 +152,7 @@ my-plugin/
 
 When `tools` (agents) or `allowed-tools` (skills) fields are **omitted**, the component gets:
 - All built-in tools (Read, Write, Edit, Bash, Glob, Grep, Task, etc.)
-- All MCP-provided tools (mcp__codebase__ask, mcp__browser__prompt, etc.)
+- All MCP-provided tools (mcp__browser__prompt, mcp__vscode__get_diagnostics, etc.)
 
 **Example - Unrestricted Agent:**
 ```yaml
@@ -186,7 +185,7 @@ tools: Read, Glob, Grep
 ---
 ```
 
-This agent can use `Read`, `Glob`, `Grep` but **CANNOT** use `mcp__codebase__ask` or any other MCP tools.
+This agent can use `Read`, `Glob`, `Grep` but **CANNOT** use Task tool with "codebase-analysis" subagent or any other MCP tools.
 
 **Example - Restricted Skill (No MCP):**
 ```yaml
@@ -203,16 +202,17 @@ To grant access to specific MCP tools, list them explicitly:
 
 ```yaml
 ---
-name: codebase-analyzer
-description: Analyzes code using codebase MCP
-tools: Read, Grep, mcp__codebase__ask
+name: browser-tester
+description: Tests web applications using browser automation
+tools: Read, Grep, mcp__browser__prompt
 ---
 ```
 
 **Key Points:**
 - MCP tool names include the prefix: `mcp__<server>__<tool>`
-- Must specify exact tool name (e.g., `mcp__codebase__ask`, not just `codebase`)
+- Must specify exact tool name (e.g., `mcp__browser__prompt`, not just `browser`)
 - Omitting `tools`/`allowed-tools` field is the easiest way to grant MCP access
+- For codebase analysis, use the built-in Task tool with "codebase-analysis" subagent instead of MCP
 
 ## Common MCP Server Types
 
@@ -232,8 +232,15 @@ tools: Read, Grep, mcp__codebase__ask
 }
 ```
 
-**Available Tools:**
-- `mcp__codebase__ask`: Analyze code structure, dependencies, and relationships
+**Available via Task tool with "codebase-analysis" subagent:**
+
+<tool-use-template>
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Brief description of analysis task",
+  prompt: "What specific question to analyze?"
+})
+</tool-use-template>
 
 **Use Cases:**
 - Trace function calls and dependencies
@@ -428,20 +435,24 @@ MCP servers are loaded when Claude Code starts. Restart the session to load new 
 
 Try using an MCP tool to verify it's working:
 
-```
-# For codebase MCP
-mcp__codebase__ask({ question: "List all TypeScript files in src/" })
+<tool-use-template>
+# For codebase analysis via Task tool
+Task({
+  subagent_type: "codebase-analysis",
+  description: "List TypeScript files",
+  prompt: "List all TypeScript files in src/"
+})
 
 # For browser MCP (requires Chrome running)
 mcp__browser__prompt({ prompt: "Navigate to example.com" })
-```
+</tool-use-template>
 
 ## Troubleshooting MCP Server Issues
 
 ### Issue: MCP Tool Not Available
 
 **Symptoms:**
-- Tool name not recognized: `Tool mcp__codebase__ask not found`
+- Tool name not recognized: `Tool mcp__browser__prompt not found`
 - MCP tools missing from available tools list
 
 **Solutions:**
@@ -727,22 +738,32 @@ You should see a successful response.
 
 ```yaml
 ---
-name: Code Analyzer
-description: Analyzes code using codebase MCP server for deep insights
+name: Browser Tester
+description: Tests web applications using browser automation
 ---
 ```
 
-By omitting `allowed-tools`, this skill automatically gets all MCP tools.
+By omitting `allowed-tools`, this skill automatically gets all MCP tools and built-in tools.
 
 **Option 2: Explicit Tools:**
 
 ```yaml
 ---
-name: Code Analyzer
-description: Analyzes code using codebase MCP server for deep insights
-allowed-tools: Read, Grep, mcp__codebase__ask
+name: Browser Tester
+description: Tests web applications using browser automation
+allowed-tools: Read, Grep, mcp__browser__prompt
 ---
 ```
+
+**Note**: For codebase analysis, use the built-in Task tool with "codebase-analysis" subagent:
+
+<tool-use-template>
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Analyze authentication flow",
+  prompt: "How does the authentication system handle user login?"
+})
+</tool-use-template>
 
 ### Agents with MCP Access
 

@@ -172,9 +172,9 @@ allowed-tools: Read, Write, Edit
 - `WebFetch` - Fetch web content
 - `WebSearch` - Search the web
 - `TodoWrite` - Manage task lists
-- Plus MCP-provided tools (e.g., `mcp__codebase__ask`, `mcp__vscode__*`)
+- Plus MCP-provided tools (e.g., `mcp__vscode__*`)
   - **Individual MCP tool grants**: You can specify individual MCP tools in the `tools` field
-  - Example: `tools: Read, mcp__codebase__ask, mcp__vscode__get_diagnostics`
+  - Example: `tools: Read, mcp__vscode__get_diagnostics`
   - **All MCP tools**: Omitting the `tools` field grants ALL currently available MCP tools
   - **Best Practice**: Explicitly list required MCP tools rather than granting all to follow principle of least privilege
 
@@ -254,7 +254,7 @@ Follow these guidelines to minimize security risks and limit blast radius in sen
 - **Testing agents** → `Bash, Read` for running tests without modifying source code
 
 **4. MCP Tool Review**
-- Explicitly list required MCP tools rather than granting all: `tools: Read, mcp__codebase__ask`
+- Explicitly list required MCP tools rather than granting all: Use Task tool with "codebase-analysis" subagent instead
 - Omitting `tools` field grants ALL MCP servers (databases, browsers, APIs, etc.)
 - Review MCP tool permissions regularly as new servers are added
 
@@ -293,7 +293,8 @@ model: sonnet
 
 This grants access to:
 - All built-in tools (Read, Write, Edit, Bash, Glob, Grep, Task, etc.)
-- All MCP-provided tools (mcp__codebase__ask, mcp__vscode__*, etc.)
+- All MCP-provided tools (mcp__vscode__*, etc.)
+- Task tool for invoking specialized subagents like "codebase-analysis"
 
 **When to use**: Only when the sub-agent truly needs unrestricted access (rare cases)
 
