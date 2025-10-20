@@ -45,16 +45,20 @@ Parse the plan to identify:
 - [SCOPE] = Which files/packages will be affected
 - [VALIDATION] = Required validation steps
 
-Use `mcp__codebase__ask` if you need to investigate relevant code (MUST include full paths):
+Use Task with "codebase-analysis" subagent if you need to investigate relevant code (MUST include full paths):
 
 <tool-use-template>
 // Examples - adapt to specific plan requirements:
-mcp__codebase__ask({
-  question: "How is authentication implemented in packages/api/src/auth?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Authentication implementation",
+  prompt: "How is authentication implemented in packages/api/src/auth?"
 })
 
-mcp__codebase__ask({
-  question: "What files import the User type from packages/shared/types/user.ts?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "User type imports",
+  prompt: "What files import the User type from packages/shared/types/user.ts?"
 })
 </tool-use-template>
 
@@ -82,7 +86,7 @@ Bash(
 
 Display a concise summary:
 
-```
+<output-template>
 ## Implementation Summary
 
 ### Objectives
@@ -98,7 +102,7 @@ Display a concise summary:
 [VALIDATION] requirements
 
 Proceeding with implementation...
-```
+</output-template>
 
 ## Phase 2: Execute Implementation
 
@@ -143,11 +147,11 @@ Launch tasks one at a time, waiting for each to complete before starting the nex
 **For Parallel Tasks** (after independence verification):
 Launch all independent tasks in a single message:
 
-```
+<tool-use-template>
 Task(description="task-1", ...)
 Task(description="task-2", ...)
 Task(description="task-3", ...)
-```
+</tool-use-template>
 
 ### Step 2.3: Monitor Completion
 
@@ -202,12 +206,12 @@ Bash(
 )
 </tool-use-template>
 
-3. Use `mcp__codebase__ask` to investigate root causes with full paths
+3. Use Task with "codebase-analysis" subagent to investigate root causes with full paths
 4. Report issues to user with analysis
 
 ### Step 3.3: Report Results
 
-```
+<output-template>
 ## Implementation Complete
 
 ### Objectives Accomplished
@@ -226,7 +230,7 @@ Bash(
 - Lint: [✅ Pass | ❌ N issues]
 
 [If failures exist, include error details and analysis]
-```
+</output-template>
 
 ## Important Notes
 

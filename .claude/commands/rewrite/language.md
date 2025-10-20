@@ -35,11 +35,11 @@ Maintain all code, patterns, and specifications.
 For each file specified by the user:
 
 1. **Analyze for language issues** by using the Task tool to invoke a `general-purpose` agent:
-   ```
-   Task(description="Identify language issues in [FILES]", 
+   <tool-use-template>
+   Task(description="Identify language issues in [FILES]",
          subagent_type="general-purpose",
          prompt=`Follow the instructions in \@.claude/commands/review/language.md replacing !`echo '$AR''GUMENTS'` with: "Identify language issues in [FILES]"`)
-   ```
+   </tool-use-template>
 
    **You must use this exact prompt when using the Task tool. Replace [FILES] with the files specified by the user.**
 

@@ -36,22 +36,28 @@ Parse the user's request to identify:
 - **Constraints**: Technical requirements, dependencies, patterns to follow
 - **Success Criteria**: How to verify completion
 
-Use `mcp__codebase__ask` to investigate relevant code (MUST include full paths):
+Use Task with "codebase-analysis" subagent to investigate relevant code (MUST include full paths):
 
-```
+<tool-use-template>
 // Examples - adapt to specific request:
-mcp__codebase__ask({
-  question: "How is authentication implemented in packages/api/src/auth?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Authentication implementation",
+  prompt: "How is authentication implemented in packages/api/src/auth?"
 })
 
-mcp__codebase__ask({
-  question: "What files import the User type from packages/shared/types/user.ts?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "User type imports",
+  prompt: "What files import the User type from packages/shared/types/user.ts?"
 })
 
-mcp__codebase__ask({
-  question: "What Repository pattern implementations exist in packages/api/src/repositories?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Repository patterns",
+  prompt: "What Repository pattern implementations exist in packages/api/src/repositories?"
 })
-```
+</tool-use-template>
 
 ### Step 1.2: Analyze Dependencies
 
@@ -224,11 +230,11 @@ Launch tasks one at a time, waiting for each to complete before starting the nex
 **For Parallel Tasks** (after independence verification):
 Launch all independent tasks in a single message:
 
-```
+<tool-use-template>
 Task(description="task-1", ...)
 Task(description="task-2", ...)
 Task(description="task-3", ...)
-```
+</tool-use-template>
 
 ### Step 2.4: Monitor Completion
 
@@ -283,7 +289,7 @@ Bash(
 )
 </tool-use-template>
 
-3. Use `mcp__codebase__ask` to investigate root causes with full paths
+3. Use Task with "codebase-analysis" subagent to investigate root causes with full paths
 4. Report issues to user with analysis
 
 ### Step 3.3: Report Results

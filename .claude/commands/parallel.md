@@ -17,7 +17,7 @@ You should derive the following from the provided inputs:
 - Subdivision triggers: "each", "all", "every", plural references ("files", "components"), or explicit subdivision instructions
 - Singular references ("file", "plan") without subdivision keywords → redundancy (multiple agents on same task)
 - Natural subdivisions take priority over [AGENT_COUNT]
-- Investigate as needed: read files, use `mcp__codebase__ask`, run tests, search codebase to discover items
+- Investigate as needed: read files, use Task tool with "codebase-analysis" subagent, run tests, search codebase to discover items
 - Total `Task()` invocations = (number of distinct [TASK]s × [REDUNDANCY_LEVEL])
 
 **REDUNDANCY_LEVEL Derivation:**

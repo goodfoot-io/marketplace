@@ -5,11 +5,11 @@ description: Analyze component chains using extract-inputs-and-outputs command t
 Systematically analyze interconnected components to map their inputs and outputs, then compare these to identify format mismatches that cause integration failures.
 
 <user-message>
-```!
+<tool-use-template>
 # Use write-arguments utility to synchronize user arguments
 ESCAPED_ARGUMENTS=$(echo "$ARGUMENTS" | sed 's/@/\\@/g')
 echo $(write-arguments "$ESCAPED_ARGUMENTS")
-```
+</tool-use-template>
 </user-message>
 
 <role>
@@ -39,13 +39,13 @@ Analyze integration compatibility between components.
 
 Use the Task tool function to invoke a `general-purpose` subagent to map the integration chain.
 
-```
+<tool-use-template>
 Task(
   description="Map integration chain components and relationships",
   subagent_type="general-purpose",
   prompt=`Follow the instructions in \@.claude/commands/utilities/map-integration-chain.md replacing !`echo '$AR''GUMENTS'` with: "!`wait-for-arguments`"`
 )
-```
+</tool-use-template>
 
 ## Phase 1.5: Analyze Utility Script Behavior
 
@@ -53,14 +53,14 @@ Task(
 
 Use the Task tool function to invoke a `general-purpose` subagent to analyze utility script behavior.
 
-```
+<tool-use-template>
 Task(
   description="Analyze utility scripts in integration chain",
-  subagent_type="general-purpose", 
+  subagent_type="general-purpose",
   prompt=`Analyze utility scripts identified in Phase 1:
 
 For each utility script in the integration chain:
-1. Read the actual implementation  
+1. Read the actual implementation
 2. Document input/output transformations
 3. Identify file operations (create, move, rename, delete)
 4. Map data flow changes the utility makes
@@ -70,14 +70,14 @@ For each utility script in the integration chain:
 Focus on: @.devcontainer/utilities directory and any bash utilities invoked in the chain.
 
 Output format:
-### Utility: [script-name] 
+### Utility: [script-name]
 - **Input**: [what it receives]
 - **Transformations**: [what it changes]
-- **Output**: [what it produces] 
+- **Output**: [what it produces]
 - **Integration Impact**: [how it affects producer-consumer relationships]
 - **Gap Resolution**: [apparent incompatibilities this utility resolves]`
 )
-```
+</tool-use-template>
 
 ## Phase 2: Research Producer-Consumer Pairs
 
@@ -89,43 +89,43 @@ Replace `[PRODUCER_FILE]` with the file path of the producer, `[CONSUMER_FILE]` 
 
 When analyzing multiple pairs, combine all Task tool function calls into a single message to run them in parallel.
 
-```
+<tool-use-template>
 Task(
   description="[PRODUCER_FILE] -> [CONSUMER_FILE] (context-aware)",
   subagent_type="general-purpose",
   prompt=`Follow the instructions in \@.claude/commands/review/producer-consumer.md replacing !`echo '$AR''GUMENTS'` with: "
   - Producer: @[PRODUCER_FILE]
-  - Consumer: @[CONSUMER_FILE]  
+  - Consumer: @[CONSUMER_FILE]
   - Relationship: [RELATIONSHIP]
   - Analysis Mode: Claude Code Context-Aware
-  
+
   CRITICAL: Before flagging incompatibilities, verify these are not Claude Code design patterns:
-  
+
   **Claude Code Pattern Recognition**:
   - Task() calls: Standard Claude processing, not parsing errors
-  - @ file references: Intentional context management syntax  
+  - @ file references: Intentional context management syntax
   - Agent autonomy: Format/technique selection flexibility is intentional
   - Response-based outputs: Standard agent communication pattern
   - Bash utility integration: May resolve apparent format mismatches
-  
+
   **Evidence Requirements**:
   - Concrete failure scenario with specific error conditions
   - Verification that no utility scripts resolve the mismatch
   - Proof of actual processing failure, not theoretical format differences
   - Consumer parsing/validation code that would break
-  
+
   **Multi-Format Check**:
   - Verify if producer supports multiple output formats
   - Check if ANY producer format aligns with consumer expectations
   - Document format selection mechanisms
-  
+
   **Classification Standards**:
   - Critical: Prevents successful integration with concrete evidence
-  - Major: Requires manual intervention with processing impact  
+  - Major: Requires manual intervention with processing impact
   - Minor: Cosmetic differences with no functional impact
   - Design Feature: Intentional pattern that enables flexibility (exclude from incompatibilities)"`
 )
-```
+</tool-use-template>
 
 ## Phase 2.5: Verification and Classification
 
@@ -133,9 +133,9 @@ Task(
 
 Use the Task tool function to verify and classify findings:
 
-```
+<tool-use-template>
 Task(
-  description="Verify and classify integration issues", 
+  description="Verify and classify integration issues",
   subagent_type="general-purpose",
   prompt=`Review all incompatibilities identified in Phase 2.
 
@@ -163,7 +163,7 @@ For each reported incompatibility:
 
 Format output as verified issue classifications with evidence summaries.`
 )
-```
+</tool-use-template>
 
 ## Phase 3: Output Enhanced Report
 

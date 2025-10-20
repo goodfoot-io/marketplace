@@ -398,13 +398,13 @@ tools: Read, Bash, Grep
 
 The main agent invokes sub-agents using the Task tool:
 
-```
+<tool-use-template>
 Task(
   description="short-task-description",
   subagent_type="general-purpose",
   prompt="Detailed instructions for the sub-agent..."
 )
-```
+</tool-use-template>
 
 ### Task Tool Parameters
 
@@ -436,7 +436,7 @@ The `subagent_type` parameter specifies which type of agent framework to use for
 ### Invocation Example
 
 **Main Agent Action**:
-```
+<tool-use-template>
 Task(
   description="analyze-auth-flow",
   subagent_type="general-purpose",
@@ -461,7 +461,7 @@ Report findings with:
 - Description of issue
 - Recommended fix"
 )
-```
+</tool-use-template>
 
 **What Sub-Agent Receives**:
 The entire `prompt` parameter becomes the sub-agent's instructions, combined with its system prompt from the markdown body.
@@ -636,11 +636,11 @@ cd /workspace && yarn test
 ```
 
 **In Task Invocations**:
-```
+<tool-use-template>
 Task(
   prompt="Analyze /workspace/packages/api/src/auth/login.ts for security issues..."
 )
-```
+</tool-use-template>
 
 **Why Absolute Paths**:
 1. Unambiguous - always refers to the same location
@@ -668,9 +668,9 @@ tools: Read, Grep
 ```
 
 **Attempted Tool Use**:
-```
+<tool-use-template>
 Write(file_path="/workspace/output.txt", content="results")
-```
+</tool-use-template>
 
 **Result**:
 ```
@@ -752,7 +752,7 @@ model: sonnet
 **Cause**: Main agent's Task prompt didn't include necessary context
 
 **Solution**: Include all context in the prompt parameter:
-```
+<tool-use-template>
 Task(
   prompt="You are the analyzer agent.
 
@@ -769,7 +769,7 @@ Task(
   - Issue description
   - Recommendation"
 )
-```
+</tool-use-template>
 
 ## Example Workflows
 

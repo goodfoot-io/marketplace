@@ -127,12 +127,12 @@ Implementation must meet ALL criteria:
 <output-method>
 Append evaluation results directly to project log using the `mcp__file__append` tool function:
 
-```
+<tool-use-template>
 mcp__file__append(
   file_path="[ABSOLUTE_PROJECT_PATH]/log.md",
   content="[Use the complete Implementation Evaluation format from above]"
 )
-```
+</tool-use-template>
 
 Note: Use the full report format defined in `<implementation-report-format>` section above.
 </output-method>

@@ -1,6 +1,6 @@
 ---
 description: Generate minimal project state documentation focusing on non-extractable architectural knowledge
-allowed-tools: [Read, Grep, Glob, mcp__codebase__ask]
+allowed-tools: [Read, Grep, Glob, Task]
 ---
 
 <user-message>

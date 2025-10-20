@@ -1,6 +1,6 @@
 ---
 name: VSCode MCP Tools
-description: Direct access to VSCode language server for symbol lookups, type information, diagnostics, refactoring, and workspace commands.
+description: Symbol lookups, type information, diagnostics, refactoring, and workspace commands with the VSCode language server
 ---
 
 ## When to Use Each Tool

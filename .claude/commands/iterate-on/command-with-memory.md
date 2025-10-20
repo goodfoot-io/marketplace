@@ -18,12 +18,12 @@ For example, [SLASH_COMMAND_EXAMPLE_USAGE] might be `/review:find-inconsistencie
 
 <testing>
 Always use the Bash tool to run tests. Note: Only slash commands can be tested this way.
-```
+<tool-use-template>
 Bash(
   command='claude -p "[SLASH_COMMAND_EXAMPLE_USAGE]" --mcp-config \'{"mcpServers":{}}\' --disallowedTools "[TOOLS_NOT_NEEDED]"',
   timeout=600000
 )
-```
+</tool-use-template>
 Determine which tool functions the [SLASH_COMMAND_EXAMPLE_USAGE] needs, then disallow all others. Replace [TOOLS_NOT_NEEDED] with this list, as defined in @documentation/claude-code-slash-commands.md
 
 Example: Pure analysis command → disallow "Bash, Edit, MultiEdit, Write, TodoWrite"
@@ -47,13 +47,13 @@ Example: Pure analysis command → disallow "Bash, Edit, MultiEdit, Write, TodoW
 
 1.1. Use the Task tool to invoke a `general-purpose` subagent:
 
-```
+<tool-use-template>
 Task(
   description="Map integration chain components and relationships",
   subagent_type="general-purpose",
   prompt=`Follow the instructions in \@.claude/commands/utilities/map-integration-chain.md replacing !`echo '$AR''GUMENTS'` with: "[SLASH_COMMAND]"`
 )
-```
+</tool-use-template>
 
 1.2. Use the returned "Files to Analyze" as the [INTEGRATION_CHAIN_FILE_LIST].
 

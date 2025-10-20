@@ -19,7 +19,7 @@ You should derive the following from the inferred inputs:
 - Subdivision triggers: "each", "all", "every", plural references ("files", "components"), or explicit subdivision instructions
 - Singular references ("file", "plan") without subdivision keywords → redundancy (multiple agents on same task)
 - Natural subdivisions take priority over [AGENT_COUNT]
-- Investigate as needed: read files, use `mcp__codebase__ask`, run tests, search codebase to discover items
+- Investigate as needed: read files, use Task tool with "codebase-analysis" subagent, run tests, search codebase to discover items
 - Total `Task()` invocations = (number of distinct [TASK]s × [REDUNDANCY_LEVEL])
 
 **REDUNDANCY_LEVEL Derivation:**
@@ -89,8 +89,8 @@ After upgrading Socket.io from v4.5.4 to v4.6.1 (which caused bug #1547 - connec
 </input-format>
 
 <tool-use-template>
-// Total Task() calls = (number of distinct tasks) × [REDUNDANCY_LEVEL]
-// Example: 3 subdivided tasks with REDUNDANCY_LEVEL=2 requires 6 Task() calls
+Total Task() calls = (number of distinct tasks) × [REDUNDANCY_LEVEL]
+Example: 3 subdivided tasks with REDUNDANCY_LEVEL=2 requires 6 Task() calls
 
 Task(description="[TASK_NAME]-1",  // Add number suffix when REDUNDANCY_LEVEL > 1
     subagent_type="[SUBAGENT_TYPE]",
@@ -100,7 +100,7 @@ Task(description="[TASK_NAME]-1",  // Add number suffix when REDUNDANCY_LEVEL > 
     <context>
     [TASK_CONTEXT]
     </context>
-    
+
     <instructions>
     Critically evaluate this work. Think intensely about the problem and aim for collaborative improvement. If small adjustments suffice, propose them; if larger ideas or rewrites better serve the goals, don't hesitate to suggest them. Remember: other agents are performing parallel evaluations, and I will synthesize all input before making final decisions.
     </instructions>")
@@ -113,7 +113,7 @@ Task(description="[TASK_NAME]-2",
     <context>
     [TASK_CONTEXT]
     </context>
-    
+
     <instructions>
     Critically evaluate this work. Think intensely about the problem and aim for collaborative improvement. If small adjustments suffice, propose them; if larger ideas or rewrites better serve the goals, don't hesitate to suggest them. Remember: other agents are performing parallel evaluations, and I will synthesize all input before making final decisions.
     </instructions>")

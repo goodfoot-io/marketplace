@@ -92,16 +92,20 @@ Identify:
 Use codebase analysis to understand what the code does:
 
 <tool-use-template>
-mcp__codebase__ask({
-  question: "What does the UserService class in packages/api/src/services/user.ts do? Show:
+Task({
+  subagent_type: "codebase-analysis",
+  description: "UserService class analysis",
+  prompt: "What does the UserService class in packages/api/src/services/user.ts do? Show:
   - Primary purpose and responsibilities
   - Key methods and their execution flow
   - Dependencies on other services or utilities
   - Data transformations performed"
 })
 
-mcp__codebase__ask({
-  question: "For the createUser function in packages/api/src/services/user.ts:
+Task({
+  subagent_type: "codebase-analysis",
+  description: "createUser function analysis",
+  prompt: "For the createUser function in packages/api/src/services/user.ts:
   - What are all the parameters and their valid ranges/constraints?
   - What does it return and under what conditions?
   - What errors can it throw and when?
@@ -125,8 +129,10 @@ Read(
 )
 
 // Find all places this code is used
-mcp__codebase__ask({
-  question: "What files import and use the UserService from packages/api/src/services/user.ts? Show concrete usage examples with context."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "UserService usage examples",
+  prompt: "What files import and use the UserService from packages/api/src/services/user.ts? Show concrete usage examples with context."
 })
 </tool-use-template>
 
@@ -164,13 +170,17 @@ High complexity (>10) indicates need for detailed remarks about algorithm comple
 
 <tool-use-template>
 // Find type definitions
-mcp__codebase__ask({
-  question: "What is the complete type definition for User in packages/api/src/types/user.ts? Show all properties, their types, and whether they're optional."
+Task({
+  subagent_type: "codebase-analysis",
+  description: "User type definition",
+  prompt: "What is the complete type definition for User in packages/api/src/types/user.ts? Show all properties, their types, and whether they're optional."
 })
 
 // Understand generic constraints
-mcp__codebase__ask({
-  question: "For the generic function processData<T extends BaseEntity> in packages/api/src/utils/processor.ts, what constraints exist on T and why?"
+Task({
+  subagent_type: "codebase-analysis",
+  description: "Generic constraints analysis",
+  prompt: "For the generic function processData<T extends BaseEntity> in packages/api/src/utils/processor.ts, what constraints exist on T and why?"
 })
 </tool-use-template>
 
@@ -504,7 +514,7 @@ Bash(
 
 ## Important Notes
 
-**Research Depth**: Use `mcp__codebase__ask` extensively to understand:
+**Research Depth**: Use `Task` with `codebase-analysis` subagent extensively to understand:
 - What the code actually does (don't guess)
 - Real usage patterns (find actual call sites)
 - Error conditions (trace error handling)

@@ -1,6 +1,6 @@
 ---
 name: Codebase Analysis
-description: Investigate code, trace errors, find symbols, and understand complex flows with comprehensive multi-tool analysis
+description: Investigate code, trace errors, find symbols, and understand complex flows with the "codebase-analysis" subagent
 ---
 
 ### ✅ Use the Subagent When:

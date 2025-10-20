@@ -172,7 +172,7 @@ Validate assumptions when dealing with:
 
 #### Basic Testing Format
 
-```
+<tool-use-template>
 Task(description="Validate [specific assumption]",
      subagent_type="assumption-tester",
      prompt="<project>
@@ -181,19 +181,19 @@ Task(description="Validate [specific assumption]",
      Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
      Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
      </project>
-     
+
      Validate: [specific technical claim to test]
      Framework versions: [list relevant versions from technology stack]
      Context: [relevant files or system details]
-     
+
      Specifically test if the feature/API is available in the identified versions.
      Create test files in the project's scratchpad/ directory.")
-```
+</tool-use-template>
 
 #### Common Testing Patterns
 
 ##### Type Export Verification
-```
+<tool-use-template>
 Task(description="Verify type exports",
      subagent_type="assumption-tester",
      prompt="<project>
@@ -202,15 +202,15 @@ Task(description="Verify type exports",
      Plan: @projects/new/add-user-auth/plan-v1.md
      Log: @projects/new/add-user-auth/log.md
      </project>
-     
+
      Validate: @tanstack/react-query exports UseQueryResult, QueryClient, and QueryClientProvider types that can be imported and used in TypeScript with strict mode
      Context: packages/website uses these types for data fetching
-     
+
      Create test files in the project's scratchpad/ directory.")
-```
+</tool-use-template>
 
 ##### API Behavior Testing
-```
+<tool-use-template>
 Task(description="Test API responses",
      subagent_type="assumption-tester",
      prompt="<project>
@@ -219,15 +219,15 @@ Task(description="Test API responses",
      Plan: @projects/new/add-user-auth/plan-v2.md
      Log: @projects/new/add-user-auth/log.md
      </project>
-     
+
      Validate: Supabase auth.signIn returns a session object with user data on successful login and specific error format on failure
      Context: packages/api/src/auth.ts handles authentication responses
-     
+
      Create test files in the project's scratchpad/ directory.")
-```
+</tool-use-template>
 
 ##### Framework Feature Detection
-```
+<tool-use-template>
 Task(description="Test framework support",
      subagent_type="assumption-tester",
      prompt="<project>
@@ -236,15 +236,15 @@ Task(description="Test framework support",
      Plan: @projects/new/add-form-handling/plan-v3.md
      Log: @projects/new/add-form-handling/log.md
      </project>
-     
+
      Validate: Next.js 14 Server Actions can accept FormData input, perform async operations, and return typed responses with proper type inference
      Context: packages/website/app/actions/form.ts needs server-side form processing
-     
+
      Create test files in the project's scratchpad/ directory.")
-```
+</tool-use-template>
 
 ##### Version-Specific Feature Testing
-```
+<tool-use-template>
 Task(description="Test React version features",
      subagent_type="assumption-tester",
      prompt="<project>
@@ -253,13 +253,13 @@ Task(description="Test React version features",
      Plan: @projects/new/add-suspense-boundaries/plan-v4.md
      Log: @projects/new/add-suspense-boundaries/log.md
      </project>
-     
+
      Validate: React (react@19.0.0) supports use() hook for promises and Server Components with the identified TypeScript version
      Framework versions: react@19.0.0, typescript@5.3.0
      Context: packages/website needs to implement data fetching with Suspense
-     
+
      Create test files in the project's scratchpad/ directory.")
-```
+</tool-use-template>
 
 #### Processing Test Results
 
@@ -373,7 +373,7 @@ The assessor provides:
 
 1. Output the full assessment result (including any style suggestions)
 2. Generate a description for the approved plan, where description-v[N].md correlates to the plan version, i.e. `plan-v2.md` would have `description-v2.md`:
-   ```
+   <tool-use-template>
    Task(description="Describe Plan",
         subagent_type="codebase-explainer",
         prompt="<project>
@@ -382,47 +382,47 @@ The assessor provides:
      Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
      Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
      </project>
-     
+
      Create a technical project explanation and output to `projects/[STATUS]/[PROJECT_NAME]/description-v[N].md`
-     
+
      Create a concise narrative technical explanation with these constraints:
-     
+
      **Length Limits:**
      - Target: 2x the word count of plan.md
      - Maximum 5 main sections (including the 3 required sections below)
      - No subsections deeper than one level (## sections only, avoid ###)
-     
+
      **Required Structure:**
      1. **Current State**: How existing systems work today and what will change
-     2. **Desired State**: How systems will work after implementation  
+     2. **Desired State**: How systems will work after implementation
      3. **Technical Approach**: What will be changed and the new functionality
-     
+
      **Include Visualizations For:**
      - Data flows between multiple components
-     - Integration points and system boundaries  
+     - Integration points and system boundaries
      - Observer patterns and event subscriptions
      - Sequential processes with decision points
      - System architectures with clear component relationships
      - Decision trees for conditional logic
      - State transitions and process changes
-     
+
      **Visual Integration Requirements:**
      - Embed diagrams directly without ```text code blocks
      - Include specific file paths to ground technical explanations
      - Vary diagram types for visual texture and clarity
      - Verify accuracy of statements about current user workflows
-     
+
      **Exclude These Length-Adding Elements:**
      - Future evolution or enhancement sections
      - Performance speculation without measurements
      - Security considerations unless directly relevant to architectural decisions
      - Multiple "Why X over Y" comparison sections
      - Conclusion or summary sections that restate content
-     
+
      Focus on technical precision and architectural reasoning. Avoid marketing language.
-     
+
      Research the codebase to understand current system behavior and architectural patterns that inform the technical decisions.")
-   ```
+   </tool-use-template>
 3. **Check for user feedback** - If user provides corrections or clarifications:
    - Log feedback using the `mcp__file__append` tool function to append to [ABSOLUTE_PROJECT_PATH]/log.md
    - Proceed to Step 4 to address the feedback
@@ -475,7 +475,7 @@ Task({
 **Important**: When addressing multiple revision issues, investigate them in parallel by sending all queries in a single message.
 
 #### For Validating Assumptions
-```
+<tool-use-template>
 Task(description="Verify library behavior",
      subagent_type="assumption-tester",
      prompt="<project>
@@ -484,20 +484,20 @@ Task(description="Verify library behavior",
      Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
      Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
      </project>
-     
+
      The assessment flagged that we're assuming @supabase/ssr exports a createBrowserClient function.
-     
+
      Create a test to verify:
      1. The function exists and is exported
      2. Its type signature matches our usage: createBrowserClient<Database>(supabaseUrl: string, supabaseKey: string, options?: ClientOptions)
      3. It returns a SupabaseClient instance
-     
+
      Also test if the library provides TypeScript types for these exports.
      Create test files in the project's scratchpad/ directory.")
-```
+</tool-use-template>
 
 #### For Version Compatibility Issues
-```
+<tool-use-template>
 Task(description="Verify version compatibility",
      subagent_type="assumption-tester",
      prompt="<project>
@@ -506,17 +506,17 @@ Task(description="Verify version compatibility",
      Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
      Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
      </project>
-     
+
      The assessment flagged potential version incompatibility.
-     
+
      Test if React (react@[X.X.X]) supports [specific feature] with TypeScript (typescript@[Y.Y.Y]):
      1. Create a minimal test case using the feature
      2. Verify it compiles with current TypeScript version
      3. Test runtime behavior if applicable
-     
+
      Framework versions to test: react@[X.X.X], typescript@[Y.Y.Y]
      Create test files in the project's scratchpad/ directory.")
-```
+</tool-use-template>
 </revision-research-patterns>
 
 
@@ -544,7 +544,7 @@ Verify initialization succeeded before proceeding.
 
 Immediately append the user's request and your initial understanding to the project log. Capture ALL context, not just the command arguments:
 
-```
+<tool-use-template>
 mcp__file__append(
   file_path="[ABSOLUTE_PROJECT_PATH]/log.md",
   content="## User Request
@@ -568,7 +568,7 @@ Key aspects of this request:
 - [Any assumptions about unstated requirements]
 "
 )
-```
+</tool-use-template>
 
 ### Step 4: Research Technical Context (Parallel Analysis)
 
@@ -620,7 +620,7 @@ After researching the codebase, identify critical dependencies using `print-inve
 
 After research, record key discoveries including the technology stack, framework constraints, and any assumption test results:
 
-```
+<tool-use-template>
 mcp__file__append(
   file_path="[ABSOLUTE_PROJECT_PATH]/log.md",
   content="## Research Findings
@@ -645,7 +645,7 @@ These versions will be considered as constraints for the implementation.
 ### Key Findings
 - [Component] spans [N] packages:
   - packages/[package]/src/[path]/: [Description]
-  - packages/[package]/src/[file].ts: [Description]  
+  - packages/[package]/src/[file].ts: [Description]
   - packages/[package]/src/[path]/[Component].tsx: [Description]
 
 ### Framework Version Constraints
@@ -674,7 +674,7 @@ Based on the assumption-tester's structured return:
 - [Any constraints discovered through testing]
 "
 )
-```
+</tool-use-template>
 
 ## Phase 2: Plan Creation
 
@@ -697,7 +697,7 @@ create-plan-version "add-user-auth" "[PLAN_CONTENT]"
 
 ### Step 1: Run Plan Assessment
 
-```
+<tool-use-template>
 Task(description="Assessment - add-user-auth",
      subagent_type="project-plan-assessor",
      prompt="<project>
@@ -706,10 +706,10 @@ Task(description="Assessment - add-user-auth",
      Plan: @projects/new/add-user-auth/plan-v3.md
      Log: @projects/new/add-user-auth/log.md
      </project>
-     
+
      Assess the project plan.
      Verify it follows the structure from .claude/shared/project-plan-annotated-example.md")
-```
+</tool-use-template>
 
 ### Step 2: Interpret Assessment Results and Take Action
 Follow the guidelines in the assessment-interpretation section above.

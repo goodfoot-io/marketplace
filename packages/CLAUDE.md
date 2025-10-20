@@ -34,13 +34,15 @@ Do not avoid linting, tests, or writing full implementations.
 <useful_cli_commands>
 ## Code Analysis
 
-For comprehensive code analysis (dependencies, types, patterns, relationships), use the MCP codebase tool:
+For comprehensive code analysis (dependencies, types, patterns, relationships), use the Task tool with codebase-analysis subagent:
 
-```
-mcp__codebase__ask({
-  question: "[Your analysis question]"
+<tool-use-template>
+Task({
+  subagent_type: "codebase-analysis",
+  description: "[Brief description of analysis]",
+  prompt: "[Your analysis question]"
 })
-```
+</tool-use-template>
 
 Example questions:
 - "Trace all dependencies for src/index.ts and show what imports it"
