@@ -90,7 +90,7 @@ Glob(pattern="**/filename.ts")
 
 # Step 2: Get dependency count (for impact assessment) - REQUIRED
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "yjs.ts dependencies",
   prompt: "What files depend on packages/website/app/hooks/yjs.ts and what is the impact if it changes?"
 })
@@ -113,28 +113,28 @@ When investigating multiple independent aspects, execute codebase analysis in pa
 
 # First investigation - overall architecture
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "auth implementation",
   prompt: "How is user authentication implemented in packages/api/src/auth including framework versions, auth flow, and entry points?"
 })
 
 # Second investigation - implementation patterns (runs in parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "auth patterns",
   prompt: "What authentication and authorization patterns exist in packages/api including middleware functions, route protection, and role-based access?"
 })
 
 # Third investigation - dependencies and impact (runs in parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "auth system impact",
   prompt: "What would be affected if I change the auth system at packages/api/src/auth/?"
 })
 
 # Fourth investigation - testing infrastructure (runs in parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "auth testing",
   prompt: "What auth-related tests exist in packages/api/tests/ and packages/api/src/**/*.test.ts including test database setup and token handling?"
 })
@@ -312,7 +312,7 @@ After researching the codebase, identify critical dependencies:
 1. **MANDATORY**: Analyze dependencies for high-impact files using:
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "middleware dependencies",
   prompt: "What are the dependencies for packages/api/src/auth/middleware.ts and what needs updating if the interface changes?"
 })
@@ -445,28 +445,28 @@ Address issues identified by the assessor or user. Execute multiple investigatio
 
 # Issue 1: Incorrect File Paths (example from assessment: "UserService not found")
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "UserService location",
   prompt: "Where is the UserService class located in packages/api/src/ and are there any duplicate classes?"
 })
 
 # Issue 2: Missing Dependencies (runs in parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "user.service dependencies",
   prompt: "What are the dependencies for packages/api/src/services/user.service.ts including npm packages and circular dependencies?"
 })
 
 # Issue 3: Pattern Examples (runs in parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Repository patterns",
   prompt: "What Repository pattern implementations exist in packages/api/src/ including interface definitions and database connections?"
 })
 
 # Issue 4: Integration Points (runs in parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "api-web auth integration",
   prompt: "How do packages/api and packages/web integrate for authentication including endpoints, token handling, and error patterns?"
 })
@@ -579,28 +579,28 @@ Execute parallel investigations to understand different aspects of the codebase 
 
 # Investigation 1: Technology and architecture
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "OAuth tech stack",
   prompt: "What is the technology stack for OAuth authentication in packages/api including current auth framework and strategies?"
 })
 
 # Investigation 2: Implementation patterns (parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "auth implementations",
   prompt: "What authentication implementations exist in packages/api/src/auth/ including endpoints, middleware, session handling, and password logic?"
 })
 
 # Investigation 3: Dependencies and integration (parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "OAuth dependencies",
   prompt: "Map dependencies for adding OAuth to packages/api/src/auth/ including files needing modification, web integration, and schema changes"
 })
 
 # Investigation 4: Testing and validation (parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "auth testing patterns",
   prompt: "What authentication testing patterns exist in packages/api/tests/ including test files, user creation, database setup, and token handling?"
 })

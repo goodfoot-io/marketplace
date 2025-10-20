@@ -41,19 +41,19 @@ Use Task with "codebase-analysis" subagent to investigate relevant code (MUST in
 <tool-use-template>
 // Examples - adapt to specific request:
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Authentication implementation",
   prompt: "How is authentication implemented in packages/api/src/auth?"
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "User type imports",
   prompt: "What files import the User type from packages/shared/types/user.ts?"
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Repository patterns",
   prompt: "What Repository pattern implementations exist in packages/api/src/repositories?"
 })

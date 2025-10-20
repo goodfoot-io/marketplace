@@ -348,7 +348,7 @@ ls -la packages/website/app/hooks/
 **Step 2: Use discovered paths in questions**
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "useTranscriptSync state handling",
   prompt: "How does useTranscriptSync in packages/website/app/hooks/transcript.ts handle state updates?"
 })
@@ -368,19 +368,19 @@ Task({
 ✅ CORRECT - Single message with multiple tool calls:
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "TypeScript error TS2322 analysis",
   prompt: "TypeScript error TS2322 at packages/api/src/auth.ts:45. Show ALL type definitions involved."
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "AuthUser type imports",
   prompt: "What files import AuthUser type from packages/api/src/types/auth.ts?"
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Authentication implementation",
   prompt: "How is authentication implemented in packages/api/src/middleware/auth.ts?"
 })
@@ -434,19 +434,19 @@ yarn lint 2>&1       # All linting issues
 Send ALL analyses in ONE message for parallel execution:
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "TS2322 error analysis",
   prompt: "TypeScript error TS2322 at packages/api/src/auth/handler.ts:45: 'Type User not assignable to AuthUser'. Show both type definitions, highlight the exact differences, and provide 3 different fix approaches with code."
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "TS2554 error analysis",
   prompt: "TypeScript error TS2554 at packages/api/src/services/user.ts:89: 'Expected 2 arguments but got 1'. Show the function signature, the call site, what the missing argument should be, and how to fix it."
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Auth test failure analysis",
   prompt: "Test failure 'Authentication › should validate token' in packages/api/tests/auth.test.ts. Show the test code, trace to the implementation in packages/api/src/auth/validator.ts, and explain why validation is failing."
 })
@@ -454,7 +454,7 @@ Task({
 **❌ WRONG - Using the tool for discovery:**
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "General error discovery",
   prompt: "What TypeScript errors exist in the project?"
 })
@@ -501,25 +501,25 @@ ls -la packages/api/src/services/database.ts
 ✅ CORRECT - All queries include complete paths and specific requests:
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "User handler implementation",
   prompt: "What is the current implementation at packages/api/src/handlers/user.ts lines 45-67? Show the EXACT code with line numbers, ALL type definitions used, and explain the pattern."
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "User model structure",
   prompt: "What is the current structure at packages/models/src/user.ts lines 12-34? Show the EXACT code with line numbers, list ALL exported types, and show where they're imported."
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Database service analysis",
   prompt: "How does packages/api/src/services/database.ts work? Show ALL interfaces, EVERY import statement, ALL exported functions, and provide usage examples from other files."
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Repository pattern search",
   prompt: "Are there existing Repository pattern implementations in packages/api/src/repositories/? Show ALL repository files with their complete implementations."
 })
@@ -604,7 +604,7 @@ If validation fails, iterate internally (max 5 attempts):
    Include the complete error details you just discovered:
 
    Task({
-     subagent_type: "codebase-analysis",
+     subagent_type: "vscode:Analysis",
      description: "TS2322 type incompatibility",
      prompt: "TypeScript error TS2322 at packages/api/src/user.ts:45: 'Type User is not assignable to AuthUser'. Show BOTH complete type definitions, highlight EVERY difference, explain why they're incompatible, and provide 3 different fix approaches with code."
    })
@@ -614,7 +614,7 @@ If validation fails, iterate internally (max 5 attempts):
    Use codebase analysis for complex patterns:
 
    Task({
-     subagent_type: "codebase-analysis",
+     subagent_type: "vscode:Analysis",
      description: "Repository pattern examples",
      prompt: "Find ALL working Repository pattern implementations in packages/api/src/repositories/. Show COMPLETE implementation including constructor, methods, and type definitions."
    })
@@ -646,7 +646,7 @@ When implementing changes that affect files listed in the plan's Dependency Anal
    ✅ CORRECT - Complete path and specific request:
 
    Task({
-     subagent_type: "codebase-analysis",
+     subagent_type: "vscode:Analysis",
      description: "UserAuth type consumers",
      prompt: "What files import the UserAuth type from packages/api/src/types/auth.ts? List EVERY importing file with FULL paths, show the exact import statements, show ALL usages in each file with line numbers, and categorize by risk (type-only vs runtime usage)."
    })
@@ -654,7 +654,7 @@ When implementing changes that affect files listed in the plan's Dependency Anal
    ❌ WRONG - Missing path context:
 
    Task({
-     subagent_type: "codebase-analysis",
+     subagent_type: "vscode:Analysis",
      description: "UserAuth usage",
      prompt: "What uses UserAuth type?"
    })

@@ -1,5 +1,5 @@
 ---
-name: codebase-analysis
+name: Analysis
 description: Expert in codebase analysis using VSCode LSP, dependency tools, and comprehensive investigation workflows
 tools: *
 color: blue

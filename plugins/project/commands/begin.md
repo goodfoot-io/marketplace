@@ -83,7 +83,7 @@ typescript
 If investigation is needed, do it first:
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Type mismatch root cause",
   prompt: "TypeScript error TS2322 at packages/api/src/auth.ts:45: 'Type X not assignable to Y'. Show BOTH type definitions and explain the mismatch."
 })
@@ -402,25 +402,25 @@ Capture from output:
 Execute parallel analysis for discovered errors:
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Type assignment error analysis",
   prompt: "TypeScript error TS2322 at packages/api/src/auth/handler.ts:45:8: 'Type User not assignable to AuthUser'. Show BOTH complete type definitions from their source files, highlight EVERY property difference, and provide 3 different ways to fix this with code examples."
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Missing argument analysis",
   prompt: "TypeScript error TS2554 at packages/api/src/services/user.ts:89:15: 'Expected 2 arguments but got 1'. Show the complete function signature, the exact call site with surrounding context, identify what the missing argument should be, and show the corrected code."
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Test timeout analysis",
   prompt: "Test 'Authentication › should validate token' timing out in packages/api/tests/auth.test.ts. Show the COMPLETE test code, trace ALL async operations, check for missing awaits or unresolved promises, and identify why it's not completing."
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Requirements implementation check",
   prompt: "Does packages/api/src/services/user.ts implement ALL requirements from plan.md section 2.1? Show the actual implementation code and compare with each requirement."
 })

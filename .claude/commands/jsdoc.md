@@ -93,7 +93,7 @@ Use codebase analysis to understand what the code does:
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "UserService class analysis",
   prompt: "What does the UserService class in packages/api/src/services/user.ts do? Show:
   - Primary purpose and responsibilities
@@ -103,7 +103,7 @@ Task({
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "createUser function analysis",
   prompt: "For the createUser function in packages/api/src/services/user.ts:
   - What are all the parameters and their valid ranges/constraints?
@@ -130,7 +130,7 @@ Read(
 
 // Find all places this code is used
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "UserService usage examples",
   prompt: "What files import and use the UserService from packages/api/src/services/user.ts? Show concrete usage examples with context."
 })
@@ -171,14 +171,14 @@ High complexity (>10) indicates need for detailed remarks about algorithm comple
 <tool-use-template>
 // Find type definitions
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "User type definition",
   prompt: "What is the complete type definition for User in packages/api/src/types/user.ts? Show all properties, their types, and whether they're optional."
 })
 
 // Understand generic constraints
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Generic constraints analysis",
   prompt: "For the generic function processData<T extends BaseEntity> in packages/api/src/utils/processor.ts, what constraints exist on T and why?"
 })

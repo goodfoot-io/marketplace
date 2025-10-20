@@ -165,28 +165,28 @@ Execute comprehensive research through parallel investigations. Send ALL queries
 
 # Investigation 1: Current Architecture
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "UserService and AuthMiddleware architecture",
   prompt: "Map the architecture for UserService at packages/api/src/services/user.service.ts and AuthMiddleware at packages/api/src/middleware/auth.ts including their interactions, usage patterns, data flow, and database queries"
 })
 
 # Investigation 2: Impact Analysis (runs in parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Impact of UserService and AuthMiddleware modifications",
   prompt: "What breaks if I modify UserService.getUserById() at packages/api/src/services/user.service.ts:45 and AuthMiddleware.validateToken() at packages/api/src/middleware/auth.ts:23?"
 })
 
 # Investigation 3: Integration Requirements (runs in parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "UserService and auth system integration",
   prompt: "How do UserService at packages/api/src/services/user.service.ts and auth system at packages/api/src/middleware/auth.ts integrate with the application including API contracts, type definitions, data flow, and frontend expectations?"
 })
 
 # Investigation 4: Testing Infrastructure (runs in parallel)
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "UserService and auth middleware tests",
   prompt: "What tests exist for UserService at packages/api/src/services/user.service.ts and auth middleware at packages/api/src/middleware/auth.ts including test database setup and user factory patterns?"
 })

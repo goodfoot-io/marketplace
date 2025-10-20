@@ -38,7 +38,7 @@ For comprehensive code analysis (dependencies, types, patterns, relationships), 
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "[Brief description of analysis]",
   prompt: "[Your analysis question]"
 })

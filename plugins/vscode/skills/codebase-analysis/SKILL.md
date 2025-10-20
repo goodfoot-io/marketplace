@@ -1,6 +1,6 @@
 ---
-name: Codebase Analysis
-description: Investigate code, trace errors, find symbols, and understand complex flows with the "codebase-analysis" subagent
+name: Analysis
+description: Investigate code, trace errors, find symbols, and understand complex flows with the "vscode:Analysis" subagent
 ---
 
 ### ✅ Use the Subagent When:
@@ -38,7 +38,7 @@ description: Investigate code, trace errors, find symbols, and understand comple
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "<short 3-5 word description>",
   prompt: "<detailed question or investigation request>"
 })
@@ -56,7 +56,7 @@ Task({
 **1. Include full file paths:**
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Find AuthService references",
   prompt: "Find the definition and all references to AuthService in packages/api/src/services/auth.ts"
 })
@@ -65,7 +65,7 @@ Task({
 **2. Provide error context with codes and line numbers:**
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Investigate TS2322 error",
   prompt: "TypeScript error TS2322 at packages/api/src/user.ts:45: Why is email required? Show the type definition and all related types"
 })
@@ -74,7 +74,7 @@ Task({
 **3. Specify investigation goals:**
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Trace authentication flow",
   prompt: "How does authentication flow from AuthController through AuthService to the database? Show all code paths and data transformations"
 })
@@ -83,7 +83,7 @@ Task({
 **4. Request evidence-based answers:**
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Analyze payment processing",
   prompt: "How does payment processing work? Show the actual code paths, all involved files, and data transformations"
 })
@@ -95,14 +95,14 @@ Task({
 <tool-use-template>
 // ❌ Bad - no file path
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "How does useAuth work",
   prompt: "How does useAuth work?"
 })
 
 // ✅ Good - includes full path
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Analyze useAuth hook",
   prompt: "How does the useAuth hook in packages/ui/src/hooks/useAuth.ts work? Show its dependencies and where it's used"
 })
@@ -112,14 +112,14 @@ Task({
 <tool-use-template>
 // ❌ Bad - too vague
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Find all bugs",
   prompt: "Find all bugs"
 })
 
 // ✅ Good - specific investigation
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Find null pointer patterns",
   prompt: "Find all locations in packages/api/src/ where we access properties without null checks that could cause 'Cannot read property of null' errors"
 })
@@ -129,20 +129,20 @@ Task({
 <tool-use-template>
 // ❌ Bad - asking for multiple unrelated things
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Analyze processor",
   prompt: "Analyze packages/api/src/processor.ts: 1) How does it process data? 2) What imports it? 3) What's the performance impact?"
 })
 
 // ✅ Good - separate focused questions
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Analyze processor logic",
   prompt: "How does packages/api/src/processor.ts process data? Show the processing pipeline and transformations"
 })
 
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Find processor usage",
   prompt: "What files import and use packages/api/src/processor.ts? Show how they use it"
 })
@@ -152,7 +152,7 @@ Task({
 <tool-use-template>
 // ✅ Good - multi-part investigation of ONE issue
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Debug production error",
   prompt: `Production error: "Cannot read property 'email' of null" at packages/api/src/services/notification.ts:67
 
@@ -239,7 +239,7 @@ Show where the timeout occurs and why it might happen on first login only.`
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Investigate createUser function",
   prompt: "Find where createUser is defined in packages/api/src/users/handlers.ts and show all locations where it's called. Include the function signature and how parameters are passed"
 })
@@ -251,7 +251,7 @@ Task({
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Trace undefined error",
   prompt: "TypeError at src/handlers/payment.ts:67: 'Cannot read property amount of undefined'. Trace the execution path to show where the undefined value comes from and why amount might not exist"
 })
@@ -263,7 +263,7 @@ Task({
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Analyze API breaking change",
   prompt: "What would break if I change the response format of GET /api/users from { users: [] } to { data: [] } in packages/api/src/routes/users.ts? Show all client code that depends on the current format"
 })
@@ -275,7 +275,7 @@ Task({
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Trace order processing flow",
   prompt: "How does an order flow from the POST /checkout endpoint through validation, inventory check, payment processing, database updates, and confirmation email? Show all code involved and data transformations"
 })
@@ -287,7 +287,7 @@ Task({
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Analyze config dependencies",
   prompt: "What files import and depend on packages/shared/config/database.ts? Show what would be affected if I change the database connection configuration"
 })
@@ -299,7 +299,7 @@ Task({
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Find middleware patterns",
   prompt: "Find all middleware implementations in packages/api/src/middleware/ and show the common patterns they follow. How do they handle errors and pass data to the next middleware?"
 })
@@ -311,7 +311,7 @@ Task({
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Find legacy API usage",
   prompt: "Find all usages of the legacy fetchProductById function in packages/api/ so I can replace them with the new getProductById function. Show how each location uses it and what parameters they pass"
 })
@@ -323,7 +323,7 @@ Task({
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Debug memory leak",
   prompt: "Memory leak in production: packages/api/src/services/cache.ts. Find all locations where cache entries are created but not cleaned up. Show the lifecycle of cache entries and where cleanup might be missing"
 })
@@ -338,21 +338,21 @@ For complex investigations, use multiple focused prompts:
 <tool-use-template>
 // Step 1: Understand the component
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Understand PaymentService",
   prompt: "What is the structure of PaymentService in packages/api/src/services/payment.ts? Show all methods, their parameters, and return types"
 })
 
 // Step 2: Find usages
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Find PaymentService usage",
   prompt: "Show all files that use PaymentService and how they call the processPayment method. Focus on error handling"
 })
 
 // Step 3: Analyze impact
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Impact of adding retry logic",
   prompt: "What would break if I add retry logic to PaymentService.processPayment? Show all call sites and whether they handle multiple processing attempts"
 })
@@ -365,21 +365,21 @@ Run independent investigations in parallel:
 <tool-use-template>
 // Investigation 1: Request handling
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Trace request lifecycle",
   prompt: "How are HTTP requests processed in the API? Show the middleware chain"
 })
 
 // Investigation 2: Response formatting
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Analyze response format",
   prompt: "How are API responses formatted? Show the response wrapper implementation"
 })
 
 // Investigation 3: Error handling
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Map error handling",
   prompt: "How are errors caught and transformed into HTTP responses?"
 })

@@ -236,7 +236,7 @@ tools: Read, Grep, mcp__browser__prompt
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Brief description of analysis task",
   prompt: "What specific question to analyze?"
 })
@@ -438,7 +438,7 @@ Try using an MCP tool to verify it's working:
 <tool-use-template>
 # For codebase analysis via Task tool
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "List TypeScript files",
   prompt: "List all TypeScript files in src/"
 })
@@ -759,7 +759,7 @@ allowed-tools: Read, Grep, mcp__browser__prompt
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Analyze authentication flow",
   prompt: "How does the authentication system handle user login?"
 })

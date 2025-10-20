@@ -1,5 +1,5 @@
 ---
-name: VSCode MCP Tools
+name: VSCode
 description: Symbol lookups, type information, diagnostics, refactoring, and workspace commands with the VSCode language server
 ---
 
@@ -458,7 +458,7 @@ The VSCode MCP tools are automatically used by the `codebase-analysis` subagent 
 
 <tool-use-template>
 Task({
-  subagent_type: "codebase-analysis",
+  subagent_type: "vscode:Analysis",
   description: "Analyze UserService",
   prompt: "Find all references to UserService and show their type information"
 })
