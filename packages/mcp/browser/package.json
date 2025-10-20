@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/browser-mcp-server",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "MCP server for browser automation using Chrome DevTools Protocol",
   "private": false,
   "sideEffects": false,
