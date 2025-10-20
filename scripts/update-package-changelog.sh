@@ -70,9 +70,12 @@ fi
 # Change to workspace root for git operations
 cd "$WORKSPACE_ROOT"
 
+# Convert slashes to hyphens for git tag matching (e.g., mcp/browser -> mcp-browser)
+TAG_PACKAGE_NAME="${PACKAGE_NAME//\//-}"
+
 # Get the last version tag for this package
 # Expected format: {package-name}-v{version}
-LAST_TAG=$(git tag --sort=-version:refname | grep -E "^${PACKAGE_NAME}-v[0-9]+\.[0-9]+\.[0-9]+" | head -1 || echo "")
+LAST_TAG=$(git tag --sort=-version:refname | grep -E "^${TAG_PACKAGE_NAME}-v[0-9]+\.[0-9]+\.[0-9]+" | head -1 || echo "")
 
 if [ -z "$LAST_TAG" ]; then
   echo -e "${YELLOW}⚠️  No previous version tags found for this package.${NC}"
