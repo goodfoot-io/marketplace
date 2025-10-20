@@ -61,6 +61,23 @@
         "mcp",
         "tools"
       ]
+    },
+    {
+      "name": "vscode",
+      "source": "./plugins/vscode",
+      "description": "VSCode integration with codebase analysis expert and MCP server for enhanced development workflows",
+      "version": "1.0.0",
+      "author": {
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
+      },
+      "tags": [
+        "vscode",
+        "codebase-analysis",
+        "mcp",
+        "lsp",
+        "code-intelligence"
+      ]
     }
   ]
 }
