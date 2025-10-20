@@ -1,8 +1,0 @@
-{
-  "name": "claude-code",
-  "description": "Comprehensive skills for creating and managing Claude Code plugins, marketplaces, subagents, slash commands, skills, and MCP servers",
-  "version": "1.0.0",
-  "author": {
-    "name": "John Wehr"
-  }
-}
