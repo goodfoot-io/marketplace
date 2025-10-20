@@ -379,7 +379,7 @@ The assessor provides:
 2. Generate a description for the approved plan, where description-v[N].md correlates to the plan version, i.e. `plan-v2.md` would have `description-v2.md`:
    <tool-use-template>
    Task(description="Describe Plan",
-        subagent_type="codebase-explainer",
+        subagent_type="project:codebase-explainer",
         prompt="<project>
      Name: [PROJECT_NAME]
      Directory: @projects/[STATUS]/[PROJECT_NAME]
