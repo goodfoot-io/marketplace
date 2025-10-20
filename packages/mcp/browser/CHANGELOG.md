@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.4
+- Minor improvements and bug fixes
+
 ## 0.1.2
 - Initial release of browser automation MCP server with Chrome DevTools Protocol support
 - Added automated browser task execution capabilities for navigation, interaction, and screenshots
