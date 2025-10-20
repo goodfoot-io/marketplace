@@ -44,12 +44,7 @@
         "testing",
         "web",
         "chrome"
-      ],
-      "components": {
-        "skills": [
-          "browser-use"
-        ]
-      }
+      ]
     },
     {
       "name": "claude-code",
@@ -65,17 +60,7 @@
         "marketplace",
         "mcp",
         "tools"
-      ],
-      "components": {
-        "skills": [
-          "plugins",
-          "slash-commands",
-          "subagents",
-          "skills",
-          "mcp-servers",
-          "marketplaces"
-        ]
-      }
+      ]
     }
   ]
 }

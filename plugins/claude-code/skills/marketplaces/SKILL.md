@@ -57,13 +57,7 @@ Location: `/workspace/.claude-plugin/marketplace.json`
         "name": "Author Name",
         "email": "author@example.com"
       },
-      "tags": ["category1", "category2"],
-      "components": {
-        "commands": ["command1", "command2"],
-        "agents": ["agent1"],
-        "skills": ["skill1"],
-        "hooks": ["PreToolUse", "PostToolUse"]
-      }
+      "tags": ["typescript", "testing", "automation"]
     }
   ]
 }
@@ -83,9 +77,10 @@ Location: `/workspace/.claude-plugin/marketplace.json`
 | `plugins[].author` | object | Yes | `{name: string, email?: string}` | Object is required with `name` field; `email` is optional |
 | `plugins[].tags` | array | No | Array of strings | For categorization/filtering in marketplace UI. Use concrete descriptors like `["typescript", "testing", "automation"]` not generic placeholders |
 | `plugins[].strict` | boolean | No | Default: true | When false, marketplace entry serves as complete manifest if no plugin.json exists |
-| `plugins[].components` | object | No | Component map | Lists available features for discovery |
 
 **Note on tags vs keywords**: In marketplace.json, use `tags` array for plugin categorization. Individual plugin.json files may use `keywords` field. Both serve similar purposes but are distinct fields for their respective contexts.
+
+**⚠️ IMPORTANT**: The `plugins[].components` field is **NOT supported** by Claude Code's marketplace schema and will cause validation errors. Component discovery happens automatically by scanning plugin directories - you do not need to list components in marketplace.json.
 
 ### Optional Marketplace-Level Fields
 
@@ -121,29 +116,12 @@ These fields can be added at the root level of marketplace.json for enhanced met
 }
 ```
 
-### Component Naming (CRITICAL)
-
-```json
-{
-  "commands": ["command-file-name"],     // Filename WITHOUT .md extension
-  "agents": ["agent-file-name"],         // Filename WITHOUT .md extension
-  "skills": ["skill-directory-name"],    // Directory name containing SKILL.md
-  "hooks": ["PreToolUse", "PostToolUse"] // Hook event types defined in hooks.json
-}
-```
-
-**Examples**:
-- File `analyze.md` → `"commands": ["analyze"]`
-- File `helper.md` → `"agents": ["helper"]`
-- Directory `document-code/` → `"skills": ["document-code"]`
-- Hook events → `"hooks": ["PreToolUse", "UserPromptSubmit"]`
-
 ### Validation Rules
 
 - **Path integrity**: `plugins[].source` must point to directory containing `.claude-plugin/plugin.json`
 - **Name consistency**: `plugins[].name` must exactly match `<plugin-path>/.claude-plugin/plugin.json::name`
 - **Version consistency**: `plugins[].version` must exactly match `<plugin-path>/.claude-plugin/plugin.json::version`
-- **Component verification**: Each listed component must exist at its declared path using naming rules above
+- **Component discovery**: Claude Code automatically discovers components by scanning plugin directories - no manual listing required in marketplace.json
 
 ## plugin.json Format
 
@@ -234,13 +212,7 @@ jq '.plugins += [{
   "author": {
     "name": "Your Name"
   },
-  "tags": ["utility"],
-  "components": {
-    "commands": [],
-    "agents": [],
-    "skills": [],
-    "hooks": []
-  }
+  "tags": ["utility"]
 }]' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
 
 mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
@@ -269,10 +241,8 @@ Analyze TypeScript files in /workspace for:
 Report findings with absolute paths like /workspace/packages/api/src/file.ts:45
 EOF
 
-# Update marketplace.json components (use filename without .md)
-jq '(.plugins[] | select(.name == "my-plugin") | .components.commands) += ["analyze"]' \
-  .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
-mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
+# Component discovery is automatic - no marketplace.json update needed
+# Claude Code scans the commands/ directory automatically
 ```
 
 ### Add a Sub-Agent
@@ -305,10 +275,8 @@ You are a code review agent operating on /workspace.
 4. Report findings with specific file locations
 EOF
 
-# Update marketplace.json components (use filename without .md)
-jq '(.plugins[] | select(.name == "my-plugin") | .components.agents) += ["code-reviewer"]' \
-  .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
-mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
+# Component discovery is automatic - no marketplace.json update needed
+# Claude Code scans the agents/ directory automatically
 ```
 
 ### Add a Skill
@@ -340,10 +308,8 @@ Activate when:
 - Request to "fix imports" or "resolve import paths"
 EOF
 
-# Update marketplace.json components (use directory name)
-jq '(.plugins[] | select(.name == "my-plugin") | .components.skills) += ["fix-imports"]' \
-  .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
-mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
+# Component discovery is automatic - no marketplace.json update needed
+# Claude Code scans the skills/ directory automatically
 ```
 
 ### Add Hooks
@@ -379,92 +345,65 @@ cat > my-plugin/hooks/hooks.json << 'EOF'
 }
 EOF
 
-# Update marketplace.json components (list hook event types)
-jq '(.plugins[] | select(.name == "my-plugin") | .components.hooks) += ["PreToolUse", "PostToolUse"]' \
-  .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
-mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
+# Component discovery is automatic - no marketplace.json update needed
+# Claude Code scans the hooks/ directory automatically
 ```
 
 ## Validation Procedures
 
-### Quick Validation Commands
+### Official Validation Command
+
+**Claude Code provides a built-in validation command** to validate marketplace and plugin manifests:
 
 ```bash
-# Validate marketplace.json syntax
-jq empty /workspace/.claude-plugin/marketplace.json || echo "ERROR: Invalid marketplace.json"
+# Validate marketplace.json
+claude plugin validate /workspace/.claude-plugin/marketplace.json
 
-# Validate all plugin.json files
-find /workspace -path "*/.claude-plugin/plugin.json" -exec sh -c 'jq empty "$1" || echo "ERROR: Invalid $1"' _ {} \;
+# Validate a specific plugin
+claude plugin validate /workspace/plugins/my-plugin
+
+# Validate all plugins in a marketplace
+for plugin_dir in /workspace/plugins/*; do
+  if [ -d "$plugin_dir" ]; then
+    echo "Validating $(basename $plugin_dir)..."
+    claude plugin validate "$plugin_dir"
+  fi
+done
+```
+
+**What the validation command checks**:
+- ✅ JSON syntax and structure
+- ✅ Required fields (name, version, description, source)
+- ✅ Field types and formats (semver, paths, etc.)
+- ✅ Name consistency between marketplace.json and plugin.json
+- ✅ Version consistency between marketplace.json and plugin.json
+- ✅ Path integrity (source paths point to valid plugin directories)
+- ✅ Component discovery (commands, agents, skills exist at expected paths)
+- ⚠️  Warnings for missing optional fields or best practices
+
+**Example output**:
+```
+Validating marketplace manifest: /workspace/.claude-plugin/marketplace.json
+
+⚠ Found 1 warning:
+  ❯ metadata.description: No marketplace description provided
+
+✔ Validation passed with warnings
+```
+
+### Quick JSON Syntax Check
+
+If you need to quickly check JSON syntax without full validation:
+
+```bash
+# Check JSON syntax only (does not validate schema)
+jq empty /workspace/.claude-plugin/marketplace.json && echo "✓ Valid JSON" || echo "✗ Invalid JSON"
 
 # Pretty print marketplace.json
 jq . /workspace/.claude-plugin/marketplace.json
 ```
 
-### Complete Validation Script
-
-```bash
-#!/bin/bash
-set -euo pipefail
-
-ERRORS=0
-MARKETPLACE_ROOT="/workspace"
-
-echo "Validating Claude Code Marketplace at $MARKETPLACE_ROOT..."
-
-# Check marketplace.json exists
-if [ ! -f "$MARKETPLACE_ROOT/.claude-plugin/marketplace.json" ]; then
-  echo "ERROR: Missing .claude-plugin/marketplace.json"
-  exit 1
-fi
-
-# Validate JSON syntax
-if ! jq empty "$MARKETPLACE_ROOT/.claude-plugin/marketplace.json" 2>/dev/null; then
-  echo "ERROR: Invalid JSON in marketplace.json"
-  exit 1
-fi
-
-# Validate each plugin
-jq -r '.plugins[] | "\(.name)|\(.source)"' "$MARKETPLACE_ROOT/.claude-plugin/marketplace.json" | while IFS='|' read -r name source; do
-  PLUGIN_PATH="$MARKETPLACE_ROOT/${source#./}"
-
-  echo "Validating plugin: $name at $PLUGIN_PATH"
-
-  # Check plugin.json exists
-  if [ ! -f "$PLUGIN_PATH/.claude-plugin/plugin.json" ]; then
-    echo "  ERROR: Missing plugin.json for $name"
-    ERRORS=$((ERRORS + 1))
-    continue
-  fi
-
-  # Validate plugin.json syntax
-  if ! jq empty "$PLUGIN_PATH/.claude-plugin/plugin.json" 2>/dev/null; then
-    echo "  ERROR: Invalid JSON in $name/plugin.json"
-    ERRORS=$((ERRORS + 1))
-    continue
-  fi
-
-  # Check name consistency
-  PLUGIN_NAME=$(jq -r '.name' "$PLUGIN_PATH/.claude-plugin/plugin.json")
-  if [ "$name" != "$PLUGIN_NAME" ]; then
-    echo "  ERROR: Name mismatch - marketplace: $name, plugin: $PLUGIN_NAME"
-    ERRORS=$((ERRORS + 1))
-  fi
-
-  # Check version consistency
-  MARKETPLACE_VERSION=$(jq -r ".plugins[] | select(.name == \"$name\") | .version" "$MARKETPLACE_ROOT/.claude-plugin/marketplace.json")
-  PLUGIN_VERSION=$(jq -r '.version' "$PLUGIN_PATH/.claude-plugin/plugin.json")
-  if [ "$MARKETPLACE_VERSION" != "$PLUGIN_VERSION" ]; then
-    echo "  ERROR: Version mismatch - marketplace: $MARKETPLACE_VERSION, plugin: $PLUGIN_VERSION"
-    ERRORS=$((ERRORS + 1))
-  fi
-
-  echo "  ✓ Plugin $name validated"
-done
-
-echo ""
-echo "Validation complete: $ERRORS errors"
-[ $ERRORS -eq 0 ] && exit 0 || exit 1
-```
+**Note**: Use `claude plugin validate` for comprehensive validation. The `jq` command only checks JSON syntax, not Claude Code plugin schema requirements.
 
 ## Updating marketplace.json with jq
 
@@ -539,27 +478,42 @@ Use semantic versioning (semver) per https://semver.org/
 
 ### Issue: Name Mismatch Between marketplace.json and plugin.json
 
-**Symptom**: Validation fails with "Name mismatch"
+**Symptom**: `claude plugin validate` reports "Name mismatch"
 
-**Fix**:
+**Diagnosis**:
 ```bash
-# Check current names
+# Run validation to identify mismatch
+claude plugin validate /workspace/.claude-plugin/marketplace.json
+
+# Compare names manually
 echo "Marketplace name:"
 jq -r '.plugins[0].name' /workspace/.claude-plugin/marketplace.json
 
 echo "Plugin name:"
 jq -r '.name' /workspace/my-plugin/.claude-plugin/plugin.json
+```
 
+**Fix**:
+```bash
 # Fix plugin.json to match marketplace.json
 CORRECT_NAME=$(jq -r '.plugins[0].name' /workspace/.claude-plugin/marketplace.json)
 jq --arg name "$CORRECT_NAME" '.name = $name' \
   /workspace/my-plugin/.claude-plugin/plugin.json > /workspace/my-plugin/.claude-plugin/plugin.json.tmp
 mv /workspace/my-plugin/.claude-plugin/plugin.json.tmp /workspace/my-plugin/.claude-plugin/plugin.json
+
+# Verify fix
+claude plugin validate /workspace/.claude-plugin/marketplace.json
 ```
 
 ### Issue: Version Mismatch Between marketplace.json and plugin.json
 
-**Symptom**: Validation fails with "Version mismatch"
+**Symptom**: `claude plugin validate` reports "Version mismatch"
+
+**Diagnosis**:
+```bash
+# Run validation to identify mismatch
+claude plugin validate /workspace/.claude-plugin/marketplace.json
+```
 
 **Fix**:
 ```bash
@@ -577,11 +531,14 @@ mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
 jq --arg version "$NEW_VERSION" '.version = $version' \
   $PLUGIN_NAME/.claude-plugin/plugin.json > $PLUGIN_NAME/.claude-plugin/plugin.json.tmp
 mv $PLUGIN_NAME/.claude-plugin/plugin.json.tmp $PLUGIN_NAME/.claude-plugin/plugin.json
+
+# Verify fix
+claude plugin validate /workspace/.claude-plugin/marketplace.json
 ```
 
 ### Issue: Invalid JSON Syntax
 
-**Symptom**: `jq empty` fails with parse error
+**Symptom**: Validation fails with JSON parse error
 
 **Common causes**:
 1. Trailing comma after last array/object element
@@ -589,42 +546,28 @@ mv $PLUGIN_NAME/.claude-plugin/plugin.json.tmp $PLUGIN_NAME/.claude-plugin/plugi
 3. Unescaped quotes in strings
 4. Missing closing brackets/braces
 
-**Fix**:
+**Diagnosis**:
 ```bash
-# Validate and show error
+# Run validation to see specific errors
+claude plugin validate /workspace/.claude-plugin/marketplace.json
+
+# Or check JSON syntax only
 jq empty /workspace/.claude-plugin/marketplace.json
+```
 
-# If error, manually edit to fix:
-# - Remove trailing commas
-# - Add missing quotes
-# - Escape internal quotes with \"
-# - Balance brackets/braces
+**Fix**:
+- Remove trailing commas
+- Add missing quotes
+- Escape internal quotes with \"
+- Balance brackets/braces
 
-# Verify fix
+**Verify fix**:
+```bash
+# Validate after fixing
+claude plugin validate /workspace/.claude-plugin/marketplace.json
+
+# Pretty print to verify structure
 jq . /workspace/.claude-plugin/marketplace.json
-```
-
-### Issue: Component Not Found
-
-**Symptom**: Listed component doesn't exist at expected path
-
-**Fix for commands/agents** (wrong extension in marketplace.json):
-```bash
-# Remove .md extension from component names
-jq '(.plugins[].components.commands) |= map(sub("\\.md$"; ""))' \
-  .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
-mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
-
-jq '(.plugins[].components.agents) |= map(sub("\\.md$"; ""))' \
-  .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
-mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
-```
-
-**Fix for skills** (using filename instead of directory):
-```bash
-# Skills should list directory names, not "SKILL.md"
-# Manually edit marketplace.json to use directory names
-# Example: "skills": ["fix-imports"] not "skills": ["SKILL.md"]
 ```
 
 ### Issue: Skill Missing SKILL.md
@@ -728,12 +671,6 @@ jq -r '.plugins[] | "\(.name) - \(.version)"' /workspace/.claude-plugin/marketpl
 jq '.plugins[] | select(.name == "my-plugin")' /workspace/.claude-plugin/marketplace.json
 ```
 
-### Count Components
-
-```bash
-jq '.plugins[] | {name, commands: (.components.commands | length), agents: (.components.agents | length), skills: (.components.skills | length)}' /workspace/.claude-plugin/marketplace.json
-```
-
 ### Find Plugins with Specific Tag
 
 ```bash
@@ -814,19 +751,13 @@ jq '.plugins += [{
     "name": "Your Name",
     "email": "you@example.com"
   },
-  "tags": ["example", "tutorial"],
-  "components": {
-    "commands": ["hello"],
-    "agents": [],
-    "skills": ["example-skill"],
-    "hooks": []
-  }
+  "tags": ["example", "tutorial"]
 }]' .claude-plugin/marketplace.json > .claude-plugin/marketplace.json.tmp
 mv .claude-plugin/marketplace.json.tmp .claude-plugin/marketplace.json
 
 # Step 7: Validate
-jq empty .claude-plugin/marketplace.json && echo "✓ Valid marketplace.json"
-jq empty my-first-plugin/.claude-plugin/plugin.json && echo "✓ Valid plugin.json"
+claude plugin validate .claude-plugin/marketplace.json
+claude plugin validate my-first-plugin
 
 # Step 8: Pretty print final result
 echo "=== Final marketplace.json ==="
@@ -839,9 +770,10 @@ jq . .claude-plugin/marketplace.json
 2. **Component names**: Commands/agents use filename without `.md`, skills use directory name
 3. **Path format**: Always use `./plugin-name` format with `./` prefix
 4. **Consistency**: Name and version must match between marketplace.json and plugin.json
-5. **Validation**: Always validate JSON syntax with `jq empty` before committing
+5. **Validation**: Always validate with `claude plugin validate` before committing
 6. **Versioning**: Use semver consistently across marketplace and plugins
 7. **Structure**: Plugins at repo root, components at plugin root, metadata in `.claude-plugin/`
+8. **Component discovery**: Automatic - Claude Code scans plugin directories, no manual listing needed
 
 ## Official Documentation
 
