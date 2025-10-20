@@ -23,7 +23,59 @@
         "name": "Goodfoot",
         "email": "contact@goodfoot.io"
       },
-      "tags": ["project-management", "workflow", "planning", "implementation"]
+      "tags": [
+        "project-management",
+        "workflow",
+        "planning",
+        "implementation"
+      ]
+    },
+    {
+      "name": "browser",
+      "source": "./plugins/browser",
+      "description": "Browser automation skill using Chrome DevTools MCP for navigating pages, interacting with elements, capturing screenshots, and debugging issues",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic"
+      },
+      "tags": [
+        "browser",
+        "automation",
+        "testing",
+        "web",
+        "chrome"
+      ],
+      "components": {
+        "skills": [
+          "browser-use"
+        ]
+      }
+    },
+    {
+      "name": "claude-code",
+      "source": "./plugins/claude-code",
+      "description": "Comprehensive skills for creating and managing Claude Code plugins, marketplaces, subagents, slash commands, skills, and MCP servers",
+      "version": "1.0.0",
+      "author": {
+        "name": "Claude Code Team"
+      },
+      "tags": [
+        "plugins",
+        "development",
+        "marketplace",
+        "mcp",
+        "tools"
+      ],
+      "components": {
+        "skills": [
+          "plugins",
+          "slash-commands",
+          "subagents",
+          "skills",
+          "mcp-servers",
+          "marketplaces"
+        ]
+      }
     }
   ]
 }

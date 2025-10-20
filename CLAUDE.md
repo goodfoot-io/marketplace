@@ -238,4 +238,3 @@ mcp__vscode__open_files(
 
 </vscode>
 
-Review @documentation/claude-code-plugins.md 
