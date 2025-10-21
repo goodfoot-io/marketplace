@@ -6,7 +6,9 @@
   "type": "module",
   "main": "./build/dist/src/browser.js",
   "types": "./build/types/src/browser.d.ts",
-  "bin": "./build/dist/src/browser.js",
+  "bin": {
+    "browser-mcp-server": "./build/dist/src/browser.js"
+  },
   "scripts": {
     "prettier": "prettier . --write --log-level warn",
     "prettier:files": "prettier --write --log-level warn",

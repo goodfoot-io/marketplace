@@ -5,7 +5,9 @@
   "type": "module",
   "main": "./build/dist/src/test-agent.js",
   "types": "./build/types/src/test-agent.d.ts",
-  "bin": "./build/dist/src/test-agent.js",
+  "bin": {
+    "test-agent-mcp-server": "./build/dist/src/test-agent.js"
+  },
   "scripts": {
     "prettier": "prettier . --write --log-level warn",
     "prettier:files": "prettier --write --log-level warn",

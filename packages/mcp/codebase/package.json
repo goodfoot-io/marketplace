@@ -6,7 +6,9 @@
   "type": "module",
   "main": "./build/dist/src/codebase.js",
   "types": "./build/types/src/codebase.d.ts",
-  "bin": "./build/dist/src/codebase.js",
+  "bin": {
+    "codebase-mcp-server": "./build/dist/src/codebase.js"
+  },
   "scripts": {
     "prettier": "prettier . --write --log-level warn",
     "prettier:files": "prettier --write --log-level warn",
