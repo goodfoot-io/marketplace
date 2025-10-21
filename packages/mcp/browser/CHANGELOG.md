@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.8
+- Fixed compatibility with NPX by resolving symlinks in auto-start detection
+
 ## 0.1.6
 - Fixed package installation issues that prevented the MCP server from reconnecting properly
 
