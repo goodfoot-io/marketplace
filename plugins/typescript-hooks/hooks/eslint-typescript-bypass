@@ -1,0 +1,221 @@
+#!/bin/bash
+
+# claude-pretooluse-hook-eslint-typescript-bypass: Prevent ESLint and TypeScript rule bypassing
+# Usage: Called by Claude Code before Write/Edit/MultiEdit tool usage
+# Returns: JSON with permission decision to allow or deny the tool usage
+# Exit code: 0 for success, non-zero for errors
+
+# Debug logging
+DEBUG=${DEBUG:-0}
+
+# Color utilities for error output
+if [ -t 2 ]; then
+    RED='\033[0;31m'
+    YELLOW='\033[0;33m'
+    GREEN='\033[0;32m'
+    CYAN='\033[0;36m'
+    GRAY='\033[0;90m'
+    BOLD='\033[1m'
+    NC='\033[0m'
+else
+    RED=''
+    YELLOW=''
+    GREEN=''
+    CYAN=''
+    GRAY=''
+    BOLD=''
+    NC=''
+fi
+
+debug() {
+    if [ "$DEBUG" = "1" ]; then
+        echo -e "${GRAY}DEBUG: $*${NC}" >&2
+    fi
+}
+
+# Function to check for prohibited patterns in text
+check_for_bypass_patterns() {
+    local content="$1"
+    local violations=()
+    
+    # ESLint disable patterns
+    if echo "$content" | grep -qE "//\s*eslint-disable(-next-line|-line)?\b"; then
+        violations+=("ESLint disable comment found (// eslint-disable, // eslint-disable-next-line, // eslint-disable-line)")
+    fi
+    
+    if echo "$content" | grep -qE "/\*\s*eslint-disable\b"; then
+        violations+=("ESLint block disable comment found (/* eslint-disable */)")
+    fi
+    
+    # TypeScript suppression patterns
+    if echo "$content" | grep -qE "//\s*@ts-ignore\b"; then
+        violations+=("TypeScript @ts-ignore comment found")
+    fi
+    
+    if echo "$content" | grep -qE "//\s*@ts-expect-error\b"; then
+        violations+=("TypeScript @ts-expect-error comment found")
+    fi
+    
+    if echo "$content" | grep -qE "//\s*@ts-nocheck\b"; then
+        violations+=("TypeScript @ts-nocheck comment found")
+    fi
+    
+    # TypeScript as any casting
+    if echo "$content" | grep -qE "\bas\s+any\b"; then
+        violations+=("TypeScript 'as any' type casting found")
+    fi
+    
+    # Return violations array (only if not empty)
+    if [ ${#violations[@]} -gt 0 ]; then
+        printf '%s\n' "${violations[@]}"
+    fi
+}
+
+# Function to check if file path is a JavaScript/TypeScript file
+is_js_ts_file() {
+    local file_path="$1"
+    case "$file_path" in
+        *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs|*.mts|*.cts)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Function to extract content and file path from tool input
+extract_content_from_input() {
+    local json_input="$1"
+    local tool_name
+    local content=""
+    local file_path=""
+    
+    tool_name=$(echo "$json_input" | jq -r '.tool_name // empty' 2>/dev/null)
+    debug "Tool name: $tool_name"
+    
+    case "$tool_name" in
+        "Write")
+            content=$(echo "$json_input" | jq -r '.tool_input.content // empty' 2>/dev/null)
+            file_path=$(echo "$json_input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+            ;;
+        "Edit")
+            content=$(echo "$json_input" | jq -r '.tool_input.new_string // empty' 2>/dev/null)
+            file_path=$(echo "$json_input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+            ;;
+        "MultiEdit")
+            file_path=$(echo "$json_input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+            # For MultiEdit, check all edit operations
+            local edit_count
+            edit_count=$(echo "$json_input" | jq -r '.tool_input.edits | length' 2>/dev/null)
+            if [ "$edit_count" != "null" ] && [ "$edit_count" -gt 0 ]; then
+                for i in $(seq 0 $((edit_count - 1))); do
+                    local new_string
+                    new_string=$(echo "$json_input" | jq -r ".tool_input.edits[$i].new_string // empty" 2>/dev/null)
+                    content="${content}${new_string}"$'\n'
+                done
+            fi
+            ;;
+        *)
+            debug "Unsupported tool: $tool_name"
+            return 0
+            ;;
+    esac
+    
+    # Check if this is a JS/TS file (only skip if file_path is provided AND it's not JS/TS)
+    if [ -n "$file_path" ] && ! is_js_ts_file "$file_path"; then
+        debug "File is not JS/TS: $file_path, skipping check"
+        return 0
+    fi
+    
+    # If no file_path provided, still check the content (assume it might be JS/TS)
+    debug "File path: ${file_path:-'<none provided>'}, checking content"
+    
+    echo "$content"
+}
+
+# Function to output permission decision JSON
+output_decision() {
+    local decision="$1"
+    local reason="$2"
+    
+    cat << EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "$decision",
+    "permissionDecisionReason": "$reason"
+  }
+}
+EOF
+}
+
+# Main function
+main() {
+    # Read JSON input from stdin
+    local json_input
+    if ! json_input=$(cat); then
+        echo -e "${RED}Error: Failed to read input from stdin${NC}" >&2
+        output_decision "deny" "Failed to read input from stdin"
+        return 0
+    fi
+    
+    debug "Input JSON: $json_input"
+    
+    # Validate JSON input
+    if ! echo "$json_input" | jq . >/dev/null 2>&1; then
+        echo -e "${RED}Error: Invalid JSON input${NC}" >&2
+        output_decision "deny" "Invalid JSON input provided"
+        return 0
+    fi
+    
+    # Extract content to check
+    local content
+    content=$(extract_content_from_input "$json_input")
+    
+    if [ -z "$content" ]; then
+        debug "No content to check, allowing"
+        output_decision "allow" "No content to check"
+        return 0
+    fi
+    
+    debug "Content to check: $content"
+    
+    # Check for prohibited patterns
+    local violations
+    readarray -t violations < <(check_for_bypass_patterns "$content")
+    
+    if [ ${#violations[@]} -eq 0 ]; then
+        debug "No violations found, allowing"
+        output_decision "allow" "No ESLint/TypeScript rule bypasses detected"
+        return 0
+    fi
+    
+    # Build violation message
+    local violation_msg="The following ESLint/TypeScript rule bypasses are not allowed:"
+    for violation in "${violations[@]}"; do
+        violation_msg="${violation_msg}\n• $violation"
+    done
+    
+    violation_msg="${violation_msg}\n\nInstead of bypassing rules, please:\n"
+    violation_msg="${violation_msg}• Fix the underlying type or linting issue\n"
+    violation_msg="${violation_msg}• Refactor the code to be type-safe\n"
+    violation_msg="${violation_msg}• Use more specific types instead of 'any'\n"
+    violation_msg="${violation_msg}• Configure ESLint/TypeScript rules in project configuration files if needed"
+    
+    echo -e "${RED}Rule bypass detected:${NC}" >&2
+    for violation in "${violations[@]}"; do
+        echo -e "  ${YELLOW}•${NC} $violation" >&2
+    done
+    echo -e "\n${CYAN}Please fix the underlying issue instead of bypassing the rule.${NC}" >&2
+    
+    output_decision "deny" "$violation_msg"
+    return 0
+}
+
+# Error handling
+set -eE
+trap 'echo -e "${RED}Script error at line $LINENO${NC}" >&2; output_decision "deny" "Internal script error"' ERR
+
+# Run main function
+main "$@"
