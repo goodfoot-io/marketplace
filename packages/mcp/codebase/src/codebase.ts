@@ -984,7 +984,20 @@ export async function startServer() {
 }
 
 // Start the server if this is the main module
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Resolve symlinks to handle npx execution where argv[1] points to npx cache
+const resolveFileUrl = async (filePath: string): Promise<string> => {
+  try {
+    const resolved = await fs.realpath(filePath);
+    return `file://${resolved}`;
+  } catch {
+    return `file://${filePath}`;
+  }
+};
+
+const currentFileUrl = import.meta.url;
+const argvFileUrl = await resolveFileUrl(process.argv[1]);
+
+if (currentFileUrl === argvFileUrl) {
   startServer().catch((error) => {
     console.error('Failed to start server:', error);
     process.exit(1);
