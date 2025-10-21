@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.12
+- Minor improvements and bug fixes
+
 ## 0.1.10
 - Added `chrome-proxy` command for managing Chrome remote debugging connections
 - Improved browser connection by auto-detecting primary external IP when `--browserUrl` is not specified
