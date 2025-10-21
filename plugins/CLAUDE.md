@@ -4,6 +4,34 @@ This document describes the naming conventions for **plugin and marketplace-scop
 
 **Scope**: This documentation is specifically for plugin and marketplace authors. It does not cover general Claude Code features outside of the plugin system.
 
+## 📝 Maintenance Reminder
+
+**IMPORTANT**: When making changes to plugins in this workspace, remember to update this documentation:
+
+### When to Update This File
+
+1. **Adding new plugins** - Add examples using the new plugin's structure
+2. **Changing plugin structure** - Update file structure examples and patterns
+3. **Adding new component types** - Document naming conventions for new features
+4. **Discovering new patterns** - Add to best practices or common mistakes sections
+5. **Updating marketplace.json** - Ensure examples remain accurate
+
+### What to Update
+
+- **File structure examples** - Keep paths current with actual plugin structure
+- **Plugin names in examples** - Reference actual plugins from `/workspace/plugins/`
+- **Tool naming examples** - Use real MCP tool names from the codebase
+- **Best practices** - Add lessons learned from plugin development
+
+### Coordination with Other Files
+
+This file should stay in sync with:
+- `/workspace/.claude-plugin/marketplace.json` - Plugin registry
+- Individual plugin `plugin.json` files - Plugin metadata
+- Plugin `.mcp.json` files - MCP server configurations
+
+**Last Updated**: 2025-10-21 (Added typescript-hooks plugin examples)
+
 ## MCP Server Tool Naming
 
 When MCP servers are packaged as Claude Code plugins, their tools follow a specific naming pattern that combines the plugin name, server key, and tool name.

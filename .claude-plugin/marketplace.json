@@ -33,10 +33,11 @@
     {
       "name": "browser",
       "source": "./plugins/browser",
-      "description": "Browser automation skill using Chrome DevTools MCP for navigating pages, interacting with elements, capturing screenshots, and debugging issues",
+      "description": "Browser automation for web scraping, testing, and interaction with web pages",
       "version": "1.0.0",
       "author": {
-        "name": "Anthropic"
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
       },
       "tags": [
         "browser",
@@ -44,22 +45,6 @@
         "testing",
         "web",
         "chrome"
-      ]
-    },
-    {
-      "name": "claude-code",
-      "source": "./plugins/claude-code",
-      "description": "Comprehensive skills for creating and managing Claude Code plugins, marketplaces, subagents, slash commands, skills, and MCP servers",
-      "version": "1.0.0",
-      "author": {
-        "name": "Claude Code Team"
-      },
-      "tags": [
-        "plugins",
-        "development",
-        "marketplace",
-        "mcp",
-        "tools"
       ]
     },
     {
@@ -82,7 +67,7 @@
     {
       "name": "goodfoot",
       "source": "./plugins/goodfoot",
-      "description": "Core development tools and workflows including test automation, documentation generation, investigation, and code analysis",
+      "description": "Core development tools and workflows including test automation, documentation generation, investigation, and code analysis. Includes the claude-code skill for plugin and marketplace development.",
       "version": "1.0.0",
       "author": {
         "name": "Goodfoot",
@@ -93,7 +78,27 @@
         "documentation",
         "investigation",
         "code-analysis",
-        "workflow"
+        "workflow",
+        "plugins",
+        "marketplace"
+      ]
+    },
+    {
+      "name": "typescript-hooks",
+      "source": "./plugins/typescript-hooks",
+      "description": "TypeScript and ESLint quality enforcement hooks for Write/Edit operations. Prevents rule bypasses, Jest mocking, and validates type errors in edited files and dependencies.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
+      },
+      "tags": [
+        "typescript",
+        "eslint",
+        "hooks",
+        "quality",
+        "testing",
+        "validation"
       ]
     }
   ]
