@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { exec } from 'child_process';
 import crypto from 'crypto';
+import { promises as dns } from 'dns';
 import { promises as fs } from 'fs';
+import { networkInterfaces } from 'os';
 import path from 'path';
 import { parseArgs, promisify } from 'util';
 import { query } from '@anthropic-ai/claude-agent-sdk';
@@ -124,6 +126,43 @@ async function killHungChromeMcpProcesses(): Promise<number> {
     console.error('Error killing hung Chrome MCP processes:', error);
     return 0;
   }
+}
+
+/**
+ * Get the primary external IP address of the machine
+ * First tries to resolve host.docker.internal (for Docker environments)
+ * Then falls back to the first non-internal IPv4 address found
+ */
+async function getPrimaryExternalIP(): Promise<string> {
+  // Try to resolve host.docker.internal first (Docker environment)
+  try {
+    const addresses = await dns.resolve4('host.docker.internal');
+    if (addresses && addresses.length > 0) {
+      console.error(`Resolved host.docker.internal to ${addresses[0]}`);
+      return addresses[0];
+    }
+  } catch {
+    // host.docker.internal not available, continue to fallback
+  }
+
+  // Fallback to detecting external IP from network interfaces
+  const nets = networkInterfaces();
+
+  // Iterate through all network interfaces
+  for (const name of Object.keys(nets)) {
+    const netInfo = nets[name];
+    if (!netInfo) continue;
+
+    for (const net of netInfo) {
+      // Skip internal (loopback) addresses and non-IPv4 addresses
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+
+  // Fallback to localhost if no external IP found
+  return 'localhost';
 }
 
 const server = new Server(
@@ -443,7 +482,7 @@ evaluate_script(function: "() => ({ readyState: document.readyState })")
 `;
 
 // Parse command-line arguments
-function parseChromeArgs(): { browserUrl: string } {
+async function parseChromeArgs(): Promise<{ browserUrl: string }> {
   try {
     const { values } = parseArgs({
       options: {
@@ -455,12 +494,18 @@ function parseChromeArgs(): { browserUrl: string } {
       allowPositionals: false
     });
 
+    // If browserUrl is not provided, use the primary external IP
+    let browserUrl: string;
     if (!values.browserUrl || typeof values.browserUrl !== 'string') {
-      throw new Error('Required argument --browserUrl/-b not provided');
+      const primaryIP = await getPrimaryExternalIP();
+      browserUrl = `http://${primaryIP}:9222`;
+      console.error(`No --browserUrl provided, using primary external IP: ${browserUrl}`);
+    } else {
+      browserUrl = values.browserUrl;
     }
 
     return {
-      browserUrl: values.browserUrl
+      browserUrl
     };
   } catch (error) {
     console.error('Failed to parse command-line arguments:', error);
@@ -723,7 +768,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
     contextualPrompt += `\n\n---\n\n**Rules**:\n- Refresh UIDs after ANY DOM change\n- Use evaluate_script for data extraction\n- Save screenshots to files (not base64)\n- Respond with data only (no process description)`;
 
     // Get chrome-devtools-mcp arguments
-    const { browserUrl } = parseChromeArgs();
+    const { browserUrl } = await parseChromeArgs();
 
     // Configure query options
     const queryOptions: Parameters<typeof query>[0]['options'] = {
