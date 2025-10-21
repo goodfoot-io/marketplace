@@ -1,38 +1,36 @@
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "(Write|Edit|MultiEdit)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/eslint-typescript-bypass",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "(Write|Edit|MultiEdit)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/jest-mock-prevention",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "(Write|Edit|MultiEdit)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/typescript-check",
-            "timeout": 30
-          }
-        ]
-      }
-    ]
-  }
+  "PreToolUse": [
+    {
+      "matcher": "(Write|Edit|MultiEdit)",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/eslint-typescript-bypass",
+          "timeout": 10
+        }
+      ]
+    },
+    {
+      "matcher": "(Write|Edit|MultiEdit)",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/jest-mock-prevention",
+          "timeout": 10
+        }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "(Write|Edit|MultiEdit)",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "${CLAUDE_PLUGIN_ROOT}/hooks/typescript-check",
+          "timeout": 30
+        }
+      ]
+    }
+  ]
 }
