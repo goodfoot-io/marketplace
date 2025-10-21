@@ -380,12 +380,34 @@ async function readInput() {
         resolve(JSON.parse(data));
       } catch (e) {
         console.error(colors.red('Error:'), 'Failed to parse JSON input: ' + e.message);
-        process.exit(2);
+
+        // Output JSON response to stdout for Claude
+        console.log(JSON.stringify({
+          decision: "block",
+          reason: `Failed to parse JSON input: ${e.message}`,
+          hookSpecificOutput: {
+            hookEventName: "PostToolUse",
+            additionalContext: `Error parsing hook input:\n${e.message}`
+          }
+        }));
+
+        process.exit(0);
       }
     });
     process.stdin.on('error', (err) => {
       console.error(colors.red('Error:'), 'Failed to read input: ' + err.message);
-      process.exit(2);
+
+      // Output JSON response to stdout for Claude
+      console.log(JSON.stringify({
+        decision: "block",
+        reason: `Failed to read input: ${err.message}`,
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext: `Error reading hook input:\n${err.message}`
+        }
+      }));
+
+      process.exit(0);
     });
   });
 }
@@ -635,7 +657,18 @@ async function main() {
     const packageDir = getPackageDirectory(filePath);
     if (!packageDir) {
       console.error(colors.red('❌ Could not find package.json for file'));
-      process.exit(2);
+
+      // Output JSON response to stdout for Claude
+      console.log(JSON.stringify({
+        decision: "block",
+        reason: "Could not find package.json for file",
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext: `Error: Could not find package.json for file: ${filePath}`
+        }
+      }));
+
+      process.exit(0);
     }
     
     debug(colors.gray(`📦 Package: ${packageDir}`));
@@ -673,28 +706,58 @@ async function main() {
     if (directErrors.length > 0 || externalErrors.length > 0) {
       // Output YAML format when errors exist
       const yamlOutput = formatErrorsAsYAML(directErrors, externalErrors, allSignatures);
-      console.error(yamlOutput);
-      
-      // Exit with code 2 to trigger Claude's error handling
-      process.exit(2);
-    } else if (DEBUG) {
-      console.error(colors.bold('\n📊 Summary:'));
-      console.error(colors.green('✅ All checks passed!'));
-      if (dependentFiles.length > 0) {
-        console.error(colors.green(`✅ No issues in ${dependentFiles.length} dependent files`));
+
+      // Output debug info to stderr if enabled
+      if (DEBUG) {
+        console.error(yamlOutput);
       }
+
+      // Output JSON response to stdout for Claude
+      console.log(JSON.stringify({
+        decision: "block",
+        reason: `Found ${directErrors.length} direct error(s)${externalErrors.length > 0 ? ` and ${externalErrors.length} error(s) in dependent files` : ''}`,
+        hookSpecificOutput: {
+          hookEventName: "PostToolUse",
+          additionalContext: yamlOutput
+        }
+      }));
+
+      // Exit with code 0 to allow continuation
+      process.exit(0);
+    } else {
+      // Debug output for success case
+      if (DEBUG) {
+        console.error(colors.bold('\n📊 Summary:'));
+        console.error(colors.green('✅ All checks passed!'));
+        if (dependentFiles.length > 0) {
+          console.error(colors.green(`✅ No issues in ${dependentFiles.length} dependent files`));
+        }
+      }
+
+      // Output empty JSON response (no decision = continue normally)
+      console.log(JSON.stringify({}));
+      process.exit(0);
     }
     
-    // Silent success when no issues and not in debug mode
-    process.exit(0);
-    
   } catch (error) {
+    // Output debug info to stderr if enabled
     console.error(colors.red('Error:'), error.message);
     if (error.stack && DEBUG) {
       console.error(colors.gray(error.stack));
     }
-    // Exit with code 2 for errors to trigger Claude's error handling
-    process.exit(2);
+
+    // Output JSON response to stdout for Claude
+    console.log(JSON.stringify({
+      decision: "block",
+      reason: `Hook execution error: ${error.message}`,
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse",
+        additionalContext: `Error in typescript-check hook:\n${error.message}\n${DEBUG && error.stack ? error.stack : ''}`
+      }
+    }));
+
+    // Exit with code 0 to allow continuation
+    process.exit(0);
   }
 }
 
@@ -703,8 +766,19 @@ process.on('SIGINT', () => {
   if (DEBUG) {
     console.error(colors.gray('\nInterrupted'));
   }
-  // Exit with code 2 for interruptions to trigger Claude's error handling
-  process.exit(2);
+
+  // Output JSON response to stdout for Claude
+  console.log(JSON.stringify({
+    decision: "block",
+    reason: "Hook execution was interrupted",
+    hookSpecificOutput: {
+      hookEventName: "PostToolUse",
+      additionalContext: "typescript-check hook was interrupted by user or timeout"
+    }
+  }));
+
+  // Exit with code 0 to allow continuation
+  process.exit(0);
 });
 
 // Run main function
