@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.6
+- Fixed package installation issues that prevented the MCP server from reconnecting properly
+
 ## 0.1.4
 - Minor improvements and bug fixes
 
