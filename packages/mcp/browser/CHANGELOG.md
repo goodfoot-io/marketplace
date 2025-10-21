@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10
+- Added `chrome-proxy` command for managing Chrome remote debugging connections
+- Improved browser connection by auto-detecting primary external IP when `--browserUrl` is not specified
+
 ## 0.1.8
 - Fixed compatibility with NPX by resolving symlinks in auto-start detection
 
