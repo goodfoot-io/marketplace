@@ -692,11 +692,6 @@ async function main() {
       // Output YAML format when errors exist
       const yamlOutput = formatErrorsAsYAML(directErrors, externalErrors, allSignatures);
 
-      // Output debug info to stderr if enabled
-      if (DEBUG) {
-        console.error(yamlOutput);
-      }
-
       // Output JSON response with proper schema
       const errorSummary = `Found ${directErrors.length} direct error(s)${externalErrors.length > 0 ? ` and ${externalErrors.length} error(s) in dependent files` : ''}`;
 
@@ -711,15 +706,6 @@ async function main() {
 
       process.exit(0);
     } else {
-      // Debug output for success case
-      if (DEBUG) {
-        console.error(colors.bold('\n📊 Summary:'));
-        console.error(colors.green('✅ All checks passed!'));
-        if (dependentFiles.length > 0) {
-          console.error(colors.green(`✅ No issues in ${dependentFiles.length} dependent files`));
-        }
-      }
-
       // Silent success - output empty JSON
       console.log(JSON.stringify({}));
       process.exit(0);
