@@ -1,6 +1,6 @@
 ---
 name: Claude Code
-description: Claude Code marketplace, plugin, subagent, slash command, and MCP server creation and management
+description: Guide for creating and managing Claude Code marketplaces, plugins, subagents, slash commands, and MCP servers. Use when users want to develop Claude Code plugins, create plugin marketplaces, configure MCP servers, or extend Claude Code functionality with custom components.
 ---
 
 ### Plugin Marketplaces Guide

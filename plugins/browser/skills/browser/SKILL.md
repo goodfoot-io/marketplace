@@ -1,11 +1,11 @@
 ---
 name: browser
-description: Automate browser tasks including navigation, web scraping, element interaction, screenshots, and page analysis
+description: Toolkit for automating browser tasks using the browser MCP server. Use when users request web scraping, testing web applications, taking screenshots, filling forms, or interacting with web pages. Supports navigation, element interaction, screenshot capture, and page analysis through browser automation.
 ---
 
 # Browser Automation Tool
 
-This skill provides browser automation capabilities through the `mcp__browser__prompt` tool. Use this tool to interact with web pages, extract information, capture screenshots, test web applications, and automate browser-based workflows.
+This skill provides browser automation capabilities through the `mcp__plugin_browser_browser__prompt` tool. Use this tool to interact with web pages, extract information, capture screenshots, test web applications, and automate browser-based workflows.
 
 ## When to Use This Tool
 
@@ -47,7 +47,7 @@ Use the browser automation tool when you need to:
 
 ## Tool Usage
 
-The browser automation tool is invoked using the `mcp__browser__prompt` tool with these parameters:
+The browser automation tool is invoked using the `mcp__plugin_browser_browser__prompt` tool with these parameters:
 
 - `prompt` (required): Natural language instructions describing the browser task
 - `sessionId` (optional): Session ID for maintaining conversation continuity across multiple interactions
@@ -60,7 +60,7 @@ The browser automation tool is invoked using the `mcp__browser__prompt` tool wit
 Task: Visit example.com and take a screenshot of the page
 
 Tool call:
-mcp__browser__prompt({
+mcp__plugin_browser_browser__prompt({
   prompt: "Navigate to https://example.com and take a screenshot of the entire page"
 })
 ```
@@ -71,7 +71,7 @@ mcp__browser__prompt({
 Task: Get the latest article titles from a news website
 
 Tool call:
-mcp__browser__prompt({
+mcp__plugin_browser_browser__prompt({
   prompt: "Go to https://news.example.com and extract all article titles from the homepage"
 })
 ```
@@ -82,7 +82,7 @@ mcp__browser__prompt({
 Task: Test a contact form submission
 
 Tool call:
-mcp__browser__prompt({
+mcp__plugin_browser_browser__prompt({
   prompt: "Navigate to https://example.com/contact, fill in the name field with 'Test User', email with 'test@example.com', message with 'This is a test message', and click the submit button. Capture a screenshot of the confirmation page."
 })
 ```
@@ -93,7 +93,7 @@ mcp__browser__prompt({
 Task: Search for a product and get pricing information
 
 Tool call:
-mcp__browser__prompt({
+mcp__plugin_browser_browser__prompt({
   prompt: "Go to https://shop.example.com, search for 'laptop', wait for results to load, and extract the names and prices of the first 5 products"
 })
 ```
@@ -104,7 +104,7 @@ mcp__browser__prompt({
 Task: Investigate console errors on a page
 
 Tool call:
-mcp__browser__prompt({
+mcp__plugin_browser_browser__prompt({
   prompt: "Navigate to https://app.example.com/dashboard, open the browser console, and report any JavaScript errors or warnings that appear"
 })
 ```
@@ -115,13 +115,13 @@ mcp__browser__prompt({
 Task: Login and navigate to user profile
 
 First interaction:
-mcp__browser__prompt({
+mcp__plugin_browser_browser__prompt({
   prompt: "Go to https://app.example.com/login and fill in username 'testuser' and password from environment. Click login.",
   sessionId: "user-profile-task"
 })
 
 Second interaction (continuing same session):
-mcp__browser__prompt({
+mcp__plugin_browser_browser__prompt({
   prompt: "Now navigate to the user profile page and extract the account information displayed",
   sessionId: "user-profile-task"
 })
@@ -133,7 +133,7 @@ mcp__browser__prompt({
 Task: Extract data from a page that loads asynchronously
 
 Tool call:
-mcp__browser__prompt({
+mcp__plugin_browser_browser__prompt({
   prompt: "Navigate to https://example.com/data, wait for the loading spinner to disappear and the data table to appear, then extract all rows from the table"
 })
 ```
@@ -144,7 +144,7 @@ mcp__browser__prompt({
 Task: Handle a cookie consent dialog
 
 Tool call:
-mcp__browser__prompt({
+mcp__plugin_browser_browser__prompt({
   prompt: "Go to https://example.com, wait for the cookie consent popup to appear, click the 'Accept All' button, then take a screenshot of the main page content"
 })
 ```

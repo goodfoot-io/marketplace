@@ -858,6 +858,7 @@ __metadata:
     zod: "npm:^3.24.1"
   bin:
     browser-mcp-server: ./build/dist/src/browser.js
+    chrome-proxy: ./build/dist/src/chrome-proxy.js
   languageName: unknown
   linkType: soft
 

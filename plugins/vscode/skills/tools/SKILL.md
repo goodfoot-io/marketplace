@@ -1,6 +1,6 @@
 ---
 name: Tools
-description: Symbol lookups, type information, diagnostics, refactoring, and workspace commands with the VSCode language server
+description: Direct access to VSCode Language Server Protocol (LSP) tools for symbol lookups, type information, diagnostics, refactoring operations, and workspace commands. Use when users need quick symbol information, want to find references, request code diagnostics, need rename refactoring, or require specific LSP operations.
 ---
 
 ## When to Use Each Tool

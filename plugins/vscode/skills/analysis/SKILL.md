@@ -1,6 +1,6 @@
 ---
 name: Analysis
-description: Investigate code, trace errors, find symbols, and understand complex flows with the "vscode:Analysis" subagent
+description: Comprehensive code investigation using VSCode Language Server Protocol (LSP) through the "vscode:Analysis" subagent. Use when users need to trace errors, find symbol definitions and references, understand complex code flows, analyze dependencies, or investigate multi-file technical issues. Automatically selects appropriate LSP tools for deep codebase analysis.
 ---
 
 ### ✅ Use the Subagent When:

@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Create implementation project plans with clear structure, specific goals, and actionable steps
+description: Guide for creating structured implementation project plans with clear goals, actionable steps, and dependency tracking. Use when users request project planning, need to break down complex implementations into phases, or want to create detailed technical roadmaps.
 ---
 
 # Annotated Project Plan Example
