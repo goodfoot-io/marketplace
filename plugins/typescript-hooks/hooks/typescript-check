@@ -379,25 +379,13 @@ async function readInput() {
       try {
         resolve(JSON.parse(data));
       } catch (e) {
-        console.log(JSON.stringify({
-          decision: "block",
-          reason: `Failed to parse JSON input: ${e.message}`,
-          hookSpecificOutput: {
-            hookEventName: "PostToolUse"
-          }
-        }));
-        process.exit(0);
+        console.error(`Failed to parse JSON input: ${e.message}`);
+        process.exit(2);
       }
     });
     process.stdin.on('error', (err) => {
-      console.log(JSON.stringify({
-        decision: "block",
-        reason: `Failed to read input: ${err.message}`,
-        hookSpecificOutput: {
-          hookEventName: "PostToolUse"
-        }
-      }));
-      process.exit(0);
+      console.error(`Failed to read input: ${err.message}`);
+      process.exit(2);
     });
   });
 }
@@ -646,14 +634,8 @@ async function main() {
     // Find the package directory
     const packageDir = getPackageDirectory(filePath);
     if (!packageDir) {
-      console.log(JSON.stringify({
-        decision: "block",
-        reason: `Could not find package.json for file: ${filePath}`,
-        hookSpecificOutput: {
-          hookEventName: "PostToolUse"
-        }
-      }));
-      process.exit(0);
+      console.error(`Could not find package.json for file: ${filePath}`);
+      process.exit(2);
     }
     
     debug(colors.gray(`📦 Package: ${packageDir}`));
@@ -691,52 +673,32 @@ async function main() {
     if (directErrors.length > 0 || externalErrors.length > 0) {
       // Output YAML format when errors exist
       const yamlOutput = formatErrorsAsYAML(directErrors, externalErrors, allSignatures);
+      console.error(yamlOutput);
 
-      // Output JSON response with proper schema
-      const errorSummary = `Found ${directErrors.length} direct error(s)${externalErrors.length > 0 ? ` and ${externalErrors.length} error(s) in dependent files` : ''}`;
-
-      console.log(JSON.stringify({
-        decision: "block",
-        reason: errorSummary,
-        hookSpecificOutput: {
-          hookEventName: "PostToolUse",
-          additionalContext: yamlOutput
-        }
-      }));
-
-      process.exit(0);
-    } else {
-      // Silent success - output empty JSON
-      console.log(JSON.stringify({}));
-      process.exit(0);
+      // Exit with code 2 to trigger Claude's error handling
+      process.exit(2);
     }
 
-  } catch (error) {
-    // Output error with proper JSON schema
-    const errorDetails = `Hook execution error: ${error.message}${DEBUG && error.stack ? '\n\n' + error.stack : ''}`;
-
-    console.log(JSON.stringify({
-      decision: "block",
-      reason: errorDetails,
-      hookSpecificOutput: {
-        hookEventName: "PostToolUse"
-      }
-    }));
-
+    // Silent success when no issues
     process.exit(0);
+
+  } catch (error) {
+    console.error(colors.red('Error:'), error.message);
+    if (error.stack && DEBUG) {
+      console.error(colors.gray(error.stack));
+    }
+    // Exit with code 2 for errors to trigger Claude's error handling
+    process.exit(2);
   }
 }
 
 // Handle process termination
 process.on('SIGINT', () => {
-  console.log(JSON.stringify({
-    decision: "block",
-    reason: "Hook execution was interrupted - typescript-check hook was interrupted by user or timeout",
-    hookSpecificOutput: {
-      hookEventName: "PostToolUse"
-    }
-  }));
-  process.exit(0);
+  if (DEBUG) {
+    console.error(colors.gray('\nInterrupted'));
+  }
+  // Exit with code 2 for interruptions to trigger Claude's error handling
+  process.exit(2);
 });
 
 // Run main function
