@@ -553,9 +553,15 @@ if [ $exit_code -ne 0 ]; then
     failure_reasons+=("Exit code: expected 0, got $exit_code")
 fi
 
-# For successful runs, output should be empty JSON {}
-if ! echo "$output" | jq -e '. == {}' >/dev/null 2>&1; then
-    # If not empty, check that there's no external section in additionalContext
+# For successful runs, output should be JSON with continue: true
+if ! echo "$output" | jq -e '.continue == true' >/dev/null 2>&1; then
+    no_deps_test_passed=false
+    failure_reasons+=("JSON should contain continue: true")
+fi
+
+# Check that there's no error decision for successful runs
+if echo "$output" | jq -e '.decision == "block"' >/dev/null 2>&1; then
+    # If there's a decision, check that there's no external section in additionalContext
     additional_context=$(echo "$output" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null)
     if [ "$additional_context" != "null" ] && echo "$additional_context" | grep -q "^external:"; then
         no_deps_test_passed=false
@@ -580,15 +586,20 @@ fi
 # Test 13: Real monorepo file (if exists)
 if [ -f "/workspace/packages/website/app/routes.ts" ]; then
     echo -e "\n${YELLOW}Testing with real monorepo file...${NC}"
-    
-    # This might actually run real checks, so we just verify it completes
+
+    # This might actually run real checks, so we just verify it completes with exit code 0
     output=$(echo '{"tool_name": "Write", "tool_input": {"file_path": "/workspace/packages/website/app/routes.ts"}}' | "$CHECK_TS" 2>&1)
     exit_code=$?
-    
+
     TESTS_RUN=$((TESTS_RUN + 1))
-    if [ $exit_code -eq 0 ] || [ $exit_code -eq 2 ]; then
-        echo -e "${GREEN}✓${NC} Real file check completed (exit code: $exit_code)"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
+    if [ $exit_code -eq 0 ]; then
+        # Verify it's valid JSON with continue: true
+        if echo "$output" | jq -e '.continue == true' >/dev/null 2>&1; then
+            echo -e "${GREEN}✓${NC} Real file check completed (exit code: $exit_code)"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+        else
+            echo -e "${RED}✗${NC} Real file check output invalid - expected JSON with continue: true"
+        fi
     else
         echo -e "${RED}✗${NC} Real file check failed unexpectedly (exit code: $exit_code)"
     fi
@@ -597,22 +608,41 @@ fi
 # Test 14: Workspace package resolution
 if [ -f "/workspace/packages/website/app/utils/generate-voice-instructions.ts" ]; then
     echo -e "\n${YELLOW}Testing workspace package resolution...${NC}"
-    
+
     # Check the specific file that imports workspace packages
     output=$(echo '{"tool_name": "Write", "tool_input": {"file_path": "/workspace/packages/website/app/utils/generate-voice-instructions.ts"}}' | "$CHECK_TS" 2>&1)
     exit_code=$?
-    
+
     TESTS_RUN=$((TESTS_RUN + 1))
-    # Should not have TS2307 error for workspace packages
-    if echo "$output" | grep -q "TS2307.*@productivity-bot/models"; then
-        echo -e "${RED}✗${NC} Workspace package resolution failed - still getting TS2307 error"
+    # Should exit with code 0 and return valid JSON
+    if [ $exit_code -ne 0 ]; then
+        echo -e "${RED}✗${NC} Workspace package resolution failed - unexpected exit code $exit_code"
         if [ -n "$DEBUG" ]; then
             echo "  Output:"
             echo "$output" | sed 's/^/    /'
         fi
     else
-        echo -e "${GREEN}✓${NC} Workspace package resolution works correctly"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
+        # Verify JSON output with continue: true
+        if ! echo "$output" | jq -e '.continue == true' >/dev/null 2>&1; then
+            echo -e "${RED}✗${NC} Workspace package resolution failed - invalid JSON output"
+            if [ -n "$DEBUG" ]; then
+                echo "  Output:"
+                echo "$output" | sed 's/^/    /'
+            fi
+        else
+            # Check if there are errors with TS2307 for workspace packages in additionalContext
+            additional_context=$(echo "$output" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null)
+            if [ "$additional_context" != "null" ] && echo "$additional_context" | grep -q "TS2307.*@productivity-bot/models"; then
+                echo -e "${RED}✗${NC} Workspace package resolution failed - still getting TS2307 error"
+                if [ -n "$DEBUG" ]; then
+                    echo "  Additional context:"
+                    echo "$additional_context" | sed 's/^/    /'
+                fi
+            else
+                echo -e "${GREEN}✓${NC} Workspace package resolution works correctly"
+                TESTS_PASSED=$((TESTS_PASSED + 1))
+            fi
+        fi
     fi
 fi
 
