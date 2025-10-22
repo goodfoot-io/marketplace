@@ -4,6 +4,5 @@
  * @returns Greeting message
  */
 export function hello(name?: string): string {
-  const x: number = "invalid";
   return name ? `Hello, ${name}!` : 'Hello, World!';
 }
