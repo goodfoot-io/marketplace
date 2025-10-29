@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# write-arguments: Write arguments to temp file with synchronization
+# Usage: write-arguments "$ARGUMENTS"
+# Returns: The arguments that were written
+
+ARGUMENTS="$1"
+
+# Source find-claude-pid utility
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -f "$SCRIPT_DIR/find-claude-pid" ]; then
+    source "$SCRIPT_DIR/find-claude-pid"
+else
+    echo "Error: Could not find find-claude-pid utility" >&2
+    exit 1
+fi
+
+# Get Claude PID
+if ! CLAUDE_PID=$(find_claude_pid); then
+    : # find_claude_pid returns fallback PID even on failure
+fi
+
+# Generate timestamp filename (rounded to nearest second)
+TIMESTAMP=$(date +%s)
+SYNC_FILE="/tmp/slash_cmd_sync_${CLAUDE_PID}_${TIMESTAMP}"
+ARGS_FILE="/tmp/slash_cmd_args_${CLAUDE_PID}.sh"
+
+# Clean up ALL old sync files for this Claude instance
+for sync_file in /tmp/slash_cmd_sync_${CLAUDE_PID}_*; do
+    if [ -f "$sync_file" ]; then
+        rm -f "$sync_file"
+    fi
+done
+
+# Write arguments to temp file
+rm -f "$ARGS_FILE"
+# Escape special characters to prevent shell interpretation when sourced
+ESCAPED_ARGS=$(printf '%s' "$ARGUMENTS" | sed 's/\\/\\\\/g; s/"/\\"/g; s/`/\\`/g; s/\$/\\$/g')
+if ! printf 'export ARGS="%s"\n' "$ESCAPED_ARGS" > "$ARGS_FILE"; then
+    echo "Error: Failed to write arguments to $ARGS_FILE" >&2
+    exit 1
+fi
+
+# Signal that args file is ready by creating sync file
+if ! touch "$SYNC_FILE"; then
+    echo "Error: Failed to create sync file $SYNC_FILE" >&2
+    exit 1
+fi
+
+# Output the arguments for use in command substitution
+printf '%s\n' "$ARGUMENTS"

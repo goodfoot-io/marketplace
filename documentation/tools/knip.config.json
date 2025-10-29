@@ -1,0 +1,28 @@
+{
+  "workspaces": {
+    ".": {
+      "entry": [
+        "*.mjs",
+        "packages/server/src/index.ts!"
+      ]
+    },
+    "packages/*": {
+      "entry": [
+        "src/**/*.ts!",
+        "tests/**/*.ts!"
+      ],
+      "project": [
+        "src/**/*.ts!",
+        "tests/**/*.ts!"
+      ],
+      "ignore": [
+        "node_modules/**",
+        "dist/**",
+        "build/**",
+        "tests/fixtures/**"
+      ]
+    }
+  },
+  "ignoreBinaries": ["tsx"],
+  "ignoreDependencies": ["@types/node", "eslint-config-prettier", "eslint-plugin-import", "eslint-import-resolver-typescript", "@eslint/js"]
+}

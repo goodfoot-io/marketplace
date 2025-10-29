@@ -1,0 +1,325 @@
+name: Publish NPM Package
+
+on:
+  push:
+    tags:
+      - '*-v*.*.*'   # Trigger on tags like example-v1.2.3 or streamable-http-mcp-server-daemon-v0.1.0
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package name (e.g., example, streamable-http-mcp-server-daemon)'
+        required: true
+        type: string
+      version:
+        description: 'Version to release (e.g., 1.2.3)'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract package name and version from tag
+        id: extract
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PACKAGE_NAME="${{ github.event.inputs.package }}"
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            TAG="${{ github.ref_name }}"
+            echo "Processing tag: ${TAG}"
+
+            # Validate tag format (must contain -v)
+            if [[ ! "${TAG}" =~ -v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+              echo "❌ Invalid tag format: ${TAG}"
+              echo "Expected format: package-name-v1.2.3"
+              exit 1
+            fi
+
+            # Extract package name (everything before last -v)
+            PACKAGE_NAME="${TAG%-v*}"
+            # Extract version (everything after last -v)
+            VERSION="${TAG##*-v}"
+          fi
+
+          # Convert MCP package tags back to directory format
+          # e.g., mcp-ts-extra -> mcp/ts-extra
+          if [[ "${PACKAGE_NAME}" =~ ^mcp- ]]; then
+            PACKAGE_NAME="mcp/${PACKAGE_NAME#mcp-}"
+          fi
+
+          echo "package=${PACKAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Package: ${PACKAGE_NAME}"
+          echo "Version: ${VERSION}"
+
+      - name: Validate package exists
+        run: |
+          PACKAGE_PATH="packages/${{ steps.extract.outputs.package }}"
+
+          if [ ! -d "${PACKAGE_PATH}" ]; then
+            echo "❌ Package directory not found: ${PACKAGE_PATH}"
+            echo "Available packages:"
+            ls -1 packages/
+            exit 1
+          fi
+
+          if [ ! -f "${PACKAGE_PATH}/package.json" ]; then
+            echo "❌ package.json not found in ${PACKAGE_PATH}"
+            exit 1
+          fi
+
+          echo "✅ Package exists: ${PACKAGE_PATH}"
+
+      - name: Validate version consistency
+        working-directory: packages/${{ steps.extract.outputs.package }}
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${{ steps.extract.outputs.version }}"
+
+          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ Version mismatch!"
+            echo "   package.json: ${PACKAGE_VERSION}"
+            echo "   tag:          ${TAG_VERSION}"
+            exit 1
+          fi
+
+          echo "✅ Version validated: ${PACKAGE_VERSION}"
+
+      - name: Extract package metadata
+        id: metadata
+        working-directory: packages/${{ steps.extract.outputs.package }}
+        run: |
+          NPM_NAME=$(node -p "require('./package.json').name")
+          DESCRIPTION=$(node -p "require('./package.json').description || 'No description available'")
+          IS_PRIVATE=$(node -p "require('./package.json').private || false")
+
+          echo "npm_name=${NPM_NAME}" >> $GITHUB_OUTPUT
+          echo "description=${DESCRIPTION}" >> $GITHUB_OUTPUT
+          echo "is_private=${IS_PRIVATE}" >> $GITHUB_OUTPUT
+
+          echo "NPM Package Name: ${NPM_NAME}"
+          echo "Description: ${DESCRIPTION}"
+          echo "Private: ${IS_PRIVATE}"
+
+      - name: Check if package is private
+        if: steps.metadata.outputs.is_private == 'true'
+        run: |
+          echo "⚠️  Package is marked as private in package.json"
+          echo "Cannot publish private packages to NPM registry"
+          exit 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build package
+        working-directory: packages/${{ steps.extract.outputs.package }}
+        run: yarn build
+
+      - name: Run typecheck
+        id: typecheck
+        working-directory: packages/${{ steps.extract.outputs.package }}
+        continue-on-error: true
+        run: yarn typecheck
+
+      - name: Run tests
+        id: test
+        working-directory: packages/${{ steps.extract.outputs.package }}
+        continue-on-error: true
+        run: yarn test
+
+      - name: Run lint
+        id: lint
+        working-directory: packages/${{ steps.extract.outputs.package }}
+        continue-on-error: true
+        run: yarn lint
+
+      - name: Check validation results
+        run: |
+          FAILED=0
+
+          if [ "${{ steps.typecheck.outcome }}" != "success" ]; then
+            echo "❌ Type checking failed"
+            FAILED=1
+          else
+            echo "✅ Type checking passed"
+          fi
+
+          if [ "${{ steps.test.outcome }}" != "success" ]; then
+            echo "❌ Tests failed"
+            FAILED=1
+          else
+            echo "✅ Tests passed"
+          fi
+
+          if [ "${{ steps.lint.outcome }}" != "success" ]; then
+            echo "❌ Linting failed"
+            FAILED=1
+          else
+            echo "✅ Linting passed"
+          fi
+
+          if [ $FAILED -eq 1 ]; then
+            echo ""
+            echo "Build validation failed. Please fix the issues before publishing."
+            exit 1
+          fi
+
+      - name: Publish to NPM
+        id: publish
+        working-directory: packages/${{ steps.extract.outputs.package }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Publishing ${{ steps.metadata.outputs.npm_name }}@${{ steps.extract.outputs.version }} to NPM..."
+          npm publish --access public
+          echo "✅ Published to NPM successfully"
+
+      - name: Generate release notes
+        id: notes
+        working-directory: packages/${{ steps.extract.outputs.package }}
+        run: |
+          PACKAGE_NAME="${{ steps.extract.outputs.package }}"
+          NPM_NAME="${{ steps.metadata.outputs.npm_name }}"
+          VERSION="${{ steps.extract.outputs.version }}"
+          DESCRIPTION="${{ steps.metadata.outputs.description }}"
+
+          cat > release-notes.md <<EOF
+          ## ${NPM_NAME} v${VERSION}
+
+          ${DESCRIPTION}
+
+          ### Installation
+
+          \`\`\`bash
+          npm install ${NPM_NAME}@${VERSION}
+          \`\`\`
+
+          or with yarn:
+
+          \`\`\`bash
+          yarn add ${NPM_NAME}@${VERSION}
+          \`\`\`
+
+          ### NPM Package
+
+          📦 [View on NPM](https://www.npmjs.com/package/${NPM_NAME}/v/${VERSION})
+
+          ### Documentation
+
+          See the [README](https://github.com/${{ github.repository }}/tree/main/packages/${PACKAGE_NAME}#readme) for full documentation.
+
+          ---
+
+          **Package:** ${NPM_NAME}
+          **Version:** ${VERSION}
+          **Node:** >=20.0.0
+          EOF
+
+          # Append CHANGELOG content if it exists
+          if [ -f "CHANGELOG.md" ]; then
+            echo "" >> release-notes.md
+            echo "### Changelog" >> release-notes.md
+            echo "" >> release-notes.md
+            # Extract the changelog section for this version
+            awk "/^## .*${VERSION}/ {found=1; next} /^## / {found=0} found" CHANGELOG.md >> release-notes.md || true
+          fi
+
+          cat release-notes.md
+
+      - name: Create GitHub Release
+        id: create_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: packages/${{ steps.extract.outputs.package }}
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_NAME="${{ steps.extract.outputs.package }}-v${{ steps.extract.outputs.version }}"
+          fi
+
+          gh release create "${TAG_NAME}" \
+            --repo ${{ github.repository }} \
+            --title "${{ steps.metadata.outputs.npm_name }} v${{ steps.extract.outputs.version }}" \
+            --notes-file release-notes.md \
+            || echo "⚠️  Release already exists or creation failed"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "# 📦 NPM Package Release" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Package:** \`${{ steps.metadata.outputs.npm_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${{ steps.extract.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Description:** ${{ steps.metadata.outputs.description }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.typecheck.outcome }}" == "success" ]; then
+            echo "✅ **Type Check:** Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Type Check:** Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.test.outcome }}" == "success" ]; then
+            echo "✅ **Tests:** Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Tests:** Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ steps.lint.outcome }}" == "success" ]; then
+            echo "✅ **Lint:** Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Lint:** Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Publishing Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.publish.outcome }}" == "success" ]; then
+            echo "✅ **NPM:** Published successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📦 **NPM Package:** https://www.npmjs.com/package/${{ steps.metadata.outputs.npm_name }}/v/${{ steps.extract.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **NPM:** Publishing failed (check logs above)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          TAG_NAME="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_NAME="${{ steps.extract.outputs.package }}-v${{ steps.extract.outputs.version }}"
+          fi
+
+          if [ "${{ steps.create_release.outcome }}" == "success" ]; then
+            echo "✅ **GitHub Release:** Created successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🔗 **Release URL:** https://github.com/${{ github.repository }}/releases/tag/${TAG_NAME}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️  **GitHub Release:** Creation failed or already exists" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "npm install ${{ steps.metadata.outputs.npm_name }}@${{ steps.extract.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,29 @@
+{
+  "include": [
+    "./*.mjs",
+    "./packages/**/src/*.ts",
+    "./packages/**/tests/*.ts",
+    "./.devcontainer/utilities/**/*.ts", "packages/durable-object-mcp/src/types/cloudflare.ts", "packages/durable-object-mcp/tests/cloudflare/lib/worker.ts"],
+  "exclude": [
+    "./packages/**/dist",
+    "./packages/**/build",
+    "./.worktrees/**",
+    "./documentation/**"
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "declaration": true,
+    "declarationMap": true,
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "isolatedModules": true,
+    "outDir": "./build",
+    "typeRoots": ["./types", "./node_modules/@types"]
+  }
+}

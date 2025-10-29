@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:cached
+      - ~/.zsh_history:/home/node/.zsh_history
+      - ~/.claude:/home/node/.claude
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=8192
+      - CLAUDE_CONFIG_DIR=/home/node/.claude
+    # Standard Docker networking - no special configuration needed
+    command: sleep infinity

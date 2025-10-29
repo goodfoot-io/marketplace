@@ -1,0 +1,9 @@
+{
+  "name": "project",
+  "description": "Project management and implementation workflows with plan creation, assessment, and execution",
+  "version": "1.0.0",
+  "author": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io"
+  }
+}

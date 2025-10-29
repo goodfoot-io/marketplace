@@ -1,0 +1,15 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Productivity Bot Database",
+      "Group": "Development",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "postgres",
+      "Password": "postgres",
+      "SSLMode": "prefer",
+      "Favorite": true
+    }
+  }
+}

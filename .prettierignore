@@ -1,0 +1,12 @@
+# Worktrees directory
+.worktrees/
+
+# Common ignore patterns
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.cache/
+*.log
+documentation/

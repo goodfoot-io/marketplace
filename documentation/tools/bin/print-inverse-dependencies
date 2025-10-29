@@ -1,0 +1,2 @@
+#!/bin/sh
+exec tsx "$(dirname "$0")/print-inverse-dependencies.ts" "$@"

@@ -1,0 +1,361 @@
+#!/usr/bin/env node
+import { promises as fs } from 'fs';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { DependencyFinder } from './lib/DependencyFinder.js';
+import { InverseDependencyFinder } from './lib/InverseDependencyFinder.js';
+import { TypeAnalyzer } from './lib/TypeAnalyzer.js';
+import { TypeExtractor } from './lib/TypeExtractor.js';
+
+const server = new Server(
+  {
+    name: 'typescript-server',
+    version: '1.0.0'
+  },
+  {
+    capabilities: {
+      tools: {}
+    }
+  }
+);
+
+server.setRequestHandler(ListToolsRequestSchema, () => ({
+  tools: [
+    {
+      name: 'dependencies',
+      description:
+        'Analyzes file dependency trees using TypeScript module resolution. ' +
+        'Accepts glob patterns (e.g., "packages/api/src/**/*.ts") or specific file paths. ' +
+        'Returns array of all files that the target files depend on.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          targetGlobs: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of file paths or glob patterns (e.g., ["packages/api/src/index.ts", "src/**/*.ts"])'
+          }
+        },
+        required: ['targetGlobs']
+      }
+    },
+    {
+      name: 'inverse-dependencies',
+      description:
+        'Finds all files that depend on the specified target files. ' +
+        'Useful for impact analysis when changing shared modules. ' +
+        'Accepts glob patterns or specific file paths.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          targetGlobs: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of file paths or glob patterns to find dependents for'
+          },
+          projectPath: {
+            type: 'string',
+            description: 'Optional path to tsconfig.json (auto-detected if not provided)'
+          }
+        },
+        required: ['targetGlobs']
+      }
+    },
+    {
+      name: 'analysis',
+      description:
+        'Extracts comprehensive type information and complexity metrics from TypeScript files. ' +
+        'Analyzes interfaces, types, classes, enums, functions, and calculates cyclomatic complexity. ' +
+        'Returns YAML-formatted results grouped by file.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          files: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of file paths or glob patterns to analyze'
+          }
+        },
+        required: ['files']
+      }
+    },
+    {
+      name: 'types',
+      description:
+        'Exports TypeScript type definitions with simplified representations. ' +
+        'Works with file paths or npm package names. ' +
+        'Provides both full declaration and simplified forms for readability.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          paths: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of file paths or npm package names to extract types from'
+          },
+          pwd: {
+            type: 'string',
+            description: 'Optional working directory for relative paths'
+          },
+          typeFilters: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Optional array of type names to filter output'
+          }
+        },
+        required: ['paths']
+      }
+    }
+  ]
+}));
+
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const toolName = request.params.name;
+
+  // Placeholder for async operations
+  await Promise.resolve();
+
+  switch (toolName) {
+    case 'dependencies': {
+      // Validate input parameters
+      if (!request.params.arguments || typeof request.params.arguments !== 'object') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing or invalid arguments object');
+      }
+
+      const args = request.params.arguments;
+
+      if (!Array.isArray(args.targetGlobs)) {
+        throw new McpError(ErrorCode.InvalidParams, 'targetGlobs must be an array of strings');
+      }
+
+      if (args.targetGlobs.length === 0) {
+        throw new McpError(ErrorCode.InvalidParams, 'targetGlobs array cannot be empty');
+      }
+
+      if (!args.targetGlobs.every((glob) => typeof glob === 'string')) {
+        throw new McpError(ErrorCode.InvalidParams, 'All targetGlobs elements must be strings');
+      }
+
+      try {
+        // Instantiate DependencyFinder with targetGlobs
+        const finder = new DependencyFinder({
+          targetGlobs: args.targetGlobs
+        });
+
+        // Execute and get results
+        const dependencies = await finder.execute();
+
+        // Return results as JSON array
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(dependencies, null, 2)
+            }
+          ]
+        };
+      } catch (error: unknown) {
+        // Handle errors during execution
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new McpError(ErrorCode.InternalError, `Failed to analyze dependencies: ${errorMessage}`);
+      }
+    }
+
+    case 'inverse-dependencies': {
+      // Validate input parameters
+      if (!request.params.arguments || typeof request.params.arguments !== 'object') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing or invalid arguments object');
+      }
+
+      const args = request.params.arguments;
+
+      if (!Array.isArray(args.targetGlobs)) {
+        throw new McpError(ErrorCode.InvalidParams, 'targetGlobs must be an array of strings');
+      }
+
+      if (args.targetGlobs.length === 0) {
+        throw new McpError(ErrorCode.InvalidParams, 'targetGlobs array cannot be empty');
+      }
+
+      if (!args.targetGlobs.every((glob) => typeof glob === 'string')) {
+        throw new McpError(ErrorCode.InvalidParams, 'All targetGlobs elements must be strings');
+      }
+
+      // Validate optional projectPath if provided
+      if (args.projectPath !== undefined && typeof args.projectPath !== 'string') {
+        throw new McpError(ErrorCode.InvalidParams, 'projectPath must be a string');
+      }
+
+      try {
+        // Instantiate InverseDependencyFinder with targetGlobs and optional projectPath
+        const finder = new InverseDependencyFinder({
+          targetGlobs: args.targetGlobs,
+          projectPath: args.projectPath
+        });
+
+        // Execute and get results
+        const inverseDependencies = await finder.execute();
+
+        // Return results as JSON array with count summary
+        const result = {
+          files: inverseDependencies,
+          count: inverseDependencies.length
+        };
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2)
+            }
+          ]
+        };
+      } catch (error: unknown) {
+        // Handle errors during execution
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new McpError(ErrorCode.InternalError, `Failed to analyze inverse dependencies: ${errorMessage}`);
+      }
+    }
+
+    case 'analysis': {
+      // Validate input parameters
+      if (!request.params.arguments || typeof request.params.arguments !== 'object') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing or invalid arguments object');
+      }
+
+      const args = request.params.arguments;
+
+      if (!Array.isArray(args.files)) {
+        throw new McpError(ErrorCode.InvalidParams, 'files must be an array of strings');
+      }
+
+      if (args.files.length === 0) {
+        throw new McpError(ErrorCode.InvalidParams, 'files array cannot be empty');
+      }
+
+      if (!args.files.every((file) => typeof file === 'string')) {
+        throw new McpError(ErrorCode.InvalidParams, 'All files elements must be strings');
+      }
+
+      try {
+        // Instantiate TypeAnalyzer with files
+        const analyzer = new TypeAnalyzer({
+          files: args.files
+        });
+
+        // Execute analysis
+        analyzer.analyze();
+
+        // Get YAML formatted output
+        const yamlOutput = analyzer.outputYAML();
+
+        // Return results as YAML text
+        return {
+          content: [
+            {
+              type: 'text',
+              text: yamlOutput
+            }
+          ]
+        };
+      } catch (error: unknown) {
+        // Handle errors during execution
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new McpError(ErrorCode.InternalError, `Failed to analyze TypeScript files: ${errorMessage}`);
+      }
+    }
+
+    case 'types': {
+      // Validate input parameters
+      if (!request.params.arguments || typeof request.params.arguments !== 'object') {
+        throw new McpError(ErrorCode.InvalidParams, 'Missing or invalid arguments object');
+      }
+
+      const args = request.params.arguments;
+
+      if (!Array.isArray(args.paths)) {
+        throw new McpError(ErrorCode.InvalidParams, 'paths must be an array of strings');
+      }
+
+      if (args.paths.length === 0) {
+        throw new McpError(ErrorCode.InvalidParams, 'paths array cannot be empty');
+      }
+
+      if (!args.paths.every((path) => typeof path === 'string')) {
+        throw new McpError(ErrorCode.InvalidParams, 'All paths elements must be strings');
+      }
+
+      // Validate optional pwd if provided
+      if (args.pwd !== undefined && typeof args.pwd !== 'string') {
+        throw new McpError(ErrorCode.InvalidParams, 'pwd must be a string');
+      }
+
+      // Validate optional typeFilters if provided
+      if (args.typeFilters !== undefined) {
+        if (!Array.isArray(args.typeFilters)) {
+          throw new McpError(ErrorCode.InvalidParams, 'typeFilters must be an array of strings');
+        }
+        if (!args.typeFilters.every((filter) => typeof filter === 'string')) {
+          throw new McpError(ErrorCode.InvalidParams, 'All typeFilters elements must be strings');
+        }
+      }
+
+      try {
+        // Instantiate TypeExtractor with paths, pwd, and typeFilters
+        const extractor = new TypeExtractor({
+          paths: args.paths,
+          pwd: args.pwd,
+          typeFilters: args.typeFilters
+        });
+
+        // Execute and get results
+        const results = extractor.execute();
+
+        // Return results as JSON
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(results, null, 2)
+            }
+          ]
+        };
+      } catch (error: unknown) {
+        // Handle errors during execution
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new McpError(ErrorCode.InternalError, `Failed to extract types: ${errorMessage}`);
+      }
+    }
+
+    default:
+      throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${toolName}`);
+  }
+});
+
+export async function startServer() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  return server;
+}
+
+// Start the server if this is the main module
+// Resolve symlinks to handle npx execution where argv[1] points to npx cache
+const resolveFileUrl = async (filePath: string): Promise<string> => {
+  try {
+    const resolved = await fs.realpath(filePath);
+    return `file://${resolved}`;
+  } catch {
+    return `file://${filePath}`;
+  }
+};
+
+const currentFileUrl = import.meta.url;
+const argvFileUrl = await resolveFileUrl(process.argv[1]);
+
+if (currentFileUrl === argvFileUrl) {
+  startServer().catch((error) => {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  });
+}

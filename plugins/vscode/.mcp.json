@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "vscode": {
+      "command": "npx",
+      "args": ["-y", "@vscode-mcp/vscode-mcp-server@latest"],
+      "env": {
+        "MAX_MCP_OUTPUT_TOKENS": "100000"
+      }
+    },
+    "codebase": {
+      "command": "npx",
+      "args": ["-y", "@goodfoot/codebase-mcp-server"]
+    }
+  }
+}

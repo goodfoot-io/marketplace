@@ -1,0 +1,91 @@
+#!/usr/bin/env zsh
+
+set -e
+
+export WORKTREE_DIR=$(pwd)
+
+cd "${WORKTREE_DIR}"
+
+# Copy specific Git settings from main repository to worktree
+echo "Copying Git settings from main repository..."
+
+# Copy editor setting if it exists
+if git --git-dir=/workspace/.git config --get core.editor >/dev/null 2>&1; then
+    EDITOR_CONFIG=$(git --git-dir=/workspace/.git config --get core.editor)
+    git config core.editor "$EDITOR_CONFIG"
+    echo "  Copied: core.editor = $EDITOR_CONFIG"
+fi
+
+# Copy user settings if they exist
+if git --git-dir=/workspace/.git config --get user.name >/dev/null 2>&1; then
+    USER_NAME=$(git --git-dir=/workspace/.git config --get user.name)
+    git config user.name "$USER_NAME"
+    echo "  Copied: user.name = $USER_NAME"
+fi
+
+if git --git-dir=/workspace/.git config --get user.email >/dev/null 2>&1; then
+    USER_EMAIL=$(git --git-dir=/workspace/.git config --get user.email)
+    git config user.email "$USER_EMAIL"
+    echo "  Copied: user.email = $USER_EMAIL"
+fi
+
+# Copy other commonly useful settings
+for setting in core.autocrlf core.ignorecase pull.rebase; do
+    if git --git-dir=/workspace/.git config --get "$setting" >/dev/null 2>&1; then
+        VALUE=$(git --git-dir=/workspace/.git config --get "$setting")
+        git config "$setting" "$VALUE"
+        echo "  Copied: $setting = $VALUE"
+    fi
+done
+
+# Enable corepack for yarn
+echo "Enabling corepack..."
+CI=1 corepack enable
+
+# Run yarn install in the new worktree
+echo "Installing dependencies..."
+yarn install
+
+# Copy MCP servers from main workspace to the worktree
+echo "Copying MCP servers..."
+# Use hardcoded /workspace as main workspace since we're already in the worktree directory
+MAIN_WORKSPACE="/workspace"
+cd "$MAIN_WORKSPACE"
+if /workspace/.devcontainer/utilities/claude-copy-mcp-servers "${WORKTREE_DIR}"; then
+    echo "  MCP servers copied successfully"
+else
+    echo "  Warning: Failed to copy some MCP servers"
+fi
+cd "${WORKTREE_DIR}"
+
+# Link the projects directory from the root repository
+echo "Linking projects directory..."
+if [[ -d "/workspace/projects" ]]; then
+    ln -s "/workspace/projects" "${WORKTREE_DIR}/projects"
+    echo "  Linked: projects directory"
+fi
+
+# Link the reports directory from the root repository
+echo "Linking reports directory..."
+if [[ -d "/workspace/reports" ]]; then
+    ln -s "/workspace/reports" "${WORKTREE_DIR}/reports"
+    echo "  Linked: reports directory"
+fi
+
+
+# Copy all .env and .env.test files maintaining directory structure
+echo "Copying environment files..."
+cd /workspace
+find . -path "./.worktrees" -prune -o -path "./.git" -prune -o -type f \( -name ".env" -o -name ".env.test" \) -print | while read -r env_file; do
+    # Create the directory structure in the worktree
+    dir_path=$(dirname "$env_file")
+    mkdir -p "${WORKTREE_DIR}/${dir_path}"
+    
+    # Copy the file
+    cp "$env_file" "${WORKTREE_DIR}/${env_file}"
+    echo "  Copied: $env_file"
+done
+cd "${WORKTREE_DIR}"
+
+# Create a .vscode directory with workspace settings
+mkdir -p "${WORKTREE_DIR}/.vscode"

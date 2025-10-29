@@ -1,0 +1,711 @@
+#!/usr/bin/env tsx
+
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+
+// Check if debug mode is enabled
+const DEBUG = process.env.DEBUG === '1';
+
+// Color utilities for output
+const colors = {
+  red: (text) => `\x1b[31m${text}\x1b[0m`,
+  yellow: (text) => `\x1b[33m${text}\x1b[0m`,
+  green: (text) => `\x1b[32m${text}\x1b[0m`,
+  cyan: (text) => `\x1b[36m${text}\x1b[0m`,
+  gray: (text) => `\x1b[90m${text}\x1b[0m`,
+  bold: (text) => `\x1b[1m${text}\x1b[0m`
+};
+
+// Get file lines for context
+function getFileLines(filePath) {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    return content.split('\n');
+  } catch (e) {
+    return [];
+  }
+}
+
+// Get context lines around a specific line number
+function getContextLines(lines, lineNum, contextSize = 1) {
+  const line = parseInt(lineNum, 10);
+  const start = Math.max(0, line - contextSize - 1);
+  const end = Math.min(lines.length, line + contextSize);
+  
+  const context = [];
+  for (let i = start; i < end; i++) {
+    context.push({
+      line: i + 1,
+      content: lines[i],
+      current: i === line - 1
+    });
+  }
+  return context;
+}
+
+// Parse TypeScript error output with enhanced signature extraction
+function parseTypeScriptErrors(output, filePath) {
+  const errors = [];
+  const signatures = new Map(); // Track unique signatures
+  
+  // Remove ANSI color codes from the output
+  const cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
+  const lines = cleanOutput.split('\n');
+  const fileName = path.basename(filePath);
+  const fileLines = getFileLines(filePath);
+  
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    
+    // Match TypeScript error format: file.ts:line:col - error TS1234: message or file.ts(line,col): error TS1234: message
+    const match = line.match(/^(.+?)(?:\(|:)(\d+)(?:,|:)(\d+)\)?\s*[-:]?\s*error\s+(TS\d+):\s*(.+)$/);
+    if (match && match[1].includes(fileName)) {
+      const [, , lineNum, colNum, code, message] = match;
+      const error = {
+        type: 'typescript',
+        file: filePath,
+        line: parseInt(lineNum, 10),
+        column: parseInt(colNum, 10),
+        code: code,
+        message: message.trim(),
+        context: getContextLines(fileLines, lineNum)
+      };
+      
+      // Look for signature information in subsequent lines
+      // TypeScript often provides signature details after the main error
+      let signatureInfo = null;
+      let j = i + 1;
+      
+      // Skip past the error location indicator lines (lines with ~~~)
+      while (j < lines.length && lines[j].match(/^\s*\d*\s*[~^]/)) {
+        j++;
+      }
+      
+      // For TS2554 errors and similar, TypeScript shows the expected signature
+      if (code === 'TS2554' || code === 'TS2345' || code === 'TS2322' || code === 'TS2329') {
+        // Look ahead for signature information
+        while (j < lines.length && j < i + 15) {
+          const nextLine = lines[j].trim();
+          
+          // Stop if we hit another error
+          if (nextLine.match(/error\s+TS\d+:/)) {
+            break;
+          }
+          
+          // Look for the reference to the original function/method definition
+          // This appears as a file location followed by the signature
+          if (nextLine.match(/^\d+\s+/)) {
+            // This is likely a code line with the signature
+            const sigMatch = nextLine.match(/^\d+\s+(.+)$/);
+            if (sigMatch) {
+              const potentialSig = sigMatch[1].trim();
+              // Check if this looks like a function/method signature
+              if (potentialSig.includes('(') && (potentialSig.includes('):') || potentialSig.includes(') {'))) {
+                // Clean up the signature - remove implementation details
+                signatureInfo = potentialSig.replace(/\s*{.*$/, '').trim();
+                
+                // Extract just the parameter list and return type if it's a full declaration
+                const funcMatch = potentialSig.match(/(?:function\s+)?(\w+)?\s*(\([^)]*\)(?:\s*:\s*[^{]+)?)/);
+                if (funcMatch) {
+                  signatureInfo = funcMatch[2].trim();
+                }
+              }
+            }
+          }
+          
+          // Look for "An argument for 'X' was not provided" messages
+          if (nextLine.includes('An argument for') && nextLine.includes('was not provided')) {
+            const argMatch = nextLine.match(/An argument for '([^']+)' was not provided/);
+            if (argMatch && j - 1 >= 0) {
+              // Look at the previous line for the signature
+              const prevLine = lines[j - 1].trim();
+              if (prevLine.match(/^\d+\s+/)) {
+                const sigMatch = prevLine.match(/^\d+\s+(.+)$/);
+                if (sigMatch) {
+                  const sig = sigMatch[1].trim();
+                  if (sig.includes('(') && sig.includes(')')) {
+                    signatureInfo = sig.replace(/\s*{.*$/, '').trim();
+                  }
+                }
+              }
+            }
+          }
+          
+          j++;
+        }
+      }
+      
+      // If we found a signature, add it to our map and reference it
+      if (signatureInfo) {
+        // Try to extract a clean function/method name for the reference key
+        let refKey = 'unknown';
+        
+        // Try to extract from the error line context
+        const errorLineContent = fileLines[error.line - 1];
+        if (errorLineContent) {
+          // Look for method calls like client.request(
+          const methodMatch = errorLineContent.match(/(\w+)\.(\w+)\s*\(/);
+          if (methodMatch) {
+            refKey = `${methodMatch[1]}.${methodMatch[2]}`;
+          } else {
+            // Look for function calls like simpleFunc(
+            const funcMatch = errorLineContent.match(/(\w+)\s*\(/);
+            if (funcMatch) {
+              refKey = funcMatch[1];
+            }
+          }
+        }
+        
+        // Store the signature if we haven't seen it before
+        if (!signatures.has(refKey)) {
+          signatures.set(refKey, {
+            signature: signatureInfo,
+            type: signatureInfo.includes('.') ? 'method' : 'function'
+          });
+        }
+        
+        error.usage_ref = refKey;
+      }
+      
+      errors.push(error);
+    }
+    i++;
+  }
+  
+  return { errors, signatures };
+}
+
+// Parse ESLint error output
+function parseESLintErrors(output, filePath) {
+  const errors = [];
+  const lines = output.split('\n');
+  const fileLines = getFileLines(filePath);
+  
+  let inFileSection = false;
+  for (const line of lines) {
+    // Check if we're in the file section
+    if (line.trim() === filePath) {
+      inFileSection = true;
+      continue;
+    }
+    
+    // Skip empty lines and summary lines
+    if (!line.trim() || line.includes('problem') || line.includes('warning')) {
+      inFileSection = false;
+      continue;
+    }
+    
+    if (inFileSection) {
+      // Match ESLint error format: line:col  severity  message  rule
+      const match = line.match(/^\s*(\d+):(\d+)\s+(error|warning)\s+(.+?)\s\s+(.+)$/);
+      if (match) {
+        const [, lineNum, colNum, severity, message, rule] = match;
+        errors.push({
+          type: 'eslint',
+          file: filePath,
+          line: parseInt(lineNum, 10),
+          column: parseInt(colNum, 10),
+          severity: severity,
+          message: message.trim(),
+          rule: rule.trim(),
+          context: getContextLines(fileLines, lineNum)
+        });
+      }
+    }
+  }
+  return errors;
+}
+
+// Find files that import from the edited file
+function findDependentFiles(filePath, packageDir) {
+  try {
+    // Use ripgrep to find import statements
+    const fileName = path.basename(filePath, path.extname(filePath));
+    const relativePath = path.relative(packageDir, filePath);
+    const dirName = path.dirname(relativePath);
+    
+    debug(colors.cyan(`Looking for files that import from ${fileName}`));
+    
+    // Create patterns for different import styles
+    // Using simpler patterns that are more shell-escape friendly
+    const patterns = [
+      `from.*${fileName}`,
+      `from.*${relativePath.replace(/\.[tj]sx?$/, '')}`,
+      `import.*from.*${fileName}`,
+      `require.*${fileName}`
+    ];
+    
+    const dependentFiles = new Set();
+    
+    for (const pattern of patterns) {
+      try {
+        const cmd = `/usr/bin/rg -l "${pattern}" --type-add 'tsx:*.tsx' --type-add 'jsx:*.jsx' --type ts --type tsx --type js --type jsx "${packageDir}" 2>/dev/null | head -10`;
+        debug(colors.gray(`Running: ${cmd}`));
+        
+        const result = execSync(cmd, { 
+            cwd: packageDir, 
+            stdio: 'pipe', 
+            encoding: 'utf8',
+            shell: '/bin/bash',
+            env: process.env  // Pass environment including PATH
+          }
+        );
+        
+        const files = result.split('\n').filter(f => f.trim() && f !== filePath);
+        debug(colors.gray(`Pattern "${pattern}" found: ${files.length} files`));
+        files.forEach(f => dependentFiles.add(f));
+      } catch (e) {
+        // Ignore errors from ripgrep (e.g., no matches)
+        debug(colors.gray(`Pattern "${pattern}" found no matches`));
+      }
+    }
+    
+    const result = Array.from(dependentFiles).slice(0, 5); // Limit to 5 files for performance
+    debug(colors.gray(`Found ${result.length} dependent files`));
+    return result;
+  } catch (error) {
+    debug(colors.yellow('Could not find dependent files:', error.message));
+    return [];
+  }
+}
+
+// Format errors and usage as YAML with separate external section
+function formatErrorsAsYAML(directErrors, externalErrors, signatures) {
+  let yaml = '';
+  
+  // Direct errors in the edited file
+  if (directErrors.length > 0) {
+    yaml += 'errors:\n';
+    
+    for (const error of directErrors) {
+      yaml += `  - type: ${error.type}\n`;
+      yaml += `    file: ${error.file}\n`;
+      yaml += `    line: ${error.line}\n`;
+      yaml += `    column: ${error.column}\n`;
+      
+      if (error.code) {
+        yaml += `    code: ${error.code}\n`;
+      }
+      if (error.severity) {
+        yaml += `    severity: ${error.severity}\n`;
+      }
+      if (error.rule) {
+        yaml += `    rule: ${error.rule}\n`;
+      }
+      
+      yaml += `    message: "${error.message.replace(/"/g, '\\"')}"\n`;
+      
+      if (error.usage_ref) {
+        yaml += `    usage_ref: ${error.usage_ref}\n`;
+      }
+      
+      yaml += `    context:\n`;
+      
+      for (const ctx of error.context) {
+        const marker = ctx.current ? '>' : ' ';
+        yaml += `      ${marker} ${ctx.line}: "${ctx.content.replace(/"/g, '\\"')}"\n`;
+      }
+    }
+  }
+  
+  // External errors in dependent files
+  if (externalErrors.length > 0) {
+    yaml += '\nexternal:\n';
+    
+    // Group errors by file
+    const errorsByFile = {};
+    for (const error of externalErrors) {
+      if (!errorsByFile[error.file]) {
+        errorsByFile[error.file] = [];
+      }
+      errorsByFile[error.file].push(error);
+    }
+    
+    for (const [file, fileErrors] of Object.entries(errorsByFile)) {
+      yaml += `  "${file}":\n`;
+      
+      for (const error of fileErrors) {
+        yaml += `    - type: ${error.type}\n`;
+        yaml += `      line: ${error.line}\n`;
+        yaml += `      column: ${error.column}\n`;
+        
+        if (error.code) {
+          yaml += `      code: ${error.code}\n`;
+        }
+        
+        yaml += `      message: "${error.message.replace(/"/g, '\\"')}"\n`;
+        
+        // Include minimal context for external errors
+        if (error.context && error.context.length > 0) {
+          const currentLine = error.context.find(c => c.current);
+          if (currentLine) {
+            yaml += `      source: "${currentLine.content.replace(/"/g, '\\"')}"\n`;
+          }
+        }
+      }
+    }
+  }
+  
+  // Add usage section if we have signatures
+  if (signatures && signatures.size > 0) {
+    yaml += '\nusage:\n';
+    for (const [key, info] of signatures) {
+      yaml += `  "${key}":\n`;
+      yaml += `    signature: "${info.signature.replace(/"/g, '\\"')}"\n`;
+      yaml += `    type: ${info.type}\n`;
+    }
+  }
+  
+  return yaml;
+}
+
+// Debug logging function
+function debug(...args) {
+  if (DEBUG) {
+    console.error(...args);
+  }
+}
+
+// Read JSON input from stdin
+async function readInput() {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    process.stdin.on('data', chunk => {
+      data += chunk;
+    });
+    process.stdin.on('end', () => {
+      try {
+        resolve(JSON.parse(data));
+      } catch (e) {
+        console.error(colors.red('Error:'), 'Failed to parse JSON input: ' + e.message);
+        process.exit(2);
+      }
+    });
+    process.stdin.on('error', (err) => {
+      console.error(colors.red('Error:'), 'Failed to read input: ' + err.message);
+      process.exit(2);
+    });
+  });
+}
+
+// Find the package.json for a given file
+function findPackageJson(filePath) {
+  let dir = path.dirname(filePath);
+  while (dir !== '/') {
+    const packagePath = path.join(dir, 'package.json');
+    if (fs.existsSync(packagePath)) {
+      return packagePath;
+    }
+    dir = path.dirname(dir);
+  }
+  return null;
+}
+
+// Get the package directory from file path
+function getPackageDirectory(filePath) {
+  const packageJsonPath = findPackageJson(filePath);
+  return packageJsonPath ? path.dirname(packageJsonPath) : null;
+}
+
+// Check if file is a TypeScript file
+function isTypeScriptFile(filePath) {
+  return filePath.endsWith('.ts') || filePath.endsWith('.tsx');
+}
+
+// Extract file path from tool input
+function extractFilePath(input) {
+  // Handle different tool input formats
+  if (input.tool_input) {
+    if (input.tool_input.file_path) {
+      return input.tool_input.file_path;
+    }
+    if (input.tool_input.edits && Array.isArray(input.tool_input.edits)) {
+      // For MultiEdit, check if all edits are for the same file
+      const filePaths = [...new Set(input.tool_input.edits.map(e => e.file_path).filter(Boolean))];
+      if (filePaths.length === 1) {
+        return filePaths[0];
+      }
+    }
+  }
+  return null;
+}
+
+// Find the appropriate tsconfig for a file
+function findTsConfig(filePath, packageDir) {
+  // Check for specific tsconfig files based on the file location
+  const relativePath = path.relative(packageDir, filePath);
+  
+  // For website package, use the appropriate tsconfig based on file location
+  if (packageDir.includes('packages/website')) {
+    if (relativePath.startsWith('server/')) {
+      const nodeConfig = path.join(packageDir, 'tsconfig.node.json');
+      if (fs.existsSync(nodeConfig)) return nodeConfig;
+    } else if (relativePath.startsWith('app/') || relativePath.startsWith('tests/')) {
+      const viteConfig = path.join(packageDir, 'tsconfig.vite.json');
+      if (fs.existsSync(viteConfig)) return viteConfig;
+    }
+  }
+  
+  // Default to package tsconfig
+  const packageConfig = path.join(packageDir, 'tsconfig.json');
+  if (fs.existsSync(packageConfig)) return packageConfig;
+  
+  // Fall back to root tsconfig
+  const rootConfig = path.join(packageDir, '..', '..', 'tsconfig.json');
+  if (fs.existsSync(rootConfig)) return rootConfig;
+  
+  return null;
+}
+
+// Run TypeScript type checking
+function runTypeCheck(filePath, packageDir) {
+  debug(colors.cyan('🔍 Running TypeScript type check...'));
+  
+  try {
+    // Find the appropriate tsconfig
+    const tsconfigPath = findTsConfig(filePath, packageDir);
+    
+    let tscCommand;
+    if (tsconfigPath) {
+      // Use the specific tsconfig file
+      const relativePath = path.relative(packageDir, filePath);
+      const configFlag = `--project ${path.relative(packageDir, tsconfigPath)}`;
+      
+      // For composite projects, we need to build references first
+      if (tsconfigPath.includes('tsconfig.vite.json') || tsconfigPath.includes('tsconfig.node.json')) {
+        // Use tsc -b to handle project references
+        tscCommand = `npx tsc -b ${configFlag} --noEmit --pretty`;
+      } else {
+        tscCommand = `npx tsc ${configFlag} --noEmit --incremental --tsBuildInfoFile ./build/.tsbuildinfo-hook --pretty`;
+      }
+      
+      debug(colors.gray(`Using tsconfig: ${tsconfigPath}`));
+    } else {
+      // Fallback to basic type checking
+      const relativePath = path.relative(packageDir, filePath);
+      tscCommand = `npx tsc --jsx react-jsx --noEmit --moduleResolution bundler --esModuleInterop --strict --pretty ${relativePath}`;
+    }
+    
+    debug(colors.gray(`Running: ${tscCommand}`));
+    
+    const result = execSync(tscCommand, {
+      cwd: packageDir,
+      stdio: 'pipe',
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        // Ensure TypeScript can find workspace packages
+        NODE_PATH: path.join(packageDir, 'node_modules')
+      }
+    });
+    
+    debug(colors.green('✅ TypeScript: No type errors found'));
+    return { success: true, output: result, errors: [], signatures: new Map() };
+  } catch (error) {
+    const errorOutput = error.stdout || error.stderr || '';
+    const { errors, signatures } = parseTypeScriptErrors(errorOutput, filePath);
+    
+    return { success: false, output: errorOutput, errors, signatures };
+  }
+}
+
+// Run ESLint
+function runESLint(filePath, packageDir) {
+  debug(colors.cyan('\n🔍 Running ESLint...'));
+  
+  const relativePath = path.relative(packageDir, filePath);
+  
+  try {
+    // Run ESLint without --fix first to check for errors
+    const result = execSync(`yarn eslint:files "${relativePath}"`, {
+      cwd: packageDir,
+      stdio: 'pipe',
+      encoding: 'utf8'
+    });
+    
+    debug(colors.green('✅ ESLint: No issues found'));
+    return { success: true, output: result, errors: [] };
+  } catch (lintError) {
+    let errorOutput = '';
+    
+    // Try to get output from various possible locations
+    if (lintError.stdout) {
+      errorOutput = lintError.stdout;
+    } else if (lintError.output && Array.isArray(lintError.output)) {
+      // output is [stdin, stdout, stderr]
+      errorOutput = lintError.output[1] || lintError.output[2] || '';
+    } else if (lintError.stderr) {
+      errorOutput = lintError.stderr;
+    }
+    
+    // Convert to string if it's a Buffer
+    if (Buffer.isBuffer(errorOutput)) {
+      errorOutput = errorOutput.toString('utf8');
+    }
+    
+    const errors = parseESLintErrors(errorOutput, filePath);
+    
+    return { success: false, output: errorOutput, errors: errors };
+  }
+}
+
+// Check dependent files in parallel
+async function checkDependentFiles(dependentFiles, editedFile) {
+  const results = [];
+  
+  // Limit parallel checks to avoid overwhelming the system
+  const checkPromises = dependentFiles.map(async (depFile) => {
+    const depPackageDir = getPackageDirectory(depFile);
+    if (!depPackageDir) return { file: depFile, errors: [] };
+    
+    // Only run TypeScript check for dependent files (skip ESLint for performance)
+    const typeCheckResult = await new Promise(resolve => {
+      try {
+        const result = runTypeCheck(depFile, depPackageDir);
+        // Filter errors to only those potentially related to the edited file
+        const relevantErrors = result.errors.filter(error => {
+          // Include errors that might be caused by changes to the edited file
+          return error.code === 'TS2305' || // Module has no exported member
+                 error.code === 'TS2339' || // Property does not exist
+                 error.code === 'TS2345' || // Argument type mismatch
+                 error.code === 'TS2322' || // Type assignment error
+                 error.code === 'TS2554' || // Expected arguments error
+                 error.code === 'TS2741' || // Missing properties
+                 error.message.toLowerCase().includes('import') ||
+                 error.message.toLowerCase().includes('export');
+        });
+        resolve({ file: depFile, errors: relevantErrors });
+      } catch (e) {
+        resolve({ file: depFile, errors: [] });
+      }
+    });
+    
+    return typeCheckResult;
+  });
+  
+  // Wait for all checks with timeout
+  const timeoutPromise = new Promise(resolve => 
+    setTimeout(() => resolve([]), 5000) // 5 second timeout for dependent checks
+  );
+  
+  try {
+    const completed = await Promise.race([
+      Promise.all(checkPromises),
+      timeoutPromise
+    ]);
+    
+    return completed || [];
+  } catch (e) {
+    debug(colors.yellow('Error checking dependent files:', e.message));
+    return [];
+  }
+}
+
+// Main function
+async function main() {
+  try {
+    // Read input from stdin
+    const input = await readInput();
+    
+    // Extract file path
+    const filePath = extractFilePath(input);
+    
+    if (!filePath) {
+      debug(colors.gray('No file path found in input'));
+      process.exit(0);
+    }
+    
+    // Only process TypeScript files
+    if (!isTypeScriptFile(filePath)) {
+      debug(colors.gray(`Skipping non-TypeScript file: ${filePath}`));
+      process.exit(0);
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      debug(colors.yellow(`⚠️  File not found: ${filePath}`));
+      process.exit(0);
+    }
+    
+    debug(colors.bold(`\n📄 Checking: ${filePath}`));
+    
+    // Find the package directory
+    const packageDir = getPackageDirectory(filePath);
+    if (!packageDir) {
+      console.error(colors.red('❌ Could not find package.json for file'));
+      process.exit(2);
+    }
+    
+    debug(colors.gray(`📦 Package: ${packageDir}`));
+    
+    // Run checks on the edited file
+    const typeCheckResult = runTypeCheck(filePath, packageDir);
+    const eslintResult = runESLint(filePath, packageDir);
+    
+    // Find and check dependent files
+    const dependentFiles = findDependentFiles(filePath, packageDir);
+    let externalErrors = [];
+    
+    if (dependentFiles.length > 0) {
+      debug(colors.cyan(`\n🔗 Checking ${dependentFiles.length} dependent files...`));
+      const depResults = await checkDependentFiles(dependentFiles, filePath);
+      
+      // Collect all external errors
+      for (const result of depResults) {
+        if (result.errors && result.errors.length > 0) {
+          externalErrors.push(...result.errors);
+        }
+      }
+      
+      if (externalErrors.length > 0) {
+        debug(colors.yellow(`⚠️  Found ${externalErrors.length} errors in dependent files`));
+      }
+    }
+    
+    // Collect direct errors from the edited file
+    const directErrors = [...typeCheckResult.errors, ...eslintResult.errors];
+    
+    // Merge signatures from TypeScript check
+    const allSignatures = typeCheckResult.signatures || new Map();
+    
+    if (directErrors.length > 0 || externalErrors.length > 0) {
+      // Output YAML format when errors exist
+      const yamlOutput = formatErrorsAsYAML(directErrors, externalErrors, allSignatures);
+      console.error(yamlOutput);
+      
+      // Exit with code 2 to trigger Claude's error handling
+      process.exit(2);
+    } else if (DEBUG) {
+      console.error(colors.bold('\n📊 Summary:'));
+      console.error(colors.green('✅ All checks passed!'));
+      if (dependentFiles.length > 0) {
+        console.error(colors.green(`✅ No issues in ${dependentFiles.length} dependent files`));
+      }
+    }
+    
+    // Silent success when no issues and not in debug mode
+    process.exit(0);
+    
+  } catch (error) {
+    console.error(colors.red('Error:'), error.message);
+    if (error.stack && DEBUG) {
+      console.error(colors.gray(error.stack));
+    }
+    // Exit with code 2 for errors to trigger Claude's error handling
+    process.exit(2);
+  }
+}
+
+// Handle process termination
+process.on('SIGINT', () => {
+  if (DEBUG) {
+    console.error(colors.gray('\nInterrupted'));
+  }
+  // Exit with code 2 for interruptions to trigger Claude's error handling
+  process.exit(2);
+});
+
+// Run main function
+main();

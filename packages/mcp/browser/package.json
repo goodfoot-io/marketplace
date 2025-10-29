@@ -1,0 +1,55 @@
+{
+  "name": "@goodfoot/browser-mcp-server",
+  "version": "0.1.12",
+  "description": "MCP server for browser automation using Chrome DevTools Protocol",
+  "sideEffects": false,
+  "type": "module",
+  "main": "./build/dist/src/browser.js",
+  "types": "./build/types/src/browser.d.ts",
+  "bin": {
+    "browser-mcp-server": "./build/dist/src/browser.js",
+    "chrome-proxy": "./build/dist/src/chrome-proxy.js"
+  },
+  "scripts": {
+    "prettier": "prettier . --write --log-level warn",
+    "prettier:files": "prettier --write --log-level warn",
+    "eslint": "eslint --cache --fix ./src ./tests",
+    "eslint:files": "eslint --cache --fix",
+    "typecheck": "tsc --noEmit",
+    "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
+    "build": "tsc --build",
+    "test": "NODE_OPTIONS=\"--experimental-vm-modules --no-node-snapshot ${INSPECT:+ --inspect-brk}\" NODE_ENV=test yarn exec jest --detectOpenHandles --runInBand -- ${*:-tests}",
+    "release": "bash ../../../scripts/release-package.sh mcp/browser",
+    "release:dry-run": "bash ../../../scripts/release-package.sh mcp/browser --dry-run"
+  },
+  "exports": {
+    ".": {
+      "import": "./build/dist/src/browser.js",
+      "types": "./build/types/src/browser.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "tsconfig.json"
+  ],
+  "devDependencies": {
+    "@goodfoot/test-utilities": "workspace:^",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^24.3.1",
+    "@typescript-eslint/eslint-plugin": "^8.34.0",
+    "@typescript-eslint/parser": "^8.34.0",
+    "eslint": "^9.28.0",
+    "jest": "^29",
+    "prettier": "^3.5.3",
+    "ts-jest": "^29.3.4",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.23",
+    "@modelcontextprotocol/sdk": "^1.18.2",
+    "zod": "^3.24.1"
+  }
+}

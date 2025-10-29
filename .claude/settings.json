@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [],
+    "deny": ["NotebookRead", "NotebookEdit"],
+    "defaultMode": "bypassPermissions"
+  },
+  "env": {
+    "MAX_MCP_OUTPUT_TOKENS": "100000"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo -e '\\a'"
+          }
+        ]
+      }
+    ]
+  }
+}

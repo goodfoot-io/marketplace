@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist", "build"],
+  "compilerOptions": {
+    "composite": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./build/.tsbuildinfo",
+    "declarationDir": "./build/types",
+    "outDir": "./build/dist",
+    "baseUrl": "."
+  }
+}

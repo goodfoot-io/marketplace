@@ -1,0 +1,63 @@
+#!/bin/bash
+
+FILE_PATH="$1"
+
+CLAUDE_RESPONSE=$(claude --system-prompt-file .devcontainer/documentation/extract-inputs-and-outputs.md -p "@$FILE_PATH" --model opus --mcp-config '{"mcpServers":{}}' --disallowedTools "Task" "Bash" "Read" "Glob" "Grep" "LS" "ExitPlanMode" "Edit" "MultiEdit" "Write" "WebFetch" "TodoWrite" "WebSearch" )
+
+# Extract the JSON block between ```json and ```
+CLAUDE_RESPONSE_JSON=$(echo "$CLAUDE_RESPONSE" | sed -n '/^```json$/,/^```$/ {/^```json$/d; /^```$/d; p}')
+# 
+
+# Efficiently extract all required line ranges in a single awk pass, then assemble the output JSON
+
+# Prepare arrays of start, end, and description from the JSON
+STARTS=($(echo "$CLAUDE_RESPONSE_JSON" | jq '.[][0]'))
+ENDS=($(echo "$CLAUDE_RESPONSE_JSON" | jq '.[][1]'))
+
+# Read descriptions into array properly handling spaces
+mapfile -t DESCS < <(echo "$CLAUDE_RESPONSE_JSON" | jq -r '.[][2]')
+
+# Build a single awk script to extract all ranges, tagging each line with its section index
+AWK_SCRIPT='
+BEGIN { section=0; }
+'
+for idx in "${!STARTS[@]}"; do
+  AWK_SCRIPT+="
+(NR==${STARTS[$idx]}) { section=$((idx+1)); }
+(NR>=${STARTS[$idx]} && NR<=${ENDS[$idx]}) { print section \":\" \$0; }
+(NR==${ENDS[$idx]}) { section=0; }
+"
+done
+
+# Run awk and collect output per section
+declare -A SECTION_TEXTS
+while IFS= read -r line; do
+  idx="${line%%:*}"
+  text="${line#*:}"
+  # Remove leading space if present
+  text="${text#"${text%%[![:space:]]*}"}"
+  SECTION_TEXTS[$idx]="${SECTION_TEXTS[$idx]}${text}\n"
+done < <(awk "$AWK_SCRIPT" "$FILE_PATH")
+
+# Assemble the output JSON
+echo "["
+
+for idx in "${!STARTS[@]}"; do
+  desc="${DESCS[$idx]}"
+  # Remove trailing \n and escape quotes
+  section_text="${SECTION_TEXTS[$((idx+1))]}"
+  section_text="${section_text%\\n}"
+  section_text_escaped=$(printf "%s" "$section_text" | sed 's/"/\\"/g')
+  # Output JSON entry
+  if [ $idx -ne 0 ]; then
+    echo ","
+  fi
+  printf "[\"%s\", \"%s\"]" "$desc" "$section_text_escaped"
+done
+
+echo
+echo "]"
+
+
+
+ 

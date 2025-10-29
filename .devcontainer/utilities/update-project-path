@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# update-project-path: Update the project path in the IPC state file
+# Usage: update-project-path NEW_PATH
+# Updates: /tmp/slash_cmd_args_${CLAUDE_PID}.sh with the new project path
+
+NEW_PATH="$1"
+
+if [ -z "$NEW_PATH" ]; then
+    echo "Error: No path provided" >&2
+    exit 1
+fi
+
+# Source find-claude-pid utility
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -f "$SCRIPT_DIR/find-claude-pid" ]; then
+    source "$SCRIPT_DIR/find-claude-pid"
+else
+    echo "Error: Could not find find-claude-pid utility" >&2
+    exit 1
+fi
+
+# Get Claude PID
+if ! CLAUDE_PID=$(find_claude_pid); then
+    : # find_claude_pid returns fallback PID even on failure
+fi
+
+# Define args file path
+ARGS_FILE="/tmp/slash_cmd_args_${CLAUDE_PID}.sh"
+
+# Update the SELECTED_PROJECT in the args file
+if [ -f "$ARGS_FILE" ]; then
+    # Read existing content but filter out SELECTED_PROJECT line
+    TEMP_FILE="${ARGS_FILE}.tmp"
+    grep -v "^export SELECTED_PROJECT=" "$ARGS_FILE" > "$TEMP_FILE" 2>/dev/null || true
+    
+    # Add the new SELECTED_PROJECT
+    echo "export SELECTED_PROJECT=\"$NEW_PATH\"" >> "$TEMP_FILE"
+    
+    # Replace the original file
+    mv "$TEMP_FILE" "$ARGS_FILE"
+    
+    echo "Updated project path to: $NEW_PATH" >&2
+else
+    # Create new args file if it doesn't exist
+    echo "export SELECTED_PROJECT=\"$NEW_PATH\"" > "$ARGS_FILE"
+    echo "Created new IPC state with path: $NEW_PATH" >&2
+fi
+
+exit 0

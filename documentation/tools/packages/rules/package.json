@@ -1,0 +1,54 @@
+{
+  "name": "@tools/rules",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "scripts": {
+    "prettier": "prettier . --write",
+    "prettier:files": "prettier --write",
+    "eslint": "eslint --cache --fix ./src ./tests",
+    "eslint:files": "eslint --cache --fix",
+    "typecheck": "tsc --noEmit",
+    "lint": "bash -c 'if [ $# -eq 0 ]; then yarn prettier && yarn eslint && yarn typecheck; else yarn prettier:files \"$@\" && yarn eslint:files \"$@\" && yarn typecheck; fi' --",
+    "test": "NODE_OPTIONS=\"--experimental-vm-modules --no-node-snapshot ${INSPECT:+ --inspect-brk}\" NODE_ENV=test jest --detectOpenHandles --runInBand ${*:-tests}",
+    "check": "tsx src/check.ts",
+    "fix": "tsx src/fix.ts",
+    "rules-drift": "tsx src/drift-check.ts",
+    "rules-drift:mark-reviewed": "tsx src/drift-check.ts mark-reviewed"
+  },
+  "packageManager": "yarn@4.5.0",
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/express": "^5.0.3",
+    "@types/jest": "^29.5.14",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "18",
+    "@typescript-eslint/eslint-plugin": "^8.34.0",
+    "@typescript-eslint/parser": "^8.34.0",
+    "dotenv": "^16.5.0",
+    "eslint": "^9.28.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-plugin-import": "^2.31.0",
+    "express": "^5.1.0",
+    "glob": "^10.3.10",
+    "glob-gitignore": "^1.0.14",
+    "istextorbinary": "^9.5.0",
+    "jest": "^29",
+    "jest-diff": "^29",
+    "jest-matcher-utils": "^29",
+    "js-yaml": "^4.1.0",
+    "prettier": "^3.5.3",
+    "ts-jest": "^29.3.4",
+    "tsx": "^4.20.1",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.34.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@tools/scrape": "workspace:*",
+    "zod": "^3.25.67"
+  }
+}

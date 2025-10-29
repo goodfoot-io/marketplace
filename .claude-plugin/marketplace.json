@@ -1,0 +1,105 @@
+{
+  "name": "goodfoot",
+  "displayName": "Goodfoot",
+  "description": "Professional development workflows, MCP servers, and productivity tools from Goodfoot",
+  "version": "1.0.0",
+  "owner": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io",
+    "url": "https://goodfoot.io"
+  },
+  "homepage": "https://github.com/goodfoot-io/marketplace",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/goodfoot-io/marketplace.git"
+  },
+  "plugins": [
+    {
+      "name": "project",
+      "source": "./plugins/project",
+      "description": "Project management and implementation workflows with plan creation, assessment, and execution",
+      "version": "1.0.0",
+      "author": {
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
+      },
+      "tags": [
+        "project-management",
+        "workflow",
+        "planning",
+        "implementation"
+      ]
+    },
+    {
+      "name": "browser",
+      "source": "./plugins/browser",
+      "description": "Browser automation for web scraping, testing, and interaction with web pages",
+      "version": "1.0.0",
+      "author": {
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
+      },
+      "tags": [
+        "browser",
+        "automation",
+        "testing",
+        "web",
+        "chrome"
+      ]
+    },
+    {
+      "name": "vscode",
+      "source": "./plugins/vscode",
+      "description": "VSCode integration with codebase analysis expert and MCP server for enhanced development workflows",
+      "version": "1.0.0",
+      "author": {
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
+      },
+      "tags": [
+        "vscode",
+        "codebase-analysis",
+        "mcp",
+        "lsp",
+        "code-intelligence"
+      ]
+    },
+    {
+      "name": "goodfoot",
+      "source": "./plugins/goodfoot",
+      "description": "Core development tools and workflows including test automation, documentation generation, investigation, and code analysis. Includes the claude-code skill for plugin and marketplace development.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
+      },
+      "tags": [
+        "testing",
+        "documentation",
+        "investigation",
+        "code-analysis",
+        "workflow",
+        "plugins",
+        "marketplace"
+      ]
+    },
+    {
+      "name": "typescript-hooks",
+      "source": "./plugins/typescript-hooks",
+      "description": "TypeScript and ESLint quality enforcement hooks for Write/Edit operations. Prevents rule bypasses, Jest mocking, and validates type errors in edited files and dependencies.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
+      },
+      "tags": [
+        "typescript",
+        "eslint",
+        "hooks",
+        "quality",
+        "testing",
+        "validation"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# initialize-project: Create and initialize a new project directory with standard structure
+# Usage: initialize-project "project-name"
+# Returns: Path to created project or empty if failed
+
+PROJECT_NAME="$1"
+
+# Validate input
+if [ -z "$PROJECT_NAME" ]; then
+    printf '%s\n' "Error: No project name provided" >&2
+    exit 1
+fi
+
+# Validate project name format (kebab-case, alphanumeric with hyphens)
+if ! printf '%s\n' "$PROJECT_NAME" | grep -qE '^[a-z0-9][a-z0-9-]*[a-z0-9]$'; then
+    printf '%s\n' "Error: Invalid project name format. Use lowercase letters, numbers, and hyphens (kebab-case)" >&2
+    exit 1
+fi
+
+# Check project name length (max 50 characters)
+if [ ${#PROJECT_NAME} -gt 50 ]; then
+    printf '%s\n' "Error: Project name too long (max 50 characters)" >&2
+    exit 1
+fi
+
+# Find workspace root by looking for projects directory
+WORKSPACE_ROOT=""
+current_dir="$(pwd)"
+while [ "$current_dir" != "/" ]; do
+    if [ -d "$current_dir/projects" ]; then
+        WORKSPACE_ROOT="$current_dir"
+        break
+    fi
+    current_dir="$(dirname "$current_dir")"
+done
+
+if [ -z "$WORKSPACE_ROOT" ]; then
+    printf '%s\n' "Error: Could not find workspace root with projects directory" >&2
+    exit 1
+fi
+
+cd "$WORKSPACE_ROOT"
+
+# Check if project already exists in any active status directory (excluding icebox and complete)
+for status_dir in new pending active ready-for-review; do
+    if [ -d "projects/$status_dir/$PROJECT_NAME" ]; then
+        # Project exists - return its path (idempotent behavior)
+        printf '%s\n' "projects/$status_dir/$PROJECT_NAME"
+        exit 0
+    fi
+done
+
+# Project doesn't exist - create it in new status
+PROJECT_DIR="projects/new/$PROJECT_NAME"
+if ! mkdir -p "$PROJECT_DIR"; then
+    printf '%s\n' "Error: Failed to create project directory" >&2
+    exit 1
+fi
+
+# Initialize log.md with standard header
+LOG_FILE="$PROJECT_DIR/log.md"
+
+cat > "$LOG_FILE" << EOF
+# Implementation Project: $PROJECT_NAME
+
+## Project Initialization
+Project directory created in: $PROJECT_DIR
+EOF
+
+if [ ! -f "$LOG_FILE" ]; then
+    printf '%s\n' "Error: Failed to create log file" >&2
+    rm -rf "$PROJECT_DIR"
+    exit 1
+fi
+
+# Create scratchpad directory for assumption testing
+mkdir -p "$PROJECT_DIR/scratchpad"
+
+# Output the created project path
+printf '%s\n' "$PROJECT_DIR"

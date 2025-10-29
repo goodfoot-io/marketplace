@@ -1,0 +1,39 @@
+# Ignore all `.log` files
+*.log
+packages/**/build/**/*
+
+# CRITICAL: Exclude directories causing file watcher freezing
+# These directories contain 2.6 million files causing Cursor to hang
+node_modules/
+**/.yarn/
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+**/coverage/
+**/reports/
+**/*.tsbuildinfo
+**/.turbo/
+**/test-results/
+
+# Exclude large cache directories
+.yarn/cache/
+.yarn/unplugged/
+.yarn/install-state.gz
+
+# Temporary and generated files
+temp/
+logs/
+installers/
+data/
+__pycache__/
+*.docker.tar.gz
+
+# Terraform files
+**/.terraform/
+*.tfstate
+*.tfstate.*
+
+# IDE specific
+.idea/
+.eslintcache

@@ -1,0 +1,168 @@
+#!/bin/bash
+
+# Get Next Project Script
+# This script implements the project selection logic from /project:begin
+# It reads arguments from /tmp/slash_cmd_args_${CLAUDE_PID}.sh and outputs the selected project name
+
+# Source find-claude-pid utility
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -f "$SCRIPT_DIR/find-claude-pid" ]; then
+    source "$SCRIPT_DIR/find-claude-pid"
+else
+    echo "Error: Could not find find-claude-pid utility" >&2
+    exit 1
+fi
+
+# Get Claude PID
+if ! CLAUDE_PID=$(find_claude_pid); then
+    : # find_claude_pid returns fallback PID even on failure
+fi
+
+# Define args file path
+ARGS_FILE="/tmp/slash_cmd_args_${CLAUDE_PID}.sh"
+
+# Source the arguments if the file exists
+if [ -f "$ARGS_FILE" ]; then
+    source "$ARGS_FILE"
+else
+    # If no args file, treat as empty arguments
+    ARGS=""
+fi
+
+# Initialize SELECTED_PROJECT variable
+SELECTED_PROJECT=""
+
+# Find the workspace root by looking for the projects directory
+# Start from current directory and search upwards
+WORKSPACE_ROOT=""
+current_dir="$PWD"
+while [ "$current_dir" != "/" ]; do
+    if [ -d "$current_dir/projects" ]; then
+        WORKSPACE_ROOT="$current_dir"
+        break
+    fi
+    current_dir=$(dirname "$current_dir")
+done
+
+# If we couldn't find a workspace root, use current directory
+if [ -z "$WORKSPACE_ROOT" ]; then
+    echo "Warning: Could not find workspace root with projects directory, using current directory" >&2
+    WORKSPACE_ROOT="."
+fi
+
+PROJECT_BASE="$WORKSPACE_ROOT/projects"
+
+# Check if projects directory exists
+if [ ! -d "$PROJECT_BASE" ]; then
+    echo "Error: Projects directory not found at $PROJECT_BASE" >&2
+    exit 1
+fi
+
+# Step 1: Check if user message contains a project name
+# Look for any word that matches a project directory or path
+for word in $(echo $ARGS); do
+    # Strip common punctuation and quotes from beginning and end of word
+    # This handles cases like "project-name.", @project-name, "project-name", etc.
+    cleaned_word=$(echo "$word" | sed 's/^[@"'\''`]*//; s/[@"'\''`,.!?;:]*$//')
+    
+    # First check if it's a path (contains 'projects/' or starts with / or contains /)
+    if [[ "$cleaned_word" == *"projects/"* ]] || [[ "$cleaned_word" == /* ]] || [[ "$cleaned_word" == */* ]]; then
+        # Try to extract project name from path
+        # Handle both absolute and relative paths
+        if [[ "$cleaned_word" == *projects/pending/* ]]; then
+            project_name=$(echo "$cleaned_word" | sed 's|.*projects/pending/||' | sed 's|/.*||')
+            if [ -d "$PROJECT_BASE/pending/$project_name" ]; then
+                SELECTED_PROJECT="projects/pending/$project_name"
+                break
+            fi
+        elif [[ "$cleaned_word" == *projects/active/* ]]; then
+            project_name=$(echo "$cleaned_word" | sed 's|.*projects/active/||' | sed 's|/.*||')
+            if [ -d "$PROJECT_BASE/active/$project_name" ]; then
+                SELECTED_PROJECT="projects/active/$project_name"
+                break
+            fi
+        elif [[ "$cleaned_word" == *projects/ready-for-review/* ]]; then
+            project_name=$(echo "$cleaned_word" | sed 's|.*projects/ready-for-review/||' | sed 's|/.*||')
+            if [ -d "$PROJECT_BASE/ready-for-review/$project_name" ]; then
+                SELECTED_PROJECT="projects/ready-for-review/$project_name"
+                break
+            fi
+        fi
+    else
+        # Check as simple project name (skip empty cleaned words)
+        if [ -n "$cleaned_word" ]; then
+            for location in pending active ready-for-review; do
+                if [ -d "$PROJECT_BASE/$location/$cleaned_word" ]; then
+                    SELECTED_PROJECT="projects/$location/$cleaned_word"
+                    break 2  # Break out of both loops
+                fi
+            done
+        fi
+    fi
+done
+
+# Step 2: If no project specified, select oldest from pending with resolved dependencies
+if [ -z "$SELECTED_PROJECT" ]; then
+    
+    # Get list of pending projects sorted by modification time (oldest first)
+    if [ -d "$PROJECT_BASE/pending" ]; then
+        for project_dir in $(ls -td $PROJECT_BASE/pending/*/ 2>/dev/null | tac); do
+        project_name=$(basename "$project_dir")
+        
+        # Check if project has dependencies in frontmatter
+        if [ -f "$project_dir/plan.md" ]; then
+            plan_file="$project_dir/plan.md"
+        else
+            # Find highest versioned plan
+            plan_file=$(ls -1 "$project_dir"/plan-v*.md 2>/dev/null | sort -V | tail -1)
+        fi
+        
+        if [ -f "$plan_file" ]; then
+            # Extract dependencies from YAML frontmatter if present
+            dependencies=$(awk '/^---$/{f=!f;next} f && /^dependencies:/{dep=1;next} dep && /^[a-zA-Z]/{exit} dep && /^  - /{gsub(/^  - /, ""); print}' "$plan_file")
+            
+            all_deps_resolved=true
+            if [ -n "$dependencies" ]; then
+                for dep in $dependencies; do
+                    # Check if dependency is resolved (in ready-for-review, complete, or deleted)
+                    if [ ! -d "$PROJECT_BASE/ready-for-review/$dep" ] && \
+                       [ ! -d "$PROJECT_BASE/complete/$dep" ] && \
+                       [ -d "$PROJECT_BASE/pending/$dep" -o -d "$PROJECT_BASE/active/$dep" ]; then
+                        all_deps_resolved=false
+                        break
+                    fi
+                done
+            fi
+            
+            if [ "$all_deps_resolved" = true ]; then
+                SELECTED_PROJECT="projects/pending/$project_name"
+                break
+            fi
+        fi
+    done
+    fi
+fi
+
+# Export for subsequent bash blocks if we're updating the args file
+if [ -f "$ARGS_FILE" ]; then
+    echo "export SELECTED_PROJECT=\"$SELECTED_PROJECT\"" >> "$ARGS_FILE"
+fi
+
+# Always create project sync file to signal completion (even if no args file)
+TIMESTAMP=$(date +%s)
+PROJECT_SYNC_FILE="/tmp/slash_cmd_project_sync_${CLAUDE_PID}_${TIMESTAMP}"
+
+# Clean up old project sync files for this Claude instance
+for sync_file in /tmp/slash_cmd_project_sync_${CLAUDE_PID}_*; do
+    if [ -f "$sync_file" ]; then
+        rm -f "$sync_file"
+    fi
+done
+
+# Create new sync file
+if ! touch "$PROJECT_SYNC_FILE"; then
+    echo "Warning: Failed to create project sync file" >&2
+fi
+
+# Output the selected project (or empty if none found)
+echo "$SELECTED_PROJECT"

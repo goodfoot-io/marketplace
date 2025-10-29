@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# create-plan-version: Create versioned plan files with automatic version numbering
+# Usage: create-plan-version "project-name" "plan-content"
+# Returns: Path to created plan file
+
+PROJECT_NAME="$1"
+PLAN_CONTENT="$2"
+
+# Validate input
+if [ -z "$PROJECT_NAME" ]; then
+    echo "Error: No project name provided" >&2
+    exit 1
+fi
+
+# Find workspace root by looking for projects directory
+WORKSPACE_ROOT=""
+current_dir="$(pwd)"
+while [ "$current_dir" != "/" ]; do
+    if [ -d "$current_dir/projects" ]; then
+        WORKSPACE_ROOT="$current_dir"
+        break
+    fi
+    current_dir="$(dirname "$current_dir")"
+done
+
+if [ -z "$WORKSPACE_ROOT" ]; then
+    echo "Error: Could not find workspace root with projects directory" >&2
+    exit 1
+fi
+
+cd "$WORKSPACE_ROOT"
+
+# Search for project in all status directories
+PROJECT_PATH=""
+for status_dir in projects/new projects/pending projects/active projects/ready-for-review projects/complete projects/icebox; do
+    if [ -d "$status_dir/$PROJECT_NAME" ]; then
+        PROJECT_PATH="$status_dir/$PROJECT_NAME"
+        break
+    fi
+done
+
+# Validate project directory exists
+if [ -z "$PROJECT_PATH" ] || [ ! -d "$PROJECT_PATH" ]; then
+    echo "Error: Project '$PROJECT_NAME' not found in any status directory" >&2
+    exit 1
+fi
+
+# Find existing plan versions
+EXISTING_VERSIONS=$(ls -1 "$PROJECT_PATH"/plan-v*.md 2>/dev/null | grep -oE 'plan-v[0-9]+\.md' | grep -oE '[0-9]+' | sort -n)
+
+# Determine next version number
+if [ -z "$EXISTING_VERSIONS" ]; then
+    NEXT_VERSION=1
+else
+    LAST_VERSION=$(echo "$EXISTING_VERSIONS" | tail -1)
+    NEXT_VERSION=$((LAST_VERSION + 1))
+fi
+
+# Create new plan file
+NEW_PLAN_FILE="$PROJECT_PATH/plan-v${NEXT_VERSION}.md"
+
+# Write plan content to file
+if [ -z "$PLAN_CONTENT" ]; then
+    # Create empty file if no content
+    touch "$NEW_PLAN_FILE"
+else
+    # Use printf to avoid shell interpretation of backticks and other special characters
+    printf '%s\n' "$PLAN_CONTENT" > "$NEW_PLAN_FILE"
+fi
+
+# Verify file was created
+if [ ! -f "$NEW_PLAN_FILE" ]; then
+    echo "Error: Failed to create plan file" >&2
+    exit 1
+fi
+
+# Output the created plan file path
+echo "$NEW_PLAN_FILE"
