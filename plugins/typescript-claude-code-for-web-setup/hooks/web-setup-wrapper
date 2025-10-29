@@ -1,0 +1,74 @@
+#!/bin/bash
+# Wrapper script for web-setup with comprehensive logging
+# This helps debug SessionStart hook execution issues
+
+set -euo pipefail
+
+# Configuration
+LOG_FILE="/tmp/web-setup-hook.log"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SETUP_SCRIPT="${SCRIPT_DIR}/web-setup"
+
+# Initialize log file with header
+{
+    echo "========================================"
+    echo "SessionStart Hook Execution Log"
+    echo "========================================"
+    echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "User: $(whoami)"
+    echo "Working Directory: $(pwd)"
+    echo "HOME: ${HOME}"
+    echo "Script: ${SETUP_SCRIPT}"
+    echo "CLAUDE_CODE_REMOTE: ${CLAUDE_CODE_REMOTE:-not set}"
+    echo "CLAUDE_PLUGIN_ROOT: ${CLAUDE_PLUGIN_ROOT:-not set}"
+    echo "----------------------------------------"
+    echo ""
+} > "${LOG_FILE}" 2>&1
+
+# Function to log messages
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"
+}
+
+log "INFO: SessionStart hook wrapper started"
+log "INFO: Script path: ${SETUP_SCRIPT}"
+
+# Check if setup script exists and is executable
+if [[ ! -f "${SETUP_SCRIPT}" ]]; then
+    log "ERROR: Setup script not found: ${SETUP_SCRIPT}"
+    exit 1
+fi
+
+if [[ ! -x "${SETUP_SCRIPT}" ]]; then
+    log "WARN: Setup script not executable, attempting to make it executable"
+    chmod +x "${SETUP_SCRIPT}"
+fi
+
+log "INFO: Executing setup script..."
+
+# Execute the setup script with full output capture
+EXIT_CODE=0
+if "${SETUP_SCRIPT}" >> "${LOG_FILE}" 2>&1; then
+    EXIT_CODE=$?
+    log "SUCCESS: Setup script completed successfully (exit code: ${EXIT_CODE})"
+else
+    EXIT_CODE=$?
+    log "ERROR: Setup script failed with exit code: ${EXIT_CODE}"
+fi
+
+# Log completion
+{
+    echo ""
+    echo "----------------------------------------"
+    echo "Hook execution completed at: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "Exit code: ${EXIT_CODE}"
+    echo "========================================"
+} >> "${LOG_FILE}" 2>&1
+
+log "INFO: SessionStart hook wrapper completed"
+log "INFO: Full log available at: ${LOG_FILE}"
+
+# Also output to stdout for Claude to see
+cat "${LOG_FILE}"
+
+exit ${EXIT_CODE}
