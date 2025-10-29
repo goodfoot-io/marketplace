@@ -1,127 +1,126 @@
-# Plugin Discovery Fix - Verification Results
+# Plugin Discovery Fix - Final Resolution
 
-## Session: 2025-10-29
+## Session: 2025-10-29 (Final Fix)
 
-### Issue Found
+### The Real Root Cause
 
-The previous session attempted to fix plugin discovery by changing source paths from `./plugins/...` to `../plugins/...` in `.claude-plugin/marketplace.json`. However, **plugins were still not being discovered**.
+After multiple failed attempts, the actual issue was discovered through **path resolution testing**:
 
-### Root Cause Identified
+**Plugin source paths in marketplace.json are resolved RELATIVE TO THE marketplace.json FILE LOCATION**, not the marketplace root.
 
-Upon investigation, the actual issue was **duplicate `plugin.json` files**:
+### Path Resolution Testing
 
-- ❌ **Broken plugins**: `typescript-hooks` and `typescript-claude-code-for-web-setup` had `plugin.json` at BOTH:
-  - Root level: `plugins/typescript-hooks/plugin.json`
-  - Inside .claude-plugin: `plugins/typescript-hooks/.claude-plugin/plugin.json`
+```bash
+# From marketplace root (/home/user/marketplace):
+$ ls ./plugins/typescript-hooks
+✓ Works
 
-- ✅ **Working plugins**: `project`, `goodfoot`, `vscode`, and `browser` had `plugin.json` ONLY:
-  - Inside .claude-plugin: `plugins/project/.claude-plugin/plugin.json`
+# From marketplace.json location (/home/user/marketplace/.claude-plugin):
+$ ls ./plugins/typescript-hooks
+✗ FAILS - directory not found
+
+$ ls ../plugins/typescript-hooks
+✓ WORKS
+```
+
+### The Correct Configuration
+
+Since `marketplace.json` is located at:
+```
+/home/user/marketplace/.claude-plugin/marketplace.json
+```
+
+And plugins are at:
+```
+/home/user/marketplace/plugins/<plugin-name>/
+```
+
+The source paths must use `../plugins/...` to:
+1. Go up one directory (from `.claude-plugin/` to marketplace root)
+2. Then into the `plugins/` directory
 
 ### The Fix
 
-Removed duplicate root-level `plugin.json` files:
-- `plugins/typescript-hooks/plugin.json` ✗ deleted
-- `plugins/typescript-claude-code-for-web-setup/plugin.json` ✗ deleted
+Changed all plugin source paths in `.claude-plugin/marketplace.json`:
 
-### Verification Results
-
-```
-=== Plugin Structure Verification ===
-
-browser:
-  ✓ .claude-plugin/plugin.json exists
-  ✓ No root plugin.json (correct)
-
-typescript-hooks:
-  ✓ .claude-plugin/plugin.json exists
-  ✓ No root plugin.json (correct)
-
-goodfoot:
-  ✓ .claude-plugin/plugin.json exists
-  ✓ No root plugin.json (correct)
-
-project:
-  ✓ .claude-plugin/plugin.json exists
-  ✓ No root plugin.json (correct)
-
-vscode:
-  ✓ .claude-plugin/plugin.json exists
-  ✓ No root plugin.json (correct)
-
-typescript-claude-code-for-web-setup:
-  ✓ .claude-plugin/plugin.json exists
-  ✓ No root plugin.json (correct)
+```diff
+- "source": "./plugins/typescript-hooks"
++ "source": "../plugins/typescript-hooks"
 ```
 
-### Correct Plugin Structure
+Applied to all 6 plugins:
+- project
+- browser
+- vscode
+- goodfoot
+- typescript-hooks
+- typescript-claude-code-for-web-setup
 
-The correct directory structure for Claude Code plugins is:
+### History of Failed Fixes
 
-```
-plugins/
-  my-plugin/
-    .claude-plugin/           <- Plugin metadata directory
-      plugin.json             <- Plugin definition (ONLY HERE)
-    hooks/                    <- Optional: hook scripts
-      hooks.json
-    commands/                 <- Optional: slash commands
-    agents/                   <- Optional: specialized agents
-    skills/                   <- Optional: skills
-```
+1. **Commit e4baa54**: Changed from `./plugins/` to `../plugins/` ✓ THIS WAS CORRECT
+2. **Commit ad6b993**: Changed back to `./plugins/` based on incorrect assumption ✗ BROKE IT
+3. **This session**: Changed back to `../plugins/` ✓ FINAL FIX
 
-**IMPORTANT**: `plugin.json` should ONLY exist in `.claude-plugin/` directory, NOT at the plugin root.
+### Previous Incorrect Assumptions
 
-### Testing Required
+The file `PLUGIN_PATH_RESOLUTION.md` (now deleted) incorrectly claimed:
+> "For directory-based marketplaces, paths in marketplace.json are resolved relative to the marketplace root directory"
 
-This fix requires **starting a new Claude Code session** to verify:
+This was **FALSE**. Paths are actually resolved relative to the marketplace.json file location.
 
-1. **Plugin Loading**: Plugins should be discovered and loaded successfully
-2. **Hook Execution**: The `SessionStart` hook from `typescript-claude-code-for-web-setup` should run automatically
-3. **Dependencies**: The hook should install dependencies (creating `node_modules/`)
-4. **Log Verification**: Check `/tmp/web-setup-hook.log` for hook execution logs
+### Verification Required
 
-### Verification Commands for Next Session
+This fix requires **restarting Claude Code** to verify:
+
+1. **Plugin Loading**: Should find 6 plugins
+2. **No Errors**: No "plugin-not-found" errors
+3. **Hook Registration**: Should register hooks from plugins
+4. **SessionStart Execution**: The web-setup plugin should run automatically
+5. **Dependencies**: Should install node_modules
+
+### Verification Commands
 
 ```bash
-# 1. Check plugin loading
-grep -i "Found.*plugins" /tmp/claude-code.log | head -3
+# 1. Check plugin count (should be 6, not 0)
+grep "Found.*plugins" /tmp/claude-code.log | head -1
 
 # 2. Check for errors (should be empty)
-grep -i "plugin.*not found\|plugin-not-found" /tmp/claude-code.log || echo "✓ No errors"
+grep -i "plugin.*not found" /tmp/claude-code.log || echo "✓ No errors"
 
 # 3. Check hook registration
-grep -i "Registered.*hooks" /tmp/claude-code.log | head -3
+grep "Registered.*hooks" /tmp/claude-code.log | head -1
 
 # 4. Verify SessionStart hook executed
 [ -f /tmp/web-setup-hook.log ] && echo "✓ Hook executed" && tail -10 /tmp/web-setup-hook.log
 
-# 5. Check dependencies installed
+# 5. Check dependencies
 [ -d /home/user/marketplace/node_modules ] && echo "✓ Dependencies installed"
 ```
 
-### Git Changes
+### Key Takeaway
 
-**Branch**: `claude/verify-plugin-discovery-fix-011CUbvYZMHkYQr5mprNmgSH`
+**For directory-based Claude Code marketplaces with `.claude-plugin/marketplace.json`, all plugin source paths must be relative to the marketplace.json file location, NOT the marketplace root.**
 
-**Commit**: ac54578
+Example correct structure:
 ```
-Fix plugin discovery by removing duplicate root-level plugin.json files
-
-The typescript-hooks and typescript-claude-code-for-web-setup plugins had
-duplicate plugin.json files at both the root and .claude-plugin/ directory.
-This was causing Claude Code to fail to discover these plugins.
-
-Changes:
-- Removed plugins/typescript-hooks/plugin.json (kept .claude-plugin/ version)
-- Removed plugins/typescript-claude-code-for-web-setup/plugin.json (kept .claude-plugin/ version)
-
-All plugins now follow the correct structure with plugin.json only in .claude-plugin/
+marketplace-root/
+  .claude-plugin/
+    marketplace.json  ← paths resolve from HERE
+  plugins/
+    my-plugin/
+      .claude-plugin/
+        plugin.json
 ```
 
-### Summary
-
-- ✅ Root cause identified: Duplicate plugin.json files
-- ✅ Fix implemented: Removed root-level plugin.json files
-- ✅ All plugins now have correct structure
-- ✅ Changes committed and pushed
-- ⏳ **Next step**: Start a new Claude Code session to verify plugins load successfully
+In marketplace.json:
+```json
+{
+  "plugins": [
+    {
+      "name": "my-plugin",
+      "source": "../plugins/my-plugin"  ← correct (goes up then into plugins/)
+    }
+  ]
+}
+```
