@@ -125,7 +125,7 @@ Edit `hooks/hooks.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/web-setup",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/web-setup-wrapper",
             "timeout": 900,  // Increase to 15 minutes
             "description": "Install dependencies and build shared packages for web environment (with logging)"
           }
@@ -135,6 +135,25 @@ Edit `hooks/hooks.json`:
   }
 }
 ```
+
+### Debug Logging
+
+The hook now uses a wrapper script (`web-setup-wrapper`) that logs all execution details to `/tmp/web-setup-hook.log`. This helps debug SessionStart hook execution issues:
+
+```bash
+# Check if the hook ran
+cat /tmp/web-setup-hook.log
+
+# Watch the hook in real-time (if running)
+tail -f /tmp/web-setup-hook.log
+```
+
+The log includes:
+- Timestamp and user information
+- Working directory and environment variables
+- Full output from the setup script
+- Exit codes and error messages
+- Execution duration
 
 ### Proxy Configuration
 
@@ -248,15 +267,33 @@ All commands have a 10-minute timeout.
 
 **Symptom:** No output when starting a Claude Code session
 
-**Causes:**
+**Debug Steps:**
+1. Check if the hook was executed: `cat /tmp/web-setup-hook.log`
+2. If log doesn't exist, the hook never ran
+3. If log exists, check for errors in the output
+
+**Common Causes:**
 1. Plugin not enabled in `.claude/settings.json`
 2. Not in a web environment (`CLAUDE_CODE_REMOTE` not set)
 3. No `package.json` in root directory
+4. Plugin not properly loaded from marketplace
+5. Incorrect marketplace source configuration
 
 **Solution:**
-- Verify plugin is enabled
-- Check you're in a Claude Code web environment
-- Ensure `package.json` exists
+- Verify plugin is enabled in `enabledPlugins` section
+- Check you're in a Claude Code web environment: `echo $CLAUDE_CODE_REMOTE`
+- Ensure `package.json` exists: `ls -la package.json`
+- For local development, use `directory` source in `extraKnownMarketplaces`:
+  ```json
+  "extraKnownMarketplaces": {
+    "goodfoot": {
+      "source": {
+        "source": "directory",
+        "path": "/path/to/marketplace"
+      }
+    }
+  }
+  ```
 
 ### Timeout Errors
 

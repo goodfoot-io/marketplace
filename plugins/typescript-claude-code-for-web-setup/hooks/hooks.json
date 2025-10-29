@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/web-setup",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/web-setup-wrapper",
             "timeout": 720,
             "description": "Install dependencies and build shared packages for web environment (with logging)"
           }
