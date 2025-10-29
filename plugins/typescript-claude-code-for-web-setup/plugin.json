@@ -1,9 +1,0 @@
-{
-  "$schema": "https://cdn.jsdelivr.net/gh/anthropics/claude-code@main/schemas/plugin.schema.json",
-  "name": "typescript-claude-code-for-web-setup",
-  "version": "0.1.0",
-  "description": "Automatic web environment setup for TypeScript/JavaScript projects with multi-package-manager support",
-  "author": "Goodfoot",
-  "license": "MIT",
-  "hooks": "./hooks/hooks.json"
-}

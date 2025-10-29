@@ -1,9 +1,0 @@
-{
-  "$schema": "https://cdn.jsdelivr.net/gh/anthropics/claude-code@main/schemas/plugin.schema.json",
-  "name": "typescript-hooks",
-  "version": "0.1.0",
-  "description": "TypeScript and ESLint quality enforcement hooks for Write/Edit operations",
-  "author": "Goodfoot",
-  "license": "MIT",
-  "hooks": "./hooks/hooks.json"
-}
