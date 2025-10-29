@@ -1,0 +1,389 @@
+#!/bin/bash
+set -euo pipefail
+
+START_TIME=$(date +%s)
+
+# Only run in Claude Code web environment
+if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
+  exit 0
+fi
+
+# Check for package.json existence
+if [ ! -f "package.json" ]; then
+  echo "❌ Error: package.json not found in current directory"
+  echo "   This hook requires a package.json file to determine the package manager and install dependencies."
+  exit 1
+fi
+
+# Check for required tools
+check_prerequisites() {
+  if ! command -v node &> /dev/null; then
+    echo "❌ Error: Node.js is required but not installed"
+    echo "   Please install Node.js from https://nodejs.org/"
+    exit 1
+  fi
+}
+
+# Validate package.json is valid JSON and safe
+validate_package_json() {
+  # Check if it's valid JSON
+  if ! node -e "try { JSON.parse(require('fs').readFileSync('./package.json', 'utf8')); } catch(e) { console.error('Invalid JSON:', e.message); process.exit(1); }" 2>/dev/null; then
+    echo "❌ Error: package.json contains invalid JSON"
+    echo "   Please fix the JSON syntax errors before running this hook."
+    exit 1
+  fi
+
+  # Check if it's an object (not array or primitive)
+  if ! node -e "const pkg = JSON.parse(require('fs').readFileSync('./package.json', 'utf8')); if (typeof pkg !== 'object' || Array.isArray(pkg)) { console.error('package.json must be a JSON object'); process.exit(1); }" 2>/dev/null; then
+    echo "❌ Error: package.json must be a JSON object"
+    exit 1
+  fi
+
+  # Validate packageManager field format if present
+  if ! node -e "const pkg = JSON.parse(require('fs').readFileSync('./package.json', 'utf8')); if (pkg.packageManager && !/^(npm|yarn|pnpm|bun)@[\d.]+(-[a-zA-Z0-9.]+)?$/.test(pkg.packageManager)) { console.error('Invalid packageManager format:', pkg.packageManager); process.exit(1); }" 2>/dev/null; then
+    local pkg_mgr_value=$(node -e "const pkg = JSON.parse(require('fs').readFileSync('./package.json', 'utf8')); console.log(pkg.packageManager || '');" 2>/dev/null || echo "")
+    if [ -n "$pkg_mgr_value" ]; then
+      echo "⚠️  Warning: Invalid packageManager format: $pkg_mgr_value"
+      echo "   Expected format: <manager>@<version> (e.g., yarn@4.9.2, pnpm@8.15.0)"
+      echo "   Falling back to lock file detection..."
+    fi
+  fi
+}
+
+# Run prerequisite checks and validation
+check_prerequisites
+validate_package_json
+
+echo "🌐 Setting up Claude Code web environment..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "   Started at: $(date '+%Y-%m-%d %H:%M:%S')"
+
+# Detect package manager from package.json or lock files
+detect_package_manager() {
+  local pkg_mgr=""
+
+  # First, check package.json for packageManager field
+  if [ -f "package.json" ]; then
+    pkg_mgr=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); const match = pkg.packageManager ? pkg.packageManager.match(/^(\w+)@/) : null; console.log(match ? match[1] : '');" 2>/dev/null || echo "")
+  fi
+
+  # If not found in package.json, detect from lock files
+  if [ -z "$pkg_mgr" ]; then
+    if [ -f "yarn.lock" ]; then
+      pkg_mgr="yarn"
+    elif [ -f "pnpm-lock.yaml" ]; then
+      pkg_mgr="pnpm"
+    elif [ -f "bun.lockb" ]; then
+      pkg_mgr="bun"
+    elif [ -f "package-lock.json" ]; then
+      pkg_mgr="npm"
+    else
+      # Default to npm if nothing else is found
+      pkg_mgr="npm"
+    fi
+  fi
+
+  echo "$pkg_mgr"
+}
+
+# Extract version from packageManager field in package.json
+get_package_manager_version() {
+  local pkg_mgr="$1"
+  local version=""
+
+  if [ -f "package.json" ]; then
+    version=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); const match = pkg.packageManager ? pkg.packageManager.match(/${pkg_mgr}@([\d.]+(-[a-zA-Z0-9.]+)?)/) : null; console.log(match ? match[1] : '');" 2>/dev/null || echo "")
+  fi
+
+  echo "$version"
+}
+
+# Setup Yarn with corepack and proxy workaround
+setup_yarn() {
+  local version="$1"
+
+  echo "🔧 Enabling Corepack for Yarn support..."
+  if ! corepack enable; then
+    echo "❌ Failed to enable Corepack"
+    exit 1
+  fi
+
+  # Workaround for proxy issues with corepack downloading Yarn
+  # Corepack's HTTP client doesn't always respect HTTP_PROXY properly
+  # We manually download Yarn with curl (which respects the proxy) and place it in corepack's cache
+  echo "📥 Configuring Yarn for proxy environment..."
+
+  if [ -z "$version" ]; then
+    echo "⚠️  No Yarn version specified in package.json packageManager field"
+    echo "   Please add packageManager field (e.g., \"packageManager\": \"yarn@4.9.2\")"
+    echo "   Attempting to use default Yarn version..."
+    return 0
+  fi
+
+  echo "   Using Yarn version: $version (from package.json)"
+
+  local COREPACK_CACHE="$HOME/.cache/node/corepack/v1/yarn/$version"
+
+  if [ ! -f "$COREPACK_CACHE/yarn.js" ]; then
+    echo "   Downloading Yarn $version with curl (proxy-aware)..."
+    mkdir -p "$COREPACK_CACHE"
+
+    if ! curl -fsSk -o "$COREPACK_CACHE/yarn.js" "https://repo.yarnpkg.com/$version/packages/yarnpkg-cli/bin/yarn.js"; then
+      echo "❌ Failed to download Yarn $version"
+      echo "   Curl exit code: $?"
+      echo "   Target: https://repo.yarnpkg.com/$version/packages/yarnpkg-cli/bin/yarn.js"
+      if [ -n "${HTTP_PROXY:-}" ]; then
+        echo "   HTTP_PROXY: ${HTTP_PROXY:0:50}..." # Show first 50 chars
+      fi
+      exit 1
+    fi
+
+    chmod +x "$COREPACK_CACHE/yarn.js"
+
+    # Calculate SHA512 hash and create corepack metadata
+    echo "   Creating corepack metadata..."
+    local HASH=$(node -e "const crypto = require('crypto'); const fs = require('fs'); const data = fs.readFileSync('$COREPACK_CACHE/yarn.js'); const hash = crypto.createHash('sha512').update(data).digest('hex'); console.log('sha512.' + hash);")
+
+    cat > "$COREPACK_CACHE/.corepack" << COREPACK_EOF
+{"locator":{"name":"yarn","reference":"$version"},"bin":["yarn","yarnpkg"],"hash":"$HASH"}
+COREPACK_EOF
+
+    echo "   ✓ Yarn $version ready in corepack cache"
+  else
+    echo "   ✓ Yarn $version already in cache"
+  fi
+
+  # Configure Yarn to use proxy (only if proxy environment variables are set)
+  # Using --home flag to store settings in ~/.yarnrc.yml instead of project's .yarnrc.yml
+  # This avoids creating uncommitted changes in the working directory
+  if [ -n "${HTTP_PROXY:-}" ] || [ -n "${HTTPS_PROXY:-}" ]; then
+    echo "🔧 Configuring Yarn proxy settings in user home directory..."
+    yarn config set --home httpProxy "${HTTP_PROXY}"
+    yarn config set --home httpsProxy "${HTTPS_PROXY}"
+    echo "   ✓ Proxy configuration stored in ~/.yarnrc.yml"
+  else
+    echo "🔧 No proxy detected, skipping proxy configuration"
+  fi
+}
+
+# Setup pnpm
+setup_pnpm() {
+  local version="$1"
+
+  echo "🔧 Setting up pnpm..."
+
+  # Enable corepack for pnpm
+  if ! corepack enable; then
+    echo "❌ Failed to enable Corepack"
+    exit 1
+  fi
+
+  # Configure proxy if needed
+  if [ -n "${HTTP_PROXY:-}" ] || [ -n "${HTTPS_PROXY:-}" ]; then
+    echo "🔧 Configuring pnpm proxy settings..."
+    if [ -n "${HTTP_PROXY:-}" ]; then
+      pnpm config set proxy "${HTTP_PROXY}"
+    fi
+    if [ -n "${HTTPS_PROXY:-}" ]; then
+      pnpm config set https-proxy "${HTTPS_PROXY}"
+    fi
+    echo "   ✓ Proxy configuration applied"
+  fi
+}
+
+# Setup npm
+setup_npm() {
+  echo "🔧 Setting up npm..."
+
+  # Configure proxy if needed
+  if [ -n "${HTTP_PROXY:-}" ] || [ -n "${HTTPS_PROXY:-}" ]; then
+    echo "🔧 Configuring npm proxy settings..."
+    if [ -n "${HTTP_PROXY:-}" ]; then
+      npm config set proxy "${HTTP_PROXY}"
+    fi
+    if [ -n "${HTTPS_PROXY:-}" ]; then
+      npm config set https-proxy "${HTTPS_PROXY}"
+    fi
+    echo "   ✓ Proxy configuration applied"
+  fi
+}
+
+# Setup bun
+setup_bun() {
+  echo "🔧 Setting up bun..."
+
+  # Bun typically respects HTTP_PROXY/HTTPS_PROXY environment variables
+  # No additional configuration needed
+  if [ -n "${HTTP_PROXY:-}" ] || [ -n "${HTTPS_PROXY:-}" ]; then
+    echo "🔧 Bun will use HTTP_PROXY/HTTPS_PROXY environment variables"
+  fi
+}
+
+# Install dependencies based on package manager
+install_dependencies() {
+  local pkg_mgr="$1"
+
+  echo "📦 Installing dependencies with $pkg_mgr (this may take 5-10 minutes)..."
+
+  case "$pkg_mgr" in
+    yarn)
+      if ! timeout 600 yarn install --immutable; then
+        local YARN_EXIT=$?
+        echo "❌ Dependency installation failed or timed out"
+        echo "   Exit code: $YARN_EXIT"
+        if [ $YARN_EXIT -eq 124 ]; then
+          echo "   Reason: Command timed out after 600 seconds (10 minutes)"
+        fi
+        exit 1
+      fi
+      ;;
+    pnpm)
+      if ! timeout 600 pnpm install --frozen-lockfile; then
+        local PNPM_EXIT=$?
+        echo "❌ Dependency installation failed or timed out"
+        echo "   Exit code: $PNPM_EXIT"
+        if [ $PNPM_EXIT -eq 124 ]; then
+          echo "   Reason: Command timed out after 600 seconds (10 minutes)"
+        fi
+        exit 1
+      fi
+      ;;
+    npm)
+      if ! timeout 600 npm ci; then
+        local NPM_EXIT=$?
+        echo "❌ Dependency installation failed or timed out"
+        echo "   Exit code: $NPM_EXIT"
+        if [ $NPM_EXIT -eq 124 ]; then
+          echo "   Reason: Command timed out after 600 seconds (10 minutes)"
+        fi
+        exit 1
+      fi
+      ;;
+    bun)
+      if ! timeout 600 bun install --frozen-lockfile; then
+        local BUN_EXIT=$?
+        echo "❌ Dependency installation failed or timed out"
+        echo "   Exit code: $BUN_EXIT"
+        if [ $BUN_EXIT -eq 124 ]; then
+          echo "   Reason: Command timed out after 600 seconds (10 minutes)"
+        fi
+        exit 1
+      fi
+      ;;
+    *)
+      echo "❌ Unsupported package manager: $pkg_mgr"
+      exit 1
+      ;;
+  esac
+
+  echo "✅ Dependencies installed successfully"
+}
+
+# Verify installation
+verify_installation() {
+  if [ -d "node_modules" ]; then
+    local PACKAGE_COUNT=$(find node_modules -maxdepth 2 -type d 2>/dev/null | wc -l)
+    local NODE_MODULES_SIZE=$(du -sh node_modules 2>/dev/null | cut -f1)
+    echo "   Installed: ~$PACKAGE_COUNT packages ($NODE_MODULES_SIZE)"
+  else
+    echo "   ⚠️  Warning: node_modules directory not found"
+  fi
+}
+
+# Print available commands based on package manager
+print_available_commands() {
+  local pkg_mgr="$1"
+
+  echo ""
+  echo "📝 Available Commands:"
+
+  # Detect common scripts from package.json
+  if [ -f "package.json" ]; then
+    local has_test=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.test ? 'true' : 'false');" 2>/dev/null)
+    local has_build=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.build ? 'true' : 'false');" 2>/dev/null)
+    local has_dev=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.dev ? 'true' : 'false');" 2>/dev/null)
+    local has_start=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.start ? 'true' : 'false');" 2>/dev/null)
+    local has_typecheck=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.typecheck ? 'true' : 'false');" 2>/dev/null)
+    local has_lint=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.lint ? 'true' : 'false');" 2>/dev/null)
+
+    if [ "$has_test" = "true" ]; then
+      echo "   • Run tests:     $pkg_mgr test"
+    fi
+    if [ "$has_build" = "true" ]; then
+      echo "   • Build:         $pkg_mgr build"
+    fi
+    if [ "$has_dev" = "true" ]; then
+      echo "   • Dev server:    $pkg_mgr dev"
+    fi
+    if [ "$has_start" = "true" ]; then
+      echo "   • Start:         $pkg_mgr start"
+    fi
+    if [ "$has_typecheck" = "true" ]; then
+      echo "   • Type check:    $pkg_mgr typecheck"
+    fi
+    if [ "$has_lint" = "true" ]; then
+      echo "   • Lint:          $pkg_mgr lint"
+    fi
+  fi
+}
+
+# Main execution
+main() {
+  # Detect package manager
+  PKG_MGR=$(detect_package_manager)
+  echo "📦 Detected package manager: $PKG_MGR"
+
+  # Get version if available
+  PKG_MGR_VERSION=$(get_package_manager_version "$PKG_MGR")
+
+  # Setup package manager
+  case "$PKG_MGR" in
+    yarn)
+      setup_yarn "$PKG_MGR_VERSION"
+      ;;
+    pnpm)
+      setup_pnpm "$PKG_MGR_VERSION"
+      ;;
+    npm)
+      setup_npm
+      ;;
+    bun)
+      setup_bun
+      ;;
+    *)
+      echo "❌ Unsupported package manager: $PKG_MGR"
+      exit 1
+      ;;
+  esac
+
+  # Install dependencies
+  install_dependencies "$PKG_MGR"
+
+  # Verify installation
+  verify_installation
+
+  # Calculate duration
+  END_TIME=$(date +%s)
+  DURATION=$((END_TIME - START_TIME))
+  MINUTES=$((DURATION / 60))
+  SECONDS=$((DURATION % 60))
+
+  echo ""
+  echo "✅ Web environment setup complete"
+  echo "   Completed at: $(date '+%Y-%m-%d %H:%M:%S')"
+  echo "   Duration: ${MINUTES}m ${SECONDS}s"
+
+  # Print available commands
+  print_available_commands "$PKG_MGR"
+
+  echo ""
+  echo "ℹ️  Environment Ready:"
+  echo "   • Dependencies installed with $PKG_MGR"
+  echo "   • Package manager configured for Claude Code web environment"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  exit 0
+}
+
+# Run main function
+main
