@@ -18,5 +18,17 @@
         ]
       }
     ]
+  },
+  "extraKnownMarketplaces": {
+    "goodfoot": {
+      "source": {
+        "source": "git",
+        "url": "git@github.com:goodfoot-io/marketplace.git"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "typescript-hooks@goodfoot": true,
+    "typescript-claude-code-for-web-setup@goodfoot": true
   }
 }

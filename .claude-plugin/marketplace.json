@@ -100,6 +100,28 @@
         "testing",
         "validation"
       ]
+    },
+    {
+      "name": "typescript-claude-code-for-web-setup",
+      "source": "./plugins/typescript-claude-code-for-web-setup",
+      "description": "Automatic web environment setup for TypeScript/JavaScript projects with multi-package-manager support (npm, yarn, pnpm, bun). Runs on SessionStart in Claude Code web environments.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
+      },
+      "tags": [
+        "setup",
+        "web",
+        "typescript",
+        "javascript",
+        "dependencies",
+        "hooks",
+        "npm",
+        "yarn",
+        "pnpm",
+        "bun"
+      ]
     }
   ]
 }
