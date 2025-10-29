@@ -1,0 +1,9 @@
+{
+  "name": "typescript-hooks",
+  "description": "TypeScript and ESLint quality enforcement hooks for Write/Edit operations",
+  "version": "0.1.0",
+  "author": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io"
+  }
+}

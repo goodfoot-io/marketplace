@@ -1,0 +1,9 @@
+{
+  "name": "typescript-claude-code-for-web-setup",
+  "description": "Automatic web environment setup for TypeScript/JavaScript projects with multi-package-manager support",
+  "version": "0.1.0",
+  "author": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io"
+  }
+}
