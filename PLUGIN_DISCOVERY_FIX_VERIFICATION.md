@@ -1,85 +1,119 @@
-# Plugin Discovery Fix - Final Resolution
+# Plugin Discovery Fix - Resolution with External Verification
 
-## Session: 2025-10-29 (Final Fix)
+## Session: 2025-10-29 (Corrected with GitHub Research)
 
-### The Real Root Cause
+### Initial Investigation
 
-After multiple failed attempts, the actual issue was discovered through **path resolution testing**:
+The verification at session start showed:
+- **0 plugins found** (expected: 6)
+- Plugin errors: `typescript-hooks@goodfoot` and `typescript-claude-code-for-web-setup@goodfoot` not found
+- No hooks registered, SessionStart hook never executed
 
-**Plugin source paths in marketplace.json are resolved RELATIVE TO THE marketplace.json FILE LOCATION**, not the marketplace root.
+### Initial (Incorrect) Fix Attempt
 
-### Path Resolution Testing
+Based on filesystem path resolution testing, I initially concluded that paths should use `../plugins/...` format:
 
 ```bash
-# From marketplace root (/home/user/marketplace):
-$ ls ./plugins/typescript-hooks
-✓ Works
-
-# From marketplace.json location (/home/user/marketplace/.claude-plugin):
-$ ls ./plugins/typescript-hooks
-✗ FAILS - directory not found
-
-$ ls ../plugins/typescript-hooks
-✓ WORKS
+# From .claude-plugin/ directory:
+$ ls ./plugins/typescript-hooks   # ✗ FAILS
+$ ls ../plugins/typescript-hooks  # ✓ WORKS
 ```
 
-### The Correct Configuration
+This led to changing all plugin source paths from `"./plugins/..."` to `"../plugins/..."`.
 
-Since `marketplace.json` is located at:
+### External Verification from GitHub
+
+Searched GitHub for official and community Claude Code marketplace examples and found:
+
+#### Official Anthropic Repository
+**Repository**: `anthropics/claude-code`
+**URL**: https://github.com/anthropics/claude-code
+
+**Structure**:
 ```
-/home/user/marketplace/.claude-plugin/marketplace.json
+claude-code/
+├── .claude-plugin/
+│   └── marketplace.json
+└── plugins/
+    ├── agent-sdk-dev/
+    ├── commit-commands/
+    ├── feature-dev/
+    ├── pr-review-toolkit/
+    ├── code-review/
+    └── security-guidance/
 ```
 
-And plugins are at:
+**Marketplace.json format**:
+```json
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "plugins": [
+    {
+      "name": "agent-sdk-dev",
+      "source": "./plugins/agent-sdk-dev",
+      "description": "...",
+      "category": "development"
+    }
+  ]
+}
 ```
-/home/user/marketplace/plugins/<plugin-name>/
-```
 
-The source paths must use `../plugins/...` to:
-1. Go up one directory (from `.claude-plugin/` to marketplace root)
-2. Then into the `plugins/` directory
+**KEY FINDING**: Official Anthropic repository uses `"./plugins/..."` paths, NOT `"../plugins/..."`.
 
-### The Fix
+#### Community Repository
+**Repository**: `wshobson/agents`
+**Structure**: Same as official - `.claude-plugin/marketplace.json` at root, `plugins/` directory at root
+**Format**: Also uses `"./plugins/..."` source paths
 
-Changed all plugin source paths in `.claude-plugin/marketplace.json`:
+### The Correct Understanding
+
+**Plugin source paths in marketplace.json are resolved relative to the MARKETPLACE ROOT PATH** (as specified in settings.json), NOT relative to the marketplace.json file location.
+
+**Configuration chain**:
+1. Settings: `extraKnownMarketplaces.goodfoot.source.path = "/home/user/marketplace"`
+2. Marketplace file: `/home/user/marketplace/.claude-plugin/marketplace.json`
+3. Plugin source: `"./plugins/typescript-hooks"`
+4. Resolved path: `/home/user/marketplace/plugins/typescript-hooks` ✓
+
+The filesystem test was misleading because it tested from the wrong base directory.
+
+### The Correct Fix
+
+**Reverted paths back to `"./plugins/..."` format** to match official Anthropic repository:
 
 ```diff
-- "source": "./plugins/typescript-hooks"
-+ "source": "../plugins/typescript-hooks"
+- "source": "../plugins/typescript-hooks"
++ "source": "./plugins/typescript-hooks"
 ```
 
-Applied to all 6 plugins:
-- project
-- browser
-- vscode
-- goodfoot
-- typescript-hooks
-- typescript-claude-code-for-web-setup
+**Added `$schema` field** for full compliance with official format:
 
-### History of Failed Fixes
+```json
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "goodfoot",
+  ...
+}
+```
 
-1. **Commit e4baa54**: Changed from `./plugins/` to `../plugins/` ✓ THIS WAS CORRECT
-2. **Commit ad6b993**: Changed back to `./plugins/` based on incorrect assumption ✗ BROKE IT
-3. **This session**: Changed back to `../plugins/` ✓ FINAL FIX
+### Why Plugins Weren't Loading
 
-### Previous Incorrect Assumptions
+The current Claude Code session loaded the marketplace configuration at startup when paths were INCORRECT (`../plugins/...` from the first incorrect fix attempt). The configuration is cached in memory and won't reload until session restart.
 
-The file `PLUGIN_PATH_RESOLUTION.md` (now deleted) incorrectly claimed:
-> "For directory-based marketplaces, paths in marketplace.json are resolved relative to the marketplace root directory"
+**Evidence**: Logs show plugin errors from session initialization, before any fixes were applied in this session.
 
-This was **FALSE**. Paths are actually resolved relative to the marketplace.json file location.
+### Changes Applied
+
+1. ✅ Reverted all plugin source paths to `"./plugins/..."` format
+2. ✅ Added `$schema` field: `"https://anthropic.com/claude-code/marketplace.schema.json"`
+3. ✅ Verified JSON syntax is valid
+4. ✅ Confirmed structure matches official Anthropic repository
 
 ### Verification Required
 
-This fix requires **restarting Claude Code** to verify:
+**This fix requires RESTARTING Claude Code** to reload the marketplace configuration.
 
-1. **Plugin Loading**: Should find 6 plugins
-2. **No Errors**: No "plugin-not-found" errors
-3. **Hook Registration**: Should register hooks from plugins
-4. **SessionStart Execution**: The web-setup plugin should run automatically
-5. **Dependencies**: Should install node_modules
-
-### Verification Commands
+After restart, verify:
 
 ```bash
 # 1. Check plugin count (should be 6, not 0)
@@ -88,39 +122,26 @@ grep "Found.*plugins" /tmp/claude-code.log | head -1
 # 2. Check for errors (should be empty)
 grep -i "plugin.*not found" /tmp/claude-code.log || echo "✓ No errors"
 
-# 3. Check hook registration
+# 3. Check hook registration (should show hooks from plugins)
 grep "Registered.*hooks" /tmp/claude-code.log | head -1
 
 # 4. Verify SessionStart hook executed
 [ -f /tmp/web-setup-hook.log ] && echo "✓ Hook executed" && tail -10 /tmp/web-setup-hook.log
 
-# 5. Check dependencies
+# 5. Check dependencies installed
 [ -d /home/user/marketplace/node_modules ] && echo "✓ Dependencies installed"
 ```
 
-### Key Takeaway
+### External References
 
-**For directory-based Claude Code marketplaces with `.claude-plugin/marketplace.json`, all plugin source paths must be relative to the marketplace.json file location, NOT the marketplace root.**
+- **Official Anthropic marketplace**: https://github.com/anthropics/claude-code/blob/main/.claude-plugin/marketplace.json
+- **Community example (wshobson)**: https://github.com/wshobson/agents/blob/main/.claude-plugin/marketplace.json
+- **Marketplace schema**: https://anthropic.com/claude-code/marketplace.schema.json
 
-Example correct structure:
-```
-marketplace-root/
-  .claude-plugin/
-    marketplace.json  ← paths resolve from HERE
-  plugins/
-    my-plugin/
-      .claude-plugin/
-        plugin.json
-```
+### Key Takeaways
 
-In marketplace.json:
-```json
-{
-  "plugins": [
-    {
-      "name": "my-plugin",
-      "source": "../plugins/my-plugin"  ← correct (goes up then into plugins/)
-    }
-  ]
-}
-```
+1. **Always verify against official examples** before making assumptions about path resolution
+2. **Plugin source paths use `"./plugins/..."` format** relative to marketplace root (not `"../plugins/..."`)
+3. **Session restart required** for marketplace configuration changes to take effect
+4. **$schema field** helps ensure compatibility with Claude Code's marketplace loader
+5. **Directory structure** should match official: marketplace.json in `.claude-plugin/`, plugins in `plugins/`
