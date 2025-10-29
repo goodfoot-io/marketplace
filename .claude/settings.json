@@ -23,8 +23,7 @@
     "goodfoot": {
       "source": {
         "source": "github",
-        "owner": "goodfoot-io",
-        "repo": "marketplace"
+        "repo": "goodfoot-io/marketplace"
       }
     }
   },
