@@ -99,7 +99,8 @@
         "quality",
         "testing",
         "validation"
-      ]
+      ],
+      "strict": false
     },
     {
       "name": "typescript-claude-code-for-web-setup",
@@ -121,7 +122,8 @@
         "yarn",
         "pnpm",
         "bun"
-      ]
+      ],
+      "strict": false
     }
   ]
 }
