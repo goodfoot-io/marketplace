@@ -22,8 +22,9 @@
   "extraKnownMarketplaces": {
     "goodfoot": {
       "source": {
-        "source": "directory",
-        "path": "/home/user/marketplace"
+        "source": "github",
+        "owner": "goodfoot-io",
+        "repo": "marketplace"
       }
     }
   },
