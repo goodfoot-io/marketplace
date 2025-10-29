@@ -15,6 +15,45 @@ if [ ! -f "package.json" ]; then
   exit 1
 fi
 
+# Check for required tools
+check_prerequisites() {
+  if ! command -v node &> /dev/null; then
+    echo "❌ Error: Node.js is required but not installed"
+    echo "   Please install Node.js from https://nodejs.org/"
+    exit 1
+  fi
+}
+
+# Validate package.json is valid JSON and safe
+validate_package_json() {
+  # Check if it's valid JSON
+  if ! node -e "try { JSON.parse(require('fs').readFileSync('./package.json', 'utf8')); } catch(e) { console.error('Invalid JSON:', e.message); process.exit(1); }" 2>/dev/null; then
+    echo "❌ Error: package.json contains invalid JSON"
+    echo "   Please fix the JSON syntax errors before running this hook."
+    exit 1
+  fi
+
+  # Check if it's an object (not array or primitive)
+  if ! node -e "const pkg = JSON.parse(require('fs').readFileSync('./package.json', 'utf8')); if (typeof pkg !== 'object' || Array.isArray(pkg)) { console.error('package.json must be a JSON object'); process.exit(1); }" 2>/dev/null; then
+    echo "❌ Error: package.json must be a JSON object"
+    exit 1
+  fi
+
+  # Validate packageManager field format if present
+  if ! node -e "const pkg = JSON.parse(require('fs').readFileSync('./package.json', 'utf8')); if (pkg.packageManager && !/^(npm|yarn|pnpm|bun)@[\d.]+(-[a-zA-Z0-9.]+)?$/.test(pkg.packageManager)) { console.error('Invalid packageManager format:', pkg.packageManager); process.exit(1); }" 2>/dev/null; then
+    local pkg_mgr_value=$(node -e "const pkg = JSON.parse(require('fs').readFileSync('./package.json', 'utf8')); console.log(pkg.packageManager || '');" 2>/dev/null || echo "")
+    if [ -n "$pkg_mgr_value" ]; then
+      echo "⚠️  Warning: Invalid packageManager format: $pkg_mgr_value"
+      echo "   Expected format: <manager>@<version> (e.g., yarn@4.9.2, pnpm@8.15.0)"
+      echo "   Falling back to lock file detection..."
+    fi
+  fi
+}
+
+# Run prerequisite checks and validation
+check_prerequisites
+validate_package_json
+
 echo "🌐 Setting up Claude Code web environment..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "   Started at: $(date '+%Y-%m-%d %H:%M:%S')"
@@ -25,7 +64,7 @@ detect_package_manager() {
 
   # First, check package.json for packageManager field
   if [ -f "package.json" ]; then
-    pkg_mgr=$(node -e "const pkg = require('./package.json'); const match = pkg.packageManager ? pkg.packageManager.match(/^(\w+)@/) : null; console.log(match ? match[1] : '');" 2>/dev/null || echo "")
+    pkg_mgr=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); const match = pkg.packageManager ? pkg.packageManager.match(/^(\w+)@/) : null; console.log(match ? match[1] : '');" 2>/dev/null || echo "")
   fi
 
   # If not found in package.json, detect from lock files
@@ -53,7 +92,7 @@ get_package_manager_version() {
   local version=""
 
   if [ -f "package.json" ]; then
-    version=$(node -e "const pkg = require('./package.json'); const match = pkg.packageManager ? pkg.packageManager.match(/${pkg_mgr}@([\d.]+)/) : null; console.log(match ? match[1] : '');" 2>/dev/null || echo "")
+    version=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); const match = pkg.packageManager ? pkg.packageManager.match(/${pkg_mgr}@([\d.]+(-[a-zA-Z0-9.]+)?)/) : null; console.log(match ? match[1] : '');" 2>/dev/null || echo "")
   fi
 
   echo "$version"
@@ -260,12 +299,12 @@ print_available_commands() {
 
   # Detect common scripts from package.json
   if [ -f "package.json" ]; then
-    local has_test=$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts.test ? 'true' : 'false');" 2>/dev/null)
-    local has_build=$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts.build ? 'true' : 'false');" 2>/dev/null)
-    local has_dev=$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts.dev ? 'true' : 'false');" 2>/dev/null)
-    local has_start=$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts.start ? 'true' : 'false');" 2>/dev/null)
-    local has_typecheck=$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts.typecheck ? 'true' : 'false');" 2>/dev/null)
-    local has_lint=$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts.lint ? 'true' : 'false');" 2>/dev/null)
+    local has_test=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.test ? 'true' : 'false');" 2>/dev/null)
+    local has_build=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.build ? 'true' : 'false');" 2>/dev/null)
+    local has_dev=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.dev ? 'true' : 'false');" 2>/dev/null)
+    local has_start=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.start ? 'true' : 'false');" 2>/dev/null)
+    local has_typecheck=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.typecheck ? 'true' : 'false');" 2>/dev/null)
+    local has_lint=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8')); console.log(pkg.scripts && pkg.scripts.lint ? 'true' : 'false');" 2>/dev/null)
 
     if [ "$has_test" = "true" ]; then
       echo "   • Run tests:     $pkg_mgr test"
