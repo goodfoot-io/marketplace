@@ -6,7 +6,7 @@
     "name": "Goodfoot",
     "email": "contact@goodfoot.io"
   },
-  "commands": "commands",
-  "agents": "agents",
-  "skills": "skills"
+  "commands": "./commands",
+  "agents": "./agents",
+  "skills": "./skills"
 }

@@ -6,5 +6,5 @@
     "name": "Goodfoot",
     "email": "contact@goodfoot.io"
   },
-  "skills": "skills"
+  "skills": "./skills"
 }
