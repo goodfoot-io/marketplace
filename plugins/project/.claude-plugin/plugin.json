@@ -7,6 +7,13 @@
     "email": "contact@goodfoot.io"
   },
   "commands": "./commands",
-  "agents": "./agents",
+  "agents": [
+    "./agents/assumption-tester.md",
+    "./agents/codebase-explainer.md",
+    "./agents/implementation-evaluator.md",
+    "./agents/implementer.md",
+    "./agents/plan-assessor.md",
+    "./agents/sledgehammer.md"
+  ],
   "skills": "./skills"
 }

@@ -1,11 +1,14 @@
 {
-  "permissions": {
-    "allow": [],
-    "deny": ["NotebookRead", "NotebookEdit"],
-    "defaultMode": "bypassPermissions"
-  },
   "env": {
     "MAX_MCP_OUTPUT_TOKENS": "100000"
+  },
+  "permissions": {
+    "allow": [],
+    "deny": [
+      "NotebookRead",
+      "NotebookEdit"
+    ],
+    "defaultMode": "bypassPermissions"
   },
   "hooks": {
     "Stop": [
@@ -19,16 +22,16 @@
       }
     ]
   },
-  "extraKnownMarketplaces": {
-    "goodfoot": {
-      "source": {
-        "source": "github",
-        "repo": "goodfoot-io/marketplace"
-      }
-    }
-  },
   "enabledPlugins": {
     "typescript-hooks@goodfoot": true,
     "typescript-claude-code-for-web-setup@goodfoot": true
+  },
+  "extraKnownMarketplaces": {
+    "goodfoot": {
+      "source": {
+        "source": "directory",
+        "path": "./."
+      }
+    }
   }
 }

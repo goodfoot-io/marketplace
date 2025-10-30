@@ -36,6 +36,12 @@ sudo mkdir -p /tmp/.X11-unix
 sudo chmod 1777 /tmp/.X11-unix
 echo "✓ X11 directory prepared for headless testing"
 
+# Create VSCode MCP Bridge socket directory with proper permissions
+echo "Setting up VSCode MCP Bridge socket directory..."
+mkdir -p /home/node/.local/share/yutengjing-vscode-mcp
+chmod 755 /home/node/.local/share/yutengjing-vscode-mcp
+echo "✓ VSCode MCP Bridge socket directory created"
+
 claude mcp add file -- node /workspace/.devcontainer/utilities/file-mcp-server.mjs || true
 claude mcp add vscode -- npx -y @vscode-mcp/vscode-mcp-server@latest || true
 claude mcp add codebase -- node /workspace/.devcontainer/utilities/codebase-mcp-server.mjs || true
