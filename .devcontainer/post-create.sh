@@ -47,3 +47,4 @@ claude mcp add browser -- node /workspace/.devcontainer/utilities/browser-mcp-se
 # claude mcp remove browser
 # claude mcp add chrome -- npx -y chrome-devtools-mcp@latest --browserUrl "http://192.168.65.254:9222/"
 
+cd /workspace && direnv allow

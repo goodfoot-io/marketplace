@@ -34,37 +34,40 @@ debug() {
 }
 
 # Function to check for prohibited patterns in text
+# If old_content is provided, only flags patterns that are being ADDED (not removed)
 check_for_bypass_patterns() {
-    local content="$1"
+    local new_content="$1"
+    local old_content="$2"
     local violations=()
-    
-    # ESLint disable patterns
-    if echo "$content" | grep -qE "//\s*eslint-disable(-next-line|-line)?\b"; then
-        violations+=("ESLint disable comment found (// eslint-disable, // eslint-disable-next-line, // eslint-disable-line)")
-    fi
-    
-    if echo "$content" | grep -qE "/\*\s*eslint-disable\b"; then
-        violations+=("ESLint block disable comment found (/* eslint-disable */)")
-    fi
-    
-    # TypeScript suppression patterns
-    if echo "$content" | grep -qE "//\s*@ts-ignore\b"; then
-        violations+=("TypeScript @ts-ignore comment found")
-    fi
-    
-    if echo "$content" | grep -qE "//\s*@ts-expect-error\b"; then
-        violations+=("TypeScript @ts-expect-error comment found")
-    fi
-    
-    if echo "$content" | grep -qE "//\s*@ts-nocheck\b"; then
-        violations+=("TypeScript @ts-nocheck comment found")
-    fi
-    
-    # TypeScript as any casting
-    if echo "$content" | grep -qE "\bas\s+any\b"; then
-        violations+=("TypeScript 'as any' type casting found")
-    fi
-    
+
+    # Define patterns and their descriptions
+    declare -A patterns=(
+        ["//\s*eslint-disable(-next-line|-line)?\b"]="ESLint disable comment found (// eslint-disable, // eslint-disable-next-line, // eslint-disable-line)"
+        ["/\*\s*eslint-disable\b"]="ESLint block disable comment found (/* eslint-disable */)"
+        ["//\s*@ts-ignore\b"]="TypeScript @ts-ignore comment found"
+        ["//\s*@ts-expect-error\b"]="TypeScript @ts-expect-error comment found"
+        ["//\s*@ts-nocheck\b"]="TypeScript @ts-nocheck comment found"
+        ["\bas\s+any\b"]="TypeScript 'as any' type casting found"
+    )
+
+    # Check each pattern
+    for pattern in "${!patterns[@]}"; do
+        local description="${patterns[$pattern]}"
+
+        # If old_content is provided (Edit/MultiEdit), check if pattern is being added
+        if [ -n "$old_content" ]; then
+            # Only flag if pattern is being ADDED (not already present or being removed)
+            if is_pattern_being_added "$pattern" "$old_content" "$new_content"; then
+                violations+=("$description")
+            fi
+        else
+            # For Write operations (no old content), check if pattern exists in new content
+            if echo "$new_content" | grep -qE "$pattern"; then
+                violations+=("$description")
+            fi
+        fi
+    done
+
     # Return violations array (only if not empty)
     if [ ${#violations[@]} -gt 0 ]; then
         printf '%s\n' "${violations[@]}"
@@ -84,54 +87,120 @@ is_js_ts_file() {
     esac
 }
 
+# Function to check if a prohibited pattern is being added (not just present)
+# Returns 0 if pattern is being added, 1 if not
+is_pattern_being_added() {
+    local pattern="$1"
+    local old_content="$2"
+    local new_content="$3"
+
+    # Check if pattern exists in new content
+    if ! echo "$new_content" | grep -qE "$pattern"; then
+        debug "Pattern not in new content: $pattern"
+        return 1  # Pattern not in new content, so not being added
+    fi
+
+    # Check if pattern exists in old content
+    if echo "$old_content" | grep -qE "$pattern"; then
+        debug "Pattern already in old content: $pattern"
+        return 1  # Pattern was already there, so not being added
+    fi
+
+    debug "Pattern is being added: $pattern"
+    return 0  # Pattern is in new but not in old, so it's being added
+}
+
+# Function to check a single edit for prohibited pattern additions
+# Returns violations found in this specific edit
+check_single_edit() {
+    local new_string="$1"
+    local old_string="$2"
+
+    debug "Checking single edit - new: '$new_string', old: '$old_string'"
+
+    # Use the check_for_bypass_patterns function
+    check_for_bypass_patterns "$new_string" "$old_string"
+}
+
 # Function to extract content and file path from tool input
-extract_content_from_input() {
+# For Edit/MultiEdit, also extracts old content to determine if patterns are being added or removed
+# Returns: "SKIP|||<reason>" if check should be skipped, or violation messages (one per line) if violations found
+extract_and_check_content() {
     local json_input="$1"
     local tool_name
-    local content=""
     local file_path=""
-    
+
     tool_name=$(echo "$json_input" | jq -r '.tool_name // empty' 2>/dev/null)
     debug "Tool name: $tool_name"
-    
+
+    # Handle unsupported tools
+    if [ -z "$tool_name" ] || [ "$tool_name" = "null" ]; then
+        debug "No tool_name provided"
+        echo "SKIP|||No content to check"
+        return 0
+    fi
+
+    file_path=$(echo "$json_input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+
+    # Check if this is a JS/TS file (only skip if file_path is provided AND it's not JS/TS)
+    if [ -n "$file_path" ] && ! is_js_ts_file "$file_path"; then
+        debug "File is not JS/TS: $file_path, skipping check"
+        echo "SKIP|||No content to check"
+        return 0
+    fi
+
+    debug "File path: ${file_path:-'<none provided>'}, checking content"
+
+    local has_content=0
+
     case "$tool_name" in
         "Write")
+            local content
             content=$(echo "$json_input" | jq -r '.tool_input.content // empty' 2>/dev/null)
-            file_path=$(echo "$json_input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+            if [ -n "$content" ]; then
+                has_content=1
+                # For Write, there's no old content, so we check all content
+                check_for_bypass_patterns "$content" ""
+            fi
             ;;
         "Edit")
-            content=$(echo "$json_input" | jq -r '.tool_input.new_string // empty' 2>/dev/null)
-            file_path=$(echo "$json_input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+            local new_string
+            local old_string
+            new_string=$(echo "$json_input" | jq -r '.tool_input.new_string // empty' 2>/dev/null)
+            old_string=$(echo "$json_input" | jq -r '.tool_input.old_string // empty' 2>/dev/null)
+            if [ -n "$new_string" ]; then
+                has_content=1
+                check_single_edit "$new_string" "$old_string"
+            fi
             ;;
         "MultiEdit")
-            file_path=$(echo "$json_input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
-            # For MultiEdit, check all edit operations
+            # For MultiEdit, check each edit individually
             local edit_count
             edit_count=$(echo "$json_input" | jq -r '.tool_input.edits | length' 2>/dev/null)
             if [ "$edit_count" != "null" ] && [ "$edit_count" -gt 0 ]; then
+                has_content=1
+                # Check each edit and collect all violations
                 for i in $(seq 0 $((edit_count - 1))); do
                     local new_string
+                    local old_string
                     new_string=$(echo "$json_input" | jq -r ".tool_input.edits[$i].new_string // empty" 2>/dev/null)
-                    content="${content}${new_string}"$'\n'
+                    old_string=$(echo "$json_input" | jq -r ".tool_input.edits[$i].old_string // empty" 2>/dev/null)
+                    check_single_edit "$new_string" "$old_string"
                 done
             fi
             ;;
         *)
             debug "Unsupported tool: $tool_name"
+            echo "SKIP|||No content to check"
             return 0
             ;;
     esac
-    
-    # Check if this is a JS/TS file (only skip if file_path is provided AND it's not JS/TS)
-    if [ -n "$file_path" ] && ! is_js_ts_file "$file_path"; then
-        debug "File is not JS/TS: $file_path, skipping check"
-        return 0
+
+    # If no content was found, mark as skip
+    if [ "$has_content" -eq 0 ]; then
+        debug "No content to check"
+        echo "SKIP|||No content to check"
     fi
-    
-    # If no file_path provided, still check the content (assume it might be JS/TS)
-    debug "File path: ${file_path:-'<none provided>'}, checking content"
-    
-    echo "$content"
 }
 
 # Function to output permission decision JSON
@@ -169,23 +238,19 @@ main() {
         return 0
     fi
     
-    # Extract content to check
-    local content
-    content=$(extract_content_from_input "$json_input")
-    
-    if [ -z "$content" ]; then
-        debug "No content to check, allowing"
-        output_decision "allow" "No content to check"
+    # Check for prohibited patterns in the content
+    local results
+    readarray -t results < <(extract_and_check_content "$json_input")
+
+    # Check if the first result indicates a skip
+    if [ ${#results[@]} -gt 0 ] && [[ "${results[0]}" == SKIP\|* ]]; then
+        local reason="${results[0]#SKIP|||}"
+        debug "Check was skipped: $reason"
+        output_decision "allow" "$reason"
         return 0
     fi
-    
-    debug "Content to check: $content"
-    
-    # Check for prohibited patterns
-    local violations
-    readarray -t violations < <(check_for_bypass_patterns "$content")
-    
-    if [ ${#violations[@]} -eq 0 ]; then
+
+    if [ ${#results[@]} -eq 0 ]; then
         debug "No violations found, allowing"
         output_decision "allow" "No ESLint/TypeScript rule bypasses detected"
         return 0
@@ -193,7 +258,7 @@ main() {
     
     # Build violation message
     local violation_msg="The following ESLint/TypeScript rule bypasses are not allowed:"
-    for violation in "${violations[@]}"; do
+    for violation in "${results[@]}"; do
         violation_msg="${violation_msg}\n• $violation"
     done
     
@@ -204,7 +269,7 @@ main() {
     violation_msg="${violation_msg}• Configure ESLint/TypeScript rules in project configuration files if needed"
     
     echo -e "${RED}Rule bypass detected:${NC}" >&2
-    for violation in "${violations[@]}"; do
+    for violation in "${results[@]}"; do
         echo -e "  ${YELLOW}•${NC} $violation" >&2
     done
     echo -e "\n${CYAN}Please fix the underlying issue instead of bypassing the rule.${NC}" >&2

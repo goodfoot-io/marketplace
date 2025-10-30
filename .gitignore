@@ -33,10 +33,18 @@ temp
 logs
 update-remote.sh
 update-vm.sh
+# Environment files (never commit secrets or local config)
 .env
-.env.local
 .env.test
 .env-sam
+
+# Personal local overrides (machine-specific secrets and config)
+.env.local
+*.env.local
+
+# Branch-specific environment files are COMMITTED (shared team resources)
+# Only exclude personal override files
+environment/*.env.local
 
 .credentials
 .config

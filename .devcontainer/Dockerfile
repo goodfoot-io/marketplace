@@ -30,7 +30,8 @@ RUN apt update && export DEBIAN_FRONTEND=noninteractive && apt install -y less \
   dbus-x11 \
   xvfb \
   bc \
-  bat
+  bat \
+  direnv
 
 # Configure locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
@@ -103,6 +104,7 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -a "source /usr/share/doc/fzf/examples/key-bindings.zsh" \
   -a "source /usr/share/doc/fzf/examples/completion.zsh" \
   -a "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
+  -a "eval \"\$(direnv hook zsh)\"" \
   -x
 
 ENV CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR=1
@@ -143,4 +145,3 @@ RUN mkdir -p /run/dbus /var/run/dbus && \
   chmod 755 /run/dbus /var/run/dbus
 USER node
 RUN npx playwright install
-
