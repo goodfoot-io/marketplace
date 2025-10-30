@@ -24,7 +24,10 @@
   },
   "enabledPlugins": {
     "typescript-hooks@goodfoot": true,
-    "typescript-claude-code-for-web-setup@goodfoot": true
+    "typescript-claude-code-for-web-setup@goodfoot": true,
+    "project@goodfoot": true,
+    "vscode@goodfoot": true,
+    "goodfoot@goodfoot": true
   },
   "extraKnownMarketplaces": {
     "goodfoot": {
