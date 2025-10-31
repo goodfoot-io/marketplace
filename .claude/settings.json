@@ -1,6 +1,7 @@
 {
   "env": {
-    "MAX_MCP_OUTPUT_TOKENS": "100000"
+    "MAX_MCP_OUTPUT_TOKENS": "100000",
+    "DISABLE_AUTOUPDATER": 1
   },
   "permissions": {
     "allow": [],

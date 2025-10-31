@@ -364,6 +364,205 @@ describe('browser server', () => {
     });
   });
 
+  describe('session TTL configuration', () => {
+    it('should use default TTL when env var not set', () => {
+      // Test getSessionTTL logic
+      const getSessionTTL = (): number => {
+        const envValue = process.env.BROWSER_SESSION_TTL_MS;
+        if (!envValue) {
+          return 5 * 60 * 1000; // Default: 5 minutes
+        }
+
+        const parsed = parseInt(envValue, 10);
+        if (isNaN(parsed) || parsed <= 0) {
+          return 5 * 60 * 1000;
+        }
+
+        return parsed;
+      };
+
+      // Save original value
+      const originalValue = process.env.BROWSER_SESSION_TTL_MS;
+      delete process.env.BROWSER_SESSION_TTL_MS;
+
+      const ttl = getSessionTTL();
+      expect(ttl).toBe(5 * 60 * 1000); // 5 minutes
+
+      // Restore
+      if (originalValue !== undefined) {
+        process.env.BROWSER_SESSION_TTL_MS = originalValue;
+      }
+    });
+
+    it('should parse valid TTL from env var', () => {
+      const getSessionTTL = (): number => {
+        const envValue = process.env.BROWSER_SESSION_TTL_MS;
+        if (!envValue) {
+          return 5 * 60 * 1000;
+        }
+
+        const parsed = parseInt(envValue, 10);
+        if (isNaN(parsed) || parsed <= 0) {
+          return 5 * 60 * 1000;
+        }
+
+        return parsed;
+      };
+
+      const originalValue = process.env.BROWSER_SESSION_TTL_MS;
+      process.env.BROWSER_SESSION_TTL_MS = '600000'; // 10 minutes
+
+      const ttl = getSessionTTL();
+      expect(ttl).toBe(600000);
+
+      // Restore
+      if (originalValue !== undefined) {
+        process.env.BROWSER_SESSION_TTL_MS = originalValue;
+      } else {
+        delete process.env.BROWSER_SESSION_TTL_MS;
+      }
+    });
+
+    it('should use default TTL for invalid env var values', () => {
+      const getSessionTTL = (): number => {
+        const envValue = process.env.BROWSER_SESSION_TTL_MS;
+        if (!envValue) {
+          return 5 * 60 * 1000;
+        }
+
+        const parsed = parseInt(envValue, 10);
+        if (isNaN(parsed) || parsed <= 0) {
+          return 5 * 60 * 1000;
+        }
+
+        return parsed;
+      };
+
+      const originalValue = process.env.BROWSER_SESSION_TTL_MS;
+
+      // Test invalid values
+      const invalidValues = ['invalid', '-1000', '0', 'abc123'];
+
+      for (const invalidValue of invalidValues) {
+        process.env.BROWSER_SESSION_TTL_MS = invalidValue;
+        const ttl = getSessionTTL();
+        expect(ttl).toBe(5 * 60 * 1000); // Should use default
+      }
+
+      // Restore
+      if (originalValue !== undefined) {
+        process.env.BROWSER_SESSION_TTL_MS = originalValue;
+      } else {
+        delete process.env.BROWSER_SESSION_TTL_MS;
+      }
+    });
+
+    it('should expire sessions based on TTL', () => {
+      interface SessionState {
+        id: string;
+        createdAt: Date;
+        lastActivity: Date;
+        conversationHistory: string[];
+        isFirstQuery: boolean;
+      }
+
+      const sessions = new Map<string, SessionState>();
+      const SESSION_TTL_MS = 10000; // 10 seconds for test
+
+      // Create sessions with different activity times
+      const now = Date.now();
+      sessions.set('session-1', {
+        id: 'session-1',
+        createdAt: new Date(now - 20000), // 20 seconds ago
+        lastActivity: new Date(now - 20000), // Expired
+        conversationHistory: [],
+        isFirstQuery: false
+      });
+
+      sessions.set('session-2', {
+        id: 'session-2',
+        createdAt: new Date(now - 5000), // 5 seconds ago
+        lastActivity: new Date(now - 5000), // Still active
+        conversationHistory: [],
+        isFirstQuery: false
+      });
+
+      sessions.set('session-3', {
+        id: 'session-3',
+        createdAt: new Date(now - 15000), // 15 seconds ago
+        lastActivity: new Date(now - 15000), // Expired
+        conversationHistory: [],
+        isFirstQuery: false
+      });
+
+      // Simulate cleanup function
+      const cleanupStaleSessions = () => {
+        const currentTime = Date.now();
+        for (const [id, session] of sessions.entries()) {
+          if (currentTime - session.lastActivity.getTime() > SESSION_TTL_MS) {
+            sessions.delete(id);
+          }
+        }
+      };
+
+      expect(sessions.size).toBe(3);
+      cleanupStaleSessions();
+
+      // Only session-2 should remain (the others expired)
+      expect(sessions.size).toBe(1);
+      expect(sessions.has('session-1')).toBe(false);
+      expect(sessions.has('session-2')).toBe(true);
+      expect(sessions.has('session-3')).toBe(false);
+    });
+
+    it('should enforce max 10 sessions with LRU eviction', () => {
+      interface SessionState {
+        id: string;
+        createdAt: Date;
+        lastActivity: Date;
+        conversationHistory: string[];
+        isFirstQuery: boolean;
+      }
+
+      const sessions = new Map<string, SessionState>();
+      const now = Date.now();
+
+      // Create 12 sessions
+      for (let i = 0; i < 12; i++) {
+        sessions.set(`session-${i}`, {
+          id: `session-${i}`,
+          createdAt: new Date(now - (12 - i) * 1000), // Older sessions first
+          lastActivity: new Date(now - (12 - i) * 1000),
+          conversationHistory: [],
+          isFirstQuery: false
+        });
+      }
+
+      // Simulate LRU eviction logic
+      if (sessions.size > 10) {
+        const sorted = Array.from(sessions.entries()).sort(
+          (a, b) => a[1].lastActivity.getTime() - b[1].lastActivity.getTime()
+        );
+
+        while (sessions.size > 10) {
+          const [id] = sorted.shift()!;
+          sessions.delete(id);
+        }
+      }
+
+      // Should have exactly 10 sessions
+      expect(sessions.size).toBe(10);
+
+      // The oldest 2 sessions should be evicted
+      expect(sessions.has('session-0')).toBe(false);
+      expect(sessions.has('session-1')).toBe(false);
+
+      // The newest sessions should remain
+      expect(sessions.has('session-10')).toBe(true);
+      expect(sessions.has('session-11')).toBe(true);
+    });
+  });
+
   describe('timeout handling', () => {
     it('should set up abort controller with timeout', () => {
       // Test abort controller creation

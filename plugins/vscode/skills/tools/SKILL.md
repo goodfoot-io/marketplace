@@ -462,32 +462,61 @@ Use severity and source filters to focus on relevant issues:
 <!-- JSON string -->
 ```
 
-## Integration with Other Skills
+## Integration with Codebase Analysis
 
-### With codebase-analysis Skill
+### Using the Codebase MCP Tool
 
-The VSCode MCP tools are automatically used by the `codebase-analysis` subagent when appropriate:
+For comprehensive codebase analysis and exploration, use the `mcp__plugin_vscode_codebase__ask` tool which provides intelligent code search and analysis:
 
 ```xml
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Analyze UserService</parameter>
-<parameter name="prompt">Find all references to UserService and show their type information</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Find all references to UserService and show their type information</parameter>
 </invoke>
 ```
-<!-- The codebase-analysis subagent will automatically use get_symbol_lsp_info and get_references -->
 
-### Direct vs. Subagent Usage
+The codebase analysis tool automatically:
+- Selects appropriate search tools (VSCode LSP, Grep, ast-grep)
+- Traces dependencies and usage patterns
+- Provides contextual code snippets with file:line references
+- Analyzes TypeScript errors and type relationships
 
-**Use VSCode tools directly when:**
+**Example Questions:**
+
+```xml
+<!-- Investigate a TypeScript error -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">TypeScript error TS2322 at packages/api/src/user.ts:45: Why is email required?</parameter>
+</invoke>
+
+<!-- Trace dependencies -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What files import from packages/shared/src/types/user.ts?</parameter>
+</invoke>
+
+<!-- Analyze code flow -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">How does packages/api/src/services/user.ts depend on database types?</parameter>
+</invoke>
+
+<!-- Find usage patterns -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Find all console.log statements in packages/api/src/**/*.ts</parameter>
+</invoke>
+```
+
+### Direct vs. Codebase Analysis Usage
+
+**Use VSCode LSP tools directly when:**
 - You need a specific piece of information (single tool call)
 - You know exactly which tool to use
 - You're implementing a specific workflow
+- You want immediate, structured results
 
-**Use codebase-analysis subagent when:**
+**Use codebase analysis tool when:**
 - You need comprehensive analysis (multiple tools)
 - You want automatic tool selection
 - You're investigating complex issues
+- You need natural language answers with context
 
 ## Prerequisites
 
@@ -593,10 +622,10 @@ Find available workspaces:
 | `execute_command` | Format, fix, save | `command`, `args` (JSON string) |
 | `open_files` | Workspace setup | `files` (array) |
 
-## Related Skills
+## Related Tools
 
-- **codebase-analysis**: Comprehensive code analysis using codebase-analysis subagent
-- Uses VSCode MCP tools automatically when appropriate
+- **mcp__plugin_vscode_codebase__ask**: Comprehensive codebase analysis and intelligent code search
+- **mcp__plugin_vscode_vscode__***: VSCode LSP tools for symbol information, references, diagnostics, and refactoring
 
 ## Additional Resources
 

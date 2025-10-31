@@ -2,7 +2,7 @@
   "mcpServers": {
     "browser": {
       "command": "npx",
-      "args": ["-y", "@goodfoot/browser-mcp-server"]
+      "args": ["-y", "@goodfoot/browser-mcp-server@latest"]
     }
   }
 }

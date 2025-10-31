@@ -180,6 +180,24 @@ const server = new Server(
 // Session management
 const sessions = new Map<string, SessionState>();
 
+// Parse session TTL from environment variable (default: 5 minutes)
+function getSessionTTL(): number {
+  const envValue = process.env.BROWSER_SESSION_TTL_MS;
+  if (!envValue) {
+    return 5 * 60 * 1000; // Default: 5 minutes
+  }
+
+  const parsed = parseInt(envValue, 10);
+  if (isNaN(parsed) || parsed <= 0) {
+    console.error(`Invalid BROWSER_SESSION_TTL_MS value: ${envValue}. Using default 5 minutes.`);
+    return 5 * 60 * 1000;
+  }
+
+  return parsed;
+}
+
+const SESSION_TTL_MS = getSessionTTL();
+
 // Chrome DevTools MCP Agent System Instructions - v5
 const CHROME_SYSTEM_INSTRUCTIONS =
   String.raw`Browser automation agent using Chrome DevTools MCP server.
@@ -516,11 +534,12 @@ async function parseChromeArgs(): Promise<{ browserUrl: string }> {
 // Clean up stale sessions
 function cleanupStaleSessions(): void {
   const now = Date.now();
-  const thirtyMinutes = 30 * 60 * 1000;
+  const beforeSize = sessions.size;
 
   for (const [id, session] of sessions.entries()) {
-    if (now - session.lastActivity.getTime() > thirtyMinutes) {
+    if (now - session.lastActivity.getTime() > SESSION_TTL_MS) {
       sessions.delete(id);
+      console.error(`Session ${id} expired after ${SESSION_TTL_MS}ms of inactivity`);
     }
   }
 
@@ -533,7 +552,18 @@ function cleanupStaleSessions(): void {
     while (sessions.size > 10) {
       const [id] = sorted.shift()!;
       sessions.delete(id);
+      console.error(`Session ${id} evicted (LRU - max 10 sessions)`);
     }
+  }
+
+  const removedCount = beforeSize - sessions.size;
+  if (removedCount > 0) {
+    console.error(`Cleaned up ${removedCount} session(s). Active sessions: ${sessions.size}`);
+  }
+
+  // Log when all sessions have expired
+  if (beforeSize > 0 && sessions.size === 0) {
+    console.error('All sessions expired - no active browser sessions');
   }
 }
 

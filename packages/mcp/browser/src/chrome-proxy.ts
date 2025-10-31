@@ -8,7 +8,31 @@ const LISTEN_PORT = process.env.LISTEN_PORT ? parseInt(process.env.LISTEN_PORT, 
 const CHROME_DEBUG_PORT = process.env.CHROME_DEBUG_PORT ? parseInt(process.env.CHROME_DEBUG_PORT, 10) : 9223;
 const CHROME_USER_DATA_DIR = process.env.CHROME_USER_DATA_DIR || `/tmp/chrome-rdp-${CHROME_DEBUG_PORT}`;
 
+// Parse idle timeout from environment variable (default: 5 minutes)
+function getIdleTimeout(): number {
+  const envValue = process.env.CHROME_PROXY_IDLE_TIMEOUT_MS;
+  if (!envValue) {
+    return 5 * 60 * 1000; // Default: 5 minutes
+  }
+
+  const parsed = parseInt(envValue, 10);
+  if (isNaN(parsed) || parsed <= 0) {
+    console.error(`Invalid CHROME_PROXY_IDLE_TIMEOUT_MS value: ${envValue}. Using default 5 minutes.`);
+    return 5 * 60 * 1000;
+  }
+
+  return parsed;
+}
+
+const IDLE_TIMEOUT_MS = getIdleTimeout();
+
 let chromeProcess: ChildProcess | null = null;
+
+// Idle timeout tracking state
+const idleState = {
+  lastActivityTime: Date.now(),
+  checkInterval: null as NodeJS.Timeout | null
+};
 
 /**
  * Check if a port is open
@@ -39,17 +63,22 @@ function launchChrome(): void {
 
   console.log(`Launching Chrome on port ${CHROME_DEBUG_PORT}...`);
 
-  chromeProcess = spawn('open', [
-    '-n',
-    '-a', 'Google Chrome',
-    '--args',
-    `--remote-debugging-port=${CHROME_DEBUG_PORT}`,
-    `--user-data-dir=${CHROME_USER_DATA_DIR}`,
-    '--no-first-run',
-    '--no-default-browser-check'
-  ], {
-    stdio: 'inherit'
-  });
+  chromeProcess = spawn(
+    'open',
+    [
+      '-n',
+      '-a',
+      'Google Chrome',
+      '--args',
+      `--remote-debugging-port=${CHROME_DEBUG_PORT}`,
+      `--user-data-dir=${CHROME_USER_DATA_DIR}`,
+      '--no-first-run',
+      '--no-default-browser-check'
+    ],
+    {
+      stdio: 'inherit'
+    }
+  );
 
   chromeProcess.on('error', (err) => {
     console.error('Failed to launch Chrome:', err);
@@ -77,10 +106,57 @@ async function waitForChrome(maxWaitMs = 5000): Promise<void> {
       return;
     }
 
-    await new Promise(resolve => setTimeout(resolve, checkInterval));
+    await new Promise((resolve) => setTimeout(resolve, checkInterval));
   }
 
   throw new Error(`Chrome failed to open port ${CHROME_DEBUG_PORT} within ${maxWaitMs}ms`);
+}
+
+/**
+ * Update the last activity timestamp
+ */
+function updateActivity(): void {
+  idleState.lastActivityTime = Date.now();
+}
+
+/**
+ * Check for idle timeout and shutdown if no activity
+ */
+function checkIdleTimeout(): void {
+  const idleTime = Date.now() - idleState.lastActivityTime;
+
+  if (idleTime > IDLE_TIMEOUT_MS) {
+    console.log(`No activity for ${Math.floor(idleTime / 1000)}s - shutting down due to idle timeout`);
+
+    // Clear the interval
+    if (idleState.checkInterval) {
+      clearInterval(idleState.checkInterval);
+      idleState.checkInterval = null;
+    }
+
+    // Close all connections
+    for (const socket of connections) {
+      socket.destroy();
+    }
+
+    // Kill Chrome process
+    if (chromeProcess) {
+      chromeProcess.kill();
+      chromeProcess = null;
+    }
+
+    // Close server
+    server.close(() => {
+      console.log('Server closed due to idle timeout');
+      process.exit(0);
+    });
+
+    // Force exit after 2 seconds if server doesn't close gracefully
+    setTimeout(() => {
+      console.log('Forcing exit after idle timeout...');
+      process.exit(0);
+    }, 2000);
+  }
 }
 
 /**
@@ -88,6 +164,8 @@ async function waitForChrome(maxWaitMs = 5000): Promise<void> {
  */
 const server = createServer(async (clientSocket) => {
   try {
+    // Update activity on new connection
+    updateActivity();
 
     // Check if Chrome port is already open
     const isPortOpen = await checkPort(CHROME_DEBUG_PORT);
@@ -107,6 +185,15 @@ const server = createServer(async (clientSocket) => {
       // Pipe data bidirectionally
       clientSocket.pipe(chromeSocket);
       chromeSocket.pipe(clientSocket);
+    });
+
+    // Update activity on data transfer
+    clientSocket.on('data', () => {
+      updateActivity();
+    });
+
+    chromeSocket.on('data', () => {
+      updateActivity();
     });
 
     chromeSocket.on('error', (err) => {
@@ -136,6 +223,10 @@ server.listen(LISTEN_PORT, () => {
   console.log(`Chrome proxy server listening on port ${LISTEN_PORT}`);
   console.log(`Will forward to Chrome on port ${CHROME_DEBUG_PORT}`);
   console.log(`Chrome user data dir: ${CHROME_USER_DATA_DIR}`);
+  console.log(`Idle timeout: ${IDLE_TIMEOUT_MS}ms (${Math.floor(IDLE_TIMEOUT_MS / 60000)} minutes)`);
+
+  // Start idle timeout checker
+  idleState.checkInterval = setInterval(checkIdleTimeout, 30000); // Check every 30 seconds
 });
 
 // Track active connections
@@ -151,6 +242,12 @@ server.on('connection', (socket) => {
 // Cleanup on exit
 process.on('SIGINT', () => {
   console.log('\nShutting down...');
+
+  // Clear idle check interval
+  if (idleState.checkInterval) {
+    clearInterval(idleState.checkInterval);
+    idleState.checkInterval = null;
+  }
 
   // Close all active connections
   for (const socket of connections) {

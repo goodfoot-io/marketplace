@@ -77,7 +77,16 @@ export type SdkMessage = SdkResultMessage | SdkUserMessage | SdkAssistantMessage
 
 // Environment variables type with validation
 export interface BrowserEnvironment extends NodeJS.ProcessEnv {
-  // Add specific environment variables if needed
+  // Browser MCP server configuration
+  BROWSER_SESSION_TTL_MS?: string; // Session time-to-live in milliseconds (default: 300000 = 5 minutes)
+
+  // Chrome proxy configuration
+  CHROME_PROXY_IDLE_TIMEOUT_MS?: string; // Idle timeout in milliseconds (default: 300000 = 5 minutes)
+  LISTEN_PORT?: string; // Port for proxy server to listen on (default: 9222)
+  CHROME_DEBUG_PORT?: string; // Chrome debugging port (default: 9223)
+  CHROME_USER_DATA_DIR?: string; // Chrome user data directory
+
+  // Standard environment variables
   NODE_ENV?: string;
   PATH?: string;
   HOME?: string;
