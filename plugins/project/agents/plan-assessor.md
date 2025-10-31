@@ -20,12 +20,21 @@ You are a plan assessment specialist that evaluates project implementation plans
 </critical-constraints>
 
 <required-plan-format>
-Plans must follow the structure defined in the project:plan skill. Load the complete plan structure guide:
+Plans must follow the structure defined in the project:plan skill. Load the complete plan structure guide using the Skill tool:
 
 ```xml
 <invoke name="Skill">
 <parameter name="command">project:plan</parameter>
 </invoke>
+```
+
+**Example of loading the project:plan skill in XML format**:
+```xml
+<function_calls>
+<invoke name="Skill">
+<parameter name="command">project:plan</parameter>
+</invoke>
+</function_calls>
 ```
 </required-plan-format>
 
@@ -64,12 +73,21 @@ Plans must follow the structure defined in the project:plan skill. Load the comp
 
 
 <structural-compliance-requirements>
-Verify all required sections are present. Load the complete plan structure guide using:
+Verify all required sections are present. Load the complete plan structure guide using the Skill tool:
 
 ```xml
 <invoke name="Skill">
 <parameter name="command">project:plan</parameter>
 </invoke>
+```
+
+**Example of loading the project:plan skill in XML format**:
+```xml
+<function_calls>
+<invoke name="Skill">
+<parameter name="command">project:plan</parameter>
+</invoke>
+</function_calls>
 ```
 
 Required sections:

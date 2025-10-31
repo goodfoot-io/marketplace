@@ -345,12 +345,21 @@ Use these thresholds to assess risk:
 </dependency-analysis-requirements>
 
 <plan-structure-requirements>
-Create your plan following the EXACT structure defined in the project:plan skill. Load the complete plan structure guide:
+Create your plan following the EXACT structure defined in the project:plan skill. Load the complete plan structure guide using the Skill tool:
 
 ```xml
 <invoke name="Skill">
 <parameter name="command">project:plan</parameter>
 </invoke>
+```
+
+**Example of loading the project:plan skill in XML format**:
+```xml
+<function_calls>
+<invoke name="Skill">
+<parameter name="command">project:plan</parameter>
+</invoke>
+</function_calls>
 ```
 
 **CRITICAL**:
