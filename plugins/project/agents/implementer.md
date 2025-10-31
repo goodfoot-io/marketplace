@@ -739,7 +739,7 @@ Note any findings relevant to the plan's Risks & Mitigations:
 - New risks discovered
 
 **Final actions:**
-1. Append summary to log file path provided in your prompt using `mcp__file__append`
+1. Append summary to log file path provided in your prompt using the Bash tool with heredoc
 2. **Output the same summary as your final message**
 </reporting-phase>
 

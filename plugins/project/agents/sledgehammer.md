@@ -427,7 +427,7 @@ Remember: Iteration is the path to quality. Each attempt builds on previous lear
 ```
 
 **Dual Documentation:**
-1. Append summary to log using: `mcp__file__append(file_path="/workspace/.worktrees/[BRANCH]/projects/active/[PROJECT]/log.md", content="[Summary]")`
+1. Append summary to log using the Bash tool with heredoc: `cat >> "/workspace/.worktrees/[BRANCH]/projects/active/[PROJECT]/log.md" <<'EOF'` followed by the summary content and `EOF`
 2. **Output the same summary as your final message to the user** (critical for visibility)
 </reporting-phase>
 

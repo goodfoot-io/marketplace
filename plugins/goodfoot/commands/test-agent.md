@@ -114,11 +114,9 @@ Validate:
 
 - [working_directory] = "/workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`"
 
-<example-tool-use>
-Bash(
-  command="mkdir -p /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`"
-)
-</example-tool-use>
+```bash
+mkdir -p /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`
+```
 
 ### Step 1.3: Extract and Confirm Test Methodology
 
@@ -228,22 +226,18 @@ Do these scenarios look correct? Should I proceed with optimization?"
 
 For each baseline file:
 
-<example-tool-use>
-Bash(
-  command="cp [baseline_file_1] $WORK_DIR/agent_0.md && cp [baseline_file_2] $WORK_DIR/agent_1.md"
-  # ... continue for all baseline files
-)
-</example-tool-use>
+```bash
+cp [baseline_file_1] $WORK_DIR/agent_0.md && cp [baseline_file_2] $WORK_DIR/agent_1.md
+# ... continue for all baseline files
+```
 
 Set [num_baselines] = count of baseline files
 
 ### Step 2.2: Initialize MAB-Runner for Baseline Evaluation
 
-<example-tool-use>
-Bash(
-  command="/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner init --agents [num_baselines]"
-)
-</example-tool-use>
+```bash
+/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner init --agents [num_baselines]
+```
 
 ### Step 2.3: Evaluate All Baselines in Parallel
 
@@ -473,11 +467,9 @@ Write(
 
 Reset mab-runner and initialize with all agents:
 
-<example-tool-use>
-Bash(
-  command="/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner init --agents [num_agents]"
-)
-</example-tool-use>
+```bash
+/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner init --agents [num_agents]
+```
 
 ### Step 4.2: Execute Evaluation Loop
 
@@ -526,11 +518,9 @@ Task(
 
 After batch completion:
 
-<example-tool-use>
-Bash(
-    command="/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner winner"
-)
-</example-tool-use>
+```bash
+/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner winner
+```
 
 Parse JSON response and extract:
 - `complete` field (true/false)
@@ -550,22 +540,18 @@ If `complete` equals "false":
 
 Periodically display status:
 
-<example-tool-use>
-Bash(
-    command="/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner status"
-)
-</example-tool-use>
+```bash
+/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner status
+```
 </main-evaluation-loop>
 
 ## Phase 5: Extract Results and Generate Report
 
 ### Step 5.1: Get Final Winner
 
-<example-tool-use>
-Bash(
-  command="WINNER_INFO=$(/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner winner) && WINNER_ID=$(echo $WINNER_INFO | jq -r '.winner_id') && WINNER_SCORE=$(echo $WINNER_INFO | jq -r '.winner_stats.mean_score') && TOTAL_EVALS=$(echo $WINNER_INFO | jq -r '.total_evaluations') && echo '=== OPTIMIZATION COMPLETE ===' && echo \"Winner: $WINNER_ID\" && echo \"Mean Score: $WINNER_SCORE\" && echo \"Total Evaluations: $TOTAL_EVALS\""
-)
-</example-tool-use>
+```bash
+WINNER_INFO=$(/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner winner) && WINNER_ID=$(echo $WINNER_INFO | jq -r '.winner_id') && WINNER_SCORE=$(echo $WINNER_INFO | jq -r '.winner_stats.mean_score') && TOTAL_EVALS=$(echo $WINNER_INFO | jq -r '.total_evaluations') && echo '=== OPTIMIZATION COMPLETE ===' && echo "Winner: $WINNER_ID" && echo "Mean Score: $WINNER_SCORE" && echo "Total Evaluations: $TOTAL_EVALS"
+```
 
 ### Step 5.2: Save Optimized Agent
 

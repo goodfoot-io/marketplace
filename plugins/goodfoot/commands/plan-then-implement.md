@@ -63,26 +63,17 @@ Task({
 
 For multi-task work, use dependency analysis tools to check for conflicts:
 
-<tool-use-template>
-// Check what files a target depends on
-Bash(
-  command="print-dependencies packages/api/src/services/user.ts",
-  description="List all files that user.ts imports"
-)
+```bash
+# Check what files a target depends on
+print-dependencies packages/api/src/services/user.ts
 
-// Check what would be affected by changes
-Bash(
-  command="print-inverse-dependencies packages/shared/types/user.ts",
-  description="Show files that import this type - impact scope"
-)
+# Check what would be affected by changes
+print-inverse-dependencies packages/shared/types/user.ts
 
-// Optional: Analyze complexity for refactoring tasks
-Bash(
-  command="print-type-analysis packages/api/src/services/user.ts | grep -A 1 'complexity:'",
-  description="Show function complexity scores"
-)
-// High complexity scores (>10) indicate areas needing careful attention
-</tool-use-template>
+# Optional: Analyze complexity for refactoring tasks
+print-type-analysis packages/api/src/services/user.ts | grep -A 1 'complexity:'
+# High complexity scores (>10) indicate areas needing careful attention
+```
 
 This helps identify if tasks can run in parallel or must be sequential.
 
@@ -202,25 +193,21 @@ Task(
 
 Before launching parallel tasks, verify they won't conflict:
 
-<tool-use-template>
-// Example: Checking if two tasks can run in parallel
-// Task A modifies: packages/api/src/auth.ts
-// Task B modifies: packages/ui/src/login.ts
+```bash
+# Example: Checking if two tasks can run in parallel
+# Task A modifies: packages/api/src/auth.ts
+# Task B modifies: packages/ui/src/login.ts
 
-// Check if auth.ts depends on anything login.ts touches
-Bash(
-  command="print-dependencies packages/api/src/auth.ts | grep -q 'packages/ui/src/login.ts'",
-  description="Check if auth depends on login - exit 0=conflict, 1=safe"
-)
+# Check if auth.ts depends on anything login.ts touches
+print-dependencies packages/api/src/auth.ts | grep -q 'packages/ui/src/login.ts'
+# exit 0=conflict, 1=safe
 
-// Check if login.ts depends on anything auth.ts touches
-Bash(
-  command="print-dependencies packages/ui/src/login.ts | grep -q 'packages/api/src/auth.ts'",
-  description="Check if login depends on auth - exit 0=conflict, 1=safe"
-)
+# Check if login.ts depends on anything auth.ts touches
+print-dependencies packages/ui/src/login.ts | grep -q 'packages/api/src/auth.ts'
+# exit 0=conflict, 1=safe
 
-// If both checks return exit code 1 (no match), tasks are safe to parallelize
-</tool-use-template>
+# If both checks return exit code 1 (no match), tasks are safe to parallelize
+```
 
 ### Step 2.3: Dispatch Tasks
 
@@ -246,48 +233,33 @@ Track which tasks complete successfully and which encounter issues.
 
 Use git to find all modified files:
 
-<tool-use-template>
-Bash(
-  command="git diff --name-only HEAD",
-  description="List all modified files"
-)
-</tool-use-template>
+```bash
+git diff --name-only HEAD
+```
 
 ### Step 3.2: Run Validation
 
 For each affected package, run:
 
-<tool-use-template>
-// Typecheck
-Bash(
-  command="cd packages/[PACKAGE] && yarn typecheck 2>&1",
-  description="Check TypeScript types"
-)
+```bash
+# Typecheck
+cd packages/[PACKAGE] && yarn typecheck 2>&1
 
-// Tests (if test files exist)
-Bash(
-  command="cd packages/[PACKAGE] && yarn test 2>&1",
-  description="Run test suite"
-)
+# Tests (if test files exist)
+cd packages/[PACKAGE] && yarn test 2>&1
 
-// Lint
-Bash(
-  command="cd packages/[PACKAGE] && yarn lint 2>&1",
-  description="Check code style"
-)
-</tool-use-template>
+# Lint
+cd packages/[PACKAGE] && yarn lint 2>&1
+```
 
 If any validation fails:
 1. Capture the specific errors (file paths, line numbers, error codes)
 2. Analyze impact using dependency tools:
 
-<tool-use-template>
-// For type errors in a specific file
-Bash(
-  command="print-inverse-dependencies packages/api/src/types/user.ts",
-  description="Show files that import this type - potential impact scope"
-)
-</tool-use-template>
+```bash
+# For type errors in a specific file
+print-inverse-dependencies packages/api/src/types/user.ts
+```
 
 3. Use Task with "codebase-analysis" subagent to investigate root causes with full paths
 4. Report issues to user with analysis

@@ -67,11 +67,9 @@ working_directory: [path]
 ### Step 1.1: Select Next Agent
 Execute the mab-runner select command to get the next agent ID to evaluate:
 
-<example-tool-use>
-Bash(
-  command='AGENT_ID=$(/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner select); AGENT_ID=${AGENT_ID//\"/}; echo "Selected agent: $AGENT_ID"'
-)
-</example-tool-use>
+```bash
+AGENT_ID=$(/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner select); AGENT_ID=${AGENT_ID//\"/}; echo "Selected agent: $AGENT_ID"
+```
 
 Note: The mab-runner returns JSON strings with quotes, so we use parameter expansion `${AGENT_ID//\"/}` to remove them.
 
@@ -82,11 +80,9 @@ Capture the agent ID (e.g., "agent_0", "agent_3", etc.) - this will be available
 Select and read a random test scenario using this two-step approach:
 
 First, list and select a random scenario:
-<example-tool-use>
-Bash(
-  command='ls [working_directory]/test_scenario_*.md | shuf -n 1'
-)
-</example-tool-use>
+```bash
+ls [working_directory]/test_scenario_*.md | shuf -n 1
+```
 
 Then read the selected scenario file:
 <example-tool-use>
@@ -219,11 +215,9 @@ Apply the scoring methodology with your analysis in mind:
 ### Step 1.4: Update Score
 Submit the score to the mab-runner:
 
-<example-tool-use>
-Bash(
-  command="/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner update [agent_id] [score] && echo 'Updated [agent_id] with score [score]'"
-)
-</example-tool-use>
+```bash
+/workspace/.worktrees/discovery-command/.devcontainer/utilities/mab-runner update [agent_id] [score] && echo 'Updated [agent_id] with score [score]'
+```
 
 Verify the update was successful.
 

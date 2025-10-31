@@ -18,7 +18,7 @@ description: Direct access to VSCode Language Server Protocol (LSP) tools for sy
 
 **Example:**
 <tool-use-template>
-mcp__vscode__get_symbol_lsp_info({
+mcp__plugin_vscode_vscode__get_symbol_lsp_info({
   workspace_path: "/workspace",
   filePath: "packages/api/src/services/user.ts",
   symbol: "UserService",
@@ -39,7 +39,7 @@ mcp__vscode__get_symbol_lsp_info({
 
 **Example:**
 <tool-use-template>
-mcp__vscode__get_references({
+mcp__plugin_vscode_vscode__get_references({
   workspace_path: "/workspace",
   filePath: "packages/api/src/services/user.ts",  // File where symbol is DEFINED
   symbol: "UserService",
@@ -63,7 +63,7 @@ mcp__vscode__get_references({
 **Example:**
 <tool-use-template>
 // Check specific files
-mcp__vscode__get_diagnostics({
+mcp__plugin_vscode_vscode__get_diagnostics({
   workspace_path: "/workspace",
   filePaths: ["packages/api/src/user.ts"],
   severities: ["error", "warning"],
@@ -71,7 +71,7 @@ mcp__vscode__get_diagnostics({
 })
 
 // Check all modified files (empty array)
-mcp__vscode__get_diagnostics({
+mcp__plugin_vscode_vscode__get_diagnostics({
   workspace_path: "/workspace",
   filePaths: [],  // Auto-detects git modified files
   severities: ["error"]
@@ -91,7 +91,7 @@ mcp__vscode__get_diagnostics({
 
 **Example:**
 <tool-use-template>
-mcp__vscode__rename_symbol({
+mcp__plugin_vscode_vscode__rename_symbol({
   workspace_path: "/workspace",
   filePath: "packages/api/src/services/user.ts",
   symbol: "getUserById",
@@ -117,21 +117,21 @@ mcp__vscode__rename_symbol({
 **Example:**
 <tool-use-template>
 // Format document
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "editor.action.formatDocument",
   args: "[]"
 })
 
 // Auto-fix all issues
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "editor.action.fixAll",
   args: "[]"
 })
 
 // Save all files
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "workbench.action.files.saveAll",
   args: "[]"
@@ -149,7 +149,7 @@ mcp__vscode__execute_command({
 
 **Example:**
 <tool-use-template>
-mcp__vscode__open_files({
+mcp__plugin_vscode_vscode__open_files({
   workspace_path: "/workspace",
   files: [
     { filePath: "packages/api/src/user.ts", showEditor: true },
@@ -192,7 +192,7 @@ mcp__vscode__open_files({
 
 <tool-use-template>
 // 1. Get comprehensive symbol information
-mcp__vscode__get_symbol_lsp_info({
+mcp__plugin_vscode_vscode__get_symbol_lsp_info({
   workspace_path: "/workspace",
   filePath: "packages/api/src/services/user.ts",
   symbol: "UserService",
@@ -200,7 +200,7 @@ mcp__vscode__get_symbol_lsp_info({
 })
 
 // 2. Find all references
-mcp__vscode__get_references({
+mcp__plugin_vscode_vscode__get_references({
   workspace_path: "/workspace",
   filePath: "packages/api/src/services/user.ts",
   symbol: "UserService",
@@ -212,14 +212,14 @@ mcp__vscode__get_references({
 
 <tool-use-template>
 // 1. Check current diagnostics
-mcp__vscode__get_diagnostics({
+mcp__plugin_vscode_vscode__get_diagnostics({
   workspace_path: "/workspace",
   filePaths: [],
   severities: ["error"]
 })
 
 // 2. Rename symbol
-mcp__vscode__rename_symbol({
+mcp__plugin_vscode_vscode__rename_symbol({
   workspace_path: "/workspace",
   filePath: "packages/api/src/services/user.ts",
   symbol: "getUserById",
@@ -227,20 +227,20 @@ mcp__vscode__rename_symbol({
 })
 
 // 3. Check for new errors
-mcp__vscode__get_diagnostics({
+mcp__plugin_vscode_vscode__get_diagnostics({
   workspace_path: "/workspace",
   filePaths: [],
   severities: ["error"]
 })
 
 // 4. Auto-fix and format
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "editor.action.fixAll",
   args: "[]"
 })
 
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "editor.action.formatDocument",
   args: "[]"
@@ -251,28 +251,28 @@ mcp__vscode__execute_command({
 
 <tool-use-template>
 // 1. Get diagnostics for modified files
-mcp__vscode__get_diagnostics({
+mcp__plugin_vscode_vscode__get_diagnostics({
   workspace_path: "/workspace",
   filePaths: [],  // Auto-detects git modified files
   severities: ["error", "warning"]
 })
 
 // 2. Auto-fix issues
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "editor.action.fixAll",
   args: "[]"
 })
 
 // 3. Format code
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "editor.action.formatDocument",
   args: "[]"
 })
 
 // 4. Save all
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "workbench.action.files.saveAll",
   args: "[]"
@@ -283,7 +283,7 @@ mcp__vscode__execute_command({
 
 <tool-use-template>
 // 1. Get diagnostics for a specific file
-mcp__vscode__get_diagnostics({
+mcp__plugin_vscode_vscode__get_diagnostics({
   workspace_path: "/workspace",
   filePaths: ["packages/api/src/user.ts"],
   severities: ["error"],
@@ -291,7 +291,7 @@ mcp__vscode__get_diagnostics({
 })
 
 // 2. Get type information for problematic symbols
-mcp__vscode__get_symbol_lsp_info({
+mcp__plugin_vscode_vscode__get_symbol_lsp_info({
   workspace_path: "/workspace",
   filePath: "packages/api/src/user.ts",
   symbol: "User",
@@ -299,7 +299,7 @@ mcp__vscode__get_symbol_lsp_info({
 })
 
 // 3. Check hover documentation for more context
-mcp__vscode__get_symbol_lsp_info({
+mcp__plugin_vscode_vscode__get_symbol_lsp_info({
   workspace_path: "/workspace",
   filePath: "packages/api/src/user.ts",
   symbol: "User",
@@ -315,14 +315,14 @@ When using `get_references`, always provide the file where the symbol is **defin
 
 <tool-use-template>
 // ✅ Correct - using the file where UserService is defined
-mcp__vscode__get_references({
+mcp__plugin_vscode_vscode__get_references({
   workspace_path: "/workspace",
   filePath: "packages/api/src/services/user.ts",  // Definition file
   symbol: "UserService"
 })
 
 // ❌ Incorrect - using a file where it's imported
-mcp__vscode__get_references({
+mcp__plugin_vscode_vscode__get_references({
   workspace_path: "/workspace",
   filePath: "packages/api/src/controllers/user.ts",  // Import location
   symbol: "UserService"
@@ -335,7 +335,7 @@ For `get_diagnostics`, use an empty array to automatically check all git-modifie
 
 <tool-use-template>
 // ✅ Recommended - auto-detects modified files
-mcp__vscode__get_diagnostics({
+mcp__plugin_vscode_vscode__get_diagnostics({
   workspace_path: "/workspace",
   filePaths: [],
   severities: ["error"]
@@ -348,7 +348,7 @@ When multiple symbols have the same name, use `codeSnippet` to disambiguate:
 
 <tool-use-template>
 // Multiple "Task" symbols exist (interface, class, type)
-mcp__vscode__get_symbol_lsp_info({
+mcp__plugin_vscode_vscode__get_symbol_lsp_info({
   workspace_path: "/workspace",
   filePath: "packages/models/src/task.ts",
   symbol: "Task",
@@ -363,21 +363,21 @@ After editing, chain format + fix + save:
 
 <tool-use-template>
 // 1. Auto-fix
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "editor.action.fixAll",
   args: "[]"
 })
 
 // 2. Format
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "editor.action.formatDocument",
   args: "[]"
 })
 
 // 3. Save all
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "workbench.action.files.saveAll",
   args: "[]"
@@ -390,7 +390,7 @@ Use severity and source filters to focus on relevant issues:
 
 <tool-use-template>
 // Only TypeScript errors
-mcp__vscode__get_diagnostics({
+mcp__plugin_vscode_vscode__get_diagnostics({
   workspace_path: "/workspace",
   filePaths: [],
   severities: ["error"],
@@ -398,7 +398,7 @@ mcp__vscode__get_diagnostics({
 })
 
 // Only ESLint warnings
-mcp__vscode__get_diagnostics({
+mcp__plugin_vscode_vscode__get_diagnostics({
   workspace_path: "/workspace",
   filePaths: [],
   severities: ["warning"],
@@ -412,7 +412,7 @@ mcp__vscode__get_diagnostics({
 
 <tool-use-template>
 // Wrong - this will fail or return incorrect results
-mcp__vscode__get_references({
+mcp__plugin_vscode_vscode__get_references({
   filePath: "packages/api/src/controllers/user.ts",  // Where it's used
   symbol: "UserService"
 })
@@ -422,7 +422,7 @@ mcp__vscode__get_references({
 
 <tool-use-template>
 // Correct - find definition first, then get references
-mcp__vscode__get_references({
+mcp__plugin_vscode_vscode__get_references({
   filePath: "packages/api/src/services/user.ts",  // Where it's defined
   symbol: "UserService"
 })
@@ -432,7 +432,7 @@ mcp__vscode__get_references({
 
 <tool-use-template>
 // Wrong - args as array
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "vscode.open",
   args: ["file:///workspace/file.ts"]  // Wrong type
@@ -443,7 +443,7 @@ mcp__vscode__execute_command({
 
 <tool-use-template>
 // Correct - args as JSON string
-mcp__vscode__execute_command({
+mcp__plugin_vscode_vscode__execute_command({
   workspace_path: "/workspace",
   command: "vscode.open",
   args: '["file:///workspace/file.ts"]'  // JSON string
@@ -490,7 +490,7 @@ Before using VSCode MCP tools:
 Verify the connection:
 
 <tool-use-template>
-mcp__vscode__health_check({
+mcp__plugin_vscode_vscode__health_check({
   workspace_path: "/workspace"
 })
 </tool-use-template>
@@ -500,7 +500,7 @@ mcp__vscode__health_check({
 Find available workspaces:
 
 <tool-use-template>
-mcp__vscode__list_workspaces()
+mcp__plugin_vscode_vscode__list_workspaces()
 </tool-use-template>
 
 ## Troubleshooting
@@ -534,7 +534,7 @@ mcp__vscode__list_workspaces()
 
 <tool-use-template>
 // Get all symbol information at once
-mcp__vscode__get_symbol_lsp_info({
+mcp__plugin_vscode_vscode__get_symbol_lsp_info({
   workspace_path: "/workspace",
   filePath: "packages/api/src/user.ts",
   symbol: "UserService",
@@ -546,7 +546,7 @@ mcp__vscode__get_symbol_lsp_info({
 
 <tool-use-template>
 // Get references with surrounding code for context
-mcp__vscode__get_references({
+mcp__plugin_vscode_vscode__get_references({
   workspace_path: "/workspace",
   filePath: "packages/api/src/services/user.ts",
   symbol: "UserService",
@@ -559,7 +559,7 @@ mcp__vscode__get_references({
 
 <tool-use-template>
 // Check only specific error types in specific files
-mcp__vscode__get_diagnostics({
+mcp__plugin_vscode_vscode__get_diagnostics({
   workspace_path: "/workspace",
   filePaths: ["packages/api/src/user.ts", "packages/api/src/auth.ts"],
   severities: ["error"],

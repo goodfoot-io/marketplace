@@ -24,7 +24,7 @@ Create a structured project plan for the user's request, then assess its quality
 1. **YAGNI (You Aren't Gonna Need It)**: Include only what directly solves the problem
 2. **No estimates**: Exclude time estimates, phases, or resource allocations  
 3. **Mandatory assessment**: You must assess every plan using the Task tool
-4. **Append-only logging**: Never edit existing log content. Always append new entries to the project log using the `mcp__file__append` tool function
+4. **Append-only logging**: Never edit existing log content. Always append new entries to the project log using the Bash tool with heredoc formatting
 5. **Version verification**: Always identify and document framework/SDK versions before feature work
 6. **Self-contained plans**: Each plan must be a complete, independent document without references to other plan versions
 </core-constraints>
@@ -34,12 +34,11 @@ Create a structured project plan for the user's request, then assess its quality
 # Initialize new project
 PROJECT_DIR=$(initialize-project "[PROJECT_NAME]")
 
-# To append to project log (never edit existing content), use the mcp__file__append tool function:
+# To append to project log (never edit existing content), use the Bash tool with heredoc:
 # Note: Use $PROJECT_DIR if available from bash context, otherwise use absolute path
-mcp__file__append(
-  file_path="[ABSOLUTE_PROJECT_PATH]/log.md",  # or "$PROJECT_DIR/log.md" if in bash context
-  content="[NEW_LOG_ENTRY]"
-)
+cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+[NEW_LOG_ENTRY]
+EOF
 
 # Create or update plan (auto-versioned)
 create-plan-version "[PROJECT_NAME]" "[PLAN_CONTENT]"
@@ -428,7 +427,7 @@ The assessor provides:
      Research the codebase to understand current system behavior and architectural patterns that inform the technical decisions.")
    </tool-use-template>
 3. **Check for user feedback** - If user provides corrections or clarifications:
-   - Log feedback using the `mcp__file__append` tool function to append to [ABSOLUTE_PROJECT_PATH]/log.md
+   - Log feedback using the Bash tool with heredoc to append to [ABSOLUTE_PROJECT_PATH]/log.md
    - Proceed to Step 4 to address the feedback
 4. If no user feedback, HALT - the plan is complete
 
@@ -548,12 +547,11 @@ Verify initialization succeeded before proceeding.
 
 Immediately append the user's request and your initial understanding to the project log. Capture ALL context, not just the command arguments:
 
-<tool-use-template>
-mcp__file__append(
-  file_path="[ABSOLUTE_PROJECT_PATH]/log.md",
-  content="## User Request
+```bash
+cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+## User Request
 
-\"[Copy the user's exact request verbatim, including all details]\"
+"[Copy the user's exact request verbatim, including all details]"
 
 Additional context from the conversation:
 - [Any clarifications the user provided]
@@ -570,9 +568,8 @@ Key aspects of this request:
 - [Scope or boundaries of the solution]
 - [Technical constraints or requirements]
 - [Any assumptions about unstated requirements]
-"
-)
-</tool-use-template>
+EOF
+```
 
 ### Step 4: Research Technical Context (Parallel Analysis)
 
@@ -624,10 +621,9 @@ After researching the codebase, identify critical dependencies using `print-inve
 
 After research, record key discoveries including the technology stack, framework constraints, and any assumption test results:
 
-<tool-use-template>
-mcp__file__append(
-  file_path="[ABSOLUTE_PROJECT_PATH]/log.md",
-  content="## Research Findings
+```bash
+cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+## Research Findings
 
 I discovered several important aspects that will shape our approach:
 
@@ -676,9 +672,8 @@ Based on the project:assumption-tester's structured return:
 - Need to [coordination requirement]
 - [How test results affect the approach]
 - [Any constraints discovered through testing]
-"
-)
-</tool-use-template>
+EOF
+```
 
 ## Phase 2: Plan Creation
 

@@ -100,7 +100,7 @@ Evaluate each test through this decision sequence:
 ### Step 4: Generate Output
 
 Check if the user specified an output file:
-- If an output file was provided, use `mcp__file__append` to append each test evaluation to that file
+- If an output file was provided, use the Bash tool with heredoc to append each test evaluation to that file
 - If no output file was specified, present the findings as a regular message
 
 For each test, format the evaluation as:
@@ -133,11 +133,11 @@ Evidence:
 - Location: [file:line numbers where issue found]
 ```
 
-When appending to a file, use the `mcp__file__append` tool function:
-```
-mcp__file__append(
-  file_path="[ABSOLUTE_OUTPUT_FILE_PATH]",
-  content="Test: [name]
+When appending to a file, use the Bash tool with heredoc. Example:
+
+```bash
+cat >> "[ABSOLUTE_OUTPUT_FILE_PATH]" <<'EOF'
+Test: [name]
 Test File Path: [test_file_path]
 Category: [KEEP|REMOVE|FIX|REORGANIZE|ENHANCE]
 
@@ -145,8 +145,7 @@ Description:
 ...
 
 ---
-"
-)
+EOF
 ```
 
 Do not include a summary report.

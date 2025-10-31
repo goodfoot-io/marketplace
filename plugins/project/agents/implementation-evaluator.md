@@ -125,14 +125,13 @@ Implementation must meet ALL criteria:
 </implementation-report-format>
 
 <output-method>
-Append evaluation results directly to project log using the `mcp__file__append` tool function:
+Append evaluation results directly to project log using the Bash tool with heredoc:
 
-<tool-use-template>
-mcp__file__append(
-  file_path="[ABSOLUTE_PROJECT_PATH]/log.md",
-  content="[Use the complete Implementation Evaluation format from above]"
-)
-</tool-use-template>
+```bash
+cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+[Use the complete Implementation Evaluation format from above]
+EOF
+```
 
 Note: Use the full report format defined in `<implementation-report-format>` section above.
 </output-method>

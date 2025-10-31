@@ -919,19 +919,19 @@ The evaluator returns: Status (PRODUCTION_READY, CONTINUE, or BLOCKED), Issues, 
 If this was an early evaluation (session recovery), return to Phase 3 to incorporate findings.
 
 **BLOCKED** (system-level failure):
-1. Log blocking decision using `mcp__file__append`
+1. Log blocking decision using the Bash tool with heredoc
 2. Provide summary to user
 3. HALT execution
 
 **PRODUCTION_READY:**
 1. Commit final state: `git commit -m "production-ready: $PROJECT_NAME"`
-2. Log success using `mcp__file__append`
+2. Log success using the Bash tool with heredoc
 3. Move to ready-for-review: `mv [PROJECT_PATH] projects/ready-for-review/`
 4. Provide summary to user
 5. HALT execution
 
 **CONTINUE** (quality issues):
-1. Log decision using `mcp__file__append`
+1. Log decision using the Bash tool with heredoc
 2. Document specific issues for next iteration
 3. Run complete-iteration command below
 

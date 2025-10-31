@@ -18,12 +18,12 @@ For example, [SLASH_COMMAND_EXAMPLE_USAGE] might be `/review:find-inconsistencie
 
 <testing>
 Always use the Bash tool to run tests. Note: Only slash commands can be tested this way.
-<tool-use-template>
-Bash(
-  command='claude -p "[SLASH_COMMAND_EXAMPLE_USAGE]" --mcp-config \'{"mcpServers":{}}\' --disallowedTools "[TOOLS_NOT_NEEDED]"',
-  timeout=600000
-)
-</tool-use-template>
+
+```bash
+claude -p "[SLASH_COMMAND_EXAMPLE_USAGE]" --mcp-config '{"mcpServers":{}}' --disallowedTools "[TOOLS_NOT_NEEDED]"
+# timeout: 600000ms (10 minutes)
+```
+
 Determine which tool functions the [SLASH_COMMAND_EXAMPLE_USAGE] needs, then disallow all others. Replace [TOOLS_NOT_NEEDED] with this list, as defined in @documentation/claude-code-slash-commands.md
 
 Example: Pure analysis command → disallow "Bash, Edit, MultiEdit, Write, TodoWrite"

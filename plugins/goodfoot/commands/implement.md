@@ -66,21 +66,15 @@ Task({
 
 If [TASKS] specifies parallel execution, verify task independence:
 
-<tool-use-template>
-// Check what files a target depends on
-Bash(
-  command="print-dependencies packages/api/src/services/user.ts",
-  description="List all files that user.ts imports"
-)
+```bash
+# Check what files a target depends on
+print-dependencies packages/api/src/services/user.ts
 
-// Check what would be affected by changes
-Bash(
-  command="print-inverse-dependencies packages/shared/types/user.ts",
-  description="Show files that import this type - impact scope"
-)
+# Check what would be affected by changes
+print-inverse-dependencies packages/shared/types/user.ts
 
-// If tasks modify overlapping files or dependencies, execute sequentially
-</tool-use-template>
+# If tasks modify overlapping files or dependencies, execute sequentially
+```
 
 ### Step 1.4: Output Execution Strategy
 
@@ -163,48 +157,33 @@ Track which tasks complete successfully and which encounter issues.
 
 Use git to find all modified files and determine [AFFECTED_PACKAGES]:
 
-<tool-use-template>
-Bash(
-  command="git diff --name-only HEAD",
-  description="List all modified files"
-)
-</tool-use-template>
+```bash
+git diff --name-only HEAD
+```
 
 ### Step 3.2: Run Validation
 
 For each package in [AFFECTED_PACKAGES], run the validation steps from [VALIDATION]:
 
-<tool-use-template>
-// Typecheck
-Bash(
-  command="cd packages/[PACKAGE] && yarn typecheck 2>&1",
-  description="Check TypeScript types"
-)
+```bash
+# Typecheck
+cd packages/[PACKAGE] && yarn typecheck 2>&1
 
-// Tests (if test files exist)
-Bash(
-  command="cd packages/[PACKAGE] && yarn test 2>&1",
-  description="Run test suite"
-)
+# Tests (if test files exist)
+cd packages/[PACKAGE] && yarn test 2>&1
 
-// Lint
-Bash(
-  command="cd packages/[PACKAGE] && yarn lint 2>&1",
-  description="Check code style"
-)
-</tool-use-template>
+# Lint
+cd packages/[PACKAGE] && yarn lint 2>&1
+```
 
 If any validation fails:
 1. Capture the specific errors (file paths, line numbers, error codes)
 2. Analyze impact using dependency tools:
 
-<tool-use-template>
-// For type errors in a specific file
-Bash(
-  command="print-inverse-dependencies packages/api/src/types/user.ts",
-  description="Show files that import this type - potential impact scope"
-)
-</tool-use-template>
+```bash
+# For type errors in a specific file
+print-inverse-dependencies packages/api/src/types/user.ts
+```
 
 3. Use Task with "codebase-analysis" subagent to investigate root causes with full paths
 4. Report issues to user with analysis

@@ -144,25 +144,16 @@ Extract:
 
 ### Step 2.4: Trace Dependencies and Impact
 
-<tool-use-template>
-// What does this file depend on?
-Bash(
-  command="print-dependencies packages/api/src/services/user.ts",
-  description="List all files that user.ts imports"
-)
+```bash
+# What does this file depend on?
+print-dependencies packages/api/src/services/user.ts
 
-// What depends on this file?
-Bash(
-  command="print-inverse-dependencies packages/api/src/services/user.ts",
-  description="Show files that import this code - helps understand usage context"
-)
+# What depends on this file?
+print-inverse-dependencies packages/api/src/services/user.ts
 
-// For complex functions, check complexity
-Bash(
-  command="print-type-analysis packages/api/src/services/user.ts | grep -A 1 'complexity:'",
-  description="Show function complexity scores"
-)
-</tool-use-template>
+# For complex functions, check complexity
+print-type-analysis packages/api/src/services/user.ts | grep -A 1 'complexity:'
+```
 
 High complexity (>10) indicates need for detailed remarks about algorithm complexity or behavior.
 
@@ -427,12 +418,9 @@ Document how they transform the input and what they add.
 
 Ensure documentation doesn't break types:
 
-<tool-use-template>
-Bash(
-  command="yarn tsc --noEmit",
-  description="Check TypeScript compilation with new JSDoc"
-)
-</tool-use-template>
+```bash
+yarn tsc --noEmit
+```
 
 ### Step 4.2: Check Documentation Quality
 
@@ -464,23 +452,17 @@ For each documented file, verify:
 
 If ESLint with JSDoc plugin is configured:
 
-<tool-use-template>
-Bash(
-  command="yarn lint",
-  description="Check JSDoc formatting and completeness"
-)
-</tool-use-template>
+```bash
+yarn lint
+```
 
 ### Step 4.4: Generate Preview
 
 If TypeDoc or similar tool is available:
 
-<tool-use-template>
-Bash(
-  command="yarn docs:generate",
-  description="Generate documentation to preview rendered output"
-)
-</tool-use-template>
+```bash
+yarn docs:generate
+```
 
 ## Phase 5: Report Results
 
