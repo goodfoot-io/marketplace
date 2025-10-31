@@ -38,26 +38,26 @@ Parse the user's request to identify:
 
 Use Task with "codebase-analysis" subagent to investigate relevant code (MUST include full paths):
 
-<tool-use-template>
-// Examples - adapt to specific request:
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "Authentication implementation",
-  prompt: "How is authentication implemented in packages/api/src/auth?"
-})
+```xml
+<!-- Examples - adapt to specific request: -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">Authentication implementation</parameter>
+<parameter name="prompt">How is authentication implemented in packages/api/src/auth?</parameter>
+</invoke>
 
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "User type imports",
-  prompt: "What files import the User type from packages/shared/types/user.ts?"
-})
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">User type imports</parameter>
+<parameter name="prompt">What files import the User type from packages/shared/types/user.ts?</parameter>
+</invoke>
 
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "Repository patterns",
-  prompt: "What Repository pattern implementations exist in packages/api/src/repositories?"
-})
-</tool-use-template>
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">Repository patterns</parameter>
+<parameter name="prompt">What Repository pattern implementations exist in packages/api/src/repositories?</parameter>
+</invoke>
+```
 
 ### Step 1.2: Analyze Dependencies
 
@@ -159,11 +159,11 @@ Ask: **"Does this plan look correct? Should I proceed with implementation?"**
 
 For each task, prepare comprehensive context with testing requirements from the plan:
 
-<tool-use-template>
-Task(
-  description="[short-task-name]",
-  subagent_type="general-purpose",
-  prompt=`# Task: [Full description with testing requirements from plan]
+```xml
+<invoke name="Task">
+<parameter name="description">[short-task-name]</parameter>
+<parameter name="subagent_type">general-purpose</parameter>
+<parameter name="prompt"># Task: [Full description with testing requirements from plan]
 
 ## Context
 [Explain what needs to be done and why]
@@ -185,9 +185,9 @@ Task(
 - Implementation complete and functional
 - [Tests pass (if tests required)]
 - Types are correct
-- Follows existing code patterns`
-)
-</tool-use-template>
+- Follows existing code patterns</parameter>
+</invoke>
+```
 
 ### Step 2.2: Verify Independence (For Parallel Only)
 
@@ -217,11 +217,22 @@ Launch tasks one at a time, waiting for each to complete before starting the nex
 **For Parallel Tasks** (after independence verification):
 Launch all independent tasks in a single message:
 
-<tool-use-template>
-Task(description="task-1", ...)
-Task(description="task-2", ...)
-Task(description="task-3", ...)
-</tool-use-template>
+```xml
+<invoke name="Task">
+<parameter name="description">task-1</parameter>
+<!-- ... additional parameters ... -->
+</invoke>
+
+<invoke name="Task">
+<parameter name="description">task-2</parameter>
+<!-- ... additional parameters ... -->
+</invoke>
+
+<invoke name="Task">
+<parameter name="description">task-3</parameter>
+<!-- ... additional parameters ... -->
+</invoke>
+```
 
 ### Step 2.4: Monitor Completion
 

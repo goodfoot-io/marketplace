@@ -44,25 +44,25 @@ Documentation must include:
 
 For each path in [PATHS]:
 
-<tool-use-template>
-// If path is a specific file
-Read(
-  file_path="[PATH]"
-)
+```xml
+<!-- If path is a specific file -->
+<invoke name="Read">
+<parameter name="file_path">[PATH]</parameter>
+</invoke>
 
-// If path is a directory, find all TypeScript files
-Glob(
-  pattern="**/*.ts",
-  path="[PATH]"
-)
+<!-- If path is a directory, find all TypeScript files -->
+<invoke name="Glob">
+<parameter name="pattern">**/*.ts</parameter>
+<parameter name="path">[PATH]</parameter>
+</invoke>
 
-// Exclude test files, type definitions, and generated files
-Glob(
-  pattern="**/*.{test,spec}.ts",
-  path="[PATH]"
-)
-// Filter these out from documentation targets
-</tool-use-template>
+<!-- Exclude test files, type definitions, and generated files -->
+<invoke name="Glob">
+<parameter name="pattern">**/*.{test,spec}.ts</parameter>
+<parameter name="path">[PATH]</parameter>
+</invoke>
+<!-- Filter these out from documentation targets -->
+```
 
 Create [TARGET_FILES] list, excluding:
 - Test files (`*.test.ts`, `*.spec.ts`)
@@ -76,11 +76,11 @@ For each file in [TARGET_FILES], gather comprehensive context:
 
 ### Step 2.1: Read Current State
 
-<tool-use-template>
-Read(
-  file_path="packages/api/src/services/user.ts"
-)
-</tool-use-template>
+```xml
+<invoke name="Read">
+<parameter name="file_path">packages/api/src/services/user.ts</parameter>
+</invoke>
+```
 
 Identify:
 - Exported functions, classes, methods, interfaces
@@ -91,50 +91,44 @@ Identify:
 
 Use codebase analysis to understand what the code does:
 
-<tool-use-template>
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "UserService class analysis",
-  prompt: "What does the UserService class in packages/api/src/services/user.ts do? Show:
-  - Primary purpose and responsibilities
-  - Key methods and their execution flow
-  - Dependencies on other services or utilities
-  - Data transformations performed"
-})
+```xml
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What does the UserService class in packages/api/src/services/user.ts do? Show:
+- Primary purpose and responsibilities
+- Key methods and their execution flow
+- Dependencies on other services or utilities
+- Data transformations performed</parameter>
+</invoke>
 
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "createUser function analysis",
-  prompt: "For the createUser function in packages/api/src/services/user.ts:
-  - What are all the parameters and their valid ranges/constraints?
-  - What does it return and under what conditions?
-  - What errors can it throw and when?
-  - What side effects does it have (database writes, cache updates, etc.)?"
-})
-</tool-use-template>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">For the createUser function in packages/api/src/services/user.ts:
+- What are all the parameters and their valid ranges/constraints?
+- What does it return and under what conditions?
+- What errors can it throw and when?
+- What side effects does it have (database writes, cache updates, etc.)?</parameter>
+</invoke>
+```
 
 ### Step 2.3: Find Usage Examples
 
 Find test files and real-world usage:
 
-<tool-use-template>
-// Find test files for this module
-Glob(
-  pattern="**/*.{test,spec}.ts"
-)
+```xml
+<!-- Find test files for this module -->
+<invoke name="Glob">
+<parameter name="pattern">**/*.{test,spec}.ts</parameter>
+</invoke>
 
-// Read relevant test file
-Read(
-  file_path="packages/api/src/services/user.test.ts"
-)
+<!-- Read relevant test file -->
+<invoke name="Read">
+<parameter name="file_path">packages/api/src/services/user.test.ts</parameter>
+</invoke>
 
-// Find all places this code is used
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "UserService usage examples",
-  prompt: "What files import and use the UserService from packages/api/src/services/user.ts? Show concrete usage examples with context."
-})
-</tool-use-template>
+<!-- Find all places this code is used -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What files import and use the UserService from packages/api/src/services/user.ts? Show concrete usage examples with context.</parameter>
+</invoke>
+```
 
 Extract:
 - Real-world usage patterns for `@example` tags
@@ -159,21 +153,17 @@ High complexity (>10) indicates need for detailed remarks about algorithm comple
 
 ### Step 2.5: Research Type Information
 
-<tool-use-template>
-// Find type definitions
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "User type definition",
-  prompt: "What is the complete type definition for User in packages/api/src/types/user.ts? Show all properties, their types, and whether they're optional."
-})
+```xml
+<!-- Find type definitions -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What is the complete type definition for User in packages/api/src/types/user.ts? Show all properties, their types, and whether they're optional.</parameter>
+</invoke>
 
-// Understand generic constraints
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "Generic constraints analysis",
-  prompt: "For the generic function processData<T extends BaseEntity> in packages/api/src/utils/processor.ts, what constraints exist on T and why?"
-})
-</tool-use-template>
+<!-- Understand generic constraints -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">For the generic function processData&lt;T extends BaseEntity&gt; in packages/api/src/utils/processor.ts, what constraints exist on T and why?</parameter>
+</invoke>
+```
 
 ## Phase 3: Generate Documentation
 
@@ -275,14 +265,14 @@ For each exported function, class, method, or interface, create documentation fo
 
 For each file, use the Edit tool to add or update JSDoc:
 
-<tool-use-template>
-Edit(
-  file_path="packages/api/src/services/user.ts",
-  old_string="export class UserService {
+```xml
+<invoke name="Edit">
+<parameter name="file_path">packages/api/src/services/user.ts</parameter>
+<parameter name="old_string">export class UserService {
   constructor(private db: Database) {}
 
-  async createUser(data: CreateUserData): Promise<User> {",
-  new_string="/**
+  async createUser(data: CreateUserData): Promise&lt;User&gt; {</parameter>
+<parameter name="new_string">/**
  * Service for managing user lifecycle operations including creation, updates, and deletion.
  *
  * @remarks
@@ -341,9 +331,9 @@ export class UserService {
    * @see {@link updateUser} for modifying existing users
    * @see {@link User} for the complete user type definition
    */
-  async createUser(data: CreateUserData): Promise<User> {"
-)
-</tool-use-template>
+  async createUser(data: CreateUserData): Promise&lt;User&gt; {</parameter>
+</invoke>
+```
 
 **Preservation Rules:**
 - Keep existing JSDoc if it's high quality; enhance it rather than replace

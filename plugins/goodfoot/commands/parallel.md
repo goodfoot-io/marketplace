@@ -86,30 +86,35 @@ If the `<user-message>` is "Document the components of `packages/website/server`
 </example>
 </input-format>
 
-<tool-use-template>
-// Total Task() calls = (number of distinct tasks) × [REDUNDANCY_LEVEL]
-// Example: 3 subdivided tasks with REDUNDANCY_LEVEL=2 requires 6 Task() calls
+```xml
+<!-- Total Task() calls = (number of distinct tasks) × [REDUNDANCY_LEVEL] -->
+<!-- Example: 3 subdivided tasks with REDUNDANCY_LEVEL=2 requires 6 Task() calls -->
 
-Task(description="[TASK_NAME]-1",  // Add number suffix when REDUNDANCY_LEVEL > 1
-    subagent_type="[SUBAGENT_TYPE]",
-    prompt="<task>
-    [TASK]
-    </task>
-    <context>
-    [TASK_CONTEXT]
-    </context>
-    ")
+<!-- Add number suffix when REDUNDANCY_LEVEL > 1 -->
+<invoke name="Task">
+<parameter name="description">[TASK_NAME]-1</parameter>
+<parameter name="subagent_type">[SUBAGENT_TYPE]</parameter>
+<parameter name="prompt"><task>
+[TASK]
+</task>
+<context>
+[TASK_CONTEXT]
+</context>
+</parameter>
+</invoke>
 
-Task(description="[TASK_NAME]-2",
-    subagent_type="[SUBAGENT_TYPE]",
-    prompt="<task>
-    [TASK]
-    </task>
-    <context>
-    [TASK_CONTEXT]
-    </context>
-    ")
-</tool-use-template>
+<invoke name="Task">
+<parameter name="description">[TASK_NAME]-2</parameter>
+<parameter name="subagent_type">[SUBAGENT_TYPE]</parameter>
+<parameter name="prompt"><task>
+[TASK]
+</task>
+<context>
+[TASK_CONTEXT]
+</context>
+</parameter>
+</invoke>
+```
 
 Combine all `Task()` calls into a single message to execute simultaneously. Never launch sequentially.
 

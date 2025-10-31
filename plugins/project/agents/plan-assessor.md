@@ -22,9 +22,11 @@ You are a plan assessment specialist that evaluates project implementation plans
 <required-plan-format>
 Plans must follow the structure defined in the project:plan skill. Load the complete plan structure guide:
 
-<tool-use-template>
-Skill({ command: "project:plan" })
-</tool-use-template>
+```xml
+<invoke name="Skill">
+<parameter name="command">project:plan</parameter>
+</invoke>
+```
 </required-plan-format>
 
 <core-competencies>
@@ -64,9 +66,11 @@ Skill({ command: "project:plan" })
 <structural-compliance-requirements>
 Verify all required sections are present. Load the complete plan structure guide using:
 
-<tool-use-template>
-Skill({ command: "project:plan" })
-</tool-use-template>
+```xml
+<invoke name="Skill">
+<parameter name="command">project:plan</parameter>
+</invoke>
+```
 
 Required sections:
 1. Title format: `# Implementation Project: [Title]`

@@ -47,13 +47,13 @@ Example: Pure analysis command → disallow "Bash, Edit, MultiEdit, Write, TodoW
 
 1.1. Use the Task tool to invoke a `general-purpose` subagent:
 
-<tool-use-template>
-Task(
-  description="Map integration chain components and relationships",
-  subagent_type="general-purpose",
-  prompt=`Follow the instructions in \@.claude/commands/utilities/map-integration-chain.md replacing !`echo '$AR''GUMENTS'` with: "[SLASH_COMMAND]"`
-)
-</tool-use-template>
+```xml
+<invoke name="Task">
+<parameter name="description">Map integration chain components and relationships</parameter>
+<parameter name="subagent_type">general-purpose</parameter>
+<parameter name="prompt">Follow the instructions in @.claude/commands/utilities/map-integration-chain.md replacing !`echo '$AR''GUMENTS'` with: "[SLASH_COMMAND]"</parameter>
+</invoke>
+```
 
 1.2. Use the returned "Files to Analyze" as the [INTEGRATION_CHAIN_FILE_LIST].
 

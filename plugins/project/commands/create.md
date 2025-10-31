@@ -83,21 +83,25 @@ Proceed with documented assumptions if the ambiguity only affects implementation
 
 For EVERY file path you plan to include, you MUST verify in this exact sequence:
 
-<tool-use-template>
-# Step 1: Find the file (if unsure of exact path)
-Glob(pattern="**/filename.ts")
+```xml
+<!-- Step 1: Find the file (if unsure of exact path) -->
+<invoke name="Glob">
+<parameter name="pattern">**/filename.ts</parameter>
+</invoke>
 
-# Step 2: Get dependency count (for impact assessment) - REQUIRED
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "yjs.ts dependencies",
-  prompt: "What files depend on packages/website/app/hooks/yjs.ts and what is the impact if it changes?"
-})
+<!-- Step 2: Get dependency count (for impact assessment) - REQUIRED -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">yjs.ts dependencies</parameter>
+<parameter name="prompt">What files depend on packages/website/app/hooks/yjs.ts and what is the impact if it changes?</parameter>
+</invoke>
 
-# Step 3: Read for line numbers (when planning modifications)
-Read(file_path="/workspace/packages/website/app/hooks/yjs.ts")
-# Only use "new file" for files that don't exist yet
-</tool-use-template>
+<!-- Step 3: Read for line numbers (when planning modifications) -->
+<invoke name="Read">
+<parameter name="file_path">/workspace/packages/website/app/hooks/yjs.ts</parameter>
+</invoke>
+<!-- Only use "new file" for files that don't exist yet -->
+```
 
 #### When to Use Sequential vs Parallel Research
 - **Sequential**: When each query depends on previous results or exploring unknown areas
@@ -106,38 +110,38 @@ Read(file_path="/workspace/packages/website/app/hooks/yjs.ts")
 #### Core Research Pattern (Parallel Execution)
 When investigating multiple independent aspects, execute codebase analysis in parallel using a single message with multiple tool invocations:
 
-<tool-use-template>
-# PARALLEL EXECUTION: Send all these tool calls in ONE message for simultaneous analysis
-# Note: The tool provides exhaustive results by default - complete code, all occurrences, line numbers
+```xml
+<!-- PARALLEL EXECUTION: Send all these tool calls in ONE message for simultaneous analysis -->
+<!-- Note: The tool provides exhaustive results by default - complete code, all occurrences, line numbers -->
 
-# First investigation - overall architecture
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "auth implementation",
-  prompt: "How is user authentication implemented in packages/api/src/auth including framework versions, auth flow, and entry points?"
-})
+<!-- First investigation - overall architecture -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">auth implementation</parameter>
+<parameter name="prompt">How is user authentication implemented in packages/api/src/auth including framework versions, auth flow, and entry points?</parameter>
+</invoke>
 
-# Second investigation - implementation patterns (runs in parallel)
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "auth patterns",
-  prompt: "What authentication and authorization patterns exist in packages/api including middleware functions, route protection, and role-based access?"
-})
+<!-- Second investigation - implementation patterns (runs in parallel) -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">auth patterns</parameter>
+<parameter name="prompt">What authentication and authorization patterns exist in packages/api including middleware functions, route protection, and role-based access?</parameter>
+</invoke>
 
-# Third investigation - dependencies and impact (runs in parallel)
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "auth system impact",
-  prompt: "What would be affected if I change the auth system at packages/api/src/auth/?"
-})
+<!-- Third investigation - dependencies and impact (runs in parallel) -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">auth system impact</parameter>
+<parameter name="prompt">What would be affected if I change the auth system at packages/api/src/auth/?</parameter>
+</invoke>
 
-# Fourth investigation - testing infrastructure (runs in parallel)
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "auth testing",
-  prompt: "What auth-related tests exist in packages/api/tests/ and packages/api/src/**/*.test.ts including test database setup and token handling?"
-})
-</tool-use-template>
+<!-- Fourth investigation - testing infrastructure (runs in parallel) -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">auth testing</parameter>
+<parameter name="prompt">What auth-related tests exist in packages/api/tests/ and packages/api/src/**/*.test.ts including test database setup and token handling?</parameter>
+</invoke>
+```
 
 **Important**: All four investigations above should be sent in a SINGLE message to run in parallel, not sequentially.
 </research-patterns>
@@ -171,94 +175,104 @@ Validate assumptions when dealing with:
 
 #### Basic Testing Format
 
-<tool-use-template>
-Task(description="Validate [specific assumption]",
-     subagent_type="project:assumption-tester",
-     prompt="<project>
-     Name: [PROJECT_NAME]
-     Directory: @projects/[STATUS]/[PROJECT_NAME]
-     Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
-     Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
-     </project>
+```xml
+<invoke name="Task">
+<parameter name="description">Validate [specific assumption]</parameter>
+<parameter name="subagent_type">project:assumption-tester</parameter>
+<parameter name="prompt"><project>
+Name: [PROJECT_NAME]
+Directory: @projects/[STATUS]/[PROJECT_NAME]
+Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
+Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
+</project>
 
-     Validate: [specific technical claim to test]
-     Framework versions: [list relevant versions from technology stack]
-     Context: [relevant files or system details]
+Validate: [specific technical claim to test]
+Framework versions: [list relevant versions from technology stack]
+Context: [relevant files or system details]
 
-     Specifically test if the feature/API is available in the identified versions.
-     Create test files in the project's scratchpad/ directory.")
-</tool-use-template>
+Specifically test if the feature/API is available in the identified versions.
+Create test files in the project's scratchpad/ directory.</parameter>
+</invoke>
+```
 
 #### Common Testing Patterns
 
 ##### Type Export Verification
-<tool-use-template>
-Task(description="Verify type exports",
-     subagent_type="project:assumption-tester",
-     prompt="<project>
-     Name: add-user-auth
-     Directory: @projects/new/add-user-auth
-     Plan: @projects/new/add-user-auth/plan-v1.md
-     Log: @projects/new/add-user-auth/log.md
-     </project>
+```xml
+<invoke name="Task">
+<parameter name="description">Verify type exports</parameter>
+<parameter name="subagent_type">project:assumption-tester</parameter>
+<parameter name="prompt"><project>
+Name: add-user-auth
+Directory: @projects/new/add-user-auth
+Plan: @projects/new/add-user-auth/plan-v1.md
+Log: @projects/new/add-user-auth/log.md
+</project>
 
-     Validate: @tanstack/react-query exports UseQueryResult, QueryClient, and QueryClientProvider types that can be imported and used in TypeScript with strict mode
-     Context: packages/website uses these types for data fetching
+Validate: @tanstack/react-query exports UseQueryResult, QueryClient, and QueryClientProvider types that can be imported and used in TypeScript with strict mode
+Context: packages/website uses these types for data fetching
 
-     Create test files in the project's scratchpad/ directory.")
-</tool-use-template>
+Create test files in the project's scratchpad/ directory.</parameter>
+</invoke>
+```
 
 ##### API Behavior Testing
-<tool-use-template>
-Task(description="Test API responses",
-     subagent_type="project:assumption-tester",
-     prompt="<project>
-     Name: add-user-auth
-     Directory: @projects/new/add-user-auth
-     Plan: @projects/new/add-user-auth/plan-v2.md
-     Log: @projects/new/add-user-auth/log.md
-     </project>
+```xml
+<invoke name="Task">
+<parameter name="description">Test API responses</parameter>
+<parameter name="subagent_type">project:assumption-tester</parameter>
+<parameter name="prompt"><project>
+Name: add-user-auth
+Directory: @projects/new/add-user-auth
+Plan: @projects/new/add-user-auth/plan-v2.md
+Log: @projects/new/add-user-auth/log.md
+</project>
 
-     Validate: Supabase auth.signIn returns a session object with user data on successful login and specific error format on failure
-     Context: packages/api/src/auth.ts handles authentication responses
+Validate: Supabase auth.signIn returns a session object with user data on successful login and specific error format on failure
+Context: packages/api/src/auth.ts handles authentication responses
 
-     Create test files in the project's scratchpad/ directory.")
-</tool-use-template>
+Create test files in the project's scratchpad/ directory.</parameter>
+</invoke>
+```
 
 ##### Framework Feature Detection
-<tool-use-template>
-Task(description="Test framework support",
-     subagent_type="project:assumption-tester",
-     prompt="<project>
-     Name: add-form-handling
-     Directory: @projects/new/add-form-handling
-     Plan: @projects/new/add-form-handling/plan-v3.md
-     Log: @projects/new/add-form-handling/log.md
-     </project>
+```xml
+<invoke name="Task">
+<parameter name="description">Test framework support</parameter>
+<parameter name="subagent_type">project:assumption-tester</parameter>
+<parameter name="prompt"><project>
+Name: add-form-handling
+Directory: @projects/new/add-form-handling
+Plan: @projects/new/add-form-handling/plan-v3.md
+Log: @projects/new/add-form-handling/log.md
+</project>
 
-     Validate: Next.js 14 Server Actions can accept FormData input, perform async operations, and return typed responses with proper type inference
-     Context: packages/website/app/actions/form.ts needs server-side form processing
+Validate: Next.js 14 Server Actions can accept FormData input, perform async operations, and return typed responses with proper type inference
+Context: packages/website/app/actions/form.ts needs server-side form processing
 
-     Create test files in the project's scratchpad/ directory.")
-</tool-use-template>
+Create test files in the project's scratchpad/ directory.</parameter>
+</invoke>
+```
 
 ##### Version-Specific Feature Testing
-<tool-use-template>
-Task(description="Test React version features",
-     subagent_type="project:assumption-tester",
-     prompt="<project>
-     Name: add-suspense-boundaries
-     Directory: @projects/new/add-suspense-boundaries
-     Plan: @projects/new/add-suspense-boundaries/plan-v4.md
-     Log: @projects/new/add-suspense-boundaries/log.md
-     </project>
+```xml
+<invoke name="Task">
+<parameter name="description">Test React version features</parameter>
+<parameter name="subagent_type">project:assumption-tester</parameter>
+<parameter name="prompt"><project>
+Name: add-suspense-boundaries
+Directory: @projects/new/add-suspense-boundaries
+Plan: @projects/new/add-suspense-boundaries/plan-v4.md
+Log: @projects/new/add-suspense-boundaries/log.md
+</project>
 
-     Validate: React (react@19.0.0) supports use() hook for promises and Server Components with the identified TypeScript version
-     Framework versions: react@19.0.0, typescript@5.3.0
-     Context: packages/website needs to implement data fetching with Suspense
+Validate: React (react@19.0.0) supports use() hook for promises and Server Components with the identified TypeScript version
+Framework versions: react@19.0.0, typescript@5.3.0
+Context: packages/website needs to implement data fetching with Suspense
 
-     Create test files in the project's scratchpad/ directory.")
-</tool-use-template>
+Create test files in the project's scratchpad/ directory.</parameter>
+</invoke>
+```
 
 #### Processing Test Results
 
@@ -309,13 +323,13 @@ Tests are created in: `projects/[status]/[project]/scratchpad/[test-name]/`
 After researching the codebase, identify critical dependencies:
 
 1. **MANDATORY**: Analyze dependencies for high-impact files using:
-<tool-use-template>
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "middleware dependencies",
-  prompt: "What are the dependencies for packages/api/src/auth/middleware.ts and what needs updating if the interface changes?"
-})
-</tool-use-template>
+```xml
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">middleware dependencies</parameter>
+<parameter name="prompt">What are the dependencies for packages/api/src/auth/middleware.ts and what needs updating if the interface changes?</parameter>
+</invoke>
+```
 
 2. **MANDATORY**: Include the exact count in parentheses: "file.ts (23 imports)"
 3. Note external libraries needed (check if already in package.json)
@@ -333,9 +347,11 @@ Use these thresholds to assess risk:
 <plan-structure-requirements>
 Create your plan following the EXACT structure defined in the project:plan skill. Load the complete plan structure guide:
 
-<tool-use-template>
-Skill({ command: "project:plan" })
-</tool-use-template>
+```xml
+<invoke name="Skill">
+<parameter name="command">project:plan</parameter>
+</invoke>
+```
 
 **CRITICAL**:
 - Do not deviate from this structure. The assessor validates against this exact format.
@@ -376,56 +392,58 @@ The assessor provides:
 
 1. Output the full assessment result (including any style suggestions)
 2. Generate a description for the approved plan, where description-v[N].md correlates to the plan version, i.e. `plan-v2.md` would have `description-v2.md`:
-   <tool-use-template>
-   Task(description="Describe Plan",
-        subagent_type="project:codebase-explainer",
-        prompt="<project>
-     Name: [PROJECT_NAME]
-     Directory: @projects/[STATUS]/[PROJECT_NAME]
-     Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
-     Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
-     </project>
+   ```xml
+   <invoke name="Task">
+   <parameter name="description">Describe Plan</parameter>
+   <parameter name="subagent_type">project:codebase-explainer</parameter>
+   <parameter name="prompt"><project>
+Name: [PROJECT_NAME]
+Directory: @projects/[STATUS]/[PROJECT_NAME]
+Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
+Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
+</project>
 
-     Create a technical project explanation and output to `projects/[STATUS]/[PROJECT_NAME]/description-v[N].md`
+Create a technical project explanation and output to `projects/[STATUS]/[PROJECT_NAME]/description-v[N].md`
 
-     Create a concise narrative technical explanation with these constraints:
+Create a concise narrative technical explanation with these constraints:
 
-     **Length Limits:**
-     - Target: 2x the word count of plan.md
-     - Maximum 5 main sections (including the 3 required sections below)
-     - No subsections deeper than one level (## sections only, avoid ###)
+**Length Limits:**
+- Target: 2x the word count of plan.md
+- Maximum 5 main sections (including the 3 required sections below)
+- No subsections deeper than one level (## sections only, avoid ###)
 
-     **Required Structure:**
-     1. **Current State**: How existing systems work today and what will change
-     2. **Desired State**: How systems will work after implementation
-     3. **Technical Approach**: What will be changed and the new functionality
+**Required Structure:**
+1. **Current State**: How existing systems work today and what will change
+2. **Desired State**: How systems will work after implementation
+3. **Technical Approach**: What will be changed and the new functionality
 
-     **Include Visualizations For:**
-     - Data flows between multiple components
-     - Integration points and system boundaries
-     - Observer patterns and event subscriptions
-     - Sequential processes with decision points
-     - System architectures with clear component relationships
-     - Decision trees for conditional logic
-     - State transitions and process changes
+**Include Visualizations For:**
+- Data flows between multiple components
+- Integration points and system boundaries
+- Observer patterns and event subscriptions
+- Sequential processes with decision points
+- System architectures with clear component relationships
+- Decision trees for conditional logic
+- State transitions and process changes
 
-     **Visual Integration Requirements:**
-     - Embed diagrams directly without ```text code blocks
-     - Include specific file paths to ground technical explanations
-     - Vary diagram types for visual texture and clarity
-     - Verify accuracy of statements about current user workflows
+**Visual Integration Requirements:**
+- Embed diagrams directly without ```text code blocks
+- Include specific file paths to ground technical explanations
+- Vary diagram types for visual texture and clarity
+- Verify accuracy of statements about current user workflows
 
-     **Exclude These Length-Adding Elements:**
-     - Future evolution or enhancement sections
-     - Performance speculation without measurements
-     - Security considerations unless directly relevant to architectural decisions
-     - Multiple "Why X over Y" comparison sections
-     - Conclusion or summary sections that restate content
+**Exclude These Length-Adding Elements:**
+- Future evolution or enhancement sections
+- Performance speculation without measurements
+- Security considerations unless directly relevant to architectural decisions
+- Multiple "Why X over Y" comparison sections
+- Conclusion or summary sections that restate content
 
-     Focus on technical precision and architectural reasoning. Avoid marketing language.
+Focus on technical precision and architectural reasoning. Avoid marketing language.
 
-     Research the codebase to understand current system behavior and architectural patterns that inform the technical decisions.")
-   </tool-use-template>
+Research the codebase to understand current system behavior and architectural patterns that inform the technical decisions.</parameter>
+   </invoke>
+   ```
 3. **Check for user feedback** - If user provides corrections or clarifications:
    - Log feedback using the Bash tool with heredoc to append to [ABSOLUTE_PROJECT_PATH]/log.md
    - Proceed to Step 4 to address the feedback
@@ -442,84 +460,88 @@ The assessor provides:
 Address issues identified by the assessor or user. Execute multiple investigations in PARALLEL when addressing multiple issues:
 
 #### Parallel Revision Research (send all in ONE message)
-<tool-use-template>
-# PARALLEL EXECUTION: Address multiple issues simultaneously
-# Note: Tool provides complete code and exact counts by default
+```xml
+<!-- PARALLEL EXECUTION: Address multiple issues simultaneously -->
+<!-- Note: Tool provides complete code and exact counts by default -->
 
-# Issue 1: Incorrect File Paths (example from assessment: "UserService not found")
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "UserService location",
-  prompt: "Where is the UserService class located in packages/api/src/ and are there any duplicate classes?"
-})
+<!-- Issue 1: Incorrect File Paths (example from assessment: "UserService not found") -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">UserService location</parameter>
+<parameter name="prompt">Where is the UserService class located in packages/api/src/ and are there any duplicate classes?</parameter>
+</invoke>
 
-# Issue 2: Missing Dependencies (runs in parallel)
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "user.service dependencies",
-  prompt: "What are the dependencies for packages/api/src/services/user.service.ts including npm packages and circular dependencies?"
-})
+<!-- Issue 2: Missing Dependencies (runs in parallel) -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">user.service dependencies</parameter>
+<parameter name="prompt">What are the dependencies for packages/api/src/services/user.service.ts including npm packages and circular dependencies?</parameter>
+</invoke>
 
-# Issue 3: Pattern Examples (runs in parallel)
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "Repository patterns",
-  prompt: "What Repository pattern implementations exist in packages/api/src/ including interface definitions and database connections?"
-})
+<!-- Issue 3: Pattern Examples (runs in parallel) -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">Repository patterns</parameter>
+<parameter name="prompt">What Repository pattern implementations exist in packages/api/src/ including interface definitions and database connections?</parameter>
+</invoke>
 
-# Issue 4: Integration Points (runs in parallel)
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "api-web auth integration",
-  prompt: "How do packages/api and packages/web integrate for authentication including endpoints, token handling, and error patterns?"
-})
-</tool-use-template>
+<!-- Issue 4: Integration Points (runs in parallel) -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">api-web auth integration</parameter>
+<parameter name="prompt">How do packages/api and packages/web integrate for authentication including endpoints, token handling, and error patterns?</parameter>
+</invoke>
+```
 
 **Important**: When addressing multiple revision issues, investigate them in parallel by sending all queries in a single message.
 
 #### For Validating Assumptions
-<tool-use-template>
-Task(description="Verify library behavior",
-     subagent_type="project:assumption-tester",
-     prompt="<project>
-     Name: [PROJECT_NAME]
-     Directory: @projects/[STATUS]/[PROJECT_NAME]
-     Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
-     Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
-     </project>
+```xml
+<invoke name="Task">
+<parameter name="description">Verify library behavior</parameter>
+<parameter name="subagent_type">project:assumption-tester</parameter>
+<parameter name="prompt"><project>
+Name: [PROJECT_NAME]
+Directory: @projects/[STATUS]/[PROJECT_NAME]
+Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
+Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
+</project>
 
-     The assessment flagged that we're assuming @supabase/ssr exports a createBrowserClient function.
+The assessment flagged that we're assuming @supabase/ssr exports a createBrowserClient function.
 
-     Create a test to verify:
-     1. The function exists and is exported
-     2. Its type signature matches our usage: createBrowserClient<Database>(supabaseUrl: string, supabaseKey: string, options?: ClientOptions)
-     3. It returns a SupabaseClient instance
+Create a test to verify:
+1. The function exists and is exported
+2. Its type signature matches our usage: createBrowserClient<Database>(supabaseUrl: string, supabaseKey: string, options?: ClientOptions)
+3. It returns a SupabaseClient instance
 
-     Also test if the library provides TypeScript types for these exports.
-     Create test files in the project's scratchpad/ directory.")
-</tool-use-template>
+Also test if the library provides TypeScript types for these exports.
+Create test files in the project's scratchpad/ directory.</parameter>
+</invoke>
+```
 
 #### For Version Compatibility Issues
-<tool-use-template>
-Task(description="Verify version compatibility",
-     subagent_type="project:assumption-tester",
-     prompt="<project>
-     Name: [PROJECT_NAME]
-     Directory: @projects/[STATUS]/[PROJECT_NAME]
-     Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
-     Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
-     </project>
+```xml
+<invoke name="Task">
+<parameter name="description">Verify version compatibility</parameter>
+<parameter name="subagent_type">project:assumption-tester</parameter>
+<parameter name="prompt"><project>
+Name: [PROJECT_NAME]
+Directory: @projects/[STATUS]/[PROJECT_NAME]
+Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
+Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
+</project>
 
-     The assessment flagged potential version incompatibility.
+The assessment flagged potential version incompatibility.
 
-     Test if React (react@[X.X.X]) supports [specific feature] with TypeScript (typescript@[Y.Y.Y]):
-     1. Create a minimal test case using the feature
-     2. Verify it compiles with current TypeScript version
-     3. Test runtime behavior if applicable
+Test if React (react@[X.X.X]) supports [specific feature] with TypeScript (typescript@[Y.Y.Y]):
+1. Create a minimal test case using the feature
+2. Verify it compiles with current TypeScript version
+3. Test runtime behavior if applicable
 
-     Framework versions to test: react@[X.X.X], typescript@[Y.Y.Y]
-     Create test files in the project's scratchpad/ directory.")
-</tool-use-template>
+Framework versions to test: react@[X.X.X], typescript@[Y.Y.Y]
+Create test files in the project's scratchpad/ directory.</parameter>
+</invoke>
+```
 </revision-research-patterns>
 
 
@@ -575,37 +597,37 @@ EOF
 
 Execute parallel investigations to understand different aspects of the codebase simultaneously. Send ALL these tool calls in a SINGLE message:
 
-<tool-use-template>
-# PARALLEL EXECUTION: Send all tool calls together for maximum efficiency
+```xml
+<!-- PARALLEL EXECUTION: Send all tool calls together for maximum efficiency -->
 
-# Investigation 1: Technology and architecture
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "OAuth tech stack",
-  prompt: "What is the technology stack for OAuth authentication in packages/api including current auth framework and strategies?"
-})
+<!-- Investigation 1: Technology and architecture -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">OAuth tech stack</parameter>
+<parameter name="prompt">What is the technology stack for OAuth authentication in packages/api including current auth framework and strategies?</parameter>
+</invoke>
 
-# Investigation 2: Implementation patterns (parallel)
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "auth implementations",
-  prompt: "What authentication implementations exist in packages/api/src/auth/ including endpoints, middleware, session handling, and password logic?"
-})
+<!-- Investigation 2: Implementation patterns (parallel) -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">auth implementations</parameter>
+<parameter name="prompt">What authentication implementations exist in packages/api/src/auth/ including endpoints, middleware, session handling, and password logic?</parameter>
+</invoke>
 
-# Investigation 3: Dependencies and integration (parallel)
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "OAuth dependencies",
-  prompt: "Map dependencies for adding OAuth to packages/api/src/auth/ including files needing modification, web integration, and schema changes"
-})
+<!-- Investigation 3: Dependencies and integration (parallel) -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">OAuth dependencies</parameter>
+<parameter name="prompt">Map dependencies for adding OAuth to packages/api/src/auth/ including files needing modification, web integration, and schema changes</parameter>
+</invoke>
 
-# Investigation 4: Testing and validation (parallel)
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "auth testing patterns",
-  prompt: "What authentication testing patterns exist in packages/api/tests/ including test files, user creation, database setup, and token handling?"
-})
-</tool-use-template>
+<!-- Investigation 4: Testing and validation (parallel) -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">auth testing patterns</parameter>
+<parameter name="prompt">What authentication testing patterns exist in packages/api/tests/ including test files, user creation, database setup, and token handling?</parameter>
+</invoke>
+```
 
 **Key Point**: The above investigations are independent and should run in parallel by sending them all in one message, not one at a time.
 
@@ -680,9 +702,11 @@ EOF
 ### Step 1: Verify Plan Structure
 Create your plan following the EXACT structure defined in the project:plan skill:
 
-<tool-use-template>
-Skill({ command: "project:plan" })
-</tool-use-template>
+```xml
+<invoke name="Skill">
+<parameter name="command">project:plan</parameter>
+</invoke>
+```
 
 ### Step 2: Pre-Creation Checklist
 Before running create-plan-version, verify ALL checklist items in the pre-plan-creation-checklist section above.
@@ -696,27 +720,31 @@ create-plan-version "add-user-auth" "[PLAN_CONTENT]"
 
 [PLAN_CONTENT] must follow the structure defined in the project:plan skill:
 
-<tool-use-template>
-Skill({ command: "project:plan" })
-</tool-use-template>
+```xml
+<invoke name="Skill">
+<parameter name="command">project:plan</parameter>
+</invoke>
+```
 
 ## Phase 3: Quality Assessment
 
 ### Step 1: Run Plan Assessment
 
-<tool-use-template>
-Task(description="Assessment - add-user-auth",
-     subagent_type="project:plan-assessor",
-     prompt="<project>
-     Name: add-user-auth
-     Directory: @projects/new/add-user-auth
-     Plan: @projects/new/add-user-auth/plan-v3.md
-     Log: @projects/new/add-user-auth/log.md
-     </project>
+```xml
+<invoke name="Task">
+<parameter name="description">Assessment - add-user-auth</parameter>
+<parameter name="subagent_type">project:plan-assessor</parameter>
+<parameter name="prompt"><project>
+Name: add-user-auth
+Directory: @projects/new/add-user-auth
+Plan: @projects/new/add-user-auth/plan-v3.md
+Log: @projects/new/add-user-auth/log.md
+</project>
 
-     Assess the project plan.
-     Verify it follows the structure from the project:plan skill")
-</tool-use-template>
+Assess the project plan.
+Verify it follows the structure from the project:plan skill</parameter>
+</invoke>
+```
 
 ### Step 2: Interpret Assessment Results and Take Action
 Follow the guidelines in the assessment-interpretation section above.

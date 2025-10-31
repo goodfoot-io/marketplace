@@ -47,20 +47,20 @@ Parse the plan to identify:
 
 Use Task with "codebase-analysis" subagent if you need to investigate relevant code (MUST include full paths):
 
-<tool-use-template>
-// Examples - adapt to specific plan requirements:
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "Authentication implementation",
-  prompt: "How is authentication implemented in packages/api/src/auth?"
-})
+```xml
+<!-- Examples - adapt to specific plan requirements: -->
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">Authentication implementation</parameter>
+<parameter name="prompt">How is authentication implemented in packages/api/src/auth?</parameter>
+</invoke>
 
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "User type imports",
-  prompt: "What files import the User type from packages/shared/types/user.ts?"
-})
-</tool-use-template>
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">User type imports</parameter>
+<parameter name="prompt">What files import the User type from packages/shared/types/user.ts?</parameter>
+</invoke>
+```
 
 ### Step 1.3: Verify Dependencies (For Parallel Tasks)
 
@@ -104,11 +104,11 @@ Proceeding with implementation...
 
 For each task in [TASKS], prepare comprehensive context for the agent:
 
-<tool-use-template>
-Task(
-  description="[short-task-name]",
-  subagent_type="general-purpose",
-  prompt=`# Task: [Full description]
+```xml
+<invoke name="Task">
+<parameter name="description">[short-task-name]</parameter>
+<parameter name="subagent_type">general-purpose</parameter>
+<parameter name="prompt"># Task: [Full description]
 
 ## Context
 [Explain what needs to be done and why]
@@ -129,9 +129,9 @@ Task(
 - Implementation complete and functional
 - Tests pass (if applicable)
 - Types are correct
-- Follows existing code patterns`
-)
-</tool-use-template>
+- Follows existing code patterns</parameter>
+</invoke>
+```
 
 ### Step 2.2: Dispatch Tasks
 
@@ -141,11 +141,20 @@ Launch tasks one at a time, waiting for each to complete before starting the nex
 **For Parallel Tasks** (after independence verification):
 Launch all independent tasks in a single message:
 
-<tool-use-template>
-Task(description="task-1", ...)
-Task(description="task-2", ...)
-Task(description="task-3", ...)
-</tool-use-template>
+```xml
+<invoke name="Task">
+<parameter name="description">task-1</parameter>
+<!-- ... other parameters ... -->
+</invoke>
+<invoke name="Task">
+<parameter name="description">task-2</parameter>
+<!-- ... other parameters ... -->
+</invoke>
+<invoke name="Task">
+<parameter name="description">task-3</parameter>
+<!-- ... other parameters ... -->
+</invoke>
+```
 
 ### Step 2.3: Monitor Completion
 

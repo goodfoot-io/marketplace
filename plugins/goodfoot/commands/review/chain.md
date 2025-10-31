@@ -5,16 +5,10 @@ description: Analyze component chains using extract-inputs-and-outputs command t
 Systematically analyze interconnected components to map their inputs and outputs, then compare these to identify format mismatches that cause integration failures.
 
 <user-message>
-<tool-use-template>
-# Use write-arguments utility to synchronize user arguments
-ESCAPED_ARGUMENTS=$(echo "$ARGUMENTS" | sed 's/@/\\@/g')
-echo $(write-arguments "$ESCAPED_ARGUMENTS")
-</tool-use-template>
-</user-message>
-
-<role>
-You are a structural format specialist.
-</role>
+```xml
+<!-- Use write-arguments utility to synchronize user arguments -->
+<invoke name="Bash">
+<parameter name="command">ESCAPED_ARGUMENTS=$(echo "$ARGUMENTS" | sed 's/@/\\@/g'); echo $(write-arguments "$ESCAPED_ARGUMENTS")
 
 <additional-resources>
 - Slash Commands: @documentation/claude-code-slash-commands.md in @.claude/commands
@@ -39,13 +33,13 @@ Analyze integration compatibility between components.
 
 Use the Task tool function to invoke a `general-purpose` subagent to map the integration chain.
 
-<tool-use-template>
-Task(
-  description="Map integration chain components and relationships",
-  subagent_type="general-purpose",
-  prompt=`Follow the instructions in \@.claude/commands/utilities/map-integration-chain.md replacing !`echo '$AR''GUMENTS'` with: "!`wait-for-arguments`"`
-)
-</tool-use-template>
+```xml
+<invoke name="Task">
+<parameter name="description">Map integration chain components and relationships</parameter>
+<parameter name="subagent_type">general-purpose</parameter>
+<parameter name="prompt">Follow the instructions in @.claude/commands/utilities/map-integration-chain.md replacing !`echo '$AR''GUMENTS'` with: "!`wait-for-arguments`"</parameter>
+</invoke>
+```
 
 ## Phase 1.5: Analyze Utility Script Behavior
 
@@ -53,11 +47,11 @@ Task(
 
 Use the Task tool function to invoke a `general-purpose` subagent to analyze utility script behavior.
 
-<tool-use-template>
-Task(
-  description="Analyze utility scripts in integration chain",
-  subagent_type="general-purpose",
-  prompt=`Analyze utility scripts identified in Phase 1:
+```xml
+<invoke name="Task">
+<parameter name="description">Analyze utility scripts in integration chain</parameter>
+<parameter name="subagent_type">general-purpose</parameter>
+<parameter name="prompt">Analyze utility scripts identified in Phase 1:
 
 For each utility script in the integration chain:
 1. Read the actual implementation
@@ -75,9 +69,9 @@ Output format:
 - **Transformations**: [what it changes]
 - **Output**: [what it produces]
 - **Integration Impact**: [how it affects producer-consumer relationships]
-- **Gap Resolution**: [apparent incompatibilities this utility resolves]`
-)
-</tool-use-template>
+- **Gap Resolution**: [apparent incompatibilities this utility resolves]</parameter>
+</invoke>
+```
 
 ## Phase 2: Research Producer-Consumer Pairs
 
@@ -89,11 +83,11 @@ Replace `[PRODUCER_FILE]` with the file path of the producer, `[CONSUMER_FILE]` 
 
 When analyzing multiple pairs, combine all Task tool function calls into a single message to run them in parallel.
 
-<tool-use-template>
-Task(
-  description="[PRODUCER_FILE] -> [CONSUMER_FILE] (context-aware)",
-  subagent_type="general-purpose",
-  prompt=`Follow the instructions in \@.claude/commands/review/producer-consumer.md replacing !`echo '$AR''GUMENTS'` with: "
+```xml
+<invoke name="Task">
+<parameter name="description">[PRODUCER_FILE] -> [CONSUMER_FILE] (context-aware)</parameter>
+<parameter name="subagent_type">general-purpose</parameter>
+<parameter name="prompt">Follow the instructions in @.claude/commands/review/producer-consumer.md replacing !`echo '$AR''GUMENTS'` with: "
   - Producer: @[PRODUCER_FILE]
   - Consumer: @[CONSUMER_FILE]
   - Relationship: [RELATIONSHIP]
@@ -123,9 +117,9 @@ Task(
   - Critical: Prevents successful integration with concrete evidence
   - Major: Requires manual intervention with processing impact
   - Minor: Cosmetic differences with no functional impact
-  - Design Feature: Intentional pattern that enables flexibility (exclude from incompatibilities)"`
-)
-</tool-use-template>
+  - Design Feature: Intentional pattern that enables flexibility (exclude from incompatibilities)"</parameter>
+</invoke>
+```
 
 ## Phase 2.5: Verification and Classification
 
@@ -133,11 +127,11 @@ Task(
 
 Use the Task tool function to verify and classify findings:
 
-<tool-use-template>
-Task(
-  description="Verify and classify integration issues",
-  subagent_type="general-purpose",
-  prompt=`Review all incompatibilities identified in Phase 2.
+```xml
+<invoke name="Task">
+<parameter name="description">Verify and classify integration issues</parameter>
+<parameter name="subagent_type">general-purpose</parameter>
+<parameter name="prompt">Review all incompatibilities identified in Phase 2.
 
 For each reported incompatibility:
 
@@ -161,9 +155,9 @@ For each reported incompatibility:
 - Document any design patterns discovered
 - Note utility scripts that resolve apparent mismatches
 
-Format output as verified issue classifications with evidence summaries.`
-)
-</tool-use-template>
+Format output as verified issue classifications with evidence summaries.</parameter>
+</invoke>
+```
 
 ## Phase 3: Output Enhanced Report
 

@@ -17,14 +17,14 @@ description: Direct access to VSCode Language Server Protocol (LSP) tools for sy
 - Get definition, hover, signature, type definition, and implementation all at once
 
 **Example:**
-<tool-use-template>
-mcp__plugin_vscode_vscode__get_symbol_lsp_info({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/services/user.ts",
-  symbol: "UserService",
-  infoType: "all"  // or "definition", "hover", "signature_help", "type_definition", "implementation"
-})
-</tool-use-template>
+```xml
+<invoke name="mcp__plugin_vscode_vscode__get_symbol_lsp_info">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/services/user.ts</parameter>
+<parameter name="symbol">UserService</parameter>
+<parameter name="infoType">all</parameter>
+</invoke>
+```
 
 ### Use `get_references` When:
 
@@ -38,15 +38,17 @@ mcp__plugin_vscode_vscode__get_symbol_lsp_info({
 - Trace usage patterns across the codebase
 
 **Example:**
-<tool-use-template>
-mcp__plugin_vscode_vscode__get_references({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/services/user.ts",  // File where symbol is DEFINED
-  symbol: "UserService",
-  includeDeclaration: true,
-  usageCodeLineRange: 5  // Include ±5 lines of context
-})
-</tool-use-template>
+```xml
+<invoke name="mcp__plugin_vscode_vscode__get_references">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/services/user.ts</parameter>
+<parameter name="symbol">UserService</parameter>
+<parameter name="includeDeclaration">true</parameter>
+<parameter name="usageCodeLineRange">5</parameter>
+</invoke>
+```
+<!-- File where symbol is DEFINED -->
+<!-- Include ±5 lines of context -->
 
 ### Use `get_diagnostics` When:
 
@@ -61,22 +63,23 @@ mcp__plugin_vscode_vscode__get_references({
 - Other language server diagnostics
 
 **Example:**
-<tool-use-template>
-// Check specific files
-mcp__plugin_vscode_vscode__get_diagnostics({
-  workspace_path: "/workspace",
-  filePaths: ["packages/api/src/user.ts"],
-  severities: ["error", "warning"],
-  sources: ["ts", "eslint"]  // Optional: filter by source
-})
+```xml
+<!-- Check specific files -->
+<invoke name="mcp__plugin_vscode_vscode__get_diagnostics">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePaths">["packages/api/src/user.ts"]</parameter>
+<parameter name="severities">["error", "warning"]</parameter>
+<parameter name="sources">["ts", "eslint"]</parameter>
+</invoke>
 
-// Check all modified files (empty array)
-mcp__plugin_vscode_vscode__get_diagnostics({
-  workspace_path: "/workspace",
-  filePaths: [],  // Auto-detects git modified files
-  severities: ["error"]
-})
-</tool-use-template>
+<!-- Check all modified files (empty array) -->
+<invoke name="mcp__plugin_vscode_vscode__get_diagnostics">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePaths">[]</parameter>
+<parameter name="severities">["error"]</parameter>
+</invoke>
+```
+<!-- Auto-detects git modified files -->
 
 ### Use `rename_symbol` When:
 
@@ -90,15 +93,16 @@ mcp__plugin_vscode_vscode__get_diagnostics({
 - More accurate than text-based replacement
 
 **Example:**
-<tool-use-template>
-mcp__plugin_vscode_vscode__rename_symbol({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/services/user.ts",
-  symbol: "getUserById",
-  newName: "findUserById",
-  codeSnippet: "async getUserById("  // Optional: disambiguate multiple symbols
-})
-</tool-use-template>
+```xml
+<invoke name="mcp__plugin_vscode_vscode__rename_symbol">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/services/user.ts</parameter>
+<parameter name="symbol">getUserById</parameter>
+<parameter name="newName">findUserById</parameter>
+<parameter name="codeSnippet">async getUserById(</parameter>
+</invoke>
+```
+<!-- Optional: disambiguate multiple symbols -->
 
 ### Use `execute_command` When:
 
@@ -115,28 +119,28 @@ mcp__plugin_vscode_vscode__rename_symbol({
 - Restarting language servers
 
 **Example:**
-<tool-use-template>
-// Format document
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "editor.action.formatDocument",
-  args: "[]"
-})
+```xml
+<!-- Format document -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">editor.action.formatDocument</parameter>
+<parameter name="args">[]</parameter>
+</invoke>
 
-// Auto-fix all issues
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "editor.action.fixAll",
-  args: "[]"
-})
+<!-- Auto-fix all issues -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">editor.action.fixAll</parameter>
+<parameter name="args">[]</parameter>
+</invoke>
 
-// Save all files
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "workbench.action.files.saveAll",
-  args: "[]"
-})
-</tool-use-template>
+<!-- Save all files -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">workbench.action.files.saveAll</parameter>
+<parameter name="args">[]</parameter>
+</invoke>
+```
 
 ### Use `open_files` When:
 
@@ -148,15 +152,15 @@ mcp__plugin_vscode_vscode__execute_command({
 - Opening files to display in editor
 
 **Example:**
-<tool-use-template>
-mcp__plugin_vscode_vscode__open_files({
-  workspace_path: "/workspace",
-  files: [
-    { filePath: "packages/api/src/user.ts", showEditor: true },
-    { filePath: "packages/api/src/auth.ts", showEditor: false }
-  ]
-})
-</tool-use-template>
+```xml
+<invoke name="mcp__plugin_vscode_vscode__open_files">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="files">[
+  { "filePath": "packages/api/src/user.ts", "showEditor": true },
+  { "filePath": "packages/api/src/auth.ts", "showEditor": false }
+]</parameter>
+</invoke>
+```
 
 ## Tool Selection Guide
 
@@ -190,122 +194,123 @@ mcp__plugin_vscode_vscode__open_files({
 
 ### Workflow 1: Investigate a Symbol
 
-<tool-use-template>
-// 1. Get comprehensive symbol information
-mcp__plugin_vscode_vscode__get_symbol_lsp_info({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/services/user.ts",
-  symbol: "UserService",
-  infoType: "all"
-})
+```xml
+<!-- 1. Get comprehensive symbol information -->
+<invoke name="mcp__plugin_vscode_vscode__get_symbol_lsp_info">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/services/user.ts</parameter>
+<parameter name="symbol">UserService</parameter>
+<parameter name="infoType">all</parameter>
+</invoke>
 
-// 2. Find all references
-mcp__plugin_vscode_vscode__get_references({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/services/user.ts",
-  symbol: "UserService",
-  includeDeclaration: true
-})
-</tool-use-template>
+<!-- 2. Find all references -->
+<invoke name="mcp__plugin_vscode_vscode__get_references">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/services/user.ts</parameter>
+<parameter name="symbol">UserService</parameter>
+<parameter name="includeDeclaration">true</parameter>
+</invoke>
+```
 
 ### Workflow 2: Refactor with Confidence
 
-<tool-use-template>
-// 1. Check current diagnostics
-mcp__plugin_vscode_vscode__get_diagnostics({
-  workspace_path: "/workspace",
-  filePaths: [],
-  severities: ["error"]
-})
+```xml
+<!-- 1. Check current diagnostics -->
+<invoke name="mcp__plugin_vscode_vscode__get_diagnostics">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePaths">[]</parameter>
+<parameter name="severities">["error"]</parameter>
+</invoke>
 
-// 2. Rename symbol
-mcp__plugin_vscode_vscode__rename_symbol({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/services/user.ts",
-  symbol: "getUserById",
-  newName: "findUserById"
-})
+<!-- 2. Rename symbol -->
+<invoke name="mcp__plugin_vscode_vscode__rename_symbol">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/services/user.ts</parameter>
+<parameter name="symbol">getUserById</parameter>
+<parameter name="newName">findUserById</parameter>
+</invoke>
 
-// 3. Check for new errors
-mcp__plugin_vscode_vscode__get_diagnostics({
-  workspace_path: "/workspace",
-  filePaths: [],
-  severities: ["error"]
-})
+<!-- 3. Check for new errors -->
+<invoke name="mcp__plugin_vscode_vscode__get_diagnostics">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePaths">[]</parameter>
+<parameter name="severities">["error"]</parameter>
+</invoke>
 
-// 4. Auto-fix and format
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "editor.action.fixAll",
-  args: "[]"
-})
+<!-- 4. Auto-fix and format -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">editor.action.fixAll</parameter>
+<parameter name="args">[]</parameter>
+</invoke>
 
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "editor.action.formatDocument",
-  args: "[]"
-})
-</tool-use-template>
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">editor.action.formatDocument</parameter>
+<parameter name="args">[]</parameter>
+</invoke>
+```
 
 ### Workflow 3: Pre-Commit Quality Check
 
-<tool-use-template>
-// 1. Get diagnostics for modified files
-mcp__plugin_vscode_vscode__get_diagnostics({
-  workspace_path: "/workspace",
-  filePaths: [],  // Auto-detects git modified files
-  severities: ["error", "warning"]
-})
+```xml
+<!-- 1. Get diagnostics for modified files -->
+<invoke name="mcp__plugin_vscode_vscode__get_diagnostics">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePaths">[]</parameter>
+<parameter name="severities">["error", "warning"]</parameter>
+</invoke>
+<!-- Auto-detects git modified files -->
 
-// 2. Auto-fix issues
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "editor.action.fixAll",
-  args: "[]"
-})
+<!-- 2. Auto-fix issues -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">editor.action.fixAll</parameter>
+<parameter name="args">[]</parameter>
+</invoke>
 
-// 3. Format code
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "editor.action.formatDocument",
-  args: "[]"
-})
+<!-- 3. Format code -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">editor.action.formatDocument</parameter>
+<parameter name="args">[]</parameter>
+</invoke>
 
-// 4. Save all
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "workbench.action.files.saveAll",
-  args: "[]"
-})
-</tool-use-template>
+<!-- 4. Save all -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">workbench.action.files.saveAll</parameter>
+<parameter name="args">[]</parameter>
+</invoke>
+```
 
 ### Workflow 4: Understand Type Issues
 
-<tool-use-template>
-// 1. Get diagnostics for a specific file
-mcp__plugin_vscode_vscode__get_diagnostics({
-  workspace_path: "/workspace",
-  filePaths: ["packages/api/src/user.ts"],
-  severities: ["error"],
-  sources: ["ts"]
-})
+```xml
+<!-- 1. Get diagnostics for a specific file -->
+<invoke name="mcp__plugin_vscode_vscode__get_diagnostics">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePaths">["packages/api/src/user.ts"]</parameter>
+<parameter name="severities">["error"]</parameter>
+<parameter name="sources">["ts"]</parameter>
+</invoke>
 
-// 2. Get type information for problematic symbols
-mcp__plugin_vscode_vscode__get_symbol_lsp_info({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/user.ts",
-  symbol: "User",
-  infoType: "type_definition"
-})
+<!-- 2. Get type information for problematic symbols -->
+<invoke name="mcp__plugin_vscode_vscode__get_symbol_lsp_info">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/user.ts</parameter>
+<parameter name="symbol">User</parameter>
+<parameter name="infoType">type_definition</parameter>
+</invoke>
 
-// 3. Check hover documentation for more context
-mcp__plugin_vscode_vscode__get_symbol_lsp_info({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/user.ts",
-  symbol: "User",
-  infoType: "hover"
-})
-</tool-use-template>
+<!-- 3. Check hover documentation for more context -->
+<invoke name="mcp__plugin_vscode_vscode__get_symbol_lsp_info">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/user.ts</parameter>
+<parameter name="symbol">User</parameter>
+<parameter name="infoType">hover</parameter>
+</invoke>
+```
 
 ## Best Practices
 
@@ -313,142 +318,149 @@ mcp__plugin_vscode_vscode__get_symbol_lsp_info({
 
 When using `get_references`, always provide the file where the symbol is **defined**, not where it's used:
 
-<tool-use-template>
-// ✅ Correct - using the file where UserService is defined
-mcp__plugin_vscode_vscode__get_references({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/services/user.ts",  // Definition file
-  symbol: "UserService"
-})
+```xml
+<!-- ✅ Correct - using the file where UserService is defined -->
+<invoke name="mcp__plugin_vscode_vscode__get_references">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/services/user.ts</parameter>
+<parameter name="symbol">UserService</parameter>
+</invoke>
+<!-- Definition file -->
 
-// ❌ Incorrect - using a file where it's imported
-mcp__plugin_vscode_vscode__get_references({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/controllers/user.ts",  // Import location
-  symbol: "UserService"
-})
-</tool-use-template>
+<!-- ❌ Incorrect - using a file where it's imported -->
+<invoke name="mcp__plugin_vscode_vscode__get_references">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/controllers/user.ts</parameter>
+<parameter name="symbol">UserService</parameter>
+</invoke>
+<!-- Import location -->
+```
 
 ### 2. Use Empty Array for Auto-Detection
 
 For `get_diagnostics`, use an empty array to automatically check all git-modified files:
 
-<tool-use-template>
-// ✅ Recommended - auto-detects modified files
-mcp__plugin_vscode_vscode__get_diagnostics({
-  workspace_path: "/workspace",
-  filePaths: [],
-  severities: ["error"]
-})
-</tool-use-template>
+```xml
+<!-- ✅ Recommended - auto-detects modified files -->
+<invoke name="mcp__plugin_vscode_vscode__get_diagnostics">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePaths">[]</parameter>
+<parameter name="severities">["error"]</parameter>
+</invoke>
+```
 
 ### 3. Use Code Snippets for Disambiguation
 
 When multiple symbols have the same name, use `codeSnippet` to disambiguate:
 
-<tool-use-template>
-// Multiple "Task" symbols exist (interface, class, type)
-mcp__plugin_vscode_vscode__get_symbol_lsp_info({
-  workspace_path: "/workspace",
-  filePath: "packages/models/src/task.ts",
-  symbol: "Task",
-  codeSnippet: "export interface Task {",  // Disambiguates to the interface
-  infoType: "all"
-})
-</tool-use-template>
+```xml
+<!-- Multiple "Task" symbols exist (interface, class, type) -->
+<invoke name="mcp__plugin_vscode_vscode__get_symbol_lsp_info">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/models/src/task.ts</parameter>
+<parameter name="symbol">Task</parameter>
+<parameter name="codeSnippet">export interface Task {</parameter>
+<parameter name="infoType">all</parameter>
+</invoke>
+<!-- Disambiguates to the interface -->
+```
 
 ### 4. Chain Commands for Post-Edit Cleanup
 
 After editing, chain format + fix + save:
 
-<tool-use-template>
-// 1. Auto-fix
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "editor.action.fixAll",
-  args: "[]"
-})
+```xml
+<!-- 1. Auto-fix -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">editor.action.fixAll</parameter>
+<parameter name="args">[]</parameter>
+</invoke>
 
-// 2. Format
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "editor.action.formatDocument",
-  args: "[]"
-})
+<!-- 2. Format -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">editor.action.formatDocument</parameter>
+<parameter name="args">[]</parameter>
+</invoke>
 
-// 3. Save all
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "workbench.action.files.saveAll",
-  args: "[]"
-})
-</tool-use-template>
+<!-- 3. Save all -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">workbench.action.files.saveAll</parameter>
+<parameter name="args">[]</parameter>
+</invoke>
+```
 
 ### 5. Filter Diagnostics Appropriately
 
 Use severity and source filters to focus on relevant issues:
 
-<tool-use-template>
-// Only TypeScript errors
-mcp__plugin_vscode_vscode__get_diagnostics({
-  workspace_path: "/workspace",
-  filePaths: [],
-  severities: ["error"],
-  sources: ["ts"]
-})
+```xml
+<!-- Only TypeScript errors -->
+<invoke name="mcp__plugin_vscode_vscode__get_diagnostics">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePaths">[]</parameter>
+<parameter name="severities">["error"]</parameter>
+<parameter name="sources">["ts"]</parameter>
+</invoke>
 
-// Only ESLint warnings
-mcp__plugin_vscode_vscode__get_diagnostics({
-  workspace_path: "/workspace",
-  filePaths: [],
-  severities: ["warning"],
-  sources: ["eslint"]
-})
-</tool-use-template>
+<!-- Only ESLint warnings -->
+<invoke name="mcp__plugin_vscode_vscode__get_diagnostics">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePaths">[]</parameter>
+<parameter name="severities">["warning"]</parameter>
+<parameter name="sources">["eslint"]</parameter>
+</invoke>
+```
 
 ## Common Pitfalls
 
 ### ❌ Don't: Use find/usage file for references
 
-<tool-use-template>
-// Wrong - this will fail or return incorrect results
-mcp__plugin_vscode_vscode__get_references({
-  filePath: "packages/api/src/controllers/user.ts",  // Where it's used
-  symbol: "UserService"
-})
-</tool-use-template>
+```xml
+<!-- Wrong - this will fail or return incorrect results -->
+<invoke name="mcp__plugin_vscode_vscode__get_references">
+<parameter name="filePath">packages/api/src/controllers/user.ts</parameter>
+<parameter name="symbol">UserService</parameter>
+</invoke>
+<!-- Where it's used -->
+```
 
 ### ✅ Do: Use definition file for references
 
-<tool-use-template>
-// Correct - find definition first, then get references
-mcp__plugin_vscode_vscode__get_references({
-  filePath: "packages/api/src/services/user.ts",  // Where it's defined
-  symbol: "UserService"
-})
-</tool-use-template>
+```xml
+<!-- Correct - find definition first, then get references -->
+<invoke name="mcp__plugin_vscode_vscode__get_references">
+<parameter name="filePath">packages/api/src/services/user.ts</parameter>
+<parameter name="symbol">UserService</parameter>
+</invoke>
+<!-- Where it's defined -->
+```
 
 ### ❌ Don't: Forget args parameter must be JSON string
 
-<tool-use-template>
-// Wrong - args as array
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "vscode.open",
-  args: ["file:///workspace/file.ts"]  // Wrong type
-})
-</tool-use-template>
+```xml
+<!-- Wrong - args as array -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">vscode.open</parameter>
+<parameter name="args">["file:///workspace/file.ts"]</parameter>
+</invoke>
+<!-- Wrong type -->
+```
 
 ### ✅ Do: Pass args as JSON string
 
-<tool-use-template>
-// Correct - args as JSON string
-mcp__plugin_vscode_vscode__execute_command({
-  workspace_path: "/workspace",
-  command: "vscode.open",
-  args: '["file:///workspace/file.ts"]'  // JSON string
-})
-</tool-use-template>
+```xml
+<!-- Correct - args as JSON string -->
+<invoke name="mcp__plugin_vscode_vscode__execute_command">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="command">vscode.open</parameter>
+<parameter name="args">["file:///workspace/file.ts"]</parameter>
+</invoke>
+<!-- JSON string -->
+```
 
 ## Integration with Other Skills
 
@@ -456,14 +468,14 @@ mcp__plugin_vscode_vscode__execute_command({
 
 The VSCode MCP tools are automatically used by the `codebase-analysis` subagent when appropriate:
 
-<tool-use-template>
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "Analyze UserService",
-  prompt: "Find all references to UserService and show their type information"
-})
-// The codebase-analysis subagent will automatically use get_symbol_lsp_info and get_references
-</tool-use-template>
+```xml
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">Analyze UserService</parameter>
+<parameter name="prompt">Find all references to UserService and show their type information</parameter>
+</invoke>
+```
+<!-- The codebase-analysis subagent will automatically use get_symbol_lsp_info and get_references -->
 
 ### Direct vs. Subagent Usage
 
@@ -489,19 +501,20 @@ Before using VSCode MCP tools:
 
 Verify the connection:
 
-<tool-use-template>
-mcp__plugin_vscode_vscode__health_check({
-  workspace_path: "/workspace"
-})
-</tool-use-template>
+```xml
+<invoke name="mcp__plugin_vscode_vscode__health_check">
+<parameter name="workspace_path">/workspace</parameter>
+</invoke>
+```
 
 ### List Available Workspaces
 
 Find available workspaces:
 
-<tool-use-template>
-mcp__plugin_vscode_vscode__list_workspaces()
-</tool-use-template>
+```xml
+<invoke name="mcp__plugin_vscode_vscode__list_workspaces">
+</invoke>
+```
 
 ## Troubleshooting
 
@@ -532,40 +545,42 @@ mcp__plugin_vscode_vscode__list_workspaces()
 
 ### Get Multiple Info Types
 
-<tool-use-template>
-// Get all symbol information at once
-mcp__plugin_vscode_vscode__get_symbol_lsp_info({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/user.ts",
-  symbol: "UserService",
-  infoType: "all"  // Returns definition, hover, signature_help, type_definition, implementation
-})
-</tool-use-template>
+```xml
+<!-- Get all symbol information at once -->
+<invoke name="mcp__plugin_vscode_vscode__get_symbol_lsp_info">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/user.ts</parameter>
+<parameter name="symbol">UserService</parameter>
+<parameter name="infoType">all</parameter>
+</invoke>
+<!-- Returns definition, hover, signature_help, type_definition, implementation -->
+```
 
 ### Context-Rich References
 
-<tool-use-template>
-// Get references with surrounding code for context
-mcp__plugin_vscode_vscode__get_references({
-  workspace_path: "/workspace",
-  filePath: "packages/api/src/services/user.ts",
-  symbol: "UserService",
-  includeDeclaration: true,
-  usageCodeLineRange: 10  // ±10 lines of context
-})
-</tool-use-template>
+```xml
+<!-- Get references with surrounding code for context -->
+<invoke name="mcp__plugin_vscode_vscode__get_references">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePath">packages/api/src/services/user.ts</parameter>
+<parameter name="symbol">UserService</parameter>
+<parameter name="includeDeclaration">true</parameter>
+<parameter name="usageCodeLineRange">10</parameter>
+</invoke>
+<!-- ±10 lines of context -->
+```
 
 ### Targeted Diagnostics
 
-<tool-use-template>
-// Check only specific error types in specific files
-mcp__plugin_vscode_vscode__get_diagnostics({
-  workspace_path: "/workspace",
-  filePaths: ["packages/api/src/user.ts", "packages/api/src/auth.ts"],
-  severities: ["error"],
-  sources: ["ts", "eslint"]
-})
-</tool-use-template>
+```xml
+<!-- Check only specific error types in specific files -->
+<invoke name="mcp__plugin_vscode_vscode__get_diagnostics">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="filePaths">["packages/api/src/user.ts", "packages/api/src/auth.ts"]</parameter>
+<parameter name="severities">["error"]</parameter>
+<parameter name="sources">["ts", "eslint"]</parameter>
+</invoke>
+```
 
 ## Tool Reference Quick Guide
 

@@ -347,13 +347,13 @@ ls -la packages/website/app/hooks/
 
 **Step 2: Use discovered paths in questions**
 
-<tool-use-template>
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "useTranscriptSync state handling",
-  prompt: "How does useTranscriptSync in packages/website/app/hooks/transcript.ts handle state updates?"
-})
-</tool-use-template>
+```xml
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">useTranscriptSync state handling</parameter>
+<parameter name="prompt">How does useTranscriptSync in packages/website/app/hooks/transcript.ts handle state updates?</parameter>
+</invoke>
+```
 
 ### Question Quality Checklist
 ✅ **Always include:**
@@ -369,25 +369,25 @@ Task({
 
 ✅ CORRECT - Single message with multiple tool calls:
 
-<tool-use-template>
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "TypeScript error TS2322 analysis",
-  prompt: "TypeScript error TS2322 at packages/api/src/auth.ts:45. Show ALL type definitions involved."
-})
+```xml
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">TypeScript error TS2322 analysis</parameter>
+<parameter name="prompt">TypeScript error TS2322 at packages/api/src/auth.ts:45. Show ALL type definitions involved.</parameter>
+</invoke>
 
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "AuthUser type imports",
-  prompt: "What files import AuthUser type from packages/api/src/types/auth.ts?"
-})
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">AuthUser type imports</parameter>
+<parameter name="prompt">What files import AuthUser type from packages/api/src/types/auth.ts?</parameter>
+</invoke>
 
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "Authentication implementation",
-  prompt: "How is authentication implemented in packages/api/src/middleware/auth.ts?"
-})
-</tool-use-template>
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">Authentication implementation</parameter>
+<parameter name="prompt">How is authentication implemented in packages/api/src/middleware/auth.ts?</parameter>
+</invoke>
+```
 
 ❌ WRONG - Sequential calls in separate messages:
 // Call 1, wait for response, then Call 2...
@@ -437,35 +437,35 @@ yarn lint 2>&1       # All linting issues
 
 Send ALL analyses in ONE message for parallel execution:
 
-<tool-use-template>
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "TS2322 error analysis",
-  prompt: "TypeScript error TS2322 at packages/api/src/auth/handler.ts:45: 'Type User not assignable to AuthUser'. Show both type definitions, highlight the exact differences, and provide 3 different fix approaches with code."
-})
+```xml
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">TS2322 error analysis</parameter>
+<parameter name="prompt">TypeScript error TS2322 at packages/api/src/auth/handler.ts:45: 'Type User not assignable to AuthUser'. Show both type definitions, highlight the exact differences, and provide 3 different fix approaches with code.</parameter>
+</invoke>
 
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "TS2554 error analysis",
-  prompt: "TypeScript error TS2554 at packages/api/src/services/user.ts:89: 'Expected 2 arguments but got 1'. Show the function signature, the call site, what the missing argument should be, and how to fix it."
-})
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">TS2554 error analysis</parameter>
+<parameter name="prompt">TypeScript error TS2554 at packages/api/src/services/user.ts:89: 'Expected 2 arguments but got 1'. Show the function signature, the call site, what the missing argument should be, and how to fix it.</parameter>
+</invoke>
 
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "Auth test failure analysis",
-  prompt: "Test failure 'Authentication › should validate token' in packages/api/tests/auth.test.ts. Show the test code, trace to the implementation in packages/api/src/auth/validator.ts, and explain why validation is failing."
-})
-</tool-use-template>
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">Auth test failure analysis</parameter>
+<parameter name="prompt">Test failure 'Authentication › should validate token' in packages/api/tests/auth.test.ts. Show the test code, trace to the implementation in packages/api/src/auth/validator.ts, and explain why validation is failing.</parameter>
+</invoke>
+```
 
 **❌ WRONG - Using the tool for discovery:**
 
-<tool-use-template>
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "General error discovery",
-  prompt: "What TypeScript errors exist in the project?"
-})
-</tool-use-template>
+```xml
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">General error discovery</parameter>
+<parameter name="prompt">What TypeScript errors exist in the project?</parameter>
+</invoke>
+```
 
 Don't do this - run validation commands instead!
 
@@ -508,31 +508,31 @@ ls -la packages/api/src/services/database.ts
 
 ✅ CORRECT - All queries include complete paths and specific requests:
 
-<tool-use-template>
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "User handler implementation",
-  prompt: "What is the current implementation at packages/api/src/handlers/user.ts lines 45-67? Show the EXACT code with line numbers, ALL type definitions used, and explain the pattern."
-})
+```xml
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">User handler implementation</parameter>
+<parameter name="prompt">What is the current implementation at packages/api/src/handlers/user.ts lines 45-67? Show the EXACT code with line numbers, ALL type definitions used, and explain the pattern.</parameter>
+</invoke>
 
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "User model structure",
-  prompt: "What is the current structure at packages/models/src/user.ts lines 12-34? Show the EXACT code with line numbers, list ALL exported types, and show where they're imported."
-})
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">User model structure</parameter>
+<parameter name="prompt">What is the current structure at packages/models/src/user.ts lines 12-34? Show the EXACT code with line numbers, list ALL exported types, and show where they're imported.</parameter>
+</invoke>
 
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "Database service analysis",
-  prompt: "How does packages/api/src/services/database.ts work? Show ALL interfaces, EVERY import statement, ALL exported functions, and provide usage examples from other files."
-})
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">Database service analysis</parameter>
+<parameter name="prompt">How does packages/api/src/services/database.ts work? Show ALL interfaces, EVERY import statement, ALL exported functions, and provide usage examples from other files.</parameter>
+</invoke>
 
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "Repository pattern search",
-  prompt: "Are there existing Repository pattern implementations in packages/api/src/repositories/? Show ALL repository files with their complete implementations."
-})
-</tool-use-template>
+<invoke name="Task">
+<parameter name="subagent_type">vscode:Analysis</parameter>
+<parameter name="description">Repository pattern search</parameter>
+<parameter name="prompt">Are there existing Repository pattern implementations in packages/api/src/repositories/? Show ALL repository files with their complete implementations.</parameter>
+</invoke>
+```
 
 ### Simple Operations Use Simple Tools
 **Choose the right tool for the task:**
@@ -613,25 +613,25 @@ If validation fails, iterate internally (max 5 attempts):
 
    Include the complete error details you just discovered:
 
-   <tool-use-template>
-   Task({
-     subagent_type: "vscode:Analysis",
-     description: "TS2322 type incompatibility",
-     prompt: "TypeScript error TS2322 at packages/api/src/user.ts:45: 'Type User is not assignable to AuthUser'. Show BOTH complete type definitions, highlight EVERY difference, explain why they're incompatible, and provide 3 different fix approaches with code."
-   })
-   </tool-use-template>
+   ```xml
+   <invoke name="Task">
+   <parameter name="subagent_type">vscode:Analysis</parameter>
+   <parameter name="description">TS2322 type incompatibility</parameter>
+   <parameter name="prompt">TypeScript error TS2322 at packages/api/src/user.ts:45: 'Type User is not assignable to AuthUser'. Show BOTH complete type definitions, highlight EVERY difference, explain why they're incompatible, and provide 3 different fix approaches with code.</parameter>
+   </invoke>
+   ```
 
 3. **Find working examples (only for complex patterns)**
 
    Use codebase analysis for complex patterns:
 
-   <tool-use-template>
-   Task({
-     subagent_type: "vscode:Analysis",
-     description: "Repository pattern examples",
-     prompt: "Find ALL working Repository pattern implementations in packages/api/src/repositories/. Show COMPLETE implementation including constructor, methods, and type definitions."
-   })
-   </tool-use-template>
+   ```xml
+   <invoke name="Task">
+   <parameter name="subagent_type">vscode:Analysis</parameter>
+   <parameter name="description">Repository pattern examples</parameter>
+   <parameter name="prompt">Find ALL working Repository pattern implementations in packages/api/src/repositories/. Show COMPLETE implementation including constructor, methods, and type definitions.</parameter>
+   </invoke>
+   ```
 
    For simple searches, use Grep instead:
 
@@ -659,23 +659,23 @@ When implementing changes that affect files listed in the plan's Dependency Anal
 
    ✅ CORRECT - Complete path and specific request:
 
-   <tool-use-template>
-   Task({
-     subagent_type: "vscode:Analysis",
-     description: "UserAuth type consumers",
-     prompt: "What files import the UserAuth type from packages/api/src/types/auth.ts? List EVERY importing file with FULL paths, show the exact import statements, show ALL usages in each file with line numbers, and categorize by risk (type-only vs runtime usage)."
-   })
-   </tool-use-template>
+   ```xml
+   <invoke name="Task">
+   <parameter name="subagent_type">vscode:Analysis</parameter>
+   <parameter name="description">UserAuth type consumers</parameter>
+   <parameter name="prompt">What files import the UserAuth type from packages/api/src/types/auth.ts? List EVERY importing file with FULL paths, show the exact import statements, show ALL usages in each file with line numbers, and categorize by risk (type-only vs runtime usage).</parameter>
+   </invoke>
+   ```
 
    ❌ WRONG - Missing path context:
 
-   <tool-use-template>
-   Task({
-     subagent_type: "vscode:Analysis",
-     description: "UserAuth usage",
-     prompt: "What uses UserAuth type?"
-   })
-   </tool-use-template>
+   ```xml
+   <invoke name="Task">
+   <parameter name="subagent_type">vscode:Analysis</parameter>
+   <parameter name="description">UserAuth usage</parameter>
+   <parameter name="prompt">What uses UserAuth type?</parameter>
+   </invoke>
+   ```
 
 2. **Update ALL in same commit** per <breaking-changes>:
    - Make the breaking change

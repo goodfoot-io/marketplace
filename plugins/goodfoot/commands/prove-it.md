@@ -88,36 +88,42 @@ After upgrading Socket.io from v4.5.4 to v4.6.1 (which caused bug #1547 - connec
 </example>
 </input-format>
 
-<tool-use-template>
 Total Task() calls = (number of distinct tasks) × [REDUNDANCY_LEVEL]
 Example: 3 subdivided tasks with REDUNDANCY_LEVEL=2 requires 6 Task() calls
 
-Task(description="[TASK_NAME]-1",  // Add number suffix when REDUNDANCY_LEVEL > 1
-    subagent_type="[SUBAGENT_TYPE]",
-    prompt="<task>
-    [TASK]
-    </task>
-    <context>
-    [TASK_CONTEXT]
-    </context>
+```xml
+<invoke name="Task">
+<parameter name="description">[TASK_NAME]-1</parameter>
+<parameter name="subagent_type">[SUBAGENT_TYPE]</parameter>
+<parameter name="prompt"><task>
+[TASK]
+</task>
+<context>
+[TASK_CONTEXT]
+</context>
 
-    <instructions>
-    Critically evaluate this work. Think intensely about the problem and aim for collaborative improvement. If small adjustments suffice, propose them; if larger ideas or rewrites better serve the goals, don't hesitate to suggest them. Remember: other agents are performing parallel evaluations, and I will synthesize all input before making final decisions.
-    </instructions>")
+<instructions>
+Critically evaluate this work. Think intensely about the problem and aim for collaborative improvement. If small adjustments suffice, propose them; if larger ideas or rewrites better serve the goals, don't hesitate to suggest them. Remember: other agents are performing parallel evaluations, and I will synthesize all input before making final decisions.
+</instructions></parameter>
+</invoke>
+```
 
-Task(description="[TASK_NAME]-2",
-    subagent_type="[SUBAGENT_TYPE]",
-    prompt="<task>
-    [TASK]
-    </task>
-    <context>
-    [TASK_CONTEXT]
-    </context>
+```xml
+<invoke name="Task">
+<parameter name="description">[TASK_NAME]-2</parameter>
+<parameter name="subagent_type">[SUBAGENT_TYPE]</parameter>
+<parameter name="prompt"><task>
+[TASK]
+</task>
+<context>
+[TASK_CONTEXT]
+</context>
 
-    <instructions>
-    Critically evaluate this work. Think intensely about the problem and aim for collaborative improvement. If small adjustments suffice, propose them; if larger ideas or rewrites better serve the goals, don't hesitate to suggest them. Remember: other agents are performing parallel evaluations, and I will synthesize all input before making final decisions.
-    </instructions>")
-</tool-use-template>
+<instructions>
+Critically evaluate this work. Think intensely about the problem and aim for collaborative improvement. If small adjustments suffice, propose them; if larger ideas or rewrites better serve the goals, don't hesitate to suggest them. Remember: other agents are performing parallel evaluations, and I will synthesize all input before making final decisions.
+</instructions></parameter>
+</invoke>
+```
 
 Combine all `Task()` calls into a single message to execute simultaneously. Never launch sequentially.
 
