@@ -1,6 +1,11 @@
 # Changelog
 
 ## 0.1.13
+- Added configurable session TTL via `BROWSER_SESSION_TTL_MS` environment variable to control how long inactive sessions are retained
+- Added configurable idle timeout for chrome-proxy via `CHROME_PROXY_IDLE_TIMEOUT_MS` to automatically clean up stale browser connections
+- Improved automatic session cleanup to prevent resource leaks from expired or idle sessions
+
+## 0.1.13
 
 - Added configurable session TTL via `BROWSER_SESSION_TTL_MS` environment variable (default: 5 minutes)
 - Added automatic idle timeout for chrome-proxy via `CHROME_PROXY_IDLE_TIMEOUT_MS` environment variable (default: 5 minutes)
