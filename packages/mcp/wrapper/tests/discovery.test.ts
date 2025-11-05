@@ -114,7 +114,10 @@ describe('discoverTools', () => {
           name: 'test-server',
           transport: 'stdio',
           command: 'node',
-          args: [scriptPath]
+          args: [scriptPath],
+          env: {
+            NODE_PATH: join(__dirname, '..', 'node_modules')
+          }
         }
       ];
 
@@ -135,7 +138,10 @@ describe('discoverTools', () => {
           name: 'hanging-server',
           transport: 'stdio',
           command: 'node',
-          args: [scriptPath]
+          args: [scriptPath],
+          env: {
+            NODE_PATH: join(__dirname, '..', 'node_modules')
+          }
         }
       ];
 
@@ -174,13 +180,19 @@ describe('discoverTools', () => {
           name: 'server1',
           transport: 'stdio',
           command: 'node',
-          args: [script1Path]
+          args: [script1Path],
+          env: {
+            NODE_PATH: join(__dirname, '..', 'node_modules')
+          }
         },
         {
           name: 'server2',
           transport: 'stdio',
           command: 'node',
-          args: [script2Path]
+          args: [script2Path],
+          env: {
+            NODE_PATH: join(__dirname, '..', 'node_modules')
+          }
         }
       ];
 
@@ -206,7 +218,10 @@ describe('discoverTools', () => {
           name: 'working-server',
           transport: 'stdio',
           command: 'node',
-          args: [workingPath]
+          args: [workingPath],
+          env: {
+            NODE_PATH: join(__dirname, '..', 'node_modules')
+          }
         }
       ];
 
@@ -228,7 +243,10 @@ describe('discoverTools', () => {
           name: 'multi-tool-server',
           transport: 'stdio',
           command: 'node',
-          args: [scriptPath]
+          args: [scriptPath],
+          env: {
+            NODE_PATH: join(__dirname, '..', 'node_modules')
+          }
         }
       ];
 
@@ -257,7 +275,10 @@ describe('discoverTools', () => {
           name: 'test-server',
           transport: 'stdio',
           command: 'node',
-          args: [scriptPath]
+          args: [scriptPath],
+          env: {
+            NODE_PATH: join(__dirname, '..', 'node_modules')
+          }
         }
       ];
 
