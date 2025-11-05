@@ -90,10 +90,8 @@ For EVERY file path you plan to include, you MUST verify in this exact sequence:
 </invoke>
 
 <!-- Step 2: Get dependency count (for impact assessment) - REQUIRED -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">yjs.ts dependencies</parameter>
-<parameter name="prompt">What files depend on packages/website/app/hooks/yjs.ts and what is the impact if it changes?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What files depend on packages/website/app/hooks/yjs.ts and what is the impact if it changes?</parameter>
 </invoke>
 
 <!-- Step 3: Read for line numbers (when planning modifications) -->
@@ -115,31 +113,23 @@ When investigating multiple independent aspects, execute codebase analysis in pa
 <!-- Note: The tool provides exhaustive results by default - complete code, all occurrences, line numbers -->
 
 <!-- First investigation - overall architecture -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">auth implementation</parameter>
-<parameter name="prompt">How is user authentication implemented in packages/api/src/auth including framework versions, auth flow, and entry points?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">How is user authentication implemented in packages/api/src/auth including framework versions, auth flow, and entry points?</parameter>
 </invoke>
 
 <!-- Second investigation - implementation patterns (runs in parallel) -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">auth patterns</parameter>
-<parameter name="prompt">What authentication and authorization patterns exist in packages/api including middleware functions, route protection, and role-based access?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What authentication and authorization patterns exist in packages/api including middleware functions, route protection, and role-based access?</parameter>
 </invoke>
 
 <!-- Third investigation - dependencies and impact (runs in parallel) -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">auth system impact</parameter>
-<parameter name="prompt">What would be affected if I change the auth system at packages/api/src/auth/?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What would be affected if I change the auth system at packages/api/src/auth/?</parameter>
 </invoke>
 
 <!-- Fourth investigation - testing infrastructure (runs in parallel) -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">auth testing</parameter>
-<parameter name="prompt">What auth-related tests exist in packages/api/tests/ and packages/api/src/**/*.test.ts including test database setup and token handling?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What auth-related tests exist in packages/api/tests/ and packages/api/src/**/*.test.ts including test database setup and token handling?</parameter>
 </invoke>
 ```
 
@@ -324,10 +314,8 @@ After researching the codebase, identify critical dependencies:
 
 1. **MANDATORY**: Analyze dependencies for high-impact files using:
 ```xml
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">middleware dependencies</parameter>
-<parameter name="prompt">What are the dependencies for packages/api/src/auth/middleware.ts and what needs updating if the interface changes?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What are the dependencies for packages/api/src/auth/middleware.ts and what needs updating if the interface changes?</parameter>
 </invoke>
 ```
 
@@ -474,31 +462,23 @@ Address issues identified by the assessor or user. Execute multiple investigatio
 <!-- Note: Tool provides complete code and exact counts by default -->
 
 <!-- Issue 1: Incorrect File Paths (example from assessment: "UserService not found") -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">UserService location</parameter>
-<parameter name="prompt">Where is the UserService class located in packages/api/src/ and are there any duplicate classes?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Where is the UserService class located in packages/api/src/ and are there any duplicate classes?</parameter>
 </invoke>
 
 <!-- Issue 2: Missing Dependencies (runs in parallel) -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">user.service dependencies</parameter>
-<parameter name="prompt">What are the dependencies for packages/api/src/services/user.service.ts including npm packages and circular dependencies?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What are the dependencies for packages/api/src/services/user.service.ts including npm packages and circular dependencies?</parameter>
 </invoke>
 
 <!-- Issue 3: Pattern Examples (runs in parallel) -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Repository patterns</parameter>
-<parameter name="prompt">What Repository pattern implementations exist in packages/api/src/ including interface definitions and database connections?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What Repository pattern implementations exist in packages/api/src/ including interface definitions and database connections?</parameter>
 </invoke>
 
 <!-- Issue 4: Integration Points (runs in parallel) -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">api-web auth integration</parameter>
-<parameter name="prompt">How do packages/api and packages/web integrate for authentication including endpoints, token handling, and error patterns?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">How do packages/api and packages/web integrate for authentication including endpoints, token handling, and error patterns?</parameter>
 </invoke>
 ```
 
@@ -610,31 +590,23 @@ Execute parallel investigations to understand different aspects of the codebase 
 <!-- PARALLEL EXECUTION: Send all tool calls together for maximum efficiency -->
 
 <!-- Investigation 1: Technology and architecture -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">OAuth tech stack</parameter>
-<parameter name="prompt">What is the technology stack for OAuth authentication in packages/api including current auth framework and strategies?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What is the technology stack for OAuth authentication in packages/api including current auth framework and strategies?</parameter>
 </invoke>
 
 <!-- Investigation 2: Implementation patterns (parallel) -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">auth implementations</parameter>
-<parameter name="prompt">What authentication implementations exist in packages/api/src/auth/ including endpoints, middleware, session handling, and password logic?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What authentication implementations exist in packages/api/src/auth/ including endpoints, middleware, session handling, and password logic?</parameter>
 </invoke>
 
 <!-- Investigation 3: Dependencies and integration (parallel) -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">OAuth dependencies</parameter>
-<parameter name="prompt">Map dependencies for adding OAuth to packages/api/src/auth/ including files needing modification, web integration, and schema changes</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Map dependencies for adding OAuth to packages/api/src/auth/ including files needing modification, web integration, and schema changes</parameter>
 </invoke>
 
 <!-- Investigation 4: Testing and validation (parallel) -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">auth testing patterns</parameter>
-<parameter name="prompt">What authentication testing patterns exist in packages/api/tests/ including test files, user creation, database setup, and token handling?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What authentication testing patterns exist in packages/api/tests/ including test files, user creation, database setup, and token handling?</parameter>
 </invoke>
 ```
 

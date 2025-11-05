@@ -49,16 +49,12 @@ Use Task with "codebase-analysis" subagent if you need to investigate relevant c
 
 ```xml
 <!-- Examples - adapt to specific plan requirements: -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Authentication implementation</parameter>
-<parameter name="prompt">How is authentication implemented in packages/api/src/auth?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">How is authentication implemented in packages/api/src/auth?</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">User type imports</parameter>
-<parameter name="prompt">What files import the User type from packages/shared/types/user.ts?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What files import the User type from packages/shared/types/user.ts?</parameter>
 </invoke>
 ```
 

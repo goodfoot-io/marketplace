@@ -37,10 +37,8 @@ Do not avoid linting, tests, or writing full implementations.
 For comprehensive code analysis (dependencies, types, patterns, relationships), use the Task tool with codebase-analysis subagent:
 
 <tool-use-template>
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "[Brief description of analysis]",
-  prompt: "[Your analysis question]"
+mcp__plugin_vscode_codebase__ask({
+  question: "[Your analysis question]"
 })
 </tool-use-template>
 

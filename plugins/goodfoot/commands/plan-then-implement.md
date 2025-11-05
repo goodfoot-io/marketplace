@@ -40,22 +40,16 @@ Use Task with "codebase-analysis" subagent to investigate relevant code (MUST in
 
 ```xml
 <!-- Examples - adapt to specific request: -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Authentication implementation</parameter>
-<parameter name="prompt">How is authentication implemented in packages/api/src/auth?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">How is authentication implemented in packages/api/src/auth?</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">User type imports</parameter>
-<parameter name="prompt">What files import the User type from packages/shared/types/user.ts?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What files import the User type from packages/shared/types/user.ts?</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Repository patterns</parameter>
-<parameter name="prompt">What Repository pattern implementations exist in packages/api/src/repositories?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What Repository pattern implementations exist in packages/api/src/repositories?</parameter>
 </invoke>
 ```
 

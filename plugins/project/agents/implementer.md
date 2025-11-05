@@ -348,10 +348,8 @@ ls -la packages/website/app/hooks/
 **Step 2: Use discovered paths in questions**
 
 ```xml
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">useTranscriptSync state handling</parameter>
-<parameter name="prompt">How does useTranscriptSync in packages/website/app/hooks/transcript.ts handle state updates?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">How does useTranscriptSync in packages/website/app/hooks/transcript.ts handle state updates?</parameter>
 </invoke>
 ```
 
@@ -370,22 +368,16 @@ ls -la packages/website/app/hooks/
 ✅ CORRECT - Single message with multiple tool calls:
 
 ```xml
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">TypeScript error TS2322 analysis</parameter>
-<parameter name="prompt">TypeScript error TS2322 at packages/api/src/auth.ts:45. Show ALL type definitions involved.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">TypeScript error TS2322 at packages/api/src/auth.ts:45. Show ALL type definitions involved.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">AuthUser type imports</parameter>
-<parameter name="prompt">What files import AuthUser type from packages/api/src/types/auth.ts?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What files import AuthUser type from packages/api/src/types/auth.ts?</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Authentication implementation</parameter>
-<parameter name="prompt">How is authentication implemented in packages/api/src/middleware/auth.ts?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">How is authentication implemented in packages/api/src/middleware/auth.ts?</parameter>
 </invoke>
 ```
 
@@ -438,32 +430,24 @@ yarn lint 2>&1       # All linting issues
 Send ALL analyses in ONE message for parallel execution:
 
 ```xml
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">TS2322 error analysis</parameter>
-<parameter name="prompt">TypeScript error TS2322 at packages/api/src/auth/handler.ts:45: 'Type User not assignable to AuthUser'. Show both type definitions, highlight the exact differences, and provide 3 different fix approaches with code.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">TypeScript error TS2322 at packages/api/src/auth/handler.ts:45: 'Type User not assignable to AuthUser'. Show both type definitions, highlight the exact differences, and provide 3 different fix approaches with code.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">TS2554 error analysis</parameter>
-<parameter name="prompt">TypeScript error TS2554 at packages/api/src/services/user.ts:89: 'Expected 2 arguments but got 1'. Show the function signature, the call site, what the missing argument should be, and how to fix it.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">TypeScript error TS2554 at packages/api/src/services/user.ts:89: 'Expected 2 arguments but got 1'. Show the function signature, the call site, what the missing argument should be, and how to fix it.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Auth test failure analysis</parameter>
-<parameter name="prompt">Test failure 'Authentication › should validate token' in packages/api/tests/auth.test.ts. Show the test code, trace to the implementation in packages/api/src/auth/validator.ts, and explain why validation is failing.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Test failure 'Authentication › should validate token' in packages/api/tests/auth.test.ts. Show the test code, trace to the implementation in packages/api/src/auth/validator.ts, and explain why validation is failing.</parameter>
 </invoke>
 ```
 
 **❌ WRONG - Using the tool for discovery:**
 
 ```xml
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">General error discovery</parameter>
-<parameter name="prompt">What TypeScript errors exist in the project?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What TypeScript errors exist in the project?</parameter>
 </invoke>
 ```
 
@@ -509,28 +493,20 @@ ls -la packages/api/src/services/database.ts
 ✅ CORRECT - All queries include complete paths and specific requests:
 
 ```xml
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">User handler implementation</parameter>
-<parameter name="prompt">What is the current implementation at packages/api/src/handlers/user.ts lines 45-67? Show the EXACT code with line numbers, ALL type definitions used, and explain the pattern.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What is the current implementation at packages/api/src/handlers/user.ts lines 45-67? Show the EXACT code with line numbers, ALL type definitions used, and explain the pattern.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">User model structure</parameter>
-<parameter name="prompt">What is the current structure at packages/models/src/user.ts lines 12-34? Show the EXACT code with line numbers, list ALL exported types, and show where they're imported.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What is the current structure at packages/models/src/user.ts lines 12-34? Show the EXACT code with line numbers, list ALL exported types, and show where they're imported.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Database service analysis</parameter>
-<parameter name="prompt">How does packages/api/src/services/database.ts work? Show ALL interfaces, EVERY import statement, ALL exported functions, and provide usage examples from other files.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">How does packages/api/src/services/database.ts work? Show ALL interfaces, EVERY import statement, ALL exported functions, and provide usage examples from other files.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Repository pattern search</parameter>
-<parameter name="prompt">Are there existing Repository pattern implementations in packages/api/src/repositories/? Show ALL repository files with their complete implementations.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Are there existing Repository pattern implementations in packages/api/src/repositories/? Show ALL repository files with their complete implementations.</parameter>
 </invoke>
 ```
 
@@ -614,10 +590,8 @@ If validation fails, iterate internally (max 5 attempts):
    Include the complete error details you just discovered:
 
    ```xml
-   <invoke name="Task">
-   <parameter name="subagent_type">vscode:Analysis</parameter>
-   <parameter name="description">TS2322 type incompatibility</parameter>
-   <parameter name="prompt">TypeScript error TS2322 at packages/api/src/user.ts:45: 'Type User is not assignable to AuthUser'. Show BOTH complete type definitions, highlight EVERY difference, explain why they're incompatible, and provide 3 different fix approaches with code.</parameter>
+   <invoke name="mcp__plugin_vscode_codebase__ask">
+   <parameter name="question">TypeScript error TS2322 at packages/api/src/user.ts:45: 'Type User is not assignable to AuthUser'. Show BOTH complete type definitions, highlight EVERY difference, explain why they're incompatible, and provide 3 different fix approaches with code.</parameter>
    </invoke>
    ```
 
@@ -626,10 +600,8 @@ If validation fails, iterate internally (max 5 attempts):
    Use codebase analysis for complex patterns:
 
    ```xml
-   <invoke name="Task">
-   <parameter name="subagent_type">vscode:Analysis</parameter>
-   <parameter name="description">Repository pattern examples</parameter>
-   <parameter name="prompt">Find ALL working Repository pattern implementations in packages/api/src/repositories/. Show COMPLETE implementation including constructor, methods, and type definitions.</parameter>
+   <invoke name="mcp__plugin_vscode_codebase__ask">
+   <parameter name="question">Find ALL working Repository pattern implementations in packages/api/src/repositories/. Show COMPLETE implementation including constructor, methods, and type definitions.</parameter>
    </invoke>
    ```
 
@@ -660,20 +632,16 @@ When implementing changes that affect files listed in the plan's Dependency Anal
    ✅ CORRECT - Complete path and specific request:
 
    ```xml
-   <invoke name="Task">
-   <parameter name="subagent_type">vscode:Analysis</parameter>
-   <parameter name="description">UserAuth type consumers</parameter>
-   <parameter name="prompt">What files import the UserAuth type from packages/api/src/types/auth.ts? List EVERY importing file with FULL paths, show the exact import statements, show ALL usages in each file with line numbers, and categorize by risk (type-only vs runtime usage).</parameter>
+   <invoke name="mcp__plugin_vscode_codebase__ask">
+   <parameter name="question">What files import the UserAuth type from packages/api/src/types/auth.ts? List EVERY importing file with FULL paths, show the exact import statements, show ALL usages in each file with line numbers, and categorize by risk (type-only vs runtime usage).</parameter>
    </invoke>
    ```
 
    ❌ WRONG - Missing path context:
 
    ```xml
-   <invoke name="Task">
-   <parameter name="subagent_type">vscode:Analysis</parameter>
-   <parameter name="description">UserAuth usage</parameter>
-   <parameter name="prompt">What uses UserAuth type?</parameter>
+   <invoke name="mcp__plugin_vscode_codebase__ask">
+   <parameter name="question">What uses UserAuth type?</parameter>
    </invoke>
    ```
 

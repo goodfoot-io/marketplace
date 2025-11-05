@@ -147,29 +147,21 @@ Your narrative should reveal:
 
 ```xml
 <!-- ✅ CORRECT - All questions have complete paths and specific requests -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">UserAuth type imports</parameter>
-<parameter name="prompt">What files import the UserAuth type from packages/api/src/types/auth.ts? List EVERY importing file with FULL paths, show the exact import statements and ALL usages. Mark which would break if UserAuth is deleted.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What files import the UserAuth type from packages/api/src/types/auth.ts? List EVERY importing file with FULL paths, show the exact import statements and ALL usages. Mark which would break if UserAuth is deleted.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Failing test analysis</parameter>
-<parameter name="prompt">The test at packages/api/tests/user.test.ts:45 is failing. Show the COMPLETE test code, trace what implementation it tests in packages/api/src/services/user.ts, list ALL dependencies, and identify what changed to cause failure.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">The test at packages/api/tests/user.test.ts:45 is failing. Show the COMPLETE test code, trace what implementation it tests in packages/api/src/services/user.ts, list ALL dependencies, and identify what changed to cause failure.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Handler error patterns</parameter>
-<parameter name="prompt">Multiple TypeScript errors in packages/api/src/handlers/. Show ALL handler files, identify the common pattern causing errors, and list which handlers share this problematic pattern.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Multiple TypeScript errors in packages/api/src/handlers/. Show ALL handler files, identify the common pattern causing errors, and list which handlers share this problematic pattern.</parameter>
 </invoke>
 
 <!-- ❌ WRONG - Missing paths -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">UserAuth imports</parameter>
-<parameter name="prompt">What imports UserAuth?</parameter>  <!-- No source path! -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What imports UserAuth?</parameter>  <!-- No source path! -->
 </invoke>
 ```
 
@@ -204,22 +196,16 @@ ENOENT/spawn errors → Environmental, not code
 #### Analyze Pattern Spread (Parallel)
 ```xml
 <!-- Find ALL instances of the failed pattern with FULL paths -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Mock pattern usage</parameter>
-<parameter name="prompt">Find ALL files in packages/ that use the pattern 'jest.fn()' or 'jest.mock()'. List EVERY file with FULL paths and show the exact usage with line numbers.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Find ALL files in packages/ that use the pattern 'jest.fn()' or 'jest.mock()'. List EVERY file with FULL paths and show the exact usage with line numbers.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Class-based services</parameter>
-<parameter name="prompt">Show ALL class-based services in packages/api/src/services/. List COMPLETE class definitions including constructors and methods. Identify which ones have similar structure to the failing UserService.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Show ALL class-based services in packages/api/src/services/. List COMPLETE class definitions including constructors and methods. Identify which ones have similar structure to the failing UserService.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Async test cleanup</parameter>
-<parameter name="prompt">Find ALL async test cases in packages/api/tests/. Show which ones have proper cleanup with 'afterEach' or 'afterAll' hooks and which don't.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Find ALL async test cases in packages/api/tests/. Show which ones have proper cleanup with 'afterEach' or 'afterAll' hooks and which don't.</parameter>
 </invoke>
 ```
 
@@ -244,16 +230,12 @@ Whatever pattern caused regression is now FORBIDDEN in reconstruction.
 
 ```xml
 <!-- Check dependencies BEFORE deletion with FULL paths -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">UserService deletion impact</parameter>
-<parameter name="prompt">If I delete the UserService class from packages/api/src/services/user.ts, what files would break? List EVERY file that imports it with FULL paths and show how they use it.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">If I delete the UserService class from packages/api/src/services/user.ts, what files would break? List EVERY file that imports it with FULL paths and show how they use it.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Unused test utilities</parameter>
-<parameter name="prompt">If I delete all mock-based tests from packages/api/tests/, which test utilities in packages/test-utilities/ would become unused?</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">If I delete all mock-based tests from packages/api/tests/, which test utilities in packages/test-utilities/ would become unused?</parameter>
 </invoke>
 ```
 
@@ -268,10 +250,8 @@ Whatever pattern caused regression is now FORBIDDEN in reconstruction.
    </invoke>
 
    <!-- Use codebase analysis for understanding impact -->
-   <invoke name="Task">
-   <parameter name="subagent_type">vscode:Analysis</parameter>
-   <parameter name="description">Mock pattern analysis</parameter>
-   <parameter name="prompt">Show ALL files in packages/ that use mock patterns. For each file, show the EXACT mock usage with line numbers and explain what it's mocking.</parameter>
+   <invoke name="mcp__plugin_vscode_codebase__ask">
+   <parameter name="question">Show ALL files in packages/ that use mock patterns. For each file, show the EXACT mock usage with line numbers and explain what it's mocking.</parameter>
    </invoke>
    ```
 
@@ -296,16 +276,12 @@ Whatever pattern caused regression is now FORBIDDEN in reconstruction.
 
 ```xml
 <!-- Find successful patterns to copy (FULL paths required) -->
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Working service implementations</parameter>
-<parameter name="prompt">Show ALL working service implementations in packages/api/src/services/ that have passing tests. Display COMPLETE code including imports, types, and exported functions.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Show ALL working service implementations in packages/api/src/services/ that have passing tests. Display COMPLETE code including imports, types, and exported functions.</parameter>
 </invoke>
 
-<invoke name="Task">
-<parameter name="subagent_type">vscode:Analysis</parameter>
-<parameter name="description">Working test patterns</parameter>
-<parameter name="prompt">Find working test files in packages/api/tests/ that use getTestSql(). Show COMPLETE test structure including setup, teardown, and assertions.</parameter>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Find working test files in packages/api/tests/ that use getTestSql(). Show COMPLETE test structure including setup, teardown, and assertions.</parameter>
 </invoke>
 ```
 
