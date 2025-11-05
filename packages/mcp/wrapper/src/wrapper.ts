@@ -6,9 +6,10 @@
 import type { ServerConfig, AggregatedTools } from './types/wrapper.js';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ListToolsRequestSchema, CallToolRequestSchema, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { discoverTools } from './discovery.js';
-import { info, debug, warn } from './logger.js';
+import { info, debug, warn, error } from './logger.js';
 import { validateAgentToolArguments } from './types/wrapper.js';
 
 /**
@@ -367,19 +368,56 @@ Always check the available tools and use them appropriately to complete tasks.`,
  * Main entry point for the wrapper server
  */
 export async function main(): Promise<void> {
-  console.error('MCP wrapper server starting...');
+  try {
+    info('MCP wrapper server starting...');
 
-  const configs = parseCliArguments(process.argv);
-  console.error(`Parsed ${configs.length} server configuration(s):`, JSON.stringify(configs, null, 2));
-  // Implementation will be added in subsequent tasks
+    // Parse CLI arguments
+    const configs = parseCliArguments(process.argv);
+    info(`Parsed ${configs.length} server configuration(s)`);
+    debug('Server configurations:', JSON.stringify(configs, null, 2));
 
-  await Promise.resolve(); // Placeholder to satisfy async requirement
+    // Initialize server with tool discovery
+    const { server, tools } = await initializeServer(configs);
+    info(`Server initialized with ${tools.allTools.length} tools`);
+
+    // Create stdio transport
+    const transport = new StdioServerTransport();
+    info('Created stdio transport');
+
+    // Connect server to transport
+    await server.connect(transport);
+    info('MCP wrapper server started successfully');
+
+    // Setup graceful shutdown handlers
+    const shutdown = async (signal: string): Promise<void> => {
+      info(`Received ${signal}, shutting down gracefully...`);
+      try {
+        await server.close();
+        info('Server closed successfully');
+        process.exit(0);
+      } catch (shutdownError) {
+        error('Error during shutdown:', shutdownError);
+        process.exit(1);
+      }
+    };
+
+    process.on('SIGTERM', () => {
+      void shutdown('SIGTERM');
+    });
+
+    process.on('SIGINT', () => {
+      void shutdown('SIGINT');
+    });
+  } catch (startupError) {
+    error('Failed to start MCP wrapper server:', startupError);
+    throw startupError;
+  }
 }
 
 // Auto-start when invoked directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((error: unknown) => {
-    console.error('Fatal error:', error);
+  main().catch((startupError: unknown) => {
+    console.error('Fatal error:', startupError);
     process.exit(1);
   });
 }

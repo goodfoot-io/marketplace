@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { parseCliArguments } from '../src/wrapper.js';
+import { parseCliArguments, main } from '../src/wrapper.js';
 
 describe('parseCliArguments', () => {
   describe('single server - stdio transport', () => {
@@ -541,6 +541,47 @@ describe('parseCliArguments', () => {
       expect(result[0]?.transport).toBe('http');
       expect(result[1]?.name).toBe('clickup');
       expect(result[1]?.transport).toBe('stdio');
+    });
+  });
+});
+
+describe('main', () => {
+  describe('startup behavior', () => {
+    it('should throw error when invoked without server configurations', async () => {
+      // Mock process.argv to simulate no "--" separator
+      const originalArgv = process.argv;
+      process.argv = ['node', 'wrapper.js'];
+
+      try {
+        await expect(main()).rejects.toThrow('No server configurations provided');
+      } finally {
+        process.argv = originalArgv;
+      }
+    });
+
+    it('should throw error when invoked with invalid server configuration', async () => {
+      // Mock process.argv to simulate invalid config (stdio without command)
+      const originalArgv = process.argv;
+      process.argv = ['node', 'wrapper.js', '--', 'test-server'];
+
+      try {
+        await expect(main()).rejects.toThrow('stdio transport requires at least a command');
+      } finally {
+        process.argv = originalArgv;
+      }
+    });
+  });
+
+  describe('error handling', () => {
+    it('should propagate errors from parseCliArguments', async () => {
+      const originalArgv = process.argv;
+      process.argv = ['node', 'wrapper.js', '--', '--invalid'];
+
+      try {
+        await expect(main()).rejects.toThrow('Server name cannot start with "--"');
+      } finally {
+        process.argv = originalArgv;
+      }
     });
   });
 });
