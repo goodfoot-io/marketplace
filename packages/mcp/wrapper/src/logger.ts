@@ -3,13 +3,19 @@
  * Controlled by MCP_WRAPPER_SERVER_LOGGING environment variable
  */
 
-const isLoggingEnabled = process.env.MCP_WRAPPER_SERVER_LOGGING === 'true';
+/**
+ * Check if logging is enabled
+ * Reads environment variable each time to support testing
+ */
+function isLoggingEnabled(): boolean {
+  return process.env.MCP_WRAPPER_SERVER_LOGGING === 'true';
+}
 
 /**
  * Log debug message to stderr (when logging enabled)
  */
 export function debug(message: string, ...args: unknown[]): void {
-  if (isLoggingEnabled) {
+  if (isLoggingEnabled()) {
     console.error('[DEBUG]', message, ...args);
   }
 }
@@ -18,7 +24,7 @@ export function debug(message: string, ...args: unknown[]): void {
  * Log info message to stderr (when logging enabled)
  */
 export function info(message: string, ...args: unknown[]): void {
-  if (isLoggingEnabled) {
+  if (isLoggingEnabled()) {
     console.error('[INFO]', message, ...args);
   }
 }
@@ -27,7 +33,7 @@ export function info(message: string, ...args: unknown[]): void {
  * Log warning message to stderr (when logging enabled)
  */
 export function warn(message: string, ...args: unknown[]): void {
-  if (isLoggingEnabled) {
+  if (isLoggingEnabled()) {
     console.error('[WARN]', message, ...args);
   }
 }
@@ -36,7 +42,7 @@ export function warn(message: string, ...args: unknown[]): void {
  * Log error message to stderr (when logging enabled)
  */
 export function error(message: string, ...args: unknown[]): void {
-  if (isLoggingEnabled) {
+  if (isLoggingEnabled()) {
     console.error('[ERROR]', message, ...args);
   }
 }
