@@ -246,3 +246,34 @@ export function getEnvironmentAsRecord(env: NodeJS.ProcessEnv): Record<string, s
 
   return result;
 }
+
+/**
+ * Arguments for agent tool execution
+ */
+export interface AgentToolArguments {
+  /** User prompt for the agent */
+  prompt: string;
+  /** Optional session ID for conversation continuity */
+  sessionId?: string;
+}
+
+/**
+ * Zod schema for AgentToolArguments with runtime validation
+ */
+export const AgentToolArgumentsSchema = z.object({
+  prompt: z.string().min(1, 'prompt cannot be empty'),
+  sessionId: z.string().optional()
+});
+
+/**
+ * Validates and narrows the type of agent tool arguments
+ * @throws {Error} if validation fails
+ */
+export function validateAgentToolArguments(value: unknown): AgentToolArguments {
+  const result = AgentToolArgumentsSchema.safeParse(value);
+  if (!result.success) {
+    const errorMessages = result.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+    throw new Error(`Invalid agent tool arguments: ${errorMessages}`);
+  }
+  return result.data;
+}

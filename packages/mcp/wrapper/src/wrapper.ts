@@ -4,10 +4,12 @@
  */
 
 import type { ServerConfig, AggregatedTools } from './types/wrapper.js';
+import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ListToolsRequestSchema, CallToolRequestSchema, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { discoverTools } from './discovery.js';
-import { info } from './logger.js';
+import { info, debug, warn } from './logger.js';
+import { validateAgentToolArguments } from './types/wrapper.js';
 
 /**
  * Parse CLI arguments to extract multiple wrapped server configurations
@@ -208,6 +210,153 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
       }
     ]
   }));
+
+  // Register CallToolRequestSchema handler for agent tool
+  server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
+    if (request.params.name !== 'agent') {
+      throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
+    }
+
+    // Validate arguments with runtime type checking
+    let args;
+    try {
+      args = validateAgentToolArguments(request.params.arguments);
+    } catch (error) {
+      throw new McpError(ErrorCode.InvalidParams, (error as Error).message);
+    }
+
+    const { prompt } = args;
+
+    if (!prompt) {
+      throw new McpError(ErrorCode.InvalidParams, 'prompt is required');
+    }
+
+    // Extract progress token from meta for progress notifications
+    const progressToken =
+      meta && typeof meta === 'object' && '_meta' in meta && typeof meta._meta === 'object' && meta._meta !== null
+        ? (meta._meta as Record<string, unknown>).progressToken
+        : undefined;
+
+    // Build mcpServers configuration from ServerConfig array
+    const mcpServers: Record<
+      string,
+      { type?: 'stdio'; command: string; args?: string[]; env?: Record<string, string> } | { type: 'http'; url: string }
+    > = {};
+
+    for (const config of configs) {
+      if (config.transport === 'stdio') {
+        if (!config.command) {
+          warn(`Skipping server ${config.name}: stdio transport requires command`);
+          continue;
+        }
+        mcpServers[config.name] = {
+          type: 'stdio',
+          command: config.command,
+          args: config.args || [],
+          env: config.env ? config.env : undefined
+        };
+      } else {
+        // HTTP transport
+        if (!config.url) {
+          warn(`Skipping server ${config.name}: HTTP transport requires URL`);
+          continue;
+        }
+        mcpServers[config.name] = {
+          type: 'http',
+          url: config.url
+        };
+      }
+    }
+
+    // Configure query options
+    const queryOptions: Parameters<typeof query>[0]['options'] = {
+      systemPrompt: `You are a helpful assistant with access to multiple tools from different MCP servers.
+Use these tools to help the user accomplish their goals.
+Always check the available tools and use them appropriately to complete tasks.`,
+      maxTurns: 100,
+      allowedTools: tools.allowedTools,
+      permissionMode: 'bypassPermissions',
+      mcpServers
+    };
+
+    let result = '';
+    let toolCallCount = 0;
+
+    try {
+      // Execute the query using Claude Code SDK
+      for await (const message of query({
+        prompt,
+        options: queryOptions
+      })) {
+        // Type the message as unknown first, then narrow with type guards
+        const msg = message as unknown;
+
+        // Check for result messages
+        if (typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === 'result') {
+          const resultMsg = msg as { type: 'result'; subtype?: string; result?: string };
+          if (resultMsg.subtype === 'error_max_turns' || resultMsg.subtype === 'error_during_execution') {
+            throw new Error(`Agent execution error: ${resultMsg.subtype}`);
+          }
+          if (resultMsg.subtype === 'success' && resultMsg.result) {
+            result = resultMsg.result;
+          }
+        }
+
+        // Check for assistant messages with tool use
+        if (typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === 'assistant' && 'message' in msg) {
+          const assistantMsg = msg as { type: 'assistant'; message?: { content?: unknown[] } };
+          if (assistantMsg.message && assistantMsg.message.content && Array.isArray(assistantMsg.message.content)) {
+            for (const content of assistantMsg.message.content) {
+              if (typeof content === 'object' && content !== null && 'type' in content && content.type === 'tool_use') {
+                const toolUse = content as { type: 'tool_use'; name: string; input: unknown };
+
+                // Send progress notification if token is available
+                if (progressToken && typeof progressToken === 'string') {
+                  toolCallCount++;
+
+                  // Format simplified tool input for progress message
+                  let inputPreview = '';
+                  if (typeof toolUse.input === 'object' && toolUse.input !== null) {
+                    const inputObj = toolUse.input as Record<string, unknown>;
+                    const keys = Object.keys(inputObj).slice(0, 2);
+                    inputPreview = keys.map((k) => `${k}=...`).join(', ');
+                  }
+
+                  const progressMessage = `Tool ${toolCallCount}: ${toolUse.name}(${inputPreview})`;
+
+                  // Send progress notification (fire and forget)
+                  server
+                    .notification({
+                      method: 'notifications/progress',
+                      params: {
+                        progressToken,
+                        progress: toolCallCount,
+                        message: progressMessage
+                      }
+                    })
+                    .catch((err: Error) => {
+                      debug('Failed to send progress notification:', err);
+                    });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: result || 'No response from agent.'
+          }
+        ]
+      };
+    } catch (error) {
+      const errorMessage = `Agent execution failed: ${(error as Error).message}. Tool calls executed: ${toolCallCount}.`;
+      throw new McpError(ErrorCode.InternalError, errorMessage);
+    }
+  });
 
   info('MCP server initialized successfully');
 
