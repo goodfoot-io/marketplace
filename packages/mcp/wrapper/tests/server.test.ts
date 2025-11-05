@@ -17,6 +17,7 @@ const __dirname = path.dirname(__filename);
 describe('initializeServer', () => {
   let tempCacheDir: string;
   let originalCacheDir: string | undefined;
+  const servers: Array<{ close: () => Promise<void> }> = [];
 
   beforeEach(async () => {
     // Create temp cache directory
@@ -26,6 +27,16 @@ describe('initializeServer', () => {
   });
 
   afterEach(async () => {
+    // Close all servers created during tests
+    for (const server of servers) {
+      try {
+        await server.close();
+      } catch {
+        // Ignore errors during cleanup
+      }
+    }
+    servers.length = 0;
+
     // Restore original cache dir
     if (originalCacheDir) {
       process.env.XDG_CACHE_HOME = originalCacheDir;
@@ -45,6 +56,7 @@ describe('initializeServer', () => {
     it('should create server with correct structure', async () => {
       const configs: ServerConfig[] = [];
       const result = await initializeServer(configs);
+      servers.push(result.server);
 
       expect(result).toBeDefined();
       expect(result).toHaveProperty('server');
@@ -54,6 +66,7 @@ describe('initializeServer', () => {
     it('should discover tools on initialization', async () => {
       const configs: ServerConfig[] = [];
       const result = await initializeServer(configs);
+      servers.push(result.server);
 
       // Should have discovered tools (even if empty)
       expect(result.tools).toBeDefined();
@@ -65,6 +78,7 @@ describe('initializeServer', () => {
     it('should have Server instance with correct capabilities', async () => {
       const configs: ServerConfig[] = [];
       const result = await initializeServer(configs);
+      servers.push(result.server);
 
       // Verify server instance exists
       expect(result.server).toBeDefined();
@@ -76,6 +90,7 @@ describe('initializeServer', () => {
     it('should return empty tools with empty configuration', async () => {
       const configs: ServerConfig[] = [];
       const result = await initializeServer(configs);
+      servers.push(result.server);
 
       expect(result.tools.allTools).toEqual([]);
       expect(result.tools.allowedTools).toEqual([]);
@@ -87,6 +102,7 @@ describe('initializeServer', () => {
       // Full discovery tests are in discovery.test.ts
       const configs: ServerConfig[] = [];
       const result = await initializeServer(configs);
+      servers.push(result.server);
 
       // Should call discoverTools and get back proper structure
       expect(result.tools).toBeDefined();
@@ -101,6 +117,7 @@ describe('initializeServer', () => {
       // Test with empty configs (discovery tests cover actual tool aggregation)
       const configs: ServerConfig[] = [];
       const result = await initializeServer(configs);
+      servers.push(result.server);
 
       // Server should handle any configuration properly
       expect(result).toBeDefined();
@@ -113,6 +130,7 @@ describe('initializeServer', () => {
     it('should register tool with expected schema structure', async () => {
       const configs: ServerConfig[] = [];
       const result = await initializeServer(configs);
+      servers.push(result.server);
 
       // The tool registration happens inside initializeServer
       // We verify by checking that tools were discovered
@@ -123,6 +141,7 @@ describe('initializeServer', () => {
     it('should include description in discovered tools', async () => {
       const configs: ServerConfig[] = [];
       const result = await initializeServer(configs);
+      servers.push(result.server);
 
       // Description should always be set
       expect(result.tools.description).toBeDefined();
