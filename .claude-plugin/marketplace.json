@@ -105,6 +105,25 @@
       ]
     },
     {
+      "name": "jest-mock-prevention",
+      "source": "./plugins/jest-mock-prevention",
+      "description": "Jest mocking prevention hook for Write/Edit operations. Enforces integration-first testing with real implementations instead of mocks. Detects and blocks jest.fn(), jest.mock(), jest.spyOn() and provides comprehensive guidance on using getTestSql(), dependency injection, and real service implementations.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Goodfoot",
+        "email": "contact@goodfoot.io"
+      },
+      "tags": [
+        "jest",
+        "testing",
+        "mocking",
+        "integration-testing",
+        "hooks",
+        "quality",
+        "validation"
+      ]
+    },
+    {
       "name": "typescript-claude-code-for-web-setup",
       "source": "./plugins/typescript-claude-code-for-web-setup",
       "description": "Automatic web environment setup for TypeScript/JavaScript projects with multi-package-manager support (npm, yarn, pnpm, bun). Runs on SessionStart in Claude Code web environments.",

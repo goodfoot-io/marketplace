@@ -4,11 +4,10 @@ A Claude Code plugin that enforces TypeScript and ESLint quality standards throu
 
 ## Overview
 
-This plugin provides three hooks that run automatically during Write/Edit/MultiEdit operations:
+This plugin provides two hooks that run automatically during Write/Edit/MultiEdit operations:
 
 1. **ESLint/TypeScript Bypass Prevention** (PreToolUse)
-2. **Jest Mock Prevention** (PreToolUse)
-3. **TypeScript/ESLint Validation** (PostToolUse)
+2. **TypeScript/ESLint Validation** (PostToolUse)
 
 ## Features
 
@@ -27,28 +26,7 @@ This plugin provides three hooks that run automatically during Write/Edit/MultiE
 - Denies the operation if bypass patterns are detected
 - Provides detailed guidance on fixing the underlying issue
 
-### 2. Jest Mock Prevention
-
-**Prevents the following patterns:**
-- `jest.fn()`, `jest.mock()`, `jest.spyOn()`
-- Mock utilities from `@jest/globals` or `jest-mock`
-- Mock-related type assertions and matchers
-- Mock configuration methods (`mockReturnValue`, `mockResolvedValue`, etc.)
-
-**Why?** Enforces integration-first testing with real implementations instead of mocks.
-
-**When it runs:** Before Write/Edit/MultiEdit operations on test files
-
-**Exit behavior:**
-- Denies the operation if mocking patterns are detected
-- Provides comprehensive guidance on using real implementations:
-  - Database operations with `getTestSql()`
-  - File operations with temp directories
-  - WebSockets with real `ws` servers
-  - React hooks with real store implementations
-  - Dependency injection patterns
-
-### 3. TypeScript/ESLint Validation
+### 2. TypeScript/ESLint Validation
 
 **Validates:**
 - TypeScript type checking using `tsc`
@@ -127,7 +105,6 @@ DEBUG=1 claude
 ### File Patterns
 
 - **ESLint/TypeScript Bypass Prevention**: `*.js`, `*.jsx`, `*.ts`, `*.tsx`, `*.mjs`, `*.cjs`, `*.mts`, `*.cts`
-- **Jest Mock Prevention**: `*.test.ts`, `*.test.tsx`, `*.test.js`, `*.test.jsx`, `*.spec.*`, `__tests__/*`, `tests/*`
 - **TypeScript Validation**: `*.ts`, `*.tsx`
 
 ### Dependencies
@@ -150,7 +127,6 @@ typescript-hooks/
 └── hooks/
     ├── hooks.json       # Hook configuration
     ├── eslint-typescript-bypass    # PreToolUse hook
-    ├── jest-mock-prevention        # PreToolUse hook
     └── typescript-check            # PostToolUse hook
 ```
 

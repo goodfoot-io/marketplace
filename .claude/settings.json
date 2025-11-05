@@ -1,7 +1,6 @@
 {
   "env": {
-    "MAX_MCP_OUTPUT_TOKENS": "100000",
-    "DISABLE_AUTOUPDATER": 1
+    "MAX_MCP_OUTPUT_TOKENS": "100000"
   },
   "permissions": {
     "allow": [],
@@ -24,6 +23,7 @@
     ]
   },
   "enabledPlugins": {
+    "jest-mock-prevention@goodfoot": true,
     "typescript-hooks@goodfoot": true,
     "typescript-claude-code-for-web-setup@goodfoot": true,
     "project@goodfoot": true,
