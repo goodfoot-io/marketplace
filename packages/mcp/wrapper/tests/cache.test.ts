@@ -223,7 +223,6 @@ describe('Cache Management', () => {
 
       expect(true).toBe(true);
     });
-
   });
 
   describe('Cache file structure', () => {
