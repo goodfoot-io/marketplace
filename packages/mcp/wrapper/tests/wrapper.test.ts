@@ -435,6 +435,293 @@ describe('parseCliArguments', () => {
     });
   });
 
+  describe('HTTP header parsing', () => {
+    it('should parse single header with -H flag', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--',
+        'github',
+        '--transport',
+        'http',
+        'https://api.github.com/mcp',
+        '-H',
+        'Authorization: Bearer token123'
+      ];
+      const result = parseCliArguments(argv);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        name: 'github',
+        transport: 'http',
+        url: 'https://api.github.com/mcp',
+        headers: {
+          Authorization: 'Bearer token123'
+        }
+      });
+    });
+
+    it('should parse single header with --header flag', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--',
+        'api',
+        '--transport',
+        'http',
+        'https://api.example.com',
+        '--header',
+        'X-API-Key: secret'
+      ];
+      const result = parseCliArguments(argv);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        name: 'api',
+        transport: 'http',
+        url: 'https://api.example.com',
+        headers: {
+          'X-API-Key': 'secret'
+        }
+      });
+    });
+
+    it('should parse multiple headers', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--',
+        'api',
+        '--transport',
+        'http',
+        'https://api.example.com',
+        '-H',
+        'Authorization: Bearer token',
+        '-H',
+        'Content-Type: application/json',
+        '--header',
+        'X-Custom-Header: value'
+      ];
+      const result = parseCliArguments(argv);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        name: 'api',
+        transport: 'http',
+        url: 'https://api.example.com',
+        headers: {
+          Authorization: 'Bearer token',
+          'Content-Type': 'application/json',
+          'X-Custom-Header': 'value'
+        }
+      });
+    });
+
+    it('should parse header with colon in value', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--',
+        'api',
+        '--transport',
+        'http',
+        'https://api.example.com',
+        '-H',
+        'X-Custom: value:with:colons'
+      ];
+      const result = parseCliArguments(argv);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        name: 'api',
+        transport: 'http',
+        url: 'https://api.example.com',
+        headers: {
+          'X-Custom': 'value:with:colons'
+        }
+      });
+    });
+
+    it('should trim whitespace from header name and value', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--',
+        'api',
+        '--transport',
+        'http',
+        'https://api.example.com',
+        '-H',
+        '  Authorization  :  Bearer token  '
+      ];
+      const result = parseCliArguments(argv);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        name: 'api',
+        transport: 'http',
+        url: 'https://api.example.com',
+        headers: {
+          Authorization: 'Bearer token'
+        }
+      });
+    });
+
+    it('should not include headers field if no headers provided', () => {
+      const argv = ['node', 'wrapper.js', '--', 'api', '--transport', 'http', 'https://api.example.com'];
+      const result = parseCliArguments(argv);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        name: 'api',
+        transport: 'http',
+        url: 'https://api.example.com'
+      });
+      expect(result[0]?.headers).toBeUndefined();
+    });
+
+    it('should throw error when -H flag has no value', () => {
+      const argv = ['node', 'wrapper.js', '--', 'api', '--transport', 'http', 'https://api.example.com', '-H'];
+
+      expect(() => parseCliArguments(argv)).toThrow('Server "api": -H flag requires a value');
+    });
+
+    it('should throw error when --header flag has no value', () => {
+      const argv = ['node', 'wrapper.js', '--', 'api', '--transport', 'http', 'https://api.example.com', '--header'];
+
+      expect(() => parseCliArguments(argv)).toThrow('Server "api": --header flag requires a value');
+    });
+
+    it('should throw error when header has no colon', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--',
+        'api',
+        '--transport',
+        'http',
+        'https://api.example.com',
+        '-H',
+        'InvalidHeader'
+      ];
+
+      expect(() => parseCliArguments(argv)).toThrow(
+        'Server "api": Invalid header format "InvalidHeader". Expected "Header-Name: Header-Value"'
+      );
+    });
+
+    it('should throw error when header name is empty', () => {
+      const argv = ['node', 'wrapper.js', '--', 'api', '--transport', 'http', 'https://api.example.com', '-H', ': value'];
+
+      expect(() => parseCliArguments(argv)).toThrow('Server "api": Header name cannot be empty in ": value"');
+    });
+
+    it('should allow header with empty value', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--',
+        'api',
+        '--transport',
+        'http',
+        'https://api.example.com',
+        '-H',
+        'X-Empty:'
+      ];
+      const result = parseCliArguments(argv);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        name: 'api',
+        transport: 'http',
+        url: 'https://api.example.com',
+        headers: {
+          'X-Empty': ''
+        }
+      });
+    });
+
+    it('should parse headers with stdio transport (headers are ignored for stdio)', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--',
+        'server',
+        '--transport',
+        'stdio',
+        'node',
+        'server.js',
+        '-H',
+        'X-Header: value'
+      ];
+      const result = parseCliArguments(argv);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        name: 'server',
+        transport: 'stdio',
+        command: 'node',
+        args: ['server.js', '-H', 'X-Header: value']
+      });
+    });
+
+    it('should parse headers in complex multi-server scenario', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--',
+        'github',
+        '--transport',
+        'http',
+        'https://api.github.com/mcp',
+        '-H',
+        'Authorization: Bearer gh_token',
+        '-H',
+        'Accept: application/vnd.github.v3+json',
+        '--',
+        'clickup',
+        '--transport',
+        'stdio',
+        'npx',
+        '-y',
+        '@hauptsache.net/clickup-mcp',
+        '--',
+        'custom-api',
+        '--transport',
+        'http',
+        'https://custom.api.com',
+        '--header',
+        'X-API-Key: custom_key'
+      ];
+      const result = parseCliArguments(argv);
+
+      expect(result).toHaveLength(3);
+      expect(result[0]).toEqual({
+        name: 'github',
+        transport: 'http',
+        url: 'https://api.github.com/mcp',
+        headers: {
+          Authorization: 'Bearer gh_token',
+          Accept: 'application/vnd.github.v3+json'
+        }
+      });
+      expect(result[1]).toEqual({
+        name: 'clickup',
+        transport: 'stdio',
+        command: 'npx',
+        args: ['-y', '@hauptsache.net/clickup-mcp']
+      });
+      expect(result[2]).toEqual({
+        name: 'custom-api',
+        transport: 'http',
+        url: 'https://custom.api.com',
+        headers: {
+          'X-API-Key': 'custom_key'
+        }
+      });
+    });
+  });
+
   describe('real-world examples from plan', () => {
     it('should parse example from plan: single stdio with npx', () => {
       // Example: npx -y @goodfoot/mcp-wrapper-server -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp

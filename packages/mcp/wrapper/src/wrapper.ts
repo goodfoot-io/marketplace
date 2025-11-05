@@ -113,6 +113,7 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
     // Build config based on transport type
     if (transport === 'stdio') {
       // For stdio: first remaining arg is command, rest are args
+      // Headers are NOT parsed for stdio - they're passed through to the command
       if (remainingArgs.length === 0) {
         throw new Error(`Server "${name}": stdio transport requires at least a command`);
       }
@@ -127,23 +128,67 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
         args
       });
     } else {
-      // For HTTP: remaining arg should be a URL
-      if (remainingArgs.length === 0) {
+      // For HTTP: parse headers from -H and --header flags
+      const headers: Record<string, string> = {};
+      const filteredArgs: string[] = [];
+
+      for (let i = 0; i < remainingArgs.length; i++) {
+        const arg = remainingArgs[i];
+
+        if (arg === '-H' || arg === '--header') {
+          // Next argument should be the header value
+          if (i + 1 >= remainingArgs.length) {
+            throw new Error(`Server "${name}": ${arg} flag requires a value`);
+          }
+
+          const headerValue = remainingArgs[i + 1];
+
+          // Split on first colon to separate name from value
+          const colonIndex = headerValue.indexOf(':');
+          if (colonIndex === -1) {
+            throw new Error(`Server "${name}": Invalid header format "${headerValue}". Expected "Header-Name: Header-Value"`);
+          }
+
+          const headerName = headerValue.substring(0, colonIndex).trim();
+          const headerVal = headerValue.substring(colonIndex + 1).trim();
+
+          if (!headerName) {
+            throw new Error(`Server "${name}": Header name cannot be empty in "${headerValue}"`);
+          }
+
+          headers[headerName] = headerVal;
+
+          // Skip the next argument (header value)
+          i++;
+        } else {
+          filteredArgs.push(arg);
+        }
+      }
+
+      // For HTTP: remaining arg should be a URL (after filtering headers)
+      if (filteredArgs.length === 0) {
         throw new Error(`Server "${name}": http transport requires a URL`);
       }
 
-      const url = remainingArgs[0];
+      const url = filteredArgs[0];
 
       // Basic URL validation
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         throw new Error(`Server "${name}": Invalid URL "${url}". Must start with http:// or https://`);
       }
 
-      configs.push({
+      const httpConfig: ServerConfig = {
         name,
         transport: 'http',
         url
-      });
+      };
+
+      // Add headers if any were parsed
+      if (Object.keys(headers).length > 0) {
+        httpConfig.headers = headers;
+      }
+
+      configs.push(httpConfig);
     }
   }
 

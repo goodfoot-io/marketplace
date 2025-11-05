@@ -29,6 +29,8 @@ export interface ServerConfig {
   args?: string[];
   /** URL for HTTP transport */
   url?: string;
+  /** HTTP headers for HTTP transport */
+  headers?: Record<string, string>;
   /** Environment variables to pass to server */
   env?: Record<string, string>;
 }
@@ -42,6 +44,7 @@ export const ServerConfigSchema = z.object({
   command: z.string().optional(),
   args: z.array(z.string()).optional(),
   url: z.string().optional(),
+  headers: z.record(z.string()).optional(),
   env: z.record(z.string()).optional()
 });
 

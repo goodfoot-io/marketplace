@@ -60,7 +60,15 @@ async function discoverServerTools(
         return [];
       }
 
-      transport = new StreamableHTTPClientTransport(new URL(config.url));
+      // Create HTTP transport with headers if provided
+      const transportOptions: { requestInit?: RequestInit } = {};
+      if (config.headers && Object.keys(config.headers).length > 0) {
+        transportOptions.requestInit = {
+          headers: config.headers
+        };
+      }
+
+      transport = new StreamableHTTPClientTransport(new URL(config.url), transportOptions);
     }
 
     // Connect with timeout
