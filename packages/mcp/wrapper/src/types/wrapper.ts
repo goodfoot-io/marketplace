@@ -1,11 +1,19 @@
 /**
- * Type definitions for MCP wrapper server
+ * Type definitions and validation functions for MCP wrapper server
+ * Provides runtime validation to improve type safety
  */
+
+import { z } from 'zod';
 
 /**
  * Transport type for MCP server connections
  */
 export type TransportType = 'stdio' | 'http';
+
+/**
+ * Zod schema for TransportType
+ */
+export const TransportTypeSchema = z.enum(['stdio', 'http']);
 
 /**
  * Configuration for a single wrapped MCP server
@@ -24,6 +32,27 @@ export interface ServerConfig {
   /** Environment variables to pass to server */
   env?: Record<string, string>;
 }
+
+/**
+ * Zod schema for ServerConfig with runtime validation
+ */
+export const ServerConfigSchema = z.object({
+  name: z.string().min(1, 'Server name cannot be empty'),
+  transport: TransportTypeSchema,
+  command: z.string().optional(),
+  args: z.array(z.string()).optional(),
+  url: z.string().optional(),
+  env: z.record(z.string()).optional()
+});
+
+/**
+ * Tool schema for discovered tools
+ */
+export const ToolSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  inputSchema: z.record(z.unknown())
+});
 
 /**
  * Aggregated tools from all wrapped servers
@@ -45,6 +74,20 @@ export interface AggregatedTools {
 }
 
 /**
+ * Zod schema for AggregatedTools
+ */
+export const AggregatedToolsSchema = z.object({
+  allTools: z.array(
+    z.object({
+      serverName: z.string(),
+      tool: ToolSchema
+    })
+  ),
+  allowedTools: z.array(z.string()),
+  description: z.string()
+});
+
+/**
  * Cached tool description format
  */
 export interface CachedToolDescription {
@@ -60,4 +103,146 @@ export interface CachedToolDescription {
   allowedTools: string[];
   /** Aggregated description */
   description: string;
+}
+
+/**
+ * Zod schema for CachedToolDescription
+ */
+export const CachedToolDescriptionSchema = z.object({
+  version: z.string(),
+  configHash: z.string(),
+  timestamp: z.number(),
+  allTools: z.array(
+    z.object({
+      serverName: z.string(),
+      tool: ToolSchema
+    })
+  ),
+  allowedTools: z.array(z.string()),
+  description: z.string()
+});
+
+/**
+ * Type guard to check if a value is a valid ServerConfig object
+ */
+export function isServerConfig(value: unknown): value is ServerConfig {
+  const result = ServerConfigSchema.safeParse(value);
+  return result.success;
+}
+
+/**
+ * Validates and narrows the type of server configuration
+ * @throws {Error} if validation fails
+ */
+export function validateServerConfig(value: unknown): ServerConfig {
+  if (!isServerConfig(value)) {
+    let received: string;
+    if (value === null) {
+      received = 'null';
+    } else if (value === undefined) {
+      received = 'undefined';
+    } else if (typeof value === 'object') {
+      try {
+        received = JSON.stringify(value);
+      } catch {
+        received = '[object with circular reference]';
+      }
+    } else if (typeof value === 'string') {
+      received = `"${value}"`;
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      received = String(value);
+    } else {
+      received = typeof value;
+    }
+    throw new Error(
+      `Invalid server configuration. Expected {name: string, transport: 'stdio'|'http', ...}, received: ${received}`
+    );
+  }
+  return value;
+}
+
+/**
+ * Type guard to check if a value is a valid AggregatedTools object
+ */
+export function isAggregatedTools(value: unknown): value is AggregatedTools {
+  const result = AggregatedToolsSchema.safeParse(value);
+  return result.success;
+}
+
+/**
+ * Validates and narrows the type of aggregated tools
+ * @throws {Error} if validation fails
+ */
+export function validateAggregatedTools(value: unknown): AggregatedTools {
+  if (!isAggregatedTools(value)) {
+    let received: string;
+    if (value === null) {
+      received = 'null';
+    } else if (value === undefined) {
+      received = 'undefined';
+    } else if (typeof value === 'object') {
+      try {
+        received = JSON.stringify(value);
+      } catch {
+        received = '[object with circular reference]';
+      }
+    } else {
+      received = typeof value;
+    }
+    throw new Error(
+      `Invalid aggregated tools. Expected {allTools: Array, allowedTools: string[], description: string}, received: ${received}`
+    );
+  }
+  return value;
+}
+
+/**
+ * Type guard to check if a value is a valid CachedToolDescription object
+ */
+export function isCachedToolDescription(value: unknown): value is CachedToolDescription {
+  const result = CachedToolDescriptionSchema.safeParse(value);
+  return result.success;
+}
+
+/**
+ * Validates and narrows the type of cached tool description
+ * @throws {Error} if validation fails
+ */
+export function validateCachedToolDescription(value: unknown): CachedToolDescription {
+  if (!isCachedToolDescription(value)) {
+    let received: string;
+    if (value === null) {
+      received = 'null';
+    } else if (value === undefined) {
+      received = 'undefined';
+    } else if (typeof value === 'object') {
+      try {
+        received = JSON.stringify(value);
+      } catch {
+        received = '[object with circular reference]';
+      }
+    } else {
+      received = typeof value;
+    }
+    throw new Error(
+      `Invalid cached tool description. Expected {version: string, configHash: string, timestamp: number, ...}, received: ${received}`
+    );
+  }
+  return value;
+}
+
+/**
+ * Safe extraction of environment variables as a Record<string, string>
+ * Filters out undefined values that could cause issues with MCP SDK
+ */
+export function getEnvironmentAsRecord(env: NodeJS.ProcessEnv): Record<string, string> {
+  const result: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(env)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+
+  return result;
 }
