@@ -3,7 +3,11 @@
  * MCP wrapper server - Generic wrapper for multiple MCP servers with dynamic tool discovery
  */
 
-import type { ServerConfig } from './types/wrapper.js';
+import type { ServerConfig, AggregatedTools } from './types/wrapper.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { discoverTools } from './discovery.js';
+import { info } from './logger.js';
 
 /**
  * Parse CLI arguments to extract multiple wrapped server configurations
@@ -145,6 +149,69 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
   }
 
   return configs;
+}
+
+/**
+ * Wrapper server instance with discovered tools
+ */
+export interface WrapperServer {
+  server: Server;
+  tools: AggregatedTools;
+}
+
+/**
+ * Initialize MCP server with tool discovery
+ *
+ * @param configs - Array of server configurations
+ * @returns Server instance with registered tool handlers
+ */
+export async function initializeServer(configs: ServerConfig[]): Promise<WrapperServer> {
+  info('Initializing MCP wrapper server');
+
+  // Discover tools from wrapped servers (with caching)
+  const tools = await discoverTools(configs);
+  info(`Discovered ${tools.allTools.length} tools total`);
+
+  // Create MCP server instance
+  const server = new Server(
+    {
+      name: 'mcp-wrapper-server',
+      version: '1.0.0'
+    },
+    {
+      capabilities: {
+        tools: {}
+      }
+    }
+  );
+
+  // Register ListToolsRequestSchema handler
+  server.setRequestHandler(ListToolsRequestSchema, () => ({
+    tools: [
+      {
+        name: 'agent',
+        description: tools.description,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            prompt: {
+              type: 'string',
+              description: 'Instructions for the agent'
+            },
+            sessionId: {
+              type: 'string',
+              description: 'Session ID for conversation continuity'
+            }
+          },
+          required: ['prompt']
+        }
+      }
+    ]
+  }));
+
+  info('MCP server initialized successfully');
+
+  return { server, tools };
 }
 
 /**
