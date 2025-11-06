@@ -138,32 +138,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
 
 **Use VSCode LSP for TypeScript/JavaScript symbols:**
 - First use Grep to find where the symbol is DEFINED
-- Then use mcp__vscode__get_symbol_lsp_info with that file path
-- For references, use mcp__vscode__get_references with the DEFINITION file
+- Then use mcp__plugin_vscode_vscode__get_symbol_lsp_info with that file path
+- For references, use mcp__plugin_vscode_vscode__get_references with the DEFINITION file
 
-<tool-use-template>
-// Step 1: Find where symbol is defined
-Grep(
-  pattern="function symbolName\\|class symbolName\\|interface symbolName",
-  glob="**/*.ts",
-  output_mode="files_with_matches"
-)
+<!-- Step 1: Find where symbol is defined -->
+<invoke name="Grep">
+<parameter name="pattern">function symbolName\\|class symbolName\\|interface symbolName</parameter>
+<parameter name="glob">**/*.ts</parameter>
+<parameter name="output_mode">files_with_matches</parameter>
+</invoke>
 
-// Step 2: Get definition with the found file
-mcp__vscode__get_symbol_lsp_info(
-  workspace_path="${WORKSPACE_PATH}",
-  filePath="[path_from_grep]",
-  symbol="symbolName",
-  infoType="definition"
-)
+<!-- Step 2: Get definition with the found file -->
+<invoke name="mcp__plugin_vscode_vscode__get_symbol_lsp_info">
+<parameter name="workspace_path">${WORKSPACE_PATH}</parameter>
+<parameter name="filePath">[path_from_grep]</parameter>
+<parameter name="symbol">symbolName</parameter>
+<parameter name="infoType">definition</parameter>
+</invoke>
 
-// Step 3: Find all references using DEFINITION file
-mcp__vscode__get_references(
-  workspace_path="${WORKSPACE_PATH}",
-  filePath="[definition_file_path]",
-  symbol="symbolName"
-)
-</tool-use-template>
+<!-- Step 3: Find all references using DEFINITION file -->
+<invoke name="mcp__plugin_vscode_vscode__get_references">
+<parameter name="workspace_path">${WORKSPACE_PATH}</parameter>
+<parameter name="filePath">[definition_file_path]</parameter>
+<parameter name="symbol">symbolName</parameter>
+</invoke>
 
 **Skip VSCode LSP and use Grep when:**
 - File is not .ts/.tsx/.js/.jsx
@@ -181,32 +179,30 @@ The \`infoType\` parameter controls what information is retrieved:
 - \`"implementation"\` - All implementations of interfaces/abstract classes
 - \`"all"\` - Returns all available information (default)
 
-<tool-use-template>
-// Get comprehensive symbol information
-mcp__vscode__get_symbol_lsp_info(
-  workspace_path="${WORKSPACE_PATH}",
-  filePath="packages/api/src/user.ts",
-  symbol="UserService",
-  infoType="all"
-)
+<!-- Get comprehensive symbol information -->
+<invoke name="mcp__plugin_vscode_vscode__get_symbol_lsp_info">
+<parameter name="workspace_path">${WORKSPACE_PATH}</parameter>
+<parameter name="filePath">packages/api/src/user.ts</parameter>
+<parameter name="symbol">UserService</parameter>
+<parameter name="infoType">all</parameter>
+</invoke>
 
-// Get just hover documentation
-mcp__vscode__get_symbol_lsp_info(
-  workspace_path="${WORKSPACE_PATH}",
-  filePath="packages/api/src/auth.ts",
-  symbol="authenticate",
-  infoType="hover"
-)
+<!-- Get just hover documentation -->
+<invoke name="mcp__plugin_vscode_vscode__get_symbol_lsp_info">
+<parameter name="workspace_path">${WORKSPACE_PATH}</parameter>
+<parameter name="filePath">packages/api/src/auth.ts</parameter>
+<parameter name="symbol">authenticate</parameter>
+<parameter name="infoType">hover</parameter>
+</invoke>
 
-// Disambiguate when multiple symbols exist
-mcp__vscode__get_symbol_lsp_info(
-  workspace_path="${WORKSPACE_PATH}",
-  filePath="packages/models/src/task.ts",
-  symbol="Task",
-  codeSnippet="export interface Task {",
-  infoType="all"
-)
-</tool-use-template>
+<!-- Disambiguate when multiple symbols exist -->
+<invoke name="mcp__plugin_vscode_vscode__get_symbol_lsp_info">
+<parameter name="workspace_path">${WORKSPACE_PATH}</parameter>
+<parameter name="filePath">packages/models/src/task.ts</parameter>
+<parameter name="symbol">Task</parameter>
+<parameter name="codeSnippet">export interface Task {</parameter>
+<parameter name="infoType">all</parameter>
+</invoke>
 
 **When to use codeSnippet parameter:**
 - Multiple symbols with the same name exist in a file
@@ -222,117 +218,99 @@ mcp__vscode__get_symbol_lsp_info(
 
 **Use ast-grep for code structure:**
 
-<tool-use-template>
-Bash(
-  command="ast-grep -p 'class $NAME extends $BASE' -l ts",
-  description="Find class inheritance patterns"
-)
-</tool-use-template>
+<invoke name="Bash">
+<parameter name="command">ast-grep -p 'class $NAME extends $BASE' -l ts</parameter>
+<parameter name="description">Find class inheritance patterns</parameter>
+</invoke>
 
 **If ast-grep returns empty, fallback to Grep:**
 
-<tool-use-template>
-Grep(
-  pattern="class.*extends",
-  glob="**/*.ts",
-  output_mode="content",
-  -n=true
-)
-</tool-use-template>
+<invoke name="Grep">
+<parameter name="pattern">class.*extends</parameter>
+<parameter name="glob">**/*.ts</parameter>
+<parameter name="output_mode">content</parameter>
+<parameter name="-n">true</parameter>
+</invoke>
 
 ## Text Patterns (console.log, TODO, strings)
 
 **Use Grep directly:**
 
-<tool-use-template>
-Grep(
-  pattern="console\\.log|TODO:",
-  glob="**/*.ts",
-  output_mode="content",
-  -n=true
-)
-</tool-use-template>
+<invoke name="Grep">
+<parameter name="pattern">console\\.log|TODO:</parameter>
+<parameter name="glob">**/*.ts</parameter>
+<parameter name="output_mode">content</parameter>
+<parameter name="-n">true</parameter>
+</invoke>
 
 ## TypeScript Errors (TS[0-9]+)
 
 **Use diagnostics first, then investigate types:**
 
-<tool-use-template>
-// Step 1: Get diagnostics
-mcp__vscode__get_diagnostics(
-  workspace_path="${WORKSPACE_PATH}",
-  filePath="packages/api/src/user.ts"
-)
+<!-- Step 1: Get diagnostics -->
+<invoke name="mcp__plugin_vscode_vscode__get_diagnostics">
+<parameter name="workspace_path">${WORKSPACE_PATH}</parameter>
+<parameter name="filePath">packages/api/src/user.ts</parameter>
+</invoke>
 
-// Step 2: Investigate specific types
-mcp__vscode__get_symbol_lsp_info(
-  workspace_path="${WORKSPACE_PATH}",
-  filePath="packages/api/src/user.ts",
-  symbol="UserType",
-  infoType="definition"
-)
-</tool-use-template>
+<!-- Step 2: Investigate specific types -->
+<invoke name="mcp__plugin_vscode_vscode__get_symbol_lsp_info">
+<parameter name="workspace_path">${WORKSPACE_PATH}</parameter>
+<parameter name="filePath">packages/api/src/user.ts</parameter>
+<parameter name="symbol">UserType</parameter>
+<parameter name="infoType">definition</parameter>
+</invoke>
 
 ## Runtime Errors with file:line
 
 **Read the location, then search for patterns:**
 
-<tool-use-template>
-// Step 1: Read error location
-Read(
-  file_path="packages/api/src/handler.ts",
-  offset=42,
-  limit=10
-)
+<!-- Step 1: Read error location -->
+<invoke name="Read">
+<parameter name="file_path">packages/api/src/handler.ts</parameter>
+<parameter name="offset">42</parameter>
+<parameter name="limit">10</parameter>
+</invoke>
 
-// Step 2: Search for error patterns
-Grep(
-  pattern="TypeError.*undefined",
-  glob="**/*.ts",
-  output_mode="content",
-  -n=true
-)
-</tool-use-template>
+<!-- Step 2: Search for error patterns -->
+<invoke name="Grep">
+<parameter name="pattern">TypeError.*undefined</parameter>
+<parameter name="glob">**/*.ts</parameter>
+<parameter name="output_mode">content</parameter>
+<parameter name="-n">true</parameter>
+</invoke>
 
 ## Module Dependencies
 
 **What does a file import:**
 
-<tool-use-template>
-Bash(
-  command="print-dependencies packages/api/src/auth.ts",
-  description="List all files that auth.ts depends on"
-)
-</tool-use-template>
+<invoke name="Bash">
+<parameter name="command">print-dependencies packages/api/src/auth.ts</parameter>
+<parameter name="description">List all files that auth.ts depends on</parameter>
+</invoke>
 
 **What imports a file (impact analysis):**
 
-<tool-use-template>
-Bash(
-  command="print-inverse-dependencies packages/shared/types/user.ts",
-  description="Show what would break if user.ts changes"
-)
-</tool-use-template>
+<invoke name="Bash">
+<parameter name="command">print-inverse-dependencies packages/shared/types/user.ts</parameter>
+<parameter name="description">Show what would break if user.ts changes</parameter>
+</invoke>
 
 ## Package APIs and Type Analysis
 
 **Understand package exports or complex types:**
 
-<tool-use-template>
-Bash(
-  command="print-typescript-types packages/api/src/types/index.ts",
-  description="Export type definitions with simplified forms"
-)
-</tool-use-template>
+<invoke name="Bash">
+<parameter name="command">print-typescript-types packages/api/src/types/index.ts</parameter>
+<parameter name="description">Export type definitions with simplified forms</parameter>
+</invoke>
 
 **Analyze code complexity:**
 
-<tool-use-template>
-Bash(
-  command="print-type-analysis packages/api/src/services/user.ts",
-  description="Get type information and complexity metrics"
-)
-</tool-use-template>
+<invoke name="Bash">
+<parameter name="command">print-type-analysis packages/api/src/services/user.ts</parameter>
+<parameter name="description">Get type information and complexity metrics</parameter>
+</invoke>
 
 ## Direct File Access
 
@@ -437,26 +415,22 @@ Query: "Find all references to updateGitAvailability"
 
 ### Correct Workflow:
 
-<tool-use-template>
-// Step 1: Find where symbol is DEFINED (not where it's used)
-Grep(
-  pattern="updateGitAvailability",
-  glob="**/*.ts",
-  output_mode="content",
-  -n=true
-)
-// Shows: src/state/GitStatusManager.ts:96 - method definition
-</tool-use-template>
+<!-- Step 1: Find where symbol is DEFINED (not where it's used) -->
+<invoke name="Grep">
+<parameter name="pattern">updateGitAvailability</parameter>
+<parameter name="glob">**/*.ts</parameter>
+<parameter name="output_mode">content</parameter>
+<parameter name="-n">true</parameter>
+</invoke>
+<!-- Shows: src/state/GitStatusManager.ts:96 - method definition -->
 
-<tool-use-template>
-// Step 2: Use VSCode LSP with the DEFINITION file
-mcp__vscode__get_references(
-  workspace_path="${WORKSPACE_PATH}",
-  filePath="src/state/GitStatusManager.ts",  // Where it's defined
-  symbol="updateGitAvailability"
-)
-// Result: Lists all 12 references across codebase
-</tool-use-template>
+<!-- Step 2: Use VSCode LSP with the DEFINITION file -->
+<invoke name="mcp__plugin_vscode_vscode__get_references">
+<parameter name="workspace_path">${WORKSPACE_PATH}</parameter>
+<parameter name="filePath">src/state/GitStatusManager.ts</parameter>
+<parameter name="symbol">updateGitAvailability</parameter>
+</invoke>
+<!-- Result: Lists all 12 references across codebase -->
 
 Key insight: VSCode LSP needs the file where a symbol is DEFINED, not where it's used.
 
@@ -465,41 +439,33 @@ Query: "What files does auth.ts depend on and what would break if I change user.
 
 ### Using Dependency Tools:
 
-<tool-use-template>
-// Check what files auth.ts imports (dependencies)
-Bash(
-  command="print-dependencies packages/api/src/auth.ts",
-  description="List all files that auth.ts depends on"
-)
-// Shows: All files imported by auth.ts
-</tool-use-template>
+<!-- Check what files auth.ts imports (dependencies) -->
+<invoke name="Bash">
+<parameter name="command">print-dependencies packages/api/src/auth.ts</parameter>
+<parameter name="description">List all files that auth.ts depends on</parameter>
+</invoke>
+<!-- Shows: All files imported by auth.ts -->
 
-<tool-use-template>
-// Check what files import user.ts (inverse dependencies)
-Bash(
-  command="print-inverse-dependencies packages/shared/types/user.ts",
-  description="Show impact scope - what would break"
-)
-// Shows: All files that import user.ts - these would be affected by changes
-</tool-use-template>
+<!-- Check what files import user.ts (inverse dependencies) -->
+<invoke name="Bash">
+<parameter name="command">print-inverse-dependencies packages/shared/types/user.ts</parameter>
+<parameter name="description">Show impact scope - what would break</parameter>
+</invoke>
+<!-- Shows: All files that import user.ts - these would be affected by changes -->
 
-<tool-use-template>
-// Analyze code complexity for refactoring decisions
-Bash(
-  command="print-type-analysis packages/api/src/services/user.ts",
-  description="Get type information and complexity metrics"
-)
-// Shows: Functions, classes, interfaces with cyclomatic complexity scores
-</tool-use-template>
+<!-- Analyze code complexity for refactoring decisions -->
+<invoke name="Bash">
+<parameter name="command">print-type-analysis packages/api/src/services/user.ts</parameter>
+<parameter name="description">Get type information and complexity metrics</parameter>
+</invoke>
+<!-- Shows: Functions, classes, interfaces with cyclomatic complexity scores -->
 
-<tool-use-template>
-// Understand package API or complex types
-Bash(
-  command="print-typescript-types packages/api/src/types/index.ts",
-  description="Export type definitions with simplified forms"
-)
-// Shows: Both full declarations and simplified type representations
-</tool-use-template>
+<!-- Understand package API or complex types -->
+<invoke name="Bash">
+<parameter name="command">print-typescript-types packages/api/src/types/index.ts</parameter>
+<parameter name="description">Export type definitions with simplified forms</parameter>
+</invoke>
+<!-- Shows: Both full declarations and simplified type representations -->
 
 ## Example 3: Root Cause Analysis
 Query: "Why does buildFullTreeFromGit return empty when HEAD points to master?"
@@ -813,6 +779,7 @@ ${question}
       prompt,
       options: {
         systemPrompt: customSystemPrompt,
+        model: 'haiku',
         maxTurns: 100,
         includePartialMessages: true,
         abortController,

@@ -1268,12 +1268,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
     // Add session info with usage instructions
     finalText += `\n\n**Session ID**: ${sessionId}
 
-<tool-use-template>
-mcp__chrome__prompt(
-  prompt="your next instruction",
-  sessionId="${sessionId}"
-)
-</tool-use-template>
+<invoke name="mcp__plugin_browser_browser__prompt">
+<parameter name="prompt">your next instruction</parameter>
+<parameter name="sessionId">${sessionId}</parameter>
+</invoke>
 
 **Log**: ${logPath}`;
 

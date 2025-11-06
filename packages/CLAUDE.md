@@ -36,11 +36,9 @@ Do not avoid linting, tests, or writing full implementations.
 
 For comprehensive code analysis (dependencies, types, patterns, relationships), use the Task tool with codebase-analysis subagent:
 
-<tool-use-template>
-mcp__plugin_vscode_codebase__ask({
-  question: "[Your analysis question]"
-})
-</tool-use-template>
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">[Your analysis question]</parameter>
+</invoke>
 
 Example questions:
 - "Trace all dependencies for src/index.ts and show what imports it"
