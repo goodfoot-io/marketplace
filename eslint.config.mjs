@@ -8,7 +8,7 @@ export function makeConfig(...configs) {
   return tseslint.config(
     ...configs,
     {
-      ignores: ['**/*.cjs', 'eslint.config.mjs', 'print.mjs', 'dependencies.ts', 'inverse-dependencies.ts', '.worktrees/**', 'documentation/**', 'reports/**']
+      ignores: ['**/*.cjs', 'eslint.config.mjs', 'print.mjs', 'dependencies.ts', 'inverse-dependencies.ts', '.worktrees/**', 'documentation/**', 'reports/**', '**/tests/fixtures/**']
     },
     eslint.configs.recommended,
     ...tseslint.configs.recommendedTypeChecked,

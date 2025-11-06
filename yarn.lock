@@ -954,6 +954,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@goodfoot/mcp-wrapper-server@workspace:packages/mcp/wrapper":
+  version: 0.0.0-use.local
+  resolution: "@goodfoot/mcp-wrapper-server@workspace:packages/mcp/wrapper"
+  dependencies:
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.23"
+    "@goodfoot/test-utilities": "workspace:^"
+    "@modelcontextprotocol/sdk": "npm:^1.18.2"
+    "@types/jest": "npm:^29.5.14"
+    "@types/node": "npm:^24.3.1"
+    "@typescript-eslint/eslint-plugin": "npm:^8.34.0"
+    "@typescript-eslint/parser": "npm:^8.34.0"
+    eslint: "npm:^9.28.0"
+    jest: "npm:^29"
+    prettier: "npm:^3.5.3"
+    ts-jest: "npm:^29.3.4"
+    typescript: "npm:^5.8.3"
+    zod: "npm:^3.24.1"
+  bin:
+    wrapper-mcp-server: ./build/dist/src/wrapper.js
+  languageName: unknown
+  linkType: soft
+
 "@goodfoot/streamable-http-mcp-server-daemon@workspace:packages/streamable-http-mcp-server-daemon":
   version: 0.0.0-use.local
   resolution: "@goodfoot/streamable-http-mcp-server-daemon@workspace:packages/streamable-http-mcp-server-daemon"
