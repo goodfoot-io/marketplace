@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.15
+- Added configurable diagnostic logging via `BROWSER_MCP_SERVER_LOGGING` environment variable
+- Improved documentation with comprehensive configuration guide and troubleshooting section
+- Enhanced logging system with structured output to stderr for better debugging
+
 ## 0.1.14
 - Improved documentation clarity for tool invocation syntax in session instructions
 
