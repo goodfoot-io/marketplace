@@ -10,6 +10,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
+import * as logger from './logger.js';
 import {
   type SessionState,
   type ExecuteToolArguments,
@@ -76,7 +77,7 @@ async function findChromeMcpChildProcesses(): Promise<number[]> {
 
     return childPids;
   } catch (error) {
-    console.error('Error finding Chrome MCP child processes:', error);
+    logger.error('Error finding Chrome MCP child processes:', error);
     return [];
   }
 }
@@ -89,11 +90,11 @@ async function killHungChromeMcpProcesses(): Promise<number> {
     const childPids = await findChromeMcpChildProcesses();
 
     if (childPids.length === 0) {
-      console.error('No Chrome MCP child processes found to kill');
+      logger.info('No Chrome MCP child processes found to kill');
       return 0;
     }
 
-    console.error(`Found ${childPids.length} Chrome MCP child process(es): ${childPids.join(', ')}`);
+    logger.info(`Found ${childPids.length} Chrome MCP child process(es): ${childPids.join(', ')}`);
 
     let killedCount = 0;
     for (const pid of childPids) {
@@ -109,21 +110,21 @@ async function killHungChromeMcpProcesses(): Promise<number> {
           process.kill(pid, 0);
           // Still alive, force kill
           process.kill(pid, 'SIGKILL');
-          console.error(`Force killed hung Chrome MCP process ${pid}`);
+          logger.info(`Force killed hung Chrome MCP process ${pid}`);
         } catch {
           // Process already dead from SIGTERM
-          console.error(`Gracefully terminated Chrome MCP process ${pid}`);
+          logger.info(`Gracefully terminated Chrome MCP process ${pid}`);
         }
 
         killedCount++;
       } catch (error) {
-        console.error(`Failed to kill Chrome MCP process ${pid}:`, error);
+        logger.error(`Failed to kill Chrome MCP process ${pid}:`, error);
       }
     }
 
     return killedCount;
   } catch (error) {
-    console.error('Error killing hung Chrome MCP processes:', error);
+    logger.error('Error killing hung Chrome MCP processes:', error);
     return 0;
   }
 }
@@ -138,7 +139,7 @@ async function getPrimaryExternalIP(): Promise<string> {
   try {
     const addresses = await dns.resolve4('host.docker.internal');
     if (addresses && addresses.length > 0) {
-      console.error(`Resolved host.docker.internal to ${addresses[0]}`);
+      logger.info(`Resolved host.docker.internal to ${addresses[0]}`);
       return addresses[0];
     }
   } catch {
@@ -189,7 +190,7 @@ function getSessionTTL(): number {
 
   const parsed = parseInt(envValue, 10);
   if (isNaN(parsed) || parsed <= 0) {
-    console.error(`Invalid BROWSER_SESSION_TTL_MS value: ${envValue}. Using default 5 minutes.`);
+    logger.warn(`Invalid BROWSER_SESSION_TTL_MS value: ${envValue}. Using default 5 minutes.`);
     return 5 * 60 * 1000;
   }
 
@@ -517,7 +518,7 @@ async function parseChromeArgs(): Promise<{ browserUrl: string }> {
     if (!values.browserUrl || typeof values.browserUrl !== 'string') {
       const primaryIP = await getPrimaryExternalIP();
       browserUrl = `http://${primaryIP}:9222`;
-      console.error(`No --browserUrl provided, using primary external IP: ${browserUrl}`);
+      logger.info(`No --browserUrl provided, using primary external IP: ${browserUrl}`);
     } else {
       browserUrl = values.browserUrl;
     }
@@ -526,7 +527,7 @@ async function parseChromeArgs(): Promise<{ browserUrl: string }> {
       browserUrl
     };
   } catch (error) {
-    console.error('Failed to parse command-line arguments:', error);
+    logger.error('Failed to parse command-line arguments:', error);
     process.exit(1);
   }
 }
@@ -539,7 +540,7 @@ function cleanupStaleSessions(): void {
   for (const [id, session] of sessions.entries()) {
     if (now - session.lastActivity.getTime() > SESSION_TTL_MS) {
       sessions.delete(id);
-      console.error(`Session ${id} expired after ${SESSION_TTL_MS}ms of inactivity`);
+      logger.info(`Session ${id} expired after ${SESSION_TTL_MS}ms of inactivity`);
     }
   }
 
@@ -552,18 +553,18 @@ function cleanupStaleSessions(): void {
     while (sessions.size > 10) {
       const [id] = sorted.shift()!;
       sessions.delete(id);
-      console.error(`Session ${id} evicted (LRU - max 10 sessions)`);
+      logger.info(`Session ${id} evicted (LRU - max 10 sessions)`);
     }
   }
 
   const removedCount = beforeSize - sessions.size;
   if (removedCount > 0) {
-    console.error(`Cleaned up ${removedCount} session(s). Active sessions: ${sessions.size}`);
+    logger.info(`Cleaned up ${removedCount} session(s). Active sessions: ${sessions.size}`);
   }
 
   // Log when all sessions have expired
   if (beforeSize > 0 && sessions.size === 0) {
-    console.error('All sessions expired - no active browser sessions');
+    logger.info('All sessions expired - no active browser sessions');
   }
 }
 
@@ -869,22 +870,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
       if (timeSinceLastHeartbeat > heartbeatTimeoutMs && !mcpProcessHung) {
         mcpProcessHung = true;
         heartbeatAbortTriggered = true;
-        console.error(
+        logger.warn(
           `[Heartbeat Watchdog] No progress for ${Math.floor(timeSinceLastHeartbeat / 1000)}s - Chrome MCP may be hung`
         );
-        console.error('[Heartbeat Watchdog] Attempting to kill hung Chrome MCP processes...');
+        logger.warn('[Heartbeat Watchdog] Attempting to kill hung Chrome MCP processes...');
 
         // Kill hung processes asynchronously
         killHungChromeMcpProcesses()
           .then((killedCount) => {
             if (killedCount > 0) {
-              console.error(`[Heartbeat Watchdog] Killed ${killedCount} hung Chrome MCP process(es)`);
+              logger.info(`[Heartbeat Watchdog] Killed ${killedCount} hung Chrome MCP process(es)`);
             }
             // Abort the current query to trigger retry
             abortController.abort();
           })
           .catch((err) => {
-            console.error('[Heartbeat Watchdog] Failed to kill hung processes:', err);
+            logger.error('[Heartbeat Watchdog] Failed to kill hung processes:', err);
             // Still abort even if kill failed
             abortController.abort();
           });
@@ -937,7 +938,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
                   // Detect "No page selected" error - indicates Chrome has zero pages
                   if (errorContent.includes('No page selected') && !noPageSelectedDetected) {
                     noPageSelectedDetected = true;
-                    console.error(
+                    logger.info(
                       'Detected "No page selected" error - Chrome has zero pages. Creating initial page...'
                     );
 
@@ -947,7 +948,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
                       const response = await fetch(createPageUrl, { method: 'PUT' });
                       if (response.ok) {
                         const pageInfo = (await response.json()) as { id: string };
-                        console.error(`Created initial page: ${pageInfo.id}`);
+                        logger.info(`Created initial page: ${pageInfo.id}`);
                         // Throw error to trigger retry with the new page
                         throw new Error('NO_PAGE_SELECTED_RECOVERED');
                       }
@@ -955,7 +956,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
                       if ((fetchError as Error).message === 'NO_PAGE_SELECTED_RECOVERED') {
                         throw fetchError;
                       }
-                      console.error('Failed to create page via CDP:', fetchError);
+                      logger.error('Failed to create page via CDP:', fetchError);
                     }
                   }
 
@@ -996,7 +997,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
                       }
                     })
                     .catch((err: Error) => {
-                      console.error('Failed to send progress notification:', err);
+                      logger.error('Failed to send progress notification:', err);
                     });
                 }
               }
@@ -1013,7 +1014,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
 
       // Check if this was triggered by heartbeat watchdog detecting hung Chrome MCP
       if (heartbeatAbortTriggered && error instanceof Error && error.message === 'Operation was aborted') {
-        console.error('[Heartbeat Recovery] Retrying query with fresh Chrome MCP connection...');
+        logger.info('[Heartbeat Recovery] Retrying query with fresh Chrome MCP connection...');
 
         // Reset flags for retry
         heartbeatAbortTriggered = false;
@@ -1095,7 +1096,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
                         }
                       })
                       .catch((err: Error) => {
-                        console.error('Failed to send progress notification:', err);
+                        logger.error('Failed to send progress notification:', err);
                       });
                   }
                 }
@@ -1105,7 +1106,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
         }
       } else if (error instanceof Error && error.message === 'NO_PAGE_SELECTED_RECOVERED') {
         // Check if it's a "No page selected" recovery - retry the query
-        console.error('Retrying query after creating initial page...');
+        logger.info('Retrying query after creating initial page...');
 
         // Reset state for retry
         result = '';
@@ -1179,7 +1180,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
                         }
                       })
                       .catch((err: Error) => {
-                        console.error('Failed to send progress notification:', err);
+                        logger.error('Failed to send progress notification:', err);
                       });
                   }
                 }
@@ -1333,7 +1334,7 @@ process.on('SIGINT', () => {
 async function startServer(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('Browser MCP server started');
+  logger.info('Browser MCP server started');
 }
 
 // Export cleanup function for testing
@@ -1357,7 +1358,7 @@ const argvFileUrl = await resolveFileUrl(process.argv[1]);
 
 if (currentFileUrl === argvFileUrl) {
   startServer().catch((error) => {
-    console.error('Failed to start server:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   });
 }

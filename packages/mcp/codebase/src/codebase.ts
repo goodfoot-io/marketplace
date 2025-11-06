@@ -5,6 +5,7 @@ import { query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
+import * as logger from './logger.js';
 
 // Get the current working directory where the MCP server is running
 const WORKSPACE_PATH = process.cwd();
@@ -935,7 +936,7 @@ ${question}
     if (error instanceof Error) {
       if (error.message === 'Operation was aborted' || error.name === 'AbortError') {
         // Log the abort for debugging
-        console.error('[Codebase Tool] Query aborted by client');
+        logger.info('[Codebase Tool] Query aborted by client');
         throw new McpError(ErrorCode.InternalError, 'Request was cancelled by client');
       }
       throw new McpError(ErrorCode.InternalError, `Failed to analyze codebase: ${error.message}`);
@@ -966,7 +967,7 @@ const argvFileUrl = await resolveFileUrl(process.argv[1]);
 
 if (currentFileUrl === argvFileUrl) {
   startServer().catch((error) => {
-    console.error('Failed to start server:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   });
 }

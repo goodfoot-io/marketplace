@@ -3,6 +3,7 @@
 import { spawn, ChildProcess } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import { createServer, Socket, connect } from 'node:net';
+import * as logger from './logger.js';
 
 const LISTEN_PORT = process.env.LISTEN_PORT ? parseInt(process.env.LISTEN_PORT, 10) : 9222;
 const CHROME_DEBUG_PORT = process.env.CHROME_DEBUG_PORT ? parseInt(process.env.CHROME_DEBUG_PORT, 10) : 9223;
@@ -17,7 +18,7 @@ function getIdleTimeout(): number {
 
   const parsed = parseInt(envValue, 10);
   if (isNaN(parsed) || parsed <= 0) {
-    console.error(`Invalid CHROME_PROXY_IDLE_TIMEOUT_MS value: ${envValue}. Using default 5 minutes.`);
+    logger.warn(`Invalid CHROME_PROXY_IDLE_TIMEOUT_MS value: ${envValue}. Using default 5 minutes.`);
     return 5 * 60 * 1000;
   }
 
@@ -57,11 +58,11 @@ function checkPort(port: number, host = 'localhost'): Promise<boolean> {
  */
 function launchChrome(): void {
   if (chromeProcess) {
-    console.log('Chrome already running');
+    logger.info('Chrome already running');
     return;
   }
 
-  console.log(`Launching Chrome on port ${CHROME_DEBUG_PORT}...`);
+  logger.info(`Launching Chrome on port ${CHROME_DEBUG_PORT}...`);
 
   chromeProcess = spawn(
     'open',
@@ -81,12 +82,12 @@ function launchChrome(): void {
   );
 
   chromeProcess.on('error', (err) => {
-    console.error('Failed to launch Chrome:', err);
+    logger.error('Failed to launch Chrome:', err);
     chromeProcess = null;
   });
 
   chromeProcess.on('exit', (code) => {
-    console.log(`Chrome exited with code ${code}`);
+    logger.info(`Chrome exited with code ${code}`);
     chromeProcess = null;
   });
 }
@@ -102,7 +103,7 @@ async function waitForChrome(maxWaitMs = 5000): Promise<void> {
     const isOpen = await checkPort(CHROME_DEBUG_PORT);
 
     if (isOpen) {
-      console.log(`Chrome port ${CHROME_DEBUG_PORT} is ready`);
+      logger.info(`Chrome port ${CHROME_DEBUG_PORT} is ready`);
       return;
     }
 
@@ -126,7 +127,7 @@ function checkIdleTimeout(): void {
   const idleTime = Date.now() - idleState.lastActivityTime;
 
   if (idleTime > IDLE_TIMEOUT_MS) {
-    console.log(`No activity for ${Math.floor(idleTime / 1000)}s - shutting down due to idle timeout`);
+    logger.info(`No activity for ${Math.floor(idleTime / 1000)}s - shutting down due to idle timeout`);
 
     // Clear the interval
     if (idleState.checkInterval) {
@@ -147,13 +148,13 @@ function checkIdleTimeout(): void {
 
     // Close server
     server.close(() => {
-      console.log('Server closed due to idle timeout');
+      logger.info('Server closed due to idle timeout');
       process.exit(0);
     });
 
     // Force exit after 2 seconds if server doesn't close gracefully
     setTimeout(() => {
-      console.log('Forcing exit after idle timeout...');
+      logger.info('Forcing exit after idle timeout...');
       process.exit(0);
     }, 2000);
   }
@@ -197,12 +198,12 @@ const server = createServer(async (clientSocket) => {
     });
 
     chromeSocket.on('error', (err) => {
-      console.error('Chrome connection error:', err);
+      logger.error('Chrome connection error:', err);
       clientSocket.end();
     });
 
     clientSocket.on('error', (err) => {
-      console.error('Client socket error:', err);
+      logger.error('Client socket error:', err);
       chromeSocket.end();
     });
 
@@ -214,16 +215,16 @@ const server = createServer(async (clientSocket) => {
       chromeSocket.end();
     });
   } catch (err) {
-    console.error('Connection error:', err);
+    logger.error('Connection error:', err);
     clientSocket.end();
   }
 });
 
 server.listen(LISTEN_PORT, () => {
-  console.log(`Chrome proxy server listening on port ${LISTEN_PORT}`);
-  console.log(`Will forward to Chrome on port ${CHROME_DEBUG_PORT}`);
-  console.log(`Chrome user data dir: ${CHROME_USER_DATA_DIR}`);
-  console.log(`Idle timeout: ${IDLE_TIMEOUT_MS}ms (${Math.floor(IDLE_TIMEOUT_MS / 60000)} minutes)`);
+  logger.info(`Chrome proxy server listening on port ${LISTEN_PORT}`);
+  logger.info(`Will forward to Chrome on port ${CHROME_DEBUG_PORT}`);
+  logger.info(`Chrome user data dir: ${CHROME_USER_DATA_DIR}`);
+  logger.info(`Idle timeout: ${IDLE_TIMEOUT_MS}ms (${Math.floor(IDLE_TIMEOUT_MS / 60000)} minutes)`);
 
   // Start idle timeout checker
   idleState.checkInterval = setInterval(checkIdleTimeout, 30000); // Check every 30 seconds
@@ -241,7 +242,7 @@ server.on('connection', (socket) => {
 
 // Cleanup on exit
 process.on('SIGINT', () => {
-  console.log('\nShutting down...');
+  logger.info('\nShutting down...');
 
   // Clear idle check interval
   if (idleState.checkInterval) {
@@ -261,13 +262,13 @@ process.on('SIGINT', () => {
 
   // Close server with timeout
   server.close(() => {
-    console.log('Server closed');
+    logger.info('Server closed');
     process.exit(0);
   });
 
   // Force exit after 2 seconds if server doesn't close gracefully
   setTimeout(() => {
-    console.log('Forcing exit...');
+    logger.info('Forcing exit...');
     process.exit(0);
   }, 2000);
 });
@@ -288,5 +289,5 @@ const argvFileUrl = await resolveFileUrl(process.argv[1]);
 
 if (currentFileUrl === argvFileUrl) {
   // Server is already set up and listening above
-  console.log('Chrome proxy is running. Press Ctrl+C to exit.');
+  logger.info('Chrome proxy is running. Press Ctrl+C to exit.');
 }

@@ -1,24 +1,20 @@
 # @goodfoot/browser-mcp-server
 
-MCP server for browser automation using Chrome DevTools Protocol. This package provides a sophisticated browser automation tool with session management, retry logic, and comprehensive error handling.
+Model Context Protocol (MCP) server providing browser automation capabilities through Chrome DevTools Protocol. This package delivers enterprise-grade browser automation with session management, retry logic, and comprehensive error handling.
 
-## Features
+## Overview
 
-- **Browser Automation**: Full control over Chrome browser via Chrome DevTools MCP server
-- **Session Management**: Persistent conversation sessions with history tracking
+The browser MCP server acts as an intelligent wrapper around Chrome DevTools MCP server, providing sophisticated browser automation capabilities through natural language instructions. It maintains conversation context, monitors process health, and implements robust error recovery mechanisms.
+
+## Key Features
+
+- **Natural Language Automation**: Control Chrome browser through conversational instructions
+- **Session Management**: Persistent conversation sessions with automatic history tracking
 - **Progress Notifications**: Real-time updates during tool execution
-- **Error Recovery**: Automatic retry logic for transient failures
-- **Chrome Process Management**: Detection and cleanup of hung Chrome processes
-- **Comprehensive Logging**: Detailed execution logs for debugging
-
-## Architecture
-
-This server acts as a wrapper around the Chrome DevTools MCP server, providing:
-
-1. **Session Continuity**: Maintains conversation context across multiple automation requests
-2. **Claude Code SDK Integration**: Uses the query() function for browser automation
-3. **Heartbeat Monitoring**: Detects and recovers from hung Chrome processes
-4. **Chrome DevTools System Instructions**: Optimized prompts for effective browser automation
+- **Error Recovery**: Automatic retry logic and hung process detection
+- **Process Management**: Heartbeat monitoring and automatic cleanup of unresponsive Chrome processes
+- **Configurable Logging**: Optional diagnostic logging for troubleshooting
+- **Execution Logs**: Detailed automation logs for debugging and audit purposes
 
 ## Installation
 
@@ -26,40 +22,11 @@ This server acts as a wrapper around the Chrome DevTools MCP server, providing:
 yarn add @goodfoot/browser-mcp-server
 ```
 
-## Usage
+## Quick Start
 
-### Starting the Server
+### Prerequisites
 
-```bash
-node ./build/dist/src/browser.js --browserUrl http://localhost:9222
-```
-
-### Configuration in MCP Client
-
-Add to your MCP client configuration:
-
-```json
-{
-  "mcpServers": {
-    "browser": {
-      "command": "node",
-      "args": [
-        "/path/to/@goodfoot/browser-mcp-server/build/dist/src/browser.js",
-        "--browserUrl",
-        "http://localhost:9222"
-      ]
-    }
-  }
-}
-```
-
-### Command-Line Arguments
-
-- `--browserUrl` / `-b`: Chrome DevTools Protocol URL (required)
-  - Example: `http://localhost:9222`
-  - This should point to a running Chrome instance with remote debugging enabled
-
-### Starting Chrome with Remote Debugging
+Chrome must be running with remote debugging enabled:
 
 ```bash
 # macOS
@@ -72,216 +39,371 @@ google-chrome --remote-debugging-port=9222
 "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
 ```
 
-### Chrome Proxy (Optional)
-
-The package includes a Chrome proxy server (`chrome-proxy`) that automatically launches and manages Chrome instances. This is particularly useful in containerized environments or when you want automatic Chrome lifecycle management.
-
-**Starting the proxy:**
+### Starting the Server
 
 ```bash
-npx chrome-proxy
-# Or with the built binary
-node ./build/dist/src/chrome-proxy.js
+node ./build/dist/src/browser.js --browserUrl http://localhost:9222
 ```
 
-**Configuration:**
+### MCP Client Configuration
 
-- `LISTEN_PORT`: Proxy server port (default: `9222`)
-- `CHROME_DEBUG_PORT`: Chrome debugging port (default: `9223`)
-- `CHROME_USER_DATA_DIR`: Chrome user data directory (default: `/tmp/chrome-rdp-{port}`)
-- `CHROME_PROXY_IDLE_TIMEOUT_MS`: Idle timeout in milliseconds (default: `300000` = 5 minutes)
+Configure in your MCP client settings:
 
-**Idle Timeout:**
-
-The proxy automatically shuts down when no activity is detected for the configured timeout period. This prevents resource leaks from stale browser sessions.
-
-```bash
-# Set idle timeout to 2 minutes
-CHROME_PROXY_IDLE_TIMEOUT_MS=120000 npx chrome-proxy
-
-# Set idle timeout to 10 minutes
-CHROME_PROXY_IDLE_TIMEOUT_MS=600000 npx chrome-proxy
+```json
+{
+  "mcpServers": {
+    "browser": {
+      "command": "node",
+      "args": [
+        "/path/to/@goodfoot/browser-mcp-server/build/dist/src/browser.js",
+        "--browserUrl",
+        "http://localhost:9222"
+      ],
+      "env": {
+        "BROWSER_SESSION_TTL_MS": "600000",
+        "BROWSER_MCP_SERVER_LOGGING": "false"
+      }
+    }
+  }
+}
 ```
 
-**How it works:**
+## Command-Line Arguments
 
-1. Proxy listens on `LISTEN_PORT` and forwards connections to Chrome on `CHROME_DEBUG_PORT`
-2. Tracks activity on all socket connections (both client → Chrome and Chrome → client)
-3. Checks for idle timeout every 30 seconds
-4. When timeout is reached with no activity:
-   - Closes all active connections
-   - Kills the Chrome process
-   - Shuts down the proxy server
+### Required Arguments
 
-This feature helps address browser session freezing issues by ensuring stale connections are cleaned up automatically.
+- `--browserUrl` / `-b`: Chrome DevTools Protocol URL
+  - Format: `http://host:port`
+  - Example: `http://localhost:9222`
+  - Default: Auto-detects primary external IP and uses `http://{ip}:9222`
 
 ## Available Tools
 
 ### `prompt`
 
-Execute browser automation tasks with natural language instructions.
+Execute browser automation tasks using natural language instructions.
 
-**Arguments:**
+**Parameters:**
 
-- `prompt` (string, required): Instructions for the browser automation task
-- `sessionId` (string, optional): Session ID for conversation continuity
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `prompt` | string | Yes | Natural language instructions for browser automation task |
+| `sessionId` | string | No | Session identifier for conversation continuity |
 
-**Example:**
+**Example Usage:**
 
 ```typescript
+// Single automation task
 await client.callTool({
   name: 'prompt',
   arguments: {
-    prompt: 'Navigate to example.com and extract the page title',
+    prompt: 'Navigate to example.com and extract the page title'
+  }
+});
+
+// Multi-step automation with session
+const response = await client.callTool({
+  name: 'prompt',
+  arguments: {
+    prompt: 'Navigate to example.com and click the login button',
+    sessionId: 'my-session-123'
+  }
+});
+
+// Continue in same session
+await client.callTool({
+  name: 'prompt',
+  arguments: {
+    prompt: 'Fill in the username field with "testuser"',
     sessionId: 'my-session-123'
   }
 });
 ```
 
-## Session Management
+## Configuration
 
-The server maintains conversation sessions with:
+### Environment Variables
 
-- **Automatic Session Creation**: Generates UUID if no sessionId provided
-- **History Tracking**: Maintains last 10 exchanges (20 messages)
-- **Configurable TTL**: Session time-to-live (default: 5 minutes, configurable via `BROWSER_SESSION_TTL_MS`)
-- **Automatic Cleanup**: Removes sessions after TTL expires or inactive period
-- **LRU Eviction**: Keeps maximum 10 sessions at a time
-- **SDK Session Resumption**: Supports resuming Claude Code SDK sessions
+#### BROWSER_SESSION_TTL_MS
 
-### Session TTL Configuration
+Controls session retention duration.
 
-Control how long inactive sessions are retained:
+- **Default**: `300000` (5 minutes)
+- **Format**: Milliseconds (positive integer)
+- **Example**: `600000` (10 minutes), `3600000` (1 hour)
 
 ```bash
-# Set session TTL to 10 minutes (600000 ms)
 BROWSER_SESSION_TTL_MS=600000 node ./build/dist/src/browser.js --browserUrl http://localhost:9222
-
-# Set session TTL to 1 hour (3600000 ms)
-BROWSER_SESSION_TTL_MS=3600000 node ./build/dist/src/browser.js --browserUrl http://localhost:9222
 ```
 
-**Environment Variable:**
+#### BROWSER_MCP_SERVER_LOGGING
 
-- `BROWSER_SESSION_TTL_MS`: Session time-to-live in milliseconds
-  - Default: `300000` (5 minutes)
-  - Must be a positive integer
-  - Invalid values fall back to default
+Enables diagnostic logging to stderr.
 
-## Chrome DevTools System Instructions
+- **Default**: `false` (logging disabled)
+- **Values**: `"true"` or `"false"`
+- **Output**: All logs written to stderr with level prefixes
 
-The server includes comprehensive system instructions optimized for Chrome DevTools MCP, covering:
+```bash
+BROWSER_MCP_SERVER_LOGGING=true node ./build/dist/src/browser.js --browserUrl http://localhost:9222
+```
 
-- **Core Patterns**: Snapshot → action → refresh workflow
-- **Critical Gotchas**: Dialog handling, scrolling, screenshots, navigation
-- **Data Extraction**: Best practices for extracting data from pages
-- **Error Recovery**: Handling stale UIDs, navigation failures, timeouts
-- **Common Workflows**: Form filling, data extraction, hover menus, infinite scroll
+**Log Levels:**
+
+- `[DEBUG]` - Detailed debugging information
+- `[INFO]` - General informational messages
+- `[WARN]` - Warning conditions
+- `[ERROR]` - Error conditions
+
+## Session Management
+
+The server implements sophisticated session management:
+
+### Session Lifecycle
+
+1. **Creation**: Automatic UUID generation if sessionId not provided
+2. **Activity**: Updates on each prompt execution
+3. **Expiration**: Sessions expire after TTL with no activity
+4. **Cleanup**: Periodic cleanup every 5 minutes
+5. **Eviction**: LRU eviction when exceeding 10 sessions
+
+### Session Features
+
+- **Conversation History**: Maintains last 10 exchanges (20 messages)
+- **SDK Session Resumption**: Supports Claude Code SDK session continuity
+- **Context Preservation**: Includes conversation context in subsequent requests
+- **Automatic Cleanup**: Removes expired and least-recently-used sessions
+
+### Session Response Format
+
+The tool response includes session information:
+
+```
+[Automation Result]
+
+**Session ID**: {session-id}
+
+<invoke name="mcp__plugin_browser_browser__prompt">
+<parameter name="prompt">your next instruction</parameter>
+<parameter name="sessionId">{session-id}</parameter>
+</invoke>
+
+**Log**: /workspace/reports/.browser-automation-logs/{timestamp}_{session-id}.md
+```
+
+## Chrome Proxy (Optional)
+
+The package includes a Chrome proxy server for automated Chrome lifecycle management, particularly useful in containerised environments.
+
+### Starting the Proxy
+
+```bash
+npx chrome-proxy
+# Or using built binary
+node ./build/dist/src/chrome-proxy.js
+```
+
+### Proxy Configuration
+
+#### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LISTEN_PORT` | `9222` | Proxy server listening port |
+| `CHROME_DEBUG_PORT` | `9223` | Chrome debugging port |
+| `CHROME_USER_DATA_DIR` | `/tmp/chrome-rdp-{port}` | Chrome user data directory |
+| `CHROME_PROXY_IDLE_TIMEOUT_MS` | `300000` | Idle timeout in milliseconds |
+| `BROWSER_MCP_SERVER_LOGGING` | `false` | Enable diagnostic logging |
+
+#### Idle Timeout Configuration
+
+The proxy automatically terminates when no activity is detected:
+
+```bash
+# 2-minute timeout
+CHROME_PROXY_IDLE_TIMEOUT_MS=120000 npx chrome-proxy
+
+# 15-minute timeout
+CHROME_PROXY_IDLE_TIMEOUT_MS=900000 npx chrome-proxy
+
+# With logging enabled
+BROWSER_MCP_SERVER_LOGGING=true CHROME_PROXY_IDLE_TIMEOUT_MS=300000 npx chrome-proxy
+```
+
+### Proxy Operation
+
+1. Listens on `LISTEN_PORT` for client connections
+2. Launches Chrome on `CHROME_DEBUG_PORT` if not running
+3. Forwards bidirectional traffic between client and Chrome
+4. Tracks activity on all socket connections
+5. Checks for idle timeout every 30 seconds
+6. On timeout expiration:
+   - Closes all active connections
+   - Terminates Chrome process
+   - Shuts down proxy server
+
+This mechanism prevents resource leaks from stale browser sessions.
 
 ## Error Handling
 
-The server implements robust error handling:
+The server implements multi-layered error handling:
 
-1. **Hung Process Detection**: 60-second heartbeat timeout
-2. **Automatic Process Cleanup**: Kills hung Chrome processes
-3. **Retry Logic**: Single retry for transient failures
-4. **Session Recovery**: Falls back to new session on resume errors
-5. **No Page Selected Recovery**: Creates initial page if Chrome has zero pages
+### Hung Process Detection
 
-## Logging
+- **Heartbeat Timeout**: 60 seconds without progress
+- **Detection**: Monitors message flow from Chrome MCP
+- **Recovery**: Kills hung processes and retries request
 
-All browser automation executions are logged to:
+### Automatic Recovery
+
+1. **Navigation Failures**: Single retry for transient network issues
+2. **No Page Selected**: Creates initial blank page automatically
+3. **Session Resume Errors**: Falls back to new session creation
+4. **Stale UIDs**: Tool-level retry with fresh snapshots
+
+### Error Types
+
+- **Timeout Errors**: 10-minute request timeout
+- **Process Hung**: Heartbeat watchdog detection
+- **Connection Errors**: Chrome disconnection or unavailability
+- **Tool Errors**: Chrome DevTools MCP tool failures
+
+## Logging and Monitoring
+
+### Execution Logs
+
+All automation executions are logged to:
 
 ```
-/workspace/reports/.browser-automation-logs/
+/workspace/reports/.browser-automation-logs/{timestamp}_{sessionId}.md
 ```
 
-Log format includes:
+**Log Contents:**
 
-- Timestamp and session ID in filename
 - Original prompt
-- Full transcript of tool calls and responses
-- Errors and recovery attempts
+- Session identifier
+- Complete tool call transcript
+- Tool responses and errors
+- Recovery attempts
+
+### Diagnostic Logging
+
+Enable with `BROWSER_MCP_SERVER_LOGGING=true`:
+
+- Server startup and shutdown
+- Session creation and expiration
+- Chrome process management
+- Heartbeat monitoring
+- Error conditions and recovery
+
+### Log Location
+
+- **Execution Logs**: `/workspace/reports/.browser-automation-logs/`
+- **Diagnostic Logs**: stderr (when enabled)
 
 ## Progress Notifications
 
-When a progress token is provided in the `_meta` parameter, the server sends real-time progress notifications for each tool call:
+Real-time progress updates during automation execution.
+
+### Enabling Progress Notifications
+
+Include `progressToken` in the `_meta` parameter:
 
 ```typescript
 await client.callTool({
   name: 'prompt',
-  arguments: { prompt: 'Navigate to example.com' },
-  _meta: { progressToken: 'my-progress-token' }
+  arguments: {
+    prompt: 'Navigate to example.com and take a screenshot'
+  },
+  _meta: {
+    progressToken: 'my-progress-token'
+  }
 });
 ```
 
-Progress messages include:
+### Progress Message Types
 
 - Navigating to pages
 - Clicking elements
-- Filling forms
+- Filling form fields
 - Taking screenshots
 - Executing JavaScript
+- Hovering elements
+- Handling dialogs
 - And more...
 
 ## Timeout Configuration
 
-- **Request Timeout**: 10 minutes per automation request
-- **Heartbeat Timeout**: 60 seconds of no progress triggers hung process detection
-- **Process Cleanup**: 1 second graceful shutdown before force kill
-- **Session TTL**: 5 minutes (configurable via `BROWSER_SESSION_TTL_MS`)
-- **Proxy Idle Timeout**: 5 minutes (configurable via `CHROME_PROXY_IDLE_TIMEOUT_MS`)
+| Component | Timeout | Description |
+|-----------|---------|-------------|
+| Request | 10 minutes | Maximum duration for single automation request |
+| Heartbeat | 60 seconds | No progress triggers hung process detection |
+| Process Cleanup | 1 second | Graceful shutdown before force kill |
+| Session TTL | 5 minutes | Configurable via `BROWSER_SESSION_TTL_MS` |
+| Proxy Idle | 5 minutes | Configurable via `CHROME_PROXY_IDLE_TIMEOUT_MS` |
 
 ## Troubleshooting
 
-### Browser Sessions Freezing
+### Browser Sessions Becoming Unresponsive
 
-If you're experiencing browser sessions that freeze or become unresponsive:
-
-1. **Use the Chrome Proxy with Idle Timeout**: The chrome-proxy automatically detects idle connections and cleans them up
-
-   ```bash
-   CHROME_PROXY_IDLE_TIMEOUT_MS=300000 npx chrome-proxy
-   ```
-
-2. **Adjust Session TTL**: Reduce the session TTL to clean up inactive sessions more frequently
-
-   ```bash
-   BROWSER_SESSION_TTL_MS=600000 node ./build/dist/src/browser.js
-   ```
-
-3. **Monitor Logs**: Check the browser automation logs in `/workspace/reports/.browser-automation-logs/` for errors
-
-4. **Check Chrome Process**: Verify Chrome is running and accessible on the debugging port
-   ```bash
-   curl http://localhost:9222/json/version
-   ```
-
-### Sessions Expiring Too Quickly
-
-If sessions are expiring before you finish your work:
+**Solution 1: Use Chrome Proxy with Idle Timeout**
 
 ```bash
-# Increase session TTL to 1 hour
-BROWSER_SESSION_TTL_MS=3600000 node ./build/dist/src/browser.js
+CHROME_PROXY_IDLE_TIMEOUT_MS=300000 npx chrome-proxy
+```
 
-# Increase proxy idle timeout to 15 minutes
+**Solution 2: Reduce Session TTL**
+
+```bash
+BROWSER_SESSION_TTL_MS=300000 node ./build/dist/src/browser.js --browserUrl http://localhost:9222
+```
+
+**Solution 3: Enable Diagnostic Logging**
+
+```bash
+BROWSER_MCP_SERVER_LOGGING=true node ./build/dist/src/browser.js --browserUrl http://localhost:9222
+```
+
+**Solution 4: Check Chrome Availability**
+
+```bash
+curl http://localhost:9222/json/version
+```
+
+### Sessions Expiring Prematurely
+
+Increase session and proxy timeouts:
+
+```bash
+# 1-hour session TTL
+BROWSER_SESSION_TTL_MS=3600000 node ./build/dist/src/browser.js --browserUrl http://localhost:9222
+
+# 15-minute proxy timeout
 CHROME_PROXY_IDLE_TIMEOUT_MS=900000 npx chrome-proxy
 ```
 
-### No Active Sessions Warning
+### "All Sessions Expired" Message
 
-If you see "All sessions expired - no active browser sessions" in logs, this means all sessions have reached their TTL. This is normal behavior when sessions are inactive. New requests will create new sessions automatically.
+This is normal behaviour when all sessions reach their TTL. New requests automatically create fresh sessions.
+
+### Verifying Server Operation
+
+Check logs at `/workspace/reports/.browser-automation-logs/` for:
+
+- Tool execution traces
+- Error messages
+- Recovery attempts
+- Session activity
 
 ## Development
 
-### Building
+### Building the Package
 
 ```bash
 yarn build
 ```
 
-### Testing
+### Running Tests
 
 ```bash
 yarn test
@@ -293,31 +415,42 @@ yarn test
 yarn lint
 ```
 
-## Type Safety
+## Technical Architecture
 
-The package includes comprehensive TypeScript types:
+### Component Overview
+
+1. **Browser Server**: Main MCP server exposing the `prompt` tool
+2. **Chrome Proxy**: Optional proxy for Chrome lifecycle management
+3. **Session Manager**: Handles session state and cleanup
+4. **Heartbeat Monitor**: Detects and recovers from hung processes
+5. **Logger**: Optional diagnostic logging system
+
+### Dependencies
+
+- `@anthropic-ai/claude-agent-sdk`: Claude Code SDK for browser automation
+- `@modelcontextprotocol/sdk`: MCP protocol implementation
+- `zod`: Runtime type validation
+
+### Type Safety
+
+Comprehensive TypeScript types:
 
 - `SessionState`: Session management state
-- `ExecuteToolArguments`: Tool invocation arguments
-- `MessageContent`: SDK message content types
-- Runtime validation for all arguments
+- `ExecuteToolArguments`: Tool invocation arguments with validation
+- `MessageContent`: SDK message content type guards
+- Runtime validation for all tool arguments
 
 ## Browser Compatibility
 
 Tested with:
 
-- Chrome 120+
-- Chromium-based browsers with Chrome DevTools Protocol support
+- Google Chrome 120+
+- Chromium-based browsers supporting Chrome DevTools Protocol
 
-## Dependencies
-
-- `@anthropic-ai/claude-code`: Claude Code SDK for browser automation
-- `@modelcontextprotocol/sdk`: MCP protocol implementation
-
-## License
+## Licence
 
 MIT
 
 ## Support
 
-For issues and questions, please refer to the main repository documentation.
+For issues, feature requests, and questions, please refer to the main repository documentation.

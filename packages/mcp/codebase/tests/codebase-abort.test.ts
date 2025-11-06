@@ -135,7 +135,7 @@ describe('codebase server abort handling', () => {
       // Check for proper error handling
       expect(sourceCode).toContain("error.message === 'Operation was aborted'");
       expect(sourceCode).toContain("error.name === 'AbortError'");
-      expect(sourceCode).toContain("console.error('[Codebase Tool] Query aborted by client')");
+      expect(sourceCode).toContain("logger.info('[Codebase Tool] Query aborted by client')");
       expect(sourceCode).toContain("'Request was cancelled by client'");
     });
   });
