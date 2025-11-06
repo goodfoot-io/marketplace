@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.14
+- Improved documentation clarity for tool invocation syntax in session instructions
+
 ## 0.1.13
 - Added configurable session TTL via `BROWSER_SESSION_TTL_MS` environment variable to control how long inactive sessions are retained
 - Added configurable idle timeout for chrome-proxy via `CHROME_PROXY_IDLE_TIMEOUT_MS` to automatically clean up stale browser connections
