@@ -258,7 +258,20 @@ export interface AgentToolArguments {
   prompt: string;
   /** Optional model to use for this agent. If not specified, inherits from parent. Prefer haiku for quick, straightforward tasks to minimize cost and latency. */
   model?: 'sonnet' | 'opus' | 'haiku';
-  /** Optional agent ID to resume from. If provided, the agent will continue from the previous execution transcript. */
+  /**
+   * Optional session ID to resume from. If provided, the agent will continue from the previous execution.
+   *
+   * The session ID is returned in the response text in the format:
+   * ```
+   * Session ID: <session_id>
+   *
+   * ---
+   *
+   * <result text>
+   * ```
+   *
+   * To resume a conversation, extract the session ID from a previous response and pass it here.
+   */
   resume?: string;
 }
 

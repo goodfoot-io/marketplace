@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/mcp-wrapper-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Generic MCP server wrapper with dynamic tool discovery",
   "sideEffects": false,
   "type": "module",

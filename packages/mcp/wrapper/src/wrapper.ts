@@ -4,6 +4,7 @@
  */
 
 import type { ServerConfig, AggregatedTools } from './types/wrapper.js';
+import { realpath } from 'node:fs/promises';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -202,6 +203,81 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
 }
 
 /**
+ * Safely convert unknown values to strings for display in progress messages
+ *
+ * @param value - The value to convert
+ * @returns String representation of the value
+ */
+function safeString(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value === null || value === undefined) return '';
+  return JSON.stringify(value);
+}
+
+/**
+ * Format a descriptive progress message for tool execution
+ * Shows actual parameter values for better visibility into what the agent is doing
+ *
+ * @param toolName - Name of the tool being executed
+ * @param input - Tool input parameters
+ * @returns Formatted progress message string
+ */
+function formatProgressMessage(toolName: string, input: unknown): string {
+  // Clean up the tool name if it has an mcp__ prefix
+  const cleanName = toolName.replace(/^mcp__[^_]+__/, '');
+
+  // Handle non-object input
+  if (typeof input !== 'object' || input === null) {
+    return `Executing ${cleanName}`;
+  }
+
+  const inputObj = input as Record<string, unknown>;
+  const keys = Object.keys(inputObj);
+
+  // If no parameters, show simple message
+  if (keys.length === 0) {
+    return `Executing ${cleanName}`;
+  }
+
+  // Common parameter patterns to show in progress messages
+  const commonParams = ['prompt', 'url', 'path', 'query', 'question', 'message', 'text', 'command', 'name', 'file'];
+
+  // Find the first common parameter that exists
+  const primaryParam = commonParams.find((param) => keys.includes(param));
+
+  if (primaryParam && inputObj[primaryParam] !== undefined) {
+    const value = safeString(inputObj[primaryParam]);
+    // Truncate long values for readability
+    const displayValue = value.length > 80 ? value.substring(0, 77) + '...' : value;
+
+    // Show different formats based on parameter type
+    if (primaryParam === 'url') {
+      return `${cleanName} → ${displayValue}`;
+    } else if (primaryParam === 'path' || primaryParam === 'file') {
+      return `${cleanName}: ${displayValue}`;
+    } else if (primaryParam === 'prompt' || primaryParam === 'question' || primaryParam === 'query') {
+      return `${cleanName}: "${displayValue}"`;
+    } else {
+      return `${cleanName} (${primaryParam}: ${displayValue})`;
+    }
+  }
+
+  // If no common parameters, show first 2 parameters with values
+  const params = keys
+    .slice(0, 2)
+    .map((k) => {
+      const value = safeString(inputObj[k]);
+      // Truncate individual parameter values
+      const displayValue = value.length > 40 ? value.substring(0, 37) + '...' : value;
+      return `${k}=${displayValue}`;
+    })
+    .join(', ');
+
+  return `${cleanName} (${params})`;
+}
+
+/**
  * Wrapper server instance with discovered tools
  */
 export interface WrapperServer {
@@ -257,7 +333,7 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
             resume: {
               type: 'string',
               description:
-                'Optional agent ID to resume from. If provided, the agent will continue from the previous execution transcript.'
+                'Optional session ID to resume from. If provided, the agent will continue from the previous execution. The session ID is returned in the first line of the response in the format "Session ID: <id>".'
             }
           },
           required: ['prompt']
@@ -280,7 +356,7 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
       throw new McpError(ErrorCode.InvalidParams, (error as Error).message);
     }
 
-    const { prompt, model: _model, resume: _resume } = args;
+    const { prompt, model, resume } = args;
 
     if (!prompt) {
       throw new McpError(ErrorCode.InvalidParams, 'prompt is required');
@@ -331,10 +407,13 @@ Always check the available tools and use them appropriately to complete tasks.`,
       maxTurns: 100,
       allowedTools: tools.allowedTools,
       permissionMode: 'bypassPermissions',
-      mcpServers
+      mcpServers,
+      model,
+      resume
     };
 
     let result = '';
+    let sessionId = '';
     let toolCallCount = 0;
 
     try {
@@ -345,6 +424,14 @@ Always check the available tools and use them appropriately to complete tasks.`,
       })) {
         // Type the message as unknown first, then narrow with type guards
         const msg = message as unknown;
+
+        // Capture session_id from any message
+        if (typeof msg === 'object' && msg !== null && 'session_id' in msg) {
+          const msgWithSession = msg as { session_id: string };
+          if (msgWithSession.session_id && !sessionId) {
+            sessionId = msgWithSession.session_id;
+          }
+        }
 
         // Check for result messages
         if (typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === 'result') {
@@ -369,15 +456,8 @@ Always check the available tools and use them appropriately to complete tasks.`,
                 if (progressToken && typeof progressToken === 'string') {
                   toolCallCount++;
 
-                  // Format simplified tool input for progress message
-                  let inputPreview = '';
-                  if (typeof toolUse.input === 'object' && toolUse.input !== null) {
-                    const inputObj = toolUse.input as Record<string, unknown>;
-                    const keys = Object.keys(inputObj).slice(0, 2);
-                    inputPreview = keys.map((k) => `${k}=...`).join(', ');
-                  }
-
-                  const progressMessage = `Tool ${toolCallCount}: ${toolUse.name}(${inputPreview})`;
+                  // Format progress message with actual parameter values
+                  const progressMessage = `Tool ${toolCallCount}: ${formatProgressMessage(toolUse.name, toolUse.input)}`;
 
                   // Send progress notification (fire and forget)
                   server
@@ -390,7 +470,7 @@ Always check the available tools and use them appropriately to complete tasks.`,
                       }
                     })
                     .catch((err: Error) => {
-                      debug('Failed to send progress notification:', err);
+                      error('Failed to send progress notification:', err);
                     });
                 }
               }
@@ -399,11 +479,16 @@ Always check the available tools and use them appropriately to complete tasks.`,
         }
       }
 
+      // Format response with session_id for resume capability
+      const responseText = sessionId
+        ? `Session ID: ${sessionId}\n\n---\n\n${result || 'No response from agent.'}`
+        : result || 'No response from agent.';
+
       return {
         content: [
           {
             type: 'text',
-            text: result || 'No response from agent.'
+            text: responseText
           }
         ]
       };
@@ -469,7 +554,20 @@ export async function main(): Promise<void> {
 }
 
 // Auto-start when invoked directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Resolve symlinks to handle npx execution where argv[1] points to npx cache
+const resolveFileUrl = async (filePath: string): Promise<string> => {
+  try {
+    const resolved = await realpath(filePath);
+    return `file://${resolved}`;
+  } catch {
+    return `file://${filePath}`;
+  }
+};
+
+const currentFileUrl = import.meta.url;
+const argvFileUrl = await resolveFileUrl(process.argv[1]);
+
+if (currentFileUrl === argvFileUrl) {
   main().catch((startupError: unknown) => {
     console.error('Fatal error:', startupError);
     process.exit(1);

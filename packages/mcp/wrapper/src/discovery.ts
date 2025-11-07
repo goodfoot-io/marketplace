@@ -72,6 +72,11 @@ async function discoverServerTools(
       transport = new StreamableHTTPClientTransport(new URL(config.url), transportOptions);
     }
 
+
+    transport.onerror = (error) => {
+      warn(`Error connecting to server ${config.name}:`, error);
+    };
+    
     // Connect with timeout
     await Promise.race([
       client.connect(transport),

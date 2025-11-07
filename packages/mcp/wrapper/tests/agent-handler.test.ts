@@ -107,6 +107,15 @@ describe('Agent Tool Handler', () => {
         });
       }).toThrow();
     });
+
+    it('should accept valid session ID format for resume', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'continue conversation',
+        resume: 'session-abc123-def456'
+      });
+
+      expect(result.resume).toBe('session-abc123-def456');
+    });
   });
 
   describe('mcpServers configuration', () => {
@@ -268,6 +277,74 @@ describe('Agent Tool Handler', () => {
       expect(server).toBeDefined();
 
       await server.close();
+    });
+  });
+
+  describe('resume functionality', () => {
+    it('should accept resume parameter in tool arguments', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'continue from previous session',
+        resume: 'test-session-id'
+      });
+
+      expect(result.resume).toBe('test-session-id');
+    });
+
+    it('should accept resume with model parameter', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'continue with haiku model',
+        model: 'haiku',
+        resume: 'test-session-id-2'
+      });
+
+      expect(result.prompt).toBe('continue with haiku model');
+      expect(result.model).toBe('haiku');
+      expect(result.resume).toBe('test-session-id-2');
+    });
+
+    it('should work without resume parameter', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'start new session'
+      });
+
+      expect(result.prompt).toBe('start new session');
+      expect(result.resume).toBeUndefined();
+    });
+  });
+
+  describe('response format', () => {
+    it('should document session ID format in response', () => {
+      // This test documents the expected response format
+      const exampleResponse = `Session ID: abc123-def456
+
+---
+
+This is the agent's response text.`;
+
+      // Extract session ID from response
+      const sessionIdMatch = exampleResponse.match(/^Session ID: (.+)$/m);
+      expect(sessionIdMatch).not.toBeNull();
+
+      if (sessionIdMatch) {
+        const sessionId = sessionIdMatch[1];
+        expect(sessionId).toBe('abc123-def456');
+
+        // Extract result text (everything after the separator)
+        const separatorIndex = exampleResponse.indexOf('---');
+        const resultText = exampleResponse.substring(separatorIndex + 3).trim();
+        expect(resultText).toBe("This is the agent's response text.");
+      }
+    });
+
+    it('should handle response without session ID', () => {
+      const exampleResponse = 'This is a response without session ID.';
+
+      // Should not match session ID pattern
+      const sessionIdMatch = exampleResponse.match(/^Session ID: (.+)$/m);
+      expect(sessionIdMatch).toBeNull();
+
+      // Result text is the entire response
+      expect(exampleResponse).toBe('This is a response without session ID.');
     });
   });
 });

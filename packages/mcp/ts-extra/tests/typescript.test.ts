@@ -28,8 +28,8 @@ describe('typescript server', () => {
   let client: Client;
   let transport: StdioClientTransport;
 
-  beforeEach(async () => {
-    // Start the server and connect the client
+  beforeAll(async () => {
+    // Start the server and connect the client once for all tests
     const scriptPath = new URL('../build/dist/src/typescript.js', import.meta.url).pathname;
     transport = new StdioClientTransport({
       command: 'node',
@@ -47,11 +47,13 @@ describe('typescript server', () => {
     );
 
     await client.connect(transport);
-  });
+  }, 10000); // Set 10 second timeout for server startup
 
-  afterEach(async () => {
-    // Close the client connection
+  afterAll(async () => {
+    // Close the client connection and cleanup the transport
     await client.close();
+    // Give a small delay for cleanup
+    await new Promise((resolve) => setTimeout(resolve, 100));
   });
 
   describe('tool listing', () => {
