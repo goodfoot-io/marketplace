@@ -28,7 +28,7 @@ yarn add @goodfoot/codebase-mcp-server
 ### Starting the Server
 
 ```bash
-node ./build/dist/src/codebase.js
+npx -y @goodfoot/codebase-mcp-server
 ```
 
 The server automatically uses the current working directory as the workspace path.
@@ -41,10 +41,8 @@ Configure in your MCP client settings:
 {
   "mcpServers": {
     "codebase": {
-      "command": "node",
-      "args": [
-        "/path/to/@goodfoot/codebase-mcp-server/build/dist/src/codebase.js"
-      ],
+      "command": "npx",
+      "args": ["-y", "@goodfoot/codebase-mcp-server"],
       "env": {
         "CODEBASE_MCP_SERVER_LOGGING": "false"
       }
@@ -61,9 +59,9 @@ Searches and analyses codebases to answer technical questions. Optimised for foc
 
 **Parameters:**
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `question` | string | Yes | Technical question about the codebase with full file paths in monorepos |
+| Parameter  | Type   | Required | Description                                                             |
+| ---------- | ------ | -------- | ----------------------------------------------------------------------- |
+| `question` | string | Yes      | Technical question about the codebase with full file paths in monorepos |
 
 **Example Usage:**
 
@@ -114,7 +112,7 @@ Enables diagnostic logging to stderr.
 - **Output**: All logs written to stderr with level prefixes
 
 ```bash
-CODEBASE_MCP_SERVER_LOGGING=true node ./build/dist/src/codebase.js
+CODEBASE_MCP_SERVER_LOGGING=true npx -y @goodfoot/codebase-mcp-server
 ```
 
 **Log Levels:**
@@ -181,12 +179,14 @@ Use Grep for:
 ### Effective Questions
 
 **Good:**
+
 - "TypeScript error TS2322 at packages/api/src/user.ts:45: Why is email required?"
 - "What files import from packages/shared/src/types/user.ts?"
 - "How does packages/api/src/services/user.ts depend on database types?"
 - "Find all implementations of the UserRepository interface"
 
 **Less Effective:**
+
 - "How does useTranscriptSync work?" (missing full path)
 - "Find all bugs" (too vague)
 - "Analyse the codebase" (too broad)
@@ -222,7 +222,7 @@ All questions and analysis transcripts are logged to:
 
 **Log Format:**
 
-```markdown
+````markdown
 > What files import from packages/shared/src/types/user.ts?
 
 ---
@@ -233,13 +233,15 @@ Grep(
   glob="**/*.ts"
 )
 ```
+````
 
 ```tool-response
 [Tool output]
 ```
 
 [Final analysis answer]
-```
+
+````
 
 ### Diagnostic Logging
 
@@ -281,7 +283,7 @@ const promise = client.callTool({
 
 // Cancel after 5 seconds
 setTimeout(() => controller.abort(), 5000);
-```
+````
 
 ## System Instructions
 
@@ -309,13 +311,13 @@ The server includes comprehensive system instructions covering:
 
 ### Result Size Handling
 
-| Result Count | Action |
-|--------------|--------|
-| 0 results | State "No results found" with search details |
-| 1-5 results | Show all with full context |
-| 6-20 results | Show all with brief context |
-| 21-50 results | Show first 10 with summary |
-| 50+ results | Show first 5 with count and pattern analysis |
+| Result Count  | Action                                       |
+| ------------- | -------------------------------------------- |
+| 0 results     | State "No results found" with search details |
+| 1-5 results   | Show all with full context                   |
+| 6-20 results  | Show all with brief context                  |
+| 21-50 results | Show first 10 with summary                   |
+| 50+ results   | Show first 5 with count and pattern analysis |
 
 ## Troubleshooting
 
@@ -356,7 +358,7 @@ grep -r "UserService" packages/
 Normal when client cancels long-running requests. Check diagnostic logs for details:
 
 ```bash
-CODEBASE_MCP_SERVER_LOGGING=true node ./build/dist/src/codebase.js
+CODEBASE_MCP_SERVER_LOGGING=true npx -y @goodfoot/codebase-mcp-server
 ```
 
 ### Incomplete Analysis

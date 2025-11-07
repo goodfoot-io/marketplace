@@ -1,14 +1,17 @@
 # Changelog
 
 ## 0.1.15
+
 - Added configurable diagnostic logging via `BROWSER_MCP_SERVER_LOGGING` environment variable
 - Improved documentation with comprehensive configuration guide and troubleshooting section
 - Enhanced logging system with structured output to stderr for better debugging
 
 ## 0.1.14
+
 - Improved documentation clarity for tool invocation syntax in session instructions
 
 ## 0.1.13
+
 - Added configurable session TTL via `BROWSER_SESSION_TTL_MS` environment variable to control how long inactive sessions are retained
 - Added configurable idle timeout for chrome-proxy via `CHROME_PROXY_IDLE_TIMEOUT_MS` to automatically clean up stale browser connections
 - Improved automatic session cleanup to prevent resource leaks from expired or idle sessions

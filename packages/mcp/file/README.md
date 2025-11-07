@@ -35,8 +35,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 // Connect to the MCP server
 const transport = new StdioClientTransport({
-  command: 'node',
-  args: ['./build/dist/src/append.js']
+  command: 'npx',
+  args: ['-y', '@goodfoot/file-mcp-server']
 });
 
 const client = new Client(
@@ -92,7 +92,7 @@ yarn lint
 To run the append server directly:
 
 ```bash
-node ./build/dist/src/append.js
+npx -y @goodfoot/file-mcp-server
 ```
 
 The server will start in stdio mode and be ready to accept MCP requests.

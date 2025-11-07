@@ -611,7 +611,17 @@ describe('parseCliArguments', () => {
     });
 
     it('should throw error when header name is empty', () => {
-      const argv = ['node', 'wrapper.js', '--', 'api', '--transport', 'http', 'https://api.example.com', '-H', ': value'];
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--',
+        'api',
+        '--transport',
+        'http',
+        'https://api.example.com',
+        '-H',
+        ': value'
+      ];
 
       expect(() => parseCliArguments(argv)).toThrow('Server "api": Header name cannot be empty in ": value"');
     });

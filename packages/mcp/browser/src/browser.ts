@@ -938,9 +938,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
                   // Detect "No page selected" error - indicates Chrome has zero pages
                   if (errorContent.includes('No page selected') && !noPageSelectedDetected) {
                     noPageSelectedDetected = true;
-                    logger.info(
-                      'Detected "No page selected" error - Chrome has zero pages. Creating initial page...'
-                    );
+                    logger.info('Detected "No page selected" error - Chrome has zero pages. Creating initial page...');
 
                     // Create a blank page via Chrome DevTools Protocol HTTP endpoint
                     try {

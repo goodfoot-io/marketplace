@@ -127,7 +127,10 @@ describe('discoverTools', () => {
       expect(result.allTools[0].serverName).toBe('test-server');
       expect(result.allTools[0].tool.name).toBe('test_tool');
       expect(result.allowedTools).toContain('test_tool');
-      expect(result.description).toContain('test_tool');
+      // AI-generated description should be non-empty and meaningful
+      expect(result.description).toBeTruthy();
+      expect(typeof result.description).toBe('string');
+      expect(result.description.length).toBeGreaterThan(0);
     });
 
     it('should handle stdio server that times out', async () => {
@@ -235,7 +238,7 @@ describe('discoverTools', () => {
   });
 
   describe('description generation', () => {
-    it('should generate description from discovered tools', async () => {
+    it('should generate AI-powered description from discovered tools', async () => {
       const scriptPath = join(fixturesDir, 'multi-tool-server.mjs');
 
       const configs: ServerConfig[] = [
@@ -252,9 +255,12 @@ describe('discoverTools', () => {
 
       const result = await discoverTools(configs);
 
-      expect(result.description).toContain('create_task');
-      expect(result.description).toContain('list_tasks');
-      expect(result.description).toContain('multi-tool-server');
+      // AI-generated descriptions will vary but should be non-empty and meaningful
+      expect(result.description).toBeTruthy();
+      expect(typeof result.description).toBe('string');
+      expect(result.description.length).toBeGreaterThan(0);
+      // Should contain some indication of task management capabilities
+      expect(result.description.toLowerCase()).toMatch(/task|manage|create|list/);
     });
 
     it('should handle default description when no tools found', async () => {

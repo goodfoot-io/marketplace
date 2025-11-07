@@ -146,7 +146,9 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
           // Split on first colon to separate name from value
           const colonIndex = headerValue.indexOf(':');
           if (colonIndex === -1) {
-            throw new Error(`Server "${name}": Invalid header format "${headerValue}". Expected "Header-Name: Header-Value"`);
+            throw new Error(
+              `Server "${name}": Invalid header format "${headerValue}". Expected "Header-Name: Header-Value"`
+            );
           }
 
           const headerName = headerValue.substring(0, colonIndex).trim();
@@ -244,11 +246,18 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
           properties: {
             prompt: {
               type: 'string',
-              description: 'Instructions for the agent'
+              description: 'The task for the agent to perform'
             },
-            sessionId: {
+            model: {
               type: 'string',
-              description: 'Session ID for conversation continuity'
+              enum: ['sonnet', 'opus', 'haiku'],
+              description:
+                'Optional model to use for this agent. If not specified, inherits from parent. Prefer haiku for quick, straightforward tasks to minimize cost and latency.'
+            },
+            resume: {
+              type: 'string',
+              description:
+                'Optional agent ID to resume from. If provided, the agent will continue from the previous execution transcript.'
             }
           },
           required: ['prompt']
@@ -271,7 +280,7 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
       throw new McpError(ErrorCode.InvalidParams, (error as Error).message);
     }
 
-    const { prompt } = args;
+    const { prompt, model: _model, resume: _resume } = args;
 
     if (!prompt) {
       throw new McpError(ErrorCode.InvalidParams, 'prompt is required');

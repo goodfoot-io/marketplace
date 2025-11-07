@@ -3,6 +3,7 @@
  */
 
 import type { ServerConfig, AggregatedTools } from './types/wrapper.js';
+import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -113,36 +114,97 @@ async function discoverServerTools(
 }
 
 /**
- * Generate aggregated description from discovered tools
+ * Generate aggregated description from discovered tools using AI
  */
-function generateDescription(allTools: AggregatedTools['allTools']): string {
+async function generateDescription(allTools: AggregatedTools['allTools']): Promise<string> {
   if (allTools.length === 0) {
     return 'Multi-tool agent (no tools discovered yet)';
   }
 
-  // Group tools by server
-  const serverGroups = new Map<string, string[]>();
-  for (const { serverName, tool } of allTools) {
-    if (!serverGroups.has(serverName)) {
-      serverGroups.set(serverName, []);
+  // Build fallback template-based description
+  const getFallbackDescription = (): string => {
+    // Group tools by server
+    const serverGroups = new Map<string, string[]>();
+    for (const { serverName, tool } of allTools) {
+      if (!serverGroups.has(serverName)) {
+        serverGroups.set(serverName, []);
+      }
+      serverGroups.get(serverName)!.push(tool.name);
     }
-    serverGroups.get(serverName)!.push(tool.name);
+
+    const serverCount = serverGroups.size;
+    const toolCount = allTools.length;
+
+    if (serverCount === 1) {
+      const [serverName, toolNames] = Array.from(serverGroups.entries())[0];
+      const toolList = toolNames.slice(0, 5).join(', ');
+      const more = toolNames.length > 5 ? ` and ${toolNames.length - 5} more` : '';
+      return `${serverName} agent with ${toolCount} tools: ${toolList}${more}`;
+    }
+
+    const serverList = Array.from(serverGroups.keys()).slice(0, 3).join(', ');
+    const moreServers = serverGroups.size > 3 ? ` and ${serverGroups.size - 3} more` : '';
+    return `Multi-tool agent with ${toolCount} tools from ${serverCount} servers: ${serverList}${moreServers}`;
+  };
+
+  try {
+    // Build prompt for AI description generation
+    const toolDescriptions = allTools
+      .map(({ serverName, tool }) => {
+        const desc = tool.description ? `: ${tool.description}` : '';
+        return `- ${tool.name} (from ${serverName})${desc}`;
+      })
+      .join('\n');
+
+    const prompt = `You are Claude generating a description for another Claude instance about available tool capabilities.
+
+Available tools:
+${toolDescriptions}
+
+Generate a single-line, concise description (similar to existing tool descriptions in Claude Code) that:
+1. Describes what these tools accomplish at a high level
+2. Focuses on when to use these capabilities
+3. Is actionable and clear
+4. Does not exceed three paragraphs
+
+Respond with ONLY the description text, nothing else.`;
+
+    debug('Generating AI-powered description for tools');
+
+    // Use query to generate description
+    let result = '';
+    for await (const message of query({
+      prompt,
+      options: {
+        model: 'haiku',
+        maxTurns: 1,
+        permissionMode: 'bypassPermissions',
+        systemPrompt:
+          'You are a technical writer creating concise tool descriptions. Output only the description text with no formatting, quotes, or explanation.'
+      }
+    })) {
+      // Type the message and extract result
+      const msg = message as unknown;
+
+      if (typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === 'result') {
+        const resultMsg = msg as { type: 'result'; subtype?: string; result?: string };
+        if (resultMsg.subtype === 'success' && resultMsg.result) {
+          result = resultMsg.result;
+        }
+      }
+    }
+
+    if (result && result.trim().length > 0) {
+      info('Generated AI-powered description successfully');
+      return result.trim();
+    }
+
+    warn('AI description generation returned empty result, using fallback');
+    return getFallbackDescription();
+  } catch (error) {
+    warn('Failed to generate AI description, using fallback:', error);
+    return getFallbackDescription();
   }
-
-  // Build description
-  const serverCount = serverGroups.size;
-  const toolCount = allTools.length;
-
-  if (serverCount === 1) {
-    const [serverName, toolNames] = Array.from(serverGroups.entries())[0];
-    const toolList = toolNames.slice(0, 5).join(', ');
-    const more = toolNames.length > 5 ? ` and ${toolNames.length - 5} more` : '';
-    return `${serverName} agent with ${toolCount} tools: ${toolList}${more}`;
-  }
-
-  const serverList = Array.from(serverGroups.keys()).slice(0, 3).join(', ');
-  const moreServers = serverGroups.size > 3 ? ` and ${serverGroups.size - 3} more` : '';
-  return `Multi-tool agent with ${toolCount} tools from ${serverCount} servers: ${serverList}${moreServers}`;
 }
 
 /**
@@ -183,7 +245,7 @@ export async function discoverTools(configs: ServerConfig[]): Promise<Aggregated
   const allowedTools = allTools.map((item) => item.tool.name);
 
   // Generate description
-  const description = generateDescription(allTools);
+  const description = await generateDescription(allTools);
 
   // Build result
   const result: AggregatedTools = {

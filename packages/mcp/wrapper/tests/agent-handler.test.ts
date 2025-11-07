@@ -15,17 +15,40 @@ describe('Agent Tool Handler', () => {
       });
 
       expect(result.prompt).toBe('Hello, world!');
-      expect(result.sessionId).toBeUndefined();
+      expect(result.model).toBeUndefined();
+      expect(result.resume).toBeUndefined();
     });
 
-    it('should validate arguments with sessionId', () => {
+    it('should validate arguments with model', () => {
       const result = validateAgentToolArguments({
         prompt: 'Test prompt',
-        sessionId: 'session-123'
+        model: 'haiku'
       });
 
       expect(result.prompt).toBe('Test prompt');
-      expect(result.sessionId).toBe('session-123');
+      expect(result.model).toBe('haiku');
+    });
+
+    it('should validate arguments with resume', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'Continue from here',
+        resume: 'agent-id-123'
+      });
+
+      expect(result.prompt).toBe('Continue from here');
+      expect(result.resume).toBe('agent-id-123');
+    });
+
+    it('should validate all optional parameters together', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'Full prompt',
+        model: 'sonnet',
+        resume: 'agent-id-456'
+      });
+
+      expect(result.prompt).toBe('Full prompt');
+      expect(result.model).toBe('sonnet');
+      expect(result.resume).toBe('agent-id-456');
     });
 
     it('should reject missing prompt', () => {
@@ -36,35 +59,51 @@ describe('Agent Tool Handler', () => {
 
     it('should reject empty prompt', () => {
       expect(() => {
-        validateAgentToolArguments({ prompt: '' });
+        validateAgentToolArguments({
+          prompt: ''
+        });
       }).toThrow(/prompt/i);
     });
 
     it('should reject non-string prompt', () => {
       expect(() => {
-        validateAgentToolArguments({ prompt: 123 });
+        validateAgentToolArguments({
+          prompt: 123
+        });
       }).toThrow();
     });
 
     it('should reject null prompt', () => {
       expect(() => {
-        validateAgentToolArguments({ prompt: null });
+        validateAgentToolArguments({
+          prompt: null
+        });
       }).toThrow();
     });
 
-    it('should allow optional sessionId', () => {
+    it('should reject invalid model', () => {
+      expect(() => {
+        validateAgentToolArguments({
+          prompt: 'Test prompt',
+          model: 'invalid-model'
+        });
+      }).toThrow();
+    });
+
+    it('should allow optional resume', () => {
       const result = validateAgentToolArguments({
         prompt: 'test'
       });
 
       expect(result.prompt).toBe('test');
+      expect(result.resume).toBeUndefined();
     });
 
-    it('should reject non-string sessionId', () => {
+    it('should reject non-string resume', () => {
       expect(() => {
         validateAgentToolArguments({
           prompt: 'test',
-          sessionId: 123
+          resume: 123
         });
       }).toThrow();
     });

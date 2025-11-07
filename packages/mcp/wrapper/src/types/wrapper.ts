@@ -254,10 +254,12 @@ export function getEnvironmentAsRecord(env: NodeJS.ProcessEnv): Record<string, s
  * Arguments for agent tool execution
  */
 export interface AgentToolArguments {
-  /** User prompt for the agent */
+  /** The task for the agent to perform */
   prompt: string;
-  /** Optional session ID for conversation continuity */
-  sessionId?: string;
+  /** Optional model to use for this agent. If not specified, inherits from parent. Prefer haiku for quick, straightforward tasks to minimize cost and latency. */
+  model?: 'sonnet' | 'opus' | 'haiku';
+  /** Optional agent ID to resume from. If provided, the agent will continue from the previous execution transcript. */
+  resume?: string;
 }
 
 /**
@@ -265,7 +267,8 @@ export interface AgentToolArguments {
  */
 export const AgentToolArgumentsSchema = z.object({
   prompt: z.string().min(1, 'prompt cannot be empty'),
-  sessionId: z.string().optional()
+  model: z.enum(['sonnet', 'opus', 'haiku']).optional(),
+  resume: z.string().optional()
 });
 
 /**

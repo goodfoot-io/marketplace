@@ -42,7 +42,7 @@ google-chrome --remote-debugging-port=9222
 ### Starting the Server
 
 ```bash
-node ./build/dist/src/browser.js --browserUrl http://localhost:9222
+npx -y @goodfoot/browser-mcp-server --browserUrl http://localhost:9222
 ```
 
 ### MCP Client Configuration
@@ -53,12 +53,8 @@ Configure in your MCP client settings:
 {
   "mcpServers": {
     "browser": {
-      "command": "node",
-      "args": [
-        "/path/to/@goodfoot/browser-mcp-server/build/dist/src/browser.js",
-        "--browserUrl",
-        "http://localhost:9222"
-      ],
+      "command": "npx",
+      "args": ["-y", "@goodfoot/browser-mcp-server", "--browserUrl", "http://localhost:9222"],
       "env": {
         "BROWSER_SESSION_TTL_MS": "600000",
         "BROWSER_MCP_SERVER_LOGGING": "false"
@@ -85,10 +81,10 @@ Execute browser automation tasks using natural language instructions.
 
 **Parameters:**
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `prompt` | string | Yes | Natural language instructions for browser automation task |
-| `sessionId` | string | No | Session identifier for conversation continuity |
+| Parameter   | Type   | Required | Description                                               |
+| ----------- | ------ | -------- | --------------------------------------------------------- |
+| `prompt`    | string | Yes      | Natural language instructions for browser automation task |
+| `sessionId` | string | No       | Session identifier for conversation continuity            |
 
 **Example Usage:**
 
@@ -133,7 +129,7 @@ Controls session retention duration.
 - **Example**: `600000` (10 minutes), `3600000` (1 hour)
 
 ```bash
-BROWSER_SESSION_TTL_MS=600000 node ./build/dist/src/browser.js --browserUrl http://localhost:9222
+BROWSER_SESSION_TTL_MS=600000 npx -y @goodfoot/browser-mcp-server --browserUrl http://localhost:9222
 ```
 
 #### BROWSER_MCP_SERVER_LOGGING
@@ -145,7 +141,7 @@ Enables diagnostic logging to stderr.
 - **Output**: All logs written to stderr with level prefixes
 
 ```bash
-BROWSER_MCP_SERVER_LOGGING=true node ./build/dist/src/browser.js --browserUrl http://localhost:9222
+BROWSER_MCP_SERVER_LOGGING=true npx -y @goodfoot/browser-mcp-server --browserUrl http://localhost:9222
 ```
 
 **Log Levels:**
@@ -198,7 +194,7 @@ The package includes a Chrome proxy server for automated Chrome lifecycle manage
 ### Starting the Proxy
 
 ```bash
-npx chrome-proxy
+npx -y @goodfoot/browser-mcp-server chrome-proxy
 # Or using built binary
 node ./build/dist/src/chrome-proxy.js
 ```
@@ -207,13 +203,13 @@ node ./build/dist/src/chrome-proxy.js
 
 #### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LISTEN_PORT` | `9222` | Proxy server listening port |
-| `CHROME_DEBUG_PORT` | `9223` | Chrome debugging port |
-| `CHROME_USER_DATA_DIR` | `/tmp/chrome-rdp-{port}` | Chrome user data directory |
-| `CHROME_PROXY_IDLE_TIMEOUT_MS` | `300000` | Idle timeout in milliseconds |
-| `BROWSER_MCP_SERVER_LOGGING` | `false` | Enable diagnostic logging |
+| Variable                       | Default                  | Description                  |
+| ------------------------------ | ------------------------ | ---------------------------- |
+| `LISTEN_PORT`                  | `9222`                   | Proxy server listening port  |
+| `CHROME_DEBUG_PORT`            | `9223`                   | Chrome debugging port        |
+| `CHROME_USER_DATA_DIR`         | `/tmp/chrome-rdp-{port}` | Chrome user data directory   |
+| `CHROME_PROXY_IDLE_TIMEOUT_MS` | `300000`                 | Idle timeout in milliseconds |
+| `BROWSER_MCP_SERVER_LOGGING`   | `false`                  | Enable diagnostic logging    |
 
 #### Idle Timeout Configuration
 
@@ -221,13 +217,13 @@ The proxy automatically terminates when no activity is detected:
 
 ```bash
 # 2-minute timeout
-CHROME_PROXY_IDLE_TIMEOUT_MS=120000 npx chrome-proxy
+CHROME_PROXY_IDLE_TIMEOUT_MS=120000 npx -y @goodfoot/browser-mcp-server chrome-proxy
 
 # 15-minute timeout
-CHROME_PROXY_IDLE_TIMEOUT_MS=900000 npx chrome-proxy
+CHROME_PROXY_IDLE_TIMEOUT_MS=900000 npx -y @goodfoot/browser-mcp-server chrome-proxy
 
 # With logging enabled
-BROWSER_MCP_SERVER_LOGGING=true CHROME_PROXY_IDLE_TIMEOUT_MS=300000 npx chrome-proxy
+BROWSER_MCP_SERVER_LOGGING=true CHROME_PROXY_IDLE_TIMEOUT_MS=300000 npx -y @goodfoot/browser-mcp-server chrome-proxy
 ```
 
 ### Proxy Operation
@@ -334,13 +330,13 @@ await client.callTool({
 
 ## Timeout Configuration
 
-| Component | Timeout | Description |
-|-----------|---------|-------------|
-| Request | 10 minutes | Maximum duration for single automation request |
-| Heartbeat | 60 seconds | No progress triggers hung process detection |
-| Process Cleanup | 1 second | Graceful shutdown before force kill |
-| Session TTL | 5 minutes | Configurable via `BROWSER_SESSION_TTL_MS` |
-| Proxy Idle | 5 minutes | Configurable via `CHROME_PROXY_IDLE_TIMEOUT_MS` |
+| Component       | Timeout    | Description                                     |
+| --------------- | ---------- | ----------------------------------------------- |
+| Request         | 10 minutes | Maximum duration for single automation request  |
+| Heartbeat       | 60 seconds | No progress triggers hung process detection     |
+| Process Cleanup | 1 second   | Graceful shutdown before force kill             |
+| Session TTL     | 5 minutes  | Configurable via `BROWSER_SESSION_TTL_MS`       |
+| Proxy Idle      | 5 minutes  | Configurable via `CHROME_PROXY_IDLE_TIMEOUT_MS` |
 
 ## Troubleshooting
 
@@ -349,19 +345,19 @@ await client.callTool({
 **Solution 1: Use Chrome Proxy with Idle Timeout**
 
 ```bash
-CHROME_PROXY_IDLE_TIMEOUT_MS=300000 npx chrome-proxy
+CHROME_PROXY_IDLE_TIMEOUT_MS=300000 npx -y @goodfoot/browser-mcp-server chrome-proxy
 ```
 
 **Solution 2: Reduce Session TTL**
 
 ```bash
-BROWSER_SESSION_TTL_MS=300000 node ./build/dist/src/browser.js --browserUrl http://localhost:9222
+BROWSER_SESSION_TTL_MS=300000 npx -y @goodfoot/browser-mcp-server --browserUrl http://localhost:9222
 ```
 
 **Solution 3: Enable Diagnostic Logging**
 
 ```bash
-BROWSER_MCP_SERVER_LOGGING=true node ./build/dist/src/browser.js --browserUrl http://localhost:9222
+BROWSER_MCP_SERVER_LOGGING=true npx -y @goodfoot/browser-mcp-server --browserUrl http://localhost:9222
 ```
 
 **Solution 4: Check Chrome Availability**
@@ -376,10 +372,10 @@ Increase session and proxy timeouts:
 
 ```bash
 # 1-hour session TTL
-BROWSER_SESSION_TTL_MS=3600000 node ./build/dist/src/browser.js --browserUrl http://localhost:9222
+BROWSER_SESSION_TTL_MS=3600000 npx -y @goodfoot/browser-mcp-server --browserUrl http://localhost:9222
 
 # 15-minute proxy timeout
-CHROME_PROXY_IDLE_TIMEOUT_MS=900000 npx chrome-proxy
+CHROME_PROXY_IDLE_TIMEOUT_MS=900000 npx -y @goodfoot/browser-mcp-server chrome-proxy
 ```
 
 ### "All Sessions Expired" Message
