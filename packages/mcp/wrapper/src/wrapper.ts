@@ -10,11 +10,11 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ListToolsRequestSchema, CallToolRequestSchema, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { generateAgentId } from './agent-id.js';
-import { registerAgent } from './background-agents.js';
+import { registerAgent, getAgentStatus, getAgentResult } from './background-agents.js';
 import { discoverTools } from './discovery.js';
 import { info, debug, warn, error } from './logger.js';
 import { writeTranscriptMessage, loadTranscript } from './transcript-store.js';
-import { validateAgentToolArguments } from './types/wrapper.js';
+import { validateAgentToolArguments, validateAgentOutputArguments } from './types/wrapper.js';
 
 /**
  * Parse CLI arguments to extract multiple wrapped server configurations
@@ -346,14 +346,130 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
           },
           required: ['prompt']
         }
+      },
+      {
+        name: 'agent-output',
+        description:
+          'Retrieve output from one or more background agents. Returns status and results for each agent ID provided.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            agentIds: {
+              type: 'array',
+              items: {
+                type: 'string'
+              },
+              description: 'Array of agent IDs to retrieve results for'
+            },
+            block: {
+              type: 'boolean',
+              description: 'Whether to block until results are ready. Default: true',
+              default: true
+            },
+            wait_up_to: {
+              type: 'number',
+              description: 'Maximum time to wait in seconds (0-300). Default: 150',
+              minimum: 0,
+              maximum: 300,
+              default: 150
+            }
+          },
+          required: ['agentIds']
+        }
       }
     ]
   }));
 
-  // Register CallToolRequestSchema handler for agent tool
+  // Register CallToolRequestSchema handler for agent and agent-output tools
   server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
-    if (request.params.name !== 'agent') {
-      throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
+    const toolName = request.params.name;
+
+    // Handle agent-output tool
+    if (toolName === 'agent-output') {
+      // Validate arguments with runtime type checking
+      let args;
+      try {
+        args = validateAgentOutputArguments(request.params.arguments);
+      } catch (error) {
+        throw new McpError(ErrorCode.InvalidParams, (error as Error).message);
+      }
+
+      const { agentIds, block, wait_up_to } = args;
+      const workspacePath = process.cwd();
+
+      // Process each agent ID
+      const results: string[] = [];
+
+      for (const agentId of agentIds) {
+        const status = await getAgentStatus(agentId);
+
+        // If blocking is enabled and agent is running, wait for it
+        if (block && status === 'running') {
+          const timeoutMs = (wait_up_to || 150) * 1000;
+
+          // Poll the status until it changes or timeout occurs
+          const startTime = Date.now();
+          let currentStatus: string = status;
+
+          while (currentStatus === 'running' && Date.now() - startTime < timeoutMs) {
+            // Wait a short interval before checking again
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            currentStatus = await getAgentStatus(agentId);
+          }
+
+          // Check final status
+          if (currentStatus === 'running') {
+            results.push(`Agent ${agentId}: running\nAgent is still executing (timeout after ${wait_up_to}s)\n\n`);
+            continue;
+          }
+        }
+
+        // Get the result based on status
+        const finalStatus = await getAgentStatus(agentId);
+
+        if (finalStatus === 'not_found') {
+          results.push(`Agent ${agentId}: not_found\nAgent not found in registry\n\n`);
+        } else if (finalStatus === 'failed') {
+          results.push(`Agent ${agentId}: failed\nAgent execution failed\n\n`);
+        } else if (finalStatus === 'running') {
+          results.push(`Agent ${agentId}: running\nAgent is still executing\n\n`);
+        } else if (finalStatus === 'completed') {
+          const result = await getAgentResult(agentId, workspacePath);
+
+          if (result) {
+            // Format the result based on its type
+            if ('content' in result && result.status === 'completed') {
+              // AgentToolResponse type (CompletedResponse from wrapper types)
+              const textContent = result.content.map((c) => c.text).join('\n');
+              results.push(`Agent ${agentId}: completed\n${textContent}\n\n`);
+            } else if ('output' in result && 'sessionId' in result) {
+              // CompletedResponse type (from background-agents.ts)
+              // Type guard confirms this has 'output' and 'sessionId' properties
+              const output = (result as { output: string; sessionId: string }).output;
+              results.push(`Agent ${agentId}: completed\n${output}\n\n`);
+            } else {
+              // Fallback for unexpected result types
+              results.push(`Agent ${agentId}: completed\n${JSON.stringify(result)}\n\n`);
+            }
+          } else {
+            results.push(`Agent ${agentId}: completed\nNo result available\n\n`);
+          }
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: results.join('')
+          }
+        ]
+      };
+    }
+
+    // Handle agent tool
+    if (toolName !== 'agent') {
+      throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${toolName}`);
     }
 
     // Validate arguments with runtime type checking
