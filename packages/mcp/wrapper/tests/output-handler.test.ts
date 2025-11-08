@@ -1,5 +1,5 @@
 /**
- * Tests for agent-output tool handler
+ * Tests for output tool handler
  */
 
 import type { AgentToolResponse } from '../src/types/wrapper.js';
@@ -77,8 +77,9 @@ describe('Agent Output Tool Handler', () => {
     });
 
     it('should return running status for pending agent', async () => {
+      let timerId: NodeJS.Timeout | undefined;
       const promise = new Promise<AgentToolResponse>((resolve) => {
-        setTimeout(() => {
+        timerId = setTimeout(() => {
           resolve({
             status: 'completed',
             prompt: 'test',
@@ -99,6 +100,9 @@ describe('Agent Output Tool Handler', () => {
 
       const result = await getAgentResult('test-agent-2');
       expect(result).toBeNull();
+
+      // Clean up the timer
+      if (timerId) clearTimeout(timerId);
     });
 
     it('should return failed status for rejected agent', async () => {
@@ -140,8 +144,9 @@ describe('Agent Output Tool Handler', () => {
       registerAgent('agent-1', Promise.resolve(completed));
 
       // Running agent
+      let timerId: NodeJS.Timeout | undefined;
       const running = new Promise<AgentToolResponse>((resolve) => {
-        setTimeout(() => resolve(completed), 10000);
+        timerId = setTimeout(() => resolve(completed), 10000);
       });
       registerAgent('agent-2', running);
 
@@ -161,6 +166,9 @@ describe('Agent Output Tool Handler', () => {
       expect(status2).toBe('running');
       expect(status3).toBe('failed');
       expect(status4).toBe('not_found');
+
+      // Clean up the timer
+      if (timerId) clearTimeout(timerId);
     });
 
     it('should retrieve results for multiple completed agents', async () => {
@@ -234,8 +242,9 @@ describe('Agent Output Tool Handler', () => {
     });
 
     it('should return immediately when blocking is disabled', async () => {
+      let timerId: NodeJS.Timeout | undefined;
       const promise = new Promise<AgentToolResponse>((resolve) => {
-        setTimeout(() => {
+        timerId = setTimeout(() => {
           resolve({
             status: 'completed',
             prompt: 'test',
@@ -257,13 +266,19 @@ describe('Agent Output Tool Handler', () => {
 
       const result = await getAgentResult('test-agent');
       expect(result).toBeNull();
+
+      // Clean up the timer
+      if (timerId) clearTimeout(timerId);
     });
   });
 
   describe('timeout behavior', () => {
     it('should timeout if agent takes longer than wait_up_to', async () => {
+      let promiseTimerId: NodeJS.Timeout | undefined;
+      let timeoutTimerId: NodeJS.Timeout | undefined;
+
       const promise = new Promise<AgentToolResponse>((resolve) => {
-        setTimeout(() => {
+        promiseTimerId = setTimeout(() => {
           resolve({
             status: 'completed',
             prompt: 'slow task',
@@ -282,7 +297,7 @@ describe('Agent Output Tool Handler', () => {
       // Simulate timeout by using Promise.race
       const timeoutMs = 100;
       const timeoutPromise = new Promise<'timeout'>((resolve) => {
-        setTimeout(() => resolve('timeout'), timeoutMs);
+        timeoutTimerId = setTimeout(() => resolve('timeout'), timeoutMs);
       });
 
       const result = await Promise.race([promise, timeoutPromise]);
@@ -293,6 +308,10 @@ describe('Agent Output Tool Handler', () => {
       // Agent should still be running
       const status = await getAgentStatus('slow-agent');
       expect(status).toBe('running');
+
+      // Clean up both timers
+      if (promiseTimerId) clearTimeout(promiseTimerId);
+      if (timeoutTimerId) clearTimeout(timeoutTimerId);
     });
 
     it('should return result if agent completes before timeout', async () => {
@@ -307,8 +326,11 @@ describe('Agent Output Tool Handler', () => {
         usage: {}
       };
 
+      let promiseTimerId: NodeJS.Timeout | undefined;
+      let timeoutTimerId: NodeJS.Timeout | undefined;
+
       const promise = new Promise<AgentToolResponse>((resolve) => {
-        setTimeout(() => resolve(response), 50);
+        promiseTimerId = setTimeout(() => resolve(response), 50);
       });
 
       registerAgent('quick-agent', promise);
@@ -316,7 +338,7 @@ describe('Agent Output Tool Handler', () => {
       // Timeout longer than execution time
       const timeoutMs = 200;
       const timeoutPromise = new Promise<'timeout'>((resolve) => {
-        setTimeout(() => resolve('timeout'), timeoutMs);
+        timeoutTimerId = setTimeout(() => resolve('timeout'), timeoutMs);
       });
 
       const result = await Promise.race([promise, timeoutPromise]);
@@ -326,6 +348,10 @@ describe('Agent Output Tool Handler', () => {
 
       const status = await getAgentStatus('quick-agent');
       expect(status).toBe('completed');
+
+      // Clean up both timers
+      if (promiseTimerId) clearTimeout(promiseTimerId);
+      if (timeoutTimerId) clearTimeout(timeoutTimerId);
     });
   });
 

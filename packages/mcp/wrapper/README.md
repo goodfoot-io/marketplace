@@ -94,6 +94,7 @@ For local MCP servers running as subprocesses:
 ```
 
 **Parameters:**
+
 - `server-name` - Unique identifier for this server
 - `command` - Executable command (e.g., `npx`, `python`, `node`)
 - `args...` - Command arguments
@@ -107,6 +108,7 @@ For remote MCP servers with HTTP endpoints:
 ```
 
 **Parameters:**
+
 - `server-name` - Unique identifier for this server
 - `--transport http` - Specify HTTP transport
 - `url` - HTTP/HTTPS endpoint URL
@@ -219,12 +221,12 @@ Execute tasks using aggregated tools from all backend MCP servers.
 
 **Parameters:**
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `prompt` | string | Yes | Natural language task description for the agent |
-| `model` | string | No | Claude model to use: `sonnet`, `opus`, or `haiku` (default: `sonnet`) |
-| `resume` | string | No | Agent ID from a previous execution to continue from |
-| `run_in_background` | boolean | No | Set to true to run this agent in the background. Use AgentOutputTool to read the output later. |
+| Parameter           | Type    | Required | Description                                                                                    |
+| ------------------- | ------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `prompt`            | string  | Yes      | Natural language task description for the agent                                                |
+| `model`             | string  | No       | Claude model to use: `sonnet`, `opus`, or `haiku` (default: `sonnet`)                          |
+| `resume`            | string  | No       | Agent ID from a previous execution to continue from                                            |
+| `run_in_background` | boolean | No       | Set to true to run this agent in the background. Use AgentOutputTool to read the output later. |
 
 **Response Formats:**
 
@@ -279,7 +281,7 @@ Execute tasks using aggregated tools from all backend MCP servers.
 <!-- Response: {status: "async_launched", agentId: "a3f7b21c", ...} -->
 
 <!-- Retrieve results later -->
-<invoke name="agent-output">
+<invoke name="output">
 <parameter name="agentIds">["a3f7b21c"]</parameter>
 </invoke>
 ```
@@ -293,17 +295,17 @@ Execute tasks using aggregated tools from all backend MCP servers.
 </invoke>
 ```
 
-### `agent-output` Tool
+### `output` Tool
 
 Retrieve results from background agent executions.
 
 **Parameters:**
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `agentIds` | string[] | Yes | Array of agent IDs to retrieve results for |
-| `block` | boolean | No | Whether to block until results are ready (default: `true`) |
-| `wait_up_to` | number | No | Maximum time to wait in seconds (default: `150`, min: `0`, max: `300`) |
+| Parameter    | Type     | Required | Description                                                            |
+| ------------ | -------- | -------- | ---------------------------------------------------------------------- |
+| `agentIds`   | string[] | Yes      | Array of agent IDs to retrieve results for                             |
+| `block`      | boolean  | No       | Whether to block until results are ready (default: `true`)             |
+| `wait_up_to` | number   | No       | Maximum time to wait in seconds (default: `150`, min: `0`, max: `300`) |
 
 **Response Format:**
 
@@ -325,7 +327,7 @@ No agent found with this ID
 **Retrieve Single Agent Result (Blocking):**
 
 ```xml
-<invoke name="agent-output">
+<invoke name="output">
 <parameter name="agentIds">["a3f7b21c"]</parameter>
 </invoke>
 ```
@@ -333,7 +335,7 @@ No agent found with this ID
 **Retrieve Multiple Agents (Non-Blocking):**
 
 ```xml
-<invoke name="agent-output">
+<invoke name="output">
 <parameter name="agentIds">["a3f7b21c", "b8d4e92f", "c1a9f53e"]</parameter>
 <parameter name="block">false</parameter>
 </invoke>
@@ -342,7 +344,7 @@ No agent found with this ID
 **Poll with Custom Timeout:**
 
 ```xml
-<invoke name="agent-output">
+<invoke name="output">
 <parameter name="agentIds">["a3f7b21c"]</parameter>
 <parameter name="block">true</parameter>
 <parameter name="wait_up_to">60</parameter>
@@ -378,7 +380,7 @@ Backend MCP Servers
 └─ http transport (remote endpoints)
 ```
 
-The wrapper exposes exactly two tools to Claude: `agent` (for executing tasks using backend tools) and `agent-output` (for retrieving results from background agents). All backend tool complexity is abstracted behind this simple interface.
+The wrapper exposes exactly two tools to Claude: `agent` (for executing tasks using backend tools) and `output` (for retrieving results from background agents). All backend tool complexity is abstracted behind this simple interface.
 
 ### Request Flow
 
@@ -440,7 +442,7 @@ When `run_in_background` is false or omitted, the agent executes inline. The wra
 
 **Background Execution** (`wrapper.ts:693-715`)
 
-When `run_in_background` is true, the wrapper registers the execution promise in the in-memory agent registry and returns an `AsyncLaunchedResponse` immediately. The agent continues executing in the background whilst Claude proceeds with other work. The client can later use the `agent-output` tool with the returned agent ID to check status and retrieve results.
+When `run_in_background` is true, the wrapper registers the execution promise in the in-memory agent registry and returns an `AsyncLaunchedResponse` immediately. The agent continues executing in the background whilst Claude proceeds with other work. The client can later use the `output` tool with the returned agent ID to check status and retrieve results.
 
 **Progress Notifications** (`wrapper.ts:623-665`)
 
@@ -496,7 +498,7 @@ The CLI accepts multiple server definitions separated by `--` markers. Each serv
 
 **Server Initialisation** (`wrapper.ts:297-733`)
 
-During initialisation, the wrapper discovers tools from all configured backends, creates the MCP server instance with tool handlers, and establishes stdio transport. The server registers handlers for `ListToolsRequestSchema` (returning the `agent` and `agent-output` tool definitions) and `CallToolRequestSchema` (routing to agent execution logic). Graceful shutdown handlers ensure clean server closure on SIGTERM and SIGINT signals.
+During initialisation, the wrapper discovers tools from all configured backends, creates the MCP server instance with tool handlers, and establishes stdio transport. The server registers handlers for `ListToolsRequestSchema` (returning the `agent` and `output` tool definitions) and `CallToolRequestSchema` (routing to agent execution logic). Graceful shutdown handlers ensure clean server closure on SIGTERM and SIGINT signals.
 
 ## Troubleshooting
 
@@ -507,6 +509,7 @@ During initialisation, the wrapper discovers tools from all configured backends,
 **Symptom:** Wrapper starts but reports no tools available
 
 **Solution:**
+
 1. Verify backend server configurations are correct
 2. Test each backend server independently before wrapping
 3. Check the discovery cache at `~/.mcp-wrapper-server/descriptions/`
@@ -523,9 +526,10 @@ npx -y @goodfoot/mcp-wrapper-server -- server-name -- command args
 
 #### Background Agents Not Completing
 
-**Symptom:** `agent-output` reports agents stuck in 'running' state
+**Symptom:** `output` reports agents stuck in 'running' state
 
 **Solution:**
+
 1. Check if backend servers have timed out or crashed
 2. Review transcript files in current directory for error messages
 3. Verify the agent isn't waiting for unavailable tools
@@ -540,6 +544,7 @@ npx -y @goodfoot/mcp-wrapper-server -- server-name -- command args
 **Cause:** Missing or corrupted transcript file
 
 **Solution:**
+
 1. Verify `agent-{agentId}.jsonl` exists in current working directory
 2. Check file permissions (must be readable)
 3. Validate JSONL format (each line must be valid JSON)
@@ -550,6 +555,7 @@ npx -y @goodfoot/mcp-wrapper-server -- server-name -- command args
 **Symptom:** "Connection refused" or timeout errors for HTTP servers
 
 **Solution:**
+
 1. Verify the URL is accessible: `curl https://example.com/mcp`
 2. Check authentication headers are correct
 3. Ensure server supports streaming HTTP (not just request/response)
@@ -567,6 +573,7 @@ MCP_WRAPPER_SERVER_LOGGING=true npx -y @goodfoot/mcp-wrapper-server -- ...
 ```
 
 This outputs detailed logs to stderr including:
+
 - Tool discovery progress
 - Backend server connection status
 - Agent execution lifecycle events
@@ -583,6 +590,7 @@ npx @modelcontextprotocol/inspector npx -y @goodfoot/mcp-wrapper-server -- \
 ```
 
 This opens a web interface at `http://localhost:5173` where you can:
+
 - View discovered tools and their schemas
 - Manually invoke the `agent` tool with test prompts
 - Monitor request/response cycles
@@ -626,6 +634,7 @@ Each backend server adds latency to discovery and increases tool namespace compl
 #### Background Execution for Long Tasks
 
 Use `run_in_background: true` for tasks that:
+
 - Take longer than 30 seconds to complete
 - Perform multiple sequential operations
 - Process large datasets or files
@@ -653,6 +662,7 @@ This keeps the MCP connection responsive whilst work proceeds asynchronously.
 ```
 
 Configure secrets in your system environment or use tools like:
+
 - **macOS/Linux**: `~/.bashrc`, `~/.zshrc`, or system keychain
 - **Windows**: System environment variables or credential manager
 
@@ -663,6 +673,7 @@ Each backend server runs in its own process with isolated credentials. The wrapp
 ### Transcript Data
 
 Transcript files (`agent-{agentId}.jsonl`) contain complete conversation history including:
+
 - User prompts and agent responses
 - Tool invocations with parameters
 - Tool results and data
@@ -672,6 +683,7 @@ Transcript files (`agent-{agentId}.jsonl`) contain complete conversation history
 ### Network Security
 
 For HTTP transport:
+
 - Always use HTTPS for remote servers
 - Validate SSL certificates (enabled by default)
 - Use API tokens with minimum required scopes
@@ -736,8 +748,8 @@ packages/mcp/wrapper/
 ├── tests/
 │   ├── agent-handler.test.ts   # Agent tool tests
 │   ├── agent-id.test.ts        # ID generation tests
-│   ├── agent-output-handler.test.ts  # Agent output tests
-│   ├── agent-output.test.ts    # Parameter validation tests
+│   ├── output-handler.test.ts  # Agent output tests
+│   ├── output.test.ts    # Parameter validation tests
 │   ├── background-agents.test.ts     # Registry tests
 │   ├── cache.test.ts           # Cache management tests
 │   ├── discovery.test.ts       # Discovery logic tests
@@ -764,6 +776,7 @@ MIT License - see LICENSE file for details
 ## Support
 
 For issues, questions, or contributions:
+
 - GitHub Issues: [Repository Issues](https://github.com/your-org/mcp-wrapper/issues)
 - Documentation: [MCP Protocol Specification](https://modelcontextprotocol.io)
 - Claude Code: [Official Documentation](https://docs.claude.com/claude-code)

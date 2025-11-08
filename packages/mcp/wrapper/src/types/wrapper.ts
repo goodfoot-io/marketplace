@@ -273,7 +273,7 @@ export interface AgentToolArguments {
    * To resume a conversation, extract the session ID from a previous response and pass it here.
    */
   resume?: string;
-  /** Set to true to run this agent in the background. Use AgentOutputTool to read the output later. */
+  /** Set to true to run this agent in the background. Use the output tool to read the output later. */
   run_in_background?: boolean;
 }
 
@@ -415,7 +415,7 @@ export function validateAgentToolResponse(value: unknown): AgentToolResponse {
 }
 
 /**
- * Arguments for agent-output tool
+ * Arguments for output tool
  */
 export interface AgentOutputArguments {
   /** Array of agent IDs to retrieve results for */
@@ -436,14 +436,14 @@ export const AgentOutputArgumentsSchema = z.object({
 });
 
 /**
- * Validates and narrows the type of agent-output arguments
+ * Validates and narrows the type of output tool arguments
  * @throws {Error} if validation fails
  */
 export function validateAgentOutputArguments(value: unknown): AgentOutputArguments {
   const result = AgentOutputArgumentsSchema.safeParse(value);
   if (!result.success) {
     const errorMessages = result.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
-    throw new Error(`Invalid agent-output arguments: ${errorMessages}`);
+    throw new Error(`Invalid output tool arguments: ${errorMessages}`);
   }
   return result.data;
 }

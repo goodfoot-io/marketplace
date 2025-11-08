@@ -950,7 +950,7 @@ describe('AgentToolResponse', () => {
 
 describe('AgentOutputArguments', () => {
   describe('interface', () => {
-    it('should accept valid agent-output arguments', () => {
+    it('should accept valid output arguments', () => {
       const args: AgentOutputArguments = {
         agentIds: ['agent-123'],
         block: true,
@@ -1106,7 +1106,7 @@ describe('AgentOutputArguments', () => {
     });
 
     it('should throw for missing agentIds', () => {
-      expect(() => validateAgentOutputArguments({})).toThrow(/Invalid agent-output arguments/);
+      expect(() => validateAgentOutputArguments({})).toThrow(/Invalid output tool arguments/);
     });
 
     it('should throw for invalid wait_up_to', () => {
@@ -1115,7 +1115,7 @@ describe('AgentOutputArguments', () => {
           agentIds: ['agent-123'],
           wait_up_to: -1
         })
-      ).toThrow(/Invalid agent-output arguments/);
+      ).toThrow(/Invalid output tool arguments/);
     });
 
     it('should throw for invalid block type', () => {
@@ -1124,7 +1124,7 @@ describe('AgentOutputArguments', () => {
           agentIds: ['agent-123'],
           block: 'true'
         })
-      ).toThrow(/Invalid agent-output arguments/);
+      ).toThrow(/Invalid output tool arguments/);
     });
   });
 });

@@ -348,7 +348,7 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
         }
       },
       {
-        name: 'agent-output',
+        name: 'output',
         description:
           'Retrieve output from one or more background agents. Returns status and results for each agent ID provided.',
         inputSchema: {
@@ -380,12 +380,12 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
     ]
   }));
 
-  // Register CallToolRequestSchema handler for agent and agent-output tools
+  // Register CallToolRequestSchema handler for agent and output tools
   server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
     const toolName = request.params.name;
 
-    // Handle agent-output tool
-    if (toolName === 'agent-output') {
+    // Handle output tool
+    if (toolName === 'output') {
       // Validate arguments with runtime type checking
       let args;
       try {

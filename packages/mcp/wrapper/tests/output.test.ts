@@ -1,5 +1,5 @@
 /**
- * Tests for agent-output tool argument validation
+ * Tests for output tool argument validation
  */
 
 import { describe, it, expect } from '@jest/globals';
