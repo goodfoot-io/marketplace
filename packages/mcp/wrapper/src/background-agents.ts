@@ -3,6 +3,7 @@
  * Provides in-memory storage and status checking for background agent execution promises
  */
 
+import type { AgentToolResponse } from './types/wrapper.js';
 import { loadTranscript, type TranscriptMessage } from './transcript-store.js';
 
 /**
@@ -21,9 +22,9 @@ export type AgentStatus = 'running' | 'completed' | 'failed' | 'not_found';
 
 /**
  * In-memory storage for background agent promises
- * Map<agentId, Promise<CompletedResponse>>
+ * Map<agentId, Promise<AgentToolResponse | CompletedResponse>>
  */
-const agentRegistry = new Map<string, Promise<CompletedResponse>>();
+const agentRegistry = new Map<string, Promise<AgentToolResponse | CompletedResponse>>();
 
 /**
  * Register a background agent with its execution promise
@@ -32,7 +33,7 @@ const agentRegistry = new Map<string, Promise<CompletedResponse>>();
  * @param agentId - The unique agent identifier
  * @param promise - The promise representing the agent's execution
  */
-export function registerAgent(agentId: string, promise: Promise<CompletedResponse>): void {
+export function registerAgent(agentId: string, promise: Promise<AgentToolResponse | CompletedResponse>): void {
   agentRegistry.set(agentId, promise);
 }
 
@@ -74,9 +75,12 @@ export async function getAgentStatus(agentId: string): Promise<AgentStatus> {
  *
  * @param agentId - The agent identifier
  * @param workspacePath - Optional workspace path for transcript location
- * @returns Promise resolving to CompletedResponse or null if not available
+ * @returns Promise resolving to AgentToolResponse or CompletedResponse or null if not available
  */
-export async function getAgentResult(agentId: string, workspacePath?: string): Promise<CompletedResponse | null> {
+export async function getAgentResult(
+  agentId: string,
+  workspacePath?: string
+): Promise<AgentToolResponse | CompletedResponse | null> {
   const promise = agentRegistry.get(agentId);
 
   // Try to get result from memory first

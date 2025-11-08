@@ -2,6 +2,7 @@
  * Tests for background agent tracking system
  */
 
+import type { AgentToolResponse } from '../src/types/wrapper.js';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -13,6 +14,13 @@ import {
   clearAgents,
   type CompletedResponse
 } from '../src/background-agents.js';
+
+/**
+ * Type guard to check if result is the old CompletedResponse type
+ */
+function isOldCompletedResponse(result: AgentToolResponse | CompletedResponse | null): result is CompletedResponse {
+  return result !== null && 'output' in result && 'sessionId' in result;
+}
 
 describe('Background Agents', () => {
   let testDir: string;
@@ -70,7 +78,10 @@ describe('Background Agents', () => {
       registerAgent(agentId, promise2);
 
       const result = await getAgentResult(agentId, testDir);
-      expect(result?.output).toBe('second');
+      expect(isOldCompletedResponse(result)).toBe(true);
+      if (isOldCompletedResponse(result)) {
+        expect(result.output).toBe('second');
+      }
     });
   });
 
@@ -229,9 +240,12 @@ describe('Background Agents', () => {
       const result = await getAgentResult(agentId, testDir);
 
       expect(result).not.toBeNull();
-      expect(result?.sessionId).toBe('session-789');
-      expect(result?.status).toBe('completed');
-      expect(result?.output).toContain('Task completed');
+      expect(isOldCompletedResponse(result)).toBe(true);
+      if (isOldCompletedResponse(result)) {
+        expect(result.sessionId).toBe('session-789');
+        expect(result.status).toBe('completed');
+        expect(result.output).toContain('Task completed');
+      }
     });
 
     it('should prefer memory cache over disk', async () => {
@@ -259,8 +273,11 @@ describe('Background Agents', () => {
       await promise;
 
       const result = await getAgentResult(agentId, testDir);
-      expect(result?.output).toBe('New result');
-      expect(result?.sessionId).toBe('session-new');
+      expect(isOldCompletedResponse(result)).toBe(true);
+      if (isOldCompletedResponse(result)) {
+        expect(result.output).toBe('New result');
+        expect(result.sessionId).toBe('session-new');
+      }
     });
 
     it('should handle transcript with multiple messages', async () => {
@@ -279,8 +296,11 @@ describe('Background Agents', () => {
 
       const result = await getAgentResult(agentId, testDir);
       expect(result).not.toBeNull();
-      expect(result?.output).toContain('Final result');
-      expect(result?.sessionId).toBe('session-multi');
+      expect(isOldCompletedResponse(result)).toBe(true);
+      if (isOldCompletedResponse(result)) {
+        expect(result.output).toContain('Final result');
+        expect(result.sessionId).toBe('session-multi');
+      }
     });
 
     it('should handle empty transcript file', async () => {
@@ -416,7 +436,10 @@ describe('Background Agents', () => {
         expect(status).toBe('completed');
 
         const result = await getAgentResult(agent.id, testDir);
-        expect(result?.output).toBe(`Output from ${agent.id}`);
+        expect(isOldCompletedResponse(result)).toBe(true);
+        if (isOldCompletedResponse(result)) {
+          expect(result.output).toBe(`Output from ${agent.id}`);
+        }
       }
     });
 
@@ -457,7 +480,10 @@ describe('Background Agents', () => {
       const failureResult = await getAgentResult(failureAgent, testDir);
       const runningResult = await getAgentResult(runningAgent, testDir);
 
-      expect(successResult?.output).toBe('Success');
+      expect(isOldCompletedResponse(successResult)).toBe(true);
+      if (isOldCompletedResponse(successResult)) {
+        expect(successResult.output).toBe('Success');
+      }
       expect(failureResult).toBeNull();
       expect(runningResult).toBeNull();
     });
@@ -482,9 +508,12 @@ describe('Background Agents', () => {
       // But can still get result from transcript
       const result = await getAgentResult(agentId, testDir);
       expect(result).not.toBeNull();
-      expect(result?.sessionId).toBe('old-session');
-      expect(result?.output).toContain('Historical result');
-      expect(result?.status).toBe('completed');
+      expect(isOldCompletedResponse(result)).toBe(true);
+      if (isOldCompletedResponse(result)) {
+        expect(result.sessionId).toBe('old-session');
+        expect(result.output).toContain('Historical result');
+        expect(result.status).toBe('completed');
+      }
     });
   });
 
@@ -540,7 +569,10 @@ describe('Background Agents', () => {
       }
 
       const result = await getAgentResult(agentId, testDir);
-      expect(result?.output).toBe('output99'); // Last registration wins
+      expect(isOldCompletedResponse(result)).toBe(true);
+      if (isOldCompletedResponse(result)) {
+        expect(result.output).toBe('output99'); // Last registration wins
+      }
     });
 
     it('should handle undefined workspace path', async () => {

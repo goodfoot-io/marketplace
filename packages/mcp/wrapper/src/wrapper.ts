@@ -3,14 +3,17 @@
  * MCP wrapper server - Generic wrapper for multiple MCP servers with dynamic tool discovery
  */
 
-import type { ServerConfig, AggregatedTools } from './types/wrapper.js';
+import type { ServerConfig, AggregatedTools, AgentToolResponse } from './types/wrapper.js';
 import { realpath } from 'node:fs/promises';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ListToolsRequestSchema, CallToolRequestSchema, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { generateAgentId } from './agent-id.js';
+import { registerAgent } from './background-agents.js';
 import { discoverTools } from './discovery.js';
 import { info, debug, warn, error } from './logger.js';
+import { writeTranscriptMessage, loadTranscript } from './transcript-store.js';
 import { validateAgentToolArguments } from './types/wrapper.js';
 
 /**
@@ -333,7 +336,12 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
             resume: {
               type: 'string',
               description:
-                'Optional session ID to resume from. If provided, the agent will continue from the previous execution. The session ID is returned in the first line of the response in the format "Session ID: <id>".'
+                'Optional agent ID to resume from. If provided, the agent will continue from the previous execution transcript.'
+            },
+            run_in_background: {
+              type: 'boolean',
+              description:
+                'Set to true to run this agent in the background. Use AgentOutputTool to read the output later.'
             }
           },
           required: ['prompt']
@@ -356,10 +364,26 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
       throw new McpError(ErrorCode.InvalidParams, (error as Error).message);
     }
 
-    const { prompt, model, resume } = args;
+    const { prompt, model, resume, run_in_background } = args;
 
     if (!prompt) {
       throw new McpError(ErrorCode.InvalidParams, 'prompt is required');
+    }
+
+    // Generate agent ID for this execution
+    const agentId = generateAgentId();
+    const workspacePath = process.cwd();
+
+    // Load transcript if resuming from agent ID
+    // Note: For resume, we pass the agent ID to the query options
+    // The transcript will be used internally by the SDK
+    if (resume) {
+      try {
+        const transcriptMessages = await loadTranscript(resume, workspacePath);
+        info(`Loaded ${transcriptMessages.length} messages from agent ${resume} transcript`);
+      } catch (err) {
+        warn(`Failed to load transcript for resume agent ${resume}:`, err);
+      }
     }
 
     // Extract progress token from meta for progress notifications
@@ -412,89 +436,179 @@ Always check the available tools and use them appropriately to complete tasks.`,
       resume
     };
 
-    let result = '';
-    let sessionId = '';
-    let toolCallCount = 0;
+    // Define the agent execution function
+    const executeAgent = async (): Promise<AgentToolResponse> => {
+      let result = '';
+      let sessionId = '';
+      let toolCallCount = 0;
+      const startTime = Date.now();
+      let totalTokens = 0;
+      let usage: Record<string, unknown> = {};
 
-    try {
-      // Execute the query using Claude Code SDK
-      for await (const message of query({
-        prompt,
-        options: queryOptions
-      })) {
-        // Type the message as unknown first, then narrow with type guards
-        const msg = message as unknown;
+      try {
+        // Execute the query using Claude Code SDK
+        for await (const message of query({
+          prompt,
+          options: queryOptions
+        })) {
+          // Type the message as unknown first, then narrow with type guards
+          const msg = message as unknown;
 
-        // Capture session_id from any message
-        if (typeof msg === 'object' && msg !== null && 'session_id' in msg) {
-          const msgWithSession = msg as { session_id: string };
-          if (msgWithSession.session_id && !sessionId) {
-            sessionId = msgWithSession.session_id;
+          // Capture session_id from any message
+          if (typeof msg === 'object' && msg !== null && 'session_id' in msg) {
+            const msgWithSession = msg as { session_id: string };
+            if (msgWithSession.session_id && !sessionId) {
+              sessionId = msgWithSession.session_id;
+            }
           }
-        }
 
-        // Check for result messages
-        if (typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === 'result') {
-          const resultMsg = msg as { type: 'result'; subtype?: string; result?: string };
-          if (resultMsg.subtype === 'error_max_turns' || resultMsg.subtype === 'error_during_execution') {
-            throw new Error(`Agent execution error: ${resultMsg.subtype}`);
+          // Write message to transcript
+          if (typeof msg === 'object' && msg !== null && 'type' in msg) {
+            const msgWithType = msg as { type: string; [key: string]: unknown };
+            try {
+              await writeTranscriptMessage(
+                agentId,
+                {
+                  type: msgWithType.type as 'user' | 'assistant' | 'result',
+                  content: JSON.stringify(msg),
+                  timestamp: new Date().toISOString(),
+                  session_id: sessionId || agentId
+                },
+                workspacePath
+              );
+            } catch (err) {
+              error(`Failed to write transcript for agent ${agentId}:`, err);
+            }
           }
-          if (resultMsg.subtype === 'success' && resultMsg.result) {
-            result = resultMsg.result;
+
+          // Check for result messages
+          if (typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === 'result') {
+            const resultMsg = msg as {
+              type: 'result';
+              subtype?: string;
+              result?: string;
+              usage?: Record<string, unknown>;
+            };
+            if (resultMsg.subtype === 'error_max_turns' || resultMsg.subtype === 'error_during_execution') {
+              throw new Error(`Agent execution error: ${resultMsg.subtype}`);
+            }
+            if (resultMsg.subtype === 'success' && resultMsg.result) {
+              result = resultMsg.result;
+            }
+            if (resultMsg.usage) {
+              usage = resultMsg.usage;
+              // Extract total tokens if available
+              if (typeof resultMsg.usage.total_tokens === 'number') {
+                totalTokens = resultMsg.usage.total_tokens;
+              }
+            }
           }
-        }
 
-        // Check for assistant messages with tool use
-        if (typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === 'assistant' && 'message' in msg) {
-          const assistantMsg = msg as { type: 'assistant'; message?: { content?: unknown[] } };
-          if (assistantMsg.message && assistantMsg.message.content && Array.isArray(assistantMsg.message.content)) {
-            for (const content of assistantMsg.message.content) {
-              if (typeof content === 'object' && content !== null && 'type' in content && content.type === 'tool_use') {
-                const toolUse = content as { type: 'tool_use'; name: string; input: unknown };
-
-                // Send progress notification if token is available
-                if (progressToken && typeof progressToken === 'string') {
+          // Check for assistant messages with tool use
+          if (
+            typeof msg === 'object' &&
+            msg !== null &&
+            'type' in msg &&
+            msg.type === 'assistant' &&
+            'message' in msg
+          ) {
+            const assistantMsg = msg as { type: 'assistant'; message?: { content?: unknown[] } };
+            if (assistantMsg.message && assistantMsg.message.content && Array.isArray(assistantMsg.message.content)) {
+              for (const content of assistantMsg.message.content) {
+                if (
+                  typeof content === 'object' &&
+                  content !== null &&
+                  'type' in content &&
+                  content.type === 'tool_use'
+                ) {
+                  const toolUse = content as { type: 'tool_use'; name: string; input: unknown };
                   toolCallCount++;
 
-                  // Format progress message with actual parameter values
-                  const progressMessage = `Tool ${toolCallCount}: ${formatProgressMessage(toolUse.name, toolUse.input)}`;
+                  // Send progress notification if token is available
+                  if (progressToken && typeof progressToken === 'string') {
+                    // Format progress message with actual parameter values
+                    const progressMessage = `Tool ${toolCallCount}: ${formatProgressMessage(toolUse.name, toolUse.input)}`;
 
-                  // Send progress notification (fire and forget)
-                  server
-                    .notification({
-                      method: 'notifications/progress',
-                      params: {
-                        progressToken,
-                        progress: toolCallCount,
-                        message: progressMessage
-                      }
-                    })
-                    .catch((err: Error) => {
-                      error('Failed to send progress notification:', err);
-                    });
+                    // Send progress notification (fire and forget)
+                    server
+                      .notification({
+                        method: 'notifications/progress',
+                        params: {
+                          progressToken,
+                          progress: toolCallCount,
+                          message: progressMessage
+                        }
+                      })
+                      .catch((err: Error) => {
+                        error('Failed to send progress notification:', err);
+                      });
+                  }
                 }
               }
             }
           }
         }
-      }
 
-      // Format response with session_id for resume capability
-      const responseText = sessionId
-        ? `Session ID: ${sessionId}\n\n---\n\n${result || 'No response from agent.'}`
-        : result || 'No response from agent.';
+        const totalDurationMs = Date.now() - startTime;
+
+        // Return completed response
+        return {
+          status: 'completed',
+          prompt,
+          agentId,
+          content: [
+            {
+              type: 'text',
+              text: result || 'No response from agent.'
+            }
+          ],
+          totalToolUseCount: toolCallCount,
+          totalDurationMs,
+          totalTokens,
+          usage
+        };
+      } catch (err) {
+        const errorMessage = `Agent execution failed: ${(err as Error).message}. Tool calls executed: ${toolCallCount}.`;
+        throw new McpError(ErrorCode.InternalError, errorMessage);
+      }
+    };
+
+    // Check if background execution is requested
+    if (run_in_background) {
+      // Launch agent in background
+      const executionPromise = executeAgent();
+
+      // Register the background agent
+      registerAgent(agentId, executionPromise);
+
+      // Return async_launched response immediately
+      const asyncResponse: AgentToolResponse = {
+        status: 'async_launched',
+        agentId,
+        description: `Agent ${agentId} launched in background`,
+        prompt
+      };
 
       return {
         content: [
           {
             type: 'text',
-            text: responseText
+            text: JSON.stringify(asyncResponse, null, 2)
           }
         ]
       };
-    } catch (error) {
-      const errorMessage = `Agent execution failed: ${(error as Error).message}. Tool calls executed: ${toolCallCount}.`;
-      throw new McpError(ErrorCode.InternalError, errorMessage);
+    } else {
+      // Execute synchronously and return completed response
+      const completedResponse = await executeAgent();
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(completedResponse, null, 2)
+          }
+        ]
+      };
     }
   });
 
