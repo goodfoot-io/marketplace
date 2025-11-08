@@ -213,6 +213,9 @@ Respond with ONLY the description text, nothing else.`;
 
 /**
  * Discover tools from wrapped MCP servers
+ *
+ * Caches discovered tools to improve startup performance. Set the environment variable
+ * MCP_WRAPPER_IGNORE_CACHE='true' to bypass cache and force fresh discovery.
  */
 export async function discoverTools(configs: ServerConfig[]): Promise<AggregatedTools> {
   // Handle empty configuration
@@ -229,11 +232,18 @@ export async function discoverTools(configs: ServerConfig[]): Promise<Aggregated
   const hash = generateConfigHash(configs);
   debug(`Configuration hash: ${hash}`);
 
-  // Check cache
-  const cached = await readCacheFile(hash);
-  if (cached) {
-    info(`Using cached tools for configuration ${hash}`);
-    return cached;
+  // Check if cache should be ignored
+  const ignoreCache = process.env.MCP_WRAPPER_IGNORE_CACHE === 'true';
+
+  // Check cache (unless explicitly ignored)
+  if (!ignoreCache) {
+    const cached = await readCacheFile(hash);
+    if (cached) {
+      info(`Using cached tools for configuration ${hash}`);
+      return cached;
+    }
+  } else {
+    info('MCP_WRAPPER_IGNORE_CACHE is set, bypassing cache');
   }
 
   info('Cache miss, discovering tools from servers');

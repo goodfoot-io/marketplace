@@ -124,6 +124,26 @@ For remote MCP servers with HTTP endpoints:
 
 ### Environment Variables
 
+#### Wrapper Configuration
+
+The wrapper server supports these environment variables:
+
+**`MCP_WRAPPER_SERVER_LOGGING`**: Enable detailed logging to stderr (default: `false`)
+
+```bash
+MCP_WRAPPER_SERVER_LOGGING=true npx -y @goodfoot/mcp-wrapper-server -- ...
+```
+
+**`MCP_WRAPPER_IGNORE_CACHE`**: Bypass cached tool descriptions and force fresh discovery (default: `false`)
+
+```bash
+MCP_WRAPPER_IGNORE_CACHE=true npx -y @goodfoot/mcp-wrapper-server -- ...
+```
+
+Use this when debugging cache issues or after updating backend servers to force re-discovery of tools.
+
+#### Backend Server Variables
+
 Backend server environment variables can be configured through your MCP client:
 
 ```json
@@ -523,6 +543,23 @@ During initialisation, the wrapper discovers tools from all configured backends,
 rm -rf ~/.mcp-wrapper-server/descriptions/
 npx -y @goodfoot/mcp-wrapper-server -- server-name -- command args
 ```
+
+#### Force Cache Refresh
+
+**When to use:** After updating backend servers, when debugging stale tool descriptions, or when cache appears corrupted
+
+**Solution:**
+
+Use the `MCP_WRAPPER_IGNORE_CACHE` environment variable to bypass the cache and force fresh discovery:
+
+```bash
+MCP_WRAPPER_IGNORE_CACHE=true npx -y @goodfoot/mcp-wrapper-server -- \
+  server-name -- command args
+```
+
+This performs fresh tool discovery from all backend servers whilst still writing results to cache for future use. The cache will be updated with the newly discovered tools.
+
+**Note:** This is faster and safer than manually deleting cache files, as it ensures atomic cache updates.
 
 #### Background Agents Not Completing
 

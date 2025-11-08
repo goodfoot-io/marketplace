@@ -3,7 +3,8 @@
  */
 
 import { appendFile, readFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname } from 'node:path';
+import { getTranscriptPath } from './agent-id.js';
 import { info, warn, error as logError } from './logger.js';
 
 /**
@@ -32,11 +33,11 @@ export async function writeTranscriptMessage(
   workspacePath?: string
 ): Promise<void> {
   try {
-    const workspace = workspacePath ?? process.cwd();
-    const transcriptPath = join(workspace, `agent-${agentId}.jsonl`);
+    const transcriptPath = getTranscriptPath(agentId, workspacePath);
+    const transcriptDir = dirname(transcriptPath);
 
     // Ensure directory exists
-    await mkdir(workspace, { recursive: true });
+    await mkdir(transcriptDir, { recursive: true });
 
     // Serialize message to JSON and append with newline
     const line = JSON.stringify(message) + '\n';
@@ -63,8 +64,7 @@ export async function writeTranscriptMessage(
  */
 export async function loadTranscript(agentId: string, workspacePath?: string): Promise<TranscriptMessage[]> {
   try {
-    const workspace = workspacePath ?? process.cwd();
-    const transcriptPath = join(workspace, `agent-${agentId}.jsonl`);
+    const transcriptPath = getTranscriptPath(agentId, workspacePath);
 
     // Read file content
     const content = await readFile(transcriptPath, 'utf-8');

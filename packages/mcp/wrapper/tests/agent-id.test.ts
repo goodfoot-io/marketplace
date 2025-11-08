@@ -4,8 +4,8 @@
 
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, it, expect } from '@jest/globals';
-import { generateAgentId, getWorkspaceName, getTranscriptPath } from '../src/agent-id.js';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { generateAgentId, getClaudeConfigDir, getWorkspaceName, getTranscriptPath } from '../src/agent-id.js';
 
 describe('generateAgentId', () => {
   it('should generate 8-character hex string', () => {
@@ -103,15 +103,71 @@ describe('getWorkspaceName', () => {
   });
 });
 
+describe('getClaudeConfigDir', () => {
+  let originalEnv: string | undefined;
+
+  beforeEach(() => {
+    originalEnv = process.env.CLAUDE_CONFIG_DIR;
+  });
+
+  afterEach(() => {
+    if (originalEnv !== undefined) {
+      process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    } else {
+      delete process.env.CLAUDE_CONFIG_DIR;
+    }
+  });
+
+  it('should return ~/.claude when CLAUDE_CONFIG_DIR is not set', () => {
+    delete process.env.CLAUDE_CONFIG_DIR;
+    const result = getClaudeConfigDir();
+    const expected = path.join(os.homedir(), '.claude');
+    expect(result).toBe(expected);
+  });
+
+  it('should return CLAUDE_CONFIG_DIR when env var is set', () => {
+    process.env.CLAUDE_CONFIG_DIR = '/custom/config/path';
+    const result = getClaudeConfigDir();
+    expect(result).toBe('/custom/config/path');
+  });
+
+  it('should handle Windows-style paths in CLAUDE_CONFIG_DIR', () => {
+    process.env.CLAUDE_CONFIG_DIR = 'C:\\Users\\TestUser\\.claude-config';
+    const result = getClaudeConfigDir();
+    expect(result).toBe('C:\\Users\\TestUser\\.claude-config');
+  });
+
+  it('should respect CLAUDE_CONFIG_DIR with relative path', () => {
+    process.env.CLAUDE_CONFIG_DIR = './config';
+    const result = getClaudeConfigDir();
+    expect(result).toBe('./config');
+  });
+});
+
 describe('getTranscriptPath', () => {
-  it('should return path in ~/.claude/projects/{workspace}/agent-{agentId}.jsonl format', () => {
+  let originalEnv: string | undefined;
+
+  beforeEach(() => {
+    originalEnv = process.env.CLAUDE_CONFIG_DIR;
+  });
+
+  afterEach(() => {
+    if (originalEnv !== undefined) {
+      process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    } else {
+      delete process.env.CLAUDE_CONFIG_DIR;
+    }
+  });
+
+  it('should return path in ~/.claude/mcp-wrapper-server/{workspace}/agent-{agentId}.jsonl format', () => {
+    delete process.env.CLAUDE_CONFIG_DIR;
     const agentId = 'abc12345';
     const mockCwd = '/home/user/my-project';
     const result = getTranscriptPath(agentId, mockCwd);
 
     const homeDir = os.homedir();
     const workspaceName = '-home-user-my-project';
-    const expected = path.join(homeDir, '.claude', 'projects', workspaceName, `agent-${agentId}.jsonl`);
+    const expected = path.join(homeDir, '.claude', 'mcp-wrapper-server', workspaceName, `agent-${agentId}.jsonl`);
 
     expect(result).toBe(expected);
   });
@@ -139,12 +195,13 @@ describe('getTranscriptPath', () => {
   });
 
   it('should use process.cwd() when no workspace path provided', () => {
+    delete process.env.CLAUDE_CONFIG_DIR;
     const agentId = 'abc12345';
     const result = getTranscriptPath(agentId);
 
     const homeDir = os.homedir();
     const workspaceName = getWorkspaceName();
-    const expected = path.join(homeDir, '.claude', 'projects', workspaceName, `agent-${agentId}.jsonl`);
+    const expected = path.join(homeDir, '.claude', 'mcp-wrapper-server', workspaceName, `agent-${agentId}.jsonl`);
 
     expect(result).toBe(expected);
   });
@@ -168,13 +225,14 @@ describe('getTranscriptPath', () => {
     expect(path1).toBe(path2);
   });
 
-  it('should include .claude/projects directory structure', () => {
+  it('should include .claude/mcp-wrapper-server directory structure', () => {
+    delete process.env.CLAUDE_CONFIG_DIR;
     const agentId = 'test5678';
     const mockCwd = '/workspace/project';
     const result = getTranscriptPath(agentId, mockCwd);
 
     expect(result).toContain('.claude');
-    expect(result).toContain('projects');
+    expect(result).toContain('mcp-wrapper-server');
     expect(result).toContain('-workspace-project');
     expect(result).toContain('agent-test5678.jsonl');
   });
@@ -189,6 +247,7 @@ describe('getTranscriptPath', () => {
   });
 
   it('should use absolute paths from home directory', () => {
+    delete process.env.CLAUDE_CONFIG_DIR;
     const agentId = 'abs12345';
     const mockCwd = '/any/workspace';
     const result = getTranscriptPath(agentId, mockCwd);
@@ -196,16 +255,67 @@ describe('getTranscriptPath', () => {
     const homeDir = os.homedir();
     expect(result).toMatch(new RegExp(`^${homeDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
   });
+
+  it('should use custom config directory when CLAUDE_CONFIG_DIR is set', () => {
+    process.env.CLAUDE_CONFIG_DIR = '/custom/config';
+    const agentId = 'custom123';
+    const mockCwd = '/workspace/test';
+    const result = getTranscriptPath(agentId, mockCwd);
+
+    const expected = path.join('/custom/config', 'mcp-wrapper-server', '-workspace-test', 'agent-custom123.jsonl');
+    expect(result).toBe(expected);
+  });
+
+  it('should create consistent paths with CLAUDE_CONFIG_DIR set', () => {
+    process.env.CLAUDE_CONFIG_DIR = '/tmp/claude-test';
+    const agentId = 'consistent1';
+    const mockCwd = '/workspace/path';
+
+    const path1 = getTranscriptPath(agentId, mockCwd);
+    const path2 = getTranscriptPath(agentId, mockCwd);
+
+    expect(path1).toBe(path2);
+    expect(path1).toContain('/tmp/claude-test');
+    expect(path1).not.toContain(os.homedir());
+  });
+
+  it('should handle CLAUDE_CONFIG_DIR with Windows paths', () => {
+    process.env.CLAUDE_CONFIG_DIR = 'D:\\CustomConfig\\Claude';
+    const agentId = 'win99999';
+    const mockCwd = 'C:\\Projects\\MyApp';
+    const result = getTranscriptPath(agentId, mockCwd);
+
+    expect(result).toContain('D:\\CustomConfig\\Claude');
+    expect(result).toContain('mcp-wrapper-server');
+    expect(result).toContain('C--Projects-MyApp');
+    expect(result).toContain('agent-win99999.jsonl');
+  });
 });
 
 describe('integration scenarios', () => {
+  let originalEnv: string | undefined;
+
+  beforeEach(() => {
+    originalEnv = process.env.CLAUDE_CONFIG_DIR;
+    delete process.env.CLAUDE_CONFIG_DIR;
+  });
+
+  afterEach(() => {
+    if (originalEnv !== undefined) {
+      process.env.CLAUDE_CONFIG_DIR = originalEnv;
+    } else {
+      delete process.env.CLAUDE_CONFIG_DIR;
+    }
+  });
+
   it('should create complete workflow: generate ID and get transcript path', () => {
     const agentId = generateAgentId();
     const transcriptPath = getTranscriptPath(agentId);
 
     expect(agentId).toMatch(/^[0-9a-f]{8}$/);
     expect(transcriptPath).toContain(`agent-${agentId}.jsonl`);
-    expect(transcriptPath).toContain('.claude/projects');
+    expect(transcriptPath).toContain('.claude');
+    expect(transcriptPath).toContain('mcp-wrapper-server');
   });
 
   it('should handle multiple agents in same workspace', () => {

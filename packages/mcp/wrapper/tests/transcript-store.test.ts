@@ -2,10 +2,11 @@
  * Tests for transcript store - JSONL file storage for agent messages
  */
 
-import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { getTranscriptPath } from '../src/agent-id.js';
 import { writeTranscriptMessage, loadTranscript, type TranscriptMessage } from '../src/transcript-store.js';
 
 describe('Transcript Store', () => {
@@ -34,7 +35,7 @@ describe('Transcript Store', () => {
 
       await writeTranscriptMessage(agentId, message, testDir);
 
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
       const content = await readFile(transcriptPath, 'utf-8');
       const lines = content.trim().split('\n');
 
@@ -70,7 +71,7 @@ describe('Transcript Store', () => {
         await writeTranscriptMessage(agentId, msg, testDir);
       }
 
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
       const content = await readFile(transcriptPath, 'utf-8');
       const lines = content.trim().split('\n');
 
@@ -93,7 +94,7 @@ describe('Transcript Store', () => {
       // Directory doesn't exist yet
       await writeTranscriptMessage(agentId, message, nestedDir);
 
-      const transcriptPath = join(nestedDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, nestedDir);
       const content = await readFile(transcriptPath, 'utf-8');
 
       expect(content.trim()).toBeTruthy();
@@ -111,7 +112,7 @@ describe('Transcript Store', () => {
 
       await writeTranscriptMessage(agentId, message, testDir);
 
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
       const content = await readFile(transcriptPath, 'utf-8');
       const parsed = JSON.parse(content.trim()) as TranscriptMessage;
 
@@ -129,7 +130,7 @@ describe('Transcript Store', () => {
 
       await writeTranscriptMessage(agentId, message, testDir);
 
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
       const content = await readFile(transcriptPath, 'utf-8');
       const parsed = JSON.parse(content.trim()) as TranscriptMessage;
 
@@ -149,7 +150,7 @@ describe('Transcript Store', () => {
         await writeTranscriptMessage(agentId, msg, testDir);
       }
 
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
       const content = await readFile(transcriptPath, 'utf-8');
       const lines = content.trim().split('\n');
 
@@ -171,7 +172,7 @@ describe('Transcript Store', () => {
 
       await writeTranscriptMessage(agentId, message, testDir);
 
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
       const content = await readFile(transcriptPath, 'utf-8');
       const parsed = JSON.parse(content.trim()) as TranscriptMessage;
 
@@ -188,7 +189,7 @@ describe('Transcript Store', () => {
 
       await writeTranscriptMessage(agentId, message, testDir);
 
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
       const content = await readFile(transcriptPath, 'utf-8');
       const parsed = JSON.parse(content.trim()) as TranscriptMessage;
 
@@ -206,7 +207,7 @@ describe('Transcript Store', () => {
 
       await writeTranscriptMessage(agentId, message, testDir);
 
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
       const content = await readFile(transcriptPath, 'utf-8');
       const parsed = JSON.parse(content.trim()) as TranscriptMessage;
 
@@ -290,7 +291,7 @@ describe('Transcript Store', () => {
     });
 
     it('should skip malformed lines with warnings', async () => {
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
 
       // Write mixed valid and invalid lines
       const content = [
@@ -306,6 +307,7 @@ describe('Transcript Store', () => {
         JSON.stringify({ type: 'result', content: 'Valid 3', timestamp: new Date().toISOString(), session_id: 's3' })
       ].join('\n');
 
+      await mkdir(dirname(transcriptPath), { recursive: true });
       await writeFile(transcriptPath, content + '\n', 'utf-8');
 
       const messages = await loadTranscript(agentId, testDir);
@@ -318,7 +320,8 @@ describe('Transcript Store', () => {
     });
 
     it('should handle empty file', async () => {
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
+      await mkdir(dirname(transcriptPath), { recursive: true });
       await writeFile(transcriptPath, '', 'utf-8');
 
       const messages = await loadTranscript(agentId, testDir);
@@ -326,7 +329,8 @@ describe('Transcript Store', () => {
     });
 
     it('should handle file with only whitespace', async () => {
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
+      await mkdir(dirname(transcriptPath), { recursive: true });
       await writeFile(transcriptPath, '   \n  \n  ', 'utf-8');
 
       const messages = await loadTranscript(agentId, testDir);

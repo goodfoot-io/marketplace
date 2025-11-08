@@ -5,8 +5,9 @@
 import type { AgentToolResponse } from '../src/types/wrapper.js';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { getTranscriptPath } from '../src/agent-id.js';
 import {
   registerAgent,
   getAgentStatus,
@@ -224,7 +225,7 @@ describe('Background Agents', () => {
 
     it('should fall back to loading transcript from disk', async () => {
       const agentId = 'disk-agent';
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
 
       // Create transcript file manually (simulating historical agent)
       const messages = [
@@ -233,7 +234,7 @@ describe('Background Agents', () => {
         { type: 'result', content: 'Task completed', timestamp: new Date().toISOString(), session_id: 'session-789' }
       ];
 
-      await mkdir(testDir, { recursive: true });
+      await mkdir(dirname(transcriptPath), { recursive: true });
       await writeFile(transcriptPath, messages.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf-8');
 
       // Get result without registering agent (pure disk fallback)
@@ -250,7 +251,7 @@ describe('Background Agents', () => {
 
     it('should prefer memory cache over disk', async () => {
       const agentId = 'prefer-memory';
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
 
       // Create transcript file with old data
       const oldMessage = {
@@ -259,7 +260,7 @@ describe('Background Agents', () => {
         timestamp: new Date().toISOString(),
         session_id: 'session-old'
       };
-      await mkdir(testDir, { recursive: true });
+      await mkdir(dirname(transcriptPath), { recursive: true });
       await writeFile(transcriptPath, JSON.stringify(oldMessage) + '\n', 'utf-8');
 
       // Register agent with new data in memory
@@ -282,7 +283,7 @@ describe('Background Agents', () => {
 
     it('should handle transcript with multiple messages', async () => {
       const agentId = 'multi-message';
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
 
       const messages = [
         { type: 'user', content: 'First', timestamp: new Date().toISOString(), session_id: 'session-multi' },
@@ -291,7 +292,7 @@ describe('Background Agents', () => {
         { type: 'result', content: 'Final result', timestamp: new Date().toISOString(), session_id: 'session-multi' }
       ];
 
-      await mkdir(testDir, { recursive: true });
+      await mkdir(dirname(transcriptPath), { recursive: true });
       await writeFile(transcriptPath, messages.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf-8');
 
       const result = await getAgentResult(agentId, testDir);
@@ -305,9 +306,9 @@ describe('Background Agents', () => {
 
     it('should handle empty transcript file', async () => {
       const agentId = 'empty-transcript';
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
 
-      await mkdir(testDir, { recursive: true });
+      await mkdir(dirname(transcriptPath), { recursive: true });
       await writeFile(transcriptPath, '', 'utf-8');
 
       const result = await getAgentResult(agentId, testDir);
@@ -316,9 +317,9 @@ describe('Background Agents', () => {
 
     it('should handle malformed transcript gracefully', async () => {
       const agentId = 'malformed-transcript';
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
 
-      await mkdir(testDir, { recursive: true });
+      await mkdir(dirname(transcriptPath), { recursive: true });
       await writeFile(transcriptPath, 'invalid json\n{broken\n', 'utf-8');
 
       const result = await getAgentResult(agentId, testDir);
@@ -490,7 +491,7 @@ describe('Background Agents', () => {
 
     it('should support historical agent lookup via transcript', async () => {
       const agentId = 'historical-agent';
-      const transcriptPath = join(testDir, `agent-${agentId}.jsonl`);
+      const transcriptPath = getTranscriptPath(agentId, testDir);
 
       // Simulate a completed agent from a previous server instance
       const messages = [
@@ -498,7 +499,7 @@ describe('Background Agents', () => {
         { type: 'result', content: 'Historical result', timestamp: '2024-01-01T00:01:00Z', session_id: 'old-session' }
       ];
 
-      await mkdir(testDir, { recursive: true });
+      await mkdir(dirname(transcriptPath), { recursive: true });
       await writeFile(transcriptPath, messages.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf-8');
 
       // Agent not in memory (server restarted)
