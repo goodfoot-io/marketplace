@@ -17,7 +17,15 @@ import {
   validateAggregatedTools,
   isCachedToolDescription,
   validateCachedToolDescription,
-  getEnvironmentAsRecord
+  getEnvironmentAsRecord,
+  AsyncLaunchedResponse,
+  CompletedResponse,
+  AgentToolResponse,
+  AsyncLaunchedResponseSchema,
+  CompletedResponseSchema,
+  AgentToolResponseSchema,
+  isAgentToolResponse,
+  validateAgentToolResponse
 } from '../src/types/wrapper.js';
 
 describe('TransportType', () => {
@@ -453,6 +461,486 @@ describe('getEnvironmentAsRecord', () => {
       DEFINED: 'yes',
       EMPTY_STRING: '',
       ZERO: '0'
+    });
+  });
+});
+
+describe('AgentToolResponse', () => {
+  describe('AsyncLaunchedResponse', () => {
+    describe('interface', () => {
+      it('should accept valid async_launched response', () => {
+        const response: AsyncLaunchedResponse = {
+          status: 'async_launched',
+          agentId: 'abc123',
+          description: 'Agent task description',
+          prompt: 'Do something'
+        };
+        expect(response.status).toBe('async_launched');
+        expect(response.agentId).toBe('abc123');
+        expect(response.description).toBe('Agent task description');
+        expect(response.prompt).toBe('Do something');
+      });
+    });
+
+    describe('Zod schema', () => {
+      it('should validate valid async_launched response', () => {
+        const response = {
+          status: 'async_launched' as const,
+          agentId: 'abc123',
+          description: 'Task description',
+          prompt: 'Do something'
+        };
+        const result = AsyncLaunchedResponseSchema.safeParse(response);
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.status).toBe('async_launched');
+          expect(result.data.agentId).toBe('abc123');
+        }
+      });
+
+      it('should reject async_launched response without agentId', () => {
+        const response = {
+          status: 'async_launched' as const,
+          description: 'Task description',
+          prompt: 'Do something'
+        };
+        const result = AsyncLaunchedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+
+      it('should reject async_launched response without description', () => {
+        const response = {
+          status: 'async_launched' as const,
+          agentId: 'abc123',
+          prompt: 'Do something'
+        };
+        const result = AsyncLaunchedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+
+      it('should reject async_launched response without prompt', () => {
+        const response = {
+          status: 'async_launched' as const,
+          agentId: 'abc123',
+          description: 'Task description'
+        };
+        const result = AsyncLaunchedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+
+      it('should reject async_launched response with empty agentId', () => {
+        const response = {
+          status: 'async_launched' as const,
+          agentId: '',
+          description: 'Task description',
+          prompt: 'Do something'
+        };
+        const result = AsyncLaunchedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+
+      it('should reject async_launched response with empty prompt', () => {
+        const response = {
+          status: 'async_launched' as const,
+          agentId: 'abc123',
+          description: 'Task description',
+          prompt: ''
+        };
+        const result = AsyncLaunchedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+    });
+  });
+
+  describe('CompletedResponse', () => {
+    describe('interface', () => {
+      it('should accept valid completed response', () => {
+        const response: CompletedResponse = {
+          status: 'completed',
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [{ type: 'text', text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: { input: 100, output: 400 }
+        };
+        expect(response.status).toBe('completed');
+        expect(response.agentId).toBe('abc123');
+        expect(response.content).toHaveLength(1);
+        expect(response.totalToolUseCount).toBe(5);
+      });
+
+      it('should accept completed response with multiple content items', () => {
+        const response: CompletedResponse = {
+          status: 'completed',
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [
+            { type: 'text', text: 'Part 1' },
+            { type: 'text', text: 'Part 2' }
+          ],
+          totalToolUseCount: 0,
+          totalDurationMs: 100,
+          totalTokens: 50,
+          usage: {}
+        };
+        expect(response.content).toHaveLength(2);
+      });
+
+      it('should accept completed response with empty content array', () => {
+        const response: CompletedResponse = {
+          status: 'completed',
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [],
+          totalToolUseCount: 0,
+          totalDurationMs: 100,
+          totalTokens: 0,
+          usage: {}
+        };
+        expect(response.content).toHaveLength(0);
+      });
+    });
+
+    describe('Zod schema', () => {
+      it('should validate valid completed response', () => {
+        const response = {
+          status: 'completed' as const,
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [{ type: 'text' as const, text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: { input: 100, output: 400 }
+        };
+        const result = CompletedResponseSchema.safeParse(response);
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.status).toBe('completed');
+          expect(result.data.totalToolUseCount).toBe(5);
+        }
+      });
+
+      it('should reject completed response without prompt', () => {
+        const response = {
+          status: 'completed' as const,
+          agentId: 'abc123',
+          content: [{ type: 'text' as const, text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: {}
+        };
+        const result = CompletedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+
+      it('should reject completed response without agentId', () => {
+        const response = {
+          status: 'completed' as const,
+          prompt: 'Do something',
+          content: [{ type: 'text' as const, text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: {}
+        };
+        const result = CompletedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+
+      it('should reject completed response without content', () => {
+        const response = {
+          status: 'completed' as const,
+          prompt: 'Do something',
+          agentId: 'abc123',
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: {}
+        };
+        const result = CompletedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+
+      it('should reject completed response with invalid content type', () => {
+        const response = {
+          status: 'completed' as const,
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [{ type: 'image', text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: {}
+        };
+        const result = CompletedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+
+      it('should reject completed response with negative totalToolUseCount', () => {
+        const response = {
+          status: 'completed' as const,
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [{ type: 'text' as const, text: 'Result' }],
+          totalToolUseCount: -1,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: {}
+        };
+        const result = CompletedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+
+      it('should reject completed response with negative totalDurationMs', () => {
+        const response = {
+          status: 'completed' as const,
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [{ type: 'text' as const, text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: -1,
+          totalTokens: 500,
+          usage: {}
+        };
+        const result = CompletedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+
+      it('should reject completed response with negative totalTokens', () => {
+        const response = {
+          status: 'completed' as const,
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [{ type: 'text' as const, text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: -1,
+          usage: {}
+        };
+        const result = CompletedResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+
+      it('should accept completed response with zero counts', () => {
+        const response = {
+          status: 'completed' as const,
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [],
+          totalToolUseCount: 0,
+          totalDurationMs: 0,
+          totalTokens: 0,
+          usage: {}
+        };
+        const result = CompletedResponseSchema.safeParse(response);
+        expect(result.success).toBe(true);
+      });
+    });
+  });
+
+  describe('AgentToolResponse discriminated union', () => {
+    it('should accept async_launched response', () => {
+      const response: AgentToolResponse = {
+        status: 'async_launched',
+        agentId: 'abc123',
+        description: 'Task description',
+        prompt: 'Do something'
+      };
+      expect(response.status).toBe('async_launched');
+    });
+
+    it('should accept completed response', () => {
+      const response: AgentToolResponse = {
+        status: 'completed',
+        prompt: 'Do something',
+        agentId: 'abc123',
+        content: [{ type: 'text', text: 'Result' }],
+        totalToolUseCount: 5,
+        totalDurationMs: 1234,
+        totalTokens: 500,
+        usage: {}
+      };
+      expect(response.status).toBe('completed');
+    });
+
+    describe('type discrimination', () => {
+      it('should discriminate async_launched response fields', () => {
+        const response: AgentToolResponse = {
+          status: 'async_launched',
+          agentId: 'abc123',
+          description: 'Task description',
+          prompt: 'Do something'
+        };
+
+        if (response.status === 'async_launched') {
+          expect(response.agentId).toBe('abc123');
+          expect(response.description).toBe('Task description');
+          expect(response.prompt).toBe('Do something');
+        }
+      });
+
+      it('should discriminate completed response fields', () => {
+        const response: AgentToolResponse = {
+          status: 'completed',
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [{ type: 'text', text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: {}
+        };
+
+        if (response.status === 'completed') {
+          expect(response.content).toHaveLength(1);
+          expect(response.totalToolUseCount).toBe(5);
+          expect(response.totalDurationMs).toBe(1234);
+          expect(response.totalTokens).toBe(500);
+        }
+      });
+
+      it('should narrow type correctly based on status', () => {
+        const asyncResponse: AgentToolResponse = {
+          status: 'async_launched',
+          agentId: 'abc123',
+          description: 'Task description',
+          prompt: 'Do something'
+        };
+
+        const completedResponse: AgentToolResponse = {
+          status: 'completed',
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [{ type: 'text', text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: {}
+        };
+
+        expect(asyncResponse.status).toBe('async_launched');
+        expect(completedResponse.status).toBe('completed');
+      });
+    });
+
+    describe('Zod schema', () => {
+      it('should validate async_launched response with union schema', () => {
+        const response = {
+          status: 'async_launched' as const,
+          agentId: 'abc123',
+          description: 'Task description',
+          prompt: 'Do something'
+        };
+        const result = AgentToolResponseSchema.safeParse(response);
+        expect(result.success).toBe(true);
+      });
+
+      it('should validate completed response with union schema', () => {
+        const response = {
+          status: 'completed' as const,
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [{ type: 'text' as const, text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: {}
+        };
+        const result = AgentToolResponseSchema.safeParse(response);
+        expect(result.success).toBe(true);
+      });
+
+      it('should reject response with invalid status', () => {
+        const response = {
+          status: 'invalid_status',
+          agentId: 'abc123',
+          description: 'Task description',
+          prompt: 'Do something'
+        };
+        const result = AgentToolResponseSchema.safeParse(response);
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe('type guard', () => {
+      it('should return true for valid async_launched response', () => {
+        const response = {
+          status: 'async_launched' as const,
+          agentId: 'abc123',
+          description: 'Task description',
+          prompt: 'Do something'
+        };
+        expect(isAgentToolResponse(response)).toBe(true);
+      });
+
+      it('should return true for valid completed response', () => {
+        const response = {
+          status: 'completed' as const,
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [{ type: 'text' as const, text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: {}
+        };
+        expect(isAgentToolResponse(response)).toBe(true);
+      });
+
+      it('should return false for null', () => {
+        expect(isAgentToolResponse(null)).toBe(false);
+      });
+
+      it('should return false for undefined', () => {
+        expect(isAgentToolResponse(undefined)).toBe(false);
+      });
+
+      it('should return false for invalid object', () => {
+        expect(isAgentToolResponse({ status: 'invalid' })).toBe(false);
+      });
+    });
+
+    describe('validator', () => {
+      it('should return valid async_launched response', () => {
+        const response = {
+          status: 'async_launched' as const,
+          agentId: 'abc123',
+          description: 'Task description',
+          prompt: 'Do something'
+        };
+        const validated = validateAgentToolResponse(response);
+        expect(validated.status).toBe('async_launched');
+        if (validated.status === 'async_launched') {
+          expect(validated.agentId).toBe('abc123');
+        }
+      });
+
+      it('should return valid completed response', () => {
+        const response = {
+          status: 'completed' as const,
+          prompt: 'Do something',
+          agentId: 'abc123',
+          content: [{ type: 'text' as const, text: 'Result' }],
+          totalToolUseCount: 5,
+          totalDurationMs: 1234,
+          totalTokens: 500,
+          usage: {}
+        };
+        const validated = validateAgentToolResponse(response);
+        expect(validated.status).toBe('completed');
+        if (validated.status === 'completed') {
+          expect(validated.totalToolUseCount).toBe(5);
+        }
+      });
+
+      it('should throw for invalid response', () => {
+        expect(() => validateAgentToolResponse(null)).toThrow(/Invalid agent tool response/);
+        expect(() => validateAgentToolResponse({ status: 'invalid' })).toThrow(/Invalid agent tool response/);
+      });
     });
   });
 });
