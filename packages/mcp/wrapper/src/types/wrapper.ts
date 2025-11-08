@@ -273,6 +273,8 @@ export interface AgentToolArguments {
    * To resume a conversation, extract the session ID from a previous response and pass it here.
    */
   resume?: string;
+  /** Set to true to run this agent in the background. Use AgentOutputTool to read the output later. */
+  run_in_background?: boolean;
 }
 
 /**
@@ -281,7 +283,8 @@ export interface AgentToolArguments {
 export const AgentToolArgumentsSchema = z.object({
   prompt: z.string().min(1, 'prompt cannot be empty'),
   model: z.enum(['sonnet', 'opus', 'haiku']).optional(),
-  resume: z.string().optional()
+  resume: z.string().optional(),
+  run_in_background: z.boolean().optional()
 });
 
 /**
@@ -409,4 +412,38 @@ export function validateAgentToolResponse(value: unknown): AgentToolResponse {
     );
   }
   return value;
+}
+
+/**
+ * Arguments for agent-output tool
+ */
+export interface AgentOutputArguments {
+  /** Array of agent IDs to retrieve results for */
+  agentIds: string[];
+  /** Whether to block until results are ready */
+  block?: boolean;
+  /** Maximum time to wait in seconds */
+  wait_up_to?: number;
+}
+
+/**
+ * Zod schema for AgentOutputArguments with runtime validation
+ */
+export const AgentOutputArgumentsSchema = z.object({
+  agentIds: z.array(z.string()),
+  block: z.boolean().optional().default(true),
+  wait_up_to: z.number().min(0).max(300).optional().default(150)
+});
+
+/**
+ * Validates and narrows the type of agent-output arguments
+ * @throws {Error} if validation fails
+ */
+export function validateAgentOutputArguments(value: unknown): AgentOutputArguments {
+  const result = AgentOutputArgumentsSchema.safeParse(value);
+  if (!result.success) {
+    const errorMessages = result.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+    throw new Error(`Invalid agent-output arguments: ${errorMessages}`);
+  }
+  return result.data;
 }

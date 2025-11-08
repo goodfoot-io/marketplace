@@ -25,7 +25,10 @@ import {
   CompletedResponseSchema,
   AgentToolResponseSchema,
   isAgentToolResponse,
-  validateAgentToolResponse
+  validateAgentToolResponse,
+  AgentOutputArguments,
+  AgentOutputArgumentsSchema,
+  validateAgentOutputArguments
 } from '../src/types/wrapper.js';
 
 describe('TransportType', () => {
@@ -941,6 +944,187 @@ describe('AgentToolResponse', () => {
         expect(() => validateAgentToolResponse(null)).toThrow(/Invalid agent tool response/);
         expect(() => validateAgentToolResponse({ status: 'invalid' })).toThrow(/Invalid agent tool response/);
       });
+    });
+  });
+});
+
+describe('AgentOutputArguments', () => {
+  describe('interface', () => {
+    it('should accept valid agent-output arguments', () => {
+      const args: AgentOutputArguments = {
+        agentIds: ['agent-123'],
+        block: true,
+        wait_up_to: 150
+      };
+      expect(args.agentIds).toEqual(['agent-123']);
+      expect(args.block).toBe(true);
+      expect(args.wait_up_to).toBe(150);
+    });
+
+    it('should accept arguments with defaults omitted', () => {
+      const args: AgentOutputArguments = {
+        agentIds: ['agent-1', 'agent-2']
+      };
+      expect(args.agentIds).toEqual(['agent-1', 'agent-2']);
+    });
+
+    it('should accept multiple agent IDs', () => {
+      const args: AgentOutputArguments = {
+        agentIds: ['agent-1', 'agent-2', 'agent-3'],
+        block: false,
+        wait_up_to: 60
+      };
+      expect(args.agentIds.length).toBe(3);
+    });
+  });
+
+  describe('Zod schema', () => {
+    it('should validate valid arguments', () => {
+      const args = {
+        agentIds: ['agent-123'],
+        block: true,
+        wait_up_to: 150
+      };
+      const result = AgentOutputArgumentsSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.agentIds).toEqual(['agent-123']);
+        expect(result.data.block).toBe(true);
+        expect(result.data.wait_up_to).toBe(150);
+      }
+    });
+
+    it('should apply default block=true', () => {
+      const args = {
+        agentIds: ['agent-123']
+      };
+      const result = AgentOutputArgumentsSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.block).toBe(true);
+      }
+    });
+
+    it('should apply default wait_up_to=150', () => {
+      const args = {
+        agentIds: ['agent-123']
+      };
+      const result = AgentOutputArgumentsSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.wait_up_to).toBe(150);
+      }
+    });
+
+    it('should reject missing agentIds', () => {
+      const args = {};
+      const result = AgentOutputArgumentsSchema.safeParse(args);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject non-array agentIds', () => {
+      const args = {
+        agentIds: 'agent-123'
+      };
+      const result = AgentOutputArgumentsSchema.safeParse(args);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject wait_up_to below minimum', () => {
+      const args = {
+        agentIds: ['agent-123'],
+        wait_up_to: -1
+      };
+      const result = AgentOutputArgumentsSchema.safeParse(args);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject wait_up_to above maximum', () => {
+      const args = {
+        agentIds: ['agent-123'],
+        wait_up_to: 301
+      };
+      const result = AgentOutputArgumentsSchema.safeParse(args);
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept wait_up_to at minimum boundary (0)', () => {
+      const args = {
+        agentIds: ['agent-123'],
+        wait_up_to: 0
+      };
+      const result = AgentOutputArgumentsSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.wait_up_to).toBe(0);
+      }
+    });
+
+    it('should accept wait_up_to at maximum boundary (300)', () => {
+      const args = {
+        agentIds: ['agent-123'],
+        wait_up_to: 300
+      };
+      const result = AgentOutputArgumentsSchema.safeParse(args);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.wait_up_to).toBe(300);
+      }
+    });
+
+    it('should reject non-boolean block', () => {
+      const args = {
+        agentIds: ['agent-123'],
+        block: 'true'
+      };
+      const result = AgentOutputArgumentsSchema.safeParse(args);
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('validator', () => {
+    it('should return valid arguments', () => {
+      const args = {
+        agentIds: ['agent-123'],
+        block: false,
+        wait_up_to: 60
+      };
+      const validated = validateAgentOutputArguments(args);
+      expect(validated.agentIds).toEqual(['agent-123']);
+      expect(validated.block).toBe(false);
+      expect(validated.wait_up_to).toBe(60);
+    });
+
+    it('should apply defaults when not provided', () => {
+      const args = {
+        agentIds: ['agent-1', 'agent-2']
+      };
+      const validated = validateAgentOutputArguments(args);
+      expect(validated.agentIds).toEqual(['agent-1', 'agent-2']);
+      expect(validated.block).toBe(true);
+      expect(validated.wait_up_to).toBe(150);
+    });
+
+    it('should throw for missing agentIds', () => {
+      expect(() => validateAgentOutputArguments({})).toThrow(/Invalid agent-output arguments/);
+    });
+
+    it('should throw for invalid wait_up_to', () => {
+      expect(() =>
+        validateAgentOutputArguments({
+          agentIds: ['agent-123'],
+          wait_up_to: -1
+        })
+      ).toThrow(/Invalid agent-output arguments/);
+    });
+
+    it('should throw for invalid block type', () => {
+      expect(() =>
+        validateAgentOutputArguments({
+          agentIds: ['agent-123'],
+          block: 'true'
+        })
+      ).toThrow(/Invalid agent-output arguments/);
     });
   });
 });

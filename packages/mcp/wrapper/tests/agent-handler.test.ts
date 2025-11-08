@@ -312,6 +312,100 @@ describe('Agent Tool Handler', () => {
     });
   });
 
+  describe('run_in_background parameter', () => {
+    it('should accept run_in_background as true', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'background task',
+        run_in_background: true
+      });
+
+      expect(result.prompt).toBe('background task');
+      expect(result.run_in_background).toBe(true);
+    });
+
+    it('should accept run_in_background as false', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'foreground task',
+        run_in_background: false
+      });
+
+      expect(result.prompt).toBe('foreground task');
+      expect(result.run_in_background).toBe(false);
+    });
+
+    it('should work without run_in_background parameter (undefined)', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'default task'
+      });
+
+      expect(result.prompt).toBe('default task');
+      expect(result.run_in_background).toBeUndefined();
+    });
+
+    it('should reject non-boolean run_in_background', () => {
+      expect(() => {
+        validateAgentToolArguments({
+          prompt: 'test',
+          run_in_background: 'true'
+        });
+      }).toThrow();
+    });
+
+    it('should reject number for run_in_background', () => {
+      expect(() => {
+        validateAgentToolArguments({
+          prompt: 'test',
+          run_in_background: 1
+        });
+      }).toThrow();
+    });
+
+    it('should reject null for run_in_background', () => {
+      expect(() => {
+        validateAgentToolArguments({
+          prompt: 'test',
+          run_in_background: null
+        });
+      }).toThrow();
+    });
+
+    it('should accept run_in_background with all other parameters', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'complete task',
+        model: 'haiku',
+        resume: 'agent-123',
+        run_in_background: true
+      });
+
+      expect(result.prompt).toBe('complete task');
+      expect(result.model).toBe('haiku');
+      expect(result.resume).toBe('agent-123');
+      expect(result.run_in_background).toBe(true);
+    });
+
+    it('should accept run_in_background with model parameter', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'task with model',
+        model: 'sonnet',
+        run_in_background: true
+      });
+
+      expect(result.model).toBe('sonnet');
+      expect(result.run_in_background).toBe(true);
+    });
+
+    it('should accept run_in_background with resume parameter', () => {
+      const result = validateAgentToolArguments({
+        prompt: 'resume in background',
+        resume: 'agent-456',
+        run_in_background: true
+      });
+
+      expect(result.resume).toBe('agent-456');
+      expect(result.run_in_background).toBe(true);
+    });
+  });
+
   describe('response format', () => {
     it('should document session ID format in response', () => {
       // This test documents the expected response format
