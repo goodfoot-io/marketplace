@@ -511,7 +511,8 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
     // Build mcpServers configuration from ServerConfig array
     const mcpServers: Record<
       string,
-      { type?: 'stdio'; command: string; args?: string[]; env?: Record<string, string> } | { type: 'http'; url: string }
+      | { type?: 'stdio'; command: string; args?: string[]; env?: Record<string, string> }
+      | { type: 'http'; url: string; headers?: Record<string, string> }
     > = {};
 
     for (const config of configs) {
@@ -534,7 +535,8 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
         }
         mcpServers[config.name] = {
           type: 'http',
-          url: config.url
+          url: config.url,
+          headers: config.headers || {}
         };
       }
     }
@@ -545,12 +547,18 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
 Use these tools to help the user accomplish their goals.
 Always check the available tools and use them appropriately to complete tasks.`,
       maxTurns: 100,
+      strictMcpConfig: true,
       allowedTools: tools.allowedTools,
       permissionMode: 'bypassPermissions',
+      allowDangerouslySkipPermissions: true,
       mcpServers,
       model,
       resume
     };
+
+    // Debug: log the mcpServers configuration
+    debug('Query options - mcpServers:', JSON.stringify(mcpServers, null, 2));
+    debug('Query options - allowedTools:', JSON.stringify(tools.allowedTools, null, 2));
 
     // Define the agent execution function
     const executeAgent = async (): Promise<AgentToolResponse> => {

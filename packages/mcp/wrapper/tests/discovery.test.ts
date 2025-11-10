@@ -55,7 +55,7 @@ describe('discoverTools', () => {
       expect(result).toEqual({
         allTools: [],
         allowedTools: [],
-        description: 'Multi-tool agent (no tools discovered yet)'
+        description: 'Integration tool (no capabilities discovered yet)'
       });
     });
 
@@ -276,7 +276,7 @@ describe('discoverTools', () => {
 
       const result = await discoverTools(configs);
 
-      expect(result.description).toBe('Multi-tool agent (no tools discovered yet)');
+      expect(result.description).toBe('Integration tool (no capabilities discovered yet)');
     });
   });
 
