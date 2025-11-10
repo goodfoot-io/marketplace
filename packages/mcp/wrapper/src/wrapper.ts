@@ -331,7 +331,7 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
               type: 'string',
               enum: ['sonnet', 'opus', 'haiku'],
               description:
-                'Optional model to use for this agent. If not specified, inherits from parent. Prefer haiku for quick, straightforward tasks to minimize cost and latency.'
+                'Optional model to use for this agent.'
             },
             resume: {
               type: 'string',
@@ -341,7 +341,7 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
             run_in_background: {
               type: 'boolean',
               description:
-                'Set to true to run this agent in the background. Use AgentOutputTool to read the output later.'
+                'Set to true to run this agent in the background. Use the mcp__*__output tool to read the output later.'
             }
           },
           required: ['prompt']
@@ -543,9 +543,18 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
 
     // Configure query options
     const queryOptions: Parameters<typeof query>[0]['options'] = {
-      systemPrompt: `You are a helpful assistant with access to multiple tools from different MCP servers.
-Use these tools to help the user accomplish their goals.
-Always check the available tools and use them appropriately to complete tasks.`,
+      systemPrompt: `You are a helpful assistant with access to multiple tools from different MCP servers. Use these tools to help the user accomplish their goals. Always check the available tools and use them appropriately to complete tasks.
+
+<tool-call-answer-mode>
+If the user's request can be answered the response from a tool call, output the full response as your final message to the user. Do not summarize or include other content in your response.
+</tool-call-answer-mode>
+
+<aggregate-answer-mode>
+If the user's request requires aggregating multiple tool calls, provide a comprehensive answer. Include the full content of any tool call responses directly relevant to the user's request.
+</aggregate-answer-mode>
+
+Do not preface your response with unecessary preambles like "Based on my analysis..." or "Now I can provide...".
+`,
       maxTurns: 100,
       strictMcpConfig: true,
       allowedTools: tools.allowedTools,
@@ -717,7 +726,7 @@ Always check the available tools and use them appropriately to complete tasks.`,
         content: [
           {
             type: 'text',
-            text: JSON.stringify(asyncResponse, null, 2)
+            text: `Agent ${agentId} launched in background\n\nUse the output tool to retrieve results:\n\`\`\`xml\n<invoke name="output">\n<parameter name="agentIds">["${agentId}"]</parameter>\n</invoke>\n\`\`\``
           }
         ]
       };
@@ -725,11 +734,23 @@ Always check the available tools and use them appropriately to complete tasks.`,
       // Execute synchronously and return completed response
       const completedResponse = await executeAgent();
 
+      // Extract the text content from the response
+      // completedResponse is always CompletedResponse for synchronous execution
+      if (completedResponse.status !== 'completed') {
+        throw new Error('Unexpected response status for synchronous execution');
+      }
+      const textContent = completedResponse.content.map((c) => c.text).join('\n');
+
+      // Only include resume block if this is not already a resumed conversation
+      const resumeBlock = resume
+        ? ''
+        : `\n\n<resume-conversation>\nUse the \`resume\` parameter with agent ID \`${agentId}\` in your next tool call if the user has follow up questions or you need additional information.\n\n\`\`\`xml\n<parameter name="resume">${agentId}</parameter>\n\`\`\`\n</resume-conversation>`;
+
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(completedResponse, null, 2)
+            text: `${textContent}${resumeBlock}`
           }
         ]
       };

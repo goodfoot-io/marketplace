@@ -220,7 +220,7 @@ describe('Agent Tool Handler', () => {
       expect(server).toBeDefined();
       expect(tools.allTools).toHaveLength(0);
       expect(tools.allowedTools).toHaveLength(0);
-      expect(tools.description).toContain('no tools');
+      expect(tools.description).toContain('no capabilities');
 
       await server.close();
     });
