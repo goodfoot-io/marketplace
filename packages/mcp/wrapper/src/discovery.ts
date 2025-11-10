@@ -12,19 +12,16 @@ import { debug, info, warn } from './logger.js';
 import { getEnvironmentAsRecord } from './types/wrapper.js';
 
 /**
- * Timeout for tool discovery in milliseconds
- */
-const DISCOVERY_TIMEOUT_MS = 10000;
-
-/**
  * Discover tools from a single server with timeout
  */
 async function discoverServerTools(
-  config: ServerConfig
+  config: ServerConfig,
+  options?: { timeout?: number }
 ): Promise<
   Array<{ serverName: string; tool: { name: string; description?: string; inputSchema: Record<string, unknown> } }>
 > {
   let client: Client | null = null;
+  const abortController = new AbortController();
 
   try {
     debug(`Discovering tools from server: ${config.name}`);
@@ -41,7 +38,8 @@ async function discoverServerTools(
     );
 
     // Create transport based on type
-    let transport;
+    let transport: StdioClientTransport | StreamableHTTPClientTransport | null = null;
+
     if (config.transport === 'stdio') {
       if (!config.command) {
         warn(`Server ${config.name}: stdio transport requires command`);
@@ -72,23 +70,11 @@ async function discoverServerTools(
       transport = new StreamableHTTPClientTransport(new URL(config.url), transportOptions);
     }
 
-    transport.onerror = (error) => {
-      warn(`Error connecting to server ${config.name}:`, error);
-    };
-
-    // Connect with timeout
-    await Promise.race([
-      client.connect(transport),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), DISCOVERY_TIMEOUT_MS))
-    ]);
+    await client.connect(transport, { signal: abortController.signal, timeout: options?.timeout });
 
     debug(`Connected to server: ${config.name}`);
 
-    // List tools with timeout
-    const result = await Promise.race([
-      client.listTools(),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('listTools timeout')), DISCOVERY_TIMEOUT_MS))
-    ]);
+    const result = await client.listTools(undefined, { signal: abortController.signal, timeout: options?.timeout });
 
     info(`Discovered ${result.tools.length} tools from ${config.name}`);
 
@@ -105,13 +91,14 @@ async function discoverServerTools(
     warn(`Failed to discover tools from ${config.name}:`, error);
     return [];
   } finally {
+    abortController.abort();
     // Always close the client
     if (client) {
       try {
         await client.close();
         debug(`Closed discovery client for: ${config.name}`);
-      } catch (error) {
-        debug(`Error closing discovery client for ${config.name}:`, error);
+      } catch (closeError) {
+        warn(`Error closing discovery client for ${config.name}:`, closeError);
       }
     }
   }
@@ -218,7 +205,7 @@ Respond with ONLY the description text, nothing else.`;
  * Caches discovered tools to improve startup performance. Set the environment variable
  * MCP_WRAPPER_IGNORE_CACHE='true' to bypass cache and force fresh discovery.
  */
-export async function discoverTools(configs: ServerConfig[]): Promise<AggregatedTools> {
+export async function discoverTools(configs: ServerConfig[], options?: { timeout?: number }): Promise<AggregatedTools> {
   // Handle empty configuration
   if (configs.length === 0) {
     debug('No servers configured, returning empty tools');
@@ -252,7 +239,7 @@ export async function discoverTools(configs: ServerConfig[]): Promise<Aggregated
   // Discover tools from all servers
   const allTools: AggregatedTools['allTools'] = [];
   for (const config of configs) {
-    const serverTools = await discoverServerTools(config);
+    const serverTools = await discoverServerTools(config, options);
     allTools.push(...serverTools);
   }
 

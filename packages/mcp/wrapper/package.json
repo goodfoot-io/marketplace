@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/mcp-wrapper-server",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Generic MCP server wrapper with dynamic tool discovery",
   "sideEffects": false,
   "type": "module",
@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.30",
-    "@modelcontextprotocol/sdk": "^1.21.0",
+    "@modelcontextprotocol/sdk": "^1.21.1",
     "zod": "^3.24.1"
   }
 }

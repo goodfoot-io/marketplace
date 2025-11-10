@@ -156,7 +156,7 @@ describe('discoverTools', () => {
         }
       ];
 
-      const result = await discoverTools(configs);
+      const result = await discoverTools(configs, { timeout: 500 });
 
       // Should return empty result, not throw
       expect(result.allTools).toHaveLength(0);
