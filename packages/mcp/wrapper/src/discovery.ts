@@ -122,7 +122,7 @@ async function discoverServerTools(
  */
 async function generateDescription(allTools: AggregatedTools['allTools']): Promise<string> {
   if (allTools.length === 0) {
-    return 'Multi-tool agent (no tools discovered yet)';
+    return 'Integration tool (no capabilities discovered yet)';
   }
 
   // Build fallback template-based description
@@ -143,12 +143,12 @@ async function generateDescription(allTools: AggregatedTools['allTools']): Promi
       const [serverName, toolNames] = Array.from(serverGroups.entries())[0];
       const toolList = toolNames.slice(0, 5).join(', ');
       const more = toolNames.length > 5 ? ` and ${toolNames.length - 5} more` : '';
-      return `${serverName} agent with ${toolCount} tools: ${toolList}${more}`;
+      return `${serverName} integration tool with ${toolCount} capabilities: ${toolList}${more}`;
     }
 
     const serverList = Array.from(serverGroups.keys()).slice(0, 3).join(', ');
     const moreServers = serverGroups.size > 3 ? ` and ${serverGroups.size - 3} more` : '';
-    return `Multi-tool agent with ${toolCount} tools from ${serverCount} servers: ${serverList}${moreServers}`;
+    return `Integration tool with ${toolCount} capabilities from ${serverCount} servers: ${serverList}${moreServers}`;
   };
 
   try {
@@ -160,16 +160,17 @@ async function generateDescription(allTools: AggregatedTools['allTools']): Promi
       })
       .join('\n');
 
-    const prompt = `You are Claude generating a description for another Claude instance about available tool capabilities.
+    const prompt = `You are Claude generating a description for another Claude instance about a tool that provides access to capabilities.
 
-Available tools:
+Available underlying tools:
 ${toolDescriptions}
 
-Generate a single-line, concise description (similar to existing tool descriptions in Claude Code) that:
-1. Describes what these tools accomplish at a high level
-2. Focuses on when to use these capabilities
-3. Is actionable and clear
-4. Does not exceed three paragraphs
+Generate a concise description (similar to existing tool descriptions in Claude Code) that:
+1. Uses singular framing: presents this as ONE tool that can be prompted to perform various actions
+2. Opens with "[Domain] tool for [high-level purpose]" (e.g., "GitHub integration tool for managing repositories...")
+3. Uses "Use this to [action list]" to describe what can be accomplished by prompting this tool
+4. Ends with "Essential for [workflow contexts]" to guide when to use it
+5. Does not exceed three paragraphs
 
 Respond with ONLY the description text, nothing else.`;
 
@@ -213,6 +214,9 @@ Respond with ONLY the description text, nothing else.`;
 
 /**
  * Discover tools from wrapped MCP servers
+ *
+ * Caches discovered tools to improve startup performance. Set the environment variable
+ * MCP_WRAPPER_IGNORE_CACHE='true' to bypass cache and force fresh discovery.
  */
 export async function discoverTools(configs: ServerConfig[]): Promise<AggregatedTools> {
   // Handle empty configuration
@@ -221,7 +225,7 @@ export async function discoverTools(configs: ServerConfig[]): Promise<Aggregated
     return {
       allTools: [],
       allowedTools: [],
-      description: 'Multi-tool agent (no tools discovered yet)'
+      description: 'Integration tool (no capabilities discovered yet)'
     };
   }
 
@@ -229,11 +233,18 @@ export async function discoverTools(configs: ServerConfig[]): Promise<Aggregated
   const hash = generateConfigHash(configs);
   debug(`Configuration hash: ${hash}`);
 
-  // Check cache
-  const cached = await readCacheFile(hash);
-  if (cached) {
-    info(`Using cached tools for configuration ${hash}`);
-    return cached;
+  // Check if cache should be ignored
+  const ignoreCache = process.env.MCP_WRAPPER_IGNORE_CACHE === 'true';
+
+  // Check cache (unless explicitly ignored)
+  if (!ignoreCache) {
+    const cached = await readCacheFile(hash);
+    if (cached) {
+      info(`Using cached tools for configuration ${hash}`);
+      return cached;
+    }
+  } else {
+    info('MCP_WRAPPER_IGNORE_CACHE is set, bypassing cache');
   }
 
   info('Cache miss, discovering tools from servers');
@@ -245,8 +256,9 @@ export async function discoverTools(configs: ServerConfig[]): Promise<Aggregated
     allTools.push(...serverTools);
   }
 
-  // Build allowed tools list
-  const allowedTools = allTools.map((item) => item.tool.name);
+  // Build allowed tools list with MCP prefix format: mcp__<servername>__<toolname>
+  // List each tool explicitly as the Agent SDK may not support wildcards
+  const allowedTools = allTools.map((item) => `mcp__${item.serverName}__${item.tool.name}`);
 
   // Generate description
   const description = await generateDescription(allTools);

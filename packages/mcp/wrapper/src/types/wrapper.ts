@@ -273,6 +273,8 @@ export interface AgentToolArguments {
    * To resume a conversation, extract the session ID from a previous response and pass it here.
    */
   resume?: string;
+  /** Set to true to run this agent in the background. Use the output tool to read the output later. */
+  run_in_background?: boolean;
 }
 
 /**
@@ -281,7 +283,8 @@ export interface AgentToolArguments {
 export const AgentToolArgumentsSchema = z.object({
   prompt: z.string().min(1, 'prompt cannot be empty'),
   model: z.enum(['sonnet', 'opus', 'haiku']).optional(),
-  resume: z.string().optional()
+  resume: z.string().optional(),
+  run_in_background: z.boolean().optional()
 });
 
 /**
@@ -293,6 +296,154 @@ export function validateAgentToolArguments(value: unknown): AgentToolArguments {
   if (!result.success) {
     const errorMessages = result.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
     throw new Error(`Invalid agent tool arguments: ${errorMessages}`);
+  }
+  return result.data;
+}
+
+/**
+ * Response when agent execution is launched asynchronously
+ */
+export interface AsyncLaunchedResponse {
+  /** Response status indicating async launch */
+  status: 'async_launched';
+  /** Unique identifier for the agent execution */
+  agentId: string;
+  /** Description of the agent task */
+  description: string;
+  /** The task prompt for the agent */
+  prompt: string;
+}
+
+/**
+ * Zod schema for AsyncLaunchedResponse
+ */
+export const AsyncLaunchedResponseSchema = z.object({
+  status: z.literal('async_launched'),
+  agentId: z.string().min(1, 'agentId cannot be empty'),
+  description: z.string(),
+  prompt: z.string().min(1, 'prompt cannot be empty')
+});
+
+/**
+ * Response when agent execution is completed
+ */
+export interface CompletedResponse {
+  /** Response status indicating completion */
+  status: 'completed';
+  /** The original task prompt */
+  prompt: string;
+  /** Unique identifier for the agent execution */
+  agentId: string;
+  /** Response content from the agent */
+  content: Array<{ type: 'text'; text: string }>;
+  /** Total number of tool uses during execution */
+  totalToolUseCount: number;
+  /** Total duration of execution in milliseconds */
+  totalDurationMs: number;
+  /** Total tokens used during execution */
+  totalTokens: number;
+  /** Detailed usage statistics */
+  usage: Record<string, unknown>;
+}
+
+/**
+ * Zod schema for CompletedResponse
+ */
+export const CompletedResponseSchema = z.object({
+  status: z.literal('completed'),
+  prompt: z.string().min(1, 'prompt cannot be empty'),
+  agentId: z.string().min(1, 'agentId cannot be empty'),
+  content: z.array(
+    z.object({
+      type: z.literal('text'),
+      text: z.string()
+    })
+  ),
+  totalToolUseCount: z.number().min(0, 'totalToolUseCount must be non-negative'),
+  totalDurationMs: z.number().min(0, 'totalDurationMs must be non-negative'),
+  totalTokens: z.number().min(0, 'totalTokens must be non-negative'),
+  usage: z.record(z.unknown())
+});
+
+/**
+ * Discriminated union of possible agent tool responses
+ * Use the status field to discriminate between response types
+ */
+export type AgentToolResponse = AsyncLaunchedResponse | CompletedResponse;
+
+/**
+ * Zod schema for AgentToolResponse discriminated union
+ */
+export const AgentToolResponseSchema = z.discriminatedUnion('status', [
+  AsyncLaunchedResponseSchema,
+  CompletedResponseSchema
+]);
+
+/**
+ * Type guard to check if a value is a valid AgentToolResponse
+ */
+export function isAgentToolResponse(value: unknown): value is AgentToolResponse {
+  const result = AgentToolResponseSchema.safeParse(value);
+  return result.success;
+}
+
+/**
+ * Validates and narrows the type of agent tool response
+ * @throws {Error} if validation fails
+ */
+export function validateAgentToolResponse(value: unknown): AgentToolResponse {
+  if (!isAgentToolResponse(value)) {
+    let received: string;
+    if (value === null) {
+      received = 'null';
+    } else if (value === undefined) {
+      received = 'undefined';
+    } else if (typeof value === 'object') {
+      try {
+        received = JSON.stringify(value);
+      } catch {
+        received = '[object with circular reference]';
+      }
+    } else {
+      received = typeof value;
+    }
+    throw new Error(
+      `Invalid agent tool response. Expected {status: 'async_launched' | 'completed', ...}, received: ${received}`
+    );
+  }
+  return value;
+}
+
+/**
+ * Arguments for output tool
+ */
+export interface AgentOutputArguments {
+  /** Array of agent IDs to retrieve results for */
+  agentIds: string[];
+  /** Whether to block until results are ready */
+  block?: boolean;
+  /** Maximum time to wait in seconds */
+  wait_up_to?: number;
+}
+
+/**
+ * Zod schema for AgentOutputArguments with runtime validation
+ */
+export const AgentOutputArgumentsSchema = z.object({
+  agentIds: z.array(z.string()),
+  block: z.boolean().optional().default(true),
+  wait_up_to: z.number().min(0).max(300).optional().default(150)
+});
+
+/**
+ * Validates and narrows the type of output tool arguments
+ * @throws {Error} if validation fails
+ */
+export function validateAgentOutputArguments(value: unknown): AgentOutputArguments {
+  const result = AgentOutputArgumentsSchema.safeParse(value);
+  if (!result.success) {
+    const errorMessages = result.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+    throw new Error(`Invalid output tool arguments: ${errorMessages}`);
   }
   return result.data;
 }

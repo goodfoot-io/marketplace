@@ -94,7 +94,7 @@ describe('initializeServer', () => {
 
       expect(result.tools.allTools).toEqual([]);
       expect(result.tools.allowedTools).toEqual([]);
-      expect(result.tools.description).toBe('Multi-tool agent (no tools discovered yet)');
+      expect(result.tools.description).toBe('Integration tool (no capabilities discovered yet)');
     });
 
     it('should integrate with discovery system', async () => {
@@ -135,7 +135,7 @@ describe('initializeServer', () => {
       // The tool registration happens inside initializeServer
       // We verify by checking that tools were discovered
       expect(result.tools).toBeDefined();
-      expect(result.tools.description).toBe('Multi-tool agent (no tools discovered yet)');
+      expect(result.tools.description).toBe('Integration tool (no capabilities discovered yet)');
     });
 
     it('should include description in discovered tools', async () => {

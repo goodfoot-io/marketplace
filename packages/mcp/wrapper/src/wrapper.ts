@@ -3,15 +3,18 @@
  * MCP wrapper server - Generic wrapper for multiple MCP servers with dynamic tool discovery
  */
 
-import type { ServerConfig, AggregatedTools } from './types/wrapper.js';
+import type { ServerConfig, AggregatedTools, AgentToolResponse } from './types/wrapper.js';
 import { realpath } from 'node:fs/promises';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ListToolsRequestSchema, CallToolRequestSchema, ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { generateAgentId } from './agent-id.js';
+import { registerAgent, getAgentStatus, getAgentResult } from './background-agents.js';
 import { discoverTools } from './discovery.js';
 import { info, debug, warn, error } from './logger.js';
-import { validateAgentToolArguments } from './types/wrapper.js';
+import { saveSessionMapping, getSessionId } from './session-mapping.js';
+import { validateAgentToolArguments, validateAgentOutputArguments } from './types/wrapper.js';
 
 /**
  * Parse CLI arguments to extract multiple wrapped server configurations
@@ -327,25 +330,145 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
             model: {
               type: 'string',
               enum: ['sonnet', 'opus', 'haiku'],
-              description:
-                'Optional model to use for this agent. If not specified, inherits from parent. Prefer haiku for quick, straightforward tasks to minimize cost and latency.'
+              description: 'Optional model to use for this agent.'
             },
             resume: {
               type: 'string',
               description:
-                'Optional session ID to resume from. If provided, the agent will continue from the previous execution. The session ID is returned in the first line of the response in the format "Session ID: <id>".'
+                'Optional agent ID to resume from. If provided, the agent will continue from the previous execution transcript.'
+            },
+            run_in_background: {
+              type: 'boolean',
+              description:
+                'Set to true to run this agent in the background. Use the mcp__*__output tool to read the output later.'
             }
           },
           required: ['prompt']
+        }
+      },
+      {
+        name: 'output',
+        description:
+          'Retrieve output from one or more background agents. Returns status and results for each agent ID provided.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            agentIds: {
+              type: 'array',
+              items: {
+                type: 'string'
+              },
+              description: 'Array of agent IDs to retrieve results for'
+            },
+            block: {
+              type: 'boolean',
+              description: 'Whether to block until results are ready. Default: true',
+              default: true
+            },
+            wait_up_to: {
+              type: 'number',
+              description: 'Maximum time to wait in seconds (0-300). Default: 150',
+              minimum: 0,
+              maximum: 300,
+              default: 150
+            }
+          },
+          required: ['agentIds']
         }
       }
     ]
   }));
 
-  // Register CallToolRequestSchema handler for agent tool
+  // Register CallToolRequestSchema handler for agent and output tools
   server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
-    if (request.params.name !== 'agent') {
-      throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
+    const toolName = request.params.name;
+
+    // Handle output tool
+    if (toolName === 'output') {
+      // Validate arguments with runtime type checking
+      let args;
+      try {
+        args = validateAgentOutputArguments(request.params.arguments);
+      } catch (error) {
+        throw new McpError(ErrorCode.InvalidParams, (error as Error).message);
+      }
+
+      const { agentIds, block, wait_up_to } = args;
+      const workspacePath = process.cwd();
+
+      // Process each agent ID
+      const results: string[] = [];
+
+      for (const agentId of agentIds) {
+        const status = await getAgentStatus(agentId);
+
+        // If blocking is enabled and agent is running, wait for it
+        if (block && status === 'running') {
+          const timeoutMs = (wait_up_to || 150) * 1000;
+
+          // Poll the status until it changes or timeout occurs
+          const startTime = Date.now();
+          let currentStatus: string = status;
+
+          while (currentStatus === 'running' && Date.now() - startTime < timeoutMs) {
+            // Wait a short interval before checking again
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            currentStatus = await getAgentStatus(agentId);
+          }
+
+          // Check final status
+          if (currentStatus === 'running') {
+            results.push(`Agent ${agentId}: running\nAgent is still executing (timeout after ${wait_up_to}s)\n\n`);
+            continue;
+          }
+        }
+
+        // Get the result based on status
+        const finalStatus = await getAgentStatus(agentId);
+
+        if (finalStatus === 'not_found') {
+          results.push(`Agent ${agentId}: not_found\nAgent not found in registry\n\n`);
+        } else if (finalStatus === 'failed') {
+          results.push(`Agent ${agentId}: failed\nAgent execution failed\n\n`);
+        } else if (finalStatus === 'running') {
+          results.push(`Agent ${agentId}: running\nAgent is still executing\n\n`);
+        } else if (finalStatus === 'completed') {
+          const result = await getAgentResult(agentId, workspacePath);
+
+          if (result) {
+            // Format the result based on its type
+            if ('content' in result && result.status === 'completed') {
+              // AgentToolResponse type (CompletedResponse from wrapper types)
+              const textContent = result.content.map((c) => c.text).join('\n');
+              results.push(`Agent ${agentId}: completed\n${textContent}\n\n`);
+            } else if ('output' in result && 'sessionId' in result) {
+              // CompletedResponse type (from background-agents.ts)
+              // Type guard confirms this has 'output' and 'sessionId' properties
+              const output = (result as { output: string; sessionId: string }).output;
+              results.push(`Agent ${agentId}: completed\n${output}\n\n`);
+            } else {
+              // Fallback for unexpected result types
+              results.push(`Agent ${agentId}: completed\n${JSON.stringify(result)}\n\n`);
+            }
+          } else {
+            results.push(`Agent ${agentId}: completed\nNo result available\n\n`);
+          }
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: results.join('')
+          }
+        ]
+      };
+    }
+
+    // Handle agent tool
+    if (toolName !== 'agent') {
+      throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${toolName}`);
     }
 
     // Validate arguments with runtime type checking
@@ -356,10 +479,30 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
       throw new McpError(ErrorCode.InvalidParams, (error as Error).message);
     }
 
-    const { prompt, model, resume } = args;
+    const { prompt, model, resume, run_in_background } = args;
 
     if (!prompt) {
       throw new McpError(ErrorCode.InvalidParams, 'prompt is required');
+    }
+
+    // Generate agent ID for this execution
+    const agentId = generateAgentId();
+    const workspacePath = process.cwd();
+
+    // Map agent ID to session ID for resume
+    let resumeSessionId: string | undefined = undefined;
+    if (resume) {
+      try {
+        const sessionId = await getSessionId(resume, workspacePath);
+        if (sessionId) {
+          resumeSessionId = sessionId;
+          info(`Resuming agent ${resume} with session ${sessionId}`);
+        } else {
+          warn(`No session ID found for agent ${resume}, cannot resume`);
+        }
+      } catch (err) {
+        warn(`Failed to load session ID for agent ${resume}:`, err);
+      }
     }
 
     // Extract progress token from meta for progress notifications
@@ -371,7 +514,8 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
     // Build mcpServers configuration from ServerConfig array
     const mcpServers: Record<
       string,
-      { type?: 'stdio'; command: string; args?: string[]; env?: Record<string, string> } | { type: 'http'; url: string }
+      | { type?: 'stdio'; command: string; args?: string[]; env?: Record<string, string> }
+      | { type: 'http'; url: string; headers?: Record<string, string> }
     > = {};
 
     for (const config of configs) {
@@ -394,107 +538,206 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
         }
         mcpServers[config.name] = {
           type: 'http',
-          url: config.url
+          url: config.url,
+          headers: config.headers || {}
         };
       }
     }
 
     // Configure query options
     const queryOptions: Parameters<typeof query>[0]['options'] = {
-      systemPrompt: `You are a helpful assistant with access to multiple tools from different MCP servers.
-Use these tools to help the user accomplish their goals.
-Always check the available tools and use them appropriately to complete tasks.`,
+      systemPrompt: `You are a helpful assistant with access to multiple tools from different MCP servers. Use these tools to help the user accomplish their goals. Always check the available tools and use them appropriately to complete tasks.
+
+<tool-call-answer-mode>
+If the user's request can be answered the response from a tool call, output the full response as your final message to the user. Do not summarize or include other content in your response.
+</tool-call-answer-mode>
+
+<aggregate-answer-mode>
+If the user's request requires aggregating multiple tool calls, provide a comprehensive answer. Include the full content of any tool call responses directly relevant to the user's request.
+</aggregate-answer-mode>
+
+Do not preface your response with unecessary preambles like "Based on my analysis..." or "Now I can provide...".
+`,
       maxTurns: 100,
+      strictMcpConfig: true,
       allowedTools: tools.allowedTools,
       permissionMode: 'bypassPermissions',
+      allowDangerouslySkipPermissions: true,
       mcpServers,
       model,
-      resume
+      resume: resumeSessionId
     };
 
-    let result = '';
-    let sessionId = '';
-    let toolCallCount = 0;
+    // Debug: log the mcpServers configuration
+    debug('Query options - mcpServers:', JSON.stringify(mcpServers, null, 2));
+    debug('Query options - allowedTools:', JSON.stringify(tools.allowedTools, null, 2));
 
-    try {
-      // Execute the query using Claude Code SDK
-      for await (const message of query({
-        prompt,
-        options: queryOptions
-      })) {
-        // Type the message as unknown first, then narrow with type guards
-        const msg = message as unknown;
+    // Define the agent execution function
+    const executeAgent = async (): Promise<AgentToolResponse> => {
+      let result = '';
+      let sessionId = '';
+      let toolCallCount = 0;
+      const startTime = Date.now();
+      let totalTokens = 0;
+      let usage: Record<string, unknown> = {};
 
-        // Capture session_id from any message
-        if (typeof msg === 'object' && msg !== null && 'session_id' in msg) {
-          const msgWithSession = msg as { session_id: string };
-          if (msgWithSession.session_id && !sessionId) {
-            sessionId = msgWithSession.session_id;
+      try {
+        // Execute the query using Claude Code SDK
+        for await (const message of query({
+          prompt,
+          options: queryOptions
+        })) {
+          // Type the message as unknown first, then narrow with type guards
+          const msg = message as unknown;
+
+          // Capture session_id from any message
+          if (typeof msg === 'object' && msg !== null && 'session_id' in msg) {
+            const msgWithSession = msg as { session_id: string };
+            if (msgWithSession.session_id && !sessionId) {
+              sessionId = msgWithSession.session_id;
+              // Save the mapping for future resume operations
+              try {
+                await saveSessionMapping(agentId, sessionId, workspacePath);
+                info(`Saved session mapping: agent ${agentId} -> session ${sessionId}`);
+              } catch (err) {
+                error(`Failed to save session mapping for agent ${agentId}:`, err);
+              }
+            }
           }
-        }
 
-        // Check for result messages
-        if (typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === 'result') {
-          const resultMsg = msg as { type: 'result'; subtype?: string; result?: string };
-          if (resultMsg.subtype === 'error_max_turns' || resultMsg.subtype === 'error_during_execution') {
-            throw new Error(`Agent execution error: ${resultMsg.subtype}`);
+          // Check for result messages
+          if (typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === 'result') {
+            const resultMsg = msg as {
+              type: 'result';
+              subtype?: string;
+              result?: string;
+              usage?: Record<string, unknown>;
+            };
+            if (resultMsg.subtype === 'error_max_turns' || resultMsg.subtype === 'error_during_execution') {
+              throw new Error(`Agent execution error: ${resultMsg.subtype}`);
+            }
+            if (resultMsg.subtype === 'success' && resultMsg.result) {
+              result = resultMsg.result;
+            }
+            if (resultMsg.usage) {
+              usage = resultMsg.usage;
+              // Extract total tokens if available
+              if (typeof resultMsg.usage.total_tokens === 'number') {
+                totalTokens = resultMsg.usage.total_tokens;
+              }
+            }
           }
-          if (resultMsg.subtype === 'success' && resultMsg.result) {
-            result = resultMsg.result;
-          }
-        }
 
-        // Check for assistant messages with tool use
-        if (typeof msg === 'object' && msg !== null && 'type' in msg && msg.type === 'assistant' && 'message' in msg) {
-          const assistantMsg = msg as { type: 'assistant'; message?: { content?: unknown[] } };
-          if (assistantMsg.message && assistantMsg.message.content && Array.isArray(assistantMsg.message.content)) {
-            for (const content of assistantMsg.message.content) {
-              if (typeof content === 'object' && content !== null && 'type' in content && content.type === 'tool_use') {
-                const toolUse = content as { type: 'tool_use'; name: string; input: unknown };
-
-                // Send progress notification if token is available
-                if (progressToken && typeof progressToken === 'string') {
+          // Check for assistant messages with tool use
+          if (
+            typeof msg === 'object' &&
+            msg !== null &&
+            'type' in msg &&
+            msg.type === 'assistant' &&
+            'message' in msg
+          ) {
+            const assistantMsg = msg as { type: 'assistant'; message?: { content?: unknown[] } };
+            if (assistantMsg.message && assistantMsg.message.content && Array.isArray(assistantMsg.message.content)) {
+              for (const content of assistantMsg.message.content) {
+                if (
+                  typeof content === 'object' &&
+                  content !== null &&
+                  'type' in content &&
+                  content.type === 'tool_use'
+                ) {
+                  const toolUse = content as { type: 'tool_use'; name: string; input: unknown };
                   toolCallCount++;
 
-                  // Format progress message with actual parameter values
-                  const progressMessage = `Tool ${toolCallCount}: ${formatProgressMessage(toolUse.name, toolUse.input)}`;
+                  // Send progress notification if token is available
+                  if (progressToken && typeof progressToken === 'string') {
+                    // Format progress message with actual parameter values
+                    const progressMessage = `Tool ${toolCallCount}: ${formatProgressMessage(toolUse.name, toolUse.input)}`;
 
-                  // Send progress notification (fire and forget)
-                  server
-                    .notification({
-                      method: 'notifications/progress',
-                      params: {
-                        progressToken,
-                        progress: toolCallCount,
-                        message: progressMessage
-                      }
-                    })
-                    .catch((err: Error) => {
-                      error('Failed to send progress notification:', err);
-                    });
+                    // Send progress notification (fire and forget)
+                    server
+                      .notification({
+                        method: 'notifications/progress',
+                        params: {
+                          progressToken,
+                          progress: toolCallCount,
+                          message: progressMessage
+                        }
+                      })
+                      .catch((err: Error) => {
+                        error('Failed to send progress notification:', err);
+                      });
+                  }
                 }
               }
             }
           }
         }
-      }
 
-      // Format response with session_id for resume capability
-      const responseText = sessionId
-        ? `Session ID: ${sessionId}\n\n---\n\n${result || 'No response from agent.'}`
-        : result || 'No response from agent.';
+        const totalDurationMs = Date.now() - startTime;
+
+        // Return completed response
+        return {
+          status: 'completed',
+          prompt,
+          agentId,
+          content: [
+            {
+              type: 'text',
+              text: result || 'No response from agent.'
+            }
+          ],
+          totalToolUseCount: toolCallCount,
+          totalDurationMs,
+          totalTokens,
+          usage
+        };
+      } catch (err) {
+        const errorMessage = `Agent execution failed: ${(err as Error).message}. Tool calls executed: ${toolCallCount}.`;
+        throw new McpError(ErrorCode.InternalError, errorMessage);
+      }
+    };
+
+    // Check if background execution is requested
+    if (run_in_background) {
+      // Launch agent in background
+      const executionPromise = executeAgent();
+
+      // Register the background agent
+      registerAgent(agentId, executionPromise);
+
+      // Return async_launched response immediately
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Agent ${agentId} launched in background\n\nUse the output tool to retrieve results:\n\`\`\`xml\n<invoke name="output">\n<parameter name="agentIds">["${agentId}"]</parameter>\n</invoke>\n\`\`\``
+          }
+        ]
+      };
+    } else {
+      // Execute synchronously and return completed response
+      const completedResponse = await executeAgent();
+
+      // Extract the text content from the response
+      // completedResponse is always CompletedResponse for synchronous execution
+      if (completedResponse.status !== 'completed') {
+        throw new Error('Unexpected response status for synchronous execution');
+      }
+      const textContent = completedResponse.content.map((c) => c.text).join('\n');
+
+      // Only include resume block if this is not already a resumed conversation
+      const resumeBlock = resume
+        ? ''
+        : `\n\n<resume-conversation>\nUse the \`resume\` parameter with agent ID \`${agentId}\` in your next tool call if the user has follow up questions or you need additional information.\n\n\`\`\`xml\n<parameter name="resume">${agentId}</parameter>\n\`\`\`\n</resume-conversation>`;
 
       return {
         content: [
           {
             type: 'text',
-            text: responseText
+            text: `${textContent}${resumeBlock}`
           }
         ]
       };
-    } catch (error) {
-      const errorMessage = `Agent execution failed: ${(error as Error).message}. Tool calls executed: ${toolCallCount}.`;
-      throw new McpError(ErrorCode.InternalError, errorMessage);
     }
   });
 
