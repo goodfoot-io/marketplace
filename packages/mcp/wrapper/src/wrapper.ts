@@ -13,7 +13,7 @@ import { generateAgentId } from './agent-id.js';
 import { registerAgent, getAgentStatus, getAgentResult } from './background-agents.js';
 import { discoverTools } from './discovery.js';
 import { info, debug, warn, error } from './logger.js';
-import { writeTranscriptMessage, loadTranscript } from './transcript-store.js';
+import { saveSessionMapping, getSessionId } from './session-mapping.js';
 import { validateAgentToolArguments, validateAgentOutputArguments } from './types/wrapper.js';
 
 /**
@@ -330,8 +330,7 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
             model: {
               type: 'string',
               enum: ['sonnet', 'opus', 'haiku'],
-              description:
-                'Optional model to use for this agent.'
+              description: 'Optional model to use for this agent.'
             },
             resume: {
               type: 'string',
@@ -490,15 +489,19 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
     const agentId = generateAgentId();
     const workspacePath = process.cwd();
 
-    // Load transcript if resuming from agent ID
-    // Note: For resume, we pass the agent ID to the query options
-    // The transcript will be used internally by the SDK
+    // Map agent ID to session ID for resume
+    let resumeSessionId: string | undefined = undefined;
     if (resume) {
       try {
-        const transcriptMessages = await loadTranscript(resume, workspacePath);
-        info(`Loaded ${transcriptMessages.length} messages from agent ${resume} transcript`);
+        const sessionId = await getSessionId(resume, workspacePath);
+        if (sessionId) {
+          resumeSessionId = sessionId;
+          info(`Resuming agent ${resume} with session ${sessionId}`);
+        } else {
+          warn(`No session ID found for agent ${resume}, cannot resume`);
+        }
       } catch (err) {
-        warn(`Failed to load transcript for resume agent ${resume}:`, err);
+        warn(`Failed to load session ID for agent ${resume}:`, err);
       }
     }
 
@@ -562,7 +565,7 @@ Do not preface your response with unecessary preambles like "Based on my analysi
       allowDangerouslySkipPermissions: true,
       mcpServers,
       model,
-      resume
+      resume: resumeSessionId
     };
 
     // Debug: log the mcpServers configuration
@@ -592,25 +595,13 @@ Do not preface your response with unecessary preambles like "Based on my analysi
             const msgWithSession = msg as { session_id: string };
             if (msgWithSession.session_id && !sessionId) {
               sessionId = msgWithSession.session_id;
-            }
-          }
-
-          // Write message to transcript
-          if (typeof msg === 'object' && msg !== null && 'type' in msg) {
-            const msgWithType = msg as { type: string; [key: string]: unknown };
-            try {
-              await writeTranscriptMessage(
-                agentId,
-                {
-                  type: msgWithType.type as 'user' | 'assistant' | 'result',
-                  content: JSON.stringify(msg),
-                  timestamp: new Date().toISOString(),
-                  session_id: sessionId || agentId
-                },
-                workspacePath
-              );
-            } catch (err) {
-              error(`Failed to write transcript for agent ${agentId}:`, err);
+              // Save the mapping for future resume operations
+              try {
+                await saveSessionMapping(agentId, sessionId, workspacePath);
+                info(`Saved session mapping: agent ${agentId} -> session ${sessionId}`);
+              } catch (err) {
+                error(`Failed to save session mapping for agent ${agentId}:`, err);
+              }
             }
           }
 
@@ -715,13 +706,6 @@ Do not preface your response with unecessary preambles like "Based on my analysi
       registerAgent(agentId, executionPromise);
 
       // Return async_launched response immediately
-      const asyncResponse: AgentToolResponse = {
-        status: 'async_launched',
-        agentId,
-        description: `Agent ${agentId} launched in background`,
-        prompt
-      };
-
       return {
         content: [
           {

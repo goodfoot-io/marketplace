@@ -182,9 +182,7 @@ describe('discoverTools', () => {
   });
 
   describe('multiple servers', () => {
-    it(
-      'should discover tools from multiple servers',
-      async () => {
+    it('should discover tools from multiple servers', async () => {
       const script1Path = join(fixturesDir, 'server1.mjs');
       const script2Path = join(fixturesDir, 'server2.mjs');
 
@@ -215,9 +213,7 @@ describe('discoverTools', () => {
       expect(result.allowedTools).toHaveLength(2);
       expect(result.allowedTools).toContain('mcp__server1__tool1');
       expect(result.allowedTools).toContain('mcp__server2__tool2');
-      },
-      15000
-    ); // Increased timeout for AI description generation
+    }, 15000); // Increased timeout for AI description generation
 
     it('should continue discovery if one server fails', async () => {
       const workingPath = join(fixturesDir, 'working-server.mjs');

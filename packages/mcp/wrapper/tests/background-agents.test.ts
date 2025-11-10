@@ -223,85 +223,43 @@ describe('Background Agents', () => {
       expect(result).toBeNull();
     });
 
-    it('should fall back to loading transcript from disk', async () => {
+    it('should return null for agents not in memory (no disk fallback)', async () => {
       const agentId = 'disk-agent';
-      const transcriptPath = getTranscriptPath(agentId, testDir);
 
-      // Create transcript file manually (simulating historical agent)
-      const messages = [
-        { type: 'user', content: 'Hello', timestamp: new Date().toISOString(), session_id: 'session-789' },
-        { type: 'assistant', content: 'Hi there', timestamp: new Date().toISOString(), session_id: 'session-789' },
-        { type: 'result', content: 'Task completed', timestamp: new Date().toISOString(), session_id: 'session-789' }
-      ];
-
-      await mkdir(dirname(transcriptPath), { recursive: true });
-      await writeFile(transcriptPath, messages.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf-8');
-
-      // Get result without registering agent (pure disk fallback)
+      // Agent not registered in memory - should return null
+      // (Transcript fallback has been removed, SDK manages transcript storage)
       const result = await getAgentResult(agentId, testDir);
 
-      expect(result).not.toBeNull();
-      expect(isOldCompletedResponse(result)).toBe(true);
-      if (isOldCompletedResponse(result)) {
-        expect(result.sessionId).toBe('session-789');
-        expect(result.status).toBe('completed');
-        expect(result.output).toContain('Task completed');
-      }
+      expect(result).toBeNull();
     });
 
-    it('should prefer memory cache over disk', async () => {
-      const agentId = 'prefer-memory';
-      const transcriptPath = getTranscriptPath(agentId, testDir);
+    it('should retrieve result from memory when agent is registered', async () => {
+      const agentId = 'memory-agent';
 
-      // Create transcript file with old data
-      const oldMessage = {
-        type: 'result',
-        content: 'Old result',
-        timestamp: new Date().toISOString(),
-        session_id: 'session-old'
-      };
-      await mkdir(dirname(transcriptPath), { recursive: true });
-      await writeFile(transcriptPath, JSON.stringify(oldMessage) + '\n', 'utf-8');
-
-      // Register agent with new data in memory
-      const newResponse: CompletedResponse = {
-        sessionId: 'session-new',
-        output: 'New result',
+      // Register agent with data in memory
+      const response: CompletedResponse = {
+        sessionId: 'session-123',
+        output: 'Memory result',
         status: 'completed'
       };
-      const promise = Promise.resolve(newResponse);
+      const promise = Promise.resolve(response);
       registerAgent(agentId, promise);
       await promise;
 
       const result = await getAgentResult(agentId, testDir);
       expect(isOldCompletedResponse(result)).toBe(true);
       if (isOldCompletedResponse(result)) {
-        expect(result.output).toBe('New result');
-        expect(result.sessionId).toBe('session-new');
+        expect(result.output).toBe('Memory result');
+        expect(result.sessionId).toBe('session-123');
       }
     });
 
-    it('should handle transcript with multiple messages', async () => {
+    it('should return null for agents not in memory (multiple messages case)', async () => {
       const agentId = 'multi-message';
-      const transcriptPath = getTranscriptPath(agentId, testDir);
 
-      const messages = [
-        { type: 'user', content: 'First', timestamp: new Date().toISOString(), session_id: 'session-multi' },
-        { type: 'assistant', content: 'Second', timestamp: new Date().toISOString(), session_id: 'session-multi' },
-        { type: 'user', content: 'Third', timestamp: new Date().toISOString(), session_id: 'session-multi' },
-        { type: 'result', content: 'Final result', timestamp: new Date().toISOString(), session_id: 'session-multi' }
-      ];
-
-      await mkdir(dirname(transcriptPath), { recursive: true });
-      await writeFile(transcriptPath, messages.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf-8');
-
+      // Agent not registered in memory - should return null
       const result = await getAgentResult(agentId, testDir);
-      expect(result).not.toBeNull();
-      expect(isOldCompletedResponse(result)).toBe(true);
-      if (isOldCompletedResponse(result)) {
-        expect(result.output).toContain('Final result');
-        expect(result.sessionId).toBe('session-multi');
-      }
+      expect(result).toBeNull();
     });
 
     it('should handle empty transcript file', async () => {
@@ -489,32 +447,17 @@ describe('Background Agents', () => {
       expect(runningResult).toBeNull();
     });
 
-    it('should support historical agent lookup via transcript', async () => {
+    it('should return null for historical agents not in memory', async () => {
       const agentId = 'historical-agent';
-      const transcriptPath = getTranscriptPath(agentId, testDir);
 
-      // Simulate a completed agent from a previous server instance
-      const messages = [
-        { type: 'user', content: 'Historical task', timestamp: '2024-01-01T00:00:00Z', session_id: 'old-session' },
-        { type: 'result', content: 'Historical result', timestamp: '2024-01-01T00:01:00Z', session_id: 'old-session' }
-      ];
-
-      await mkdir(dirname(transcriptPath), { recursive: true });
-      await writeFile(transcriptPath, messages.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf-8');
-
-      // Agent not in memory (server restarted)
+      // Agent not in memory (simulating server restart)
       const status = await getAgentStatus(agentId);
       expect(status).toBe('not_found');
 
-      // But can still get result from transcript
+      // With transcript fallback removed, historical agents return null
+      // SDK manages transcript storage internally
       const result = await getAgentResult(agentId, testDir);
-      expect(result).not.toBeNull();
-      expect(isOldCompletedResponse(result)).toBe(true);
-      if (isOldCompletedResponse(result)) {
-        expect(result.sessionId).toBe('old-session');
-        expect(result.output).toContain('Historical result');
-        expect(result.status).toBe('completed');
-      }
+      expect(result).toBeNull();
     });
   });
 

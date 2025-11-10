@@ -4,7 +4,6 @@
  */
 
 import type { AgentToolResponse } from './types/wrapper.js';
-import { loadTranscript, type TranscriptMessage } from './transcript-store.js';
 
 /**
  * Response structure for completed agents
@@ -71,19 +70,19 @@ export async function getAgentStatus(agentId: string): Promise<AgentStatus> {
 
 /**
  * Get the result of a background agent
- * First checks in-memory cache, then falls back to loading transcript from disk
+ * Checks in-memory cache for agent results
  *
  * @param agentId - The agent identifier
- * @param workspacePath - Optional workspace path for transcript location
+ * @param workspacePath - Optional workspace path (unused, kept for API compatibility)
  * @returns Promise resolving to AgentToolResponse or CompletedResponse or null if not available
  */
 export async function getAgentResult(
   agentId: string,
-  workspacePath?: string
+  _workspacePath?: string
 ): Promise<AgentToolResponse | CompletedResponse | null> {
   const promise = agentRegistry.get(agentId);
 
-  // Try to get result from memory first
+  // Try to get result from memory
   if (promise) {
     const status = await getAgentStatus(agentId);
 
@@ -92,55 +91,17 @@ export async function getAgentResult(
       try {
         return await promise;
       } catch {
-        // Promise rejected, fall through to disk fallback
+        // Promise rejected
+        return null;
       }
     }
 
     // Promise still running or failed
-    if (status === 'running' || status === 'failed') {
-      return null;
-    }
-  }
-
-  // Fall back to loading from disk (historical agent)
-  return await loadResultFromTranscript(agentId, workspacePath);
-}
-
-/**
- * Load agent result from transcript file on disk
- * Constructs CompletedResponse from transcript messages
- *
- * @param agentId - The agent identifier
- * @param workspacePath - Optional workspace path for transcript location
- * @returns Promise resolving to CompletedResponse or null if not found
- */
-async function loadResultFromTranscript(agentId: string, workspacePath?: string): Promise<CompletedResponse | null> {
-  try {
-    const messages = await loadTranscript(agentId, workspacePath);
-
-    if (messages.length === 0) {
-      return null;
-    }
-
-    // Extract session ID from any message (they should all have the same session_id)
-    const sessionId = messages[0].session_id;
-
-    // Combine all messages into output, with result messages having highest priority
-    const resultMessages = messages.filter((m: TranscriptMessage) => m.type === 'result');
-    const allContent = messages.map((m: TranscriptMessage) => m.content).join('\n');
-
-    // If we have result messages, use the last one as primary output
-    const output = resultMessages.length > 0 ? resultMessages[resultMessages.length - 1].content : allContent;
-
-    return {
-      sessionId,
-      output,
-      status: 'completed'
-    };
-  } catch {
-    // Error loading transcript
     return null;
   }
+
+  // Agent not found in memory
+  return null;
 }
 
 /**
