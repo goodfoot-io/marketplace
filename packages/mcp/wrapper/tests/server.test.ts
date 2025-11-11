@@ -55,7 +55,7 @@ describe('initializeServer', () => {
   describe('server initialization', () => {
     it('should create server with correct structure', async () => {
       const configs: ServerConfig[] = [];
-      const result = await initializeServer(configs);
+      const result = await initializeServer(configs, {});
       servers.push(result.server);
 
       expect(result).toBeDefined();
@@ -65,7 +65,7 @@ describe('initializeServer', () => {
 
     it('should discover tools on initialization', async () => {
       const configs: ServerConfig[] = [];
-      const result = await initializeServer(configs);
+      const result = await initializeServer(configs, {});
       servers.push(result.server);
 
       // Should have discovered tools (even if empty)
@@ -77,7 +77,7 @@ describe('initializeServer', () => {
 
     it('should have Server instance with correct capabilities', async () => {
       const configs: ServerConfig[] = [];
-      const result = await initializeServer(configs);
+      const result = await initializeServer(configs, {});
       servers.push(result.server);
 
       // Verify server instance exists
@@ -89,7 +89,7 @@ describe('initializeServer', () => {
   describe('tool discovery integration', () => {
     it('should return empty tools with empty configuration', async () => {
       const configs: ServerConfig[] = [];
-      const result = await initializeServer(configs);
+      const result = await initializeServer(configs, {});
       servers.push(result.server);
 
       expect(result.tools.allTools).toEqual([]);
@@ -101,7 +101,7 @@ describe('initializeServer', () => {
       // Test that initializeServer properly integrates with discoverTools
       // Full discovery tests are in discovery.test.ts
       const configs: ServerConfig[] = [];
-      const result = await initializeServer(configs);
+      const result = await initializeServer(configs, {});
       servers.push(result.server);
 
       // Should call discoverTools and get back proper structure
@@ -116,7 +116,7 @@ describe('initializeServer', () => {
     it('should handle multiple server configurations', async () => {
       // Test with empty configs (discovery tests cover actual tool aggregation)
       const configs: ServerConfig[] = [];
-      const result = await initializeServer(configs);
+      const result = await initializeServer(configs, {});
       servers.push(result.server);
 
       // Server should handle any configuration properly
@@ -129,7 +129,7 @@ describe('initializeServer', () => {
   describe('tool registration', () => {
     it('should register tool with expected schema structure', async () => {
       const configs: ServerConfig[] = [];
-      const result = await initializeServer(configs);
+      const result = await initializeServer(configs, {});
       servers.push(result.server);
 
       // The tool registration happens inside initializeServer
@@ -140,7 +140,7 @@ describe('initializeServer', () => {
 
     it('should include description in discovered tools', async () => {
       const configs: ServerConfig[] = [];
-      const result = await initializeServer(configs);
+      const result = await initializeServer(configs, {});
       servers.push(result.server);
 
       // Description should always be set

@@ -130,7 +130,7 @@ describe('Agent Tool Handler', () => {
         }
       ];
 
-      const { server } = await initializeServer(configs);
+      const { server } = await initializeServer(configs, {});
 
       // The mcpServers config is built internally during CallTool,
       // so we just verify the server initializes without errors
@@ -148,7 +148,7 @@ describe('Agent Tool Handler', () => {
         }
       ];
 
-      const { server } = await initializeServer(configs);
+      const { server } = await initializeServer(configs, {});
 
       expect(server).toBeDefined();
 
@@ -170,7 +170,7 @@ describe('Agent Tool Handler', () => {
         }
       ];
 
-      const { server } = await initializeServer(configs);
+      const { server } = await initializeServer(configs, {});
 
       expect(server).toBeDefined();
 
@@ -186,7 +186,7 @@ describe('Agent Tool Handler', () => {
         }
       ];
 
-      const { server } = await initializeServer(configs);
+      const { server } = await initializeServer(configs, {});
 
       // Should not throw, just skip the invalid config
       expect(server).toBeDefined();
@@ -203,7 +203,7 @@ describe('Agent Tool Handler', () => {
         }
       ];
 
-      const { server } = await initializeServer(configs);
+      const { server } = await initializeServer(configs, {});
 
       // Should not throw, just skip the invalid config
       expect(server).toBeDefined();
@@ -215,7 +215,7 @@ describe('Agent Tool Handler', () => {
   describe('integration', () => {
     it('should initialize with empty configuration', async () => {
       const configs: ServerConfig[] = [];
-      const { server, tools } = await initializeServer(configs);
+      const { server, tools } = await initializeServer(configs, {});
 
       expect(server).toBeDefined();
       expect(tools.allTools).toHaveLength(0);
@@ -235,7 +235,7 @@ describe('Agent Tool Handler', () => {
         }
       ];
 
-      const { server } = await initializeServer(configs);
+      const { server } = await initializeServer(configs, {});
 
       expect(server).toBeDefined();
 
@@ -251,7 +251,7 @@ describe('Agent Tool Handler', () => {
         }
       ];
 
-      const { server } = await initializeServer(configs);
+      const { server } = await initializeServer(configs, {});
 
       expect(server).toBeDefined();
 
@@ -272,7 +272,7 @@ describe('Agent Tool Handler', () => {
         }
       ];
 
-      const { server } = await initializeServer(configs);
+      const { server } = await initializeServer(configs, {});
 
       expect(server).toBeDefined();
 

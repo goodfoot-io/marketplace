@@ -386,9 +386,10 @@ export interface WrapperServer {
  * Initialize MCP server with tool discovery
  *
  * @param configs - Array of server configurations
+ * @param _options - Wrapper configuration options (reserved for future use in agent tool handler)
  * @returns Server instance with registered tool handlers
  */
-export async function initializeServer(configs: ServerConfig[]): Promise<WrapperServer> {
+export async function initializeServer(configs: ServerConfig[], _options: WrapperOptions): Promise<WrapperServer> {
   info('Initializing MCP wrapper server');
 
   // Discover tools from wrapped servers (with caching)
@@ -848,12 +849,12 @@ export async function main(): Promise<void> {
     info('MCP wrapper server starting...');
 
     // Parse CLI arguments
-    const { configs, options: _options } = parseCliArguments(process.argv);
+    const { configs, options } = parseCliArguments(process.argv);
     info(`Parsed ${configs.length} server configuration(s)`);
     debug('Server configurations:', JSON.stringify(configs, null, 2));
 
     // Initialize server with tool discovery
-    const { server, tools } = await initializeServer(configs);
+    const { server, tools } = await initializeServer(configs, options);
     info(`Server initialized with ${tools.allTools.length} tools`);
 
     // Create stdio transport
