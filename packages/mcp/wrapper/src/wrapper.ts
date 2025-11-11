@@ -106,20 +106,28 @@ export function parseGlobalFlags(argv: string[]): { options: WrapperOptions; rem
  * Parse CLI arguments to extract multiple wrapped server configurations
  *
  * Expected format:
- *   -- server-name --transport stdio|http <args...> -- next-server ...
+ *   [global-flags] -- server-name --transport stdio|http <args...> -- next-server ...
+ *
+ * Global flags (parsed before first "--"):
+ *   --system-prompt <value>
+ *   --append-system-prompt <value>
+ *   --system-prompt-file <path>
  *
  * Examples:
  *   -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
- *   -- hugging-face --transport http https://huggingface.co/mcp
- *   -- hf --transport http https://huggingface.co/mcp -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
+ *   --system-prompt "Custom prompt" -- hugging-face --transport http https://huggingface.co/mcp
+ *   --append-system-prompt "Extra instructions" -- hf --transport http https://huggingface.co/mcp -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
  *
  * @param argv - Process arguments (typically process.argv)
- * @returns Array of ServerConfig objects
+ * @returns Object containing parsed configs and options
  * @throws Error if arguments are invalid or no servers configured
  */
-export function parseCliArguments(argv: string[]): ServerConfig[] {
-  // Find where the first "--" separator starts (after script name)
-  const firstSeparatorIndex = argv.indexOf('--');
+export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; options: WrapperOptions } {
+  // Parse global flags before the first "--"
+  const { options, remainingArgv } = parseGlobalFlags(argv);
+
+  // Find where the first "--" separator starts (after script name and global flags)
+  const firstSeparatorIndex = remainingArgv.indexOf('--');
 
   if (firstSeparatorIndex === -1) {
     throw new Error(
@@ -128,7 +136,7 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
   }
 
   // Extract everything after the first "--"
-  const allArgs = argv.slice(firstSeparatorIndex + 1);
+  const allArgs = remainingArgv.slice(firstSeparatorIndex + 1);
 
   // Split by "--" to get individual server configurations
   const serverGroups: string[][] = [];
@@ -288,7 +296,7 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
     throw new Error('No valid server configurations parsed');
   }
 
-  return configs;
+  return { configs, options };
 }
 
 /**
@@ -840,7 +848,7 @@ export async function main(): Promise<void> {
     info('MCP wrapper server starting...');
 
     // Parse CLI arguments
-    const configs = parseCliArguments(process.argv);
+    const { configs, options: _options } = parseCliArguments(process.argv);
     info(`Parsed ${configs.length} server configuration(s)`);
     debug('Server configurations:', JSON.stringify(configs, null, 2));
 
