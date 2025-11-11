@@ -149,6 +149,7 @@ out/
 dist/
 */dist/
 */build/dist/
+*/build
 
 # Additional logs
 npm-debug.log*

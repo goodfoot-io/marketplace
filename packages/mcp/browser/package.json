@@ -8,7 +8,7 @@
   "types": "./build/types/src/browser.d.ts",
   "bin": {
     "browser-mcp-server": "./build/dist/src/browser.js",
-    "chrome-proxy": "./build/dist/src/chrome-proxy.js"
+    "chrome-proxy": "./build/bundle/chrome-proxy.mjs"
   },
   "scripts": {
     "prettier": "prettier . --write --log-level warn",
@@ -17,7 +17,8 @@
     "eslint:files": "eslint --cache --fix",
     "typecheck": "tsc --noEmit",
     "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
-    "build": "tsc --build",
+    "build": "tsc --build && node esbuild.config.mjs",
+    "build:bundle": "node esbuild.config.mjs",
     "test": "NODE_OPTIONS=\"--experimental-vm-modules --no-node-snapshot ${INSPECT:+ --inspect-brk}\" NODE_ENV=test yarn exec jest --detectOpenHandles --runInBand -- ${*:-tests}",
     "release": "bash ../../../scripts/release-package.sh mcp/browser",
     "release:dry-run": "bash ../../../scripts/release-package.sh mcp/browser --dry-run"
@@ -38,6 +39,7 @@
     "@types/node": "^24.10.0",
     "@typescript-eslint/eslint-plugin": "^8.46.3",
     "@typescript-eslint/parser": "^8.46.3",
+    "esbuild": "^0.27.0",
     "eslint": "^9.39.1",
     "jest": "^30",
     "prettier": "^3.6.2",

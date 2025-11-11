@@ -194,10 +194,17 @@ The package includes a Chrome proxy server for automated Chrome lifecycle manage
 ### Starting the Proxy
 
 ```bash
+# Via npx (recommended)
 npx -y @goodfoot/browser-mcp-server chrome-proxy
-# Or using built binary
+
+# Or using standalone bundle (Node 22+)
+./build/bundle/chrome-proxy.mjs
+
+# Or using TypeScript output
 node ./build/dist/src/chrome-proxy.js
 ```
+
+**Note**: The standalone bundle (`chrome-proxy.mjs`) is a single file with all dependencies bundled, making it easier to deploy and run on the host system.
 
 ### Proxy Configuration
 
