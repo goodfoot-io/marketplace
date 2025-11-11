@@ -269,7 +269,7 @@ describe('discoverTools', () => {
       expect(result.description.length).toBeGreaterThan(0);
       // Should contain some indication of task management capabilities
       expect(result.description.toLowerCase()).toMatch(/task|manage|create|list/);
-    });
+    }, 15000); // 15 second timeout for AI description generation
 
     it('should handle default description when no tools found', async () => {
       const configs: ServerConfig[] = [];
@@ -306,7 +306,7 @@ describe('discoverTools', () => {
       expect(cached).not.toBeNull();
       expect(cached?.allTools).toHaveLength(1);
       expect(cached?.allTools[0].tool.name).toBe('test_tool');
-    });
+    }, 15000); // 15 second timeout for AI description generation
   });
 
   describe('MCP_WRAPPER_IGNORE_CACHE environment variable', () => {

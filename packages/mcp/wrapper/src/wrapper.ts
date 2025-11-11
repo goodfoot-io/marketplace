@@ -3,8 +3,9 @@
  * MCP wrapper server - Generic wrapper for multiple MCP servers with dynamic tool discovery
  */
 
-import type { ServerConfig, AggregatedTools, AgentToolResponse } from './types/wrapper.js';
-import { realpath } from 'node:fs/promises';
+import type { ServerConfig, AggregatedTools, AgentToolResponse, WrapperOptions } from './types/wrapper.js';
+import { realpath, readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -17,32 +18,212 @@ import { saveSessionMapping, getSessionId } from './session-mapping.js';
 import { validateAgentToolArguments, validateAgentOutputArguments } from './types/wrapper.js';
 
 /**
+ * Load system prompt content from a file
+ *
+ * Reads the entire file content as a UTF-8 string without any processing.
+ * Unlike test-agent, this does NOT parse YAML front matter.
+ *
+ * @param filePath - Absolute path to the system prompt file
+ * @returns File content as string
+ * @throws Error if path is not absolute, file not found (ENOENT), or read fails
+ */
+export async function loadSystemPromptFromFile(filePath: string): Promise<string> {
+  // Validate that the file path is absolute (matches test-agent pattern)
+  if (!path.isAbsolute(filePath)) {
+    throw new Error('system_prompt_file must be an absolute path');
+  }
+
+  // Read the system prompt file
+  try {
+    const fileContent = await readFile(filePath, 'utf-8');
+    return fileContent;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`System prompt file not found: ${filePath}`);
+    }
+    throw new Error(`Failed to read system prompt file: ${(error as Error).message}`);
+  }
+}
+
+/**
+ * Display help text for the MCP wrapper CLI
+ *
+ * @returns Help text string with usage, flags, and examples
+ */
+export function displayHelp(): string {
+  return `MCP Wrapper Server - Dynamic tool discovery wrapper for multiple MCP servers
+
+Usage:
+  wrapper-mcp-server [--system-prompt <text> | --append-system-prompt <text> | --system-prompt-file <path>] -- <server-name> --transport stdio|http <args...> [-- <next-server> ...]
+  wrapper-mcp-server -h | --help
+
+Global Flags (mutually exclusive):
+  --system-prompt <text>        Replace the default system prompt with custom text
+  --append-system-prompt <text> Append additional instructions to the default system prompt
+  --system-prompt-file <path>   Load system prompt from a file (must be absolute path)
+
+Help Flags:
+  -h, --help                    Show this help message and exit
+
+Server Configuration:
+  Each server is separated by "--" and follows this pattern:
+    -- <server-name> --transport stdio|http <args...>
+
+  For stdio transport:
+    -- <server-name> --transport stdio <command> [args...]
+    Example: -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
+
+  For http transport:
+    -- <server-name> --transport http <url> [-H "Header: Value"]...
+    Example: -- hugging-face --transport http https://huggingface.co/mcp -H "Authorization: Bearer token"
+
+  Transport defaults to stdio if --transport is omitted.
+
+Examples:
+  # Single server with stdio transport
+  wrapper-mcp-server -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
+
+  # Multiple servers
+  wrapper-mcp-server -- hf --transport http https://huggingface.co/mcp -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
+
+  # With custom system prompt
+  wrapper-mcp-server --system-prompt "You are a specialized assistant" -- server --transport stdio node server.js
+
+  # With appended instructions
+  wrapper-mcp-server --append-system-prompt "Always be concise" -- server --transport stdio node server.js
+
+  # With system prompt from file
+  wrapper-mcp-server --system-prompt-file /path/to/prompt.txt -- server --transport stdio node server.js
+
+For more information, visit: https://github.com/goodfoot/mcp-wrapper-server
+`;
+}
+
+/**
+ * Parse global CLI flags before server configurations
+ *
+ * Extracts system prompt flags (--system-prompt, --append-system-prompt, --system-prompt-file)
+ * from argv before the first "--" separator and returns them as WrapperOptions.
+ *
+ * @param argv - Process arguments (typically process.argv)
+ * @returns Object containing parsed options and remaining argv
+ * @throws Error if multiple system prompt flags are used or if a flag is missing its value
+ */
+export function parseGlobalFlags(argv: string[]): { options: WrapperOptions; remainingArgv: string[] } {
+  const options: WrapperOptions = {};
+  const remainingArgv: string[] = [];
+
+  // Check for help flags first (anywhere in argv before first "--")
+  const firstSeparatorIndex = argv.indexOf('--');
+  const globalArgsEnd = firstSeparatorIndex === -1 ? argv.length : firstSeparatorIndex;
+  const globalArgs = argv.slice(0, globalArgsEnd);
+
+  if (globalArgs.includes('-h') || globalArgs.includes('--help')) {
+    throw new Error(displayHelp());
+  }
+
+  // Determine where global args end
+  const afterSeparator = firstSeparatorIndex === -1 ? [] : argv.slice(firstSeparatorIndex);
+
+  // Parse global flags
+  let i = 0;
+  while (i < globalArgs.length) {
+    const arg = globalArgs[i];
+
+    if (arg === '--system-prompt') {
+      // Check if there's a value after this flag
+      if (i + 1 >= globalArgs.length) {
+        throw new Error(`--system-prompt flag requires a value\n\n${displayHelp()}`);
+      }
+      const nextArg = globalArgs[i + 1];
+      if (nextArg === '--') {
+        throw new Error(`--system-prompt flag requires a value\n\n${displayHelp()}`);
+      }
+      options.systemPrompt = nextArg;
+      i += 2; // Skip flag and value
+    } else if (arg === '--append-system-prompt') {
+      // Check if there's a value after this flag
+      if (i + 1 >= globalArgs.length) {
+        throw new Error(`--append-system-prompt flag requires a value\n\n${displayHelp()}`);
+      }
+      const nextArg = globalArgs[i + 1];
+      if (nextArg === '--') {
+        throw new Error(`--append-system-prompt flag requires a value\n\n${displayHelp()}`);
+      }
+      options.appendSystemPrompt = nextArg;
+      i += 2; // Skip flag and value
+    } else if (arg === '--system-prompt-file') {
+      // Check if there's a value after this flag
+      if (i + 1 >= globalArgs.length) {
+        throw new Error(`--system-prompt-file flag requires a value\n\n${displayHelp()}`);
+      }
+      const nextArg = globalArgs[i + 1];
+      if (nextArg === '--') {
+        throw new Error(`--system-prompt-file flag requires a value\n\n${displayHelp()}`);
+      }
+      options.systemPromptFile = nextArg;
+      i += 2; // Skip flag and value
+    } else {
+      // Not a system prompt flag, preserve it in remaining argv
+      remainingArgv.push(arg);
+      i++;
+    }
+  }
+
+  // Validate mutual exclusivity of system prompt flags
+  const flagCount =
+    (options.systemPrompt !== undefined ? 1 : 0) +
+    (options.appendSystemPrompt !== undefined ? 1 : 0) +
+    (options.systemPromptFile !== undefined ? 1 : 0);
+
+  if (flagCount > 1) {
+    throw new Error(
+      `Only one system prompt flag can be used at a time: --system-prompt, --append-system-prompt, or --system-prompt-file\n\n${displayHelp()}`
+    );
+  }
+
+  // Combine remaining global args with everything after the first separator
+  return {
+    options,
+    remainingArgv: [...remainingArgv, ...afterSeparator]
+  };
+}
+
+/**
  * Parse CLI arguments to extract multiple wrapped server configurations
  *
  * Expected format:
- *   -- server-name --transport stdio|http <args...> -- next-server ...
+ *   [global-flags] -- server-name --transport stdio|http <args...> -- next-server ...
+ *
+ * Global flags (parsed before first "--"):
+ *   --system-prompt <value>
+ *   --append-system-prompt <value>
+ *   --system-prompt-file <path>
  *
  * Examples:
  *   -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
- *   -- hugging-face --transport http https://huggingface.co/mcp
- *   -- hf --transport http https://huggingface.co/mcp -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
+ *   --system-prompt "Custom prompt" -- hugging-face --transport http https://huggingface.co/mcp
+ *   --append-system-prompt "Extra instructions" -- hf --transport http https://huggingface.co/mcp -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
  *
  * @param argv - Process arguments (typically process.argv)
- * @returns Array of ServerConfig objects
+ * @returns Object containing parsed configs and options
  * @throws Error if arguments are invalid or no servers configured
  */
-export function parseCliArguments(argv: string[]): ServerConfig[] {
-  // Find where the first "--" separator starts (after script name)
-  const firstSeparatorIndex = argv.indexOf('--');
+export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; options: WrapperOptions } {
+  // Parse global flags before the first "--"
+  const { options, remainingArgv } = parseGlobalFlags(argv);
+
+  // Find where the first "--" separator starts (after script name and global flags)
+  const firstSeparatorIndex = remainingArgv.indexOf('--');
 
   if (firstSeparatorIndex === -1) {
     throw new Error(
-      'No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>'
+      `No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>\n\n${displayHelp()}`
     );
   }
 
   // Extract everything after the first "--"
-  const allArgs = argv.slice(firstSeparatorIndex + 1);
+  const allArgs = remainingArgv.slice(firstSeparatorIndex + 1);
 
   // Split by "--" to get individual server configurations
   const serverGroups: string[][] = [];
@@ -66,7 +247,7 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
 
   if (serverGroups.length === 0) {
     throw new Error(
-      'No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>'
+      `No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>\n\n${displayHelp()}`
     );
   }
 
@@ -81,12 +262,12 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
     // First arg is the server name
     const name = group[0];
     if (!name) {
-      throw new Error('Server name is required as first argument after "--"');
+      throw new Error(`Server name is required as first argument after "--"\n\n${displayHelp()}`);
     }
 
     // Server name cannot start with "--" (it's not a flag)
     if (name.startsWith('--')) {
-      throw new Error(`Server name cannot start with "--". Received: "${name}"`);
+      throw new Error(`Server name cannot start with "--". Received: "${name}"\n\n${displayHelp()}`);
     }
 
     // Find --transport flag (default to stdio if not specified)
@@ -97,12 +278,14 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
     if (transportIndex !== -1) {
       // Transport flag found
       if (transportIndex + 1 >= group.length) {
-        throw new Error(`Server "${name}": --transport flag requires a value (stdio or http)`);
+        throw new Error(`Server "${name}": --transport flag requires a value (stdio or http)\n\n${displayHelp()}`);
       }
 
       const transportValue = group[transportIndex + 1];
       if (transportValue !== 'stdio' && transportValue !== 'http') {
-        throw new Error(`Server "${name}": Invalid transport type "${transportValue}". Expected "stdio" or "http"`);
+        throw new Error(
+          `Server "${name}": Invalid transport type "${transportValue}". Expected "stdio" or "http"\n\n${displayHelp()}`
+        );
       }
 
       transport = transportValue;
@@ -119,7 +302,7 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
       // For stdio: first remaining arg is command, rest are args
       // Headers are NOT parsed for stdio - they're passed through to the command
       if (remainingArgs.length === 0) {
-        throw new Error(`Server "${name}": stdio transport requires at least a command`);
+        throw new Error(`Server "${name}": stdio transport requires at least a command\n\n${displayHelp()}`);
       }
 
       const command = remainingArgs[0];
@@ -142,7 +325,7 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
         if (arg === '-H' || arg === '--header') {
           // Next argument should be the header value
           if (i + 1 >= remainingArgs.length) {
-            throw new Error(`Server "${name}": ${arg} flag requires a value`);
+            throw new Error(`Server "${name}": ${arg} flag requires a value\n\n${displayHelp()}`);
           }
 
           const headerValue = remainingArgs[i + 1];
@@ -151,7 +334,7 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
           const colonIndex = headerValue.indexOf(':');
           if (colonIndex === -1) {
             throw new Error(
-              `Server "${name}": Invalid header format "${headerValue}". Expected "Header-Name: Header-Value"`
+              `Server "${name}": Invalid header format "${headerValue}". Expected "Header-Name: Header-Value"\n\n${displayHelp()}`
             );
           }
 
@@ -159,7 +342,7 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
           const headerVal = headerValue.substring(colonIndex + 1).trim();
 
           if (!headerName) {
-            throw new Error(`Server "${name}": Header name cannot be empty in "${headerValue}"`);
+            throw new Error(`Server "${name}": Header name cannot be empty in "${headerValue}"\n\n${displayHelp()}`);
           }
 
           headers[headerName] = headerVal;
@@ -173,14 +356,16 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
 
       // For HTTP: remaining arg should be a URL (after filtering headers)
       if (filteredArgs.length === 0) {
-        throw new Error(`Server "${name}": http transport requires a URL`);
+        throw new Error(`Server "${name}": http transport requires a URL\n\n${displayHelp()}`);
       }
 
       const url = filteredArgs[0];
 
       // Basic URL validation
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        throw new Error(`Server "${name}": Invalid URL "${url}". Must start with http:// or https://`);
+        throw new Error(
+          `Server "${name}": Invalid URL "${url}". Must start with http:// or https://\n\n${displayHelp()}`
+        );
       }
 
       const httpConfig: ServerConfig = {
@@ -199,10 +384,10 @@ export function parseCliArguments(argv: string[]): ServerConfig[] {
   }
 
   if (configs.length === 0) {
-    throw new Error('No valid server configurations parsed');
+    throw new Error(`No valid server configurations parsed\n\n${displayHelp()}`);
   }
 
-  return configs;
+  return { configs, options };
 }
 
 /**
@@ -292,9 +477,10 @@ export interface WrapperServer {
  * Initialize MCP server with tool discovery
  *
  * @param configs - Array of server configurations
+ * @param options - Wrapper configuration options including system prompt settings
  * @returns Server instance with registered tool handlers
  */
-export async function initializeServer(configs: ServerConfig[]): Promise<WrapperServer> {
+export async function initializeServer(configs: ServerConfig[], options: WrapperOptions): Promise<WrapperServer> {
   info('Initializing MCP wrapper server');
 
   // Discover tools from wrapped servers (with caching)
@@ -544,9 +730,8 @@ export async function initializeServer(configs: ServerConfig[]): Promise<Wrapper
       }
     }
 
-    // Configure query options
-    const queryOptions: Parameters<typeof query>[0]['options'] = {
-      systemPrompt: `You are a helpful assistant with access to multiple tools from different MCP servers. Use these tools to help the user accomplish their goals. Always check the available tools and use them appropriately to complete tasks.
+    // Default system prompt (used when no flags are provided)
+    const defaultSystemPrompt = `You are a helpful assistant with access to multiple tools from different MCP servers. Use these tools to help the user accomplish their goals. Always check the available tools and use them appropriately to complete tasks.
 
 <tool-call-answer-mode>
 If the user's request can be answered the response from a tool call, output the full response as your final message to the user. Do not summarize or include other content in your response.
@@ -557,7 +742,33 @@ If the user's request requires aggregating multiple tool calls, provide a compre
 </aggregate-answer-mode>
 
 Do not preface your response with unecessary preambles like "Based on my analysis..." or "Now I can provide...".
-`,
+`;
+
+    // Determine system prompt based on options
+    let systemPromptConfig: string | { type: 'preset'; preset: 'claude_code'; append: string } = defaultSystemPrompt;
+
+    if (options.systemPrompt) {
+      // Replace with user-provided string
+      systemPromptConfig = options.systemPrompt;
+    } else if (options.appendSystemPrompt) {
+      // Append to default using preset+append format
+      systemPromptConfig = {
+        type: 'preset',
+        preset: 'claude_code',
+        append: options.appendSystemPrompt
+      };
+    } else if (options.systemPromptFile) {
+      // Load from file
+      try {
+        systemPromptConfig = await loadSystemPromptFromFile(options.systemPromptFile);
+      } catch (err) {
+        throw new McpError(ErrorCode.InvalidParams, (err as Error).message);
+      }
+    }
+
+    // Configure query options
+    const queryOptions: Parameters<typeof query>[0]['options'] = {
+      systemPrompt: systemPromptConfig,
       maxTurns: 100,
       strictMcpConfig: true,
       allowedTools: tools.allowedTools,
@@ -754,12 +965,12 @@ export async function main(): Promise<void> {
     info('MCP wrapper server starting...');
 
     // Parse CLI arguments
-    const configs = parseCliArguments(process.argv);
+    const { configs, options } = parseCliArguments(process.argv);
     info(`Parsed ${configs.length} server configuration(s)`);
     debug('Server configurations:', JSON.stringify(configs, null, 2));
 
     // Initialize server with tool discovery
-    const { server, tools } = await initializeServer(configs);
+    const { server, tools } = await initializeServer(configs, options);
     info(`Server initialized with ${tools.allTools.length} tools`);
 
     // Create stdio transport

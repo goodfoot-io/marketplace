@@ -19,10 +19,10 @@ describe('parseCliArguments', () => {
         '-y',
         '@hauptsache.net/clickup-mcp'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'clickup',
         transport: 'stdio',
         command: 'npx',
@@ -32,10 +32,10 @@ describe('parseCliArguments', () => {
 
     it('should parse stdio transport with default (no --transport flag)', () => {
       const argv = ['node', 'wrapper.js', '--', 'clickup', 'npx', '-y', '@hauptsache.net/clickup-mcp'];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'clickup',
         transport: 'stdio',
         command: 'npx',
@@ -45,10 +45,10 @@ describe('parseCliArguments', () => {
 
     it('should parse stdio transport with command and no args', () => {
       const argv = ['node', 'wrapper.js', '--', 'simple', '--transport', 'stdio', 'my-server'];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'simple',
         transport: 'stdio',
         command: 'my-server',
@@ -70,10 +70,10 @@ describe('parseCliArguments', () => {
         '3000',
         '--debug'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'server',
         transport: 'stdio',
         command: 'node',
@@ -85,10 +85,10 @@ describe('parseCliArguments', () => {
   describe('single server - HTTP transport', () => {
     it('should parse HTTP transport with https URL', () => {
       const argv = ['node', 'wrapper.js', '--', 'hugging-face', '--transport', 'http', 'https://huggingface.co/mcp'];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'hugging-face',
         transport: 'http',
         url: 'https://huggingface.co/mcp'
@@ -97,10 +97,10 @@ describe('parseCliArguments', () => {
 
     it('should parse HTTP transport with http URL', () => {
       const argv = ['node', 'wrapper.js', '--', 'local', '--transport', 'http', 'http://localhost:3000/mcp'];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'local',
         transport: 'http',
         url: 'http://localhost:3000/mcp'
@@ -117,10 +117,10 @@ describe('parseCliArguments', () => {
         'http',
         'https://api.example.com/mcp?token=abc123&version=v1'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'api',
         transport: 'http',
         url: 'https://api.example.com/mcp?token=abc123&version=v1'
@@ -146,15 +146,15 @@ describe('parseCliArguments', () => {
         '-y',
         '@hauptsache.net/clickup-mcp'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(2);
+      expect(configs[0]).toEqual({
         name: 'hugging-face',
         transport: 'http',
         url: 'https://huggingface.co/mcp'
       });
-      expect(result[1]).toEqual({
+      expect(configs[1]).toEqual({
         name: 'clickup',
         transport: 'stdio',
         command: 'npx',
@@ -179,16 +179,16 @@ describe('parseCliArguments', () => {
         'http',
         'https://huggingface.co/mcp'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(2);
+      expect(configs[0]).toEqual({
         name: 'clickup',
         transport: 'stdio',
         command: 'npx',
         args: ['-y', '@hauptsache.net/clickup-mcp']
       });
-      expect(result[1]).toEqual({
+      expect(configs[1]).toEqual({
         name: 'hugging-face',
         transport: 'http',
         url: 'https://huggingface.co/mcp'
@@ -216,21 +216,21 @@ describe('parseCliArguments', () => {
         'http',
         'https://api3.example.com'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(3);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(3);
+      expect(configs[0]).toEqual({
         name: 'server1',
         transport: 'http',
         url: 'https://api1.example.com'
       });
-      expect(result[1]).toEqual({
+      expect(configs[1]).toEqual({
         name: 'server2',
         transport: 'stdio',
         command: 'node',
         args: ['server2.js']
       });
-      expect(result[2]).toEqual({
+      expect(configs[2]).toEqual({
         name: 'server3',
         transport: 'http',
         url: 'https://api3.example.com'
@@ -239,16 +239,16 @@ describe('parseCliArguments', () => {
 
     it('should parse multiple servers with default stdio transport', () => {
       const argv = ['node', 'wrapper.js', '--', 'server1', 'node', 'server1.js', '--', 'server2', 'node', 'server2.js'];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(2);
+      expect(configs[0]).toEqual({
         name: 'server1',
         transport: 'stdio',
         command: 'node',
         args: ['server1.js']
       });
-      expect(result[1]).toEqual({
+      expect(configs[1]).toEqual({
         name: 'server2',
         transport: 'stdio',
         command: 'node',
@@ -328,18 +328,18 @@ describe('parseCliArguments', () => {
   describe('edge cases', () => {
     it('should handle server names with hyphens', () => {
       const argv = ['node', 'wrapper.js', '--', 'my-awesome-server', '--transport', 'stdio', 'node', 'server.js'];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]?.name).toBe('my-awesome-server');
+      expect(configs).toHaveLength(1);
+      expect(configs[0]?.name).toBe('my-awesome-server');
     });
 
     it('should handle server names with underscores', () => {
       const argv = ['node', 'wrapper.js', '--', 'my_server_name', '--transport', 'stdio', 'node', 'server.js'];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]?.name).toBe('my_server_name');
+      expect(configs).toHaveLength(1);
+      expect(configs[0]?.name).toBe('my_server_name');
     });
 
     it('should handle commands with absolute paths', () => {
@@ -354,10 +354,10 @@ describe('parseCliArguments', () => {
         '--config',
         'prod'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'server',
         transport: 'stdio',
         command: '/usr/local/bin/custom-server',
@@ -367,10 +367,10 @@ describe('parseCliArguments', () => {
 
     it('should handle URLs with ports', () => {
       const argv = ['node', 'wrapper.js', '--', 'local', '--transport', 'http', 'http://localhost:8080/mcp'];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'local',
         transport: 'http',
         url: 'http://localhost:8080/mcp'
@@ -390,10 +390,10 @@ describe('parseCliArguments', () => {
         '--flag',
         '--another-flag'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'server',
         transport: 'stdio',
         command: 'node',
@@ -420,18 +420,18 @@ describe('parseCliArguments', () => {
         'node',
         'server2.js'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(2);
-      expect(result[0]?.name).toBe('server1');
-      expect(result[1]?.name).toBe('server2');
+      expect(configs).toHaveLength(2);
+      expect(configs[0]?.name).toBe('server1');
+      expect(configs[1]?.name).toBe('server2');
     });
 
     it('should handle transport flag at different positions (after name)', () => {
       const argv = ['node', 'wrapper.js', '--', 'server', '--transport', 'stdio', 'node', 'server.js'];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result[0]?.transport).toBe('stdio');
+      expect(configs[0]?.transport).toBe('stdio');
     });
   });
 
@@ -448,10 +448,10 @@ describe('parseCliArguments', () => {
         '-H',
         'Authorization: Bearer token123'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'github',
         transport: 'http',
         url: 'https://api.github.com/mcp',
@@ -473,10 +473,10 @@ describe('parseCliArguments', () => {
         '--header',
         'X-API-Key: secret'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'api',
         transport: 'http',
         url: 'https://api.example.com',
@@ -502,10 +502,10 @@ describe('parseCliArguments', () => {
         '--header',
         'X-Custom-Header: value'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'api',
         transport: 'http',
         url: 'https://api.example.com',
@@ -529,10 +529,10 @@ describe('parseCliArguments', () => {
         '-H',
         'X-Custom: value:with:colons'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'api',
         transport: 'http',
         url: 'https://api.example.com',
@@ -554,10 +554,10 @@ describe('parseCliArguments', () => {
         '-H',
         '  Authorization  :  Bearer token  '
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'api',
         transport: 'http',
         url: 'https://api.example.com',
@@ -569,15 +569,15 @@ describe('parseCliArguments', () => {
 
     it('should not include headers field if no headers provided', () => {
       const argv = ['node', 'wrapper.js', '--', 'api', '--transport', 'http', 'https://api.example.com'];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'api',
         transport: 'http',
         url: 'https://api.example.com'
       });
-      expect(result[0]?.headers).toBeUndefined();
+      expect(configs[0]?.headers).toBeUndefined();
     });
 
     it('should throw error when -H flag has no value', () => {
@@ -638,10 +638,10 @@ describe('parseCliArguments', () => {
         '-H',
         'X-Empty:'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'api',
         transport: 'http',
         url: 'https://api.example.com',
@@ -664,10 +664,10 @@ describe('parseCliArguments', () => {
         '-H',
         'X-Header: value'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'server',
         transport: 'stdio',
         command: 'node',
@@ -703,10 +703,10 @@ describe('parseCliArguments', () => {
         '--header',
         'X-API-Key: custom_key'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(3);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(3);
+      expect(configs[0]).toEqual({
         name: 'github',
         transport: 'http',
         url: 'https://api.github.com/mcp',
@@ -715,13 +715,13 @@ describe('parseCliArguments', () => {
           Accept: 'application/vnd.github.v3+json'
         }
       });
-      expect(result[1]).toEqual({
+      expect(configs[1]).toEqual({
         name: 'clickup',
         transport: 'stdio',
         command: 'npx',
         args: ['-y', '@hauptsache.net/clickup-mcp']
       });
-      expect(result[2]).toEqual({
+      expect(configs[2]).toEqual({
         name: 'custom-api',
         transport: 'http',
         url: 'https://custom.api.com',
@@ -746,10 +746,10 @@ describe('parseCliArguments', () => {
         '-y',
         '@hauptsache.net/clickup-mcp'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'clickup',
         transport: 'stdio',
         command: 'npx',
@@ -768,10 +768,10 @@ describe('parseCliArguments', () => {
         'http',
         'https://huggingface.co/mcp'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(1);
+      expect(configs[0]).toEqual({
         name: 'hugging-face',
         transport: 'http',
         url: 'https://huggingface.co/mcp'
@@ -796,15 +796,15 @@ describe('parseCliArguments', () => {
         '-y',
         '@hauptsache.net/clickup-mcp'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({
+      expect(configs).toHaveLength(2);
+      expect(configs[0]).toEqual({
         name: 'hugging-face',
         transport: 'http',
         url: 'https://huggingface.co/mcp'
       });
-      expect(result[1]).toEqual({
+      expect(configs[1]).toEqual({
         name: 'clickup',
         transport: 'stdio',
         command: 'npx',
@@ -831,13 +831,13 @@ describe('parseCliArguments', () => {
         '-y',
         '@hauptsache.net/clickup-mcp'
       ];
-      const result = parseCliArguments(argv);
+      const { configs } = parseCliArguments(argv);
 
-      expect(result).toHaveLength(2);
-      expect(result[0]?.name).toBe('hugging-face');
-      expect(result[0]?.transport).toBe('http');
-      expect(result[1]?.name).toBe('clickup');
-      expect(result[1]?.transport).toBe('stdio');
+      expect(configs).toHaveLength(2);
+      expect(configs[0]?.name).toBe('hugging-face');
+      expect(configs[0]?.transport).toBe('http');
+      expect(configs[1]?.name).toBe('clickup');
+      expect(configs[1]?.transport).toBe('stdio');
     });
   });
 });
