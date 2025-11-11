@@ -4,7 +4,8 @@
  */
 
 import type { ServerConfig, AggregatedTools, AgentToolResponse, WrapperOptions } from './types/wrapper.js';
-import { realpath } from 'node:fs/promises';
+import { realpath, readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -15,6 +16,34 @@ import { discoverTools } from './discovery.js';
 import { info, debug, warn, error } from './logger.js';
 import { saveSessionMapping, getSessionId } from './session-mapping.js';
 import { validateAgentToolArguments, validateAgentOutputArguments } from './types/wrapper.js';
+
+/**
+ * Load system prompt content from a file
+ *
+ * Reads the entire file content as a UTF-8 string without any processing.
+ * Unlike test-agent, this does NOT parse YAML front matter.
+ *
+ * @param filePath - Absolute path to the system prompt file
+ * @returns File content as string
+ * @throws Error if path is not absolute, file not found (ENOENT), or read fails
+ */
+export async function loadSystemPromptFromFile(filePath: string): Promise<string> {
+  // Validate that the file path is absolute (matches test-agent pattern)
+  if (!path.isAbsolute(filePath)) {
+    throw new Error('system_prompt_file must be an absolute path');
+  }
+
+  // Read the system prompt file
+  try {
+    const fileContent = await readFile(filePath, 'utf-8');
+    return fileContent;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`System prompt file not found: ${filePath}`);
+    }
+    throw new Error(`Failed to read system prompt file: ${(error as Error).message}`);
+  }
+}
 
 /**
  * Parse global CLI flags before server configurations
@@ -386,10 +415,10 @@ export interface WrapperServer {
  * Initialize MCP server with tool discovery
  *
  * @param configs - Array of server configurations
- * @param _options - Wrapper configuration options (reserved for future use in agent tool handler)
+ * @param options - Wrapper configuration options including system prompt settings
  * @returns Server instance with registered tool handlers
  */
-export async function initializeServer(configs: ServerConfig[], _options: WrapperOptions): Promise<WrapperServer> {
+export async function initializeServer(configs: ServerConfig[], options: WrapperOptions): Promise<WrapperServer> {
   info('Initializing MCP wrapper server');
 
   // Discover tools from wrapped servers (with caching)
@@ -639,9 +668,8 @@ export async function initializeServer(configs: ServerConfig[], _options: Wrappe
       }
     }
 
-    // Configure query options
-    const queryOptions: Parameters<typeof query>[0]['options'] = {
-      systemPrompt: `You are a helpful assistant with access to multiple tools from different MCP servers. Use these tools to help the user accomplish their goals. Always check the available tools and use them appropriately to complete tasks.
+    // Default system prompt (used when no flags are provided)
+    const defaultSystemPrompt = `You are a helpful assistant with access to multiple tools from different MCP servers. Use these tools to help the user accomplish their goals. Always check the available tools and use them appropriately to complete tasks.
 
 <tool-call-answer-mode>
 If the user's request can be answered the response from a tool call, output the full response as your final message to the user. Do not summarize or include other content in your response.
@@ -652,7 +680,33 @@ If the user's request requires aggregating multiple tool calls, provide a compre
 </aggregate-answer-mode>
 
 Do not preface your response with unecessary preambles like "Based on my analysis..." or "Now I can provide...".
-`,
+`;
+
+    // Determine system prompt based on options
+    let systemPromptConfig: string | { type: 'preset'; preset: 'claude_code'; append: string } = defaultSystemPrompt;
+
+    if (options.systemPrompt) {
+      // Replace with user-provided string
+      systemPromptConfig = options.systemPrompt;
+    } else if (options.appendSystemPrompt) {
+      // Append to default using preset+append format
+      systemPromptConfig = {
+        type: 'preset',
+        preset: 'claude_code',
+        append: options.appendSystemPrompt
+      };
+    } else if (options.systemPromptFile) {
+      // Load from file
+      try {
+        systemPromptConfig = await loadSystemPromptFromFile(options.systemPromptFile);
+      } catch (err) {
+        throw new McpError(ErrorCode.InvalidParams, (err as Error).message);
+      }
+    }
+
+    // Configure query options
+    const queryOptions: Parameters<typeof query>[0]['options'] = {
+      systemPrompt: systemPromptConfig,
       maxTurns: 100,
       strictMcpConfig: true,
       allowedTools: tools.allowedTools,
