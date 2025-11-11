@@ -3,7 +3,7 @@
  * MCP wrapper server - Generic wrapper for multiple MCP servers with dynamic tool discovery
  */
 
-import type { ServerConfig, AggregatedTools, AgentToolResponse } from './types/wrapper.js';
+import type { ServerConfig, AggregatedTools, AgentToolResponse, WrapperOptions } from './types/wrapper.js';
 import { realpath } from 'node:fs/promises';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -15,6 +15,92 @@ import { discoverTools } from './discovery.js';
 import { info, debug, warn, error } from './logger.js';
 import { saveSessionMapping, getSessionId } from './session-mapping.js';
 import { validateAgentToolArguments, validateAgentOutputArguments } from './types/wrapper.js';
+
+/**
+ * Parse global CLI flags before server configurations
+ *
+ * Extracts system prompt flags (--system-prompt, --append-system-prompt, --system-prompt-file)
+ * from argv before the first "--" separator and returns them as WrapperOptions.
+ *
+ * @param argv - Process arguments (typically process.argv)
+ * @returns Object containing parsed options and remaining argv
+ * @throws Error if multiple system prompt flags are used or if a flag is missing its value
+ */
+export function parseGlobalFlags(argv: string[]): { options: WrapperOptions; remainingArgv: string[] } {
+  const options: WrapperOptions = {};
+  const remainingArgv: string[] = [];
+
+  // Find the first "--" separator
+  const firstSeparatorIndex = argv.indexOf('--');
+
+  // Determine where global args end
+  const globalArgsEnd = firstSeparatorIndex === -1 ? argv.length : firstSeparatorIndex;
+  const globalArgs = argv.slice(0, globalArgsEnd);
+  const afterSeparator = firstSeparatorIndex === -1 ? [] : argv.slice(firstSeparatorIndex);
+
+  // Parse global flags
+  let i = 0;
+  while (i < globalArgs.length) {
+    const arg = globalArgs[i];
+
+    if (arg === '--system-prompt') {
+      // Check if there's a value after this flag
+      if (i + 1 >= globalArgs.length) {
+        throw new Error('--system-prompt flag requires a value');
+      }
+      const nextArg = globalArgs[i + 1];
+      if (nextArg === '--') {
+        throw new Error('--system-prompt flag requires a value');
+      }
+      options.systemPrompt = nextArg;
+      i += 2; // Skip flag and value
+    } else if (arg === '--append-system-prompt') {
+      // Check if there's a value after this flag
+      if (i + 1 >= globalArgs.length) {
+        throw new Error('--append-system-prompt flag requires a value');
+      }
+      const nextArg = globalArgs[i + 1];
+      if (nextArg === '--') {
+        throw new Error('--append-system-prompt flag requires a value');
+      }
+      options.appendSystemPrompt = nextArg;
+      i += 2; // Skip flag and value
+    } else if (arg === '--system-prompt-file') {
+      // Check if there's a value after this flag
+      if (i + 1 >= globalArgs.length) {
+        throw new Error('--system-prompt-file flag requires a value');
+      }
+      const nextArg = globalArgs[i + 1];
+      if (nextArg === '--') {
+        throw new Error('--system-prompt-file flag requires a value');
+      }
+      options.systemPromptFile = nextArg;
+      i += 2; // Skip flag and value
+    } else {
+      // Not a system prompt flag, preserve it in remaining argv
+      remainingArgv.push(arg);
+      i++;
+    }
+  }
+
+  // Validate mutual exclusivity of system prompt flags
+  const flagCount =
+    (options.systemPrompt !== undefined ? 1 : 0) +
+    (options.appendSystemPrompt !== undefined ? 1 : 0) +
+    (options.systemPromptFile !== undefined ? 1 : 0);
+
+  if (flagCount > 1) {
+    throw new Error(
+      'Only one system prompt flag can be used at a time: --system-prompt, --append-system-prompt, or --system-prompt-file'
+    );
+  }
+
+  // Combine remaining global args with everything after the first separator
+  return {
+    options,
+    remainingArgv: [...remainingArgv, ...afterSeparator]
+  };
+}
 
 /**
  * Parse CLI arguments to extract multiple wrapped server configurations
