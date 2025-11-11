@@ -20,12 +20,6 @@
     {
       "name": "project",
       "source": "./plugins/project",
-      "description": "Project management and implementation workflows with plan creation, assessment, and execution",
-      "version": "1.0.0",
-      "author": {
-        "name": "Goodfoot",
-        "email": "contact@goodfoot.io"
-      },
       "tags": [
         "project-management",
         "workflow",
@@ -36,12 +30,6 @@
     {
       "name": "browser",
       "source": "./plugins/browser",
-      "description": "Browser automation for web scraping, testing, and interaction with web pages",
-      "version": "1.0.0",
-      "author": {
-        "name": "Goodfoot",
-        "email": "contact@goodfoot.io"
-      },
       "tags": [
         "browser",
         "automation",
@@ -53,12 +41,6 @@
     {
       "name": "vscode",
       "source": "./plugins/vscode",
-      "description": "VSCode integration with codebase analysis expert and MCP server for enhanced development workflows",
-      "version": "1.0.0",
-      "author": {
-        "name": "Goodfoot",
-        "email": "contact@goodfoot.io"
-      },
       "tags": [
         "vscode",
         "codebase-analysis",
@@ -70,12 +52,6 @@
     {
       "name": "goodfoot",
       "source": "./plugins/goodfoot",
-      "description": "Core development tools and workflows including test automation, documentation generation, investigation, and code analysis. Includes the claude-code skill for plugin and marketplace development.",
-      "version": "1.0.0",
-      "author": {
-        "name": "Goodfoot",
-        "email": "contact@goodfoot.io"
-      },
       "tags": [
         "testing",
         "documentation",
@@ -89,12 +65,6 @@
     {
       "name": "typescript-hooks",
       "source": "./plugins/typescript-hooks",
-      "description": "TypeScript and ESLint quality enforcement hooks for Write/Edit operations. Prevents rule bypasses, Jest mocking, and validates type errors in edited files and dependencies.",
-      "version": "0.1.0",
-      "author": {
-        "name": "Goodfoot",
-        "email": "contact@goodfoot.io"
-      },
       "tags": [
         "typescript",
         "eslint",
@@ -107,12 +77,6 @@
     {
       "name": "jest-mock-prevention",
       "source": "./plugins/jest-mock-prevention",
-      "description": "Jest mocking prevention hook for Write/Edit operations. Enforces integration-first testing with real implementations instead of mocks. Detects and blocks jest.fn(), jest.mock(), jest.spyOn() and provides comprehensive guidance on using getTestSql(), dependency injection, and real service implementations.",
-      "version": "0.1.0",
-      "author": {
-        "name": "Goodfoot",
-        "email": "contact@goodfoot.io"
-      },
       "tags": [
         "jest",
         "testing",
@@ -126,12 +90,6 @@
     {
       "name": "typescript-claude-code-for-web-setup",
       "source": "./plugins/typescript-claude-code-for-web-setup",
-      "description": "Automatic web environment setup for TypeScript/JavaScript projects with multi-package-manager support (npm, yarn, pnpm, bun). Runs on SessionStart in Claude Code web environments.",
-      "version": "0.1.0",
-      "author": {
-        "name": "Goodfoot",
-        "email": "contact@goodfoot.io"
-      },
       "tags": [
         "setup",
         "web",
