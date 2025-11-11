@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+#
+# Post-merge Git Hook: Clean up environment files for deleted branches
+#
+# This hook runs automatically after 'git merge' completes successfully.
+# It removes orphaned branch-specific environment files when their corresponding
+# branches no longer exist (e.g., after merging and deleting feature branches).
+#
+# Environment file pattern: environment/.env.branch.<branch-name>
+# Branch name sanitization: slashes (/) are converted to dots (.)
+#   Example: branch 'feature/auth' -> file '.env.branch.feature.auth'
+#
+# Special files that are NEVER deleted:
+#   - environment/.env.branch.template (template file)
+#   - environment/.env.branch.detached (for detached HEAD state)
+#
+
+set -euo pipefail
+
+# Configuration
+ENV_DIR="environment"
+ENV_PREFIX=".env.branch."
+PROTECTED_SUFFIXES=("template" "detached")
+
+# Safety check: exit gracefully if environment directory doesn't exist
+if [[ ! -d "$ENV_DIR" ]]; then
+    exit 0
+fi
+
+# Get all current branches (local and remote)
+# Extract unique branch names, stripping remote prefixes
+get_all_branches() {
+    git branch -a 2>/dev/null | \
+        sed 's/^[* ] //' | \
+        sed 's|remotes/[^/]*/||' | \
+        grep -v '^HEAD' | \
+        sort -u
+}
+
+# Convert branch name to sanitized filename format (/ -> .)
+# Example: feature/auth -> feature.auth
+sanitize_branch_name() {
+    local branch="$1"
+    echo "${branch//\//.}"
+}
+
+# Extract branch name from environment filename
+# Returns the suffix after '.env.branch.'
+# Example: .env.branch.feature.auth -> feature.auth
+extract_branch_suffix() {
+    local filename="$1"
+    echo "${filename#$ENV_PREFIX}"
+}
+
+# Check if a file suffix represents a protected file
+is_protected_file() {
+    local suffix="$1"
+    for protected in "${PROTECTED_SUFFIXES[@]}"; do
+        if [[ "$suffix" == "$protected" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Check if a branch exists for the given file suffix
+# Handles ambiguity: dots in suffix could be from branch name OR slash conversion
+# Strategy: check both exact match and with dots converted back to slashes
+branch_exists_for_suffix() {
+    local suffix="$1"
+    local branches="$2"
+
+    # Check exact match (for branches with actual dots in name)
+    if echo "$branches" | grep -Fxq "$suffix"; then
+        return 0
+    fi
+
+    # Check with dots converted back to slashes (more common case)
+    # Example: feature.auth -> feature/auth
+    local branch_with_slashes="${suffix//.//}"
+    if echo "$branches" | grep -Fxq "$branch_with_slashes"; then
+        return 0
+    fi
+
+    # Branch doesn't exist
+    return 1
+}
+
+# Remove a file with error handling
+safe_remove() {
+    local filepath="$1"
+    if [[ -f "$filepath" ]]; then
+        if rm -f "$filepath" 2>/dev/null; then
+            echo "  Removed: $filepath"
+            return 0
+        else
+            echo "  Warning: Failed to remove $filepath (permission denied?)" >&2
+            return 1
+        fi
+    fi
+}
+
+# Main cleanup logic
+main() {
+    # Get list of all existing branches
+    local all_branches
+    all_branches=$(get_all_branches)
+
+    if [[ -z "$all_branches" ]]; then
+        # No branches found (shouldn't happen in a normal git repo)
+        exit 0
+    fi
+
+    # Find all branch environment files (excluding .env.local variants)
+    local env_files
+    env_files=$(find "$ENV_DIR" -maxdepth 1 -type f -name "${ENV_PREFIX}*" ! -name "*.env.local" | sort)
+
+    if [[ -z "$env_files" ]]; then
+        # No environment files to check
+        exit 0
+    fi
+
+    local files_removed=0
+
+    # Check each environment file
+    while IFS= read -r env_file; do
+        local basename
+        basename=$(basename "$env_file")
+
+        # Extract the suffix after '.env.branch.'
+        local suffix
+        suffix=$(extract_branch_suffix "$basename")
+
+        # Skip protected files
+        if is_protected_file "$suffix"; then
+            continue
+        fi
+
+        # Check if corresponding branch exists
+        if ! branch_exists_for_suffix "$suffix" "$all_branches"; then
+            echo "Cleaning up orphaned environment file for deleted branch:"
+
+            # Remove main environment file
+            if safe_remove "$env_file"; then
+                files_removed=$((files_removed + 1))
+            fi
+
+            # Remove .env.local variant if it exists
+            local local_override="${env_file}.env.local"
+            if [[ -f "$local_override" ]]; then
+                if safe_remove "$local_override"; then
+                    files_removed=$((files_removed + 1))
+                fi
+            fi
+        fi
+    done <<< "$env_files"
+
+    # Summary message
+    if [[ $files_removed -gt 0 ]]; then
+        echo "Post-merge cleanup: Removed $files_removed orphaned environment file(s)"
+    fi
+}
+
+# Run the cleanup
+main
+
+exit 0
