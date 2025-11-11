@@ -199,6 +199,58 @@ else
 fi
 echo ""
 
+# Update plugin package references
+if [ "$DRY_RUN" = true ]; then
+  echo -e "${MAGENTA}[DRY RUN]${NC} ${BLUE}Would update plugin package references${NC}"
+  PLUGIN_UPDATE_SCRIPT="$WORKSPACE_ROOT/scripts/update-plugin-package-refs.sh"
+  if [ -f "$PLUGIN_UPDATE_SCRIPT" ]; then
+    echo -e "${MAGENTA}[DRY RUN]${NC} Would run: bash $PLUGIN_UPDATE_SCRIPT $PACKAGE_NAME $VERSION --dry-run"
+    bash "$PLUGIN_UPDATE_SCRIPT" "$PACKAGE_NAME" "$VERSION" --dry-run
+  else
+    echo -e "${YELLOW}⚠️  Plugin update script not found at $PLUGIN_UPDATE_SCRIPT${NC}"
+  fi
+else
+  echo -e "${BLUE}🔄 Updating plugin package references...${NC}"
+  PLUGIN_UPDATE_SCRIPT="$WORKSPACE_ROOT/scripts/update-plugin-package-refs.sh"
+
+  if [ -f "$PLUGIN_UPDATE_SCRIPT" ]; then
+    if bash "$PLUGIN_UPDATE_SCRIPT" "$PACKAGE_NAME" "$VERSION"; then
+      echo ""
+
+      # Check if any plugin files were modified
+      cd "$WORKSPACE_ROOT"
+      MODIFIED_PLUGIN_FILES=$(git diff --name-only plugins/**/.mcp.json 2>/dev/null || true)
+
+      if [ -n "$MODIFIED_PLUGIN_FILES" ]; then
+        echo -e "${BLUE}📄 Plugin files have been updated${NC}"
+        echo ""
+        git diff plugins/**/.mcp.json | head -50
+        echo ""
+        echo -e "${BLUE}📝 Committing and pushing plugin updates to main...${NC}"
+        git add plugins/**/.mcp.json
+        git commit -m "Update plugin references for $PACKAGE_NAME v${VERSION}"
+        git push origin main
+        echo -e "${GREEN}✅ Plugin references committed and pushed${NC}"
+      else
+        echo -e "${CYAN}ℹ️  No plugin files needed updating${NC}"
+      fi
+    else
+      echo -e "${YELLOW}⚠️  Warning: Failed to update plugin package references${NC}"
+      echo ""
+      read -p "Continue release anyway? (y/N) " -n 1 -r
+      echo
+      if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${RED}❌ Release cancelled${NC}"
+        exit 1
+      fi
+    fi
+  else
+    echo -e "${YELLOW}⚠️  Plugin update script not found at $PLUGIN_UPDATE_SCRIPT${NC}"
+    echo "   Skipping plugin package reference updates"
+  fi
+fi
+echo ""
+
 if [ "$DRY_RUN" = true ]; then
   echo -e "${MAGENTA}[DRY RUN]${NC} ${BLUE}Would create tag: $TAG${NC}"
   echo -e "${MAGENTA}[DRY RUN]${NC} Command: git tag -a \"$TAG\" -m \"Release $PACKAGE_NAME v${VERSION}\""
