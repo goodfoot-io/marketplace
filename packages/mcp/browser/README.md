@@ -203,13 +203,14 @@ node ./build/dist/src/chrome-proxy.js
 
 #### Environment Variables
 
-| Variable                       | Default                  | Description                  |
-| ------------------------------ | ------------------------ | ---------------------------- |
-| `LISTEN_PORT`                  | `9222`                   | Proxy server listening port  |
-| `CHROME_DEBUG_PORT`            | `9223`                   | Chrome debugging port        |
-| `CHROME_USER_DATA_DIR`         | `/tmp/chrome-rdp-{port}` | Chrome user data directory   |
-| `CHROME_PROXY_IDLE_TIMEOUT_MS` | `300000`                 | Idle timeout in milliseconds |
-| `BROWSER_MCP_SERVER_LOGGING`   | `false`                  | Enable diagnostic logging    |
+| Variable                       | Default                  | Description                              |
+| ------------------------------ | ------------------------ | ---------------------------------------- |
+| `LISTEN_PORT`                  | `9222`                   | Proxy server listening port              |
+| `CHROME_DEBUG_PORT`            | `9223`                   | Chrome debugging port                    |
+| `CHROME_USER_DATA_DIR`         | `/tmp/chrome-rdp-{port}` | Chrome user data directory               |
+| `CHROME_SOCKET_TIMEOUT_MS`     | `10000`                  | Chrome connection timeout in milliseconds|
+| `CHROME_PROXY_IDLE_TIMEOUT_MS` | `300000`                 | Idle timeout in milliseconds             |
+| `BROWSER_MCP_SERVER_LOGGING`   | `false`                  | Enable diagnostic logging                |
 
 #### Idle Timeout Configuration
 

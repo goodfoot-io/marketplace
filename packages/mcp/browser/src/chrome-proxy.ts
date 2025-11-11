@@ -8,6 +8,9 @@ import * as logger from './logger.js';
 const LISTEN_PORT = process.env.LISTEN_PORT ? parseInt(process.env.LISTEN_PORT, 10) : 9222;
 const CHROME_DEBUG_PORT = process.env.CHROME_DEBUG_PORT ? parseInt(process.env.CHROME_DEBUG_PORT, 10) : 9223;
 const CHROME_USER_DATA_DIR = process.env.CHROME_USER_DATA_DIR || `/tmp/chrome-rdp-${CHROME_DEBUG_PORT}`;
+const CHROME_SOCKET_TIMEOUT_MS = process.env.CHROME_SOCKET_TIMEOUT_MS
+  ? parseInt(process.env.CHROME_SOCKET_TIMEOUT_MS, 10)
+  : 10000; // 10 second default timeout for Chrome socket connection
 
 // Parse idle timeout from environment variable (default: 5 minutes)
 function getIdleTimeout(): number {
@@ -93,7 +96,7 @@ function launchChrome(): void {
 }
 
 /**
- * Wait for Chrome to be ready by checking if the port is open
+ * Wait for Chrome to be ready by checking if the port is open and responding
  */
 async function waitForChrome(maxWaitMs = 5000): Promise<void> {
   const startTime = Date.now();
@@ -103,14 +106,24 @@ async function waitForChrome(maxWaitMs = 5000): Promise<void> {
     const isOpen = await checkPort(CHROME_DEBUG_PORT);
 
     if (isOpen) {
-      logger.info(`Chrome port ${CHROME_DEBUG_PORT} is ready`);
-      return;
+      // Verify Chrome is actually responding by checking the /json/version endpoint
+      try {
+        const response = await fetch(`http://localhost:${CHROME_DEBUG_PORT}/json/version`, {
+          signal: AbortSignal.timeout(1000)
+        });
+        if (response.ok) {
+          logger.info(`Chrome port ${CHROME_DEBUG_PORT} is ready and responding`);
+          return;
+        }
+      } catch {
+        // Chrome port is open but not responding yet, continue waiting
+      }
     }
 
     await new Promise((resolve) => setTimeout(resolve, checkInterval));
   }
 
-  throw new Error(`Chrome failed to open port ${CHROME_DEBUG_PORT} within ${maxWaitMs}ms`);
+  throw new Error(`Chrome failed to be ready on port ${CHROME_DEBUG_PORT} within ${maxWaitMs}ms`);
 }
 
 /**
@@ -164,6 +177,8 @@ function checkIdleTimeout(): void {
  * Create the TCP server that proxies to Chrome
  */
 const server = createServer(async (clientSocket) => {
+  let chromeSocket: Socket | null = null;
+
   try {
     // Update activity on new connection
     updateActivity();
@@ -180,13 +195,86 @@ const server = createServer(async (clientSocket) => {
     }
 
     // Create connection to Chrome
-    const chromeSocket = connect(CHROME_DEBUG_PORT, 'localhost');
+    logger.info(`Client connected, establishing connection to Chrome on port ${CHROME_DEBUG_PORT}`);
+    chromeSocket = connect(CHROME_DEBUG_PORT, 'localhost');
 
-    chromeSocket.on('connect', () => {
-      // Pipe data bidirectionally
-      clientSocket.pipe(chromeSocket);
-      chromeSocket.pipe(clientSocket);
+    // Set connection timeout on the socket
+    chromeSocket.setTimeout(CHROME_SOCKET_TIMEOUT_MS);
+
+    // Set up error handlers before connect event
+    chromeSocket.on('error', (err) => {
+      logger.error('Chrome connection error:', err);
+      if (!clientSocket.destroyed) {
+        clientSocket.end();
+      }
     });
+
+    chromeSocket.on('timeout', () => {
+      logger.error(`Chrome socket timeout after ${CHROME_SOCKET_TIMEOUT_MS}ms`);
+      if (chromeSocket && !chromeSocket.destroyed) {
+        chromeSocket.destroy();
+      }
+      if (!clientSocket.destroyed) {
+        clientSocket.end();
+      }
+    });
+
+    clientSocket.on('error', (err) => {
+      logger.error('Client socket error:', err);
+      if (chromeSocket && !chromeSocket.destroyed) {
+        chromeSocket.end();
+      }
+    });
+
+    // Wait for chrome socket to be ready before piping
+    await new Promise<void>((resolve, reject) => {
+      if (!chromeSocket) {
+        reject(new Error('Chrome socket not initialized'));
+        return;
+      }
+
+      chromeSocket.once('connect', () => {
+        logger.info('Chrome socket connected successfully');
+        resolve();
+      });
+
+      chromeSocket.once('error', (err) => {
+        logger.error('Chrome socket connection error during handshake:', err);
+        reject(err);
+      });
+
+      chromeSocket.once('timeout', () => {
+        const err = new Error(`Chrome socket connection timeout after ${CHROME_SOCKET_TIMEOUT_MS}ms`);
+        logger.error(err.message);
+        reject(err);
+      });
+
+      // Timeout handler for the promise
+      const timeout = setTimeout(() => {
+        reject(new Error(`Chrome socket connection timeout after ${CHROME_SOCKET_TIMEOUT_MS}ms`));
+      }, CHROME_SOCKET_TIMEOUT_MS);
+
+      chromeSocket.once('connect', () => {
+        clearTimeout(timeout);
+      });
+
+      chromeSocket.once('error', () => {
+        clearTimeout(timeout);
+      });
+
+      chromeSocket.once('timeout', () => {
+        clearTimeout(timeout);
+      });
+    });
+
+    // Now that Chrome is connected, set up bidirectional piping
+    logger.info('Setting up bidirectional pipe between client and Chrome');
+
+    // Remove the timeout once connected, as we'll track activity instead
+    chromeSocket.setTimeout(0);
+
+    clientSocket.pipe(chromeSocket);
+    chromeSocket.pipe(clientSocket);
 
     // Update activity on data transfer
     clientSocket.on('data', () => {
@@ -197,26 +285,25 @@ const server = createServer(async (clientSocket) => {
       updateActivity();
     });
 
-    chromeSocket.on('error', (err) => {
-      logger.error('Chrome connection error:', err);
-      clientSocket.end();
-    });
-
-    clientSocket.on('error', (err) => {
-      logger.error('Client socket error:', err);
-      chromeSocket.end();
-    });
-
     chromeSocket.on('close', () => {
-      clientSocket.end();
+      if (!clientSocket.destroyed) {
+        clientSocket.end();
+      }
     });
 
     clientSocket.on('close', () => {
-      chromeSocket.end();
+      if (chromeSocket && !chromeSocket.destroyed) {
+        chromeSocket.end();
+      }
     });
   } catch (err) {
     logger.error('Connection error:', err);
-    clientSocket.end();
+    if (chromeSocket && !chromeSocket.destroyed) {
+      chromeSocket.destroy();
+    }
+    if (!clientSocket.destroyed) {
+      clientSocket.end();
+    }
   }
 });
 
@@ -224,6 +311,7 @@ server.listen(LISTEN_PORT, () => {
   logger.info(`Chrome proxy server listening on port ${LISTEN_PORT}`);
   logger.info(`Will forward to Chrome on port ${CHROME_DEBUG_PORT}`);
   logger.info(`Chrome user data dir: ${CHROME_USER_DATA_DIR}`);
+  logger.info(`Chrome socket timeout: ${CHROME_SOCKET_TIMEOUT_MS}ms`);
   logger.info(`Idle timeout: ${IDLE_TIMEOUT_MS}ms (${Math.floor(IDLE_TIMEOUT_MS / 60000)} minutes)`);
 
   // Start idle timeout checker

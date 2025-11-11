@@ -5,9 +5,9 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
-"@anthropic-ai/claude-agent-sdk@npm:0.1.30":
-  version: 0.1.30
-  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.1.30"
+"@anthropic-ai/claude-agent-sdk@npm:^0.1.37":
+  version: 0.1.37
+  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.1.37"
   dependencies:
     "@img/sharp-darwin-arm64": "npm:^0.33.5"
     "@img/sharp-darwin-x64": "npm:^0.33.5"
@@ -30,42 +30,13 @@ __metadata:
       optional: true
     "@img/sharp-win32-x64":
       optional: true
-  checksum: 10c0/644d563e761b7970b5ac973ef04a1b0cb814ceb3cf37d423ab1e453bc42d9b95667e87d229c948a17b586a4d970ccf4a5bc7d03c6820f1b8b0491ee8016dc30a
+  checksum: 10c0/38674ac7a54e425e25f55b94b12da4363e992de05d9e8223c32dc025900610b64a773cdb6a3e82cd2e0cf5fb51126a870cfe9549d50c44b98a32116c3e4b3b83
   languageName: node
   linkType: hard
 
-"@anthropic-ai/claude-agent-sdk@npm:^0.1.30":
-  version: 0.1.35
-  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.1.35"
-  dependencies:
-    "@img/sharp-darwin-arm64": "npm:^0.33.5"
-    "@img/sharp-darwin-x64": "npm:^0.33.5"
-    "@img/sharp-linux-arm": "npm:^0.33.5"
-    "@img/sharp-linux-arm64": "npm:^0.33.5"
-    "@img/sharp-linux-x64": "npm:^0.33.5"
-    "@img/sharp-win32-x64": "npm:^0.33.5"
-  peerDependencies:
-    zod: ^3.24.1
-  dependenciesMeta:
-    "@img/sharp-darwin-arm64":
-      optional: true
-    "@img/sharp-darwin-x64":
-      optional: true
-    "@img/sharp-linux-arm":
-      optional: true
-    "@img/sharp-linux-arm64":
-      optional: true
-    "@img/sharp-linux-x64":
-      optional: true
-    "@img/sharp-win32-x64":
-      optional: true
-  checksum: 10c0/c902c15641bd6575d44029af62bcaaab642db6b4c07bec049e3ea8d30963be029a0274fd7d0848fd213dfc8b8b2ce8379ac5b9f4024dcd5c27cf7b7e4f406f93
-  languageName: node
-  linkType: hard
-
-"@anthropic-ai/claude-code@npm:^2.0.35":
-  version: 2.0.35
-  resolution: "@anthropic-ai/claude-code@npm:2.0.35"
+"@anthropic-ai/claude-code@npm:^2.0.37":
+  version: 2.0.37
+  resolution: "@anthropic-ai/claude-code@npm:2.0.37"
   dependencies:
     "@img/sharp-darwin-arm64": "npm:^0.33.5"
     "@img/sharp-darwin-x64": "npm:^0.33.5"
@@ -88,7 +59,7 @@ __metadata:
       optional: true
   bin:
     claude: cli.js
-  checksum: 10c0/1b1db6c5f63208701d7f9ca61be0b1f4fbcbec011912805be0ab8161961f76853a5e9c418200379d90f0c7f28f5252987497615ca576981c40bcb296a40e470a
+  checksum: 10c0/18d1d44889fb928b6a668939a60cb8182386f89a2c97c1610a348c1f732c2c691697fe78613325697a46d782cdf5168558cca9ce0ab4b14a9ec01e8f6514f8b1
   languageName: node
   linkType: hard
 
@@ -872,7 +843,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/browser-mcp-server@workspace:packages/mcp/browser"
   dependencies:
-    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.30"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.37"
     "@goodfoot/test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.21.0"
     "@types/jest": "npm:^30.0.0"
@@ -895,7 +866,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/codebase-mcp-server@workspace:packages/mcp/codebase"
   dependencies:
-    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.30"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.37"
     "@goodfoot/test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.21.0"
     "@types/jest": "npm:^30.0.0"
@@ -958,8 +929,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/marketplace@workspace:."
   dependencies:
-    "@anthropic-ai/claude-agent-sdk": "npm:0.1.30"
-    "@anthropic-ai/claude-code": "npm:^2.0.35"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.37"
+    "@anthropic-ai/claude-code": "npm:^2.0.37"
     "@changesets/get-dependents-graph": "npm:^2.1.3"
     "@eslint/js": "npm:^9.36.0"
     "@types/js-yaml": "npm:^4.0.9"
@@ -991,7 +962,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/mcp-wrapper-server@workspace:packages/mcp/wrapper"
   dependencies:
-    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.30"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.37"
     "@goodfoot/test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.21.1"
     "@types/jest": "npm:^30.0.0"
@@ -1036,7 +1007,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/test-agent-mcp-server@workspace:packages/mcp/test-agent"
   dependencies:
-    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.30"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.37"
     "@goodfoot/test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.21.0"
     "@types/jest": "npm:^30.0.0"
