@@ -28,7 +28,11 @@ import {
   validateAgentToolResponse,
   AgentOutputArguments,
   AgentOutputArgumentsSchema,
-  validateAgentOutputArguments
+  validateAgentOutputArguments,
+  WrapperOptions,
+  WrapperOptionsSchema,
+  isWrapperOptions,
+  validateWrapperOptions
 } from '../src/types/wrapper.js';
 
 describe('TransportType', () => {
@@ -1125,6 +1129,370 @@ describe('AgentOutputArguments', () => {
           block: 'true'
         })
       ).toThrow(/Invalid output tool arguments/);
+    });
+  });
+});
+
+describe('WrapperOptions', () => {
+  describe('interface', () => {
+    it('should accept all optional properties', () => {
+      const options: WrapperOptions = {
+        systemPrompt: 'Custom system prompt',
+        appendSystemPrompt: 'Additional instructions',
+        systemPromptFile: '/path/to/prompt.txt'
+      };
+      expect(options.systemPrompt).toBe('Custom system prompt');
+      expect(options.appendSystemPrompt).toBe('Additional instructions');
+      expect(options.systemPromptFile).toBe('/path/to/prompt.txt');
+    });
+
+    it('should accept empty options object', () => {
+      const options: WrapperOptions = {};
+      expect(options).toEqual({});
+    });
+
+    it('should accept only systemPrompt', () => {
+      const options: WrapperOptions = {
+        systemPrompt: 'Custom prompt'
+      };
+      expect(options.systemPrompt).toBe('Custom prompt');
+      expect(options.appendSystemPrompt).toBeUndefined();
+      expect(options.systemPromptFile).toBeUndefined();
+    });
+
+    it('should accept only appendSystemPrompt', () => {
+      const options: WrapperOptions = {
+        appendSystemPrompt: 'Append this'
+      };
+      expect(options.appendSystemPrompt).toBe('Append this');
+      expect(options.systemPrompt).toBeUndefined();
+      expect(options.systemPromptFile).toBeUndefined();
+    });
+
+    it('should accept only systemPromptFile', () => {
+      const options: WrapperOptions = {
+        systemPromptFile: '/path/to/file.txt'
+      };
+      expect(options.systemPromptFile).toBe('/path/to/file.txt');
+      expect(options.systemPrompt).toBeUndefined();
+      expect(options.appendSystemPrompt).toBeUndefined();
+    });
+  });
+
+  describe('Zod schema', () => {
+    it('should validate valid options with all properties', () => {
+      const options = {
+        systemPrompt: 'Custom system prompt',
+        appendSystemPrompt: 'Additional instructions',
+        systemPromptFile: '/path/to/prompt.txt'
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.systemPrompt).toBe('Custom system prompt');
+        expect(result.data.appendSystemPrompt).toBe('Additional instructions');
+        expect(result.data.systemPromptFile).toBe('/path/to/prompt.txt');
+      }
+    });
+
+    it('should validate empty options object', () => {
+      const options = {};
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({});
+      }
+    });
+
+    it('should validate options with only systemPrompt', () => {
+      const options = {
+        systemPrompt: 'Custom prompt'
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.systemPrompt).toBe('Custom prompt');
+        expect(result.data.appendSystemPrompt).toBeUndefined();
+        expect(result.data.systemPromptFile).toBeUndefined();
+      }
+    });
+
+    it('should validate options with only appendSystemPrompt', () => {
+      const options = {
+        appendSystemPrompt: 'Append this'
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.appendSystemPrompt).toBe('Append this');
+      }
+    });
+
+    it('should validate options with only systemPromptFile', () => {
+      const options = {
+        systemPromptFile: '/absolute/path/to/file.txt'
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.systemPromptFile).toBe('/absolute/path/to/file.txt');
+      }
+    });
+
+    it('should reject non-string systemPrompt', () => {
+      const options = {
+        systemPrompt: 123
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject non-string appendSystemPrompt', () => {
+      const options = {
+        appendSystemPrompt: true
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject non-string systemPromptFile', () => {
+      const options = {
+        systemPromptFile: ['path', 'to', 'file']
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(false);
+    });
+
+    it('should allow empty strings for all properties', () => {
+      const options = {
+        systemPrompt: '',
+        appendSystemPrompt: '',
+        systemPromptFile: ''
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject null values', () => {
+      const options = {
+        systemPrompt: null
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject undefined in explicit property (allows omitting)', () => {
+      const options = {
+        systemPrompt: 'Valid',
+        appendSystemPrompt: undefined
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      // Zod treats explicit undefined as omitted, so this should succeed
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject unknown properties', () => {
+      const options = {
+        systemPrompt: 'Valid',
+        unknownProperty: 'Invalid'
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      // Zod by default strips unknown properties, so this succeeds
+      // unless we use .strict() which we don't for backward compatibility
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual({ systemPrompt: 'Valid' });
+      }
+    });
+  });
+
+  describe('type guard', () => {
+    it('should return true for valid empty options', () => {
+      const options = {};
+      expect(isWrapperOptions(options)).toBe(true);
+    });
+
+    it('should return true for valid options with all properties', () => {
+      const options = {
+        systemPrompt: 'Custom prompt',
+        appendSystemPrompt: 'Append',
+        systemPromptFile: '/path/to/file'
+      };
+      expect(isWrapperOptions(options)).toBe(true);
+    });
+
+    it('should return true for valid options with single property', () => {
+      const options = {
+        systemPrompt: 'Custom prompt'
+      };
+      expect(isWrapperOptions(options)).toBe(true);
+    });
+
+    it('should return false for null', () => {
+      expect(isWrapperOptions(null)).toBe(false);
+    });
+
+    it('should return false for undefined', () => {
+      expect(isWrapperOptions(undefined)).toBe(false);
+    });
+
+    it('should return false for non-object', () => {
+      expect(isWrapperOptions('string')).toBe(false);
+      expect(isWrapperOptions(123)).toBe(false);
+      expect(isWrapperOptions(true)).toBe(false);
+    });
+
+    it('should return false for object with invalid property types', () => {
+      const options = {
+        systemPrompt: 123
+      };
+      expect(isWrapperOptions(options)).toBe(false);
+    });
+
+    it('should return true for object with extra properties (strips them)', () => {
+      const options = {
+        systemPrompt: 'Valid',
+        extraProperty: 'Ignored'
+      };
+      expect(isWrapperOptions(options)).toBe(true);
+    });
+  });
+
+  describe('validator', () => {
+    it('should return valid empty options', () => {
+      const options = {};
+      const validated = validateWrapperOptions(options);
+      expect(validated).toEqual({});
+    });
+
+    it('should return valid options with all properties', () => {
+      const options = {
+        systemPrompt: 'Custom prompt',
+        appendSystemPrompt: 'Append',
+        systemPromptFile: '/path/to/file'
+      };
+      const validated = validateWrapperOptions(options);
+      expect(validated.systemPrompt).toBe('Custom prompt');
+      expect(validated.appendSystemPrompt).toBe('Append');
+      expect(validated.systemPromptFile).toBe('/path/to/file');
+    });
+
+    it('should return valid options with only systemPrompt', () => {
+      const options = {
+        systemPrompt: 'Custom prompt'
+      };
+      const validated = validateWrapperOptions(options);
+      expect(validated.systemPrompt).toBe('Custom prompt');
+      expect(validated.appendSystemPrompt).toBeUndefined();
+    });
+
+    it('should throw for null', () => {
+      expect(() => validateWrapperOptions(null)).toThrow(/Invalid wrapper options/);
+    });
+
+    it('should throw for undefined', () => {
+      expect(() => validateWrapperOptions(undefined)).toThrow(/Invalid wrapper options/);
+    });
+
+    it('should throw for non-object', () => {
+      expect(() => validateWrapperOptions('string')).toThrow(/Invalid wrapper options/);
+      expect(() => validateWrapperOptions(123)).toThrow(/Invalid wrapper options/);
+    });
+
+    it('should throw for invalid property types', () => {
+      expect(() =>
+        validateWrapperOptions({
+          systemPrompt: 123
+        })
+      ).toThrow(/Invalid wrapper options/);
+    });
+
+    it('should strip unknown properties', () => {
+      const options = {
+        systemPrompt: 'Valid',
+        unknownProperty: 'Should be stripped'
+      };
+      const validated = validateWrapperOptions(options);
+      expect(validated).toEqual({ systemPrompt: 'Valid' });
+      expect('unknownProperty' in validated).toBe(false);
+    });
+
+    it('should handle array input gracefully', () => {
+      expect(() => validateWrapperOptions([])).toThrow(/Invalid wrapper options/);
+    });
+
+    it('should include received value in error message for debugging', () => {
+      try {
+        validateWrapperOptions(null);
+        fail('Should have thrown');
+      } catch (error) {
+        expect((error as Error).message).toContain('null');
+      }
+    });
+  });
+
+  describe('backward compatibility', () => {
+    it('should support no flags provided (empty object)', () => {
+      const options: WrapperOptions = {};
+      const validated = validateWrapperOptions(options);
+      expect(validated).toEqual({});
+    });
+
+    it('should not require any properties', () => {
+      const options: WrapperOptions = {};
+      expect(options.systemPrompt).toBeUndefined();
+      expect(options.appendSystemPrompt).toBeUndefined();
+      expect(options.systemPromptFile).toBeUndefined();
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle very long system prompt strings', () => {
+      const longPrompt = 'A'.repeat(10000);
+      const options = {
+        systemPrompt: longPrompt
+      };
+      const validated = validateWrapperOptions(options);
+      expect(validated.systemPrompt).toBe(longPrompt);
+      expect(validated.systemPrompt?.length).toBe(10000);
+    });
+
+    it('should handle special characters in strings', () => {
+      const options = {
+        systemPrompt: 'Line 1\nLine 2\tTabbed',
+        appendSystemPrompt: 'Quote: "test" Apostrophe: \'test\'',
+        systemPromptFile: '/path/with spaces/and-special_chars/file.txt'
+      };
+      const validated = validateWrapperOptions(options);
+      expect(validated.systemPrompt).toContain('\n');
+      expect(validated.appendSystemPrompt).toContain('"');
+      expect(validated.systemPromptFile).toContain(' ');
+    });
+
+    it('should handle unicode characters', () => {
+      const options = {
+        systemPrompt: 'Unicode: 你好 🚀 émoji',
+        appendSystemPrompt: 'Symbols: ™ © ® § ¶'
+      };
+      const validated = validateWrapperOptions(options);
+      expect(validated.systemPrompt).toContain('你好');
+      expect(validated.appendSystemPrompt).toContain('™');
+    });
+
+    it('should handle Windows-style paths', () => {
+      const options = {
+        systemPromptFile: 'C:\\Users\\test\\prompt.txt'
+      };
+      const validated = validateWrapperOptions(options);
+      expect(validated.systemPromptFile).toBe('C:\\Users\\test\\prompt.txt');
+    });
+
+    it('should handle Unix-style paths', () => {
+      const options = {
+        systemPromptFile: '/home/user/.config/prompt.txt'
+      };
+      const validated = validateWrapperOptions(options);
+      expect(validated.systemPromptFile).toBe('/home/user/.config/prompt.txt');
     });
   });
 });

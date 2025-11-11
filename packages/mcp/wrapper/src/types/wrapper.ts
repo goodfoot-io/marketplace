@@ -447,3 +447,65 @@ export function validateAgentOutputArguments(value: unknown): AgentOutputArgumen
   }
   return result.data;
 }
+
+/**
+ * Configuration options for the wrapper server
+ * All properties are optional for backward compatibility
+ */
+export interface WrapperOptions {
+  /** Custom system prompt to replace the default */
+  systemPrompt?: string;
+  /** Additional text to append to the default system prompt */
+  appendSystemPrompt?: string;
+  /** Path to a file containing the system prompt */
+  systemPromptFile?: string;
+}
+
+/**
+ * Zod schema for WrapperOptions with runtime validation
+ */
+export const WrapperOptionsSchema = z.object({
+  systemPrompt: z.string().optional(),
+  appendSystemPrompt: z.string().optional(),
+  systemPromptFile: z.string().optional()
+});
+
+/**
+ * Type guard to check if a value is a valid WrapperOptions object
+ */
+export function isWrapperOptions(value: unknown): value is WrapperOptions {
+  const result = WrapperOptionsSchema.safeParse(value);
+  return result.success;
+}
+
+/**
+ * Validates and narrows the type of wrapper options
+ * @throws {Error} if validation fails
+ */
+export function validateWrapperOptions(value: unknown): WrapperOptions {
+  const result = WrapperOptionsSchema.safeParse(value);
+  if (!result.success) {
+    let received: string;
+    if (value === null) {
+      received = 'null';
+    } else if (value === undefined) {
+      received = 'undefined';
+    } else if (typeof value === 'object') {
+      try {
+        received = JSON.stringify(value);
+      } catch {
+        received = '[object with circular reference]';
+      }
+    } else if (typeof value === 'string') {
+      received = `"${value}"`;
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      received = String(value);
+    } else {
+      received = typeof value;
+    }
+    throw new Error(
+      `Invalid wrapper options. Expected {systemPrompt?: string, appendSystemPrompt?: string, systemPromptFile?: string}, received: ${received}`
+    );
+  }
+  return result.data;
+}
