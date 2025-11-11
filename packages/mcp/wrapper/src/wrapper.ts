@@ -46,6 +46,60 @@ export async function loadSystemPromptFromFile(filePath: string): Promise<string
 }
 
 /**
+ * Display help text for the MCP wrapper CLI
+ *
+ * @returns Help text string with usage, flags, and examples
+ */
+export function displayHelp(): string {
+  return `MCP Wrapper Server - Dynamic tool discovery wrapper for multiple MCP servers
+
+Usage:
+  wrapper-mcp-server [--system-prompt <text> | --append-system-prompt <text> | --system-prompt-file <path>] -- <server-name> --transport stdio|http <args...> [-- <next-server> ...]
+  wrapper-mcp-server -h | --help
+
+Global Flags (mutually exclusive):
+  --system-prompt <text>        Replace the default system prompt with custom text
+  --append-system-prompt <text> Append additional instructions to the default system prompt
+  --system-prompt-file <path>   Load system prompt from a file (must be absolute path)
+
+Help Flags:
+  -h, --help                    Show this help message and exit
+
+Server Configuration:
+  Each server is separated by "--" and follows this pattern:
+    -- <server-name> --transport stdio|http <args...>
+
+  For stdio transport:
+    -- <server-name> --transport stdio <command> [args...]
+    Example: -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
+
+  For http transport:
+    -- <server-name> --transport http <url> [-H "Header: Value"]...
+    Example: -- hugging-face --transport http https://huggingface.co/mcp -H "Authorization: Bearer token"
+
+  Transport defaults to stdio if --transport is omitted.
+
+Examples:
+  # Single server with stdio transport
+  wrapper-mcp-server -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
+
+  # Multiple servers
+  wrapper-mcp-server -- hf --transport http https://huggingface.co/mcp -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
+
+  # With custom system prompt
+  wrapper-mcp-server --system-prompt "You are a specialized assistant" -- server --transport stdio node server.js
+
+  # With appended instructions
+  wrapper-mcp-server --append-system-prompt "Always be concise" -- server --transport stdio node server.js
+
+  # With system prompt from file
+  wrapper-mcp-server --system-prompt-file /path/to/prompt.txt -- server --transport stdio node server.js
+
+For more information, visit: https://github.com/goodfoot/mcp-wrapper-server
+`;
+}
+
+/**
  * Parse global CLI flags before server configurations
  *
  * Extracts system prompt flags (--system-prompt, --append-system-prompt, --system-prompt-file)
@@ -59,12 +113,16 @@ export function parseGlobalFlags(argv: string[]): { options: WrapperOptions; rem
   const options: WrapperOptions = {};
   const remainingArgv: string[] = [];
 
-  // Find the first "--" separator
+  // Check for help flags first (anywhere in argv before first "--")
   const firstSeparatorIndex = argv.indexOf('--');
-
-  // Determine where global args end
   const globalArgsEnd = firstSeparatorIndex === -1 ? argv.length : firstSeparatorIndex;
   const globalArgs = argv.slice(0, globalArgsEnd);
+
+  if (globalArgs.includes('-h') || globalArgs.includes('--help')) {
+    throw new Error(displayHelp());
+  }
+
+  // Determine where global args end
   const afterSeparator = firstSeparatorIndex === -1 ? [] : argv.slice(firstSeparatorIndex);
 
   // Parse global flags
@@ -75,33 +133,33 @@ export function parseGlobalFlags(argv: string[]): { options: WrapperOptions; rem
     if (arg === '--system-prompt') {
       // Check if there's a value after this flag
       if (i + 1 >= globalArgs.length) {
-        throw new Error('--system-prompt flag requires a value');
+        throw new Error(`--system-prompt flag requires a value\n\n${displayHelp()}`);
       }
       const nextArg = globalArgs[i + 1];
       if (nextArg === '--') {
-        throw new Error('--system-prompt flag requires a value');
+        throw new Error(`--system-prompt flag requires a value\n\n${displayHelp()}`);
       }
       options.systemPrompt = nextArg;
       i += 2; // Skip flag and value
     } else if (arg === '--append-system-prompt') {
       // Check if there's a value after this flag
       if (i + 1 >= globalArgs.length) {
-        throw new Error('--append-system-prompt flag requires a value');
+        throw new Error(`--append-system-prompt flag requires a value\n\n${displayHelp()}`);
       }
       const nextArg = globalArgs[i + 1];
       if (nextArg === '--') {
-        throw new Error('--append-system-prompt flag requires a value');
+        throw new Error(`--append-system-prompt flag requires a value\n\n${displayHelp()}`);
       }
       options.appendSystemPrompt = nextArg;
       i += 2; // Skip flag and value
     } else if (arg === '--system-prompt-file') {
       // Check if there's a value after this flag
       if (i + 1 >= globalArgs.length) {
-        throw new Error('--system-prompt-file flag requires a value');
+        throw new Error(`--system-prompt-file flag requires a value\n\n${displayHelp()}`);
       }
       const nextArg = globalArgs[i + 1];
       if (nextArg === '--') {
-        throw new Error('--system-prompt-file flag requires a value');
+        throw new Error(`--system-prompt-file flag requires a value\n\n${displayHelp()}`);
       }
       options.systemPromptFile = nextArg;
       i += 2; // Skip flag and value
@@ -120,7 +178,7 @@ export function parseGlobalFlags(argv: string[]): { options: WrapperOptions; rem
 
   if (flagCount > 1) {
     throw new Error(
-      'Only one system prompt flag can be used at a time: --system-prompt, --append-system-prompt, or --system-prompt-file'
+      `Only one system prompt flag can be used at a time: --system-prompt, --append-system-prompt, or --system-prompt-file\n\n${displayHelp()}`
     );
   }
 
@@ -160,7 +218,7 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
 
   if (firstSeparatorIndex === -1) {
     throw new Error(
-      'No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>'
+      `No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>\n\n${displayHelp()}`
     );
   }
 
@@ -189,7 +247,7 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
 
   if (serverGroups.length === 0) {
     throw new Error(
-      'No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>'
+      `No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>\n\n${displayHelp()}`
     );
   }
 
@@ -204,12 +262,12 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
     // First arg is the server name
     const name = group[0];
     if (!name) {
-      throw new Error('Server name is required as first argument after "--"');
+      throw new Error(`Server name is required as first argument after "--"\n\n${displayHelp()}`);
     }
 
     // Server name cannot start with "--" (it's not a flag)
     if (name.startsWith('--')) {
-      throw new Error(`Server name cannot start with "--". Received: "${name}"`);
+      throw new Error(`Server name cannot start with "--". Received: "${name}"\n\n${displayHelp()}`);
     }
 
     // Find --transport flag (default to stdio if not specified)
@@ -220,12 +278,14 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
     if (transportIndex !== -1) {
       // Transport flag found
       if (transportIndex + 1 >= group.length) {
-        throw new Error(`Server "${name}": --transport flag requires a value (stdio or http)`);
+        throw new Error(`Server "${name}": --transport flag requires a value (stdio or http)\n\n${displayHelp()}`);
       }
 
       const transportValue = group[transportIndex + 1];
       if (transportValue !== 'stdio' && transportValue !== 'http') {
-        throw new Error(`Server "${name}": Invalid transport type "${transportValue}". Expected "stdio" or "http"`);
+        throw new Error(
+          `Server "${name}": Invalid transport type "${transportValue}". Expected "stdio" or "http"\n\n${displayHelp()}`
+        );
       }
 
       transport = transportValue;
@@ -242,7 +302,7 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
       // For stdio: first remaining arg is command, rest are args
       // Headers are NOT parsed for stdio - they're passed through to the command
       if (remainingArgs.length === 0) {
-        throw new Error(`Server "${name}": stdio transport requires at least a command`);
+        throw new Error(`Server "${name}": stdio transport requires at least a command\n\n${displayHelp()}`);
       }
 
       const command = remainingArgs[0];
@@ -265,7 +325,7 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
         if (arg === '-H' || arg === '--header') {
           // Next argument should be the header value
           if (i + 1 >= remainingArgs.length) {
-            throw new Error(`Server "${name}": ${arg} flag requires a value`);
+            throw new Error(`Server "${name}": ${arg} flag requires a value\n\n${displayHelp()}`);
           }
 
           const headerValue = remainingArgs[i + 1];
@@ -274,7 +334,7 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
           const colonIndex = headerValue.indexOf(':');
           if (colonIndex === -1) {
             throw new Error(
-              `Server "${name}": Invalid header format "${headerValue}". Expected "Header-Name: Header-Value"`
+              `Server "${name}": Invalid header format "${headerValue}". Expected "Header-Name: Header-Value"\n\n${displayHelp()}`
             );
           }
 
@@ -282,7 +342,7 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
           const headerVal = headerValue.substring(colonIndex + 1).trim();
 
           if (!headerName) {
-            throw new Error(`Server "${name}": Header name cannot be empty in "${headerValue}"`);
+            throw new Error(`Server "${name}": Header name cannot be empty in "${headerValue}"\n\n${displayHelp()}`);
           }
 
           headers[headerName] = headerVal;
@@ -296,14 +356,16 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
 
       // For HTTP: remaining arg should be a URL (after filtering headers)
       if (filteredArgs.length === 0) {
-        throw new Error(`Server "${name}": http transport requires a URL`);
+        throw new Error(`Server "${name}": http transport requires a URL\n\n${displayHelp()}`);
       }
 
       const url = filteredArgs[0];
 
       // Basic URL validation
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        throw new Error(`Server "${name}": Invalid URL "${url}". Must start with http:// or https://`);
+        throw new Error(
+          `Server "${name}": Invalid URL "${url}". Must start with http:// or https://\n\n${displayHelp()}`
+        );
       }
 
       const httpConfig: ServerConfig = {
@@ -322,7 +384,7 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
   }
 
   if (configs.length === 0) {
-    throw new Error('No valid server configurations parsed');
+    throw new Error(`No valid server configurations parsed\n\n${displayHelp()}`);
   }
 
   return { configs, options };
