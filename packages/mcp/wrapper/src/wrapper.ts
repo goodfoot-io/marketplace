@@ -61,6 +61,7 @@ export function displayHelp(): string {
 
 Usage:
   wrapper-mcp-server [--system-prompt <text> | --append-system-prompt <text> | --system-prompt-file <path>] -- <server-name> --transport stdio|http <args...> [-- <next-server> ...]
+  wrapper-mcp-server --template <reference> [--system-prompt <text> | --append-system-prompt <text> | --system-prompt-file <path>]
   wrapper-mcp-server -h | --help
 
 Global Flags (mutually exclusive):
@@ -70,6 +71,24 @@ Global Flags (mutually exclusive):
 
 Help Flags:
   -h, --help                    Show this help message and exit
+
+TEMPLATE MODE:
+  --template <reference>    Load server configuration from a template
+
+  Reference formats (resolution order: absolute → relative → packaged → local → GitHub):
+    - Packaged template:  github | sqlite | postgres
+    - Local template:     my-template (from $CLAUDE_CONFIG_DIR/mcp-wrapper-templates/)
+    - File path:          ./templates/custom.json | /absolute/path/to/template.json
+    - GitHub repo:        user/repo | user/repo@branch | user/repo/path/template.json
+
+  Pre-packaged templates:
+    - github:    GitHub API access with token authentication
+    - sqlite:    SQLite database access
+    - postgres:  PostgreSQL database access
+
+  Note: Templates cannot be combined with explicit server configurations.
+        Use either --template or server configs, not both. Templates are
+        mutually exclusive with the "--" server configuration syntax.
 
 Server Configuration:
   Each server is separated by "--" and follows this pattern:
@@ -86,6 +105,18 @@ Server Configuration:
   Transport defaults to stdio if --transport is omitted.
 
 Examples:
+  # Using a pre-packaged template
+  wrapper-mcp-server --template github
+
+  # Using a local template file
+  wrapper-mcp-server --template ./my-config.json
+
+  # Using a GitHub template
+  wrapper-mcp-server --template goodfoot/templates/github.json
+
+  # Template with system prompt
+  wrapper-mcp-server --template github --system-prompt "Be helpful"
+
   # Single server with stdio transport
   wrapper-mcp-server -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
 
