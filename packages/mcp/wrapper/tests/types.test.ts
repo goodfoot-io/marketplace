@@ -1153,11 +1153,13 @@ describe('WrapperOptions', () => {
       const options: WrapperOptions = {
         systemPrompt: 'Custom system prompt',
         appendSystemPrompt: 'Additional instructions',
-        systemPromptFile: '/path/to/prompt.txt'
+        systemPromptFile: '/path/to/prompt.txt',
+        template: 'github'
       };
       expect(options.systemPrompt).toBe('Custom system prompt');
       expect(options.appendSystemPrompt).toBe('Additional instructions');
       expect(options.systemPromptFile).toBe('/path/to/prompt.txt');
+      expect(options.template).toBe('github');
     });
 
     it('should accept empty options object', () => {
@@ -1172,6 +1174,7 @@ describe('WrapperOptions', () => {
       expect(options.systemPrompt).toBe('Custom prompt');
       expect(options.appendSystemPrompt).toBeUndefined();
       expect(options.systemPromptFile).toBeUndefined();
+      expect(options.template).toBeUndefined();
     });
 
     it('should accept only appendSystemPrompt', () => {
@@ -1181,6 +1184,7 @@ describe('WrapperOptions', () => {
       expect(options.appendSystemPrompt).toBe('Append this');
       expect(options.systemPrompt).toBeUndefined();
       expect(options.systemPromptFile).toBeUndefined();
+      expect(options.template).toBeUndefined();
     });
 
     it('should accept only systemPromptFile', () => {
@@ -1190,6 +1194,38 @@ describe('WrapperOptions', () => {
       expect(options.systemPromptFile).toBe('/path/to/file.txt');
       expect(options.systemPrompt).toBeUndefined();
       expect(options.appendSystemPrompt).toBeUndefined();
+      expect(options.template).toBeUndefined();
+    });
+
+    it('should accept only template', () => {
+      const options: WrapperOptions = {
+        template: 'github'
+      };
+      expect(options.template).toBe('github');
+      expect(options.systemPrompt).toBeUndefined();
+      expect(options.appendSystemPrompt).toBeUndefined();
+      expect(options.systemPromptFile).toBeUndefined();
+    });
+
+    it('should accept template with built-in reference', () => {
+      const options: WrapperOptions = {
+        template: 'github'
+      };
+      expect(options.template).toBe('github');
+    });
+
+    it('should accept template with file path reference', () => {
+      const options: WrapperOptions = {
+        template: './custom-template.json'
+      };
+      expect(options.template).toBe('./custom-template.json');
+    });
+
+    it('should accept template with GitHub repo reference', () => {
+      const options: WrapperOptions = {
+        template: 'user/repo'
+      };
+      expect(options.template).toBe('user/repo');
     });
   });
 
@@ -1198,7 +1234,8 @@ describe('WrapperOptions', () => {
       const options = {
         systemPrompt: 'Custom system prompt',
         appendSystemPrompt: 'Additional instructions',
-        systemPromptFile: '/path/to/prompt.txt'
+        systemPromptFile: '/path/to/prompt.txt',
+        template: 'github'
       };
       const result = WrapperOptionsSchema.safeParse(options);
       expect(result.success).toBe(true);
@@ -1206,6 +1243,7 @@ describe('WrapperOptions', () => {
         expect(result.data.systemPrompt).toBe('Custom system prompt');
         expect(result.data.appendSystemPrompt).toBe('Additional instructions');
         expect(result.data.systemPromptFile).toBe('/path/to/prompt.txt');
+        expect(result.data.template).toBe('github');
       }
     });
 
@@ -1253,6 +1291,75 @@ describe('WrapperOptions', () => {
       }
     });
 
+    it('should validate options with only template', () => {
+      const options = {
+        template: 'github'
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.template).toBe('github');
+        expect(result.data.systemPrompt).toBeUndefined();
+        expect(result.data.appendSystemPrompt).toBeUndefined();
+        expect(result.data.systemPromptFile).toBeUndefined();
+      }
+    });
+
+    it('should validate template with built-in reference', () => {
+      const options = {
+        template: 'github'
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.template).toBe('github');
+      }
+    });
+
+    it('should validate template with file path reference', () => {
+      const options = {
+        template: './custom-template.json'
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.template).toBe('./custom-template.json');
+      }
+    });
+
+    it('should validate template with GitHub repo reference', () => {
+      const options = {
+        template: 'user/repo'
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.template).toBe('user/repo');
+      }
+    });
+
+    it('should validate template with absolute path', () => {
+      const options = {
+        template: '/absolute/path/to/template.json'
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.template).toBe('/absolute/path/to/template.json');
+      }
+    });
+
+    it('should validate template with empty string', () => {
+      const options = {
+        template: ''
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.template).toBe('');
+      }
+    });
+
     it('should reject non-string systemPrompt', () => {
       const options = {
         systemPrompt: 123
@@ -1277,11 +1384,44 @@ describe('WrapperOptions', () => {
       expect(result.success).toBe(false);
     });
 
+    it('should reject non-string template', () => {
+      const options = {
+        template: { name: 'github' }
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject numeric template', () => {
+      const options = {
+        template: 123
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject boolean template', () => {
+      const options = {
+        template: true
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject array template', () => {
+      const options = {
+        template: ['github', 'gitlab']
+      };
+      const result = WrapperOptionsSchema.safeParse(options);
+      expect(result.success).toBe(false);
+    });
+
     it('should allow empty strings for all properties', () => {
       const options = {
         systemPrompt: '',
         appendSystemPrompt: '',
-        systemPromptFile: ''
+        systemPromptFile: '',
+        template: ''
       };
       const result = WrapperOptionsSchema.safeParse(options);
       expect(result.success).toBe(true);
@@ -1330,7 +1470,8 @@ describe('WrapperOptions', () => {
       const options = {
         systemPrompt: 'Custom prompt',
         appendSystemPrompt: 'Append',
-        systemPromptFile: '/path/to/file'
+        systemPromptFile: '/path/to/file',
+        template: 'github'
       };
       expect(isWrapperOptions(options)).toBe(true);
     });
@@ -1338,6 +1479,27 @@ describe('WrapperOptions', () => {
     it('should return true for valid options with single property', () => {
       const options = {
         systemPrompt: 'Custom prompt'
+      };
+      expect(isWrapperOptions(options)).toBe(true);
+    });
+
+    it('should return true for options with only template', () => {
+      const options = {
+        template: 'github'
+      };
+      expect(isWrapperOptions(options)).toBe(true);
+    });
+
+    it('should return true for template with file path', () => {
+      const options = {
+        template: './custom.json'
+      };
+      expect(isWrapperOptions(options)).toBe(true);
+    });
+
+    it('should return true for template with GitHub repo', () => {
+      const options = {
+        template: 'user/repo'
       };
       expect(isWrapperOptions(options)).toBe(true);
     });
@@ -1363,6 +1525,27 @@ describe('WrapperOptions', () => {
       expect(isWrapperOptions(options)).toBe(false);
     });
 
+    it('should return false for object with invalid template type', () => {
+      const options = {
+        template: 123
+      };
+      expect(isWrapperOptions(options)).toBe(false);
+    });
+
+    it('should return false for object with template as object', () => {
+      const options = {
+        template: { name: 'github' }
+      };
+      expect(isWrapperOptions(options)).toBe(false);
+    });
+
+    it('should return false for object with template as array', () => {
+      const options = {
+        template: ['github', 'gitlab']
+      };
+      expect(isWrapperOptions(options)).toBe(false);
+    });
+
     it('should return true for object with extra properties (strips them)', () => {
       const options = {
         systemPrompt: 'Valid',
@@ -1383,12 +1566,14 @@ describe('WrapperOptions', () => {
       const options = {
         systemPrompt: 'Custom prompt',
         appendSystemPrompt: 'Append',
-        systemPromptFile: '/path/to/file'
+        systemPromptFile: '/path/to/file',
+        template: 'github'
       };
       const validated = validateWrapperOptions(options);
       expect(validated.systemPrompt).toBe('Custom prompt');
       expect(validated.appendSystemPrompt).toBe('Append');
       expect(validated.systemPromptFile).toBe('/path/to/file');
+      expect(validated.template).toBe('github');
     });
 
     it('should return valid options with only systemPrompt', () => {
@@ -1398,6 +1583,34 @@ describe('WrapperOptions', () => {
       const validated = validateWrapperOptions(options);
       expect(validated.systemPrompt).toBe('Custom prompt');
       expect(validated.appendSystemPrompt).toBeUndefined();
+      expect(validated.template).toBeUndefined();
+    });
+
+    it('should return valid options with only template', () => {
+      const options = {
+        template: 'github'
+      };
+      const validated = validateWrapperOptions(options);
+      expect(validated.template).toBe('github');
+      expect(validated.systemPrompt).toBeUndefined();
+      expect(validated.appendSystemPrompt).toBeUndefined();
+      expect(validated.systemPromptFile).toBeUndefined();
+    });
+
+    it('should validate template with file path reference', () => {
+      const options = {
+        template: './custom.json'
+      };
+      const validated = validateWrapperOptions(options);
+      expect(validated.template).toBe('./custom.json');
+    });
+
+    it('should validate template with GitHub repo reference', () => {
+      const options = {
+        template: 'user/repo'
+      };
+      const validated = validateWrapperOptions(options);
+      expect(validated.template).toBe('user/repo');
     });
 
     it('should throw for null', () => {
@@ -1417,6 +1630,38 @@ describe('WrapperOptions', () => {
       expect(() =>
         validateWrapperOptions({
           systemPrompt: 123
+        })
+      ).toThrow(/Invalid wrapper options/);
+    });
+
+    it('should throw for invalid template type (number)', () => {
+      expect(() =>
+        validateWrapperOptions({
+          template: 123
+        })
+      ).toThrow(/Invalid wrapper options/);
+    });
+
+    it('should throw for invalid template type (object)', () => {
+      expect(() =>
+        validateWrapperOptions({
+          template: { name: 'github' }
+        })
+      ).toThrow(/Invalid wrapper options/);
+    });
+
+    it('should throw for invalid template type (array)', () => {
+      expect(() =>
+        validateWrapperOptions({
+          template: ['github', 'gitlab']
+        })
+      ).toThrow(/Invalid wrapper options/);
+    });
+
+    it('should throw for invalid template type (boolean)', () => {
+      expect(() =>
+        validateWrapperOptions({
+          template: true
         })
       ).toThrow(/Invalid wrapper options/);
     });

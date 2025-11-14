@@ -459,6 +459,8 @@ export interface WrapperOptions {
   appendSystemPrompt?: string;
   /** Path to a file containing the system prompt */
   systemPromptFile?: string;
+  /** Template reference for later resolution (e.g., "github", "./custom.json", "user/repo") */
+  template?: string;
 }
 
 /**
@@ -467,7 +469,8 @@ export interface WrapperOptions {
 export const WrapperOptionsSchema = z.object({
   systemPrompt: z.string().optional(),
   appendSystemPrompt: z.string().optional(),
-  systemPromptFile: z.string().optional()
+  systemPromptFile: z.string().optional(),
+  template: z.string().optional()
 });
 
 /**
