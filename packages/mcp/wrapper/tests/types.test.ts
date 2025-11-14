@@ -32,7 +32,21 @@ import {
   WrapperOptions,
   WrapperOptionsSchema,
   isWrapperOptions,
-  validateWrapperOptions
+  validateWrapperOptions,
+  TemplateMetadata,
+  TemplateMetadataSchema,
+  isTemplateMetadata,
+  validateTemplateMetadata,
+  SystemPromptConfig,
+  SystemPromptConfigSchema,
+  isSystemPromptConfig,
+  validateSystemPromptConfig,
+  WrapperTemplate,
+  WrapperTemplateSchema,
+  isWrapperTemplate,
+  validateWrapperTemplate,
+  templateToServerConfig,
+  resolveSystemPrompt
 } from '../src/types/wrapper.js';
 
 describe('TransportType', () => {
@@ -1493,6 +1507,969 @@ describe('WrapperOptions', () => {
       };
       const validated = validateWrapperOptions(options);
       expect(validated.systemPromptFile).toBe('/home/user/.config/prompt.txt');
+    });
+  });
+});
+
+describe('TemplateMetadata', () => {
+  describe('interface', () => {
+    it('should accept valid template metadata with all fields', () => {
+      const metadata: TemplateMetadata = {
+        name: 'github-api-template',
+        description: 'Template for GitHub API access',
+        version: '1.0.0',
+        author: 'Example Author'
+      };
+      expect(metadata.name).toBe('github-api-template');
+      expect(metadata.description).toBe('Template for GitHub API access');
+      expect(metadata.version).toBe('1.0.0');
+      expect(metadata.author).toBe('Example Author');
+    });
+
+    it('should accept metadata without optional author', () => {
+      const metadata: TemplateMetadata = {
+        name: 'minimal-template',
+        description: 'Minimal template',
+        version: '0.1.0'
+      };
+      expect(metadata.author).toBeUndefined();
+    });
+  });
+
+  describe('Zod schema', () => {
+    it('should validate valid metadata', () => {
+      const metadata = {
+        name: 'test-template',
+        description: 'Test template description',
+        version: '1.0.0',
+        author: 'Test Author'
+      };
+      const result = TemplateMetadataSchema.safeParse(metadata);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.name).toBe('test-template');
+        expect(result.data.version).toBe('1.0.0');
+      }
+    });
+
+    it('should reject metadata without name', () => {
+      const metadata = {
+        description: 'Test',
+        version: '1.0.0'
+      };
+      const result = TemplateMetadataSchema.safeParse(metadata);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject metadata with empty name', () => {
+      const metadata = {
+        name: '',
+        description: 'Test',
+        version: '1.0.0'
+      };
+      const result = TemplateMetadataSchema.safeParse(metadata);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject metadata with empty version', () => {
+      const metadata = {
+        name: 'test',
+        description: 'Test',
+        version: ''
+      };
+      const result = TemplateMetadataSchema.safeParse(metadata);
+      expect(result.success).toBe(false);
+    });
+
+    it('should allow optional author field', () => {
+      const metadata = {
+        name: 'test',
+        description: 'Test',
+        version: '1.0.0'
+      };
+      const result = TemplateMetadataSchema.safeParse(metadata);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('type guard', () => {
+    it('should return true for valid metadata', () => {
+      const metadata = {
+        name: 'test',
+        description: 'Test description',
+        version: '1.0.0'
+      };
+      expect(isTemplateMetadata(metadata)).toBe(true);
+    });
+
+    it('should return false for null', () => {
+      expect(isTemplateMetadata(null)).toBe(false);
+    });
+
+    it('should return false for missing required fields', () => {
+      expect(isTemplateMetadata({ name: 'test' })).toBe(false);
+    });
+  });
+
+  describe('validator', () => {
+    it('should return valid metadata', () => {
+      const metadata = {
+        name: 'test',
+        description: 'Test description',
+        version: '1.0.0',
+        author: 'Test Author'
+      };
+      const validated = validateTemplateMetadata(metadata);
+      expect(validated.name).toBe('test');
+      expect(validated.author).toBe('Test Author');
+    });
+
+    it('should throw for invalid metadata', () => {
+      expect(() => validateTemplateMetadata(null)).toThrow(/Invalid template metadata/);
+      expect(() => validateTemplateMetadata({ name: 'test' })).toThrow(/Invalid template metadata/);
+    });
+
+    it('should include received value in error message', () => {
+      expect(() => validateTemplateMetadata(null)).toThrow(/received: null/);
+    });
+  });
+});
+
+describe('SystemPromptConfig', () => {
+  describe('interface', () => {
+    it('should accept text type configuration', () => {
+      const config: SystemPromptConfig = {
+        type: 'text',
+        content: 'Custom system prompt content'
+      };
+      expect(config.type).toBe('text');
+      if (config.type === 'text') {
+        expect(config.content).toBe('Custom system prompt content');
+      }
+    });
+
+    it('should accept file type configuration', () => {
+      const config: SystemPromptConfig = {
+        type: 'file',
+        path: '/absolute/path/to/prompt.txt'
+      };
+      expect(config.type).toBe('file');
+      if (config.type === 'file') {
+        expect(config.path).toBe('/absolute/path/to/prompt.txt');
+      }
+    });
+
+    it('should accept append type configuration', () => {
+      const config: SystemPromptConfig = {
+        type: 'append',
+        content: 'Additional instructions'
+      };
+      expect(config.type).toBe('append');
+      if (config.type === 'append') {
+        expect(config.content).toBe('Additional instructions');
+      }
+    });
+  });
+
+  describe('Zod schema', () => {
+    it('should validate text type configuration', () => {
+      const config = {
+        type: 'text' as const,
+        content: 'System prompt text'
+      };
+      const result = SystemPromptConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+      if (result.success && result.data.type === 'text') {
+        expect(result.data.content).toBe('System prompt text');
+      }
+    });
+
+    it('should validate file type configuration', () => {
+      const config = {
+        type: 'file' as const,
+        path: '/path/to/file.txt'
+      };
+      const result = SystemPromptConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+      if (result.success && result.data.type === 'file') {
+        expect(result.data.path).toBe('/path/to/file.txt');
+      }
+    });
+
+    it('should validate append type configuration', () => {
+      const config = {
+        type: 'append' as const,
+        content: 'Append this'
+      };
+      const result = SystemPromptConfigSchema.safeParse(config);
+      expect(result.success).toBe(true);
+      if (result.success && result.data.type === 'append') {
+        expect(result.data.content).toBe('Append this');
+      }
+    });
+
+    it('should reject configuration with invalid type', () => {
+      const config = {
+        type: 'invalid',
+        content: 'Test'
+      };
+      const result = SystemPromptConfigSchema.safeParse(config);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject file type with empty path', () => {
+      const config = {
+        type: 'file' as const,
+        path: ''
+      };
+      const result = SystemPromptConfigSchema.safeParse(config);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject text type without content', () => {
+      const config = {
+        type: 'text' as const
+      };
+      const result = SystemPromptConfigSchema.safeParse(config);
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept empty content for text and append types', () => {
+      const textConfig = {
+        type: 'text' as const,
+        content: ''
+      };
+      const appendConfig = {
+        type: 'append' as const,
+        content: ''
+      };
+      expect(SystemPromptConfigSchema.safeParse(textConfig).success).toBe(true);
+      expect(SystemPromptConfigSchema.safeParse(appendConfig).success).toBe(true);
+    });
+  });
+
+  describe('type guard', () => {
+    it('should return true for valid text config', () => {
+      const config = {
+        type: 'text' as const,
+        content: 'Test'
+      };
+      expect(isSystemPromptConfig(config)).toBe(true);
+    });
+
+    it('should return true for valid file config', () => {
+      const config = {
+        type: 'file' as const,
+        path: '/path/to/file'
+      };
+      expect(isSystemPromptConfig(config)).toBe(true);
+    });
+
+    it('should return true for valid append config', () => {
+      const config = {
+        type: 'append' as const,
+        content: 'Append'
+      };
+      expect(isSystemPromptConfig(config)).toBe(true);
+    });
+
+    it('should return false for null', () => {
+      expect(isSystemPromptConfig(null)).toBe(false);
+    });
+
+    it('should return false for invalid type', () => {
+      expect(isSystemPromptConfig({ type: 'invalid', content: 'Test' })).toBe(false);
+    });
+  });
+
+  describe('validator', () => {
+    it('should return valid text config', () => {
+      const config = {
+        type: 'text' as const,
+        content: 'Test content'
+      };
+      const validated = validateSystemPromptConfig(config);
+      expect(validated.type).toBe('text');
+      if (validated.type === 'text') {
+        expect(validated.content).toBe('Test content');
+      }
+    });
+
+    it('should return valid file config', () => {
+      const config = {
+        type: 'file' as const,
+        path: '/path/to/file'
+      };
+      const validated = validateSystemPromptConfig(config);
+      expect(validated.type).toBe('file');
+      if (validated.type === 'file') {
+        expect(validated.path).toBe('/path/to/file');
+      }
+    });
+
+    it('should throw for invalid config', () => {
+      expect(() => validateSystemPromptConfig(null)).toThrow(/Invalid system prompt config/);
+      expect(() => validateSystemPromptConfig({ type: 'invalid' })).toThrow(/Invalid system prompt config/);
+    });
+
+    it('should include received value in error message', () => {
+      expect(() => validateSystemPromptConfig(null)).toThrow(/received: null/);
+    });
+  });
+
+  describe('type discrimination', () => {
+    it('should narrow type correctly for text', () => {
+      const config: SystemPromptConfig = {
+        type: 'text',
+        content: 'Test'
+      };
+
+      if (config.type === 'text') {
+        expect(config.content).toBe('Test');
+      }
+    });
+
+    it('should narrow type correctly for file', () => {
+      const config: SystemPromptConfig = {
+        type: 'file',
+        path: '/path'
+      };
+
+      if (config.type === 'file') {
+        expect(config.path).toBe('/path');
+      }
+    });
+
+    it('should narrow type correctly for append', () => {
+      const config: SystemPromptConfig = {
+        type: 'append',
+        content: 'Append'
+      };
+
+      if (config.type === 'append') {
+        expect(config.content).toBe('Append');
+      }
+    });
+  });
+});
+
+describe('WrapperTemplate', () => {
+  describe('interface', () => {
+    it('should accept valid stdio template', () => {
+      const template: WrapperTemplate = {
+        metadata: {
+          name: 'test-stdio',
+          description: 'Test stdio template',
+          version: '1.0.0'
+        },
+        name: 'test-server',
+        transport: 'stdio',
+        command: 'node',
+        args: ['server.js'],
+        env: { API_KEY: 'test' }
+      };
+      expect(template.metadata.name).toBe('test-stdio');
+      expect(template.transport).toBe('stdio');
+      expect(template.command).toBe('node');
+    });
+
+    it('should accept valid HTTP template', () => {
+      const template: WrapperTemplate = {
+        metadata: {
+          name: 'test-http',
+          description: 'Test HTTP template',
+          version: '1.0.0'
+        },
+        name: 'http-server',
+        transport: 'http',
+        url: 'https://api.example.com',
+        headers: { Authorization: 'Bearer token' },
+        env: { TOKEN: 'secret' }
+      };
+      expect(template.metadata.name).toBe('test-http');
+      expect(template.transport).toBe('http');
+      expect(template.url).toBe('https://api.example.com');
+    });
+
+    it('should accept template with system prompt configuration', () => {
+      const template: WrapperTemplate = {
+        metadata: {
+          name: 'with-prompt',
+          description: 'Template with system prompt',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'stdio',
+        command: 'node',
+        systemPrompt: {
+          type: 'text',
+          content: 'Custom prompt'
+        }
+      };
+      expect(template.systemPrompt).toBeDefined();
+      if (template.systemPrompt?.type === 'text') {
+        expect(template.systemPrompt.content).toBe('Custom prompt');
+      }
+    });
+
+    it('should accept template with environment variable placeholders', () => {
+      const template: WrapperTemplate = {
+        metadata: {
+          name: 'with-placeholders',
+          description: 'Template with ${VARIABLE} placeholders',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'http',
+        url: 'https://api.example.com',
+        headers: { Authorization: 'token ${GITHUB_TOKEN}' },
+        env: { GITHUB_TOKEN: '${GITHUB_TOKEN}' }
+      };
+      expect(template.env?.GITHUB_TOKEN).toBe('${GITHUB_TOKEN}');
+      expect(template.headers?.Authorization).toBe('token ${GITHUB_TOKEN}');
+    });
+  });
+
+  describe('Zod schema', () => {
+    it('should validate valid stdio template', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'stdio' as const,
+        command: 'node',
+        args: ['server.js']
+      };
+      const result = WrapperTemplateSchema.safeParse(template);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.transport).toBe('stdio');
+        expect(result.data.command).toBe('node');
+      }
+    });
+
+    it('should validate valid HTTP template', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'http' as const,
+        url: 'https://api.example.com'
+      };
+      const result = WrapperTemplateSchema.safeParse(template);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.transport).toBe('http');
+        expect(result.data.url).toBe('https://api.example.com');
+      }
+    });
+
+    it('should reject stdio template without command', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'stdio' as const
+      };
+      const result = WrapperTemplateSchema.safeParse(template);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.errors.some((e) => e.message.includes('stdio transport requires a command'))).toBe(true);
+      }
+    });
+
+    it('should reject HTTP template without url', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'http' as const
+      };
+      const result = WrapperTemplateSchema.safeParse(template);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.errors.some((e) => e.message.includes('http transport requires a url'))).toBe(true);
+      }
+    });
+
+    it('should reject template without metadata', () => {
+      const template = {
+        name: 'server',
+        transport: 'stdio' as const,
+        command: 'node'
+      };
+      const result = WrapperTemplateSchema.safeParse(template);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject template with empty name', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: '',
+        transport: 'stdio' as const,
+        command: 'node'
+      };
+      const result = WrapperTemplateSchema.safeParse(template);
+      expect(result.success).toBe(false);
+    });
+
+    it('should validate template with all optional fields', () => {
+      const template = {
+        metadata: {
+          name: 'complete',
+          description: 'Complete template',
+          version: '1.0.0',
+          author: 'Test Author'
+        },
+        name: 'server',
+        transport: 'http' as const,
+        url: 'https://api.example.com',
+        headers: { Authorization: 'Bearer token' },
+        env: { API_KEY: 'secret' },
+        systemPrompt: {
+          type: 'text' as const,
+          content: 'Custom prompt'
+        }
+      };
+      const result = WrapperTemplateSchema.safeParse(template);
+      expect(result.success).toBe(true);
+    });
+
+    it('should validate template with environment variable placeholders', () => {
+      const template = {
+        metadata: {
+          name: 'with-vars',
+          description: 'Template with ${VARIABLES}',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'http' as const,
+        url: 'https://${API_HOST}/api',
+        headers: { Authorization: '${AUTH_TOKEN}' },
+        env: { API_HOST: '${API_HOST}', AUTH_TOKEN: '${AUTH_TOKEN}' }
+      };
+      const result = WrapperTemplateSchema.safeParse(template);
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject stdio template with empty command', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'stdio' as const,
+        command: ''
+      };
+      const result = WrapperTemplateSchema.safeParse(template);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject HTTP template with empty url', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'http' as const,
+        url: ''
+      };
+      const result = WrapperTemplateSchema.safeParse(template);
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('type guard', () => {
+    it('should return true for valid stdio template', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'stdio' as const,
+        command: 'node'
+      };
+      expect(isWrapperTemplate(template)).toBe(true);
+    });
+
+    it('should return true for valid HTTP template', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'http' as const,
+        url: 'https://api.example.com'
+      };
+      expect(isWrapperTemplate(template)).toBe(true);
+    });
+
+    it('should return false for null', () => {
+      expect(isWrapperTemplate(null)).toBe(false);
+    });
+
+    it('should return false for stdio template without command', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'stdio' as const
+      };
+      expect(isWrapperTemplate(template)).toBe(false);
+    });
+
+    it('should return false for HTTP template without url', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'http' as const
+      };
+      expect(isWrapperTemplate(template)).toBe(false);
+    });
+  });
+
+  describe('validator', () => {
+    it('should return valid stdio template', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'stdio' as const,
+        command: 'node',
+        args: ['server.js']
+      };
+      const validated = validateWrapperTemplate(template);
+      expect(validated.transport).toBe('stdio');
+      expect(validated.command).toBe('node');
+      expect(validated.args).toEqual(['server.js']);
+    });
+
+    it('should return valid HTTP template', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'http' as const,
+        url: 'https://api.example.com',
+        headers: { Authorization: 'Bearer token' }
+      };
+      const validated = validateWrapperTemplate(template);
+      expect(validated.transport).toBe('http');
+      expect(validated.url).toBe('https://api.example.com');
+      expect(validated.headers).toEqual({ Authorization: 'Bearer token' });
+    });
+
+    it('should throw for invalid template', () => {
+      expect(() => validateWrapperTemplate(null)).toThrow(/Invalid wrapper template/);
+    });
+
+    it('should throw for stdio template without command', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'stdio' as const
+      };
+      expect(() => validateWrapperTemplate(template)).toThrow(/Invalid wrapper template/);
+      expect(() => validateWrapperTemplate(template)).toThrow(/stdio transport requires a command/);
+    });
+
+    it('should throw for HTTP template without url', () => {
+      const template = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'http' as const
+      };
+      expect(() => validateWrapperTemplate(template)).toThrow(/Invalid wrapper template/);
+      expect(() => validateWrapperTemplate(template)).toThrow(/http transport requires a url/);
+    });
+  });
+
+  describe('template-to-ServerConfig compatibility', () => {
+    it('should have all ServerConfig fields in WrapperTemplate', () => {
+      const template: WrapperTemplate = {
+        metadata: {
+          name: 'test',
+          description: 'Test',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'stdio',
+        command: 'node',
+        args: ['server.js'],
+        env: { KEY: 'value' }
+      };
+
+      // These assignments verify structural compatibility
+      const serverConfig: ServerConfig = {
+        name: template.name,
+        transport: template.transport,
+        command: template.command,
+        args: template.args,
+        env: template.env
+      };
+
+      expect(serverConfig.name).toBe('server');
+      expect(serverConfig.transport).toBe('stdio');
+    });
+  });
+});
+
+describe('Template Conversion Utilities', () => {
+  describe('templateToServerConfig', () => {
+    it('should convert stdio template to ServerConfig', () => {
+      const template: WrapperTemplate = {
+        metadata: {
+          name: 'test-stdio',
+          description: 'Test stdio template',
+          version: '1.0.0'
+        },
+        name: 'test-server',
+        transport: 'stdio',
+        command: 'node',
+        args: ['server.js'],
+        env: { API_KEY: 'test' }
+      };
+
+      const serverConfig = templateToServerConfig(template);
+
+      expect(serverConfig.name).toBe('test-server');
+      expect(serverConfig.transport).toBe('stdio');
+      expect(serverConfig.command).toBe('node');
+      expect(serverConfig.args).toEqual(['server.js']);
+      expect(serverConfig.env).toEqual({ API_KEY: 'test' });
+      expect('metadata' in serverConfig).toBe(false);
+      expect('systemPrompt' in serverConfig).toBe(false);
+    });
+
+    it('should convert HTTP template to ServerConfig', () => {
+      const template: WrapperTemplate = {
+        metadata: {
+          name: 'test-http',
+          description: 'Test HTTP template',
+          version: '1.0.0'
+        },
+        name: 'http-server',
+        transport: 'http',
+        url: 'https://api.example.com',
+        headers: { Authorization: 'Bearer token' },
+        env: { TOKEN: 'secret' }
+      };
+
+      const serverConfig = templateToServerConfig(template);
+
+      expect(serverConfig.name).toBe('http-server');
+      expect(serverConfig.transport).toBe('http');
+      expect(serverConfig.url).toBe('https://api.example.com');
+      expect(serverConfig.headers).toEqual({ Authorization: 'Bearer token' });
+      expect(serverConfig.env).toEqual({ TOKEN: 'secret' });
+      expect('metadata' in serverConfig).toBe(false);
+      expect('systemPrompt' in serverConfig).toBe(false);
+    });
+
+    it('should omit optional fields if not present', () => {
+      const template: WrapperTemplate = {
+        metadata: {
+          name: 'minimal',
+          description: 'Minimal template',
+          version: '1.0.0'
+        },
+        name: 'minimal-server',
+        transport: 'stdio',
+        command: 'node'
+      };
+
+      const serverConfig = templateToServerConfig(template);
+
+      expect(serverConfig.name).toBe('minimal-server');
+      expect(serverConfig.transport).toBe('stdio');
+      expect(serverConfig.command).toBe('node');
+      expect(serverConfig.args).toBeUndefined();
+      expect(serverConfig.env).toBeUndefined();
+      expect(serverConfig.url).toBeUndefined();
+      expect(serverConfig.headers).toBeUndefined();
+    });
+
+    it('should not perform ${VARIABLE} substitution', () => {
+      const template: WrapperTemplate = {
+        metadata: {
+          name: 'with-vars',
+          description: 'Template with variables',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'http',
+        url: 'https://${API_HOST}/api',
+        headers: { Authorization: '${AUTH_TOKEN}' },
+        env: { API_HOST: '${API_HOST}' }
+      };
+
+      const serverConfig = templateToServerConfig(template);
+
+      // Placeholders should remain unchanged
+      expect(serverConfig.url).toBe('https://${API_HOST}/api');
+      expect(serverConfig.headers?.Authorization).toBe('${AUTH_TOKEN}');
+      expect(serverConfig.env?.API_HOST).toBe('${API_HOST}');
+    });
+
+    it('should be compatible with validateServerConfig', () => {
+      const template: WrapperTemplate = {
+        metadata: {
+          name: 'valid',
+          description: 'Valid template',
+          version: '1.0.0'
+        },
+        name: 'server',
+        transport: 'stdio',
+        command: 'node'
+      };
+
+      const serverConfig = templateToServerConfig(template);
+      const validated = validateServerConfig(serverConfig);
+
+      expect(validated.name).toBe('server');
+      expect(validated.transport).toBe('stdio');
+    });
+  });
+
+  describe('resolveSystemPrompt', () => {
+    it('should convert text type to systemPrompt', () => {
+      const config: SystemPromptConfig = {
+        type: 'text',
+        content: 'Custom system prompt'
+      };
+
+      const options = resolveSystemPrompt(config);
+
+      expect(options.systemPrompt).toBe('Custom system prompt');
+      expect(options.appendSystemPrompt).toBeUndefined();
+      expect(options.systemPromptFile).toBeUndefined();
+    });
+
+    it('should convert file type to systemPromptFile', () => {
+      const config: SystemPromptConfig = {
+        type: 'file',
+        path: '/absolute/path/to/prompt.txt'
+      };
+
+      const options = resolveSystemPrompt(config);
+
+      expect(options.systemPromptFile).toBe('/absolute/path/to/prompt.txt');
+      expect(options.systemPrompt).toBeUndefined();
+      expect(options.appendSystemPrompt).toBeUndefined();
+    });
+
+    it('should convert append type to appendSystemPrompt', () => {
+      const config: SystemPromptConfig = {
+        type: 'append',
+        content: 'Additional instructions'
+      };
+
+      const options = resolveSystemPrompt(config);
+
+      expect(options.appendSystemPrompt).toBe('Additional instructions');
+      expect(options.systemPrompt).toBeUndefined();
+      expect(options.systemPromptFile).toBeUndefined();
+    });
+
+    it('should be compatible with validateWrapperOptions', () => {
+      const config: SystemPromptConfig = {
+        type: 'text',
+        content: 'Test prompt'
+      };
+
+      const options = resolveSystemPrompt(config);
+      const validated = validateWrapperOptions(options);
+
+      expect(validated.systemPrompt).toBe('Test prompt');
+    });
+
+    it('should preserve ${VARIABLE} placeholders in content', () => {
+      const config: SystemPromptConfig = {
+        type: 'text',
+        content: 'Use ${API_KEY} for authentication'
+      };
+
+      const options = resolveSystemPrompt(config);
+
+      expect(options.systemPrompt).toBe('Use ${API_KEY} for authentication');
+    });
+
+    it('should preserve ${VARIABLE} placeholders in file paths', () => {
+      const config: SystemPromptConfig = {
+        type: 'file',
+        path: '${CONFIG_DIR}/prompts/system.txt'
+      };
+
+      const options = resolveSystemPrompt(config);
+
+      expect(options.systemPromptFile).toBe('${CONFIG_DIR}/prompts/system.txt');
+    });
+
+    it('should handle empty content for text type', () => {
+      const config: SystemPromptConfig = {
+        type: 'text',
+        content: ''
+      };
+
+      const options = resolveSystemPrompt(config);
+
+      expect(options.systemPrompt).toBe('');
+    });
+
+    it('should handle empty content for append type', () => {
+      const config: SystemPromptConfig = {
+        type: 'append',
+        content: ''
+      };
+
+      const options = resolveSystemPrompt(config);
+
+      expect(options.appendSystemPrompt).toBe('');
     });
   });
 });
