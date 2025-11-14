@@ -98,8 +98,11 @@ Required sections:
 5. Framework & Technology Stack (versions in package@version format)
 6. Technical Approach (numbered steps with file paths)
 7. Dependency Analysis (High-Impact Files + Key Integration Points)
-8. Package Commands (validation commands for affected packages)
+8. Validation Commands (typecheck, test, lint - mandatory for affected packages)
 9. Risks & Mitigations (3-5 technical risks with solutions)
+
+Optional sections may include:
+- Other Package Commands (build, run, deploy - optional operational commands)
 
 Note: Section order matters. Plans should follow the above sequence.
 </structural-compliance-requirements>

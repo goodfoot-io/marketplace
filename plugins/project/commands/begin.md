@@ -339,8 +339,8 @@ echo "    Task checkpoint SHA: $TASK_CHECKPOINT"
 echo '    '
 echo '    ## Validation Requirement (ZERO-TOLERANCE)'
 echo '    ⚠️ ANY test failure = task fails. No exceptions.'
-echo '    Run ALL commands from plan.md Package Commands section'
-echo '    If no Package Commands in plan: run typecheck, test, AND lint'
+echo '    Run ALL commands from plan.md Validation Commands section'
+echo '    If no Validation Commands in plan: run typecheck, test, AND lint'
 echo '    Required: ZERO errors from ALL validation commands'
 echo "    Current baseline: [BASELINE_ERRORS] errors, [BASELINE_FAILURES] test failures"
 echo '    '
@@ -360,13 +360,13 @@ echo ")"
 
 A unified pattern that combines validation execution with automatic discovery when failures occur.
 
-### Stage 1: Read Package Commands
-First: Read @!`PROJECT_PATH=$(wait-for-project-name 2); if [ -n "$PROJECT_PATH" ]; then echo "$PROJECT_PATH/plan.md"; else echo "[PROJECT_PATH]/plan.md"; fi` to get Package Commands section
+### Stage 1: Read Validation Commands
+First: Read @!`PROJECT_PATH=$(wait-for-project-name 2); if [ -n "$PROJECT_PATH" ]; then echo "$PROJECT_PATH/plan.md"; else echo "[PROJECT_PATH]/plan.md"; fi` to get Validation Commands section
 
 ### Stage 2: Execute Validation
-Execute EVERY command listed under Package Commands section.
+Execute EVERY command listed under Validation Commands section.
 
-If no Package Commands section exists, use defaults:
+If no Validation Commands section exists, use defaults:
 ```bash
 cd packages/[PACKAGE_NAME] && yarn typecheck 2>&1
 cd packages/[PACKAGE_NAME] && yarn test 2>&1
@@ -422,13 +422,13 @@ Execute parallel analysis for discovered errors:
 ### Success Criteria
 
 ✅ **Pipeline succeeds when:**
-- Executed ALL commands from plan.md Package Commands section
+- Executed ALL commands from plan.md Validation Commands section
 - Zero errors from every validation command
 - No skipped commands (typecheck, test, lint all required)
 - No command timeouts
 
 ❌ **Pipeline fails and continues to discovery when:**
-- ANY Package Commands report errors
+- ANY Validation Commands report errors
 - Validation regression detected (errors increased from baseline)
 - Test failures present or increased
 - Commands timeout (hanging tests = code bug)

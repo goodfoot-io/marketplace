@@ -397,37 +397,87 @@ List files where your new code connects to existing systems with brief descripti
 
 ---
 
-## Package Commands
+## Validation Commands
 
 <example>
 ```markdown
-## Package Commands
-- Lint: 'cd packages/web && yarn lint'
-- Test: 'cd packages/web && yarn test'
-- E2E: 'cd packages/web && yarn test:e2e'
+## Validation Commands
 - Type check: 'cd packages/web && yarn typecheck'
+- Test: 'cd packages/web && yarn test'
+- Lint: 'cd packages/web && yarn lint'
+- E2E: 'cd packages/web && yarn test:e2e'
 ```
 </example>
 
 <instructions>
-Provide validation commands for packages affected by your implementation.
+⚠️ **MANDATORY SECTION**: Every plan MUST include validation commands.
 
-Process:
+Provide ALL quality validation commands that must pass for implementation to be considered complete.
+
+**Minimum Required Commands** (must include at minimum):
+1. Type checking (e.g., `yarn typecheck`, `tsc --noEmit`)
+2. Unit/integration tests (e.g., `yarn test`)
+3. Linting (e.g., `yarn lint`, `eslint`)
+
+**Additional Validation Commands** (include when applicable):
+- E2E tests (e.g., `yarn test:e2e`)
+- Integration tests (e.g., `yarn test:integration`)
+- Contract tests (e.g., `yarn test:contract`)
+- Any other commands that verify correctness
+
+**Process**:
 1. Identify affected packages from your Technical Approach
-2. Check each package's package.json for available scripts
+2. Check each package's package.json for validation scripts
 3. Format as executable commands from workspace root
+4. Include ALL validation commands - never skip tests
 
-For multiple packages:
+**For multiple packages**:
 ```markdown
-## Package Commands
+## Validation Commands
 ### packages/[package-1]
-- Lint: 'cd packages/[package-1] && yarn lint'
+- Type check: 'cd packages/[package-1] && yarn typecheck'
 - Test: 'cd packages/[package-1] && yarn test'
+- Lint: 'cd packages/[package-1] && yarn lint'
 
-### packages/[package-2]  
-- Lint: 'cd packages/[package-2] && yarn lint'
+### packages/[package-2]
+- Type check: 'cd packages/[package-2] && yarn typecheck'
 - Test: 'cd packages/[package-2] && yarn test:e2e'
+- Lint: 'cd packages/[package-2] && yarn lint'
 ```
+
+**Note**: These commands will be executed by the orchestrator to verify implementation quality. ALL commands must pass with zero errors.
+</instructions>
+
+---
+
+## Other Package Commands (Optional)
+
+<example>
+```markdown
+## Other Package Commands
+- Build: 'cd packages/web && yarn build'
+- Run dev server: 'cd packages/web && yarn dev'
+- Add dependency: 'cd packages/api && yarn add express@4.18.0'
+- Run simulation: 'cd packages/simulation && yarn tsx src/run.ts'
+```
+</example>
+
+<instructions>
+**OPTIONAL SECTION**: Include operational commands that are NOT validation but may be useful for development or deployment.
+
+Include commands for:
+- Building artifacts (e.g., `yarn build`)
+- Running development servers (e.g., `yarn dev`)
+- Adding dependencies (e.g., `yarn add package@version`)
+- Running specific tools or scripts (e.g., `yarn tsx src/script.ts`)
+- Database migrations (e.g., `yarn migrate`)
+- Deployment (e.g., `yarn deploy`)
+
+**Do NOT include** in this section:
+- Type checking, testing, or linting (those go in Validation Commands)
+- Any command that verifies code correctness
+
+Skip this section entirely if there are no operational commands to document.
 </instructions>
 
 ---
@@ -596,12 +646,13 @@ The best plan answers "what" and "where" while leaving "how" to the implementer.
 5. **Framework & Technology Stack**: package@version format
 6. **Technical Approach**: Numbered steps with file paths
 7. **Dependency Analysis**: High-impact files + integration points
-8. **Package Commands**: Validation commands
+8. **Validation Commands**: Typecheck, test, lint (minimum required)
 9. **Risks & Mitigations**: 3-5 technical risks
 
 ### Optional Sections
 - **Front Matter**: Dependencies or preventAutoProgress
 - **Assumption Testing**: 2+ critical unknowns
+- **Other Package Commands**: Build, run, deploy commands
 - **Implementation References**: Helpful code examples
 
 ### Key Rules

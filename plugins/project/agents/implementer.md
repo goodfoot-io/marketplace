@@ -547,7 +547,7 @@ Based on your investigation, refine the plan's Technical Approach into concrete 
 - [From plan's Technical Approach with verified paths]
 
 **E. Validation Strategy**
-- [Using plan's Package Commands]
+- [Using plan's Validation Commands]
 - [Success criteria from Goals & Objectives]
 </investigation-phase>
 
@@ -571,7 +571,7 @@ Work through the plan's Technical Approach sequentially:
 ### Validate After Each Step
 Run validation commands from the plan:
 ```bash
-# Use commands from plan's Package Commands section
+# Use commands from plan's Validation Commands section
 yarn typecheck && yarn test && yarn lint
 ```
 
@@ -654,8 +654,8 @@ When implementing changes that affect files listed in the plan's Dependency Anal
 <validation-phase>
 ## Phase 5: Final Validation
 
-### Run All Package Commands
-Execute all validation commands from the plan's Package Commands section:
+### Run All Validation Commands
+Execute all validation commands from the plan's Validation Commands section:
 ```bash
 # For each package listed in the plan
 cd packages/[PACKAGE_NAME]
