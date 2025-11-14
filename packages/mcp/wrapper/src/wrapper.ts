@@ -163,6 +163,17 @@ export function parseGlobalFlags(argv: string[]): { options: WrapperOptions; rem
       }
       options.systemPromptFile = nextArg;
       i += 2; // Skip flag and value
+    } else if (arg === '--template') {
+      // Check if there's a value after this flag
+      if (i + 1 >= globalArgs.length) {
+        throw new Error(`--template flag requires a value\n\n${displayHelp()}`);
+      }
+      const nextArg = globalArgs[i + 1];
+      if (nextArg === '--') {
+        throw new Error(`--template flag requires a value\n\n${displayHelp()}`);
+      }
+      options.template = nextArg;
+      i += 2; // Skip flag and value
     } else {
       // Not a system prompt flag, preserve it in remaining argv
       remainingArgv.push(arg);
@@ -221,6 +232,10 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
       `No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>\n\n${displayHelp()}`
     );
   }
+
+  // Validate mutual exclusivity: --template cannot be used with explicit server configurations
+  // We need to check this after parsing configs, so we'll do it later
+  const hasTemplateFlag = options.template !== undefined;
 
   // Extract everything after the first "--"
   const allArgs = remainingArgv.slice(firstSeparatorIndex + 1);
@@ -385,6 +400,13 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
 
   if (configs.length === 0) {
     throw new Error(`No valid server configurations parsed\n\n${displayHelp()}`);
+  }
+
+  // Validate mutual exclusivity: --template and explicit server configs cannot be used together
+  if (hasTemplateFlag && configs.length > 0) {
+    throw new Error(
+      'Cannot use --template with explicit server configurations. Use either --template or server configs, not both.'
+    );
   }
 
   return { configs, options };

@@ -564,4 +564,318 @@ describe('parseGlobalFlags', () => {
       ]);
     });
   });
+
+  describe('--template flag parsing', () => {
+    describe('basic functionality', () => {
+      it('should extract --template flag with packaged template name', () => {
+        const argv = ['node', 'wrapper.js', '--template', 'sqlite', '--', 'server-name', 'command'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'sqlite'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--', 'server-name', 'command']);
+      });
+
+      it('should extract --template flag with absolute file path', () => {
+        const argv = ['node', 'wrapper.js', '--template', '/path/to/template.json', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: '/path/to/template.json'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--', 'server']);
+      });
+
+      it('should extract --template flag with relative file path', () => {
+        const argv = ['node', 'wrapper.js', '--template', './templates/custom.json', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: './templates/custom.json'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--', 'server']);
+      });
+
+      it('should extract --template flag with GitHub repository reference', () => {
+        const argv = ['node', 'wrapper.js', '--template', 'github:user/repo', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'github:user/repo'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--', 'server']);
+      });
+
+      it('should extract --template flag with GitHub repository reference and branch', () => {
+        const argv = ['node', 'wrapper.js', '--template', 'github:user/repo/branch', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'github:user/repo/branch'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--', 'server']);
+      });
+    });
+
+    describe('error handling - missing values', () => {
+      it('should throw error when --template has no value (followed by --)', () => {
+        const argv = ['node', 'wrapper.js', '--template', '--', 'server', 'command'];
+
+        expect(() => parseGlobalFlags(argv)).toThrow('--template flag requires a value');
+      });
+
+      it('should throw error when --template is at end of argv without value', () => {
+        const argv = ['node', 'wrapper.js', '--template'];
+
+        expect(() => parseGlobalFlags(argv)).toThrow('--template flag requires a value');
+      });
+    });
+
+    describe('position independence', () => {
+      it('should extract --template flag at the beginning of argv', () => {
+        const argv = ['node', 'wrapper.js', '--template', 'postgres', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'postgres'
+        });
+      });
+
+      it('should extract --template flag in the middle of global flags', () => {
+        const argv = ['node', 'wrapper.js', '--foo', 'bar', '--template', 'sqlite', '--baz', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'sqlite'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--foo', 'bar', '--baz', '--', 'server']);
+      });
+
+      it('should extract --template flag just before "--" separator', () => {
+        const argv = ['node', 'wrapper.js', '--foo', '--template', 'github', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'github'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--foo', '--', 'server']);
+      });
+    });
+
+    describe('edge cases', () => {
+      it('should handle template reference with empty string value', () => {
+        const argv = ['node', 'wrapper.js', '--template', '', '--', 'server', 'command'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: ''
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--', 'server', 'command']);
+      });
+
+      it('should handle template reference with spaces', () => {
+        const argv = ['node', 'wrapper.js', '--template', '/path/to/my template.json', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: '/path/to/my template.json'
+        });
+      });
+
+      it('should handle template reference with special characters', () => {
+        const argv = ['node', 'wrapper.js', '--template', 'my-custom_template@v1.0', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'my-custom_template@v1.0'
+        });
+      });
+
+      it('should handle Windows-style absolute path', () => {
+        const argv = ['node', 'wrapper.js', '--template', 'C:\\Users\\user\\templates\\custom.json', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'C:\\Users\\user\\templates\\custom.json'
+        });
+      });
+
+      it('should handle Unix-style relative path with ../', () => {
+        const argv = ['node', 'wrapper.js', '--template', '../templates/shared.json', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: '../templates/shared.json'
+        });
+      });
+
+      it('should handle template value that starts with dashes', () => {
+        const argv = ['node', 'wrapper.js', '--template', '--not-a-flag', '--', 'server'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: '--not-a-flag'
+        });
+      });
+    });
+
+    describe('integration with other flags', () => {
+      it('should handle --template with --system-prompt together', () => {
+        const argv = [
+          'node',
+          'wrapper.js',
+          '--template',
+          'postgres',
+          '--system-prompt',
+          'Custom prompt',
+          '--',
+          'server'
+        ];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'postgres',
+          systemPrompt: 'Custom prompt'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--', 'server']);
+      });
+
+      it('should handle --template with --append-system-prompt together', () => {
+        const argv = [
+          'node',
+          'wrapper.js',
+          '--template',
+          'sqlite',
+          '--append-system-prompt',
+          'Additional context',
+          '--',
+          'server'
+        ];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'sqlite',
+          appendSystemPrompt: 'Additional context'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--', 'server']);
+      });
+
+      it('should handle --template with --system-prompt-file together', () => {
+        const argv = [
+          'node',
+          'wrapper.js',
+          '--template',
+          'github',
+          '--system-prompt-file',
+          '/path/to/prompt.txt',
+          '--',
+          'server'
+        ];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'github',
+          systemPromptFile: '/path/to/prompt.txt'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--', 'server']);
+      });
+
+      it('should handle --template in reverse order with system prompt flags', () => {
+        const argv = [
+          'node',
+          'wrapper.js',
+          '--system-prompt',
+          'Custom prompt',
+          '--template',
+          'postgres',
+          '--',
+          'server'
+        ];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          systemPrompt: 'Custom prompt',
+          template: 'postgres'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js', '--', 'server']);
+      });
+
+      it('should preserve other non-recognized flags in remainingArgv', () => {
+        const argv = [
+          'node',
+          'wrapper.js',
+          '--unknown-flag',
+          'value',
+          '--template',
+          'sqlite',
+          '--another-flag',
+          '--',
+          'server'
+        ];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'sqlite'
+        });
+        expect(result.remainingArgv).toEqual([
+          'node',
+          'wrapper.js',
+          '--unknown-flag',
+          'value',
+          '--another-flag',
+          '--',
+          'server'
+        ]);
+      });
+    });
+
+    describe('real-world integration scenarios', () => {
+      it('should handle template with packaged name (no explicit server config)', () => {
+        const argv = ['node', 'wrapper.js', '--template', 'sqlite'];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'sqlite'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js']);
+      });
+
+      it('should handle template with file path and system prompt', () => {
+        const argv = [
+          'node',
+          'wrapper.js',
+          '--template',
+          '/home/user/.config/mcp/templates/custom.json',
+          '--system-prompt',
+          'You are a helpful assistant'
+        ];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: '/home/user/.config/mcp/templates/custom.json',
+          systemPrompt: 'You are a helpful assistant'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js']);
+      });
+
+      it('should handle template with GitHub reference and append prompt', () => {
+        const argv = [
+          'node',
+          'wrapper.js',
+          '--template',
+          'github:goodfoot/mcp-templates/main/postgres.json',
+          '--append-system-prompt',
+          'Focus on database optimization'
+        ];
+        const result = parseGlobalFlags(argv);
+
+        expect(result.options).toEqual({
+          template: 'github:goodfoot/mcp-templates/main/postgres.json',
+          appendSystemPrompt: 'Focus on database optimization'
+        });
+        expect(result.remainingArgv).toEqual(['node', 'wrapper.js']);
+      });
+    });
+  });
 });

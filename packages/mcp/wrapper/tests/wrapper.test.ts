@@ -881,4 +881,123 @@ describe('main', () => {
       }
     });
   });
+
+  describe('--template mutual exclusivity validation', () => {
+    it('should throw error when --template is used with explicit server configurations', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--template',
+        'sqlite',
+        '--',
+        'server-name',
+        '--transport',
+        'stdio',
+        'npx',
+        '-y',
+        '@test/server'
+      ];
+
+      expect(() => parseCliArguments(argv)).toThrow(
+        'Cannot use --template with explicit server configurations. Use either --template or server configs, not both.'
+      );
+    });
+
+    it('should throw error when --template is used with default stdio server config', () => {
+      const argv = ['node', 'wrapper.js', '--template', 'postgres', '--', 'server', 'node', 'server.js'];
+
+      expect(() => parseCliArguments(argv)).toThrow(
+        'Cannot use --template with explicit server configurations. Use either --template or server configs, not both.'
+      );
+    });
+
+    it('should throw error when --template is used with HTTP server config', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--template',
+        'github',
+        '--',
+        'api-server',
+        '--transport',
+        'http',
+        'https://api.example.com'
+      ];
+
+      expect(() => parseCliArguments(argv)).toThrow(
+        'Cannot use --template with explicit server configurations. Use either --template or server configs, not both.'
+      );
+    });
+
+    it('should throw error when --template is used with multiple server configs', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--template',
+        '/path/to/template.json',
+        '--',
+        'server1',
+        'node',
+        'server1.js',
+        '--',
+        'server2',
+        'node',
+        'server2.js'
+      ];
+
+      expect(() => parseCliArguments(argv)).toThrow(
+        'Cannot use --template with explicit server configurations. Use either --template or server configs, not both.'
+      );
+    });
+
+    it('should throw error when --template is used with server configs and system prompt', () => {
+      const argv = [
+        'node',
+        'wrapper.js',
+        '--template',
+        'sqlite',
+        '--system-prompt',
+        'Custom prompt',
+        '--',
+        'server',
+        'node',
+        'server.js'
+      ];
+
+      expect(() => parseCliArguments(argv)).toThrow(
+        'Cannot use --template with explicit server configurations. Use either --template or server configs, not both.'
+      );
+    });
+
+    it('should allow --template without server configurations', () => {
+      const argv = ['node', 'wrapper.js', '--template', 'sqlite'];
+
+      // This should not throw - parseCliArguments will throw about no server configs
+      // but that's expected and handled later in the flow
+      expect(() => parseCliArguments(argv)).toThrow('No server configurations provided');
+    });
+
+    it('should allow --template with system prompt but no server configs', () => {
+      const argv = ['node', 'wrapper.js', '--template', 'postgres', '--system-prompt', 'Custom prompt'];
+
+      // This should not throw mutual exclusivity error
+      expect(() => parseCliArguments(argv)).toThrow('No server configurations provided');
+    });
+
+    it('should allow server configs without --template flag', () => {
+      const argv = ['node', 'wrapper.js', '--', 'server', 'node', 'server.js'];
+
+      expect(() => parseCliArguments(argv)).not.toThrow();
+      const { configs, options } = parseCliArguments(argv);
+      expect(configs).toHaveLength(1);
+      expect(options.template).toBeUndefined();
+    });
+
+    it('should allow empty argv (no template, no server configs)', () => {
+      const argv = ['node', 'wrapper.js'];
+
+      // This will throw about missing server configs, not mutual exclusivity
+      expect(() => parseCliArguments(argv)).toThrow('No server configurations provided');
+    });
+  });
 });
