@@ -972,16 +972,22 @@ describe('main', () => {
     it('should allow --template without server configurations', () => {
       const argv = ['node', 'wrapper.js', '--template', 'sqlite'];
 
-      // This should not throw - parseCliArguments will throw about no server configs
-      // but that's expected and handled later in the flow
-      expect(() => parseCliArguments(argv)).toThrow('No server configurations provided');
+      // This should not throw - template provides server config
+      expect(() => parseCliArguments(argv)).not.toThrow();
+      const { configs, options } = parseCliArguments(argv);
+      expect(configs).toEqual([]);
+      expect(options.template).toBe('sqlite');
     });
 
     it('should allow --template with system prompt but no server configs', () => {
       const argv = ['node', 'wrapper.js', '--template', 'postgres', '--system-prompt', 'Custom prompt'];
 
-      // This should not throw mutual exclusivity error
-      expect(() => parseCliArguments(argv)).toThrow('No server configurations provided');
+      // This should not throw - template provides server config
+      expect(() => parseCliArguments(argv)).not.toThrow();
+      const { configs, options } = parseCliArguments(argv);
+      expect(configs).toEqual([]);
+      expect(options.template).toBe('postgres');
+      expect(options.systemPrompt).toBe('Custom prompt');
     });
 
     it('should allow server configs without --template flag', () => {

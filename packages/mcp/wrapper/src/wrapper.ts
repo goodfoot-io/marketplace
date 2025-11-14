@@ -15,7 +15,13 @@ import { registerAgent, getAgentStatus, getAgentResult } from './background-agen
 import { discoverTools } from './discovery.js';
 import { info, debug, warn, error } from './logger.js';
 import { saveSessionMapping, getSessionId } from './session-mapping.js';
-import { validateAgentToolArguments, validateAgentOutputArguments } from './types/wrapper.js';
+import { resolveTemplate } from './template-resolver.js';
+import {
+  validateAgentToolArguments,
+  validateAgentOutputArguments,
+  templateToServerConfig,
+  resolveSystemPrompt
+} from './types/wrapper.js';
 
 /**
  * Load system prompt content from a file
@@ -227,15 +233,20 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
   // Find where the first "--" separator starts (after script name and global flags)
   const firstSeparatorIndex = remainingArgv.indexOf('--');
 
-  if (firstSeparatorIndex === -1) {
-    throw new Error(
-      `No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>\n\n${displayHelp()}`
-    );
-  }
-
-  // Validate mutual exclusivity: --template cannot be used with explicit server configurations
-  // We need to check this after parsing configs, so we'll do it later
+  // If --template is provided, no server configurations are needed
   const hasTemplateFlag = options.template !== undefined;
+
+  if (firstSeparatorIndex === -1) {
+    // No "--" separator found
+    if (!hasTemplateFlag) {
+      // No template and no server configs - error
+      throw new Error(
+        `No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>\n\n${displayHelp()}`
+      );
+    }
+    // Template is provided, no server configs needed - return empty configs
+    return { configs: [], options };
+  }
 
   // Extract everything after the first "--"
   const allArgs = remainingArgv.slice(firstSeparatorIndex + 1);
@@ -991,8 +1002,32 @@ export async function main(): Promise<void> {
     info(`Parsed ${configs.length} server configuration(s)`);
     debug('Server configurations:', JSON.stringify(configs, null, 2));
 
+    // Handle template resolution if --template flag is present
+    let finalConfigs = configs;
+    let finalOptions = options;
+
+    if (options.template) {
+      info(`Loading template: ${options.template}`);
+
+      // Load and resolve template
+      const template = await resolveTemplate(options.template);
+      info(`Template loaded: ${template.metadata.name} v${template.metadata.version}`);
+
+      // Convert template to ServerConfig
+      const templateConfig = templateToServerConfig(template);
+      finalConfigs = [templateConfig];
+      debug('Template converted to ServerConfig:', JSON.stringify(templateConfig, null, 2));
+
+      // Merge system prompt if present in template
+      if (template.systemPrompt) {
+        const systemPromptOptions = resolveSystemPrompt(template.systemPrompt);
+        finalOptions = { ...options, ...systemPromptOptions };
+        info('System prompt from template merged into options');
+      }
+    }
+
     // Initialize server with tool discovery
-    const { server, tools } = await initializeServer(configs, options);
+    const { server, tools } = await initializeServer(finalConfigs, finalOptions);
     info(`Server initialized with ${tools.allTools.length} tools`);
 
     // Create stdio transport
