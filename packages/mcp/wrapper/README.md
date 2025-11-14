@@ -231,6 +231,273 @@ Backend server environment variables can be configured through your MCP client:
 }
 ```
 
+## Template Configuration Format
+
+The MCP wrapper supports a structured JSON template format for defining server configurations. This format is designed for tools and utilities that generate or manage wrapper configurations programmatically. The templates defined here are documentation-only examples and are not executable files.
+
+### Template Structure
+
+A template combines server configuration with metadata and optional system prompt settings:
+
+```json
+{
+  "metadata": {
+    "name": "template-name",
+    "description": "Human-readable description",
+    "version": "1.0.0",
+    "author": "Optional author name"
+  },
+  "name": "server-name",
+  "transport": "stdio" | "http",
+  "command": "command-for-stdio",
+  "args": ["arg1", "arg2"],
+  "url": "https://example.com/mcp",
+  "headers": {
+    "Header-Name": "value"
+  },
+  "env": {
+    "VAR_NAME": "value"
+  },
+  "systemPrompt": {
+    "type": "text" | "file" | "append",
+    "content": "...",
+    "path": "/absolute/path/to/file"
+  }
+}
+```
+
+### Template Fields
+
+#### Metadata (Required)
+
+| Field         | Type   | Required | Description                         |
+| ------------- | ------ | -------- | ----------------------------------- |
+| `name`        | string | Yes      | Template identifier                 |
+| `description` | string | Yes      | Human-readable template description |
+| `version`     | string | Yes      | Semantic version (e.g., "1.0.0")    |
+| `author`      | string | No       | Author or organization name         |
+
+#### Server Configuration (Required)
+
+| Field       | Type                   | Required | Description                             |
+| ----------- | ---------------------- | -------- | --------------------------------------- |
+| `name`      | string                 | Yes      | Unique server identifier                |
+| `transport` | "stdio" \| "http"      | Yes      | Communication transport type            |
+| `command`   | string                 | Stdio    | Executable command (required for stdio) |
+| `args`      | string[]               | No       | Command arguments (stdio only)          |
+| `url`       | string                 | HTTP     | Server endpoint URL (required for http) |
+| `headers`   | Record<string, string> | No       | HTTP headers (http only)                |
+| `env`       | Record<string, string> | No       | Environment variables to pass to server |
+
+#### System Prompt (Optional)
+
+The `systemPrompt` field configures how the wrapper handles system prompts. It uses a discriminated union based on the `type` field:
+
+**Text Prompt:**
+
+```json
+{
+  "type": "text",
+  "content": "Custom system prompt text"
+}
+```
+
+**File-Based Prompt:**
+
+```json
+{
+  "type": "file",
+  "path": "/absolute/path/to/prompt.txt"
+}
+```
+
+Note: The `path` must be absolute. Relative paths are not supported.
+
+**Append to Default Prompt:**
+
+```json
+{
+  "type": "append",
+  "content": "Additional instructions to append"
+}
+```
+
+### Environment Variable Placeholders
+
+Templates support environment variable placeholders using `${VARIABLE}` syntax. These placeholders are resolved by Claude Desktop's configuration system before reaching the wrapper.
+
+**Placeholder Resolution:**
+
+- `${VARIABLE}` - Replaced with environment variable value
+- `$$` - Literal dollar sign (if escaping is needed)
+
+**Important:** The wrapper receives already-expanded values via `getEnvironmentAsRecord()`. It does not perform placeholder substitution itself.
+
+**Example with placeholders:**
+
+```json
+{
+  "env": {
+    "GITHUB_TOKEN": "${GITHUB_TOKEN}",
+    "API_KEY": "${MY_API_KEY}"
+  },
+  "headers": {
+    "Authorization": "Bearer ${API_TOKEN}"
+  }
+}
+```
+
+### Complete Template Examples
+
+#### Example 1: GitHub stdio with Token Authentication
+
+```json
+{
+  "metadata": {
+    "name": "github-mcp",
+    "description": "GitHub MCP server with personal access token",
+    "version": "1.0.0",
+    "author": "Example Org"
+  },
+  "name": "github",
+  "transport": "stdio",
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-github"],
+  "env": {
+    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+  },
+  "systemPrompt": {
+    "type": "append",
+    "content": "When working with GitHub, always check rate limits first."
+  }
+}
+```
+
+#### Example 2: HTTP API with Custom Headers
+
+```json
+{
+  "metadata": {
+    "name": "huggingface-api",
+    "description": "Hugging Face MCP server via HTTP",
+    "version": "2.1.0",
+    "author": "ML Team"
+  },
+  "name": "hugging-face",
+  "transport": "http",
+  "url": "https://huggingface.co/mcp",
+  "headers": {
+    "Authorization": "Bearer ${HF_TOKEN}",
+    "X-API-Version": "2024-01"
+  },
+  "systemPrompt": {
+    "type": "file",
+    "path": "/home/user/.config/mcp/prompts/ml-assistant.txt"
+  }
+}
+```
+
+#### Example 3: Multi-Environment Database Configuration
+
+```json
+{
+  "metadata": {
+    "name": "postgres-dev",
+    "description": "PostgreSQL development environment",
+    "version": "1.0.0"
+  },
+  "name": "database",
+  "transport": "stdio",
+  "command": "npx",
+  "args": ["-y", "postgresql-mcp-server", "${DB_CONNECTION_STRING}"],
+  "env": {
+    "DATABASE_URL": "${DB_CONNECTION_STRING}",
+    "DB_POOL_SIZE": "${DB_POOL_SIZE}",
+    "DB_TIMEOUT": "30000"
+  }
+}
+```
+
+#### Example 4: Minimal Required Fields
+
+```json
+{
+  "metadata": {
+    "name": "filesystem",
+    "description": "Basic filesystem access",
+    "version": "1.0.0"
+  },
+  "name": "files",
+  "transport": "stdio",
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
+}
+```
+
+### Template Conversion Utilities
+
+The wrapper provides TypeScript utilities for working with templates (defined in `src/types/wrapper.ts`):
+
+**Template Validation:**
+
+```typescript
+import { validateWrapperTemplate } from './types/wrapper.js';
+
+const template = validateWrapperTemplate(jsonData);
+// Throws if validation fails
+```
+
+**Convert Template to ServerConfig:**
+
+```typescript
+import { templateToServerConfig } from './types/wrapper.js';
+
+const serverConfig = templateToServerConfig(template);
+// Returns: ServerConfig compatible with existing wrapper
+```
+
+**Resolve System Prompt:**
+
+```typescript
+import { resolveSystemPrompt } from './types/wrapper.js';
+
+if (template.systemPrompt) {
+  const options = resolveSystemPrompt(template.systemPrompt);
+  // Returns: WrapperOptions with appropriate system prompt fields
+}
+```
+
+Note: These utilities are designed for future CLI integration. The `templateToServerConfig()` function does NOT perform `${VARIABLE}` substitution (that's handled by Claude Desktop). The `resolveSystemPrompt()` function for 'file' type does NOT load file content (that's handled by `loadSystemPromptFromFile()` in `wrapper.ts`).
+
+### File Path Requirements
+
+When using the `systemPrompt.type: "file"` configuration:
+
+- **Must use absolute paths** - Relative paths will cause validation errors
+- **Path validation** - Checked at runtime per `wrapper.ts:32` (`loadSystemPromptFromFile()`)
+- **Error handling** - Missing files throw descriptive ENOENT errors
+
+**Valid paths:**
+
+- Linux/macOS: `/home/user/.config/mcp/prompts/assistant.txt`
+- Windows: `C:\Users\username\config\prompts\assistant.txt`
+
+**Invalid paths:**
+
+- `./prompts/assistant.txt` (relative)
+- `../config/assistant.txt` (relative)
+- `prompts/assistant.txt` (relative)
+
+### Notes on Template Usage
+
+1. **Documentation-Only**: The examples shown above are for documentation purposes and are not executable configuration files.
+
+2. **No Placeholder Processing**: The wrapper does NOT process `${VARIABLE}` placeholders. All environment variable substitution happens upstream in Claude Desktop's configuration system.
+
+3. **Future CLI Integration**: These template types and conversion utilities are designed to support future command-line tools for generating and managing wrapper configurations programmatically.
+
+4. **Type Safety**: All template types are validated using Zod schemas at runtime, ensuring configuration correctness before processing.
+
 ## API Reference
 
 The wrapper exposes two tools to Claude:
