@@ -15,7 +15,13 @@ import { registerAgent, getAgentStatus, getAgentResult } from './background-agen
 import { discoverTools } from './discovery.js';
 import { info, debug, warn, error } from './logger.js';
 import { saveSessionMapping, getSessionId } from './session-mapping.js';
-import { validateAgentToolArguments, validateAgentOutputArguments } from './types/wrapper.js';
+import { resolveTemplate } from './template-resolver.js';
+import {
+  validateAgentToolArguments,
+  validateAgentOutputArguments,
+  templateToServerConfig,
+  resolveSystemPrompt
+} from './types/wrapper.js';
 
 /**
  * Load system prompt content from a file
@@ -55,6 +61,7 @@ export function displayHelp(): string {
 
 Usage:
   wrapper-mcp-server [--system-prompt <text> | --append-system-prompt <text> | --system-prompt-file <path>] -- <server-name> --transport stdio|http <args...> [-- <next-server> ...]
+  wrapper-mcp-server --template <reference> [--system-prompt <text> | --append-system-prompt <text> | --system-prompt-file <path>]
   wrapper-mcp-server -h | --help
 
 Global Flags (mutually exclusive):
@@ -64,6 +71,24 @@ Global Flags (mutually exclusive):
 
 Help Flags:
   -h, --help                    Show this help message and exit
+
+TEMPLATE MODE:
+  --template <reference>    Load server configuration from a template
+
+  Reference formats (resolution order: absolute → relative → packaged → local → GitHub):
+    - Packaged template:  github | sqlite | postgres
+    - Local template:     my-template (from $CLAUDE_CONFIG_DIR/mcp-wrapper-templates/)
+    - File path:          ./templates/custom.json | /absolute/path/to/template.json
+    - GitHub repo:        user/repo | user/repo@branch | user/repo/path/template.json
+
+  Pre-packaged templates:
+    - github:    GitHub API access with token authentication
+    - sqlite:    SQLite database access
+    - postgres:  PostgreSQL database access
+
+  Note: Templates cannot be combined with explicit server configurations.
+        Use either --template or server configs, not both. Templates are
+        mutually exclusive with the "--" server configuration syntax.
 
 Server Configuration:
   Each server is separated by "--" and follows this pattern:
@@ -80,6 +105,18 @@ Server Configuration:
   Transport defaults to stdio if --transport is omitted.
 
 Examples:
+  # Using a pre-packaged template
+  wrapper-mcp-server --template github
+
+  # Using a local template file
+  wrapper-mcp-server --template ./my-config.json
+
+  # Using a GitHub template
+  wrapper-mcp-server --template goodfoot/templates/github.json
+
+  # Template with system prompt
+  wrapper-mcp-server --template github --system-prompt "Be helpful"
+
   # Single server with stdio transport
   wrapper-mcp-server -- clickup --transport stdio npx -y @hauptsache.net/clickup-mcp
 
@@ -163,6 +200,17 @@ export function parseGlobalFlags(argv: string[]): { options: WrapperOptions; rem
       }
       options.systemPromptFile = nextArg;
       i += 2; // Skip flag and value
+    } else if (arg === '--template') {
+      // Check if there's a value after this flag
+      if (i + 1 >= globalArgs.length) {
+        throw new Error(`--template flag requires a value\n\n${displayHelp()}`);
+      }
+      const nextArg = globalArgs[i + 1];
+      if (nextArg === '--') {
+        throw new Error(`--template flag requires a value\n\n${displayHelp()}`);
+      }
+      options.template = nextArg;
+      i += 2; // Skip flag and value
     } else {
       // Not a system prompt flag, preserve it in remaining argv
       remainingArgv.push(arg);
@@ -216,10 +264,19 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
   // Find where the first "--" separator starts (after script name and global flags)
   const firstSeparatorIndex = remainingArgv.indexOf('--');
 
+  // If --template is provided, no server configurations are needed
+  const hasTemplateFlag = options.template !== undefined;
+
   if (firstSeparatorIndex === -1) {
-    throw new Error(
-      `No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>\n\n${displayHelp()}`
-    );
+    // No "--" separator found
+    if (!hasTemplateFlag) {
+      // No template and no server configs - error
+      throw new Error(
+        `No server configurations provided. Expected format: -- <server-name> --transport stdio|http <args...>\n\n${displayHelp()}`
+      );
+    }
+    // Template is provided, no server configs needed - return empty configs
+    return { configs: [], options };
   }
 
   // Extract everything after the first "--"
@@ -385,6 +442,13 @@ export function parseCliArguments(argv: string[]): { configs: ServerConfig[]; op
 
   if (configs.length === 0) {
     throw new Error(`No valid server configurations parsed\n\n${displayHelp()}`);
+  }
+
+  // Validate mutual exclusivity: --template and explicit server configs cannot be used together
+  if (hasTemplateFlag && configs.length > 0) {
+    throw new Error(
+      'Cannot use --template with explicit server configurations. Use either --template or server configs, not both.'
+    );
   }
 
   return { configs, options };
@@ -969,8 +1033,32 @@ export async function main(): Promise<void> {
     info(`Parsed ${configs.length} server configuration(s)`);
     debug('Server configurations:', JSON.stringify(configs, null, 2));
 
+    // Handle template resolution if --template flag is present
+    let finalConfigs = configs;
+    let finalOptions = options;
+
+    if (options.template) {
+      info(`Loading template: ${options.template}`);
+
+      // Load and resolve template
+      const template = await resolveTemplate(options.template);
+      info(`Template loaded: ${template.metadata.name} v${template.metadata.version}`);
+
+      // Convert template to ServerConfig
+      const templateConfig = templateToServerConfig(template);
+      finalConfigs = [templateConfig];
+      debug('Template converted to ServerConfig:', JSON.stringify(templateConfig, null, 2));
+
+      // Merge system prompt if present in template
+      if (template.systemPrompt) {
+        const systemPromptOptions = resolveSystemPrompt(template.systemPrompt);
+        finalOptions = { ...options, ...systemPromptOptions };
+        info('System prompt from template merged into options');
+      }
+    }
+
     // Initialize server with tool discovery
-    const { server, tools } = await initializeServer(configs, options);
+    const { server, tools } = await initializeServer(finalConfigs, finalOptions);
     info(`Server initialized with ${tools.allTools.length} tools`);
 
     // Create stdio transport

@@ -303,4 +303,92 @@ describe('Help Functionality', () => {
       expect(helpText).toMatch(/--system-prompt.*--.*server/i);
     });
   });
+
+  describe('template mode documentation', () => {
+    it('should document --template flag', () => {
+      const helpText = displayHelp();
+
+      expect(helpText).toContain('--template');
+      expect(helpText).toMatch(/TEMPLATE MODE/i);
+    });
+
+    it('should list all pre-packaged templates', () => {
+      const helpText = displayHelp();
+
+      expect(helpText).toContain('github');
+      expect(helpText).toContain('sqlite');
+      expect(helpText).toContain('postgres');
+    });
+
+    it('should explain template reference formats', () => {
+      const helpText = displayHelp();
+
+      expect(helpText).toMatch(/Reference formats/i);
+      expect(helpText).toContain('Packaged template');
+      expect(helpText).toContain('Local template');
+      expect(helpText).toContain('File path');
+      expect(helpText).toContain('GitHub repo');
+    });
+
+    it('should document template resolution order', () => {
+      const helpText = displayHelp();
+
+      // Should explain that absolute paths are tried first, then relative, etc.
+      expect(helpText).toMatch(/absolute.*relative.*packaged.*local.*GitHub/i);
+    });
+
+    it('should document GitHub reference format', () => {
+      const helpText = displayHelp();
+
+      expect(helpText).toContain('user/repo');
+      expect(helpText).toMatch(/user\/repo@branch/);
+    });
+
+    it('should note mutual exclusivity with server configs', () => {
+      const helpText = displayHelp();
+
+      expect(helpText).toMatch(/cannot be combined/i);
+      expect(helpText).toMatch(/mutually exclusive/i);
+    });
+
+    it('should include template usage examples', () => {
+      const helpText = displayHelp();
+
+      // Should show at least one example with --template flag
+      expect(helpText).toMatch(/--template\s+\w+/);
+    });
+
+    it('should show example with pre-packaged template', () => {
+      const helpText = displayHelp();
+
+      expect(helpText).toMatch(/--template\s+github/i);
+    });
+
+    it('should show example with local template file', () => {
+      const helpText = displayHelp();
+
+      expect(helpText).toMatch(/--template.*\.json/);
+    });
+
+    it('should show example with GitHub template', () => {
+      const helpText = displayHelp();
+
+      expect(helpText).toMatch(/--template.*\w+\/\w+/);
+    });
+
+    it('should show template with system prompt example', () => {
+      const helpText = displayHelp();
+
+      expect(helpText).toMatch(/--template.*--system-prompt/);
+    });
+
+    it('should describe each pre-packaged template', () => {
+      const helpText = displayHelp();
+
+      // Each template should have a brief description
+      expect(helpText).toMatch(/github.*GitHub API/i);
+      expect(helpText).toMatch(/sqlite.*database/i);
+      expect(helpText).toMatch(/postgres.*PostgreSQL/i);
+    });
+  });
 });
