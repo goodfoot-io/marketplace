@@ -321,11 +321,26 @@ Whatever pattern caused regression is now FORBIDDEN in reconstruction.
 
 ### 🛑 EVERY test failure is a production failure. No exceptions.
 
-Run full validation on ALL packages mentioned in the plan:
-- `yarn typecheck` → MUST return 0 errors
-- `yarn test` → MUST return 0 failures
-- `yarn lint` → MUST return 0 errors
-- `yarn test:e2e` (if exists) → MUST return 0 failures
+**Step 1: Read Validation Commands from plan.md**
+- Open the plan's "Validation Commands" section
+- Extract ALL commands listed for affected packages
+- If no "Validation Commands" section exists, use defaults: typecheck, test, lint
+
+**Step 2: Execute ALL validation commands**
+Run EVERY command from the Validation Commands section:
+- EVERY command → MUST return 0 errors/failures
+- Do NOT skip any commands
+- Do NOT autodiscover commands
+
+**Example**: If plan.md contains:
+```markdown
+## Validation Commands
+- Type check: 'cd packages/web && yarn typecheck'
+- Test: 'cd packages/web && yarn test'
+- E2E: 'cd packages/web && yarn test:e2e'
+- Lint: 'cd packages/web && yarn lint'
+```
+Then run ALL FOUR commands. Each must pass with zero errors.
 
 ### These rationalizations are NEVER acceptable:
 - ❌ "Only the new test is failing" → New test proves new code is broken

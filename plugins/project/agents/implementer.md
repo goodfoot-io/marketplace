@@ -238,17 +238,31 @@ No excuses - iterate internally until zero errors across all packages.
 <validation-and-reporting>
 ## Validation Process
 To determine the final status:
-1. For each package from the plan:
-   - Navigate to the package directory
-   - Run yarn typecheck, yarn test, and yarn lint
-   - Track whether each command succeeds or fails
-2. If E2E tests exist (playwright.config.ts/js files):
-   - Run yarn test:e2e
-   - Note any failures
-3. Determine final STATUS:
-   - COMPLETED: All validation commands passed with zero errors
-   - NEEDS_REVISION: Any command failed or reported errors
+
+1. **Read Validation Commands from plan.md**:
+   - Open the plan's "Validation Commands" section
+   - Extract ALL commands listed for affected packages
+   - If no "Validation Commands" section exists, use defaults: typecheck, test, lint
+
+2. **Execute ALL validation commands**:
+   - Run EVERY command from the Validation Commands section
+   - Do NOT autodiscover or skip any commands
+   - Track success/failure for each command
+
+3. **Determine final STATUS**:
+   - COMPLETED: ALL validation commands passed with zero errors
+   - NEEDS_REVISION: ANY command failed or reported errors
    - BLOCKED: External dependencies or permissions prevented completion
+
+**Example**: If plan.md contains:
+```markdown
+## Validation Commands
+- Type check: 'cd packages/web && yarn typecheck'
+- Test: 'cd packages/web && yarn test'
+- E2E: 'cd packages/web && yarn test:e2e'
+- Lint: 'cd packages/web && yarn lint'
+```
+Then run ALL FOUR commands (typecheck, test, test:e2e, lint) - not just three.
 
 ## Report Template
 ```markdown
@@ -401,15 +415,23 @@ The project plan specifies affected packages and their validation commands. You 
 ### Two-Step Discovery Pattern
 
 #### Step 1: Run Validation to Discover Issues
-**ALWAYS start by running validation commands to get concrete errors:**
+
+**Read Validation Commands from plan.md:**
+- Open the plan's "Validation Commands" section
+- Extract ALL commands for affected packages
+- If no "Validation Commands" section exists, use defaults: typecheck, test, lint
+
+**Execute ALL validation commands to get concrete errors:**
 
 For each package mentioned in the plan:
 ```bash
 # Get complete error context first
+# Run EVERY command from plan's Validation Commands section
 cd packages/[PACKAGE_NAME]
-yarn typecheck 2>&1  # Full TypeScript output
-yarn test 2>&1       # Complete test results
-yarn lint 2>&1       # All linting issues
+yarn typecheck 2>&1  # Full TypeScript output (if in plan)
+yarn test 2>&1       # Complete test results (if in plan)
+yarn lint 2>&1       # All linting issues (if in plan)
+yarn test:e2e 2>&1   # E2E tests (ONLY if listed in plan)
 ```
 
 **Capture from output:**
@@ -461,7 +483,9 @@ Don't do this - run validation commands instead!
 
 2. **Re-validate after each fix round**
    ```bash
+   # Run validation commands from plan's Validation Commands section
    yarn typecheck && yarn test && yarn lint
+   # Include any additional commands from plan (e.g., yarn test:e2e)
    ```
 
 3. **Iterate until zero errors**
@@ -654,13 +678,36 @@ When implementing changes that affect files listed in the plan's Dependency Anal
 <validation-phase>
 ## Phase 5: Final Validation
 
-### Run All Validation Commands
-Execute all validation commands from the plan's Validation Commands section:
+### Read and Execute Validation Commands
+
+**Step 1: Read plan.md Validation Commands section**
+Extract the exact commands to run. The plan will have:
+```markdown
+## Validation Commands
+- Type check: 'cd packages/web && yarn typecheck'
+- Test: 'cd packages/web && yarn test'
+- Lint: 'cd packages/web && yarn lint'
+- E2E: 'cd packages/web && yarn test:e2e'  # Only if listed!
+```
+
+**Step 2: Execute EVERY command listed**
+Run each command exactly as specified in the plan:
 ```bash
-# For each package listed in the plan
-cd packages/[PACKAGE_NAME]
-yarn typecheck && yarn test && yarn lint
-# Include e2e if specified in plan
+# Run EVERY command from Validation Commands section
+# Do NOT autodiscover or skip commands
+# Example based on plan above:
+cd packages/web && yarn typecheck
+cd packages/web && yarn test
+cd packages/web && yarn lint
+cd packages/web && yarn test:e2e  # Only if listed in plan
+```
+
+**Step 3: Default if no Validation Commands section exists**
+If the plan has no "Validation Commands" section:
+```bash
+cd packages/[PACKAGE_NAME] && yarn typecheck
+cd packages/[PACKAGE_NAME] && yarn test
+cd packages/[PACKAGE_NAME] && yarn lint
 ```
 
 **CRITICAL: Bash Tool Timeout Handling**

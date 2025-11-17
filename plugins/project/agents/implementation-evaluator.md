@@ -170,8 +170,16 @@ These are issues that cannot be resolved by code changes alone.
 ## Execution Steps
 
 ### 1. Execute Quality Assessment
+
+**Step 1: Read Validation Commands from plan.md**
+- Open the plan's "Validation Commands" section
+- Extract ALL commands listed for affected packages
+- If no "Validation Commands" section exists, use defaults: typecheck, test, lint
+
+**Step 2: Execute ALL validation commands**
 Execute assessment commands from correct working directory with proper environment setup:
-- `yarn test`, `yarn test:e2e`, `yarn typecheck`, `yarn lint`, `yarn audit`
+- Run EVERY command from the Validation Commands section
+- Additionally run `yarn audit` for security assessment
 - **CRITICAL**: If Bash tool times out (e.g., "Command timed out after 2m 0.0s"):
   - This means Jest is not exiting (open handles/timers)
   - Report as "JEST EXIT ISSUES" in evaluation
@@ -179,6 +187,16 @@ Execute assessment commands from correct working directory with proper environme
 - Use `--detectOpenHandles` flag to debug: `yarn test --detectOpenHandles`
 - For monorepos: Navigate to specific package directory before executing quality checks
 - Verify package.json contains required scripts and dependencies
+
+**Example**: If plan.md contains:
+```markdown
+## Validation Commands
+- Type check: 'cd packages/web && yarn typecheck'
+- Test: 'cd packages/web && yarn test'
+- E2E: 'cd packages/web && yarn test:e2e'
+- Lint: 'cd packages/web && yarn lint'
+```
+Then run ALL FOUR commands PLUS `yarn audit` for security.
 
 ### 2. Analyze Type-Driven Effectiveness
 Evaluate type-driven effectiveness through type safety and native usage indicators: Analyze type completeness with `print-type-analysis`, search for 'any' types with `ast-grep`, verify native type percentage, apply decision framework, generate comprehensive report, update todo status

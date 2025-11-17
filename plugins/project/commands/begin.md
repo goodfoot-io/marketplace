@@ -196,7 +196,8 @@ echo '  subagent_type="test-issue-reproducer",'
 echo '  prompt=`'
 echo "    Analyze test and type failures in: $AFFECTED_PACKAGES"
 echo '    '
-echo '    Run yarn typecheck, yarn test, and yarn lint in each affected package.'
+echo "    Read Validation Commands from @$PROJECT_PATH/plan.md and run ALL commands in each affected package."
+echo '    If no Validation Commands section exists, run: yarn typecheck, yarn test, and yarn lint.'
 echo '    Create comprehensive failure analysis report.'
 echo '    '
 echo "    Output the report to: $REPORT_PATH"
