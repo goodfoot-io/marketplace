@@ -179,9 +179,8 @@ These are issues that cannot be resolved by code changes alone.
 **Step 2: Execute ALL validation commands**
 Execute assessment commands from correct working directory with proper environment setup:
 - Run EVERY command from the Validation Commands section
-- Additionally run `yarn audit` for security assessment
 - **CRITICAL**: If Bash tool times out (e.g., "Command timed out after 2m 0.0s"):
-  - This means Jest is not exiting (open handles/timers)
+  - Note that some tests take longer than 2m, and re-run the tests with a longer timeout unless it's clear the tests have frozen
   - Report as "JEST EXIT ISSUES" in evaluation
   - Status must be CONTINUE or BLOCKED, not PRODUCTION_READY
 - Use `--detectOpenHandles` flag to debug: `yarn test --detectOpenHandles`
@@ -196,7 +195,7 @@ Execute assessment commands from correct working directory with proper environme
 - E2E: 'cd packages/web && yarn test:e2e'
 - Lint: 'cd packages/web && yarn lint'
 ```
-Then run ALL FOUR commands PLUS `yarn audit` for security.
+Then run ALL FOUR commands.
 
 ### 2. Analyze Type-Driven Effectiveness
 Evaluate type-driven effectiveness through type safety and native usage indicators: Analyze type completeness with `print-type-analysis`, search for 'any' types with `ast-grep`, verify native type percentage, apply decision framework, generate comprehensive report, update todo status
