@@ -1,6 +1,5 @@
 ---
 description: Add or update world-class JSDoc documentation to TypeScript files
-allowed-tools: *
 argument-hint: <file-or-directory-path> [additional-paths...]
 ---
 

@@ -6,7 +6,7 @@ description: Simplified orchestration focused on coordination over complex valid
 ```!
 mkdir -p projects/new projects/pending projects/active projects/ready-for-review projects/complete projects/icebox
 # Use write-arguments utility to synchronize user arguments
-write-arguments "$ARGUMENTS"
+"${CLAUDE_PLUGIN_ROOT}"/bin/write-arguments "$ARGUMENTS"
 ```
 </user-message>
 
@@ -30,7 +30,7 @@ CRITICAL: The orchestrator ONLY coordinates - it does NOT implement.
 
 ### Direct Fixes
 - Syntax errors visible in error output
-- Import statement corrections
+- Import statement corrections (e.g., missing .js extensions)
 - Config file typos
 - Test setup/polyfills
 
@@ -44,6 +44,7 @@ CRITICAL: The orchestrator ONLY coordinates - it does NOT implement.
 - API changes
 - Database modifications
 - ANY user feature requests
+- Validation issues (linting, type checking, testing) beyond trivial syntax errors
 
 ### Golden Rule
 If the user asks you to implement something → Create todo → Delegate to project:implementer
@@ -52,16 +53,25 @@ Only use TodoWrite and Task tools for coordination.
 
 ### Investigation Before Delegation
 
-When errors need investigation before delegation:
+When validation discovers linting, type checking, or testing issues:
 
 1. Run validation to get specific errors
-2. Use Task tool with "codebase-analysis" subagent and FULL paths for root cause
-3. Include findings in the Task prompt to the subagent
+2. Investigate root cause using codebase analysis tools with FULL paths
+3. Create todo with investigation findings
+4. Delegate to project:implementer with root cause context
+
+Issues requiring investigation and delegation:
+- Skipped tests (investigate why they're skipped, delegate fix)
+- Integration errors (investigate dependencies, delegate resolution)
+- Uncaught regressions (investigate when introduced, delegate fix)
+- Type errors beyond missing imports
+- Test failures and timeouts
+- Lint errors requiring logic changes
 
 ### Examples
 
 Fix Directly:
-typescript
+```typescript
 // Error: Missing import extension
 import { foo } from './bar';  // ❌
 import { foo } from './bar.js';  // ✅ Just fix it
@@ -69,14 +79,26 @@ import { foo } from './bar.js';  // ✅ Just fix it
 // Error: Cannot find module 'jest-preset'
 setupFiles: ['jest'] // ❌
 setupFiles: ['jest-preset'] // ✅ Just fix it
+```
 
-Delegate:
-typescript
+Investigate Then Delegate:
+```typescript
 // Test failing with "Expected 5 got undefined"
-// → Needs investigation, delegate to project:implementer
+// → Investigate: Why is the value undefined? Check function logic, data flow
+// → Delegate to project:implementer with root cause
 
 // "Connection pool exhausted"
-// → Complex issue, delegate to project:implementer
+// → Investigate: Where are connections opened? Are they closed properly?
+// → Delegate to project:implementer with findings
+
+// TypeScript error TS2322: Type 'X' is not assignable to type 'Y'
+// → Investigate: What are types X and Y? Where's the mismatch?
+// → Delegate to project:implementer with type analysis
+
+// 5 tests skipped in auth.test.ts
+// → Investigate: Why are they skipped? What do they test?
+// → Delegate to project:implementer to enable and fix
+```
 
 ### Delegation Protocol
 
@@ -90,37 +112,30 @@ If investigation is needed, do it first:
 
 // Then: Include findings in delegation
 
-```!
-# Get project path and name for delegation
-PROJECT_PATH=$(wait-for-project-name 2)
-if [ -n "$PROJECT_PATH" ]; then
-    PROJECT_NAME=$(basename "$PROJECT_PATH")
-else
-    PROJECT_NAME="[PROJECT_NAME]"
-    PROJECT_PATH="[PROJECT_PATH]"
-fi
+```xml
+<!-- Get project path and name for delegation -->
+<invoke name="Task">
+<parameter name="description">Fix type mismatch</parameter>
+<parameter name="subagent_type">project:implementer</parameter>
+<parameter name="prompt">
+Name: [PROJECT_NAME]
+Directory: @[PROJECT_PATH]
+Plan: @[PROJECT_PATH]/plan.md
+Log: @[PROJECT_PATH]/log.md
 
-echo "Task("
-echo '  description="Fix type mismatch",'
-echo '  subagent_type="project:implementer",'
-echo '  prompt=`'
-echo "    Name: $PROJECT_NAME"
-echo "    Directory: @$PROJECT_PATH"
-echo "    Plan: @$PROJECT_PATH/plan.md"
-echo "    Log: @$PROJECT_PATH/log.md"
-echo ''
-echo '    ## Issue'
-echo '    [Error details]'
-echo ''
-echo '    ## Root Cause (from investigation)'
-echo '    [Include codebase tool findings]'
-echo ''
-echo '    ## Checkpoint'
-echo '    SHA: [CHECKPOINT_SHA]'
-echo ''
-echo '    ## Requirements'
-echo '    Fix and validate with zero errors.`'
-echo ")"
+## Issue
+[Error details from validation]
+
+## Root Cause (from investigation)
+[Include codebase tool findings]
+
+## Checkpoint
+SHA: [CHECKPOINT_SHA]
+
+## Requirements
+Fix and validate with zero errors.
+</parameter>
+</invoke>
 ```
 </orchestrator-role>
 
@@ -171,140 +186,63 @@ Most development errors in this project come from improper use of mocks. If mock
 <failure-analysis-procedure>
 ## Failure Analysis Procedure
 
-Analyze the failure to extract learnings:
+**When to use:**
+- Implementation task returns NEEDS_REVISION status
+- Validation reveals errors after implementation
+- Test failures occur without clear cause
+- Type errors require deeper investigation
+- Errors have increased (regression detected)
+- Multiple attempts have failed and you need deeper analysis
 
-```!
-# Get project path and name for failure analysis
-PROJECT_PATH=$(wait-for-project-name 2)
-if [ -n "$PROJECT_PATH" ]; then
-    PROJECT_NAME=$(basename "$PROJECT_PATH")
-    # Determine affected packages from validation output
-    AFFECTED_PACKAGES="[PACKAGES_WITH_ERRORS]"
-else
-    PROJECT_NAME="[PROJECT_NAME]"
-    PROJECT_PATH="[PROJECT_PATH]"
-    AFFECTED_PACKAGES="[AFFECTED_PACKAGES]"
-fi
+**How to use:**
 
-# Generate timestamp for report
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-REPORT_PATH="$PROJECT_PATH/reports/implementation-failure-$TIMESTAMP.md"
+Load the failure analysis skill and follow the procedure:
 
-echo "Task("
-echo '  description="Analyze implementation failure",'
-echo '  subagent_type="test-issue-reproducer",'
-echo '  prompt=`'
-echo "    Analyze test and type failures in: $AFFECTED_PACKAGES"
-echo '    '
-echo "    Read Validation Commands from @$PROJECT_PATH/plan.md and run ALL commands in each affected package."
-echo '    If no Validation Commands section exists, run: yarn typecheck, yarn test, and yarn lint.'
-echo '    Create comprehensive failure analysis report.'
-echo '    '
-echo "    Output the report to: $REPORT_PATH"
-echo '    '
-echo '    Focus on identifying:'
-echo '    - Root causes of implementation failures'
-echo '    - Pattern mistakes (wrong abstractions, missing null checks, etc.)'
-echo '    - Type system violations and their origins'
-echo '    - Test failures and what code changes triggered them'
-echo '    - Environmental factors if infrastructure-related`'
-echo ")"
+```xml
+<invoke name="Skill">
+<parameter name="skill">project:failure-analysis</parameter>
+</invoke>
 ```
 
-### Post-Analysis Actions
-
-1. Read the generated report
-2. Extract key findings: root causes, pattern mistakes, type violations
-3. Append implementation failure analysis to project log.md:
-   ```markdown
-   ## Implementation Failure Analysis - [timestamp]
-   Task: [task-id]
-   Affected Packages: [list]
-   Attempt: [attempt-number]
-
-   ### Key Findings
-   [Summary from test-issue-reproducer report]
-
-   ### Root Causes Identified
-   [List of root causes]
-
-   ### Pattern Mistakes to Avoid
-   [Document anti-patterns discovered]
-
-   ### Guidance for Future Implementations
-   [Specific recommendations to prevent similar failures]
-
-   ### Code Patterns That Work
-   [Document successful patterns from the codebase]
-   ```
-4. Update todo description with failure insights
+The skill will guide you through:
+1. Invoking general-purpose agent with systematic analysis steps
+2. Running validation commands and categorizing failures
+3. Identifying root causes, anti-patterns, and working patterns
+4. Generating comprehensive failure analysis report
+5. Reading and extracting findings from the report
+6. Appending analysis to project log.md
+7. Updating todo descriptions with failure insights
 </failure-analysis-procedure>
 
 <sledgehammer-recovery-procedure>
 ## Sledgehammer Recovery Procedure
 
-When validation reveals errors have increased (regression) after 3 failed attempts:
+**When to use:**
+- Attempt count = 4 (after 3 standard retries failed)
+- Validation shows regression (errors INCREASED vs baseline)
+- Standard fixes have made things worse
+- Code is "infected" and needs nuclear approach
 
-### Sequential Task Recovery
+**Do NOT use for:**
+- First, second, or third attempts (use standard recovery)
+- When errors decreased or stayed same (not a regression)
+- Attempt 5 (mark as BLOCKED instead)
 
-```!
-# Get project path and name for sledgehammer recovery
-PROJECT_PATH=$(wait-for-project-name 2)
-if [ -n "$PROJECT_PATH" ]; then
-    PROJECT_NAME=$(basename "$PROJECT_PATH")
-else
-    PROJECT_NAME="[PROJECT_NAME]"
-    PROJECT_PATH="[PROJECT_PATH]"
-fi
+**How to use:**
 
-echo "Task("
-echo '  description="Delete and rebuild failing code",'
-echo '  subagent_type="project:sledgehammer",'
-echo '  prompt=`'
-echo "    Name: $PROJECT_NAME"
-echo "    Path: $PROJECT_PATH"
-echo "    Plan: @$PROJECT_PATH/plan.md"
-echo "    Log: @$PROJECT_PATH/log.md"
-echo '    '
-echo '    ## Regression Detected'
-echo '    Errors have INCREASED after implementation attempt.'
-echo '    Your job: DELETE the infected code and REBUILD differently.'
-echo '    '
-echo '    ## Project Structure'
-echo '    This is a monorepo with packages in ./packages/'
-echo '    Package directories: [List packages from plan.md]'
-echo '    '
-echo '    ## Task That Failed'
-echo '    Task attempted: [Task description from todo]'
-echo "    Checkpoint SHA: $TASK_CHECKPOINT"
-echo '    Implementation approach taken: [Brief summary of what was attempted]'
-echo '    '
-echo '    ## Files Modified (Primary Infection Sites)'
-echo '    [List all files created/modified during this task attempt]'
-echo '    These are your primary deletion targets.'
-echo '    '
-echo '    ## Current Validation Failures'
-echo '    [Full validation output showing the regression:]'
-echo '    - TypeScript errors: [CURRENT_ERRORS] errors (was [BASELINE_ERRORS])'
-echo '    - Test failures: [CURRENT_FAILURES] failures (was [BASELINE_FAILURES])'
-echo '    - Lint errors: [CURRENT_LINT] errors (was [BASELINE_LINT])'
-echo '    - Specific error details: [Include actual error messages with file:line]'
-echo ")"
+Load the sledgehammer skill and follow the recovery procedure:
+
+```xml
+<invoke name="Skill">
+<parameter name="skill">project:sledgehammer</parameter>
+</invoke>
 ```
 
-### Parallel Batch Recovery
-
-Use same format but include:
-- List all task-ids in the batch
-- Files modified by each task
-- Note batch checkpoint SHA
-
-### After Sledgehammer
-
-1. **If COMPLETED:** Code was successfully fixed, commit the changes
-2. **If NEEDS_REVISION:** Revert to checkpoint
-3. **Document** the attempt in log.md
-4. **Update** todo status in TodoWrite based on outcome
+The skill will guide you through:
+1. Invoking project:sledgehammer agent with proper context
+2. Providing regression details and files modified
+3. Processing sledgehammer results (COMPLETED vs NEEDS_REVISION)
+4. Determining next action (commit and continue vs mark BLOCKED)
 </sledgehammer-recovery-procedure>
 
 <task-prompt-template>
@@ -312,47 +250,38 @@ Use same format but include:
 
 Use this template for all Task delegations to project:implementer:
 
-```!
-# Get project path and name
-PROJECT_PATH=$(wait-for-project-name 2)
-if [ -n "$PROJECT_PATH" ]; then
-    PROJECT_NAME=$(basename "$PROJECT_PATH")
-else
-    PROJECT_NAME="[PROJECT_NAME]"
-    PROJECT_PATH="[PROJECT_PATH]"
-fi
+```xml
+<invoke name="Task">
+<parameter name="description">[Task description from todo]</parameter>
+<parameter name="subagent_type">project:implementer</parameter>
+<parameter name="prompt">
+Name: [PROJECT_NAME]
+Path: [PROJECT_PATH]
+Plan: @[PROJECT_PATH]/plan.md
+Log: @[PROJECT_PATH]/log.md
 
-echo "Task("
-echo '  description="[Task description from todo]",'
-echo '  subagent_type="project:implementer",'
-echo '  prompt=`'
-echo "    Name: $PROJECT_NAME"
-echo "    Path: $PROJECT_PATH"
-echo "    Plan: @$PROJECT_PATH/plan.md"
-echo "    Log: @$PROJECT_PATH/log.md"
-echo '    '
-echo '    '
-echo '    ## Implementation Objective'
-echo '    [Specific feature or component to implement with behavioral tests]'
-echo '    '
-echo '    ## Checkpoint Reference'
-echo "    Task checkpoint SHA: $TASK_CHECKPOINT"
-echo '    '
-echo '    ## Validation Requirement (ZERO-TOLERANCE)'
-echo '    ⚠️ ANY test failure = task fails. No exceptions.'
-echo '    Run ALL commands from plan.md Validation Commands section'
-echo '    If no Validation Commands in plan: run typecheck, test, AND lint'
-echo '    Required: ZERO errors from ALL validation commands'
-echo "    Current baseline: [BASELINE_ERRORS] errors, [BASELINE_FAILURES] test failures"
-echo '    '
-echo '    ## Investigation-to-Action Protocol'
-echo '    When codebase analysis identifies issues:'
-echo '    1. Create fix task immediately using TodoWrite'
-echo '    2. Document root cause and fix attempts in log'
-echo '    3. Only mark BLOCKED after 2 fix iterations fail'
-echo '    '
-echo '    This completes todo: [todo-id]`'
-echo ")"
+## Implementation Objective
+[Specific feature or component to implement with behavioral tests]
+
+## Checkpoint Reference
+Task checkpoint SHA: [TASK_CHECKPOINT]
+
+## Validation Requirement (ZERO-TOLERANCE)
+⚠️ ANY test failure = task fails. No exceptions.
+Run ALL commands from plan.md Validation Commands section
+If no Validation Commands in plan: run typecheck, test, AND lint
+Required: ZERO errors from ALL validation commands
+Current baseline: [BASELINE_ERRORS] errors, [BASELINE_FAILURES] test failures
+
+## Investigation-to-Action Protocol
+When codebase analysis identifies issues:
+1. Create fix task immediately using TodoWrite
+2. Document root cause and fix attempts in log
+3. Only mark BLOCKED after 2 fix iterations fail
+
+This completes todo: [todo-id]
+</parameter>
+</invoke>
 ```
 </task-prompt-template>
 
@@ -420,6 +349,24 @@ Execute parallel analysis for discovered errors:
 </invoke>
 ```
 
+### Stage 6: Delegate Resolution (When non-trivial errors discovered)
+
+After deep analysis, delegate to project:implementer unless the fix is trivial:
+
+**Delegate these issues:**
+- Type errors requiring logic changes
+- Test failures and timeouts
+- Skipped tests needing enablement
+- Integration errors between components
+- Lint errors requiring refactoring
+
+**Fix directly only:**
+- Missing import extensions (.js)
+- Simple config typos
+- Obvious syntax errors
+
+Use the delegation protocol from `<orchestrator-role>` section with investigation findings.
+
 ### Success Criteria
 
 ✅ **Pipeline succeeds when:**
@@ -475,13 +422,13 @@ Requires ALL conditions:
 <instructions>
 ```!
 # Wait for arguments to be available
-ARGS=$(wait-for-arguments)
+ARGS=$("${CLAUDE_PLUGIN_ROOT}"/bin/wait-for-arguments)
 
 # Select project based on arguments or find the oldest eligible one
-SELECTED_PROJECT=$(get-next-project)
+SELECTED_PROJECT=$("${CLAUDE_PLUGIN_ROOT}"/bin/get-next-project)
 
 # Wait for project selection to complete
-PROJECT_PATH=$(wait-for-project-name 2)
+PROJECT_PATH=$("${CLAUDE_PLUGIN_ROOT}"/bin/wait-for-project-name 2)
 
 if [ -z "$PROJECT_PATH" ]; then
     NO_PROJECT_FOUND=true
@@ -498,7 +445,7 @@ if [ "$NO_PROJECT_FOUND" = "false" ]; then
     BACKTICK='`'
 
     # Activate the selected project
-    ACTIVE_PROJECT=$(activate-project "$PROJECT_PATH")
+    ACTIVE_PROJECT=$("${CLAUDE_PLUGIN_ROOT}"/bin/activate-project "$PROJECT_PATH")
     if [ -z "$ACTIVE_PROJECT" ]; then
         echo "Error: Failed to activate project $PROJECT_PATH" >&2
         exit 0
@@ -508,7 +455,7 @@ if [ "$NO_PROJECT_FOUND" = "false" ]; then
     PROJECT_PATH="$ACTIVE_PROJECT"
 
     # Update IPC state so subsequent wait-for-project-name calls get the correct path
-    update-project-path "$PROJECT_PATH" >/dev/null 2>&1
+    "${CLAUDE_PLUGIN_ROOT}"/bin/update-project-path "$PROJECT_PATH" >/dev/null 2>&1
 
     echo "## Phase 1: Initialize Project"
     echo ""
@@ -542,7 +489,7 @@ else
     echo "Ask the user which project they'd like to work on."
     echo ""
     echo "When they respond, use:"
-    echo '`activate-project-with-args "[FULL USER RESPONSE]"`'
+    echo '`"${CLAUDE_PLUGIN_ROOT}"/bin/activate-project-with-args "[FULL USER RESPONSE]"`'
 fi
 ```
 
@@ -592,6 +539,7 @@ Then read the project files to understand current state:
          - ANY test failures must be fixed immediately
          - TypeScript errors take precedence
          - Lint issues should be addressed
+         - For non-trivial issues: investigate root cause then delegate to project:implementer
 
 3.1.4.2. Then address work from all sources:
          - User requests (new or modified requirements)
@@ -623,9 +571,12 @@ Work comes from four equal sources:
 - "Change X to use Y" → Todo: "Refactor X to use Y with tests"
 - Convert immediately when received, don't wait
 
-**From quality issues:**
-- TypeScript error → Todo: "Fix TS2322 error in auth.ts:45"
-- Test failure → Todo: "Fix failing user service test"
+**From quality issues (validation failures):**
+- TypeScript error (non-trivial) → Todo: "Investigate and fix TS2322 error in auth.ts:45"
+- Test failure → Todo: "Investigate and fix failing user service test"
+- Skipped tests → Todo: "Investigate why tests are skipped, enable and fix them"
+- Integration error → Todo: "Investigate integration error between X and Y, fix root cause"
+- Lint error (requires logic change) → Todo: "Investigate and resolve lint error in handler.ts"
 - Group related issues when logical
 
 **From NEEDS_REVISION items:**
@@ -640,43 +591,58 @@ Only create separate test todos when explicitly stated in plan.md for:
 
 Direct fixes (skip todo creation):
 - Syntax errors with obvious fix
-- Import path corrections
+- Import path corrections (missing .js extension)
 - Config typos
-Everything else → Todo → Phase 4 pipeline
+
+Everything else → Todo → Investigation (if needed) → Delegation to project:implementer
 
 <example>
-```
-TodoWrite({
-  "todos": [
-    // Sequential tasks from plan - DO NOT PARALLELIZE
-    {
-      "content": "Create user model and types in packages/shared [Plan 2.1]",
-      "status": "pending",
-      "activeForm": "Creating user model and types"
-    },
-    {
-      "content": "Implement user service with model from 2.1 [Plan 2.2 - REQUIRES 2.1]",
-      "status": "pending",
-      "activeForm": "Implementing user service"
-    },
-    // Independent tasks - RARE parallel candidates
-    {
-      "content": "Add footer styling to packages/ui [Plan 5.1 - INDEPENDENT]",
-      "status": "pending",
-      "activeForm": "Adding footer styling"
-    },
-    {
-      "content": "Configure logging in packages/logger [Plan 6.1 - INDEPENDENT]",
-      "status": "pending",
-      "activeForm": "Configuring logging"
-    }
-  ]
-})
+```xml
+<invoke name="TodoWrite">
+<parameter name="todos">
+[
+  // Sequential tasks from plan - DO NOT PARALLELIZE
+  {
+    "content": "Create user model and types in packages/shared [Plan 2.1]",
+    "status": "pending",
+    "activeForm": "Creating user model and types"
+  },
+  {
+    "content": "Implement user service with model from 2.1 [Plan 2.2 - REQUIRES 2.1]",
+    "status": "pending",
+    "activeForm": "Implementing user service"
+  },
+  // Quality issues requiring investigation and delegation
+  {
+    "content": "Investigate and fix 5 skipped tests in auth.test.ts",
+    "status": "pending",
+    "activeForm": "Investigating skipped auth tests"
+  },
+  {
+    "content": "Investigate type error TS2322 in user.ts:89, delegate fix",
+    "status": "pending",
+    "activeForm": "Investigating type error"
+  },
+  // Independent tasks - RARE parallel candidates
+  {
+    "content": "Add footer styling to packages/ui [Plan 5.1 - INDEPENDENT]",
+    "status": "pending",
+    "activeForm": "Adding footer styling"
+  },
+  {
+    "content": "Configure logging in packages/logger [Plan 6.1 - INDEPENDENT]",
+    "status": "pending",
+    "activeForm": "Configuring logging"
+  }
+]
+</parameter>
+</invoke>
 ```
 </example>
 
 All todos flow through the same Phase 4-6 execution pipeline with:
 - Checkpointing before execution
+- Investigation for non-trivial validation issues
 - Delegation to project:implementer
 - Validation with zero-tolerance policy
 - Unified recovery mechanisms in Phase 6
@@ -715,7 +681,15 @@ git commit -m "checkpoint: before-[task-id]"
 
 Capture baseline metrics from all plan packages (typecheck errors, test failures, E2E failures).
 
-Launch task using `<task-prompt-template>`.
+**For quality issue todos (investigation required):**
+1. Mark todo as in_progress
+2. Execute investigation using codebase analysis tools (Stage 5 from validation-discovery-pipeline)
+3. Document findings
+4. Launch delegation task to project:implementer using `<task-prompt-template>` with investigation results
+5. Proceed to validation after implementer completes
+
+**For feature/implementation todos:**
+1. Launch task directly using `<task-prompt-template>`
 
 After task completes:
 
@@ -738,7 +712,8 @@ Execute `<validation-discovery-pipeline>`. The pipeline will automatically:
 - Continue to next todo
 
 ❌ **FAILURE PATH** - Any validation failure:
-- Use Stage 5 analysis results to understand root causes
+- Use Stage 5-6 analysis results to understand root causes
+- If non-trivial errors discovered, create investigation and delegation todos
 - Proceed to Phase 6 for recovery with these insights
 
 ### 5.2: Execute Parallel Tasks (EXCEPTION - rare cases only)
@@ -766,8 +741,8 @@ After all parallel tasks complete:
 **5.2.2. Validate the entire batch** (only if all COMPLETED):
 Execute `<validation-discovery-pipeline>` for all affected packages. The pipeline will:
 - Run validation across all packages (Stages 1-3)
-- If errors found in any package, continue to discovery and analysis (Stages 4-5)
-- Provide deep insights for recovery if validation fails
+- If errors found in any package, continue to discovery and analysis (Stages 4-6)
+- Provide deep insights and delegation for recovery if validation fails
 
 **5.2.3. Process batch validation results:**
 
@@ -776,8 +751,9 @@ Execute `<validation-discovery-pipeline>` for all affected packages. The pipelin
 - Mark all todos as completed in TodoWrite
 - Continue to next batch/todo
 
-❌ **FAILURE PATH** - Any validation regression (pipeline continues through Stage 5):
-- Use Stage 5 analysis to identify which tasks in the batch caused issues
+❌ **FAILURE PATH** - Any validation regression (pipeline continues through Stage 6):
+- Use Stage 5-6 analysis to identify which tasks in the batch caused issues
+- Create investigation and delegation todos for non-trivial errors
 - Proceed to Phase 6 for recovery with root cause insights
 
 ## Phase 6: Recovery and Resolution
@@ -797,16 +773,18 @@ Track attempt number for current task (starts at 1):
 **Attempts 1-3: Standard Recovery**
 1. Document learnings in log.md
 2. Update todo with discoveries and root cause:
-   ```
-   TodoWrite({
-     "todos": [
-       {
-         "content": "Original task [ATTEMPT [N+1] - Root cause: [summary]]",
-         "status": "in_progress",
-         "activeForm": "Retrying task with root cause insights"
-       }
-     ]
-   })
+   ```xml
+   <invoke name="TodoWrite">
+   <parameter name="todos">
+   [
+     {
+       "content": "Original task [ATTEMPT [N+1] - Root cause: [summary]]",
+       "status": "in_progress",
+       "activeForm": "Retrying task with root cause insights"
+     }
+   ]
+   </parameter>
+   </invoke>
    ```
 3. Revert to checkpoint:
    ```bash
@@ -833,16 +811,18 @@ Track attempt number for current task (starts at 1):
 
 **Attempt 5: Mark as BLOCKED**
 1. Update todo status:
-   ```
-   TodoWrite({
-     "todos": [
-       {
-         "content": "Original task [BLOCKED after 5 attempts]",
-         "status": "in_progress",
-         "activeForm": "Blocked - requires external intervention"
-       }
-     ]
-   })
+   ```xml
+   <invoke name="TodoWrite">
+   <parameter name="todos">
+   [
+     {
+       "content": "Original task [BLOCKED after 5 attempts]",
+       "status": "in_progress",
+       "activeForm": "Blocked - requires external intervention"
+     }
+   ]
+   </parameter>
+   </invoke>
    ```
 2. Document blocking reasons in log.md
 3. Preserve checkpoint for manual intervention
@@ -877,28 +857,19 @@ git commit -m "checkpoint: pre-evaluation-$(date +%s)"
 
 After all todos complete or are blocked:
 
-```!
-# Get project path and name for evaluation
-PROJECT_PATH=$(wait-for-project-name 2)
-if [ -n "$PROJECT_PATH" ]; then
-    PROJECT_NAME=$(basename "$PROJECT_PATH")
-else
-    PROJECT_NAME="[PROJECT_NAME]"
-    PROJECT_PATH="[PROJECT_PATH]"
-fi
+```xml
+<invoke name="Task">
+<parameter name="description">Evaluation</parameter>
+<parameter name="subagent_type">project:implementation-evaluator</parameter>
+<parameter name="prompt">
+Name: [PROJECT_NAME]
+Path: [PROJECT_PATH]
+Plan: @[PROJECT_PATH]/plan.md
+Log: @[PROJECT_PATH]/log.md
 
-echo "Task("
-echo '  description="Evaluation",'
-echo '  subagent_type="project:implementation-evaluator",'
-echo '  prompt=`'
-echo "    Name: $PROJECT_NAME"
-echo "    Path: $PROJECT_PATH"
-echo "    Plan: @$PROJECT_PATH/plan.md"
-echo "    Log: @$PROJECT_PATH/log.md"
-echo '    '
-echo ''
-echo "    Evaluate project at $PROJECT_PATH\`"
-echo ")"
+Evaluate project at [PROJECT_PATH]
+</parameter>
+</invoke>
 ```
 
 The evaluator returns: Status (PRODUCTION_READY, CONTINUE, or BLOCKED), Issues, and Recommendations.
@@ -930,7 +901,7 @@ For CONTINUE status only, complete the iteration:
 
 ```!
 # Wait for project path
-PROJECT_PATH=$(wait-for-project-name 2)
+PROJECT_PATH=$("${CLAUDE_PLUGIN_ROOT}"/bin/wait-for-project-name 2)
 BACKTICK='`'
 
 if [ -n "$PROJECT_PATH" ]; then
@@ -938,15 +909,14 @@ if [ -n "$PROJECT_PATH" ]; then
     echo "Use the Bash tool to run:"
     echo ""
     echo "${BACKTICK}${BACKTICK}${BACKTICK}bash"
-    echo "complete-iteration \"$PROJECT_NAME\""
+    echo "\"plugins/project\"/bin/complete-iteration \"$PROJECT_NAME\""
     echo "${BACKTICK}${BACKTICK}${BACKTICK}"
 else
     echo "Use the Bash tool to run:"
     echo ""
     echo "${BACKTICK}${BACKTICK}${BACKTICK}bash"
-    echo "complete-iteration \"[PROJECT_NAME]\""
+    echo "\"plugins/project\"/bin/complete-iteration \"[PROJECT_NAME]\""
     echo "${BACKTICK}${BACKTICK}${BACKTICK}"
 fi
 ```
 </instructions>
-

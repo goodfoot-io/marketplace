@@ -5,13 +5,5 @@
   "author": {
     "name": "Goodfoot",
     "email": "contact@goodfoot.io"
-  },
-  "commands": "./commands",
-  "agents": [
-    "./agents/documenter.md",
-    "./agents/test-agent-evaluation-runner.md",
-    "./agents/test-evaluator.md",
-    "./agents/test-issue-reproducer.md"
-  ],
-  "skills": "./skills"
+  }
 }

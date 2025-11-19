@@ -60,9 +60,11 @@ The browser automation tool is invoked using the `mcp__plugin_browser_browser__p
 Task: Visit example.com and take a screenshot of the page
 
 Tool call:
-mcp__plugin_browser_browser__prompt({
-  prompt: "Navigate to https://example.com and take a screenshot of the entire page"
-})
+```xml
+<invoke name="mcp__plugin_browser_browser__prompt">
+<parameter name="prompt">Navigate to https://example.com and take a screenshot of the entire page</parameter>
+</invoke>
+```
 ```
 
 ### Example 2: Extract specific information from a page
@@ -71,9 +73,11 @@ mcp__plugin_browser_browser__prompt({
 Task: Get the latest article titles from a news website
 
 Tool call:
-mcp__plugin_browser_browser__prompt({
-  prompt: "Go to https://news.example.com and extract all article titles from the homepage"
-})
+```xml
+<invoke name="mcp__plugin_browser_browser__prompt">
+<parameter name="prompt">Go to https://news.example.com and extract all article titles from the homepage</parameter>
+</invoke>
+```
 ```
 
 ### Example 3: Fill out a form and submit
@@ -82,9 +86,11 @@ mcp__plugin_browser_browser__prompt({
 Task: Test a contact form submission
 
 Tool call:
-mcp__plugin_browser_browser__prompt({
-  prompt: "Navigate to https://example.com/contact, fill in the name field with 'Test User', email with 'test@example.com', message with 'This is a test message', and click the submit button. Capture a screenshot of the confirmation page."
-})
+```xml
+<invoke name="mcp__plugin_browser_browser__prompt">
+<parameter name="prompt">Navigate to https://example.com/contact, fill in the name field with 'Test User', email with 'test@example.com', message with 'This is a test message', and click the submit button. Capture a screenshot of the confirmation page.</parameter>
+</invoke>
+```
 ```
 
 ### Example 4: Search and extract results
@@ -93,9 +99,11 @@ mcp__plugin_browser_browser__prompt({
 Task: Search for a product and get pricing information
 
 Tool call:
-mcp__plugin_browser_browser__prompt({
-  prompt: "Go to https://shop.example.com, search for 'laptop', wait for results to load, and extract the names and prices of the first 5 products"
-})
+```xml
+<invoke name="mcp__plugin_browser_browser__prompt">
+<parameter name="prompt">Go to https://shop.example.com, search for 'laptop', wait for results to load, and extract the names and prices of the first 5 products</parameter>
+</invoke>
+```
 ```
 
 ### Example 5: Debug a web page
@@ -104,9 +112,11 @@ mcp__plugin_browser_browser__prompt({
 Task: Investigate console errors on a page
 
 Tool call:
-mcp__plugin_browser_browser__prompt({
-  prompt: "Navigate to https://app.example.com/dashboard, open the browser console, and report any JavaScript errors or warnings that appear"
-})
+```xml
+<invoke name="mcp__plugin_browser_browser__prompt">
+<parameter name="prompt">Navigate to https://app.example.com/dashboard, open the browser console, and report any JavaScript errors or warnings that appear</parameter>
+</invoke>
+```
 ```
 
 ### Example 6: Multi-step workflow with session continuity
@@ -115,16 +125,20 @@ mcp__plugin_browser_browser__prompt({
 Task: Login and navigate to user profile
 
 First interaction:
-mcp__plugin_browser_browser__prompt({
-  prompt: "Go to https://app.example.com/login and fill in username 'testuser' and password from environment. Click login.",
-  sessionId: "user-profile-task"
-})
+```xml
+<invoke name="mcp__plugin_browser_browser__prompt">
+<parameter name="prompt">Go to https://app.example.com/login and fill in username 'testuser' and password from environment. Click login.</parameter>
+<parameter name="sessionId">user-profile-task</parameter>
+</invoke>
+```
 
 Second interaction (continuing same session):
-mcp__plugin_browser_browser__prompt({
-  prompt: "Now navigate to the user profile page and extract the account information displayed",
-  sessionId: "user-profile-task"
-})
+```xml
+<invoke name="mcp__plugin_browser_browser__prompt">
+<parameter name="prompt">Now navigate to the user profile page and extract the account information displayed</parameter>
+<parameter name="sessionId">user-profile-task</parameter>
+</invoke>
+```
 ```
 
 ### Example 7: Wait for dynamic content
@@ -133,9 +147,11 @@ mcp__plugin_browser_browser__prompt({
 Task: Extract data from a page that loads asynchronously
 
 Tool call:
-mcp__plugin_browser_browser__prompt({
-  prompt: "Navigate to https://example.com/data, wait for the loading spinner to disappear and the data table to appear, then extract all rows from the table"
-})
+```xml
+<invoke name="mcp__plugin_browser_browser__prompt">
+<parameter name="prompt">Navigate to https://example.com/data, wait for the loading spinner to disappear and the data table to appear, then extract all rows from the table</parameter>
+</invoke>
+```
 ```
 
 ### Example 8: Interact with modals and popups
@@ -144,9 +160,11 @@ mcp__plugin_browser_browser__prompt({
 Task: Handle a cookie consent dialog
 
 Tool call:
-mcp__plugin_browser_browser__prompt({
-  prompt: "Go to https://example.com, wait for the cookie consent popup to appear, click the 'Accept All' button, then take a screenshot of the main page content"
-})
+```xml
+<invoke name="mcp__plugin_browser_browser__prompt">
+<parameter name="prompt">Go to https://example.com, wait for the cookie consent popup to appear, click the 'Accept All' button, then take a screenshot of the main page content</parameter>
+</invoke>
+```
 ```
 
 ## Best Practices

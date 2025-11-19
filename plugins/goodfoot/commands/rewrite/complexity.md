@@ -35,16 +35,24 @@ Maintain all code, patterns, and specifications.
 For each file specified by the user:
 
 1. **Analyze for negative complexity drivers** by invoking multiple agents simultaneously:
-   ```
-   Task(description="Identify negative complexity drivers in [filename]", 
-       subagent_type="general-purpose",
-       prompt=`Follow the instructions in \@.claude/commands/review/complexity.md      replacing !`echo '$AR''GUMENTS'` with: "@[full-path-to-file]"`)
-   Task(description="Identify negative complexity drivers in [filename]", 
-       subagent_type="general-purpose",
-       prompt=`Follow the instructions in \@.claude/commands/review/complexity.md      replacing !`echo '$AR''GUMENTS'` with: "@[full-path-to-file]"`)
-   Task(description="Identify negative complexity drivers in [filename]", 
-       subagent_type="general-purpose",
-       prompt=`Follow the instructions in \@.claude/commands/review/complexity.md      replacing !`echo '$AR''GUMENTS'` with: "@[full-path-to-file]"`)
+   ```xml
+   <invoke name="Task">
+   <parameter name="description">Identify negative complexity drivers in [filename]</parameter>
+   <parameter name="subagent_type">general-purpose</parameter>
+   <parameter name="prompt">Follow the instructions in \@.claude/commands/review/complexity.md replacing !`echo '$AR''GUMENTS'` with: "@[full-path-to-file]"</parameter>
+   </invoke>
+
+   <invoke name="Task">
+   <parameter name="description">Identify negative complexity drivers in [filename]</parameter>
+   <parameter name="subagent_type">general-purpose</parameter>
+   <parameter name="prompt">Follow the instructions in \@.claude/commands/review/complexity.md replacing !`echo '$AR''GUMENTS'` with: "@[full-path-to-file]"</parameter>
+   </invoke>
+
+   <invoke name="Task">
+   <parameter name="description">Identify negative complexity drivers in [filename]</parameter>
+   <parameter name="subagent_type">general-purpose</parameter>
+   <parameter name="prompt">Follow the instructions in \@.claude/commands/review/complexity.md replacing !`echo '$AR''GUMENTS'` with: "@[full-path-to-file]"</parameter>
+   </invoke>
    ```
 
 2. **Examine analyses** from all three subagents and identify drivers that appear in every report.

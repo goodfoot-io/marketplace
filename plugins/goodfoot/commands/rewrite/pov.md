@@ -60,17 +60,21 @@ The correction applies specifically within Task() `prompt` parameters. Text outs
 
 <example>
 Before:
-```
-Task(description="review-code",
-    subagent_type="code-review",
-    prompt="Review the code. Other agents are working on this. The coordinator will synthesize all feedback and the user makes final decisions.")
+```xml
+<invoke name="Task">
+<parameter name="description">review-code</parameter>
+<parameter name="subagent_type">code-review</parameter>
+<parameter name="prompt">Review the code. Other agents are working on this. The coordinator will synthesize all feedback and the user makes final decisions.</parameter>
+</invoke>
 ```
 
 After:
-```
-Task(description="review-code",
-    subagent_type="code-review",
-    prompt="Review the code. Other agents are working on this. I will synthesize all feedback and make final decisions.")
+```xml
+<invoke name="Task">
+<parameter name="description">review-code</parameter>
+<parameter name="subagent_type">code-review</parameter>
+<parameter name="prompt">Review the code. Other agents are working on this. I will synthesize all feedback and make final decisions.</parameter>
+</invoke>
 ```
 </example>
 
@@ -148,15 +152,19 @@ Update [INPUT_FILE] directly using the Edit tool with all POV corrections applie
 **Simple Task Prompt**
 
 Before:
-```markdown
-Task(description="analyze-performance",
-    prompt="Analyze the performance metrics. The coordinator will review your findings and the user will make the final decision.")
+```xml
+<invoke name="Task">
+<parameter name="description">analyze-performance</parameter>
+<parameter name="prompt">Analyze the performance metrics. The coordinator will review your findings and the user will make the final decision.</parameter>
+</invoke>
 ```
 
 After:
-```markdown
-Task(description="analyze-performance",
-    prompt="Analyze the performance metrics. I will review your findings and make the final decision.")
+```xml
+<invoke name="Task">
+<parameter name="description">analyze-performance</parameter>
+<parameter name="prompt">Analyze the performance metrics. I will review your findings and make the final decision.</parameter>
+</invoke>
 ```
 </example>
 
@@ -164,19 +172,23 @@ Task(description="analyze-performance",
 **Instructions Block in Task Prompt**
 
 Before:
-```markdown
-prompt="<task>Review this code</task>
+```xml
+<invoke name="Task">
+<parameter name="prompt"><task>Review this code</task>
 <instructions>
 Provide detailed feedback. Other agents are reviewing different modules. The orchestrating agent will compile all reviews and present to the user for final approval.
-</instructions>"
+</instructions></parameter>
+</invoke>
 ```
 
 After:
-```markdown
-prompt="<task>Review this code</task>
+```xml
+<invoke name="Task">
+<parameter name="prompt"><task>Review this code</task>
 <instructions>
 Provide detailed feedback. Other agents are reviewing different modules. I will compile all reviews and make the final approval decision.
-</instructions>"
+</instructions></parameter>
+</invoke>
 ```
 </example>
 
@@ -184,23 +196,23 @@ Provide detailed feedback. Other agents are reviewing different modules. I will 
 **Template Section**
 
 Before:
-```markdown
-## Tool Use Template
-
-Task(description="task-name",
-    prompt="<instructions>
-    Complete your analysis. Remember that other agents are working in parallel, the coordinator synthesizes results, and the user decides next steps.
-    </instructions>")
+```xml
+<invoke name="Task">
+<parameter name="description">task-name</parameter>
+<parameter name="prompt"><instructions>
+Complete your analysis. Remember that other agents are working in parallel, the coordinator synthesizes results, and the user decides next steps.
+</instructions></parameter>
+</invoke>
 ```
 
 After:
-```markdown
-## Tool Use Template
-
-Task(description="task-name",
-    prompt="<instructions>
-    Complete your analysis. Remember that other agents are working in parallel, I will synthesize results, and I decide next steps.
-    </instructions>")
+```xml
+<invoke name="Task">
+<parameter name="description">task-name</parameter>
+<parameter name="prompt"><instructions>
+Complete your analysis. Remember that other agents are working in parallel, I will synthesize results, and I decide next steps.
+</instructions></parameter>
+</invoke>
 ```
 </example>
 

@@ -98,13 +98,13 @@ The test scenario may require different execution approaches:
 #### Option A: Simple Scenario (Single Task)
 If the test_scenario is a simple prompt, execute directly:
 
-<example-tool-use>
-mcp__test-agent__task(
-  description="Evaluation of [agent_id]",
-  prompt="[content from test_scenario.md]",
-  system_instructions_file="[working_directory]/[agent_id].md"
-)
-</example-tool-use>
+```xml
+<invoke name="mcp__test-agent__task">
+<parameter name="description">Evaluation of [agent_id]</parameter>
+<parameter name="prompt">[content from test_scenario.md]</parameter>
+<parameter name="system_instructions_file">[working_directory]/[agent_id].md</parameter>
+</invoke>
+```
 
 #### Option B: Complex Scenario (Multiple Steps)
 If the test_scenario contains instructions for multiple mcp__test-agent__task calls or other evaluation steps:
@@ -121,23 +121,23 @@ The test_scenario might specify:
 
 Example complex execution pattern:
 
-<example-tool-use>
-# Step 1: Generate document
-mcp__test-agent__task(
-  description="Generate document - [agent_id]",
-  prompt="[first part from test_scenario.md]",
-  system_instructions_file="[working_directory]/[agent_id].md"
-)
-</example-tool-use>
+```xml
+<!-- Step 1: Generate document -->
+<invoke name="mcp__test-agent__task">
+<parameter name="description">Generate document - [agent_id]</parameter>
+<parameter name="prompt">[first part from test_scenario.md]</parameter>
+<parameter name="system_instructions_file">[working_directory]/[agent_id].md</parameter>
+</invoke>
+```
 
-<example-tool-use>
-# Step 2: Evaluate the generated document
-mcp__test-agent__task(
-  description="Evaluate document - [agent_id]",
-  prompt="Evaluate this document: [output1]",
-  system_instructions_file="/path/to/example-agent-evaluator.md"
-)
-</example-tool-use>
+```xml
+<!-- Step 2: Evaluate the generated document -->
+<invoke name="mcp__test-agent__task">
+<parameter name="description">Evaluate document - [agent_id]</parameter>
+<parameter name="prompt">Evaluate this document: [output1]</parameter>
+<parameter name="system_instructions_file">/path/to/example-agent-evaluator.md</parameter>
+</invoke>
+```
 
 Combine outputs for scoring as needed.
 

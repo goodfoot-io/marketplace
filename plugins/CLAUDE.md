@@ -132,16 +132,16 @@ Subagents defined in plugins are specialized AI agents invoked explicitly via th
 3. `<AgentName>` - Agent name in PascalCase
 
 **Examples**:
-- `"vscode:Analysis"` - Analysis subagent from vscode plugin
+- `"code-review:Analysis"` - Analysis subagent from code-review plugin
 - `"project:Implementer"` - Implementer subagent from project plugin
 
 **Usage**:
-```javascript
-Task({
-  subagent_type: "vscode:Analysis",
-  description: "Investigate TypeScript error",
-  prompt: "Analyze the TS2322 error at src/user.ts:45"
-})
+```xml
+<invoke name="Task">
+<parameter name="subagent_type">code-review:Analysis</parameter>
+<parameter name="description">Investigate TypeScript error</parameter>
+<parameter name="prompt">Analyze the TS2322 error at src/user.ts:45</parameter>
+</invoke>
 ```
 
 ### Subagent Definition Files
@@ -149,9 +149,9 @@ Task({
 Subagents are defined in markdown files within a plugin's `agents/` directory:
 
 ```
-plugins/vscode/
+plugins/code-review/
 └── agents/
-    └── analysis.md          # Contains: name: Analysis, used as "vscode:Analysis"
+    └── analysis.md          # Contains: name: Analysis, used as "code-review:Analysis"
 ```
 
 The frontmatter `name` field (not filename) determines the agent identifier.
@@ -315,6 +315,385 @@ commands/git/commit.md               → /git:commit
 commands/review/security.md          → /review:security
 commands/project/plan/create.md      → /project:plan:create
 ```
+
+## Embedded Bash in Commands and Skills
+
+Commands and skills can execute bash statements that are evaluated before the content is sent to Claude. This allows dynamic content generation, file reading, and environment variable access.
+
+### Optional: allowed-tools Frontmatter
+
+The `allowed-tools` frontmatter field is **optional** and only needed when you want to **restrict** which tools Claude can access during command execution:
+
+```yaml
+---
+description: My command description
+allowed-tools: Bash(git status:*), Bash(git diff:*)  # Restricts Claude to only these bash commands
+---
+```
+
+**Use cases for allowed-tools**:
+- Limit Claude to specific safe operations (e.g., only read-only git commands)
+- Prevent potentially destructive operations in production commands
+- Create sandboxed environments for testing
+
+**Patterns**:
+- `Bash(command:*)` - Allow specific command with any arguments
+- `Bash(*)` - Allow all bash commands
+- Omit `allowed-tools` entirely to allow all tools (default behavior)
+
+### Syntax
+
+**Multi-line embedded bash** (for multiple commands or complex operations):
+````markdown
+```!
+echo "Hello from bash"
+ls -la
+PROJECT_DIR=$(mkdir -p mydir && echo "mydir")
+```
+````
+
+**Inline embedded bash** (for single values or simple substitutions):
+````markdown
+The current date is !`date +%Y-%m-%d`.
+Current user: !`whoami`
+File count: !`ls -1 | wc -l`
+````
+
+**File reference with embedded bash** (reading file contents):
+````markdown
+Review the documentation: @!`echo "${CLAUDE_PLUGIN_ROOT}"`/docs/guide.md
+````
+
+**When to use each**:
+- **Multi-line (```` ```! ````)**: Sequential operations, error handling, complex logic, testing
+- **Inline (`!`command``)**: Single value substitution, simple commands, inline context
+- **File reference (`@!`command``)**: Reading file contents into the command/skill context
+
+### Execution Context
+
+Embedded bash statements:
+- Execute in the **workspace root directory** (not the plugin directory)
+  - Verified: `$(pwd)` returns the workspace root (e.g., `/workspace`)
+  - This means relative paths like `projects/new/` work directly
+  - Plugin scripts using workspace-relative paths will work correctly
+- Run **before** content is sent to Claude
+- Have their output substituted into the content
+- Do **not** have access to `CLAUDE_PROJECT_DIR` environment variable
+- **All embedded bash blocks run in parallel (simultaneously)** - not sequentially
+- **Each embedded bash block executes in its own isolated context** - variables and environment changes do not persist between blocks
+
+### Accessing Plugin Files with `${CLAUDE_PLUGIN_ROOT}`
+
+The `${CLAUDE_PLUGIN_ROOT}` variable provides the path to the plugin's root directory, enabling commands to access plugin-relative files.
+
+**Example - Reading a plugin file**:
+````markdown
+---
+description: My command with reference data
+---
+
+Loading configuration from plugin:
+
+```!
+cat "${CLAUDE_PLUGIN_ROOT}/config/settings.json"
+```
+````
+
+**Example - Listing plugin contents**:
+````markdown
+```!
+echo "Plugin directory: ${CLAUDE_PLUGIN_ROOT}"
+ls -la "${CLAUDE_PLUGIN_ROOT}"
+```
+````
+
+**Example - Executing plugin scripts**:
+````markdown
+```!
+"${CLAUDE_PLUGIN_ROOT}/scripts/analyze.sh" --verbose
+```
+````
+
+### Path Resolution
+
+`${CLAUDE_PLUGIN_ROOT}` can be **either relative or absolute** depending on the execution context:
+- **Relative** (from workspace root): `plugins/project`, `plugins/browser`
+- **Absolute**: `/workspace/plugins/project`, `/workspace/plugins/browser`
+
+Both forms work correctly since embedded bash executes from the workspace root. Your code should handle both cases by using `"${CLAUDE_PLUGIN_ROOT}"` directly without assumptions about its format.
+
+**Example - Works with both relative and absolute paths**:
+````markdown
+```!
+# This works whether CLAUDE_PLUGIN_ROOT is relative or absolute
+"${CLAUDE_PLUGIN_ROOT}"/bin/my-script.sh
+cat "${CLAUDE_PLUGIN_ROOT}/config/settings.json"
+```
+````
+
+You can use this to read reference files, configuration data, or execute helper scripts packaged with your plugin.
+
+### Using ${CLAUDE_PLUGIN_ROOT} in Documentation and Examples
+
+**CRITICAL**: The syntax for using `${CLAUDE_PLUGIN_ROOT}` differs between command files (with embedded bash) and regular documentation files.
+
+#### In Embedded Bash Blocks (Executes Code)
+
+Use `"${CLAUDE_PLUGIN_ROOT}"` directly - the variable will be expanded at runtime:
+
+````markdown
+```!
+# This executes and ${CLAUDE_PLUGIN_ROOT} is expanded
+PROJECT_DIR=$("${CLAUDE_PLUGIN_ROOT}"/bin/initialize-project "my-project")
+"${CLAUDE_PLUGIN_ROOT}"/bin/my-script.sh
+```
+````
+
+#### In Command Files - Documentation Code Blocks (Shows Examples)
+
+Use `!`echo "${CLAUDE_PLUGIN_ROOT}"`` syntax - this expands the path when rendered so users see the actual path:
+
+````markdown
+**Usage:**
+```bash
+# This is documentation - use embedded bash syntax to show actual path
+PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "my-project")
+!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/my-script.sh
+```
+````
+
+**Why this matters**:
+- Regular markdown code blocks (````bash`) in command files don't execute - they're just formatted text
+- If you use `"${CLAUDE_PLUGIN_ROOT}"` in command documentation, users will see the literal string instead of the actual path
+- The `!`echo "${CLAUDE_PLUGIN_ROOT}"`` syntax runs the echo command and substitutes the result when the documentation is rendered
+- **IMPORTANT**: This only works in command/skill files (`.md` files in `commands/` or `skills/` directories)
+
+#### In Regular Documentation Files (README.md, etc.)
+
+Regular markdown files like `README.md` do NOT have embedded bash processing. Use the literal `"${CLAUDE_PLUGIN_ROOT}"` syntax to show users what they should type:
+
+````markdown
+**Usage:**
+```bash
+# This is what users will actually type in their terminal
+PROJECT_DIR=$("${CLAUDE_PLUGIN_ROOT}"/bin/initialize-project "my-project")
+```
+````
+
+#### Quick Reference
+
+| Context | Syntax | Result |
+|---------|--------|--------|
+| Embedded bash block (````!`) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Variable expanded at runtime ✓ |
+| Command file docs (````bash`) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Shows literal string ✗ |
+| Command file docs (````bash`) | `!`echo "${CLAUDE_PLUGIN_ROOT}"``/bin/tool` | Shows expanded path ✓ |
+| Regular files (README.md) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Shows what users type ✓ |
+| File reference | `@!`echo "${CLAUDE_PLUGIN_ROOT}"``/file.md` | Reads file at expanded path ✓ |
+
+#### Examples
+
+**Correct - Embedded bash (executes)**:
+````markdown
+```!
+RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
+```
+````
+
+**Incorrect - Documentation without expansion**:
+````markdown
+**Usage:**
+```bash
+# Users will see literal "${CLAUDE_PLUGIN_ROOT}" which won't help them
+RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
+```
+````
+
+**Correct - Command file documentation with expansion**:
+````markdown
+**Usage:**
+```bash
+# Users will see "plugins/project/bin/process-data" or the actual path
+RESULT=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/process-data)
+```
+````
+
+**Correct - README.md (regular file)**:
+````markdown
+**Usage:**
+```bash
+# This is what users actually type - shows literal syntax
+RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
+```
+````
+
+### Skills vs Commands
+
+**Skills** get automatic base directory context in their prompt:
+```
+Base directory for this skill: /path/to/plugin/skills/skill-name
+
+[skill content]
+```
+
+**Commands** do not receive base directory automatically, but can use `${CLAUDE_PLUGIN_ROOT}` in embedded bash to access plugin files.
+
+### Common Use Cases
+
+1. **Reading reference documentation**:
+   ````markdown
+   ```!
+   cat "${CLAUDE_PLUGIN_ROOT}/docs/api-reference.md"
+   ```
+   ````
+
+2. **Loading templates**:
+   ````markdown
+   ```!
+   cat "${CLAUDE_PLUGIN_ROOT}/templates/component.tsx"
+   ```
+   ````
+
+3. **Checking plugin version**:
+   ````markdown
+   Plugin version: !`cat "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json" | grep version`
+   ````
+
+4. **Conditional content based on file existence**:
+   ````markdown
+   ```!
+   if [ -f "${CLAUDE_PLUGIN_ROOT}/config.json" ]; then
+     echo "Configuration found:"
+     cat "${CLAUDE_PLUGIN_ROOT}/config.json"
+   else
+     echo "No configuration file found"
+   fi
+   ```
+   ````
+
+### Limitations
+
+- Embedded bash runs with the same permissions as Claude Code
+- Output is substituted as plain text into the markdown
+- Errors in bash commands will cause the command/skill to fail
+- Cannot access `CLAUDE_PROJECT_DIR` (use `pwd` or workspace-relative paths instead)
+- **Context isolation**: Each embedded bash block runs in a separate shell instance. Variables, exports, and `cd` commands do not carry over between blocks
+
+### Parallel Execution and Context Isolation
+
+**CRITICAL**: All embedded bash blocks run **simultaneously** (in parallel), not sequentially. For sequential operations, use a single block.
+
+This **WILL NOT WORK** (blocks run in parallel, race condition):
+````markdown
+```!
+# Block 1: Create directory
+mkdir -p mydir
+```
+
+```!
+# Block 2: Write file (may run BEFORE Block 1!)
+echo "test" > mydir/file.txt
+```
+````
+
+This **WILL WORK** (single block, sequential execution):
+````markdown
+```!
+# All commands in one block run sequentially
+mkdir -p mydir
+echo "test" > mydir/file.txt
+```
+````
+
+Variables also don't persist between blocks:
+````markdown
+```!
+export MY_VAR="hello"
+```
+
+```!
+echo "$MY_VAR"  # Empty - different shell instance
+```
+````
+
+Inline substitution works for single values:
+````markdown
+The value is !`MY_VAR="hello"; echo "$MY_VAR"`
+````
+
+**Best Practice for Plugin Binaries**: Use `${CLAUDE_PLUGIN_ROOT}` directly in commands within a single block for sequential operations:
+
+````markdown
+```!
+# All operations in one block ensure sequential execution
+# Step 1: Initialize
+PROJECT_DIR=$("${CLAUDE_PLUGIN_ROOT}"/bin/initialize-project "my-project")
+
+# Step 2: Create plan (depends on Step 1 completing)
+PLAN_FILE=$("${CLAUDE_PLUGIN_ROOT}"/bin/create-plan "my-project" "content")
+
+# Step 3: Verify (depends on Step 2 completing)
+if [ -f "$PLAN_FILE" ]; then
+  echo "✓ Plan created successfully"
+  cat "$PLAN_FILE"
+fi
+```
+````
+
+**Incorrect** - Trying to set PATH in separate block:
+````markdown
+# DON'T DO THIS - PATH won't persist to next block
+```!
+export PATH="${CLAUDE_PLUGIN_ROOT}/bin:$PATH"
+```
+
+```!
+PROJECT_DIR=$(initialize-project "project-name")  # Won't find the binary
+```
+````
+
+### Testing Commands with Dependencies
+
+When creating test commands that verify plugin functionality, use a **single embedded bash block** to ensure tests run sequentially:
+
+````markdown
+---
+description: Test my plugin binaries
+---
+
+```!
+echo "=== Running Tests ==="
+
+# Test 1: Setup
+echo "Test 1: Creating resources..."
+RESOURCE=$("${CLAUDE_PLUGIN_ROOT}"/bin/create-resource "test-resource")
+if [ $? -ne 0 ]; then
+  echo "✗ Test 1 failed"
+  exit 1
+fi
+echo "✓ Test 1 passed"
+
+# Test 2: Verify (depends on Test 1)
+echo "Test 2: Verifying resource..."
+if [ -f "$RESOURCE" ]; then
+  echo "✓ Test 2 passed"
+else
+  echo "✗ Test 2 failed"
+  exit 1
+fi
+
+# Test 3: Cleanup
+echo "Test 3: Cleaning up..."
+rm -f "$RESOURCE"
+echo "✓ All tests passed!"
+```
+````
+
+**Key testing patterns**:
+- Use single block for all tests to ensure sequential execution
+- Capture exit codes and check for errors after each operation
+- Use `exit 1` to stop on first failure
+- Provide clear pass/fail indicators (✓/✗)
+- Include cleanup instructions or automatic cleanup at the end
 
 ## Plugin Hook Event Naming
 
@@ -488,12 +867,18 @@ mcp__plugin_browser_browser__prompt()
 
 ### ❌ Wrong Subagent Type
 
-```javascript
-// Wrong - missing plugin prefix
-Task({ subagent_type: "Analysis", ... })
+```xml
+<!-- Wrong - missing plugin prefix -->
+<invoke name="Task">
+<parameter name="subagent_type">Analysis</parameter>
+...
+</invoke>
 
-// Correct
-Task({ subagent_type: "vscode:Analysis", ... })
+<!-- Correct -->
+<invoke name="Task">
+<parameter name="subagent_type">code-review:Analysis</parameter>
+...
+</invoke>
 ```
 
 ### ❌ Skill File Location

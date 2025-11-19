@@ -1,3 +1,7 @@
+---
+description: Run tasks in parallel
+---
+
 <user-message>
 $ARGUMENTS
 </user-message>
@@ -8,11 +12,12 @@ Use the `Task()` tool to launch subagents.
 The `<user-message>` will describe the following inputs:
 - [TASKS]: Array of distinct tasks for subagents to perform. Each [TASKS][i] represents one distinct piece of work. (required)
 - [SUBAGENT_COUNT]: The number of subagents to perform the [TASKS]. (optional, default 3)
-- [SUBAGENT_TYPE]: The `subagent_type` to use when invoking the Task tool function. (optional, default "general-purpose")
-- [SUBAGENT_MODEL]: The model to use for the subagents. (optional, default "sonnet")
+- [SUBAGENT_TYPE]: The `subagent_type` to use when invoking the Task tool function. (optional, default "goodfoot:simple-purpose")
+- [SUBAGENT_MODEL]: The model to use for the subagents. (optional, auto-detected if not specified)
 
 You should derive the following from the provided inputs:
 - [REDUNDANCY_LEVEL]: How many subagents should perform each [TASKS][i] (default 1)
+- [SUBAGENT_MODEL]: If not explicitly specified, automatically determine based on task complexity (see `<model-selection>` section)
 
 Then, create [SUBAGENT_COUNT] subagents, where each subagent requires:
 - [SUBAGENT_INSTRUCTIONS][j]: Instructions derived from one or more [TASKS][i] items
@@ -22,38 +27,61 @@ Then, create [SUBAGENT_COUNT] subagents, where each subagent requires:
 All three arrays have length = [SUBAGENT_COUNT].
 </input-format>
 
-<redundancy-level-derivation>
-Determine [REDUNDANCY_LEVEL] using the following priority order:
+<redundancy-level>
+
+## Determining [REDUNDANCY_LEVEL]
 
 1. If explicitly stated in user message (e.g., "two subagents per component"): use that value
 2. If subdivisions exist: [REDUNDANCY_LEVEL] = 1
 3. Otherwise: [REDUNDANCY_LEVEL] = [SUBAGENT_COUNT]
-</redundancy-level-derivation>
 
-<task-distribution>
 ## Distribution Rules
 
 - When [REDUNDANCY_LEVEL] > 1: Each [TASKS][i] is assigned to [REDUNDANCY_LEVEL] subagents (redundant execution). Typically [SUBAGENT_COUNT] = (number of [TASKS] items × [REDUNDANCY_LEVEL]).
 - When [REDUNDANCY_LEVEL] = 1 and (number of [TASKS] items) ≤ [SUBAGENT_COUNT]: Each [TASKS][i] is assigned to one subagent
 - When [REDUNDANCY_LEVEL] = 1 and (number of [TASKS] items) > [SUBAGENT_COUNT]: Distribute [TASKS] items evenly across [SUBAGENT_COUNT] subagents (each [SUBAGENT_INSTRUCTIONS][j] encompasses multiple [TASKS] items)
-</task-distribution>
+</redundancy-level>
+
+<model-selection>
+Determine [SUBAGENT_MODEL]:
+
+1. **If explicitly specified** (e.g., "using haiku", "with sonnet agents"): use that value
+2. **If not specified**: default to "haiku"
+
+**Upgrade to "sonnet"** only when tasks require:
+- Code analysis, review, or understanding existing implementations
+- Technical documentation requiring deep context or system knowledge
+- Research involving investigation, comparison, or synthesis
+- Planning, design, or strategic decision-making
+- Multi-step reasoning or complex problem-solving
+- Generating comprehensive reports or structured technical content
+
+**Keep "haiku"** for straightforward execution tasks like file creation, counting, basic text operations, or simple data manipulation.
+</model-selection>
 
 <task-subdivision-logic>
-## Subdivision Triggers
+## Detecting Subdivisions
 
-- "each", "all", "every", plural references ("files", "components"), or explicit subdivision instructions
-- Singular references ("file", "plan") without subdivision keywords trigger redundancy (multiple subagents on same task)
+**Subdivision signals** (create one [TASKS][i] per distinct item):
+- Keywords: "each", "all", "every", "different"
+- Plural references: "files", "sections", "plugins"
+- Enumerations: "English, Spanish, and French"
+- Explicit instructions: "for each section"
 
-## Subdivision Behavior
+**If not explicit:** Investigate (read files, search codebase) to discover items.
 
-- Natural subdivisions take priority over [SUBAGENT_COUNT]
-- When subdivisions aren't explicit, investigate to discover items (read files, search codebase, etc.)
-- Total `Task()` invocations = [SUBAGENT_COUNT]
+## Determining [SUBAGENT_COUNT]
+
+When not explicitly specified:
+- **Subdivision detected:** Count = number of items found (e.g., "English, Spanish, French" → 3)
+- **Singular task:** Count = 1 (e.g., "create a summary" → 1)
+- **Singular + explicit count:** Count = specified, triggers redundancy (e.g., "3 agents create a summary" → 3)
+- **Ambiguous:** Count = 3, then investigate
+
+**Priority:** Natural subdivisions override user-specified count. Mixed signals (plural + explicit count) → distribute items across specified count.
 </task-subdivision-logic>
 
 <subagent-context>
-## Critical
-
 Subagents have ZERO context from this conversation. Use FULL ABSOLUTE PATHS starting with `/workspace/` in all semantic tags. Relative paths cause subagent failure.
 
 Structure [SUBAGENT_CONTEXT] using semantic XML tags that organize technical details into logical categories. Use kebab-case tag names that clearly describe the content type. Keep content concise while providing complete technical context. See examples for tag usage patterns.
@@ -69,7 +97,7 @@ If the `<user-message>` is "Instruct five "code-review" subagents to determine t
 - [REDUNDANCY_LEVEL] = 1
 - [SUBAGENT_COUNT] = 5 (5 tasks × 1 redundancy)
 - [SUBAGENT_TYPE] = "code-review"
-- [SUBAGENT_MODEL] = "sonnet"
+- [SUBAGENT_MODEL] = "sonnet" (auto-detected: tasks require code analysis and technical evaluation)
 
 Derived from [TASKS][1]:
 - [SUBAGENT_INSTRUCTIONS][1] = Review Section 2 "Database Schema" in `/workspace/documentation/example-new-feature-plan.md`. Evaluate technical soundness and compatibility with `/workspace/packages/api/src/auth/session-manager.ts`.
@@ -150,7 +178,7 @@ If the `<user-message>` is "Instruct two "code-review" subagents to determine th
 - [REDUNDANCY_LEVEL] = 2 (2 subagents perform the same task)
 - [SUBAGENT_COUNT] = 2 (1 task × 2 agents per task)
 - [SUBAGENT_TYPE] = "code-review"
-- [SUBAGENT_MODEL] = "sonnet"
+- [SUBAGENT_MODEL] = "sonnet" (auto-detected: task requires technical feasibility analysis and recommendations)
 
 Derived from [TASKS][1] (agent 1):
 - [SUBAGENT_INSTRUCTIONS][1] = Review the complete feature plan in `/workspace/documentation/example-new-feature-plan.md`. Evaluate technical feasibility, compatibility with `/workspace/packages/api/` and `/workspace/packages/website/`, and provide recommendations.
@@ -181,6 +209,55 @@ Plan proposes bcrypt v5.1.1 → @node-rs/bcrypt v1.9.0 (native bindings) and con
 ```
 
 **Note: Singular "plan" triggers redundancy - 1 [TASKS] with [REDUNDANCY_LEVEL]=2. Total: 2 Task() calls (1 task × 2 agents per task) with identical instructions and context.**
+</example>
+
+<example>
+If the `<user-message>` is "Create three text files with simple greetings in different languages: English, Spanish, and French", then:
+- [TASKS][1] = Create text file with English greeting
+- [TASKS][2] = Create text file with Spanish greeting
+- [TASKS][3] = Create text file with French greeting
+- [REDUNDANCY_LEVEL] = 1
+- [SUBAGENT_COUNT] = 3 (3 tasks × 1 agent per task)
+- [SUBAGENT_TYPE] = "general-purpose"
+- [SUBAGENT_MODEL] = "haiku" (auto-detected: tasks are simple file creation with short text content)
+
+Derived from [TASKS][1]:
+- [SUBAGENT_INSTRUCTIONS][1] = Create a text file at `/workspace/greetings/english.txt` containing a friendly greeting in English (one sentence).
+- [SUBAGENT_DESCRIPTION][1] = "create-english-greeting"
+- [SUBAGENT_CONTEXT][1] =
+```
+<task-requirements>
+File path: `/workspace/greetings/english.txt`
+Content: Single sentence greeting in English
+Format: Plain text
+</task-requirements>
+```
+
+Derived from [TASKS][2]:
+- [SUBAGENT_INSTRUCTIONS][2] = Create a text file at `/workspace/greetings/spanish.txt` containing a friendly greeting in Spanish (one sentence).
+- [SUBAGENT_DESCRIPTION][2] = "create-spanish-greeting"
+- [SUBAGENT_CONTEXT][2] =
+```
+<task-requirements>
+File path: `/workspace/greetings/spanish.txt`
+Content: Single sentence greeting in Spanish
+Format: Plain text
+</task-requirements>
+```
+
+Derived from [TASKS][3]:
+- [SUBAGENT_INSTRUCTIONS][3] = Create a text file at `/workspace/greetings/french.txt` containing a friendly greeting in French (one sentence).
+- [SUBAGENT_DESCRIPTION][3] = "create-french-greeting"
+- [SUBAGENT_CONTEXT][3] =
+```
+<task-requirements>
+File path: `/workspace/greetings/french.txt`
+Content: Single sentence greeting in French
+Format: Plain text
+</task-requirements>
+```
+
+**Note: Explicit enumeration "English, Spanish, and French" triggers subdivision. Simple file creation tasks auto-select haiku model. Total: 3 Task() calls.**
 </example>
 
 Combine all `Task()` calls into a single message to execute simultaneously:

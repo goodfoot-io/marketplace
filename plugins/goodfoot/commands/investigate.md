@@ -8,9 +8,9 @@ write-arguments "$ARGUMENTS"
 ```
 </user-message>
 
-Act on the `<user-message>` above, using the `Task()` tool function to iteratively evaluate solutions. Do not modify files or implement the solution.
+Act on the `<user-message>` above, using the `Task()` tool to iteratively evaluate solutions. Do not modify files or implement the solution.
 
-**You MUST prepare each batch of `Task()` tool function calls in advance and combine them into a single response message.**
+**You MUST prepare each batch of `Task()` tool invocations in advance and combine them into a single response message.**
 
 <task-templates>
 ```!
@@ -27,57 +27,57 @@ EOF
 BACKTICK='`'
 
 echo ""
+echo "${BACKTICK}${BACKTICK}${BACKTICK}xml"
+echo ""
+echo '<!-- Create an <invoke> for each solution before submitting your response: -->'
+echo ""
+echo '<invoke name="Task">'
+echo '<parameter name="description">Evaluate [short summary of solution A]</parameter>'
+echo '<parameter name="subagent_type">general-purpose</parameter>'
+echo '<parameter name="prompt">'
+echo '## User Message'
+echo '<user-message>'
+echo "$ORIGINAL_ARGS"
+echo '</user-message>'
+echo ''
+echo '<solution>'
+echo '[Complete description of solution A, using absolute paths for any file or directory references required to evaluate the solution]'
+echo '</solution>'
+echo ''
+echo 'Evaluate the "<solution>":'
+echo ''
+echo '1. **Effectiveness** - How well does it address the "<user-message>"?'
+echo '2. **Strengths** - What are its key advantages?'
+echo '3. **Weaknesses** - What are its limitations or risks?'
+echo '4. **Feasibility** - How practical is implementation?'
+echo '5. **Trade-offs** - What compromises does it require?'
+echo '6. **Edge cases** - What scenarios might challenge it?'
+echo ''
+echo 'Provide structured analysis for each point above.'
+echo ''
+echo '**Important**: Do not modify files or implement the solution.'
+echo '</parameter>'
+echo '</invoke>'
+echo ""
+echo '<!-- Create a similar evaluation <invoke> for solution B before submitting your response: -->'
+echo ""
+echo '<invoke name="Task">'
+echo '<parameter name="description">Evaluate [short summary of solution B]</parameter>'
+echo '...'
+echo '</invoke>'
+echo ""
+echo '<!-- Create a similar evaluation <invoke> for solution C before submitting your response: -->'
+echo ""
+echo '<invoke name="Task">'
+echo '<parameter name="description">Evaluate [short summary of solution C]</parameter>'
+echo '...'
+echo '</invoke>'
+echo ""
+echo '<!-- Now submit all <invoke> calls together in a single response -->'
+echo ""
 echo "${BACKTICK}${BACKTICK}${BACKTICK}"
 echo ""
-echo '// Create a `Task()` for each solution before submitting your response:'
-echo ""
-echo "Task("
-echo '  description="Evaluate [short summary of solution A]",'
-echo '  subagent_type="general-purpose",'
-echo '  prompt=`'
-echo '    ## User Message'
-echo '    <user-message>'
-echo "    $ORIGINAL_ARGS"
-echo '    </user-message>'
-echo ''
-echo '    <solution>'
-echo '    [Complete description of solution A, using absolute paths for any file or directory references required to evaluate the solution]'
-echo '    </solution>'
-echo ''
-echo '    Evaluate the "<solution>":'
-echo ''
-echo '    1. **Effectiveness** - How well does it address the "<user-message>"?'
-echo '    2. **Strengths** - What are its key advantages?'
-echo '    3. **Weaknesses** - What are its limitations or risks?'
-echo '    4. **Feasibility** - How practical is implementation?'
-echo '    5. **Trade-offs** - What compromises does it require?'
-echo '    6. **Edge cases** - What scenarios might challenge it?'
-echo ''
-echo '    Provide structured analysis for each point above.'
-echo ''
-echo '    **Important**: Do not modify files or implement the solution.'
-echo '`'
-echo ")"
-echo ""
-echo '// Create a similar evaluation `Task()` for solution B before submitting your response:'
-echo ""
-echo "Task("
-echo '  description="Evaluate [short summary of solution B]",'
-echo '  ...'
-echo ")"
-echo ""
-echo '// Create a similar evaluation `Task()` for solution C before submitting your response:'
-echo ""
-echo "Task("
-echo '  description="Evaluate [short summary of solution C]",'
-echo '  ...'
-echo ")"
-echo ""
-echo '// Now submit all `Task()` invocations together in a single response'
-echo ""
-echo "${BACKTICK}${BACKTICK}${BACKTICK}"
-echo ""
-echo 'Execute multiple evaluations in parallel by including all `Task()` tool calls in a single response message. **Never execute sequentially.**'
+echo 'Execute multiple evaluations in parallel by including all `Task()` tool invocations in a single response message. **Never execute sequentially.**'
 ```
 </task-templates>
 

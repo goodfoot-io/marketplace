@@ -32,10 +32,12 @@ Extract the following from `<user-message>` using best effort parsing:
 ## Phase 1: Analyze Failures and Extract Issues
 
 ### Invoke a `general-purpose` Agent to Analyze Test Failures and Type Issues
-```
-Task(description="Analyze test failures and type issues in [TARGET_DIRECTORY]", 
-      subagent_type="general-purpose",
-      prompt=`Follow the instructions in \@.claude/commands/review/tests-v2.md replacing !`echo '$AR''GUMENTS'` with: "Analyze test failures and type issues in @[TARGET_DIRECTORY] using '[TYPE_CHECK_COMMAND]' and '[TEST_COMMANDS]' then output the report as a message"`)
+```xml
+<invoke name="Task">
+<parameter name="description">Analyze test failures and type issues in [TARGET_DIRECTORY]</parameter>
+<parameter name="subagent_type">general-purpose</parameter>
+<parameter name="prompt">Follow the instructions in \@.claude/commands/review/tests-v2.md replacing !`echo '$AR''GUMENTS'` with: "Analyze test failures and type issues in @[TARGET_DIRECTORY] using '[TYPE_CHECK_COMMAND]' and '[TEST_COMMANDS]' then output the report as a message"</parameter>
+</invoke>
 ```
 
 ### Extract Issues from Report

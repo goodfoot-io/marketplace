@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# wait-for-arguments: Wait for write-arguments to complete and return the arguments
+# Usage: wait-for-arguments [timeout_seconds]
+# Returns: The arguments from /tmp/slash_cmd_args_${CLAUDE_PID}.sh or error code
+
+# Default timeout is 5 seconds
+TIMEOUT="${1:-5}"
+
+# Source find-claude-pid utility
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -f "$SCRIPT_DIR/find-claude-pid" ]; then
+    source "$SCRIPT_DIR/find-claude-pid"
+else
+    echo "Error: Could not find find-claude-pid utility" >&2
+    exit 1
+fi
+
+# Get Claude PID
+if ! CLAUDE_PID=$(find_claude_pid); then
+    : # find_claude_pid returns fallback PID even on failure
+fi
+
+# Define args file path
+ARGS_FILE="/tmp/slash_cmd_args_${CLAUDE_PID}.sh"
+
+# Current timestamp
+CURRENT_TIME=$(date +%s)
+
+# Convert timeout to deciseconds (tenths of seconds) for the loop
+# Handle decimal timeouts by multiplying by 10 and removing decimal
+TIMEOUT_DECISECONDS=$(echo "$TIMEOUT * 10" | awk '{printf "%.0f", $1 * $3}')
+MAX_ITERATIONS=$TIMEOUT_DECISECONDS
+
+# Wait for a recent sync file to exist
+for ((i=1; i<=MAX_ITERATIONS; i++)); do
+    # Check for any sync file created within the last 5 seconds for this Claude instance
+    for sync_file in /tmp/slash_cmd_sync_${CLAUDE_PID}_*; do
+        if [ -f "$sync_file" ]; then
+            # Extract timestamp from filename (now includes PID)
+            FILE_TIMESTAMP=$(basename "$sync_file" | sed "s/slash_cmd_sync_${CLAUDE_PID}_//")
+            if [ -n "$FILE_TIMESTAMP" ] && [ "$FILE_TIMESTAMP" -eq "$FILE_TIMESTAMP" ] 2>/dev/null; then
+                # Check if file was created within the last 5 seconds
+                CURRENT_TIME=$(date +%s)
+                if [ $((CURRENT_TIME - FILE_TIMESTAMP)) -lt 5 ]; then
+                    # Source the args file to get the arguments
+                    if [ -f "$ARGS_FILE" ]; then
+                        source "$ARGS_FILE"
+                        
+                        # Don't remove sync file - other instances may need it
+                        
+                        # Return the arguments
+                        printf '%s\n' "$ARGS"
+                        exit 0
+                    else
+                        # Sync file exists but args file doesn't - error condition
+                        # Don't remove sync file - other instances may need it
+                        echo "Error: Sync file found but args file missing" >&2
+                        exit 2
+                    fi
+                fi
+            fi
+        fi
+    done
+    
+    # Sleep for 0.1 seconds
+    sleep 0.1
+done
+
+# Timeout reached
+echo "Error: Timeout waiting for arguments (${TIMEOUT}s)" >&2
+exit 1

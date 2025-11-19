@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Guide for creating structured implementation project plans with clear goals, actionable steps, and dependency tracking. Use when users request project planning, need to break down complex implementations into phases, or want to create detailed technical roadmaps.
+description: Structured project plan format with required sections and examples.
 ---
 
 # Annotated Project Plan Example
@@ -210,52 +210,91 @@ Populate from technology stack identification in analysis phase.
 
 ---
 
-## Assumption Testing (When Needed)
+## Technical Spikes (When Needed)
+
+<instructions>
+Include this section when you have critical technical unknowns requiring empirical investigation. This includes strategic spikes (comparing alternatives) or tactical spikes (validating chosen approaches). Omit this section if all technical assumptions are validated by existing code or documentation.
+
+Technical spikes are empirical investigations that resolve uncertainty through working code and prototypes. They produce actionable insights that inform technical decisions.
+
+### When to Conduct Technical Spikes
+
+**Strategic Spikes** (Comparing Alternatives):
+- **Technology Selection**: Choosing between multiple viable real-time approaches, state management libraries, or build tools
+- **Architecture Pattern Evaluation**: Testing different integration patterns or data flow approaches
+- **Unfamiliar Technology Assessment**: Prototyping with new frameworks or testing emerging standards
+
+**Tactical Spikes** (Validating Chosen Approach):
+- **Version Compatibility**: Does library@version support needed features?
+- **API/Export Verification**: Do libraries expose needed types, functions, or methods?
+- **Framework Behavior**: Version-specific behaviors and constraints
+- **Integration Validation**: Do chosen libraries work together in your configuration?
+- **Performance Feasibility**: Does chosen approach meet basic performance requirements?
+
+### When to Skip Spikes
+- The approach/technology has not been chosen yet (research codebase first)
+- Well-documented framework features with clear examples
+- Internal code patterns already established
+- Standard operations with known patterns
+</instructions>
 
 <example>
 ```markdown
-## Assumption Testing Results
+## Technical Spike Results
 
-### WebSocket Event Ordering Test
-- **Question**: Do WebSocket events maintain order during rapid-fire sequences?
-- **Result**: YES - Events arrive in exact send order when using single connection
-- **Evidence**: Scratchpad test sent 1000 numbered events, all received in sequence
-- **Impact**: Can rely on event ordering for notification batching logic
+### Real-Time Communication Approach Selection
 
-### Browser Storage Limits Test
-- **Question**: What happens when localStorage approaches quota limit?
-- **Result**: QuotaExceededError thrown at ~5MB (varies by browser)
-- **Evidence**: Test filled storage incrementally, caught exception at 5,242,880 bytes
-- **Impact**: Must implement LRU eviction before storing new notifications
+**Type:** Strategic Spike
+
+- **Question**: Which real-time approach (WebSocket, Server-Sent Events, or long-polling) best supports notification requirements with horizontal scaling?
+- **Approaches Tested**: Socket.io v4.6.1 (WebSocket), native EventSource (SSE), polling with state management
+- **Comparison Criteria**: Bidirectional communication support, horizontal scaling capability with Redis, developer experience
+- **Result**: Socket.io recommended - provides bidirectional communication, scales with Redis adapter, better developer experience
+- **Evidence**:
+  - WebSocket (Socket.io): Bidirectional communication working, <50ms latency, Redis pub/sub integration tested successfully
+  - SSE (EventSource): Server→client only, requires separate POST endpoint for client→server
+  - Polling: Functional but 23% higher server CPU usage, more complex state synchronization
+- **Artifacts**: `scratchpad/realtime-comparison/` contains:
+  - `approach-socketio/` - Socket.io prototype with Redis adapter
+  - `approach-sse/` - EventSource implementation with POST fallback
+  - `approach-polling/` - Polling strategy with state management
+  - `comparison.md` - Side-by-side analysis
+  - `recommendation.md` - Selection rationale
+- **Impact**: Selected Socket.io as Technical Approach; enables bidirectional real-time features with horizontal scaling via Redis adapter
+
+### Socket.io Redis Adapter Compatibility
+
+**Type:** Tactical Spike
+- **Question**: Does Socket.io v4.6.1 support Redis adapter for cross-instance message broadcasting?
+- **Approach Tested**: Created minimal Socket.io server with @socket.io/redis-adapter, tested multi-instance communication
+- **Result**: Confirmed v4.6.1 supports Redis adapter with connection state sharing
+- **Evidence**: Successfully broadcast messages across 3 server instances, verified in scratchpad test
+- **Artifacts**: `scratchpad/socketio-redis-test/` contains server prototype and Redis config
+- **Impact**: Can proceed with horizontal scaling approach; no single-server bottleneck
+
+### TypeScript Satisfies with Zustand Stores
+
+**Type:** Tactical Spike
+
+- **Question**: Can Zustand v4.5.0 stores use TypeScript 5.3.3's satisfies operator for type-safe state?
+- **Approach Tested**: Created sample notification store using satisfies for state shape validation
+- **Result**: Zustand fully supports satisfies operator with proper type inference
+- **Evidence**: Store compiles without errors, provides autocomplete, catches violations at compile time
+- **Artifacts**: `scratchpad/zustand-typescript-satisfies/notification-store.ts`
+- **Impact**: Can use type-safe patterns without 'as' assertions, reducing runtime errors
+
+### Virtual Scrolling with React Concurrent Features
+
+**Type:** Tactical Spike
+
+- **Question**: Does react-window v1.8.10 work with React 18.2.0 concurrent rendering for 1000+ items?
+- **Approach Tested**: Created test component with 2000-item list using react-window and concurrent rendering
+- **Result**: Maintains <16ms frame time, smooth 60fps scrolling
+- **Evidence**: Performance profiling shows no layout thrashing, memory stable at ~45MB
+- **Artifacts**: `scratchpad/virtual-scroll-test/NotificationList.tsx` with profiling results
+- **Impact**: Confirmed approach meets performance requirements; can handle notification list scaling
 ```
 </example>
-
-<instructions>
-Include this section ONLY when you have 2+ critical technical unknowns that could change your approach.
-
-### When to Test Assumptions
-Validate when dealing with:
-- **External Dependencies**: Third-party library exports and APIs
-- **Framework Behaviors**: Runtime behavior that differs from documentation
-- **Environment Boundaries**: Module resolution, build tools, browser APIs
-- **Integration Points**: How different systems actually interact
-- **Edge Cases**: Undocumented or ambiguous behavior
-- **Version Compatibility**: Features that may vary between versions
-
-### When to Skip Testing
-- Well-documented framework features
-- Internal code you control
-- Standard CRUD operations
-- Simple UI components
-
-### How to Document Results
-1. State the specific question being tested
-2. Provide the clear answer (YES/NO or specific value)
-3. Include evidence from the scratchpad test
-4. Explain how this impacts the implementation approach
-
-Note: The project:assumption-tester agent creates test results in `scratchpad/[test-name]/findings.md`.
-</instructions>
 
 ---
 
@@ -656,7 +695,7 @@ The best plan answers "what" and "where" while leaving "how" to the implementer.
 
 ### Optional Sections
 - **Front Matter**: Dependencies or preventAutoProgress
-- **Assumption Testing**: 2+ critical unknowns
+- **Technical Spikes**: 2+ critical unknowns requiring investigation
 - **Other Package Commands**: Build, run, deploy commands
 - **Implementation References**: Helpful code examples
 

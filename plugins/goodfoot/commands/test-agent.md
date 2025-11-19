@@ -162,10 +162,10 @@ Present your understanding as a structured summary and ask:
 
 Save each scenario:
 
-<example-tool-use>
-Write(
-  file_path="$WORK_DIR/test_scenario_[N].md",
-  content="# Test Scenario [N] - [Difficulty Level: Low/Medium/High]
+```xml
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/test_scenario_[N].md</parameter>
+<parameter name="content"># Test Scenario [N] - [Difficulty Level: Low/Medium/High]
 
 ## Test Scenario
 [Specific test task aligned with methodology]
@@ -203,9 +203,9 @@ Apply these benchmarks consistently:
 1. Evaluate each dimension independently using the calibration scale
 2. Apply weights to calculate final score (0.0-1.0)
 3. Round to 2 decimal places
-4. Ensure scores use the full range for discrimination"
-)
-</example-tool-use>
+4. Ensure scores use the full range for discrimination</parameter>
+</invoke>
+```
 
 **Validate scenarios against test_methodology:**
 - Check each scenario matches the test task format
@@ -243,35 +243,35 @@ Set [num_baselines] = count of baseline files
 
 Run 3 evaluations for EACH baseline (3 × [num_baselines] total evaluations in parallel):
 
-<example-tool-use>
-# For baseline agent_0 (3 evaluations)
-Task(
-  subagent_type="test-agent-evaluation-runner",
-  description="Baseline 0 eval 1",
-  prompt="working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`"
-)
+```xml
+<!-- For baseline agent_0 (3 evaluations) -->
+<invoke name="Task">
+<parameter name="subagent_type">test-agent-evaluation-runner</parameter>
+<parameter name="description">Baseline 0 eval 1</parameter>
+<parameter name="prompt">working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`</parameter>
+</invoke>
 
-Task(
-  subagent_type="test-agent-evaluation-runner",
-  description="Baseline 0 eval 2",
-  prompt="working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`"
-)
+<invoke name="Task">
+<parameter name="subagent_type">test-agent-evaluation-runner</parameter>
+<parameter name="description">Baseline 0 eval 2</parameter>
+<parameter name="prompt">working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`</parameter>
+</invoke>
 
-Task(
-  subagent_type="test-agent-evaluation-runner",
-  description="Baseline 0 eval 3",
-  prompt="working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`"
-)
+<invoke name="Task">
+<parameter name="subagent_type">test-agent-evaluation-runner</parameter>
+<parameter name="description">Baseline 0 eval 3</parameter>
+<parameter name="prompt">working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`</parameter>
+</invoke>
 
-# For baseline agent_1 (3 evaluations)
-Task(
-  subagent_type="test-agent-evaluation-runner",
-  description="Baseline 1 eval 1",
-  prompt="working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`"
-)
+<!-- For baseline agent_1 (3 evaluations) -->
+<invoke name="Task">
+<parameter name="subagent_type">test-agent-evaluation-runner</parameter>
+<parameter name="description">Baseline 1 eval 1</parameter>
+<parameter name="prompt">working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`</parameter>
+</invoke>
 
-# ... continue for all baselines (3 evaluations each)
-</example-tool-use>
+<!-- ... continue for all baselines (3 evaluations each) -->
+```
 
 ### Step 2.4: Analyze Baseline Results
 
@@ -293,10 +293,10 @@ Read all evaluation logs and extract:
 
 **Document findings:**
 
-<example-tool-use>
-Write(
-  file_path="$WORK_DIR/baseline-analysis.md",
-  content="# Baseline Analysis
+```xml
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/baseline-analysis.md</parameter>
+<parameter name="content"># Baseline Analysis
 
 ## Individual Baseline Results
 
@@ -322,9 +322,9 @@ Write(
 [Issues shared across all baselines]
 
 ### Hybrid Opportunities
-[Specific ideas for combining baseline approaches]"
-)
-</example-tool-use>
+[Specific ideas for combining baseline approaches]</parameter>
+</invoke>
+```
 
 ## Phase 3: Generate Baseline-Aware Agent Variations
 
@@ -359,12 +359,12 @@ Generate [agents_to_generate] COMPLETE REWRITES using baseline-aware strategies.
 - Resolve contradictions by testing which approach scores higher
 - Create cohesive structure that preserves all strengths
 
-<example-tool-use>
-Write(
-  file_path="$WORK_DIR/agent_[num_baselines].md",
-  content="[COMPLETE REWRITE: Hybrid combining strengths from all baselines into unified approach]"
-)
-</example-tool-use>
+```xml
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/agent_[num_baselines].md</parameter>
+<parameter name="content">[COMPLETE REWRITE: Hybrid combining strengths from all baselines into unified approach]</parameter>
+</invoke>
+```
 
 **Agent [num_baselines + 1]: weakness-elimination**
 - Target all common weaknesses identified across baselines
@@ -372,12 +372,12 @@ Write(
 - Add comprehensive error recovery for shared failure modes
 - Include missing guidance that all baselines lacked
 
-<example-tool-use>
-Write(
-  file_path="$WORK_DIR/agent_[num_baselines + 1].md",
-  content="[COMPLETE REWRITE: Addresses all common weaknesses found in baseline analysis]"
-)
-</example-tool-use>
+```xml
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/agent_[num_baselines + 1].md</parameter>
+<parameter name="content">[COMPLETE REWRITE: Addresses all common weaknesses found in baseline analysis]</parameter>
+</invoke>
+```
 
 **Agent [num_baselines + 2]: best-baseline-amplified**
 - Identify highest-scoring baseline from evaluations
@@ -385,12 +385,12 @@ Write(
 - Expand what worked to cover edge cases
 - Double down on proven approaches
 
-<example-tool-use>
-Write(
-  file_path="$WORK_DIR/agent_[num_baselines + 2].md",
-  content="[COMPLETE REWRITE: Amplifies strengths of best-performing baseline]"
-)
-</example-tool-use>
+```xml
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/agent_[num_baselines + 2].md</parameter>
+<parameter name="content">[COMPLETE REWRITE: Amplifies strengths of best-performing baseline]</parameter>
+</invoke>
+```
 
 **Agent [num_baselines + 3]: differential-optimization**
 - Find where baselines disagreed in approach
@@ -398,12 +398,12 @@ Write(
 - Build instructions using only winning approaches
 - Create optimized decision tree from comparative data
 
-<example-tool-use>
-Write(
-  file_path="$WORK_DIR/agent_[num_baselines + 3].md",
-  content="[COMPLETE REWRITE: Uses best approach from each baseline disagreement point]"
-)
-</example-tool-use>
+```xml
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/agent_[num_baselines + 3].md</parameter>
+<parameter name="content">[COMPLETE REWRITE: Uses best approach from each baseline disagreement point]</parameter>
+</invoke>
+```
 
 **Agent [num_baselines + 4]: structural-synthesis**
 - Analyze structural patterns across baselines (phases, frameworks, organization)
@@ -411,12 +411,12 @@ Write(
 - Synthesize new structure incorporating successful patterns
 - Reorganize content using optimal structural approach
 
-<example-tool-use>
-Write(
-  file_path="$WORK_DIR/agent_[num_baselines + 4].md",
-  content="[COMPLETE REWRITE: New structure synthesized from high-scoring baseline patterns]"
-)
-</example-tool-use>
+```xml
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/agent_[num_baselines + 4].md</parameter>
+<parameter name="content">[COMPLETE REWRITE: New structure synthesized from high-scoring baseline patterns]</parameter>
+</invoke>
+```
 
 **Agent [num_baselines + 5]: example-extraction**
 - Extract concrete examples from high-scoring baseline evaluations
@@ -424,12 +424,12 @@ Write(
 - Include templates based on what actually worked
 - Show specific before/after improvements from evaluation logs
 
-<example-tool-use>
-Write(
-  file_path="$WORK_DIR/agent_[num_baselines + 5].md",
-  content="[COMPLETE REWRITE: Instructions built from concrete baseline success examples]"
-)
-</example-tool-use>
+```xml
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/agent_[num_baselines + 5].md</parameter>
+<parameter name="content">[COMPLETE REWRITE: Instructions built from concrete baseline success examples]</parameter>
+</invoke>
+```
 
 **Agent [num_baselines + 6]: cognitive-framework**
 - Identify where all baselines showed confusion or inefficiency
@@ -437,12 +437,12 @@ Write(
 - Include decision trees for complex scenarios
 - Provide step-by-step cognitive frameworks based on failure analysis
 
-<example-tool-use>
-Write(
-  file_path="$WORK_DIR/agent_[num_baselines + 6].md",
-  content="[COMPLETE REWRITE: Cognitive frameworks addressing baseline confusion points]"
-)
-</example-tool-use>
+```xml
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/agent_[num_baselines + 6].md</parameter>
+<parameter name="content">[COMPLETE REWRITE: Cognitive frameworks addressing baseline confusion points]</parameter>
+</invoke>
+```
 
 ### Dynamic Strategy Generation (if needed)
 
@@ -454,12 +454,12 @@ For agents beyond the standard 7, generate additional strategies by analyzing:
 
 Document each dynamic strategy:
 
-<example-tool-use>
-Write(
-  file_path="$WORK_DIR/agent_[N].md",
-  content="[COMPLETE REWRITE: [Dynamic strategy description based on baseline analysis]]"
-)
-</example-tool-use>
+```xml
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/agent_[N].md</parameter>
+<parameter name="content">[COMPLETE REWRITE: [Dynamic strategy description based on baseline analysis]]</parameter>
+</invoke>
+```
 
 ## Phase 4: Run Full Tournament Optimization
 
@@ -488,31 +488,31 @@ The mab-runner automatically handles exploration vs. exploitation.
 
 Output the following `Task()` tool calls in a single message:
 
-<example-tool-use>
-Task(
-    subagent_type="test-agent-evaluation-runner",
-    description="Evaluation 1 of batch",
-    prompt="working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`"
-)
+```xml
+<invoke name="Task">
+<parameter name="subagent_type">test-agent-evaluation-runner</parameter>
+<parameter name="description">Evaluation 1 of batch</parameter>
+<parameter name="prompt">working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`</parameter>
+</invoke>
 
-Task(
-    subagent_type="test-agent-evaluation-runner",
-    description="Evaluation 2 of batch",
-    prompt="working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`"
-)
+<invoke name="Task">
+<parameter name="subagent_type">test-agent-evaluation-runner</parameter>
+<parameter name="description">Evaluation 2 of batch</parameter>
+<parameter name="prompt">working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`</parameter>
+</invoke>
 
-Task(
-    subagent_type="test-agent-evaluation-runner",
-    description="Evaluation 3 of batch",
-    prompt="working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`"
-)
+<invoke name="Task">
+<parameter name="subagent_type">test-agent-evaluation-runner</parameter>
+<parameter name="description">Evaluation 3 of batch</parameter>
+<parameter name="prompt">working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`</parameter>
+</invoke>
 
-Task(
-    subagent_type="test-agent-evaluation-runner",
-    description="Evaluation 4 of batch",
-    prompt="working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`"
-)
-</example-tool-use>
+<invoke name="Task">
+<parameter name="subagent_type">test-agent-evaluation-runner</parameter>
+<parameter name="description">Evaluation 4 of batch</parameter>
+<parameter name="prompt">working_directory: /workspace/reports/.test-agent/[agent_name]-mab-!`get-prompt-var TIMESTAMP`</parameter>
+</invoke>
+```
 
 #### Step 4.2.2: Check for Convergence
 
@@ -557,12 +557,14 @@ WINNER_INFO=$(/workspace/.worktrees/discovery-command/.devcontainer/utilities/ma
 
 Read winning agent and save in standard format:
 
-<example-tool-use>
-Read(file_path="$WORK_DIR/$WINNER_ID.md")
+```xml
+<invoke name="Read">
+<parameter name="file_path">$WORK_DIR/$WINNER_ID.md</parameter>
+</invoke>
 
-Write(
-  file_path="$WORK_DIR/[agent_name]-optimized.md",
-  content="---
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/[agent_name]-optimized.md</parameter>
+<parameter name="content">---
 name: [agent_name]
 description: [Description based on optimization]
 tools: *
@@ -576,16 +578,16 @@ tools: *
 - Performance: $WINNER_SCORE
 - Evaluations: $TOTAL_EVALS
 - Baselines tested: [num_baselines]
-- Test Methodology: [brief summary]"
-)
-</example-tool-use>
+- Test Methodology: [brief summary]</parameter>
+</invoke>
+```
 
 ### Step 5.3: Generate Final Report
 
-<example-tool-use>
-Write(
-  file_path="$WORK_DIR/optimization-report.md",
-  content="# Agent Optimization Report
+```xml
+<invoke name="Write">
+<parameter name="file_path">$WORK_DIR/optimization-report.md</parameter>
+<parameter name="content"># Agent Optimization Report
 
 ## Summary
 - **Agent**: [agent_name]
@@ -626,9 +628,9 @@ Write(
 - agent_0.md through agent_[num_agents-1].md - All agent variations
 - baseline-analysis.md - Comparative baseline analysis
 - [agent_name]-optimized.md - Winning configuration
-- optimization-report.md - This report"
-)
-</example-tool-use>
+- optimization-report.md - This report</parameter>
+</invoke>
+```
 
 </instructions>
 

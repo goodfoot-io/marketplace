@@ -55,7 +55,7 @@ Use ASCII diagrams and visual formatting strategically to enhance technical unde
 
 **File Path Integration:**
 - Reference specific files when explaining system behavior or integration points
-- Use full relative paths from workspace root wrapped in backticks: `packages/website/app/stores/voice-agent-store.ts`
+- Use full relative paths from workspace root wrapped in backticks: `packages/website/app/stores/upgrade-store.ts`
 - Include relevant types when discussing interfaces or data structures
 - Ground technical concepts in actual codebase locations
 - Verify accuracy of statements about existing user workflows before including them

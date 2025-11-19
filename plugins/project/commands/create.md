@@ -10,19 +10,13 @@ mkdir -p projects/new projects/pending projects/active projects/ready-for-review
 $ARGUMENTS
 </user-message>
 
-<purpose>
-Create a structured project plan for the user's request, then assess its quality. If issues exist, revise the plan. Ultrathink.
+Create a structured project plan for the user's request, then assess its quality. If issues exist, revise the plan. Ultrathink. 
 
-**Important**: When logging the user's request, you must manually capture everything the user has communicated, not just arguments. This includes:
-- The complete original request
-- Any clarifications or additional context provided
-- Constraints or preferences mentioned
-- Examples or references shared
-</purpose>
+Review the plan skill immediately to access plan structure and requirements: @!`echo "${CLAUDE_PLUGIN_ROOT}"`/skills/plan/SKILL.md
 
 <core-constraints>
 1. **YAGNI (You Aren't Gonna Need It)**: Include only what directly solves the problem
-2. **No estimates**: Exclude time estimates, phases, or resource allocations  
+2. **No estimates**: Exclude time estimates, phases, or resource allocations
 3. **Mandatory assessment**: You must assess every plan using the Task tool
 4. **Append-only logging**: Never edit existing log content. Always append new entries to the project log using the Bash tool with heredoc formatting
 5. **Version verification**: Always identify and document framework/SDK versions before feature work
@@ -31,8 +25,8 @@ Create a structured project plan for the user's request, then assess its quality
 
 <command-reference>
 ```bash
-# Initialize new project
-PROJECT_DIR=$(initialize-project "[PROJECT_NAME]")
+# Initialize new project (using plugin binary)
+PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "[PROJECT_NAME]")
 
 # To append to project log (never edit existing content), use the Bash tool with heredoc:
 # Note: Use $PROJECT_DIR if available from bash context, otherwise use absolute path
@@ -40,8 +34,8 @@ cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
 [NEW_LOG_ENTRY]
 EOF
 
-# Create or update plan (auto-versioned)
-create-plan-version "[PROJECT_NAME]" "[PLAN_CONTENT]"
+# Create or update plan (auto-versioned, using plugin binary)
+!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/create-plan-version "[PROJECT_NAME]" "[PLAN_CONTENT]"
 ```
 </command-reference>
 
@@ -70,7 +64,11 @@ Proceed with documented assumptions if the ambiguity only affects implementation
 </request-parsing-guidelines>
 
 <logging-guidelines>
-1. **Capture Everything**: Include the complete request, not just what was passed as arguments
+1. **Capture Everything**: Manually capture everything the user has communicated, not just arguments. This includes:
+   - The complete original request
+   - Any clarifications or additional context provided
+   - Constraints or preferences mentioned
+   - Examples or references shared
 2. **Preserve Context**: Document any back-and-forth clarifications or additional requirements
 3. **State Assumptions**: Make your interpretation explicit so issues can be caught early
 4. **Use Specifics**: Include file names, error messages, test names, and other concrete details
@@ -136,177 +134,67 @@ When investigating multiple independent aspects, execute codebase analysis in pa
 **Important**: All four investigations above should be sent in a SINGLE message to run in parallel, not sequentially.
 </research-patterns>
 
-<assumption-testing-guidelines>
-#### When to Use Assumption Testing
+<technical-spike-guidelines>
+#### When to Conduct Technical Spikes
 
-**Test these scenarios:**
-- Type exports from external libraries
-- React hook dependency arrays
-- Module resolution across environments
-- API response formats not in documentation
-- Framework behavior that may differ from docs
-- Version-specific features (React 18 vs 19, Next.js App Router, etc.)
+Use technical spikes to resolve critical technical uncertainties through empirical testing. The key decision is whether the technology/approach has been chosen:
 
-**Skip testing for:**
-- Well-documented standard library features
-- Basic CRUD operations
-- Simple data transformations
-- Code clearly visible in the codebase
+**Technology NOT chosen** → Compare alternatives (e.g., WebSocket vs SSE vs polling, React Query vs SWR vs Apollo)
+- Multiple viable approaches exist (2-3 alternatives)
+- Prototyping would reveal material differences
+- Decision significantly impacts architecture
 
-#### Decision Criteria for Assumption Testing
+**Technology already chosen** → Validate it works (e.g., Does Socket.io v4.6.1 support Redis adapter?)
+- Specific capability or compatibility uncertain
+- Version-specific behavior needs verification
+- Integration between libraries needs validation
 
-Validate assumptions when dealing with:
-- **External Dependencies**: Third-party library exports and APIs
-- **Framework Behaviors**: Runtime behavior that differs from documentation
-- **Environment Boundaries**: Module resolution, build tools, browser APIs
-- **Integration Points**: How different systems actually interact
-- **Edge Cases**: Undocumented or ambiguous behavior
-- **Version Compatibility**: Features that may vary between versions
+For detailed spike methodology, result formats, and quality criteria, use the Technical Spike skill (see "Spike Invocation Pattern" section below).
 
-#### Basic Testing Format
+##### When to Skip Spikes
+
+Skip technical spikes for:
+- **Well-documented standard features**: Official documentation clearly confirms capability with working examples
+- **Existing codebase patterns**: Your project already uses the pattern successfully
+- **Standard operations**: Known JavaScript/TypeScript features (Array methods, Promise API, etc.)
+- **Premature investigation**: Technology selection hasn't been considered yet (research codebase first)
+
+#### Spike Invocation Pattern
+
+When conducting technical spikes, use the Technical Spike skill to orchestrate the investigation:
 
 ```xml
-<invoke name="Task">
-<parameter name="description">Validate [specific assumption]</parameter>
-<parameter name="subagent_type">project:assumption-tester</parameter>
-<parameter name="prompt"><project>
-Name: [PROJECT_NAME]
-Directory: @projects/[STATUS]/[PROJECT_NAME]
-Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
-Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
-</project>
-
-Validate: [specific technical claim to test]
-Framework versions: [list relevant versions from technology stack]
-Context: [relevant files or system details]
-
-Specifically test if the feature/API is available in the identified versions.
-Create test files in the project's scratchpad/ directory.</parameter>
+<invoke name="Skill">
+<parameter name="skill">project:spike</parameter>
 </invoke>
 ```
 
-#### Common Testing Patterns
+Then provide the spike details in your message to the skill:
 
-##### Type Export Verification
-```xml
-<invoke name="Task">
-<parameter name="description">Verify type exports</parameter>
-<parameter name="subagent_type">project:assumption-tester</parameter>
-<parameter name="prompt"><project>
-Name: add-user-auth
-Directory: @projects/new/add-user-auth
-Plan: @projects/new/add-user-auth/plan-v1.md
-Log: @projects/new/add-user-auth/log.md
-</project>
-
-Validate: @tanstack/react-query exports UseQueryResult, QueryClient, and QueryClientProvider types that can be imported and used in TypeScript with strict mode
-Context: packages/website uses these types for data fetching
-
-Create test files in the project's scratchpad/ directory.</parameter>
-</invoke>
+**For Comparison Spikes** (testing multiple approaches):
+```
+Compare [Approach A], [Approach B], and [Approach C] for [use case].
+Compare [criterion 1], [criterion 2], and [criterion 3].
+Use scratchpad path `projects/[STATUS]/[PROJECT_NAME]/scratchpad/[test-name]/`
 ```
 
-##### API Behavior Testing
-```xml
-<invoke name="Task">
-<parameter name="description">Test API responses</parameter>
-<parameter name="subagent_type">project:assumption-tester</parameter>
-<parameter name="prompt"><project>
-Name: add-user-auth
-Directory: @projects/new/add-user-auth
-Plan: @projects/new/add-user-auth/plan-v2.md
-Log: @projects/new/add-user-auth/log.md
-</project>
-
-Validate: Supabase auth.signIn returns a session object with user data on successful login and specific error format on failure
-Context: packages/api/src/auth.ts handles authentication responses
-
-Create test files in the project's scratchpad/ directory.</parameter>
-</invoke>
+**For Validation Spikes** (testing single approach):
+```
+Verify [Library@version] supports [specific capability/feature].
+Use scratchpad path `projects/[STATUS]/[PROJECT_NAME]/scratchpad/[test-name]/`
 ```
 
-##### Framework Feature Detection
-```xml
-<invoke name="Task">
-<parameter name="description">Test framework support</parameter>
-<parameter name="subagent_type">project:assumption-tester</parameter>
-<parameter name="prompt"><project>
-Name: add-form-handling
-Directory: @projects/new/add-form-handling
-Plan: @projects/new/add-form-handling/plan-v3.md
-Log: @projects/new/add-form-handling/log.md
-</project>
+The spike skill will handle:
+- Structuring the appropriate context for the subagent
+- Launching the investigation with proper isolation
+- Validating result quality
+- Guiding incorporation of findings into the plan
 
-Validate: Next.js 14 Server Actions can accept FormData input, perform async operations, and return typed responses with proper type inference
-Context: packages/website/app/actions/form.ts needs server-side form processing
-
-Create test files in the project's scratchpad/ directory.</parameter>
-</invoke>
-```
-
-##### Version-Specific Feature Testing
-```xml
-<invoke name="Task">
-<parameter name="description">Test React version features</parameter>
-<parameter name="subagent_type">project:assumption-tester</parameter>
-<parameter name="prompt"><project>
-Name: add-suspense-boundaries
-Directory: @projects/new/add-suspense-boundaries
-Plan: @projects/new/add-suspense-boundaries/plan-v4.md
-Log: @projects/new/add-suspense-boundaries/log.md
-</project>
-
-Validate: React (react@19.0.0) supports use() hook for promises and Server Components with the identified TypeScript version
-Framework versions: react@19.0.0, typescript@5.3.0
-Context: packages/website needs to implement data fetching with Suspense
-
-Create test files in the project's scratchpad/ directory.</parameter>
-</invoke>
-```
-
-#### Processing Test Results
-
-The project:assumption-tester returns structured results in this format:
-
-```yaml
-## Task Completion Summary
-
-status: success
-test_results:
-  - test_name: "react-query-type-exports"
-    question: "Does @tanstack/react-query export required types?"
-    result: "YES"
-    confidence: "High"
-    evidence_summary: "All types imported and compiled successfully"
-    
-artifacts:
-  - path: "projects/new/add-user-auth/scratchpad/react-query-types/findings.md"
-  
-key_findings:
-  - "UseQueryResult accepts generic type parameters"
-  - "QueryClient can be instantiated with config options"
-  
-test_location: "projects/new/add-user-auth/scratchpad/react-query-types/"
-```
-
-The agent also creates a `findings.md` file with detailed test implementation and reproduction steps.
-
-#### When to Skip Testing
-
-Do not test assumptions for:
-- **Standard library features**: Well-documented Node.js or browser APIs
-- **Internal code**: Behavior visible in your codebase
-- **Simple operations**: Basic CRUD, data transformations
-- **Documented behaviors**: Features clearly specified in official docs
-
-#### Test Environment Commands
-
-The project:assumption-tester uses these utilities automatically:
-- `create-scratchpad-jest-test [project] [test-name]` - For integration tests
-- `create-scratchpad-playwright-test [project] [test-name]` - For E2E/browser tests
-
-Tests are created in: `projects/[status]/[project]/scratchpad/[test-name]/`
-</assumption-testing-guidelines>
+The spike skill provides detailed guidance on:
+- Reviewing spike artifacts and validating result quality
+- Checking for quality issues and requesting revisions if needed
+- Incorporating findings into the plan's Technical Spike Results and Technical Approach sections
+</technical-spike-guidelines>
 
 <dependency-analysis-requirements>
 #### Finding Dependencies (REQUIRED)
@@ -333,29 +221,7 @@ Use these thresholds to assess risk:
 </dependency-analysis-requirements>
 
 <plan-structure-requirements>
-Create your plan following the EXACT structure defined in the project:plan skill. Load the complete plan structure guide using the Skill tool:
-
-```xml
-<invoke name="Skill">
-<parameter name="command">project:plan</parameter>
-</invoke>
-```
-
-**Example of loading the project:plan skill in XML format**:
-```xml
-<function_calls>
-<invoke name="Skill">
-<parameter name="command">project:plan</parameter>
-</invoke>
-</function_calls>
-```
-
-**CRITICAL**:
-- Do not deviate from this structure. The assessor validates against this exact format.
-- Each plan must be a complete, self-contained document
-- Never reference other plan versions (e.g., "as in v2", "from previous plan", "defer to v3")
-
-The project:plan skill provides:
+Create your plan following the EXACT structure defined in @!`echo "${CLAUDE_PLUGIN_ROOT}"`/skills/plan/SKILL.md, which provides:
 - Complete section structure and order
 - Required subsections (especially Scope's Include/Exclude)
 - Formatting requirements for each section
@@ -376,7 +242,7 @@ Common variations are all acceptable - the assessor recognizes multiple formats:
 The assessor provides:
 - Structural compliance check
 - Overengineering assessment
-- Assumption validation review
+- Technical spike validation review
 - **Ready for Implementation: Yes/No/Yes (with suggestions)**
 - Specific improvement recommendations
 
@@ -484,53 +350,10 @@ Address issues identified by the assessor or user. Execute multiple investigatio
 
 **Important**: When addressing multiple revision issues, investigate them in parallel by sending all queries in a single message.
 
-#### For Validating Assumptions
-```xml
-<invoke name="Task">
-<parameter name="description">Verify library behavior</parameter>
-<parameter name="subagent_type">project:assumption-tester</parameter>
-<parameter name="prompt"><project>
-Name: [PROJECT_NAME]
-Directory: @projects/[STATUS]/[PROJECT_NAME]
-Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
-Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
-</project>
+#### For Validating Technical Claims
 
-The assessment flagged that we're assuming @supabase/ssr exports a createBrowserClient function.
+When the assessor flags unvalidated assumptions, conduct technical spikes following the methodology in the <technical-spike-guidelines> section above.
 
-Create a test to verify:
-1. The function exists and is exported
-2. Its type signature matches our usage: createBrowserClient<Database>(supabaseUrl: string, supabaseKey: string, options?: ClientOptions)
-3. It returns a SupabaseClient instance
-
-Also test if the library provides TypeScript types for these exports.
-Create test files in the project's scratchpad/ directory.</parameter>
-</invoke>
-```
-
-#### For Version Compatibility Issues
-```xml
-<invoke name="Task">
-<parameter name="description">Verify version compatibility</parameter>
-<parameter name="subagent_type">project:assumption-tester</parameter>
-<parameter name="prompt"><project>
-Name: [PROJECT_NAME]
-Directory: @projects/[STATUS]/[PROJECT_NAME]
-Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
-Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
-</project>
-
-The assessment flagged potential version incompatibility.
-
-Test if React (react@[X.X.X]) supports [specific feature] with TypeScript (typescript@[Y.Y.Y]):
-1. Create a minimal test case using the feature
-2. Verify it compiles with current TypeScript version
-3. Test runtime behavior if applicable
-
-Framework versions to test: react@[X.X.X], typescript@[Y.Y.Y]
-Create test files in the project's scratchpad/ directory.</parameter>
-</invoke>
-```
 </revision-research-patterns>
 
 
@@ -544,7 +367,7 @@ If the core intent is unclear, ask specific questions and stop. Otherwise, docum
 ```bash
 # Replace "add-user-auth" with your actual project name
 # Project name must be kebab-case (lowercase letters, numbers, hyphens only), max 50 characters
-PROJECT_DIR=$(initialize-project "add-user-auth") && echo "Project directory: $PROJECT_DIR" && echo "Project name: $(basename "$PROJECT_DIR")"
+PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "add-user-auth") && echo "Project directory: $PROJECT_DIR" && echo "Project name: $(basename "$PROJECT_DIR")"
 ```
 
 This command will:
@@ -582,7 +405,7 @@ Key aspects of this request:
 EOF
 ```
 
-### Step 4: Research Technical Context (Parallel Analysis)
+### Step 4: Research Technical Context and Determine Spike Needs
 
 Execute parallel investigations to understand different aspects of the codebase simultaneously. Send ALL these tool calls in a SINGLE message:
 
@@ -612,9 +435,37 @@ Execute parallel investigations to understand different aspects of the codebase 
 
 **Key Point**: The above investigations are independent and should run in parallel by sending them all in one message, not one at a time.
 
-### Step 5: Validate Assumptions and Version Compatibility (Optional)
+**After research, determine spike needs:**
 
-Use the project:assumption-tester agent to verify technical behaviors that cannot be confirmed through code inspection alone, including framework version-specific features.
+1. **If existing pattern identified**:
+   - Technology/approach already chosen by codebase
+   - Proceed to Step 5 for tactical spike if capability/compatibility uncertain
+   - Skip Step 5 if pattern is well-established
+
+2. **If no clear pattern OR greenfield feature**:
+   - Consider strategic spike (Step 5) if multiple viable alternatives exist
+   - Make architectural decision if alternatives are limited
+   - Then proceed to tactical spike to validate chosen approach
+
+3. **If well-documented standard feature**:
+   - Skip spikes entirely
+   - Proceed to Step 6 (dependency analysis)
+
+### Step 5: Conduct Technical Spikes (When Needed)
+
+Based on Step 4 determination, conduct spikes to resolve critical technical unknowns:
+
+**Strategic Spikes** (when technology/approach not chosen):
+- Compare 2-3 viable alternatives through lightweight prototypes
+- Document comparison criteria and selection rationale
+- Output: Clear recommendation with evidence
+
+**Tactical Spikes** (when approach chosen, capability uncertain):
+- Test specific capability or compatibility
+- Verify version-specific behavior or undocumented features
+- Output: Pass/fail or capability confirmation
+
+Follow the patterns in the <technical-spike-guidelines> section above. Use general-purpose subagents with scratchpad isolation for all spikes.
 
 ### Step 6: Analyze Dependencies
 
@@ -622,7 +473,7 @@ After researching the codebase, identify critical dependencies using `print-inve
 
 ### Step 7: Log Research Findings
 
-After research, record key discoveries including the technology stack, framework constraints, and any assumption test results:
+After research, record key discoveries including the technology stack, framework constraints, and any test results from isolated validation:
 
 ```bash
 cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
@@ -659,35 +510,27 @@ Based on the identified versions:
 - TypeScript [version]: [Specific type features]
 - [Framework] [version]: [Specific considerations]
 
-### Assumption Test Results (if applicable)
-Based on the project:assumption-tester's structured return:
-- [test_name]: [result] with [confidence] confidence
-  - Evidence: [evidence_summary from return]
+### Isolated Test Results (if applicable)
+If technical validation was performed:
+- [test_name]: [result summary]
+  - Evidence: [key findings from investigation]
   - Version compatibility: [confirmed for X.X.X]
-  - Details available in: [artifact path from return]
-- Key findings: [key_findings from return]
-- Recommendations: [recommendations from return]
+  - Location: projects/[STATUS]/[PROJECT_NAME]/scratchpad/[test-name]/
+- [How test results affect the approach]
+- [Any constraints discovered through testing]
 
 ### Implementation Impact
 - Changes required across [affected areas]
 - Must maintain [compatibility requirement]
 - Version-specific considerations: [framework features to use/avoid]
 - Need to [coordination requirement]
-- [How test results affect the approach]
-- [Any constraints discovered through testing]
 EOF
 ```
 
 ## Phase 2: Plan Creation
 
 ### Step 1: Verify Plan Structure
-Create your plan following the EXACT structure defined in the project:plan skill:
-
-```xml
-<invoke name="Skill">
-<parameter name="command">project:plan</parameter>
-</invoke>
-```
+Create your plan following the EXACT structure defined in @!`echo "${CLAUDE_PLUGIN_ROOT}"`/skills/plan/SKILL.md 
 
 ### Step 2: Pre-Creation Checklist
 Before running create-plan-version, verify ALL checklist items in the pre-plan-creation-checklist section above.
@@ -696,16 +539,10 @@ Before running create-plan-version, verify ALL checklist items in the pre-plan-c
 
 ```bash
 # This creates plan-v1.md, plan-v2.md, etc. automatically
-create-plan-version "add-user-auth" "[PLAN_CONTENT]"
+!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/create-plan-version "add-user-auth" "[PLAN_CONTENT]"
 ```
 
-[PLAN_CONTENT] must follow the structure defined in the project:plan skill:
-
-```xml
-<invoke name="Skill">
-<parameter name="command">project:plan</parameter>
-</invoke>
-```
+[PLAN_CONTENT] must follow the structure defined in @!`echo "${CLAUDE_PLUGIN_ROOT}"`/skills/plan/SKILL.md
 
 ## Phase 3: Quality Assessment
 
