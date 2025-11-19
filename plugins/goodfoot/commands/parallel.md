@@ -7,6 +7,7 @@ The `<user-message>` will describe the following inputs:
 - [TASKS]: Description of the tasks for agents to perform. (required)
 - [AGENT_COUNT]: The number of agents to perform the [TASKS]. (optional, default 3)
 - [SUBAGENT_TYPE]: The `subagent_type` to use when invoking the Task tool function. (optional, default "general-purpose")
+- [MODEL]: The model to use for the agents. (optional, default "sonnet")
 
 You should derive the following from the provided inputs:
 - [TASK]: A task for an agent to perform derived from [TASKS]. MUST include all necessary context with FULL ABSOLUTE PATHS (e.g., `/workspace/packages/api/src/file.ts`, never relative paths like `./src/file.ts`). Agents have no knowledge of this conversation or working directory.
@@ -40,6 +41,7 @@ If the `<user-message>` is "Instruct five "code-review" agents to determine the 
 - [TASK_NAME] = "database-schema-changes-review"
 - [AGENT_COUNT] = 5
 - [SUBAGENT_TYPE] = "code-review"
+- [MODEL] = "sonnet"
 - [REDUNDANCY_LEVEL] = 1
 - [TASK_CONTEXT] = Recent load testing revealed that the current Passport.js v0.6.0 implementation causes memory leaks when handling OAuth2 refresh token cycles, consuming 2.3GB RAM after 48 hours. The proposed migration to `@auth/core` v0.18.0 requires modifying the PostgreSQL session schema (adding `expires_at` and `refresh_token_hash` columns) which may break the existing `session-cleanup` cron job that runs pg_cron queries. The `packages/api/src/auth/middleware.ts` currently relies on `express-session` v1.17.3 with connect-pg-simple v9.0.0, and preliminary analysis shows the migration may require updating 23 files across the monorepo.
 
@@ -53,6 +55,7 @@ If the `<user-message>` is "Document each component of `packages/website/server`
 - [TASK_NAME] = "authentication-documentation"
 - [AGENT_COUNT] = 3 (default)
 - [SUBAGENT_TYPE] = "general-purpose"
+- [MODEL] = "sonnet" (default)
 - [REDUNDANCY_LEVEL] = 1
 - [TASK_CONTEXT] = The backend service currently runs Express.js v4.18.2 with custom middleware chains for rate limiting (using `express-rate-limit` v6.7.0) and CORS (origin validation against DynamoDB whitelist). A recent incident (incident-2024-089) occurred when a new developer incorrectly implemented the `rateLimitByApiKey` middleware, causing 503 errors for 12% of authenticated requests. The JWT validation uses `jsonwebtoken` v9.0.2 with RS256 signing, and tokens are cached in Redis v7.0 with a 15-minute TTL. The onboarding documentation hasn't been updated since the migration from cookie-based sessions to JWT tokens in Q3 2024.
 
@@ -66,6 +69,7 @@ If the `<user-message>` is "Instruct two "code-review" agents to determine the v
 - [TASK_NAME] = "feature-plan-review" (will create: "feature-plan-review-1", "feature-plan-review-2")
 - [AGENT_COUNT] = 2
 - [SUBAGENT_TYPE] = "code-review"
+- [MODEL] = "sonnet"
 - [REDUNDANCY_LEVEL] = 2 (2 agents perform the same full review)
 - [TASK_CONTEXT] = Production metrics from DataDog show authentication endpoints (`/api/v2/auth/login`, `/api/v2/auth/refresh`) hitting p99 latency of 2.8 seconds at 10K concurrent users, with PostgreSQL connection pool exhaustion (max_connections=100) being the primary bottleneck. Recent PagerDuty alerts (3 incidents in the last 2 weeks) trace to the synchronous bcrypt hashing in `packages/api/src/auth/password.ts` blocking the event loop. The feature plan proposes switching to `@node-rs/bcrypt` v1.9.0 (native bindings) and implementing connection pooling with `pg-pool` v3.6.1, but this requires benchmarking against the current `bcrypt` v5.1.1 implementation. The platform team's Q1 2025 roadmap includes a PostgreSQL 15 to 16 upgrade which may conflict with schema migration timing.
 
@@ -79,6 +83,7 @@ If the `<user-message>` is "Document the components of `packages/website/server`
 - [TASK_NAME] = "websocket-documentation" (will create: "websocket-documentation-1", "websocket-documentation-2")
 - [AGENT_COUNT] = 3 (default)
 - [SUBAGENT_TYPE] = "general-purpose"
+- [MODEL] = "sonnet" (default)
 - [REDUNDANCY_LEVEL] = 2 (2 agents per component)
 - [TASK_CONTEXT] = After upgrading Socket.io from v4.5.4 to v4.6.1 in December 2024, WebSocket connections began dropping unexpectedly under load (bug report #1547). Investigation revealed undocumented behavior in the custom Redis adapter (`@socket.io/redis-adapter` v8.2.1) related to pub/sub channel management when scaling beyond 5 server instances. The ConnectionManager class uses a custom reconnection backoff algorithm (exponential with jitter) that wasn't documented, causing confusion when debugging client-side timeout issues. Recent Grafana metrics show connection pool leaks occurring after 72 hours of uptime, with file descriptor counts reaching the ulimit of 65536. The message routing system implements a priority queue backed by Redis Sorted Sets, but the scoring algorithm and queue drainage logic lack any documentation.
 
@@ -94,6 +99,7 @@ If the `<user-message>` is "Document the components of `packages/website/server`
 <invoke name="Task">
 <parameter name="description">[TASK_NAME]-1</parameter>
 <parameter name="subagent_type">[SUBAGENT_TYPE]</parameter>
+<parameter name="model">[MODEL]</parameter>
 <parameter name="prompt"><task>
 [TASK]
 </task>
@@ -106,6 +112,7 @@ If the `<user-message>` is "Document the components of `packages/website/server`
 <invoke name="Task">
 <parameter name="description">[TASK_NAME]-2</parameter>
 <parameter name="subagent_type">[SUBAGENT_TYPE]</parameter>
+<parameter name="model">[MODEL]</parameter>
 <parameter name="prompt"><task>
 [TASK]
 </task>
