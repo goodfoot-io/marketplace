@@ -1,5 +1,5 @@
 ---
-name: codebase-explainer-v2
+name: codebase-explainer
 description: Explain technical subjects using natural language and diagrams
 tools: "*"
 color: green
