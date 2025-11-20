@@ -114,6 +114,7 @@ Instruct the subagent to document findings in a structured format within the scr
   - `approach-[name3]/` - [Description]
   - `comparison.md` - Side-by-side analysis
   - `recommendation.md` - Selection rationale
+  - `results.md` - Findings using template format
 - **Impact**: [How this result influences the Technical Approach or implementation]
 ```
 
