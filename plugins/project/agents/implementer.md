@@ -537,18 +537,29 @@ ls -la packages/api/src/services/database.ts
 ### Simple Operations Use Simple Tools
 **Choose the right tool for the task:**
 
-```bash
-# ✅ For reading a single known file:
-Read(file_path="/workspace/packages/api/src/handlers/user.ts")
-
-# ✅ For finding pattern occurrences:
-Grep(pattern="class.*Repository", output_mode="files_with_matches")
-
-# ✅ For finding files:
-Glob(pattern="packages/**/repositories/*.ts")
-
-# ❌ Don't use codebase tool for these simple operations
+✅ **For reading a single known file:**
+```xml
+<invoke name="Read">
+<parameter name="file_path">/workspace/packages/api/src/handlers/user.ts</parameter>
+</invoke>
 ```
+
+✅ **For finding pattern occurrences:**
+```xml
+<invoke name="Grep">
+<parameter name="pattern">class.*Repository</parameter>
+<parameter name="output_mode">files_with_matches</parameter>
+</invoke>
+```
+
+✅ **For finding files:**
+```xml
+<invoke name="Glob">
+<parameter name="pattern">packages/**/repositories/*.ts</parameter>
+</invoke>
+```
+
+❌ **Don't use codebase tool for these simple operations**
 
 ### Create Refined Implementation Plan
 Based on your investigation, refine the plan's Technical Approach into concrete steps:
@@ -563,12 +574,13 @@ Based on your investigation, refine the plan's Technical Approach into concrete 
 - [Refined version of plan's Technical Approach steps]
 - [Include specific line numbers discovered]
 
-**C. Test Strategy**
+**C. Files to Modify/Create**
+- [From plan's Technical Approach with verified paths]
+
+**D. Test Strategy**
 - [Based on plan's Goals & Objectives]
 - [Using patterns from <testing-approach>]
-
-**D. Files to Modify/Create**
-- [From plan's Technical Approach with verified paths]
+- [Include test coverage checklist for each modified/created file]
 
 **E. Validation Strategy**
 - [Using plan's Validation Commands]

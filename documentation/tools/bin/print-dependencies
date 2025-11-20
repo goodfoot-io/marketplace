@@ -1,2 +1,0 @@
-#!/bin/sh
-exec tsx "$(dirname "$0")/print-dependencies.ts" "$@"

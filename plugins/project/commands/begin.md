@@ -399,8 +399,6 @@ Use for:
 Requires ALL conditions:
 - Completely different packages with zero shared imports
 - No overlapping files (verify: git diff --name-only shows no conflicts)
-- Unrelated business domains (e.g., "Add logging" vs "Style footer")
-- No sequential numbering or ordering in plan.md
 
 ### Package Locking
 - Only one agent per package at a time
