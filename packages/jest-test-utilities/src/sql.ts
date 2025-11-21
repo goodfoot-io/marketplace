@@ -67,7 +67,10 @@ export async function getTestSql(
   };
   teardownCallbacks.unshift(teardownCallback);
   while (teardownCallbacks.length > MAX_CONCURRENT_CONNECTIONS) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    const oldestCallback = teardownCallbacks.pop();
+    if (oldestCallback) {
+      await oldestCallback();
+    }
   }
   void jestTeardownQueue.add(teardownCallback, { priority: -1 });
   return {
