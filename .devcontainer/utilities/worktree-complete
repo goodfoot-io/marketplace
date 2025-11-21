@@ -41,6 +41,27 @@ fi
 
 echo "Parent branch: $PARENT_BRANCH"
 
+# Check for uncommitted changes in parent branch BEFORE making any changes
+echo "Checking parent branch for uncommitted changes..."
+PARENT_REPO_PATH=$(git rev-parse --git-dir | sed 's|/.git/worktrees/.*|/|')
+cd "$PARENT_REPO_PATH"
+
+# Check if we're on the parent branch
+PARENT_CURRENT_BRANCH=$(git branch --show-current)
+if [[ "$PARENT_CURRENT_BRANCH" == "$PARENT_BRANCH" ]]; then
+    # We're on the parent branch, check for uncommitted changes
+    if [[ -n $(git status --porcelain) ]]; then
+        echo "❌ Error: Parent branch $PARENT_BRANCH has uncommitted changes"
+        echo "Please commit or stash changes in the parent branch before running this script"
+        echo ""
+        git status
+        exit 1
+    fi
+fi
+
+# Return to worktree
+cd "$WORKTREE_PATH"
+
 # Check for uncommitted changes
 if [[ -n $(git status --porcelain) ]]; then
     echo "Found uncommitted changes. Generating commit message..."
@@ -66,9 +87,49 @@ else
     echo "No uncommitted changes found"
 fi
 
-# Push the current branch
-echo "Pushing branch $CURRENT_BRANCH..."
-git push -u origin "$CURRENT_BRANCH"
+# Rebase branch before pushing
+echo "Preparing to rebase $CURRENT_BRANCH..."
+
+# Create backup branch for safety
+BACKUP_BRANCH="${CURRENT_BRANCH}-backup-$(date +%s)"
+ORIGINAL_SHA=$(git rev-parse HEAD)
+git branch "$BACKUP_BRANCH" "$ORIGINAL_SHA"
+
+echo "Created backup: $BACKUP_BRANCH ($ORIGINAL_SHA)"
+
+# Create rebase failure marker
+MARKER_FILE="$WORKTREE_PATH/.REBASE_FAILED"
+touch "$MARKER_FILE"
+
+# Attempt rebase via Claude (|| true prevents set -e from exiting)
+echo "Attempting to rebase via Claude..."
+cd "$WORKTREE_PATH"
+claude --model haiku -p "Load the 'goodfoot:rebasing-git-history' skill. Rebase the $CURRENT_BRANCH branch. Remove any empty checkpoint commits. Consolidate commits where possible. After you have successfully rebased the branch, remove the .REBASE_FAILED file" || true
+
+# Check if rebase succeeded by marker file presence
+if [[ -f "$MARKER_FILE" ]]; then
+    echo "❌ Rebase failed. Restoring branch to original state..."
+
+    # Abort any in-progress rebase
+    if [[ -d .git/rebase-merge ]] || [[ -d .git/rebase-apply ]]; then
+        git rebase --abort 2>/dev/null || true
+    fi
+
+    # Restore to backup branch
+    git reset --hard "$BACKUP_BRANCH"
+
+    # Clean up
+    git branch -D "$BACKUP_BRANCH" 2>/dev/null || true
+    rm -f "$MARKER_FILE"
+
+    echo "Branch restored to pre-rebase state: $ORIGINAL_SHA"
+    exit 1
+else
+    echo "✅ Rebase completed successfully"
+
+    # Clean up backup branch
+    git branch -D "$BACKUP_BRANCH" 2>/dev/null || true
+fi
 
 # Switch to parent branch
 echo "Switching to $PARENT_BRANCH branch..."
@@ -119,7 +180,7 @@ git push origin "$PARENT_BRANCH"
 
 # Delete the remote branch
 echo "Deleting remote branch $CURRENT_BRANCH..."
-git push origin --delete "$CURRENT_BRANCH"
+git push origin --delete "$CURRENT_BRANCH" || true
 
 # Remove the worktree
 echo "Removing worktree..."
