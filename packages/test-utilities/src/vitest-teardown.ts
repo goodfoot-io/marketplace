@@ -67,7 +67,7 @@ teardownQueue.add = async <TaskResultType>(
       console.error(error);
     }
   }
-  return (originalAdd(task, options))
+  return originalAdd(task, options)
     .then((result) => {
       stackMap.delete(task);
       return result;

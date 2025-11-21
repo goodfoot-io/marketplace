@@ -160,16 +160,3 @@ expect.extend({
     return { pass, message };
   }
 });
-
-declare module 'vitest' {
-  interface Assertion<T> {
-    toEmit<U>(eventName: string, expected?: U, timeoutInterval?: number): Promise<void>;
-    toEqualSorted(expected: unknown): void;
-    tsStringIsEqual(expected: string): void;
-  }
-  interface AsymmetricMatchersContaining {
-    toEmit<T>(eventName: string, expected?: T, timeoutInterval?: number): Promise<void>;
-    toEqualSorted(expected: unknown): void;
-    tsStringIsEqual(expected: string): void;
-  }
-}

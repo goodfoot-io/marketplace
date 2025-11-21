@@ -3,8 +3,9 @@
 import type { TestAPI } from 'vitest';
 import 'vitest';
 
-declare module 'vitest' {
-  interface Assertion<T> {
+declare module '@vitest/expect' {
+  interface Assertion<T = any> {
+    // eslint-disable-line @typescript-eslint/no-explicit-any
     toEmit<U>(eventName: string, expected?: U, timeoutInterval?: number): Promise<void>;
     toEqualSorted(expected: unknown): void;
     tsStringIsEqual(expected: string): void;
