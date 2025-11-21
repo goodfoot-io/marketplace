@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
     "build": "tsc --build",
-    "test": "NODE_OPTIONS=\"--experimental-vm-modules --no-node-snapshot ${INSPECT:+ --inspect-brk}\" NODE_ENV=test yarn exec vitest run",
+    "test": "yarn build && NODE_OPTIONS=\"--experimental-vm-modules --no-node-snapshot ${INSPECT:+ --inspect-brk}\" NODE_ENV=test yarn exec vitest run",
     "release": "bash ../../../scripts/release-package.sh mcp/codebase",
     "release:dry-run": "bash ../../../scripts/release-package.sh mcp/codebase --dry-run"
   },

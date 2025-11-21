@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
     "build": "tsc --build",
-    "test": "NODE_OPTIONS=\"${INSPECT:+ --inspect-brk}\" vitest run",
+    "test": "yarn build && NODE_OPTIONS=\"${INSPECT:+ --inspect-brk}\" vitest run",
     "release": "bash ../../../scripts/release-package.sh mcp/ts-extra",
     "release:dry-run": "bash ../../../scripts/release-package.sh mcp/ts-extra --dry-run"
   },

@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
     "build": "tsc --build",
-    "test": "vitest run",
+    "test": "yarn build && vitest run",
     "release": "bash ../../scripts/release-package.sh streamable-http-mcp-server-daemon",
     "release:dry-run": "bash ../../scripts/release-package.sh streamable-http-mcp-server-daemon --dry-run"
   },
