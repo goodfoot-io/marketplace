@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import '../src/vitest-matchers.js';
 import EventEmitter from 'events';
 

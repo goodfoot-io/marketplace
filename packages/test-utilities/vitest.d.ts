@@ -4,7 +4,7 @@ import type { TestAPI } from 'vitest';
 import 'vitest';
 
 declare module 'vitest' {
-  interface Assertion<T = unknown, R = unknown> {
+  interface Assertion<T> {
     toEmit<U>(eventName: string, expected?: U, timeoutInterval?: number): Promise<void>;
     toEqualSorted(expected: unknown): void;
     tsStringIsEqual(expected: string): void;

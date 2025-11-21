@@ -162,8 +162,8 @@ expect.extend({
 });
 
 declare module 'vitest' {
-  interface Assertion {
-    toEmit<T>(eventName: string, expected?: T, timeoutInterval?: number): Promise<void>;
+  interface Assertion<T> {
+    toEmit<U>(eventName: string, expected?: U, timeoutInterval?: number): Promise<void>;
     toEqualSorted(expected: unknown): void;
     tsStringIsEqual(expected: string): void;
   }
