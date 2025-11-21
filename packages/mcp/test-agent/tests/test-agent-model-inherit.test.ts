@@ -2,8 +2,7 @@ import { spawn, type ChildProcess } from 'child_process';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { jestTeardownQueue } from '@goodfoot/jest-test-utilities/jest-teardown';
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { teardownQueue } from '@goodfoot/test-utilities/vitest-teardown';
 
 interface MCPRequest {
   jsonrpc: string;
@@ -41,7 +40,7 @@ describe('Test Agent MCP Server - model: inherit', () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Register cleanup
-    void jestTeardownQueue.add(async () => {
+    void teardownQueue.add(async () => {
       serverProcess.kill();
       try {
         await fs.rm(tempDir, { recursive: true });
@@ -52,7 +51,7 @@ describe('Test Agent MCP Server - model: inherit', () => {
   });
 
   afterAll(async () => {
-    // Cleanup is handled by jestTeardownQueue
+    // Cleanup is handled by teardownQueue
   });
 
   it('should support model: inherit to use the parent conversation model', async () => {

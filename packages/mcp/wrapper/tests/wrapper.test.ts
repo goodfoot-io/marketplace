@@ -2,7 +2,6 @@
  * Tests for MCP wrapper server
  */
 
-import { describe, it, expect } from '@jest/globals';
 import { parseCliArguments, main } from '../src/wrapper.js';
 
 describe('parseCliArguments', () => {

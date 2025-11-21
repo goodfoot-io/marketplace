@@ -4,7 +4,6 @@
 
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { generateAgentId, getClaudeConfigDir, getWorkspaceName, getTranscriptPath } from '../src/agent-id.js';
 
 describe('generateAgentId', () => {

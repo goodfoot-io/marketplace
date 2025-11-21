@@ -2,7 +2,6 @@
  * Tests for type definitions and runtime validators
  */
 
-import { describe, it, expect } from '@jest/globals';
 import {
   TransportType,
   ServerConfig,
@@ -1683,7 +1682,7 @@ describe('WrapperOptions', () => {
     it('should include received value in error message for debugging', () => {
       try {
         validateWrapperOptions(null);
-        fail('Should have thrown');
+        expect.fail('Should have thrown');
       } catch (error) {
         expect((error as Error).message).toContain('null');
       }

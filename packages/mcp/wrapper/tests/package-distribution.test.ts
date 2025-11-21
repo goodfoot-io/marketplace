@@ -2,7 +2,6 @@ import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it, expect, beforeAll } from '@jest/globals';
 import { validateWrapperTemplate, type WrapperTemplate } from '../src/types/wrapper.js';
 
 const __filename = fileURLToPath(import.meta.url);

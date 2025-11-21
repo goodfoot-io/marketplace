@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.d.ts"],
   "exclude": ["node_modules", "dist", "build", "../../node_modules"],
   "compilerOptions": {
     "composite": true,
@@ -10,7 +10,7 @@
     "outDir": "./build/dist",
     "baseUrl": ".",
     "skipLibCheck": true,
-    "types": ["node", "jest"]
+    "types": ["node"]
   },
   "references": []
 }

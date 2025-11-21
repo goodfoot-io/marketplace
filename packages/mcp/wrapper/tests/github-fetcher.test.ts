@@ -5,7 +5,6 @@
 
 import { createServer, Server, IncomingMessage, ServerResponse } from 'node:http';
 import { AddressInfo } from 'node:net';
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { fetchGitHubTemplate } from '../src/github-fetcher.js';
 import { WrapperTemplate } from '../src/types/wrapper.js';
 
@@ -14,7 +13,7 @@ describe('fetchGitHubTemplate', () => {
   let serverUrl: string;
   let requestHandler: ((req: IncomingMessage, res: ServerResponse) => void) | null = null;
 
-  beforeEach((done) => {
+  beforeEach(async () => {
     // Create real HTTP server
     server = createServer((req, res) => {
       if (requestHandler) {
@@ -25,17 +24,21 @@ describe('fetchGitHubTemplate', () => {
       }
     });
 
-    server.listen(0, () => {
-      const address = server.address() as AddressInfo;
-      serverUrl = `http://localhost:${address.port}`;
-      done();
+    await new Promise<void>((resolve) => {
+      server.listen(0, () => {
+        const address = server.address() as AddressInfo;
+        serverUrl = `http://localhost:${address.port}`;
+        resolve();
+      });
     });
   });
 
-  afterEach((done) => {
+  afterEach(async () => {
     requestHandler = null;
-    server.close(() => {
-      done();
+    await new Promise<void>((resolve) => {
+      server.close(() => {
+        resolve();
+      });
     });
   });
 

@@ -4,7 +4,6 @@
  */
 
 import type { WrapperOptions } from '../src/types/wrapper.js';
-import { describe, it, expect } from '@jest/globals';
 import { parseGlobalFlags } from '../src/wrapper.js';
 
 describe('parseGlobalFlags', () => {

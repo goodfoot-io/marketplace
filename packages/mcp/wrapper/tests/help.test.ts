@@ -3,7 +3,6 @@
  * Tests help flag handling and help text display for CLI
  */
 
-import { describe, it, expect } from '@jest/globals';
 import { parseCliArguments, displayHelp } from '../src/wrapper.js';
 
 describe('Help Functionality', () => {

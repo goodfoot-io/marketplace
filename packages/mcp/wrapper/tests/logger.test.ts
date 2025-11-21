@@ -6,7 +6,6 @@
  * output is validated through manual testing and usage in the application.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import * as logger from '../src/logger.js';
 
 describe('Logger', () => {

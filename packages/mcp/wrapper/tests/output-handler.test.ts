@@ -3,7 +3,6 @@
  */
 
 import type { AgentToolResponse } from '../src/types/wrapper.js';
-import { describe, it, expect, beforeEach } from '@jest/globals';
 import { registerAgent, clearAgents, getAgentStatus, getAgentResult } from '../src/background-agents.js';
 import { validateAgentOutputArguments } from '../src/types/wrapper.js';
 

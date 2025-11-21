@@ -10,7 +10,10 @@
   "scripts": {
     "reset": "find . -type d -name node_modules | xargs rm -rf && rm -rf yarn.lock",
     "knip": "knip --config ./knip.config.json",
-    "knip:fix": "knip --fix --config ./knip.config.json"
+    "knip:fix": "knip --fix --config ./knip.config.json",
+    "build": "yarn workspaces foreach -A run build",
+    "lint": "yarn workspaces foreach -A run lint",
+    "test": "yarn workspaces foreach -A run test"
   },
   "private": true,
   "packageManager": "yarn@4.11.0",

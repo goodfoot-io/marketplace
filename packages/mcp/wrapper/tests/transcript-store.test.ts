@@ -5,7 +5,6 @@
 import { mkdtemp, rm, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { getTranscriptPath } from '../src/agent-id.js';
 import { writeTranscriptMessage, loadTranscript, type TranscriptMessage } from '../src/transcript-store.js';
 

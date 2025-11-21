@@ -1,5 +1,8 @@
 version: '3.8'
 
+volumes:
+  db_storage_pg18:
+
 services:
   app:
     build:
@@ -9,8 +12,28 @@ services:
       - ..:/workspace:cached
       - ~/.zsh_history:/home/node/.zsh_history
       - ~/.claude:/home/node/.claude
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_OPTIONS=--max-old-space-size=8192
       - CLAUDE_CONFIG_DIR=/home/node/.claude
-    # Standard Docker networking - no special configuration needed
+    # Host networking mode - shares host's network namespace
+    network_mode: host
     command: sleep infinity
+
+  postgres:
+    image: postgres:18.1
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - db_storage_pg18:/var/lib/postgresql
+      - ./init-data.sh:/docker-entrypoint-initdb.d/init-data.sh
+    ports:
+      - "54321:5432"
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h localhost -U postgres -d postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10

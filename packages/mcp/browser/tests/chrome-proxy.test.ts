@@ -144,7 +144,7 @@ describe('chrome-proxy', () => {
   });
 
   describe('socket connection tracking', () => {
-    it('should track active connections', (done) => {
+    it('should track active connections', async () => {
       const connections = new Set<Socket>();
 
       // Create a test server
@@ -158,35 +158,37 @@ describe('chrome-proxy', () => {
         socket.end();
       });
 
-      testServer.listen(0, () => {
-        const port = (testServer.address() as { port: number }).port;
+      await new Promise<void>((resolve, reject) => {
+        testServer.listen(0, () => {
+          const port = (testServer.address() as { port: number }).port;
 
-        // Connect a client
-        const client = connect(port, 'localhost');
+          // Connect a client
+          const client = connect(port, 'localhost');
 
-        client.on('connect', () => {
-          expect(connections.size).toBe(1);
-        });
+          client.on('connect', () => {
+            expect(connections.size).toBe(1);
+          });
 
-        client.on('close', () => {
-          // Wait a bit for cleanup
-          setTimeout(() => {
-            expect(connections.size).toBe(0);
+          client.on('close', () => {
+            // Wait a bit for cleanup
+            setTimeout(() => {
+              expect(connections.size).toBe(0);
+              testServer.close(() => {
+                resolve();
+              });
+            }, 100);
+          });
+
+          client.on('error', (err) => {
             testServer.close(() => {
-              done();
+              reject(err);
             });
-          }, 100);
-        });
-
-        client.on('error', (err) => {
-          testServer.close(() => {
-            done(err);
           });
         });
       });
     });
 
-    it('should handle multiple connections', (done) => {
+    it('should handle multiple connections', async () => {
       const connections = new Set<Socket>();
 
       // Create a test server
@@ -203,52 +205,58 @@ describe('chrome-proxy', () => {
         });
       });
 
-      testServer.listen(0, () => {
-        const port = (testServer.address() as { port: number }).port;
+      await new Promise<void>((resolve, reject) => {
+        testServer.listen(0, () => {
+          const port = (testServer.address() as { port: number }).port;
 
-        // Connect multiple clients
-        const client1 = connect(port, 'localhost');
-        const client2 = connect(port, 'localhost');
+          // Connect multiple clients
+          const client1 = connect(port, 'localhost');
+          const client2 = connect(port, 'localhost');
 
-        let connectCount = 0;
+          let connectCount = 0;
 
-        const cleanup = (err?: Error) => {
-          testServer.close(() => {
-            if (err) {
-              done(err);
-            } else {
-              done();
+          const cleanup = (err?: Error) => {
+            testServer.close(() => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve();
+              }
+            });
+          };
+
+          const checkConnections = async () => {
+            connectCount++;
+            if (connectCount === 2) {
+              // Wait for server to process both connections
+              // This prevents race condition where clients connect before server callbacks complete
+              await new Promise((resolve) => setTimeout(resolve, 50));
+
+              expect(connections.size).toBe(2);
+
+              // Close clients
+              client1.end();
+              client2.end();
+
+              setTimeout(() => {
+                expect(connections.size).toBe(0);
+                cleanup();
+              }, 100);
             }
-          });
-        };
+          };
 
-        const checkConnections = () => {
-          connectCount++;
-          if (connectCount === 2) {
-            expect(connections.size).toBe(2);
+          client1.on('connect', checkConnections);
+          client2.on('connect', checkConnections);
 
-            // Close clients
-            client1.end();
-            client2.end();
-
-            setTimeout(() => {
-              expect(connections.size).toBe(0);
-              cleanup();
-            }, 100);
-          }
-        };
-
-        client1.on('connect', checkConnections);
-        client2.on('connect', checkConnections);
-
-        client1.on('error', cleanup);
-        client2.on('error', cleanup);
+          client1.on('error', cleanup);
+          client2.on('error', cleanup);
+        });
       });
     });
   });
 
   describe('data transfer activity', () => {
-    it('should track activity on data transfer', (done) => {
+    it('should track activity on data transfer', async () => {
       const idleState = {
         lastActivityTime: Date.now() - 10000, // Start 10 seconds ago
         checkInterval: null as NodeJS.Timeout | null
@@ -266,42 +274,44 @@ describe('chrome-proxy', () => {
         });
       });
 
-      testServer.listen(0, () => {
-        const port = (testServer.address() as { port: number }).port;
-        const client = connect(port, 'localhost');
+      await new Promise<void>((resolve, reject) => {
+        testServer.listen(0, () => {
+          const port = (testServer.address() as { port: number }).port;
+          const client = connect(port, 'localhost');
 
-        const cleanup = (err?: Error) => {
-          client.destroy();
-          testServer.close(() => {
-            if (err) {
-              done(err);
-            } else {
-              done();
-            }
+          const cleanup = (err?: Error) => {
+            client.destroy();
+            testServer.close(() => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve();
+              }
+            });
+          };
+
+          client.on('connect', () => {
+            const beforeTime = idleState.lastActivityTime;
+            client.write('test data');
+
+            setTimeout(() => {
+              try {
+                expect(idleState.lastActivityTime).toBeGreaterThan(beforeTime);
+                cleanup();
+              } catch (err) {
+                cleanup(err as Error);
+              }
+            }, 100);
           });
-        };
 
-        client.on('connect', () => {
-          const beforeTime = idleState.lastActivityTime;
-          client.write('test data');
-
-          setTimeout(() => {
-            try {
-              expect(idleState.lastActivityTime).toBeGreaterThan(beforeTime);
-              cleanup();
-            } catch (err) {
-              cleanup(err as Error);
-            }
-          }, 100);
+          client.on('error', cleanup);
         });
-
-        client.on('error', cleanup);
       });
     });
   });
 
   describe('interval management', () => {
-    it('should start and stop check interval', (done) => {
+    it('should start and stop check interval', async () => {
       const idleState = {
         lastActivityTime: Date.now(),
         checkInterval: null as NodeJS.Timeout | null
@@ -315,24 +325,26 @@ describe('chrome-proxy', () => {
       // Start interval
       idleState.checkInterval = setInterval(checkIdleTimeout, 50); // Fast for testing
 
-      setTimeout(() => {
-        expect(checkCount).toBeGreaterThan(0);
-
-        // Stop interval
-        if (idleState.checkInterval) {
-          clearInterval(idleState.checkInterval);
-          idleState.checkInterval = null;
-        }
-
-        const countAfterStop = checkCount;
-
-        // Verify it stopped
+      await new Promise<void>((resolve) => {
         setTimeout(() => {
-          expect(checkCount).toBe(countAfterStop);
-          expect(idleState.checkInterval).toBe(null);
-          done();
-        }, 100);
-      }, 150);
+          expect(checkCount).toBeGreaterThan(0);
+
+          // Stop interval
+          if (idleState.checkInterval) {
+            clearInterval(idleState.checkInterval);
+            idleState.checkInterval = null;
+          }
+
+          const countAfterStop = checkCount;
+
+          // Verify it stopped
+          setTimeout(() => {
+            expect(checkCount).toBe(countAfterStop);
+            expect(idleState.checkInterval).toBe(null);
+            resolve();
+          }, 100);
+        }, 150);
+      });
     });
   });
 });
