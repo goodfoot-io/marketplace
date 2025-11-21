@@ -169,10 +169,23 @@ else
 
       # Check if CHANGELOG was actually modified in the package directory
       cd "$WORKSPACE_ROOT"
-      if ! git diff --quiet "$CHANGELOG_FILE" || ! git diff --cached --quiet "$CHANGELOG_FILE" 2>/dev/null; then
+      # Check if file is untracked, modified, or staged
+      CHANGELOG_UNTRACKED=false
+      if [ -f "$CHANGELOG_FILE" ] && ! git ls-files --error-unmatch "$CHANGELOG_FILE" >/dev/null 2>&1; then
+        CHANGELOG_UNTRACKED=true
+      fi
+
+      if [ "$CHANGELOG_UNTRACKED" = true ] || ! git diff --quiet "$CHANGELOG_FILE" 2>/dev/null || ! git diff --cached --quiet "$CHANGELOG_FILE" 2>/dev/null; then
         echo -e "${BLUE}📄 CHANGELOG.md has been updated${NC}"
         echo ""
-        git diff "$CHANGELOG_FILE" | head -30
+        if [ "$CHANGELOG_UNTRACKED" = true ]; then
+          echo -e "${CYAN}ℹ️  CHANGELOG.md is a new file${NC}"
+          # Show the content instead of diff for new files
+          echo "Preview of CHANGELOG.md:"
+          head -30 "$CHANGELOG_FILE"
+        else
+          git diff "$CHANGELOG_FILE" | head -30
+        fi
         echo ""
         echo -e "${BLUE}📝 Committing and pushing CHANGELOG to main...${NC}"
         git add "$CHANGELOG_FILE"

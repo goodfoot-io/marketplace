@@ -37,14 +37,17 @@ teardownQueue.on('error', (error) => {
   console.error(error);
 });
 
-teardownQueue.add = async (task, options) => {
+teardownQueue.add = async <TaskResultType>(
+  task: Parameters<typeof teardownQueue.add<TaskResultType>>[0],
+  options?: Parameters<typeof teardownQueue.add<TaskResultType>>[1]
+): Promise<TaskResultType> => {
   const stack = (new Error().stack as string).split('\n').slice(2).join('\n');
   stackMap.set(task, stack);
   if (typeof expect.getState === 'function') {
     try {
       const testName = expect.getState().currentTestName;
       if (testName && options?.id !== 'global-teardown') {
-        return addToTestQueue(testName, task, options)
+        return (addToTestQueue(testName, task, options) as Promise<TaskResultType>)
           .then((result) => {
             stackMap.delete(task);
             return result;
@@ -64,7 +67,7 @@ teardownQueue.add = async (task, options) => {
       console.error(error);
     }
   }
-  return originalAdd(task, options)
+  return (originalAdd(task, options))
     .then((result) => {
       stackMap.delete(task);
       return result;

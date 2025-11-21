@@ -1,10 +1,11 @@
 /// <reference types="vitest/globals" />
 
+import type { TestAPI } from 'vitest';
 import 'vitest';
 
 declare module 'vitest' {
-  interface Assertion {
-    toEmit<T>(eventName: string, expected?: T, timeoutInterval?: number): Promise<void>;
+  interface Assertion<T = unknown, R = unknown> {
+    toEmit<U>(eventName: string, expected?: U, timeoutInterval?: number): Promise<void>;
     toEqualSorted(expected: unknown): void;
     tsStringIsEqual(expected: string): void;
   }
@@ -18,6 +19,10 @@ declare module 'vitest' {
 declare global {
   const expect: typeof import('vitest').expect;
   const describe: typeof import('vitest').describe;
-  const test: typeof import('vitest').test;
-  const it: typeof import('vitest').it;
+  const test: TestAPI;
+  const it: TestAPI;
+  const beforeEach: typeof import('vitest').beforeEach;
+  const beforeAll: typeof import('vitest').beforeAll;
+  const afterEach: typeof import('vitest').afterEach;
+  const afterAll: typeof import('vitest').afterAll;
 }
