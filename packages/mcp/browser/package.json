@@ -19,7 +19,7 @@
     "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
     "build": "tsc --build && node esbuild.config.mjs",
     "build:bundle": "node esbuild.config.mjs",
-    "test": "NODE_OPTIONS=\"--experimental-vm-modules --no-node-snapshot ${INSPECT:+ --inspect-brk}\" NODE_ENV=test yarn exec jest --detectOpenHandles --runInBand -- ${*:-tests}",
+    "test": "vitest run",
     "release": "bash ../../../scripts/release-package.sh mcp/browser",
     "release:dry-run": "bash ../../../scripts/release-package.sh mcp/browser --dry-run"
   },
@@ -34,17 +34,15 @@
     "tsconfig.json"
   ],
   "devDependencies": {
-    "@goodfoot/jest-test-utilities": "workspace:^",
-    "@types/jest": "^30.0.0",
+    "@goodfoot/test-utilities": "workspace:^",
     "@types/node": "^24.10.0",
     "@typescript-eslint/eslint-plugin": "^8.46.3",
     "@typescript-eslint/parser": "^8.46.3",
     "esbuild": "^0.27.0",
     "eslint": "^9.39.1",
-    "jest": "^30",
     "prettier": "^3.6.2",
-    "ts-jest": "^29.4.5",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "4.0.13"
   },
   "engines": {
     "node": ">=22.0.0"

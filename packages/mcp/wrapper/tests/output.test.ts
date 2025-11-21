@@ -2,7 +2,6 @@
  * Tests for output tool argument validation
  */
 
-import { describe, it, expect } from '@jest/globals';
 import { validateAgentOutputArguments } from '../src/types/wrapper.js';
 
 describe('Agent Output Tool', () => {

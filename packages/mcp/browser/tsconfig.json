@@ -1,6 +1,6 @@
 {
   "extends": "../../../tsconfig.json",
-  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.d.ts"],
   "exclude": ["node_modules", "dist", "build"],
   "compilerOptions": {
     "composite": true,
@@ -9,6 +9,7 @@
     "declarationDir": "./build/types",
     "outDir": "./build/dist",
     "baseUrl": ".",
+    "types": ["node"],
     "typeRoots": ["../../../node_modules/@types", "./node_modules/@types"]
   }
 }

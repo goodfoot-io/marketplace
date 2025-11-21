@@ -49,10 +49,10 @@ if (result.isMainProcess) {
 
 ```typescript
 interface DaemonServerConfig {
-  port: number;          // Port to listen on
-  host?: string;         // Host to bind to (default: '127.0.0.1')
-  daemonDir?: string;    // Directory for daemon files (default: '/tmp/mcp-daemon')
-  debug?: boolean;       // Enable debug logging (default: false)
+  port: number; // Port to listen on
+  host?: string; // Host to bind to (default: '127.0.0.1')
+  daemonDir?: string; // Directory for daemon files (default: '/tmp/mcp-daemon')
+  debug?: boolean; // Enable debug logging (default: false)
 }
 ```
 

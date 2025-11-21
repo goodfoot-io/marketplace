@@ -3,7 +3,6 @@
  */
 
 import type { ServerConfig } from '../src/types/wrapper.js';
-import { describe, it, expect } from '@jest/globals';
 import { validateAgentToolArguments } from '../src/types/wrapper.js';
 import { initializeServer } from '../src/wrapper.js';
 

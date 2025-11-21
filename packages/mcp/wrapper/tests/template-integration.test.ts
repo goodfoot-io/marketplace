@@ -12,7 +12,6 @@ import type { WrapperTemplate } from '../src/types/wrapper.js';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
 describe('Template Integration in main()', () => {
   let tempDir: string;

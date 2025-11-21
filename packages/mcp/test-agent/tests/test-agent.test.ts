@@ -2,8 +2,7 @@ import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { jestTeardownQueue } from '@goodfoot/jest-test-utilities/jest-teardown';
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { teardownQueue } from '@goodfoot/test-utilities/vitest-teardown';
 
 interface Tool {
   name: string;
@@ -52,7 +51,7 @@ This allows testing without complex agent execution.`,
     );
 
     // Register cleanup
-    void jestTeardownQueue.add(async () => {
+    void teardownQueue.add(async () => {
       try {
         await fs.rm(tempDir, { recursive: true });
       } catch {
@@ -62,7 +61,7 @@ This allows testing without complex agent execution.`,
   });
 
   afterAll(async () => {
-    // Cleanup is handled by jestTeardownQueue
+    // Cleanup is handled by teardownQueue
   });
 
   describe('Tool Registration', () => {
@@ -73,7 +72,7 @@ This allows testing without complex agent execution.`,
       });
 
       // Register cleanup
-      void jestTeardownQueue.add(() => {
+      void teardownQueue.add(() => {
         serverProcess.kill();
         return Promise.resolve();
       });
@@ -276,10 +275,10 @@ You are a senior engineer conducting code reviews.
     it('should pass correct options to Claude Code SDK', () => {
       // Verify the expected options structure
       const expectedOptions = {
-        customSystemPrompt: expect.any(String),
+        customSystemPrompt: expect.any(String) as string,
         maxTurns: 100,
         includePartialMessages: true,
-        abortController: expect.any(AbortController),
+        abortController: expect.any(AbortController) as AbortController,
         disallowedTools: ['Task', 'mcp__test-agent__task']
       };
 

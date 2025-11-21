@@ -7,7 +7,6 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { initializeServer } from '../src/wrapper.js';
 
 // ESM equivalent of __dirname

@@ -6,7 +6,6 @@ import type { ServerConfig, AggregatedTools, CachedToolDescription } from '../sr
 import { mkdtemp, rm, writeFile, mkdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { generateConfigHash, getCacheFilePath, ensureCacheDirectory } from '../src/cache.js';
 
 describe('Cache Management', () => {

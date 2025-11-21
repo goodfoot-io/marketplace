@@ -6,7 +6,6 @@ import type { ServerConfig } from '../src/types/wrapper.js';
 import { rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { readCacheFile, writeCacheFile, generateConfigHash } from '../src/cache.js';
 import { discoverTools } from '../src/discovery.js';
 
