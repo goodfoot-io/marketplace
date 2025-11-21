@@ -1,0 +1,51 @@
+{
+  "name": "@goodfoot/test-utilities",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "scripts": {
+    "prettier": "prettier . --write --log-level warn",
+    "prettier:files": "prettier --write --log-level warn",
+    "eslint": "eslint --cache --fix ./src ./tests",
+    "eslint:files": "eslint --cache --fix",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --build",
+    "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
+    "test": "vitest run",
+    "release": "bash ../../scripts/release-package.sh test-utilities",
+    "release:dry-run": "bash ../../scripts/release-package.sh test-utilities --dry-run"
+  },
+  "exports": {
+    "./*": {
+      "import": "./src/*.ts",
+      "types": "./src/*.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      "./*": {
+        "import": "./dist/*.js",
+        "types": "./types/*.d.ts"
+      }
+    }
+  },
+  "devDependencies": {
+    "@jest/expect-utils": "^30",
+    "@prettier/sync": "^0.6.1",
+    "@types/node": "^24",
+    "@types/uuid": "^11",
+    "eslint": "^9.39.1",
+    "jest-matcher-utils": "^30",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "uuid": "^13",
+    "vitest": "4.0.13"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "p-queue": "^9.0.1",
+    "postgres": "^3.4.7"
+  }
+}
