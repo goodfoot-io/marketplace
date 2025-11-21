@@ -37,7 +37,7 @@ export function tsStringIsEqual(received: string, expected: string): boolean {
   };
 
   const compilerHost: ts.CompilerHost = {
-    getSourceFile: (fileName, languageVersion) => sourceFiles[fileName],
+    getSourceFile: (fileName, _languageVersion) => sourceFiles[fileName],
     writeFile: () => {},
     getDefaultLibFileName: () => 'lib.d.ts',
     useCaseSensitiveFileNames: () => false,
@@ -45,7 +45,7 @@ export function tsStringIsEqual(received: string, expected: string): boolean {
     getCurrentDirectory: () => '',
     getNewLine: () => '\n',
     fileExists: (fileName) => !!sourceFiles[fileName],
-    readFile: (fileName) => '',
+    readFile: (_fileName) => '',
     directoryExists: () => true,
     getDirectories: () => []
   };
