@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { jestTeardownQueue } from '@goodfoot/test-utilities/jest-teardown';
+import { jestTeardownQueue } from '@goodfoot/jest-test-utilities/jest-teardown';
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 
 interface Tool {

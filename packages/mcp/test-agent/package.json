@@ -29,7 +29,7 @@
     "tsconfig.json"
   ],
   "devDependencies": {
-    "@goodfoot/test-utilities": "workspace:^",
+    "@goodfoot/jest-test-utilities": "workspace:^",
     "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.10.0",

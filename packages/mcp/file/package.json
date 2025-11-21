@@ -38,7 +38,7 @@
     "tsconfig.json"
   ],
   "devDependencies": {
-    "@goodfoot/test-utilities": "workspace:^",
+    "@goodfoot/jest-test-utilities": "workspace:^",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.10.0",
     "@typescript-eslint/eslint-plugin": "^8.46.3",

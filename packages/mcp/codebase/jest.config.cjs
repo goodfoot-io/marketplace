@@ -12,7 +12,7 @@ const jestConfig = {
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^@goodfoot/test-utilities/(.*)$': '<rootDir>/../../../packages/test-utilities/src/$1'
+    '^@goodfoot/jest-test-utilities/(.*)$': '<rootDir>/../../../packages/jest-test-utilities/src/$1'
   },
   extensionsToTreatAsEsm: ['.ts']
 };

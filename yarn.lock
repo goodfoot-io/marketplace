@@ -1056,7 +1056,7 @@ __metadata:
   resolution: "@goodfoot/browser-mcp-server@workspace:packages/mcp/browser"
   dependencies:
     "@anthropic-ai/claude-agent-sdk": "npm:^0.1.37"
-    "@goodfoot/test-utilities": "workspace:^"
+    "@goodfoot/jest-test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.21.0"
     "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^24.10.0"
@@ -1080,7 +1080,7 @@ __metadata:
   resolution: "@goodfoot/codebase-mcp-server@workspace:packages/mcp/codebase"
   dependencies:
     "@anthropic-ai/claude-agent-sdk": "npm:^0.1.37"
-    "@goodfoot/test-utilities": "workspace:^"
+    "@goodfoot/jest-test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.21.0"
     "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^24.10.0"
@@ -1118,7 +1118,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/file-mcp-server@workspace:packages/mcp/file"
   dependencies:
-    "@goodfoot/test-utilities": "workspace:^"
+    "@goodfoot/jest-test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.21.0"
     "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^24.10.0"
@@ -1135,6 +1135,34 @@ __metadata:
     typescript: "npm:^5.9.3"
   bin:
     file-mcp-server: ./build/dist/src/append.js
+  languageName: unknown
+  linkType: soft
+
+"@goodfoot/jest-test-utilities@workspace:^, @goodfoot/jest-test-utilities@workspace:packages/jest-test-utilities":
+  version: 0.0.0-use.local
+  resolution: "@goodfoot/jest-test-utilities@workspace:packages/jest-test-utilities"
+  dependencies:
+    "@jest/environment": "npm:^30.0.4"
+    "@jest/expect-utils": "npm:^29"
+    "@jest/globals": "npm:^29"
+    "@jest/types": "npm:^29"
+    "@prettier/sync": "npm:^0.6.1"
+    "@types/jest": "npm:^29"
+    "@types/node": "npm:^22"
+    "@types/uuid": "npm:^10"
+    eslint: "npm:^9.28.0"
+    expect: "npm:^29"
+    jest: "npm:^29"
+    jest-environment-jsdom: "npm:^30.0.4"
+    jest-environment-node: "npm:^30.0.4"
+    jest-matcher-utils: "npm:^29"
+    jest-util: "npm:^30.0.2"
+    p-queue: "npm:^8.1.0"
+    postgres: "npm:^3.4.7"
+    prettier: "npm:^3.5.3"
+    ts-jest: "npm:^29"
+    typescript: "npm:^5.8.3"
+    uuid: "npm:^11"
   languageName: unknown
   linkType: soft
 
@@ -1177,7 +1205,7 @@ __metadata:
   resolution: "@goodfoot/mcp-wrapper-server@workspace:packages/mcp/wrapper"
   dependencies:
     "@anthropic-ai/claude-agent-sdk": "npm:^0.1.37"
-    "@goodfoot/test-utilities": "workspace:^"
+    "@goodfoot/jest-test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.21.1"
     "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^24.10.0"
@@ -1222,7 +1250,7 @@ __metadata:
   resolution: "@goodfoot/test-agent-mcp-server@workspace:packages/mcp/test-agent"
   dependencies:
     "@anthropic-ai/claude-agent-sdk": "npm:^0.1.37"
-    "@goodfoot/test-utilities": "workspace:^"
+    "@goodfoot/jest-test-utilities": "workspace:^"
     "@modelcontextprotocol/sdk": "npm:^1.21.0"
     "@types/jest": "npm:^30.0.0"
     "@types/js-yaml": "npm:^4.0.9"
@@ -1241,39 +1269,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@goodfoot/test-utilities@workspace:^, @goodfoot/test-utilities@workspace:packages/test-utilities":
-  version: 0.0.0-use.local
-  resolution: "@goodfoot/test-utilities@workspace:packages/test-utilities"
-  dependencies:
-    "@jest/environment": "npm:^30.0.4"
-    "@jest/expect-utils": "npm:^29"
-    "@jest/globals": "npm:^29"
-    "@jest/types": "npm:^29"
-    "@prettier/sync": "npm:^0.6.1"
-    "@types/jest": "npm:^29"
-    "@types/node": "npm:^22"
-    "@types/uuid": "npm:^10"
-    eslint: "npm:^9.28.0"
-    expect: "npm:^29"
-    jest: "npm:^29"
-    jest-environment-jsdom: "npm:^30.0.4"
-    jest-environment-node: "npm:^30.0.4"
-    jest-matcher-utils: "npm:^29"
-    jest-util: "npm:^30.0.2"
-    p-queue: "npm:^8.1.0"
-    postgres: "npm:^3.4.7"
-    prettier: "npm:^3.5.3"
-    ts-jest: "npm:^29"
-    typescript: "npm:^5.8.3"
-    uuid: "npm:^11"
-  languageName: unknown
-  linkType: soft
-
 "@goodfoot/ts-extra@workspace:packages/mcp/ts-extra":
   version: 0.0.0-use.local
   resolution: "@goodfoot/ts-extra@workspace:packages/mcp/ts-extra"
   dependencies:
-    "@goodfoot/test-utilities": "workspace:^"
+    "@goodfoot/jest-test-utilities": "workspace:^"
     "@manypkg/get-packages": "npm:^3.1.0"
     "@modelcontextprotocol/sdk": "npm:^1.21.0"
     "@types/jest": "npm:^30.0.0"

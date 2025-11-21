@@ -9,7 +9,11 @@ const stackMap = new Map<Parameters<typeof jestTeardownQueue.add>[0], string>();
 
 const originalAdd = jestTeardownQueue.add.bind(jestTeardownQueue);
 
-export function addToTestQueue(testName: string, func: Parameters<typeof PQueue.prototype.add>[0], options?: Parameters<typeof PQueue.prototype.add>[1]) {
+export function addToTestQueue(
+  testName: string,
+  func: Parameters<typeof PQueue.prototype.add>[0],
+  options?: Parameters<typeof PQueue.prototype.add>[1]
+) {
   const queue = queueMap.get(testName);
   if (queue) {
     return queue.add(func, options);
@@ -30,36 +34,46 @@ jestTeardownQueue.on('error', (error) => {
 jestTeardownQueue.add = async (task, options) => {
   const stack = (new Error().stack as string).split('\n').slice(2).join('\n');
   stackMap.set(task, stack);
-  if(typeof expect.getState === 'function') {
+  if (typeof expect.getState === 'function') {
     try {
       const testName = expect.getState().currentTestName;
       if (testName && options?.id !== 'global-teardown') {
-        return addToTestQueue(testName, task, options).then((result) => {
-          stackMap.delete(task);
-          return result;
-        }).catch((error) => {
-          if(error instanceof Error) {
-            error.stack = `${error.stack}\n${stackMap.get(task)}`.split('\n').filter((line) => !line.includes('processTicksAndRejections')).join('\n');
-          }
-          console.error(task.toString());
-          throw error;
-        });
+        return addToTestQueue(testName, task, options)
+          .then((result) => {
+            stackMap.delete(task);
+            return result;
+          })
+          .catch((error) => {
+            if (error instanceof Error) {
+              error.stack = `${error.stack}\n${stackMap.get(task)}`
+                .split('\n')
+                .filter((line) => !line.includes('processTicksAndRejections'))
+                .join('\n');
+            }
+            console.error(task.toString());
+            throw error;
+          });
       }
     } catch (error) {
       console.error(error);
     }
   }
-  return originalAdd(task, options).then((result) => {
-    stackMap.delete(task);
-    return result;
-  }).catch((error) => {
-    console.error(task.toString());
-    if(error instanceof Error) {
-      error.stack = `${error.stack}\n${stackMap.get(task)}`.split('\n').filter((line) => !line.includes('processTicksAndRejections')).join('\n');
-    }
-    
-    throw error;
-  });
+  return originalAdd(task, options)
+    .then((result) => {
+      stackMap.delete(task);
+      return result;
+    })
+    .catch((error) => {
+      console.error(task.toString());
+      if (error instanceof Error) {
+        error.stack = `${error.stack}\n${stackMap.get(task)}`
+          .split('\n')
+          .filter((line) => !line.includes('processTicksAndRejections'))
+          .join('\n');
+      }
+
+      throw error;
+    });
 };
 
 declare global {
@@ -67,10 +81,9 @@ declare global {
 }
 
 globalThis.startJestTeardownQueue = async (name?: string) => {
-  
-  if(name) {
+  if (name) {
     const queue = queueMap.get(name);
-    if(queue) {
+    if (queue) {
       queue.start();
       await queue.onIdle();
     }
@@ -82,4 +95,4 @@ globalThis.startJestTeardownQueue = async (name?: string) => {
   await Promise.all([...queueMap.values()].map((queue) => queue.onIdle()));
   jestTeardownQueue.start();
   await jestTeardownQueue.onIdle();
-}
+};
