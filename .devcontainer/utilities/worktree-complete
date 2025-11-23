@@ -178,9 +178,13 @@ fi
 echo "Pushing merged changes..."
 git push origin "$PARENT_BRANCH"
 
-# Delete the remote branch
-echo "Deleting remote branch $CURRENT_BRANCH..."
-git push origin --delete "$CURRENT_BRANCH" || true
+# Delete the remote branch if it exists
+if git ls-remote --exit-code --heads origin "$CURRENT_BRANCH" >/dev/null 2>&1; then
+    echo "Deleting remote branch $CURRENT_BRANCH..."
+    git push origin --delete "$CURRENT_BRANCH"
+else
+    echo "Remote branch $CURRENT_BRANCH does not exist, skipping deletion."
+fi
 
 # Remove the worktree
 echo "Removing worktree..."

@@ -435,9 +435,37 @@ You can use this to read reference files, configuration data, or execute helper 
 
 ### Using ${CLAUDE_PLUGIN_ROOT} in Documentation and Examples
 
-**CRITICAL**: The syntax for using `${CLAUDE_PLUGIN_ROOT}` differs between command files (with embedded bash) and regular documentation files.
+> **🚨 CRITICAL**: The syntax for using `${CLAUDE_PLUGIN_ROOT}` differs between command files (with embedded bash) and regular documentation files. Using the wrong syntax will result in users seeing literal variable names instead of actual paths.
 
-#### In Embedded Bash Blocks (Executes Code)
+#### Decision Tree: Which Syntax Should I Use?
+
+```
+Are you writing code that will execute?
+├─ YES, in a ```! block
+│  └─ Use: "${CLAUDE_PLUGIN_ROOT}" directly
+│     Example: RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/tool)
+│
+└─ NO, showing examples to users?
+   ├─ In a command/skill file (commands/*.md or skills/*.md)
+   │  └─ Use: !`echo "${CLAUDE_PLUGIN_ROOT}"`
+   │     Example: !`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/tool
+   │
+   └─ In a regular documentation file (README.md, etc.)
+      └─ Use: "${CLAUDE_PLUGIN_ROOT}" (literal)
+         Example: "${CLAUDE_PLUGIN_ROOT}"/bin/tool
+```
+
+#### Quick Reference
+
+| Context | Syntax | Result |
+|---------|--------|--------|
+| Embedded bash block (````!`) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Variable expanded at runtime ✓ |
+| Command file docs (````bash`) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Shows literal string ✗ |
+| Command file docs (````bash`) | `!`echo "${CLAUDE_PLUGIN_ROOT}"``/bin/tool` | Shows expanded path ✓ |
+| Regular files (README.md) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Shows what users type ✓ |
+| File reference | `@!`echo "${CLAUDE_PLUGIN_ROOT}"``/file.md` | Reads file at expanded path ✓ |
+
+#### In Embedded Bash Blocks (Executes Code) ✓
 
 Use `"${CLAUDE_PLUGIN_ROOT}"` directly - the variable will be expanded at runtime:
 
@@ -453,12 +481,22 @@ PROJECT_DIR=$("${CLAUDE_PLUGIN_ROOT}"/bin/initialize-project "my-project")
 
 Use `!`echo "${CLAUDE_PLUGIN_ROOT}"`` syntax - this expands the path when rendered so users see the actual path:
 
+**✓ Correct - Shows actual path to users**:
 ````markdown
 **Usage:**
 ```bash
-# This is documentation - use embedded bash syntax to show actual path
+# Users will see "plugins/project/bin/initialize-project" (actual path)
 PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "my-project")
 !`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/my-script.sh
+```
+````
+
+**✗ Incorrect - Shows literal variable name**:
+````markdown
+**Usage:**
+```bash
+# Users will see literal "${CLAUDE_PLUGIN_ROOT}" - not helpful!
+PROJECT_DIR=$("${CLAUDE_PLUGIN_ROOT}"/bin/initialize-project "my-project")
 ```
 ````
 
@@ -468,7 +506,7 @@ PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "my-project
 - The `!`echo "${CLAUDE_PLUGIN_ROOT}"`` syntax runs the echo command and substitutes the result when the documentation is rendered
 - **IMPORTANT**: This only works in command/skill files (`.md` files in `commands/` or `skills/` directories)
 
-#### In Regular Documentation Files (README.md, etc.)
+#### In Regular Documentation Files (README.md, etc.) ✓
 
 Regular markdown files like `README.md` do NOT have embedded bash processing. Use the literal `"${CLAUDE_PLUGIN_ROOT}"` syntax to show users what they should type:
 
@@ -480,26 +518,16 @@ PROJECT_DIR=$("${CLAUDE_PLUGIN_ROOT}"/bin/initialize-project "my-project")
 ```
 ````
 
-#### Quick Reference
+#### Detailed Examples
 
-| Context | Syntax | Result |
-|---------|--------|--------|
-| Embedded bash block (````!`) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Variable expanded at runtime ✓ |
-| Command file docs (````bash`) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Shows literal string ✗ |
-| Command file docs (````bash`) | `!`echo "${CLAUDE_PLUGIN_ROOT}"``/bin/tool` | Shows expanded path ✓ |
-| Regular files (README.md) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Shows what users type ✓ |
-| File reference | `@!`echo "${CLAUDE_PLUGIN_ROOT}"``/file.md` | Reads file at expanded path ✓ |
-
-#### Examples
-
-**Correct - Embedded bash (executes)**:
+**✓ Correct - Embedded bash (executes)**:
 ````markdown
 ```!
 RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 ```
 ````
 
-**Incorrect - Documentation without expansion**:
+**✗ Incorrect - Documentation without expansion**:
 ````markdown
 **Usage:**
 ```bash
@@ -508,7 +536,7 @@ RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 ```
 ````
 
-**Correct - Command file documentation with expansion**:
+**✓ Correct - Command file documentation with expansion**:
 ````markdown
 **Usage:**
 ```bash
@@ -517,7 +545,7 @@ RESULT=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/process-data)
 ```
 ````
 
-**Correct - README.md (regular file)**:
+**✓ Correct - README.md (regular file)**:
 ````markdown
 **Usage:**
 ```bash
@@ -525,6 +553,49 @@ RESULT=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/process-data)
 RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 ```
 ````
+
+#### Common Mistakes
+
+**❌ Mistake #1: Using variable directly in documentation blocks**
+```bash
+# In a command file's ```bash block
+# Problem: Users see literal "${CLAUDE_PLUGIN_ROOT}" - unhelpful!
+"${CLAUDE_PLUGIN_ROOT}"/bin/my-tool
+```
+
+**✓ Fix: Use embedded bash expansion**
+```bash
+# In a command file's ```bash block
+# Users see actual path like "plugins/project/bin/my-tool" - helpful!
+!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/my-tool
+```
+
+**❌ Mistake #2: Using embedded bash in README.md files**
+```bash
+# In README.md (regular documentation file)
+# Problem: Won't expand - README files don't process embedded bash
+!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/my-tool
+```
+
+**✓ Fix: Use literal syntax in regular docs**
+```bash
+# In README.md
+# Shows users what they should type
+"${CLAUDE_PLUGIN_ROOT}"/bin/my-tool
+```
+
+**❌ Mistake #3: Forgetting backticks in embedded bash**
+```bash
+# In a command file's ```bash block
+# Problem: Missing backticks - won't expand
+!echo "${CLAUDE_PLUGIN_ROOT}"/bin/my-tool
+```
+
+**✓ Fix: Include backticks around the command**
+```bash
+# Correct syntax with backticks
+!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/my-tool
+```
 
 ### Skills vs Commands
 
