@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.2
+- Improved error handling for PostgreSQL connection notices
+
 ## 1.0.1
 
 - Improved TypeScript type definitions for better IDE support and type checking
