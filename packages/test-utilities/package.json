@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/test-utilities",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": false,
   "sideEffects": false,
   "type": "module",

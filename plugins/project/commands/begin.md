@@ -907,13 +907,13 @@ if [ -n "$PROJECT_PATH" ]; then
     echo "Use the Bash tool to run:"
     echo ""
     echo "${BACKTICK}${BACKTICK}${BACKTICK}bash"
-    echo "\"plugins/project\"/bin/complete-iteration \"$PROJECT_NAME\""
+    echo "${CLAUDE_PLUGIN_ROOT}/bin/complete-iteration \"$PROJECT_NAME\""
     echo "${BACKTICK}${BACKTICK}${BACKTICK}"
 else
     echo "Use the Bash tool to run:"
     echo ""
     echo "${BACKTICK}${BACKTICK}${BACKTICK}bash"
-    echo "\"plugins/project\"/bin/complete-iteration \"[PROJECT_NAME]\""
+    echo "${CLAUDE_PLUGIN_ROOT}/bin/complete-iteration \"[PROJECT_NAME]\""
     echo "${BACKTICK}${BACKTICK}${BACKTICK}"
 fi
 ```

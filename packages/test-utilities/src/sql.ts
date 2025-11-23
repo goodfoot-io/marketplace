@@ -9,8 +9,12 @@ const sql: PostgresConnection = postgres({
     column: postgres.camel.column
   },
   onnotice(data) {
-    if (data.code === '42P07') {
-      return;
+    switch (data.code) {
+      case '42P07':
+      case '42710':
+        return;
+      default:
+        break;
     }
     console.log(data);
   }
