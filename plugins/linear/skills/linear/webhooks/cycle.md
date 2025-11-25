@@ -1,5 +1,7 @@
 # Cycle Webhooks
 
+> **Official docs**: https://developers.linear.app/docs/graphql/webhooks
+
 Cycles are time-boxed iterations (sprints) that group issues.
 
 ## Example Payload
@@ -80,11 +82,28 @@ Check `updatedFrom` for what changed:
 
 ## Responding
 
-| I want to... | Command |
-|--------------|---------|
-| Get team info | `linctl team get ENG` |
-| List team's issues | `linctl issue list --team ENG` |
+| I want to... | SDK Operation | Reference |
+|--------------|---------------|-----------|
+| Get cycle details | `await client.cycle("cycle-uuid")` | [sdk/queries.md](../sdk/queries.md#cycles) |
+| Get team's active cycle | `await team.activeCycle` | [sdk/queries.md](../sdk/queries.md#cycles) |
+| List cycles | `await client.cycles({ first: 10 })` | [sdk/queries.md](../sdk/queries.md#cycles) |
+| Get cycle's issues | `const issues = await cycle.issues()` | [sdk/queries.md](../sdk/queries.md#cycles) |
 
-**Note:** linctl has limited cycle support. Issues include cycle info when retrieved with `linctl issue get`.
+The SDK provides full cycle access:
 
-For team flags: `linctl team get --help`
+```typescript
+// Get cycle details
+const cycle = await client.cycle("cycle-uuid");
+console.log(cycle.name, cycle.progress);
+
+// Get team's active cycle
+const team = await client.team("team-id");
+const activeCycle = await team.activeCycle;
+console.log("Active:", activeCycle?.name);
+
+// Get issues in the cycle
+const issues = await cycle.issues();
+issues.nodes.forEach(i => console.log(i.identifier, i.title));
+```
+
+See [sdk/queries.md](../sdk/queries.md#cycles) for complete cycle operations.

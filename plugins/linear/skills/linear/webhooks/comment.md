@@ -1,5 +1,7 @@
 # Comment Webhooks
 
+> **Official docs**: https://developers.linear.app/docs/graphql/webhooks
+
 ## Example Payload
 
 ```json
@@ -27,20 +29,68 @@
 | `update` | Comment edited |
 | `remove` | Comment deleted |
 
+## Bot Loop Prevention {#loop-prevention}
+
+**CRITICAL:** When your bot posts a comment, Linear sends a webhook for that comment. You MUST detect and ignore your own comments to prevent infinite loops.
+
+```typescript
+// Get your bot's user ID (cache this at startup)
+const viewer = await client.viewer;
+const myUserId = viewer?.id;
+
+// In webhook handler - check FIRST before any processing
+if (webhook.data.user.id === myUserId) {
+  return; // Ignore own comments
+}
+
+// Safe to process - this is from a human
+```
+
+**Why this matters:**
+- User comments → Bot responds → Bot comment webhook → Bot responds → **INFINITE LOOP**
+- Can cause rate limiting, server overload, and spam
+
 ## Detecting Mentions {#mentions}
 
 Mentions appear as `@username` in `data.body` text. They are plain text, not structured data.
 
 **To detect if you were mentioned:**
 
-Parse `data.body` for patterns like:
-- `@claude`
-- `@your-username`
+```typescript
+const body = webhook.data.body;
+const wasMentioned = /@claude\b/i.test(body);
+```
+
+**Extract all mentions:**
+
+```typescript
+const mentions = body.match(/@[\w-]+/g) || [];
+// ["@claude", "@jane", "@team-lead"]
+```
 
 **Common mention patterns:**
-- `@claude Can you...` - Request for action
-- `@claude please...` - Request for action
-- `cc @claude` - FYI, may not need response
+| Pattern | Intent | Suggested Action |
+|---------|--------|------------------|
+| `@claude Can you...` | Direct request | Respond with action |
+| `@claude please...` | Direct request | Respond with action |
+| `cc @claude` | FYI | Acknowledge, may not need action |
+| `@claude thoughts?` | Opinion request | Provide analysis |
+
+## Extracting Issue References
+
+Comments may reference other issues by identifier:
+
+```typescript
+const body = webhook.data.body;
+const issueRefs = body.match(/[A-Z]+-\d+/g) || [];
+// ["ENG-1234", "BUG-567"]
+
+// Fetch referenced issues
+for (const ref of issueRefs) {
+  const issue = await client.issue(ref);
+  console.log(issue.identifier, "-", issue.title);
+}
+```
 
 ## Detecting Replies
 
@@ -69,7 +119,10 @@ The parent issue this comment belongs to:
 { "id": "issue-uuid", "identifier": "ENG-5678", "title": "Issue title" }
 ```
 
-Use `issue.identifier` to get more context: `linctl issue get ENG-5678`
+Use `issue.identifier` to get more context:
+```typescript
+const issue = await client.issue("ENG-5678");
+```
 
 ### user
 
@@ -78,6 +131,8 @@ The comment author:
 ```json
 { "id": "user-uuid", "name": "Display Name", "email": "user@example.com" }
 ```
+
+**Note**: In webhooks, `user.name` is the display name. But in the SDK, `user.name` is the email and `user.displayName` is the display name. Be careful when comparing webhook data to SDK data.
 
 For `create` actions, `user` matches `actor`.
 
@@ -101,12 +156,13 @@ Array of emoji reactions:
 
 ## Responding
 
-| I want to... | Command | Reference |
-|--------------|---------|-----------|
-| Get full issue context | `linctl issue get ENG-5678` | [linctl/issues.md](../linctl/issues.md#getting) |
-| See all comments | `linctl comment list ENG-5678` | [linctl/comments.md](../linctl/comments.md#listing) |
-| Reply with a comment | `linctl comment create ENG-5678 --body "..."` | [linctl/comments.md](../linctl/comments.md#creating) |
+| I want to... | SDK Operation | Reference |
+|--------------|---------------|-----------|
+| Get full issue context | `await client.issue("ENG-5678")` | [sdk/issues.md](../sdk/issues.md#getting) |
+| See all comments | `const comments = await issue.comments()` | [sdk/comments.md](../sdk/comments.md#listing) |
+| Reply with a comment | `await client.createComment({ issueId, body })` | [sdk/comments.md](../sdk/comments.md#creating) |
+| Reply in a thread | `await client.createComment({ issueId, parentId, body })` | [sdk/comments.md](../sdk/comments.md#creating) |
 
-**Note:** linctl creates top-level comments. Thread replies require the Linear UI or API.
+**Note:** The SDK supports thread replies via `parentId` in `createComment()`.
 
-For all available flags: `linctl comment create --help`
+See [sdk/comments.md](../sdk/comments.md) for complete SDK reference.

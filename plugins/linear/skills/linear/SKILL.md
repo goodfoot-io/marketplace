@@ -1,101 +1,155 @@
 ---
 name: linear
-description: Reference for Linear webhooks and linctl CLI. Use when receiving
+description: Reference for Linear webhooks and TypeScript SDK. Use when receiving
   Linear webhook payloads, responding to issues or comments, changing issue status,
-  or querying Linear state.
+  or querying Linear state via the @linear/sdk package.
 ---
 
-# Linear Reference
+# Linear Reference (SDK)
 
-## I received a webhook...
+Uses `@linear/sdk` with `tsx`. Run: `dotenv -- tsx script.ts`
 
-| `type` value | Reference |
-|--------------|-----------|
+## Decision Trees
+
+### Webhook Received
+```
+1. Is this from my bot?
+   → if (webhook.data.user?.id === viewerId) return; // STOP - prevent loop
+
+2. What type?
+   → Issue:   webhooks/issue.md
+   → Comment: webhooks/comment.md
+   → Project: webhooks/project.md
+   → Cycle:   webhooks/cycle.md
+```
+
+### Responding to Mentions
+```
+1. Check if mentioned: /@claude\b/i.test(webhook.data.body)
+2. Get issue context: await client.issue(webhook.data.issue.identifier)
+3. Reply: await client.createComment({ issueId: issue.id, body: "..." })
+```
+
+### Handling Assignment
+```
+1. Detect: webhook.updatedFrom?.assigneeId exists
+2. Is it me? webhook.data.assignee?.id === viewerId
+3. Acknowledge: update state + add comment (see sdk/issues.md#updating)
+```
+
+### Tracking Status Changes
+```
+1. Detect: webhook.updatedFrom?.stateId exists
+2. Get transition: webhook.updatedFrom.state.type → webhook.data.state.type
+3. React based on new type (started, completed, etc.)
+```
+
+## Critical Gotchas (Verified)
+
+| Issue | Reality | Fix |
+|-------|---------|-----|
+| Bot loops | Your comments trigger webhooks | Check `webhook.data.user.id === viewerId` first |
+| Unassigned check | SDK returns `undefined`, not `null` | Use `!assignee` or `=== undefined` |
+| State types | Multiple states can share same type | "canceled" may have "Canceled" AND "Duplicate" |
+| SDK `name` field | `viewer.name` = email, not display name | Use `viewer.displayName` for display |
+| `issue.parent` | Returns `undefined` for top-level | Webhooks send `null`, SDK returns `undefined` |
+| State IDs | Team-specific | Re-lookup by `state.type` when moving issues between teams |
+
+## Quick Lookups
+
+### Webhook → Reference
+| `type` | File |
+|--------|------|
 | `Issue` | webhooks/issue.md |
 | `Comment` | webhooks/comment.md |
 | `Project`, `ProjectUpdate` | webhooks/project.md |
 | `Cycle` | webhooks/cycle.md |
 
-## I want to...
+### Task → Reference
+| I want to... | File |
+|--------------|------|
+| Reply to comment/mention | sdk/comments.md#creating |
+| Change issue status | sdk/issues.md#updating |
+| Get issue details | sdk/issues.md#getting |
+| Find workflow states | sdk/queries.md#teams |
+| Find user IDs | sdk/queries.md#users |
 
-| Task | Reference |
-|------|-----------|
-| Reply to a comment or mention | linctl/comments.md#creating |
-| Add a comment to an issue | linctl/comments.md#creating |
-| Change issue status | linctl/issues.md#updating |
-| Get full issue details | linctl/issues.md#getting |
-| Find related issues | linctl/issues.md#searching |
-| See the conversation on an issue | linctl/comments.md#listing |
-| Check who's on a team | linctl/queries.md#teams |
-| Check project progress | linctl/queries.md#projects |
-| Create a new issue | linctl/issues.md#creating |
-
-## Quick Detection Patterns
-
-| Pattern in webhook | Meaning |
-|--------------------|---------|
+### Webhook Detection
+| Pattern | Meaning |
+|---------|---------|
 | `updatedFrom.assigneeId` exists | Assignment changed |
-| `data.assignee.email` matches yours | Assigned to you |
-| `@your-name` in `data.body` | You were mentioned |
 | `updatedFrom.stateId` exists | Status changed |
-| `action: "create"` + `type: "Comment"` | New comment added |
-| `action: "create"` + `type: "Issue"` | New issue created |
+| `updatedFrom.labelIds` exists | Labels changed |
+| `action: "create"` + `type: "Comment"` | New comment |
 
-## Common Field Values
+### Field Values
 
-### priority
-| Value | Label |
-|-------|-------|
-| `0` | No priority |
-| `1` | Urgent |
-| `2` | High |
-| `3` | Medium |
-| `4` | Low |
+**priority**: `1`=Urgent, `2`=High, `3`=Normal, `4`=Low, `0`=None
 
-### state.type
-| Value | Meaning |
-|-------|---------|
-| `backlog` | In backlog, not yet planned |
-| `unstarted` | Planned, ready to start |
-| `started` | Work in progress |
-| `completed` | Done |
-| `canceled` | Won't do |
+**state.type**: `backlog` → `unstarted` → `started` → `completed` | `canceled`
 
-Typical flow: `backlog` → `unstarted` → `started` → `completed`
+## Essential Patterns
 
-### health (ProjectUpdate only)
-| Value | Meaning |
-|-------|---------|
-| `onTrack` | Progressing as planned |
-| `atRisk` | May miss deadlines |
-| `offTrack` | Behind schedule |
+### Bot Loop Prevention (CRITICAL)
+```typescript
+const viewer = await client.viewer;
+const viewerId = viewer.id;  // Cache at startup
 
-## Webhook Payload Structure
-
-All webhooks include:
-
-| Field | Description |
-|-------|-------------|
-| `action` | `create`, `update`, or `remove` |
-| `type` | Entity type (Issue, Comment, etc.) |
-| `actor` | User who made the change |
-| `data` | Current entity state |
-| `updatedFrom` | Previous values (update only) |
-| `url` | Link to entity in Linear |
-
-## Linctl Basics
-
-```bash
-linctl issue get ENG-1234                    # Get issue details
-linctl issue update ENG-1234 --state "Done"  # Change status
-linctl comment create ENG-1234 --body "..."  # Add comment
-linctl comment list ENG-1234                 # See conversation
-linctl issue list --assignee me              # My issues
-linctl <command> --help                      # Full flag details
+// In every webhook handler - check FIRST
+if (webhook.type === "Comment" && webhook.data.user?.id === viewerId) {
+  return;  // Ignore own comments
+}
 ```
 
-## ID Formats
+### Detect Mentions
+```typescript
+const wasMentioned = /@claude\b/i.test(webhook.data.body);
+```
 
-Both formats work with linctl:
-- `ENG-1234` - Human-readable identifier (preferred)
-- `a1b2c3d4-...` - Internal UUID
+### Extract Issue References
+```typescript
+const refs = [...new Set(body.match(/[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+/g) || [])];
+```
+
+### Find State by Type
+```typescript
+const team = await issue.team;
+const states = await team?.states();
+const inProgress = states?.nodes.find(s => s.type === "started");
+// ⚠️ Multiple states may match - this returns first
+```
+
+### Detect State Transition
+```typescript
+const wasCompleted =
+  webhook.updatedFrom?.state?.type !== "completed" &&
+  webhook.data.state?.type === "completed";
+```
+
+## SDK Quick Start
+
+```typescript
+import { LinearClient } from "@linear/sdk";
+
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+
+// Get issue
+const issue = await client.issue("ENG-1234");
+const state = await issue.state;
+
+// Update status
+await client.updateIssue(issue.id, { stateId: "state-uuid" });
+
+// Add comment
+await client.createComment({ issueId: issue.id, body: "Done." });
+
+// Get my ID (for loop prevention)
+const viewer = await client.viewer;
+console.log(viewer.id, viewer.displayName);  // NOT viewer.name!
+```
+
+## Official Documentation
+
+- **SDK**: https://developers.linear.app/docs/sdk/getting-started
+- **Webhooks**: https://developers.linear.app/docs/graphql/webhooks
+- **API Reference**: https://studio.apollographql.com/public/Linear-API
