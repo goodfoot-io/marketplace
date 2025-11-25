@@ -16,7 +16,7 @@
     "test": "yarn workspaces foreach -A run test"
   },
   "private": true,
-  "packageManager": "yarn@4.11.0",
+  "packageManager": "yarn@4.12.0",
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
     "@changesets/get-dependents-graph": "^2.1.3",
@@ -39,6 +39,7 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.37",
     "@anthropic-ai/claude-code": "^2.0.46",
+    "@linear/sdk": "^65.0.0",
     "dependency-tree": "^11.2.0",
     "glob-gitignore": "^1.0.15",
     "istextorbinary": "^9.5.0",
