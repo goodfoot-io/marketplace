@@ -88,6 +88,8 @@ states.nodes.forEach(state => {
 | `completed` | Done |
 | `canceled` | Won't do |
 
+**Warning**: Multiple states can share the same type. For example, a team might have both "Canceled" and "Duplicate" states with type `canceled`. When finding by type, you'll get the first match.
+
 ### Team Members
 
 ```typescript
@@ -271,11 +273,13 @@ myIssues.nodes.forEach(i => console.log("  ", i.identifier, "-", i.title));
 | Property | Type | Description |
 |----------|------|-------------|
 | `id` | string | User UUID |
-| `displayName` | string | Display name |
+| `displayName` | string | Display name (use this for display!) |
 | `email` | string | Email address |
-| `name` | string | Full name |
+| `name` | string | ⚠️ This is the email, NOT the display name |
 | `active` | boolean | Is active user |
 | `admin` | boolean | Is admin |
+
+**Warning**: `user.name` returns the email address, not the display name. Use `user.displayName` instead.
 
 ---
 

@@ -7,315 +7,149 @@ description: Reference for Linear webhooks and TypeScript SDK. Use when receivin
 
 # Linear Reference (SDK)
 
-This skill uses the Linear TypeScript SDK (`@linear/sdk`) with `tsx` for all operations.
+Uses `@linear/sdk` with `tsx`. Run: `dotenv -- tsx script.ts`
 
-## I received a webhook...
+## Decision Trees
 
-| `type` value | Reference |
-|--------------|-----------|
+### Webhook Received
+```
+1. Is this from my bot?
+   → if (webhook.data.user?.id === viewerId) return; // STOP - prevent loop
+
+2. What type?
+   → Issue:   webhooks/issue.md
+   → Comment: webhooks/comment.md
+   → Project: webhooks/project.md
+   → Cycle:   webhooks/cycle.md
+```
+
+### Responding to Mentions
+```
+1. Check if mentioned: /@claude\b/i.test(webhook.data.body)
+2. Get issue context: await client.issue(webhook.data.issue.identifier)
+3. Reply: await client.createComment({ issueId: issue.id, body: "..." })
+```
+
+### Handling Assignment
+```
+1. Detect: webhook.updatedFrom?.assigneeId exists
+2. Is it me? webhook.data.assignee?.id === viewerId
+3. Acknowledge: update state + add comment (see sdk/issues.md#updating)
+```
+
+### Tracking Status Changes
+```
+1. Detect: webhook.updatedFrom?.stateId exists
+2. Get transition: webhook.updatedFrom.state.type → webhook.data.state.type
+3. React based on new type (started, completed, etc.)
+```
+
+## Critical Gotchas (Verified)
+
+| Issue | Reality | Fix |
+|-------|---------|-----|
+| Bot loops | Your comments trigger webhooks | Check `webhook.data.user.id === viewerId` first |
+| Unassigned check | SDK returns `undefined`, not `null` | Use `!assignee` or `=== undefined` |
+| State types | Multiple states can share same type | "canceled" may have "Canceled" AND "Duplicate" |
+| SDK `name` field | `viewer.name` = email, not display name | Use `viewer.displayName` for display |
+| `issue.parent` | Returns `undefined` for top-level | Webhooks send `null`, SDK returns `undefined` |
+| State IDs | Team-specific | Re-lookup by `state.type` when moving issues between teams |
+
+## Quick Lookups
+
+### Webhook → Reference
+| `type` | File |
+|--------|------|
 | `Issue` | webhooks/issue.md |
 | `Comment` | webhooks/comment.md |
 | `Project`, `ProjectUpdate` | webhooks/project.md |
 | `Cycle` | webhooks/cycle.md |
 
-## I want to...
-
-| Task | Reference |
-|------|-----------|
-| Reply to a comment or mention | sdk/comments.md#creating |
-| Add a comment to an issue | sdk/comments.md#creating |
+### Task → Reference
+| I want to... | File |
+|--------------|------|
+| Reply to comment/mention | sdk/comments.md#creating |
 | Change issue status | sdk/issues.md#updating |
-| Get full issue details | sdk/issues.md#getting |
-| Find related issues | sdk/issues.md#searching |
-| See the conversation on an issue | sdk/comments.md#listing |
-| Check who's on a team | sdk/queries.md#teams |
-| Check project progress | sdk/queries.md#projects |
-| Create a new issue | sdk/issues.md#creating |
-| Find workflow state IDs | sdk/queries.md#teams |
+| Get issue details | sdk/issues.md#getting |
+| Find workflow states | sdk/queries.md#teams |
 | Find user IDs | sdk/queries.md#users |
-| Handle invalid/missing issue references | sdk/error-handling.md |
-| Process multiple issue references with partial results | sdk/error-handling.md#pattern-1 |
-| Distinguish between error types | sdk/error-handling.md#pattern-5 |
 
-## Quick Detection Patterns
-
-| Pattern in webhook | Meaning |
-|--------------------|---------|
+### Webhook Detection
+| Pattern | Meaning |
+|---------|---------|
 | `updatedFrom.assigneeId` exists | Assignment changed |
-| `data.assignee.email` matches yours | Assigned to you |
-| `@your-name` in `data.body` | You were mentioned |
 | `updatedFrom.stateId` exists | Status changed |
 | `updatedFrom.labelIds` exists | Labels changed |
-| `action: "create"` + `type: "Comment"` | New comment added |
-| `action: "create"` + `type: "Issue"` | New issue created |
+| `action: "create"` + `type: "Comment"` | New comment |
 
-## Parsing Helpers
+### Field Values
+
+**priority**: `1`=Urgent, `2`=High, `3`=Normal, `4`=Low, `0`=None
+
+**state.type**: `backlog` → `unstarted` → `started` → `completed` | `canceled`
+
+## Essential Patterns
+
+### Bot Loop Prevention (CRITICAL)
+```typescript
+const viewer = await client.viewer;
+const viewerId = viewer.id;  // Cache at startup
+
+// In every webhook handler - check FIRST
+if (webhook.type === "Comment" && webhook.data.user?.id === viewerId) {
+  return;  // Ignore own comments
+}
+```
 
 ### Detect Mentions
-
 ```typescript
-const body = webhook.data.body;
-const wasMentioned = /@claude\b/i.test(body);
-const allMentions = body.match(/@[\w-]+/g) || [];
+const wasMentioned = /@claude\b/i.test(webhook.data.body);
 ```
 
 ### Extract Issue References
-
-Issue identifiers like `ENG-1234` appear in comment/update bodies:
-
 ```typescript
-const body = webhook.data.body;
-
-// Regex handles multi-part team keys: GOO-1, ENG-1234, MY-LONG-KEY-99
-const allRefs = body.match(/[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+/g) || [];
-
-// Deduplicate (same issue may be mentioned multiple times)
-const issueRefs = [...new Set(allRefs)];
-// ["GOO-42", "ENG-1234"]
-
-// Fetch with error handling (invalid refs throw "Entity not found")
-const validIssues = [];
-const invalidRefs = [];
-
-for (const ref of issueRefs) {
-  try {
-    const issue = await client.issue(ref);
-    validIssues.push(issue);
-  } catch (error) {
-    // Both non-existent issues and invalid teams throw same error
-    invalidRefs.push(ref);
-  }
-}
-
-// Report results
-console.log("Valid:", validIssues.map(i => i.identifier));
-console.log("Invalid:", invalidRefs);
+const refs = [...new Set(body.match(/[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+/g) || [])];
 ```
 
-**Important:** Both non-existent issues (GOO-99999) and invalid teams (FAKE-123) throw the same `"Entity not found"` error. Handle each reference independently with try-catch to get partial results. See [sdk/error-handling.md](sdk/error-handling.md) for more patterns.
-
-## End-to-End Examples
-
-### Respond to a Mention
-
+### Find State by Type
 ```typescript
-// Webhook: Comment with @claude mention
-const webhook = {
-  type: "Comment",
-  action: "create",
-  data: {
-    body: "@claude can you check this?",
-    issue: { identifier: "GOO-42" }
-  }
-};
-
-// Response flow
-const issue = await client.issue(webhook.data.issue.identifier);
-const state = await issue.state;
-
-await client.createComment({
-  issueId: issue.id,
-  body: `Looking into this. Current status: ${state?.name}`
-});
-```
-
-### Acknowledge Assignment
-
-```typescript
-// Webhook: Issue assigned to me
-const webhook = {
-  type: "Issue",
-  action: "update",
-  data: { identifier: "GOO-42", assignee: { email: "claude@example.com" } },
-  updatedFrom: { assigneeId: null }
-};
-
-// Response flow
-const issue = await client.issue(webhook.data.identifier);
-
-// Change status to In Progress
 const team = await issue.team;
 const states = await team?.states();
 const inProgress = states?.nodes.find(s => s.type === "started");
-
-if (inProgress) {
-  await client.updateIssue(issue.id, { stateId: inProgress.id });
-}
-
-await client.createComment({
-  issueId: issue.id,
-  body: "Acknowledged. Starting work on this now."
-});
+// ⚠️ Multiple states may match - this returns first
 ```
 
-### Handle Status Change
-
+### Detect State Transition
 ```typescript
-// Webhook: Issue moved to Done
-const webhook = {
-  type: "Issue",
-  action: "update",
-  data: { identifier: "GOO-42", state: { type: "completed" } },
-  updatedFrom: { stateId: "old-state-id" }
-};
-
-// Check if issue is completed
-if (webhook.data.state.type === "completed") {
-  const issue = await client.issue(webhook.data.identifier);
-
-  // Add completion comment
-  await client.createComment({
-    issueId: issue.id,
-    body: "Great work! This issue has been completed."
-  });
-}
+const wasCompleted =
+  webhook.updatedFrom?.state?.type !== "completed" &&
+  webhook.data.state?.type === "completed";
 ```
-
-### Handle Label Changes
-
-```typescript
-// Webhook: Labels changed on issue
-const webhook = {
-  type: "Issue",
-  action: "update",
-  data: {
-    identifier: "GOO-42",
-    labels: [
-      { id: "label-1", name: "bug" },
-      { id: "label-2", name: "urgent" }
-    ]
-  },
-  updatedFrom: {
-    labelIds: ["label-1"]  // Previously only had "bug"
-  }
-};
-
-// Detect what labels were added/removed
-const previousLabelIds = new Set(webhook.updatedFrom.labelIds || []);
-const currentLabelIds = new Set(webhook.data.labels.map(l => l.id));
-
-const addedLabels = webhook.data.labels.filter(
-  label => !previousLabelIds.has(label.id)
-);
-const removedLabelIds = Array.from(previousLabelIds).filter(
-  id => !currentLabelIds.has(id)
-);
-
-console.log("Added:", addedLabels.map(l => l.name));  // ["urgent"]
-console.log("Removed:", removedLabelIds);              // []
-
-// Check if a specific label was added
-const urgentWasAdded = addedLabels.some(
-  label => label.name.toLowerCase() === "urgent"
-);
-
-if (urgentWasAdded) {
-  const issue = await client.issue(webhook.data.identifier);
-
-  // Escalate urgent issues
-  await client.createComment({
-    issueId: issue.id,
-    body: "@team This issue has been marked as urgent. Please prioritize."
-  });
-}
-
-// Check if issue currently has a label
-const isBlocked = (webhook.data.labels || []).some(
-  label => label.name.toLowerCase() === "blocked"
-);
-
-if (isBlocked) {
-  console.log("Issue is currently blocked");
-}
-```
-
-## Common Field Values
-
-### priority
-| Value | Label |
-|-------|-------|
-| `0` | No priority |
-| `1` | Urgent |
-| `2` | High |
-| `3` | Normal |
-| `4` | Low |
-
-### state.type
-| Value | Meaning |
-|-------|---------|
-| `backlog` | In backlog, not yet planned |
-| `unstarted` | Planned, ready to start |
-| `started` | Work in progress |
-| `completed` | Done |
-| `canceled` | Won't do |
-
-Typical flow: `backlog` → `unstarted` → `started` → `completed`
-
-### health (ProjectUpdate only)
-| Value | Meaning |
-|-------|---------|
-| `onTrack` | Progressing as planned |
-| `atRisk` | May miss deadlines |
-| `offTrack` | Behind schedule |
-
-## Webhook Payload Structure
-
-All webhooks include:
-
-| Field | Description |
-|-------|-------------|
-| `action` | `create`, `update`, or `remove` |
-| `type` | Entity type (Issue, Comment, etc.) |
-| `actor` | User who made the change |
-| `data` | Current entity state |
-| `updatedFrom` | Previous values (update only) |
-| `url` | Link to entity in Linear |
 
 ## SDK Quick Start
 
 ```typescript
 import { LinearClient } from "@linear/sdk";
 
-(async () => {
-  const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
-  // Get issue details
-  const issue = await client.issue("ENG-1234");
-  const state = await issue.state;
-  console.log(issue.title, "-", state?.name);
+// Get issue
+const issue = await client.issue("ENG-1234");
+const state = await issue.state;
 
-  // Update issue status
-  await client.updateIssue(issue.id, { stateId: "new-state-uuid" });
+// Update status
+await client.updateIssue(issue.id, { stateId: "state-uuid" });
 
-  // Add comment
-  await client.createComment({
-    issueId: issue.id,
-    body: "Working on this now."
-  });
+// Add comment
+await client.createComment({ issueId: issue.id, body: "Done." });
 
-  // List my issues
-  const me = await client.viewer;
-  const myIssues = await me.assignedIssues();
-})();
+// Get my ID (for loop prevention)
+const viewer = await client.viewer;
+console.log(viewer.id, viewer.displayName);  // NOT viewer.name!
 ```
-
-Run with: `dotenv -- tsx -e '...'` or `dotenv -- tsx script.ts`
 
 ## Official Documentation
 
-- **TypeScript SDK**: https://developers.linear.app/docs/sdk/getting-started
+- **SDK**: https://developers.linear.app/docs/sdk/getting-started
 - **Webhooks**: https://developers.linear.app/docs/graphql/webhooks
-- **GraphQL API**: https://developers.linear.app/docs/graphql/working-with-the-graphql-api
-- **API Reference**: https://studio.apollographql.com/public/Linear-API/variant/current/home
-
-## ID Formats
-
-Both formats work with the SDK:
-- `ENG-1234` - Human-readable identifier (for `client.issue()`)
-- `a1b2c3d4-...` - UUID (required for update operations)
-
-To get the UUID from an identifier:
-```typescript
-const issue = await client.issue("ENG-1234");
-console.log(issue.id);  // UUID for use in updateIssue()
-```
+- **API Reference**: https://studio.apollographql.com/public/Linear-API

@@ -132,6 +132,8 @@ The comment author:
 { "id": "user-uuid", "name": "Display Name", "email": "user@example.com" }
 ```
 
+**Note**: In webhooks, `user.name` is the display name. But in the SDK, `user.name` is the email and `user.displayName` is the display name. Be careful when comparing webhook data to SDK data.
+
 For `create` actions, `user` matches `actor`.
 
 ### parent

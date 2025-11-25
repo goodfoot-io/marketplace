@@ -156,8 +156,10 @@ const children = await issue.children();
 | `issue.cycle` | Cycle | Associated cycle/sprint |
 | `issue.labels()` | LabelConnection | Issue labels |
 | `issue.comments()` | CommentConnection | Comments |
-| `issue.parent` | Issue | Parent issue |
+| `issue.parent` | Issue \| undefined | Parent issue (⚠️ returns `undefined`, not `null`) |
 | `issue.children()` | IssueConnection | Sub-issues |
+
+**Note**: `issue.parent` and `issue.assignee` return `undefined` (not `null`) when unset. Use `!parent` or `parent === undefined` for checks.
 
 ---
 
