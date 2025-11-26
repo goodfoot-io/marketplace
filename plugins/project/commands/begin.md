@@ -499,7 +499,7 @@ If the project has been activated and contains implementation work:
 
 2.1. Read log.md to check for recent evaluation reports
 2.2. Look for Implementation Summaries but no corresponding Evaluation Report in the latest iteration
-2.3. If implementation work exists without recent evaluation (indicating possible session disruption), proceed directly to Phase 7 for evaluation
+2.3. If implementation work exists without recent evaluation (indicating possible session disruption), proceed directly to Phase 8 for evaluation (skip refactoring for session recovery)
 2.4. After evaluation completes, return to Phase 3
 
 ## Phase 3: Determine Next Work
@@ -707,7 +707,8 @@ Execute `<validation-discovery-pipeline>`. The pipeline will automatically:
 ✅ **SUCCESS PATH** - COMPLETED + ALL validations pass:
 - Commit: `git commit -m "completed: [task-id]"`
 - Mark todo as completed in TodoWrite
-- Continue to next todo
+- If more todos remain → Continue to next todo
+- If no more todos remain → Proceed to Phase 7 (Refactor)
 
 ❌ **FAILURE PATH** - Any validation failure:
 - Use Stage 5-6 analysis results to understand root causes
@@ -747,7 +748,8 @@ Execute `<validation-discovery-pipeline>` for all affected packages. The pipelin
 ✅ **SUCCESS PATH** - All COMPLETED + ALL validations pass (pipeline stops at Stage 3):
 - Commit batch: `git commit -m "completed: parallel-batch"`
 - Mark all todos as completed in TodoWrite
-- Continue to next batch/todo
+- If more todos/batches remain → Continue to next batch/todo
+- If no more todos remain → Proceed to Phase 7 (Refactor)
 
 ❌ **FAILURE PATH** - Any validation regression (pipeline continues through Stage 6):
 - Use Stage 5-6 analysis to identify which tasks in the batch caused issues
@@ -824,7 +826,7 @@ Track attempt number for current task (starts at 1):
    ```
 2. Document blocking reasons in log.md
 3. Preserve checkpoint for manual intervention
-4. Proceed to Phase 7 or next todo if others exist
+4. Proceed to Phase 7 (Refactor) or next todo if others exist
 
 ### 6.3: Update Project State
 
@@ -838,11 +840,88 @@ After each recovery attempt (regardless of outcome):
 Based on recovery outcome:
 - **Success after retry** → Return to Phase 5 for next todo
 - **Still failing (attempts < 5)** → Loop back to 6.2 for next attempt
-- **Blocked (attempt 5)** → Proceed to Phase 7 for evaluation
+- **Blocked (attempt 5)** → Proceed to Phase 7 for refactoring, then Phase 8 for evaluation
 
-## Phase 7: Validate and Finalize
+## Phase 7: Refactor
 
-### 7.1: Create Final Checkpoint
+After all todos complete (or are blocked), perform plan-aware refactoring to improve code quality before final evaluation.
+
+### 7.1: Pre-Refactoring Validation
+
+Ensure the codebase is in a stable state before refactoring:
+
+```bash
+git add -A
+git commit -m "checkpoint: pre-refactor-$(date +%s)"
+# Store REFACTOR_CHECKPOINT SHA
+```
+
+### 7.2: Execute Refactoring
+
+Invoke the refactoring specialist to perform plan-aware cleanup:
+
+```xml
+<invoke name="Task">
+<parameter name="description">Refactor implementation</parameter>
+<parameter name="subagent_type">project:refactor</parameter>
+<parameter name="prompt">
+Name: [PROJECT_NAME]
+Path: [PROJECT_PATH]
+Plan: @[PROJECT_PATH]/plan.md
+Log: @[PROJECT_PATH]/log.md
+
+Perform plan-aware refactoring on recently implemented code at [PROJECT_PATH].
+
+## Refactoring Focus Areas
+
+Apply expert-level refactoring techniques from the refactoring methodology:
+
+1. **Eliminate Dead Code**: Remove unused variables, functions, parameters, and commented-out code
+2. **Simplify Logic**: Reduce complexity through guard clauses, smaller functions, and clearer control flow
+3. **Remove Over-Engineering (YAGNI)**: Collapse unnecessary abstractions and remove speculative generality
+4. **Improve Naming**: Align names with intent from plan document
+5. **Harmonize Patterns**: Ensure new code follows existing codebase conventions
+6. **Refine Tests**: Remove redundant tests, focus on behavior over implementation
+
+## Constraints
+
+- Preserve all observable behavior
+- Maintain test coverage
+- Stay within plan scope
+- Validate after each significant change
+
+## Context
+
+Review the plan.md Goals & Objectives and log.md Implementation Summaries to understand:
+- What was intended to be built
+- What was actually implemented
+- Any struggles or decisions documented
+
+Use this context to guide refactoring decisions—ensure "central" code (plan requirements) is preserved while "peripheral" code (opportunistic additions, remnants of abandoned approaches) is cleaned up.
+</parameter>
+</invoke>
+```
+
+### 7.3: Process Refactoring Results
+
+**Based on the refactoring status:**
+
+**COMPLETED** (refactoring successful):
+1. Commit refactored state: `git commit -m "refactor: cleanup after implementation"`
+2. Proceed to Phase 8 for evaluation
+
+**NEEDS_REVIEW** (some opportunities require human judgment):
+1. Note recommendations in log
+2. Proceed to Phase 8 for evaluation
+3. Include refactoring recommendations in final summary
+
+**BLOCKED** (cannot refactor safely):
+1. Document blocking reasons in log
+2. Skip refactoring, proceed to Phase 8 for evaluation
+
+## Phase 8: Validate and Finalize
+
+### 8.1: Create Final Checkpoint
 
 Before evaluation, ensure we have a stable checkpoint:
 
@@ -851,7 +930,7 @@ git commit -m "checkpoint: pre-evaluation-$(date +%s)"
 # Store EVAL_CHECKPOINT SHA
 ```
 
-### 7.2: Evaluate Quality
+### 8.2: Evaluate Quality
 
 After all todos complete or are blocked:
 
@@ -872,7 +951,7 @@ Evaluate project at [PROJECT_PATH]
 
 The evaluator returns: Status (PRODUCTION_READY, CONTINUE, or BLOCKED), Issues, and Recommendations.
 
-### 7.3: Complete Iteration
+### 8.3: Complete Iteration
 
 **Based on the evaluation status:**
 
