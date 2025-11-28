@@ -15,6 +15,8 @@ Project plans follow a versioning convention:
 - Each version should be self-contained without references to other versions
 - Version updates occur when assessment identifies issues or user provides feedback
 
+<annotated-plan-example>
+
 ## Front Matter (Optional but Powerful)
 
 <example>
@@ -603,9 +605,64 @@ Skip this section if you don't have genuinely useful references.
 
 ---
 
-## Common Mistakes to Avoid
+## Open Questions (Optional)
+
+<example>
+```markdown
+## Open Questions
+
+- [ ] Payment provider selection — decision needed by Dec 1
+- [ ] Redis cluster sizing — needs load testing before finalization
+- [x] ~~Authentication approach~~ — resolved: using existing OAuth (see project log)
+
+**Assumptions** (believed true, unvalidated):
+- Users have reliable internet connection
+- Peak load won't exceed 10x current baseline
+```
+</example>
 
 <instructions>
+Document uncertainties explicitly:
+- Use checkboxes for trackable decisions ([ ] open, [x] resolved)
+- Include deadlines or dependencies where applicable
+- List assumptions separately—these are risks if wrong
+- Update as questions resolve—add Decision Record to project log
+
+Source: project-plan-report.md line 33, 52
+> "Noting it in the PRD flags it for resolution... if some aspects are uncertain,
+> acknowledge them in the plan rather than papering over them."
+</instructions>
+
+---
+
+## User Scenarios (Optional)
+
+<example>
+```markdown
+## User Scenarios
+
+### Scenario: Real-time mention notification
+1. Alice is editing document "Q3 Report"
+2. Bob mentions @Alice in a comment
+3. Within 500ms, Alice sees bell icon increment and toast notification
+4. Alice clicks notification, navigates to comment
+5. Notification marked as read automatically
+```
+</example>
+
+<instructions>
+Include 1-3 scenarios illustrating key user journeys:
+- Use specific names (Alice, Bob) for clarity
+- Include concrete values (500ms, not "quickly")
+- Show complete user experience from trigger to completion
+- Helps testers derive accurate test cases
+
+Only include for complex features where prose requirements might be ambiguous.
+</instructions>
+
+</annotated-plan-example>
+
+<common-mistakes>
 ### 1. Vague Goals
 ❌ "Improve notification system performance"
 ✅ "Process 100+ notifications/second without UI lag"
@@ -629,13 +686,42 @@ Skip this section if you don't have genuinely useful references.
 ### 6. Missing Version Information
 ❌ "React: latest" or "Node.js: current"
 ✅ "React: 18.2.0" or "React: react@18.2.0" (both acceptable)
-</instructions>
+</common-mistakes>
 
----
+<anti-patterns>
+### The Wishlist Plan
+**Symptoms**: 20+ goals, no clear priority, "wouldn't it be nice if..."
+**Fix**: Ruthlessly cut to 3-7 goals that directly solve the stated problem
 
-## Key Principles
+### The Implementation Manual
+**Symptoms**: Step-by-step algorithms, complete function signatures, UI specs
+**Fix**: Stay at "what to build" level, leave "how" to implementers
 
-<instructions>
+### The Eternal Draft
+**Symptoms**: TBD throughout, vague language, "we'll figure it out"
+**Fix**: Resolve unknowns via spikes before planning, or mark as explicit blockers
+
+### The Kitchen Sink
+**Symptoms**: Scope Include is long, Exclude is empty or minimal
+**Fix**: Exclude section should be longer—explicitly reject adjacent features
+
+### The Copy-Paste Template
+**Symptoms**: Generic risks, placeholder text, inapplicable sections
+**Fix**: Every section must contain project-specific content or be omitted
+
+### The Stale Artifact
+**Symptoms**: Plan doesn't match current implementation or decisions
+**Fix**: Update plan when scope changes, add Decision Record to project log
+
+### The Oracle
+**Symptoms**: Requirements without rationale, "because I said so" decisions, missing trade-off documentation
+**Fix**: Add rationale inline or in dedicated section, document alternatives considered
+
+Source: project-plan-report.md lines 72-73
+
+</anti-patterns>
+
+<key-principles>
 1. **Precision**: Use verified file paths with line numbers
 2. **YAGNI**: Only features solving the immediate problem
 3. **Integration Over Innovation**: Reuse existing patterns
@@ -643,45 +729,54 @@ Skip this section if you don't have genuinely useful references.
 5. **Test the Risks**: Focus on what could actually fail
 6. **Scope Exclusions Prevent Creep**: Explicitly state what's NOT included
 
+7. **Testability**: For each requirement, ask "How would we test this?"
+   If no clear test exists, the requirement needs more specificity.
+
+8. **Ubiquitous Language**: Use consistent terminology matching the codebase.
+   If code says `ShoppingCart`, plan says "Shopping Cart" not "Basket."
+   Source: project-plan-report.md lines 101-102
+   > "The PRD should speak the same language as the code and business domain...
+   > ensures no translation gap between requirements and implementation."
+
+9. **Evolution Readiness**: Structure plans for change—modular sections,
+   explicit uncertainties, version tracking.
+
+10. **Decisions in Log, Not Plan**: Significant decisions are captured in the project
+    log (`log.md`) as Decision Records. Plans reference outcomes, not decision history.
+    This keeps plans focused on "what to build" while the log captures "why we chose this."
+
 The best plan answers "what" and "where" while leaving "how" to the implementer.
-</instructions>
+</key-principles>
 
----
+<quality-assessment>
+### Quick Assessment (use before loading full methodologies)
 
-## Adapting for Different Project Types
+For lightweight issues, apply these inline checks without loading methodology files:
 
-<instructions>
-### Bug Fixes
-- Goals: What will be fixed/work correctly
-- Scope: Smaller, but exclude related issues
-- Risks: Include regression risks
+1. **Vagueness check**: Flag terms "fast", "user-friendly", "intuitive", "scalable", "reliable" without definitions
+2. **Testability check**: Ask "How would we test this?" — if no clear answer, requirement needs work
+3. **Scope check**: Sparse Exclude section (< 3 items) suggests insufficient boundary thinking
+4. **Rationale check**: Technology choices without "because" or "selected over" phrases lack justification
 
-### Refactoring
-- Goals: Code quality improvements (e.g., "Reduce coupling between X and Y")
-- Technical Approach: Emphasize transformation
-- Testing: Ensure existing behavior unchanged
+Load full methodology only when remediation guidance is needed or the issue is complex.
 
-### Research/Investigation
-- Goals: Questions to answer, not features to build
-- Technical Approach: Investigation steps
-- Risks: "May discover approach is not viable"
+### Full Methodologies
 
-### Emergency Hotfixes
-- Minimal plan for immediate fix
-- `preventAutoProgress: false` for rapid deployment
-- Add full plan retroactively after crisis
+Select and load methodology documents based on the quality issues you encounter during assessment:
 
-### Cross-Team Projects
-- List dependencies in front matter
-- Add "External Dependencies" section in Risks
-- Include coordination points in Technical Approach
-</instructions>
+- Read `methodology/vague-language-detection.md` if requirements contain subjective terms like "fast", "user-friendly", or "scalable" without definitions. Provides systematic patterns for identifying ambiguous language and transforming it into specific, measurable criteria. Use when you cannot envision a clear test case for a requirement or when numeric thresholds are missing from performance claims.
+- Read `methodology/coherence-checking.md` if plan sections appear to contradict each other or use inconsistent terminology. Provides verification processes for cross-referencing values, terms, and scope items across all plan sections. Use when performance targets differ between sections, terminology is inconsistent, or scope boundaries conflict with technical approach.
+- Read `methodology/rationale-capture.md` if technical decisions lack justification or trade-offs are undocumented. Provides patterns for capturing technology selection reasoning, constraint origins, and exclusion rationale. Use when future maintainers would ask "why was this done?" or when scope exclusions lack explanation.
+- Read `methodology/scope-management.md` if the Exclude section is sparse or features use speculative language like "might need" or "for future use". Provides YAGNI assessment framework and scope defense protocols for maintaining clear project boundaries. Use when features aren't tied to the problem statement or when scope creep indicators appear in Technical Approach.
+- Read `methodology/testability-assessment.md` if you cannot answer "How would we test this?" for a requirement. Provides criteria for verifying requirements are observable, measurable, and deterministic with clear pass/fail conditions. Use when goals use subjective success criteria or acceptance criteria are abstract.
+- Read `methodology/nfr-completeness.md` if non-functional requirements are missing or assumed but not documented. Provides checklists for performance, reliability, security, and scalability coverage with assessment questions for each category. Use when there are no latency targets for user-facing operations or when scalability expectations are based on hope rather than evidence.
+- Read `methodology/document-evolution.md` if open questions are hidden in prose rather than explicit or sections aren't modular. Provides mechanisms for decision tracking via project log, open questions management, and modular section structure that supports iterative refinement. Use when assessing whether the plan can evolve healthily as implementation progresses.
 
----
+</quality-assessment>
 
+<quick-reference>
 ## Quick Reference
 
-<instructions>
 ### Required Sections (in order)
 1. **Title**: `# Implementation Project: [Title]`
 2. **Problem Statement**: 2-4 sentences
@@ -706,4 +801,4 @@ The best plan answers "what" and "where" while leaving "how" to the implementer.
 ❌ No implementation details
 ❌ No guessed file paths
 ❌ No vague goals
-</instructions>
+</quick-reference>

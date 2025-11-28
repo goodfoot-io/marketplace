@@ -4,7 +4,7 @@ description: Investigate any question or problem using parallel objective evalua
 
 <user-message>
 ```!
-write-arguments "$ARGUMENTS"
+"${CLAUDE_PLUGIN_ROOT}"/bin/write-arguments "$ARGUMENTS"
 ```
 </user-message>
 
@@ -15,7 +15,7 @@ Act on the `<user-message>` above, using the `Task()` tool to iteratively evalua
 <task-templates>
 ```!
 # Get the original arguments to pass to evaluators
-ORIGINAL_ARGS=$(wait-for-arguments)
+ORIGINAL_ARGS=$("${CLAUDE_PLUGIN_ROOT}"/bin/wait-for-arguments)
 
 mkdir -p /workspace/reports/.investigate
 # Write the content of $ORIGINAL_ARGS to a timestamped markdown file

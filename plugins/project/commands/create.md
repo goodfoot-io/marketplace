@@ -73,6 +73,30 @@ Proceed with documented assumptions if the ambiguity only affects implementation
 3. **State Assumptions**: Make your interpretation explicit so issues can be caught early
 4. **Use Specifics**: Include file names, error messages, test names, and other concrete details
 5. **Note Urgency**: If the user indicates timeline or blocking issues, document them
+6. **Log Decisions**: For significant technical decisions, append a Decision Record to the project log:
+   ```bash
+   cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+   ## Decision Record - [timestamp]
+
+   ### Decision
+   [What was decided]
+
+   ### Context
+   [What triggered this decision]
+
+   ### Rationale
+   [Why this choice was made]
+
+   ### Alternatives Considered
+   | Alternative | Rejected Because |
+   |-------------|------------------|
+   | [Option] | [Reason] |
+
+   ### Impact
+   - Affects: [components]
+   - Plan sections: [affected sections]
+   EOF
+   ```
 </logging-guidelines>
 
 <research-patterns>
@@ -239,6 +263,15 @@ Common variations are all acceptable - the assessor recognizes multiple formats:
 </format-flexibility>
 
 <assessment-interpretation>
+The assessor uses the Quality Assessment section of the `project:plan` skill for detailed quality methodology.
+Quality dimensions evaluated include:
+- Requirement clarity (vague language detection)
+- Internal coherence (cross-section consistency)
+- Rationale presence (decision documentation)
+- Scope integrity (YAGNI compliance)
+- Testability (verifiable criteria)
+- Evolution readiness (living document structure)
+
 The assessor provides:
 - Structural compliance check
 - Overengineering assessment
@@ -434,6 +467,17 @@ Execute parallel investigations to understand different aspects of the codebase 
 ```
 
 **Key Point**: The above investigations are independent and should run in parallel by sending them all in one message, not one at a time.
+
+### Step 4.5: Non-Functional Requirements Check
+
+Before proceeding to plan creation, verify coverage of non-functional requirements:
+
+- [ ] **Performance**: Latency targets, throughput requirements
+- [ ] **Reliability**: Uptime expectations, error handling approach
+- [ ] **Security**: Authentication, authorization, data protection needs
+- [ ] **Scalability**: Concurrent user targets, data growth projections
+
+If any NFR is critical to acceptance, ensure it appears in Goals or Validation Commands.
 
 **After research, determine spike needs:**
 

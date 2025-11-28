@@ -302,7 +302,7 @@ complexity from accidental complexity.
 | Agent | Potential Skill | Content Source |
 |-------|-----------------|----------------|
 | `implementer` | `project:implementation-patterns` | Coding standards, TDD methodology |
-| `plan-assessor` | `project:plan-quality` | Plan structure requirements, common issues |
+| `plan-assessor` | `project:plan` | Plan structure, quality assessment (merged) |
 | `implementation-evaluator` | `project:evaluation-criteria` | Quality metrics, readiness definitions |
 | `codebase-explainer` | `project:explanation-techniques` | Already exists as a skill |
 | `sledgehammer` | `project:recovery-patterns` | Regression recovery strategies |

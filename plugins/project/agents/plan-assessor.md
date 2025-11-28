@@ -40,6 +40,15 @@ Plans must follow the structure defined in the project:plan skill.
 - Analyze long-term maintenance burden and type safety characteristics
 - Evaluate architectural alignment with system evolution patterns
 
+#### Quality Assessment
+Use the Quality Assessment section of the `project:plan` skill for detailed methodology on:
+- Vague language detection and remediation
+- Internal coherence verification
+- Rationale presence evaluation
+- Scope boundary assessment
+- Requirement testability verification
+- Document evolution readiness
+
 #### Tool-Based Risk Analysis
 - Detect overengineering through cyclomatic complexity measurements (`cyclomatic-complexity` >20 vs codebase avg)
 - Identify underspecified areas requiring clarification through completeness analysis
@@ -176,6 +185,64 @@ Key validation points:
 - Results must directly address the stated uncertainty
 
 For complete quality criteria and common issues to flag, refer to the Technical Spike skill's "Validate Result Quality" and "Flag Quality Issues" sections.
+
+### Quality Assessment Workflow
+
+When assessing plan quality, use the Quality Assessment section of the `project:plan` skill. Apply checks in parallel (not sequential steps) and load methodologies only when remediation guidance is needed.
+
+**First pass (quick checks, no methodology loading required):**
+- Scan for vague language: "fast", "user-friendly", "intuitive", "scalable"
+- Check testability: "How would we test this?" for each goal
+- Verify scope: Exclude section present and substantive (3+ items)
+- Spot-check rationale: Technology choices have justification
+
+**Load methodology documents when:**
+- Quick check identifies issues AND you need remediation patterns
+- Complex assessment requires structured framework (e.g., coherence across many sections)
+- User needs detailed feedback with transformation examples
+
+**Severity Mapping:**
+
+| Finding Type | Threshold | Priority |
+|--------------|-----------|----------|
+| Vague terms in Goals | 1-2 terms = MEDIUM; 3+ = HIGH | Affects implementation alignment |
+| Missing numeric thresholds | Any performance claim without number = HIGH | Untestable requirements |
+| Coherence conflicts | Any conflict = CRITICAL | Implementation will fail |
+| Missing rationale | Tech selection without why = MEDIUM | Future maintainability |
+| Sparse Exclude section | < 3 items = MEDIUM; empty = HIGH | Scope creep risk |
+| Untestable goals | Any goal without clear test = HIGH | Acceptance criteria unclear |
+| Missing NFRs | User-facing ops without latency = HIGH | Production failure risk |
+| No version tracking | = LOW (first draft) or HIGH (revised plan) | Document evolution |
+
+**Project Type Adjustments:**
+- **Bug fixes**: Scope/rationale less critical; focus on testability
+- **Refactoring**: No new user-facing functionality expected; focus on coherence
+- **Research/Spikes**: Uncertain outcomes acceptable; focus on scope boundaries
+- **Hotfixes**: Abbreviated plans acceptable; focus on critical risks only
+- **Greenfield**: All dimensions apply; apply full rigor
+
+**Edge Case Handling:**
+
+*Minimal/Stub Plans:*
+- Empty sections or placeholder text ("TBD", "TODO", template text) = CRITICAL, cannot assess
+- Plans with < 3 goals: May be appropriate (bug fix) or incomplete (feature)
+
+*Over-Engineered Plans:*
+- Plans > 500 lines: Flag for review—likely too detailed
+- Plans with code samples, database schemas, UI specs: "Implementation Manual" anti-pattern
+
+*Partial Quality Plans:*
+If plan excels in some dimensions but fails in others, apply composite scoring:
+- Any CRITICAL issue = overall CRITICAL (blocks implementation)
+- 3+ HIGH issues = overall CRITICAL (cumulative risk)
+- Mix of HIGH/MEDIUM = overall HIGH with dimension-specific remediation
+
+*Premature Precision:*
+Flag when plan specifies exact numbers without evidence basis:
+- "200ms latency" without "validated via spike" or "based on benchmark"
+- Performance targets from imagination, not measurement
+
+Report findings by priority level with specific remediation recommendations. Load relevant methodology for remediation examples.
 </content-analysis-patterns>
 
 <priority-framework>

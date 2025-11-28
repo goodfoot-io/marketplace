@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# find-claude-pid: Find the Claude process PID in the parent hierarchy
+# Usage: source this file and call find_claude_pid
+# Returns: PID via stdout, exit code 0 on success, 1 on failure
+
+find_claude_pid() {
+    # Check if CLAUDE_PID is already set and valid
+    if [ -n "$CLAUDE_PID" ] && [ "$CLAUDE_PID" -eq "$CLAUDE_PID" ] 2>/dev/null; then
+        # For testing purposes, if CLAUDE_TEST_MODE is set, don't verify PID exists
+        if [ -n "$CLAUDE_TEST_MODE" ] || ps -p "$CLAUDE_PID" >/dev/null 2>&1; then
+            echo "$CLAUDE_PID"
+            return 0
+        fi
+    fi
+    
+    local current_pid=$$
+    local max_depth=10
+    local depth=0
+    
+    while [ $depth -lt $max_depth ] && [ $current_pid -gt 1 ]; do
+        # Check if current PID is claude
+        if ps -p $current_pid -o comm= 2>/dev/null | grep -q "^claude$"; then
+            echo $current_pid
+            return 0
+        fi
+        
+        # Get parent PID
+        current_pid=$(ps -p $current_pid -o ppid= 2>/dev/null | tr -d ' ')
+        if [ -z "$current_pid" ]; then
+            break
+        fi
+        ((depth++))
+    done
+    
+    # If CLAUDE_FALLBACK_PID is set to "none", don't use fallback
+    if [ "$CLAUDE_FALLBACK_PID" = "none" ]; then
+        return 1
+    fi
+    
+    # Fallback to current PID if Claude not found
+    # This ensures the utilities still work in testing/non-Claude environments
+    echo $$
+    return 1
+}
