@@ -654,7 +654,17 @@ Create a base checkpoint before any implementation work:
 
 ```bash
 git add -A
-git commit -m "checkpoint: iteration-$(date +%s)-start"
+git commit -m "$(cat <<'EOF'
+checkpoint: [PROJECT_NAME] iteration start
+
+Project: [PROJECT_NAME]
+State: Beginning new implementation iteration
+Pending tasks: [NUMBER_OF_TODOS] items from plan.md
+
+This checkpoint preserves the baseline before any code changes.
+If implementation encounters issues, we can return to this known-good state.
+EOF
+)"
 # Store BASE_CHECKPOINT SHA
 ```
 
@@ -673,7 +683,17 @@ Choose ONE of the following execution strategies based on task dependencies:
 Create checkpoint before each task:
 
 ```bash
-git commit -m "checkpoint: before-[task-id]"
+git commit -m "$(cat <<'EOF'
+checkpoint: before [TASK_DESCRIPTION]
+
+Project: [PROJECT_NAME]
+Next task: [TASK_DESCRIPTION]
+Progress: [COMPLETED_COUNT] of [TOTAL_COUNT] tasks complete
+
+Previous work is stable and validated. This checkpoint captures that state
+before attempting the next task, enabling rollback if needed.
+EOF
+)"
 # Store TASK_CHECKPOINT SHA
 ```
 
@@ -705,7 +725,21 @@ Execute `<validation-discovery-pipeline>`. The pipeline will automatically:
 **5.1.3. Process validation results:**
 
 ✅ **SUCCESS PATH** - COMPLETED + ALL validations pass:
-- Commit: `git commit -m "completed: [task-id]"`
+- Commit using heredoc:
+  ```bash
+  git commit -m "$(cat <<'EOF'
+completed: [TASK_DESCRIPTION]
+
+Project: [PROJECT_NAME]
+Task: [TASK_DESCRIPTION]
+
+[BRIEF_SUMMARY_OF_WHAT_WAS_IMPLEMENTED]
+
+Validation: All type checks, tests, and linting passed with zero errors.
+Progress: [COMPLETED_COUNT] of [TOTAL_COUNT] tasks now complete.
+EOF
+)"
+  ```
 - Mark todo as completed in TodoWrite
 - If more todos remain → Continue to next todo
 - If no more todos remain → Proceed to Phase 7 (Refactor)
@@ -722,7 +756,17 @@ Verify independence using `<execution-strategy-rules>`.
 Create single checkpoint for batch:
 
 ```bash
-git commit -m "checkpoint: parallel-batch-$(date +%s)"
+git commit -m "$(cat <<'EOF'
+checkpoint: before parallel batch
+
+Project: [PROJECT_NAME]
+Parallel tasks: [LIST_TASK_DESCRIPTIONS]
+
+These tasks have no shared dependencies and will execute concurrently.
+This checkpoint preserves the current state so we can isolate any issues
+that arise during parallel execution.
+EOF
+)"
 # Store BATCH_CHECKPOINT SHA
 ```
 
@@ -746,7 +790,24 @@ Execute `<validation-discovery-pipeline>` for all affected packages. The pipelin
 **5.2.3. Process batch validation results:**
 
 ✅ **SUCCESS PATH** - All COMPLETED + ALL validations pass (pipeline stops at Stage 3):
-- Commit batch: `git commit -m "completed: parallel-batch"`
+- Commit batch using heredoc:
+  ```bash
+  git commit -m "$(cat <<'EOF'
+completed: parallel batch
+
+Project: [PROJECT_NAME]
+Tasks completed:
+- [TASK_1_DESCRIPTION]: [BRIEF_SUMMARY_1]
+- [TASK_2_DESCRIPTION]: [BRIEF_SUMMARY_2]
+
+All parallel tasks succeeded independently. Cross-package validation
+confirmed no integration issues between the concurrent changes.
+
+Validation: All type checks, tests, and linting passed with zero errors.
+Progress: [COMPLETED_COUNT] of [TOTAL_COUNT] tasks now complete.
+EOF
+)"
+  ```
 - Mark all todos as completed in TodoWrite
 - If more todos/batches remain → Continue to next batch/todo
 - If no more todos remain → Proceed to Phase 7 (Refactor)
@@ -852,7 +913,18 @@ Ensure the codebase is in a stable state before refactoring:
 
 ```bash
 git add -A
-git commit -m "checkpoint: pre-refactor-$(date +%s)"
+git commit -m "$(cat <<'EOF'
+checkpoint: before refactoring
+
+Project: [PROJECT_NAME]
+State: All [TOTAL_COUNT] implementation tasks complete and validated
+Next phase: Code cleanup and quality improvements
+
+Implementation is functionally complete. This checkpoint preserves the
+working state before refactoring, allowing safe code improvements without
+risk of losing validated functionality.
+EOF
+)"
 # Store REFACTOR_CHECKPOINT SHA
 ```
 
@@ -907,7 +979,23 @@ Use this context to guide refactoring decisions—ensure "central" code (plan re
 **Based on the refactoring status:**
 
 **COMPLETED** (refactoring successful):
-1. Commit refactored state: `git commit -m "refactor: cleanup after implementation"`
+1. Commit refactored state using heredoc:
+   ```bash
+   git commit -m "$(cat <<'EOF'
+refactor: [PROJECT_NAME] code cleanup
+
+Project: [PROJECT_NAME]
+State: Implementation complete, now improved for maintainability
+
+Changes made:
+[LIST_SPECIFIC_REFACTORING_CHANGES]
+
+The implementation was functional but had opportunities for improvement.
+This refactoring reduces complexity and aligns with codebase conventions
+without changing any observable behavior. All tests continue to pass.
+EOF
+)"
+   ```
 2. Proceed to Phase 8 for evaluation
 
 **NEEDS_REVIEW** (some opportunities require human judgment):
@@ -926,7 +1014,19 @@ Use this context to guide refactoring decisions—ensure "central" code (plan re
 Before evaluation, ensure we have a stable checkpoint:
 
 ```bash
-git commit -m "checkpoint: pre-evaluation-$(date +%s)"
+git commit -m "$(cat <<'EOF'
+checkpoint: before evaluation
+
+Project: [PROJECT_NAME]
+State: Implementation and refactoring complete
+Completed tasks: [COMPLETED_COUNT] of [TOTAL_COUNT]
+Next phase: Quality evaluation for production readiness
+
+All planned work is complete. This checkpoint preserves the final
+implementation state before evaluation determines if the project
+meets production quality standards.
+EOF
+)"
 # Store EVAL_CHECKPOINT SHA
 ```
 
@@ -963,7 +1063,27 @@ If this was an early evaluation (session recovery), return to Phase 3 to incorpo
 3. HALT execution
 
 **PRODUCTION_READY:**
-1. Commit final state: `git commit -m "production-ready: $PROJECT_NAME"`
+1. Commit final state using heredoc:
+   ```bash
+   git commit -m "$(cat <<'EOF'
+production-ready: [PROJECT_NAME]
+
+Project: [PROJECT_NAME]
+Status: All quality gates passed
+
+Implemented features:
+[LIST_KEY_FEATURES_FROM_PLAN]
+
+Validation results:
+- Type checking: zero errors
+- Test suite: all tests passing
+- Linting: no violations
+
+This project is ready for review and deployment. All requirements from
+plan.md have been implemented and validated.
+EOF
+)"
+   ```
 2. Log success using the Bash tool with heredoc
 3. Move to ready-for-review: `mv [PROJECT_PATH] projects/ready-for-review/`
 4. Provide summary to user
