@@ -214,36 +214,6 @@ The skill will guide you through:
 7. Updating todo descriptions with failure insights
 </failure-analysis-procedure>
 
-<sledgehammer-recovery-procedure>
-## Sledgehammer Recovery Procedure
-
-**When to use:**
-- Attempt count = 4 (after 3 standard retries failed)
-- Validation shows regression (errors INCREASED vs baseline)
-- Standard fixes have made things worse
-- Code is "infected" and needs nuclear approach
-
-**Do NOT use for:**
-- First, second, or third attempts (use standard recovery)
-- When errors decreased or stayed same (not a regression)
-- Attempt 5 (mark as BLOCKED instead)
-
-**How to use:**
-
-Load the sledgehammer skill and follow the recovery procedure:
-
-```xml
-<invoke name="Skill">
-<parameter name="skill">project:sledgehammer</parameter>
-</invoke>
-```
-
-The skill will guide you through:
-1. Invoking project:sledgehammer agent with proper context
-2. Providing regression details and files modified
-3. Processing sledgehammer results (COMPLETED vs NEEDS_REVISION)
-4. Determining next action (commit and continue vs mark BLOCKED)
-</sledgehammer-recovery-procedure>
 
 <task-prompt-template>
 ## Task Prompt Template
@@ -644,7 +614,7 @@ All todos flow through the same Phase 4-6 execution pipeline with:
 - Delegation to project:implementer
 - Validation with zero-tolerance policy
 - Unified recovery mechanisms in Phase 6
-- Up to 5 total attempts (3 normal, 1 project:sledgehammer, then blocked)
+- Up to 4 total attempts (3 normal, then blocked)
 
 ## Phase 4: Prepare Implementation
 
@@ -854,7 +824,7 @@ Track attempt number for current task (starts at 1):
    ```
 4. Return to Phase 5 with enhanced context from pipeline analysis:
    ```
-   ## Retry Attempt [N+1] of 5
+   ## Retry Attempt [N+1] of 4
    ### Root Cause from Analysis
    [Key findings from failure analysis]
 
@@ -865,19 +835,14 @@ Track attempt number for current task (starts at 1):
    [Recommended patterns from analysis]
    ```
 
-**Attempt 4: Sledgehammer Recovery**
-1. Execute `<sledgehammer-recovery-procedure>`
-2. If successful → Mark todo complete, continue
-3. If fails → Proceed to Attempt 5
-
-**Attempt 5: Mark as BLOCKED**
+**Attempt 4: Mark as BLOCKED**
 1. Update todo status:
    ```xml
    <invoke name="TodoWrite">
    <parameter name="todos">
    [
      {
-       "content": "Original task [BLOCKED after 5 attempts]",
+       "content": "Original task [BLOCKED after 4 attempts]",
        "status": "in_progress",
        "activeForm": "Blocked - requires external intervention"
      }
@@ -900,8 +865,8 @@ After each recovery attempt (regardless of outcome):
 
 Based on recovery outcome:
 - **Success after retry** → Return to Phase 5 for next todo
-- **Still failing (attempts < 5)** → Loop back to 6.2 for next attempt
-- **Blocked (attempt 5)** → Proceed to Phase 7 for refactoring, then Phase 8 for evaluation
+- **Still failing (attempts < 4)** → Loop back to 6.2 for next attempt
+- **Blocked (attempt 4)** → Proceed to Phase 7 for refactoring, then Phase 8 for evaluation
 
 ## Phase 7: Refactor
 
