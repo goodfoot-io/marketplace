@@ -2,7 +2,9 @@
 description: Fork the current session in a new VSCode terminal
 ---
 
-Fork the current session by executing the following commands in a single message:
+The session ID was provided at session start via the session-id-injector hook (look for SESSION_ID in your context).
+
+Fork the current session by executing the following commands in a single message, replacing $SESSION_ID with the actual session ID value:
 
 ```xml
 <invoke name="mcp__plugin_vscode_vscode__execute_command">
