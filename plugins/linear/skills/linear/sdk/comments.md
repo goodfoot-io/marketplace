@@ -15,17 +15,16 @@
 
 ## Setup
 
-```typescript
+```bash
+tsx -e '
 import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
-(async () => {
-  const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
-
-  // Your code here
-})();
+// Your code here
+'
 ```
 
-Run with: `dotenv -- tsx -e '...'` or `dotenv -- tsx script.ts`
+**IMPORTANT**: Always use inline `tsx -e` execution rather than writing script files.
 
 ---
 
@@ -181,23 +180,23 @@ await client.deleteComment("comment-uuid");
 
 ## Complete Example
 
-```typescript
+```bash
+# Add investigation notes to an issue
+ISSUE_ID="ENG-1234" tsx -e '
 import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
-(async () => {
-  const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+// Get the issue
+const issue = await client.issue(process.env.ISSUE_ID!);
 
-  // Get the issue
-  const issue = await client.issue("ENG-1234");
+// Read existing comments
+const comments = await issue.comments();
+console.log("Existing comments:", comments.nodes.length);
 
-  // Read existing comments
-  const comments = await issue.comments();
-  console.log("Existing comments:", comments.nodes.length);
-
-  // Add investigation notes
-  await client.createComment({
-    issueId: issue.id,
-    body: `## Investigation Complete
+// Add investigation notes
+await client.createComment({
+  issueId: issue.id,
+  body: `## Investigation Complete
 
 **Root cause:** Database connection timeout
 
@@ -208,8 +207,8 @@ import { LinearClient } from "@linear/sdk";
 - [x] Staging deployment verified
 
 @reviewer Ready for code review.`
-  });
+});
 
-  console.log("Comment added to", issue.identifier);
-})();
+console.log("Comment added to", issue.identifier);
+'
 ```

@@ -1,9 +1,5 @@
 {
   "name": "browser",
-  "description": "Browser automation for web scraping, testing, and interaction with web pages",
   "version": "1.0.0",
-  "author": {
-    "name": "Goodfoot",
-    "email": "contact@goodfoot.io"
-  }
+  "description": "Browser automation using Puppeteer and Chrome DevTools Protocol"
 }

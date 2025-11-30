@@ -28,7 +28,8 @@
     "typescript-claude-code-for-web-setup@goodfoot": true,
     "project@goodfoot": true,
     "vscode@goodfoot": true,
-    "goodfoot@goodfoot": true
+    "goodfoot@goodfoot": true,
+    "browser@goodfoot": true
   },
   "extraKnownMarketplaces": {
     "goodfoot": {

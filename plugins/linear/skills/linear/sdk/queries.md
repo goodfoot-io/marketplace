@@ -24,17 +24,16 @@ Read-only operations for teams, projects, users, and workflow states.
 
 ## Setup
 
-```typescript
+```bash
+tsx -e '
 import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
-(async () => {
-  const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
-
-  // Your code here
-})();
+// Your code here
+'
 ```
 
-Run with: `dotenv -- tsx -e '...'` or `dotenv -- tsx script.ts`
+**IMPORTANT**: Always use inline `tsx -e` execution rather than writing script files.
 
 ---
 
@@ -348,40 +347,40 @@ console.log("My ID:", me.id);
 
 ## Complete Example
 
-```typescript
+```bash
+# Get all teams, workflow states, and projects overview
+tsx -e '
 import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
-(async () => {
-  const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+// Get all teams and their workflow states
+const teams = await client.teams();
 
-  // Get all teams and their workflow states
-  const teams = await client.teams();
+for (const team of teams.nodes) {
+  console.log("\n=== Team:", team.key, "-", team.name, "===");
 
-  for (const team of teams.nodes) {
-    console.log("\n=== Team:", team.key, "-", team.name, "===");
+  // Members
+  const members = await team.members();
+  console.log("\nMembers:");
+  members.nodes.forEach(m => console.log("  -", m.displayName, `(${m.email})`));
 
-    // Members
-    const members = await team.members();
-    console.log("\nMembers:");
-    members.nodes.forEach(m => console.log("  -", m.displayName, `(${m.email})`));
+  // Workflow states
+  const states = await team.states();
+  console.log("\nWorkflow States:");
+  states.nodes.forEach(s => console.log("  -", s.name, `(${s.type})`));
 
-    // Workflow states
-    const states = await team.states();
-    console.log("\nWorkflow States:");
-    states.nodes.forEach(s => console.log("  -", s.name, `(${s.type})`));
-
-    // Active cycle
-    const cycle = await team.activeCycle;
-    if (cycle) {
-      console.log("\nActive Cycle:", cycle.name || `Cycle ${cycle.number}`);
-    }
+  // Active cycle
+  const cycle = await team.activeCycle;
+  if (cycle) {
+    console.log("\nActive Cycle:", cycle.name || `Cycle ${cycle.number}`);
   }
+}
 
-  // Projects overview
-  const projects = await client.projects();
-  console.log("\n=== Projects ===");
-  projects.nodes.forEach(p => {
-    console.log("-", p.name, `(${p.state}, ${Math.round(p.progress * 100)}%)`);
-  });
-})();
+// Projects overview
+const projects = await client.projects();
+console.log("\n=== Projects ===");
+projects.nodes.forEach(p => {
+  console.log("-", p.name, `(${p.state}, ${Math.round(p.progress * 100)}%)`);
+});
+'
 ```

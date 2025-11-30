@@ -1,191 +1,599 @@
 ---
 name: browser
-description: Toolkit for automating browser tasks using the browser MCP server. Use when users request web scraping, testing web applications, taking screenshots, filling forms, or interacting with web pages. Supports navigation, element interaction, screenshot capture, and page analysis through browser automation.
+description: Browser automation using the puppeteer NPM package. Use when
+  performing tasks on websites as a user would, taking screenshots, filling
+  forms, or navigating web applications.
 ---
 
-# Browser Automation Tool
+# Puppeteer Reference (SDK)
 
-This skill provides browser automation capabilities through the `mcp__plugin_browser_browser__prompt` tool. Use this tool to interact with web pages, extract information, capture screenshots, test web applications, and automate browser-based workflows.
+Uses `puppeteer-core` with `tsx`. Run inline scripts with: `tsx -e 'code...'`
 
-## When to Use This Tool
+## Agent Workflow
 
-Use the browser automation tool when you need to:
+This skill enables you to control a browser like a human user would. The browser
+runs persistently and you reconnect between script executions.
 
-1. **Navigate and interact with web pages**
-   - Visit URLs and navigate through multi-page flows
-   - Click buttons, fill forms, and interact with page elements
-   - Handle authentication and login flows
+**IMPORTANT**: Always use inline script execution with `tsx -e` rather than writing script files. This is faster and cleaner.
 
-2. **Extract information from web pages**
-   - Scrape content from websites (respecting robots.txt and terms of service)
-   - Extract structured data from tables, lists, or other elements
-   - Monitor changes on web pages
+### Connection Priority
 
-3. **Test web applications**
-   - Verify user interface behavior
-   - Test interactive features and workflows
-   - Validate form submissions and error handling
+1. **User-provided endpoint** → Use if specified
+2. **Docker environment** → If `host.docker.internal` resolves, use its IP with port 9222
+3. **Default CDP port** → Try `http://127.0.0.1:9222`
+4. **Ask user** → If connection fails, ask for correct port or wsEndpoint
 
-4. **Capture visual information**
-   - Take screenshots of pages or specific elements
-   - Debug visual rendering issues
-   - Document web application states
+### Docker/Container Environment Detection
 
-5. **Analyze web performance**
-   - Monitor page load times
-   - Debug console errors
-   - Analyze network requests
+When running inside Docker or a devcontainer, `127.0.0.1` refers to the container itself, not the host machine where the browser runs. Use `host.docker.internal` to reach the host:
 
-## When NOT to Use This Tool
-
-**Do not** use the browser automation tool when:
-
-- **Simple HTTP requests suffice**: Use `WebFetch` instead for fetching static page content
-- **API endpoints are available**: Prefer direct API calls over browser automation
-- **File operations are needed**: Use `Read`, `Write`, `Edit` for file system operations
-- **The task requires malicious activity**: Respect website terms of service and legal boundaries
-
-## Tool Usage
-
-The browser automation tool is invoked using the `mcp__plugin_browser_browser__prompt` tool with these parameters:
-
-- `prompt` (required): Natural language instructions describing the browser task
-- `sessionId` (optional): Session ID for maintaining conversation continuity across multiple interactions
-
-## Examples
-
-### Example 1: Navigate to a website and take a screenshot
-
-```
-Task: Visit example.com and take a screenshot of the page
-
-Tool call:
-```xml
-<invoke name="mcp__plugin_browser_browser__prompt">
-<parameter name="prompt">Navigate to https://example.com and take a screenshot of the entire page</parameter>
-</invoke>
-```
+```bash
+# Check if running in Docker by resolving host.docker.internal
+DOCKER_HOST_IP=$(getent hosts host.docker.internal | awk '{print $1}')
+if [ -n "$DOCKER_HOST_IP" ]; then
+  echo "Docker detected. Host IP: $DOCKER_HOST_IP"
+  # Use http://$DOCKER_HOST_IP:9222 for browser connection
+fi
 ```
 
-### Example 2: Extract specific information from a page
+**Connection URL in Docker**: `http://<host.docker.internal-IP>:9222` (e.g., `http://192.168.65.254:9222`)
+
+### Session Lifecycle
 
 ```
-Task: Get the latest article titles from a news website
-
-Tool call:
-```xml
-<invoke name="mcp__plugin_browser_browser__prompt">
-<parameter name="prompt">Go to https://news.example.com and extract all article titles from the homepage</parameter>
-</invoke>
-```
-```
-
-### Example 3: Fill out a form and submit
-
-```
-Task: Test a contact form submission
-
-Tool call:
-```xml
-<invoke name="mcp__plugin_browser_browser__prompt">
-<parameter name="prompt">Navigate to https://example.com/contact, fill in the name field with 'Test User', email with 'test@example.com', message with 'This is a test message', and click the submit button. Capture a screenshot of the confirmation page.</parameter>
-</invoke>
-```
-```
-
-### Example 4: Search and extract results
-
-```
-Task: Search for a product and get pricing information
-
-Tool call:
-```xml
-<invoke name="mcp__plugin_browser_browser__prompt">
-<parameter name="prompt">Go to https://shop.example.com, search for 'laptop', wait for results to load, and extract the names and prices of the first 5 products</parameter>
-</invoke>
-```
+┌─────────────────────────────────────────────────────────────┐
+│ FIRST CALL: Establish session                               │
+│   1. Try connecting to browser (user-specified or port 9222)│
+│   2. If fails, ask user for correct port/endpoint           │
+│   3. Store wsEndpoint for subsequent calls                  │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ SUBSEQUENT CALLS: Reconnect and continue                    │
+│   1. Connect using stored wsEndpoint                        │
+│   2. Get existing page or create new                        │
+│   3. Perform actions, take screenshots                      │
+│   4. Disconnect (keep browser running)                      │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ FINAL CALL: Clean up (when task complete)                   │
+│   1. Connect using wsEndpoint                               │
+│   2. browser.close() to terminate                           │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Example 5: Debug a web page
+---
 
-```
-Task: Investigate console errors on a page
+## Critical Gotchas
 
-Tool call:
-```xml
-<invoke name="mcp__plugin_browser_browser__prompt">
-<parameter name="prompt">Navigate to https://app.example.com/dashboard, open the browser console, and report any JavaScript errors or warnings that appear</parameter>
-</invoke>
-```
-```
+| Issue | Reality | Fix |
+|-------|---------|-----|
+| `disconnect()` vs `close()` | `close()` kills browser, `disconnect()` keeps it | Use `disconnect()` between calls |
+| wsEndpoint validity | Valid while browser runs | Store and reuse across calls |
+| Page persistence | Pages survive reconnection | Reuse existing pages via `browser.pages()` |
+| Port already in use | Another process on 9222 | Ask user for correct port/endpoint |
 
-### Example 6: Multi-step workflow with session continuity
+---
 
-```
-Task: Login and navigate to user profile
+## Connection Patterns
 
-First interaction:
-```xml
-<invoke name="mcp__plugin_browser_browser__prompt">
-<parameter name="prompt">Go to https://app.example.com/login and fill in username 'testuser' and password from environment. Click login.</parameter>
-<parameter name="sessionId">user-profile-task</parameter>
-</invoke>
-```
+### Pattern 1: Auto-detect Docker and Connect
 
-Second interaction (continuing same session):
-```xml
-<invoke name="mcp__plugin_browser_browser__prompt">
-<parameter name="prompt">Now navigate to the user profile page and extract the account information displayed</parameter>
-<parameter name="sessionId">user-profile-task</parameter>
-</invoke>
-```
-```
+```bash
+# Detect Docker environment and connect
+tsx -e '
+import puppeteer from "puppeteer-core";
+import { execSync } from "child_process";
 
-### Example 7: Wait for dynamic content
+async function connect() {
+  // Try to resolve host.docker.internal for Docker environments
+  let browserIP = "127.0.0.1";
+  try {
+    const result = execSync("getent hosts host.docker.internal", { encoding: "utf8" });
+    browserIP = result.split(/\s+/)[0];
+    console.log("Docker detected, using host IP:", browserIP);
+  } catch { /* Not in Docker, use localhost */ }
 
-```
-Task: Extract data from a page that loads asynchronously
-
-Tool call:
-```xml
-<invoke name="mcp__plugin_browser_browser__prompt">
-<parameter name="prompt">Navigate to https://example.com/data, wait for the loading spinner to disappear and the data table to appear, then extract all rows from the table</parameter>
-</invoke>
-```
+  const browser = await puppeteer.connect({ browserURL: `http://${browserIP}:9222` });
+  console.log("Connected! WS_ENDPOINT=" + browser.wsEndpoint());
+  await browser.disconnect();
+}
+connect();
+'
 ```
 
-### Example 8: Interact with modals and popups
+### Pattern 2: Connect with Known Endpoint
 
+```bash
+# When wsEndpoint is already known (from previous call or user)
+tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT
+});
+console.log("Connected to", (await browser.pages())[0]?.url());
+await browser.disconnect();
+'
 ```
-Task: Handle a cookie consent dialog
 
-Tool call:
-```xml
-<invoke name="mcp__plugin_browser_browser__prompt">
-<parameter name="prompt">Go to https://example.com, wait for the cookie consent popup to appear, click the 'Accept All' button, then take a screenshot of the main page content</parameter>
-</invoke>
+### Pattern 3: Connect with Custom Port/IP
+
+```bash
+# When user specifies a different port or IP
+BROWSER_IP=192.168.65.254 BROWSER_PORT=9222 tsx -e '
+import puppeteer from "puppeteer-core";
+const { BROWSER_IP = "127.0.0.1", BROWSER_PORT = "9222" } = process.env;
+const browser = await puppeteer.connect({ browserURL: `http://${BROWSER_IP}:${BROWSER_PORT}` });
+console.log("Connected! WS_ENDPOINT=" + browser.wsEndpoint());
+await browser.disconnect();
+'
 ```
+
+---
+
+## First Call: Establish Session
+
+```bash
+# Establish browser session with Docker auto-detection
+tsx -e '
+import puppeteer from "puppeteer-core";
+import { execSync } from "child_process";
+
+// Auto-detect Docker environment
+let browserIP = "127.0.0.1";
+try {
+  browserIP = execSync("getent hosts host.docker.internal", { encoding: "utf8" }).split(/\s+/)[0];
+} catch {}
+
+const browserURL = process.env.BROWSER_URL || `http://${browserIP}:9222`;
+const browser = await puppeteer.connect({ browserURL });
+const page = await browser.newPage();
+await page.setViewport({ width: 1920, height: 1080 });
+
+console.log("SESSION_ESTABLISHED");
+console.log("WS_ENDPOINT=" + browser.wsEndpoint());
+await browser.disconnect();
+'
 ```
 
-## Best Practices
+---
 
-1. **Be specific in your prompts**: Clearly describe the elements to interact with, using CSS selectors, text content, or visual descriptions
-2. **Handle dynamic content**: Explicitly mention waiting for elements to load or animations to complete
-3. **Use sessions for multi-step tasks**: Maintain `sessionId` across related browser interactions
-4. **Capture evidence**: Take screenshots to verify successful completion of tasks
-5. **Respect rate limits**: Avoid overwhelming websites with rapid requests
-6. **Follow ethical guidelines**: Only automate interactions with websites where you have permission
+## Subsequent Calls: Reconnect and Act
 
-## Troubleshooting
+### Navigate to URL
 
-- **Element not found**: Be more specific in describing the element, or wait for page to fully load
-- **Timeout errors**: Increase wait time or verify the page loads correctly manually
-- **Authentication issues**: Ensure credentials are correct and the login flow is accurately described
-- **Dynamic content**: Explicitly instruct the tool to wait for specific elements or events
+```bash
+# Navigate to a URL and take screenshot
+WS_ENDPOINT="ws://..." URL="https://example.com" tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0] || await browser.newPage();
 
-## Related Tools
+await page.goto(process.env.URL, { waitUntil: "networkidle2", timeout: 30000 });
+console.log("Navigated to:", page.url());
+console.log("Title:", await page.title());
 
-- `WebFetch`: For simple HTTP requests to fetch page content without browser rendering
-- `WebSearch`: For searching the web and retrieving results
-- `Read`: For reading local HTML files
-- `Bash`: For running browser automation scripts with tools like Playwright or Puppeteer
+await page.screenshot({ path: "screenshot.png", fullPage: true });
+console.log("Screenshot saved: screenshot.png");
+await browser.disconnect();
+'
+```
+
+### Take Screenshot of Current Page
+
+```bash
+# Screenshot current page state
+WS_ENDPOINT="ws://..." tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0];
+if (!page) { console.error("No page open"); process.exit(1); }
+
+await page.screenshot({ path: "screenshot.png", fullPage: true });
+console.log("Current URL:", page.url());
+console.log("Screenshot saved: screenshot.png");
+await browser.disconnect();
+'
+```
+
+### Click Element
+
+```bash
+# Click an element by selector or text
+WS_ENDPOINT="ws://..." SELECTOR="button.submit" tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0];
+const selector = process.env.SELECTOR;
+
+try {
+  const element = await page.$(selector);
+  if (element) {
+    await element.click();
+  } else {
+    await page.locator(`::-p-text(${selector})`).click();
+  }
+  console.log("Clicked:", selector);
+} catch (e: any) {
+  console.error("Could not click:", selector, e.message);
+}
+await browser.disconnect();
+'
+```
+
+### Type Text
+
+```bash
+# Type text into an element
+WS_ENDPOINT="ws://..." SELECTOR="input[name=email]" TEXT="user@example.com" tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0];
+
+await page.locator(process.env.SELECTOR).fill(process.env.TEXT);
+console.log("Typed into", process.env.SELECTOR);
+await browser.disconnect();
+'
+```
+
+### Get Page Content
+
+```bash
+# Extract text content from page
+WS_ENDPOINT="ws://..." tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0];
+
+const content = await page.evaluate(() => ({
+  url: window.location.href,
+  title: document.title,
+  text: document.body.innerText.slice(0, 5000)
+}));
+console.log(JSON.stringify(content, null, 2));
+await browser.disconnect();
+'
+```
+
+---
+
+## Final Call: Close Browser
+
+```bash
+# Close the browser session
+WS_ENDPOINT="ws://..." tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+await browser.close();
+console.log("Browser closed");
+'
+```
+
+---
+
+## All-in-One Script Template
+
+```bash
+# General browser automation with Docker auto-detection
+tsx -e '
+import puppeteer from "puppeteer-core";
+import { execSync } from "child_process";
+
+// Auto-detect Docker environment
+let browserIP = "127.0.0.1";
+try {
+  browserIP = execSync("getent hosts host.docker.internal", { encoding: "utf8" }).split(/\s+/)[0];
+} catch {}
+
+const browserURL = process.env.BROWSER_URL || `http://${browserIP}:9222`;
+const wsEndpoint = process.env.WS_ENDPOINT;
+
+const browser = wsEndpoint
+  ? await puppeteer.connect({ browserWSEndpoint: wsEndpoint })
+  : await puppeteer.connect({ browserURL });
+
+const page = (await browser.pages())[0] || await browser.newPage();
+
+// ========== YOUR ACTIONS HERE ==========
+await page.goto("https://example.com");
+await page.screenshot({ path: "result.png" });
+// ========================================
+
+console.log("WS_ENDPOINT=" + browser.wsEndpoint());
+await browser.disconnect();
+'
+```
+
+---
+
+## Selector Reference
+
+| Selector | Example | Use When |
+|----------|---------|----------|
+| CSS | `"button.submit"` | Element has class/id |
+| Text | `"::-p-text(Sign In)"` | Match visible text |
+| Aria | `"::-p-aria(Submit)"` | Match accessible name |
+| XPath | `"xpath//button[@type='submit']"` | Complex DOM traversal |
+
+### Finding the Right Selector
+
+```bash
+# List all interactive elements on the page
+WS_ENDPOINT="ws://..." tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0];
+
+const buttons = await page.$$eval("button", els =>
+  els.map(el => ({ text: el.textContent?.trim(), classes: el.className }))
+);
+const links = await page.$$eval("a", els =>
+  els.map(el => ({ text: el.textContent?.trim(), href: el.href }))
+);
+const inputs = await page.$$eval("input", els =>
+  els.map(el => ({ name: el.name, id: el.id, type: el.type }))
+);
+
+console.log("Buttons:", JSON.stringify(buttons, null, 2));
+console.log("Links:", JSON.stringify(links, null, 2));
+console.log("Inputs:", JSON.stringify(inputs, null, 2));
+await browser.disconnect();
+'
+```
+
+---
+
+## Wait Patterns
+
+```bash
+# Wait pattern examples
+WS_ENDPOINT="ws://..." tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0];
+
+// Wait for navigation after click
+await Promise.all([
+  page.waitForNavigation(),
+  page.click("a.next-page")
+]);
+
+// Wait for element to appear
+await page.waitForSelector(".results", { timeout: 10000 });
+
+// Wait for network to settle
+await page.goto("https://example.com", { waitUntil: "networkidle2" });
+
+// Wait for custom condition
+await page.waitForFunction(() => document.querySelectorAll(".item").length > 10);
+
+await browser.disconnect();
+'
+```
+
+---
+
+## Screenshots & PDFs
+
+### Screenshot Options
+
+```bash
+# Various screenshot options
+WS_ENDPOINT="ws://..." tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0];
+
+// Full page
+await page.screenshot({ path: "page.png", fullPage: true });
+
+// Viewport only
+await page.screenshot({ path: "viewport.png" });
+
+// As buffer (no file)
+const buffer = await page.screenshot();
+console.log("Buffer size:", buffer.length);
+
+// Specific element
+const element = await page.$(".hero-section");
+if (element) await element.screenshot({ path: "element.png" });
+
+// Quality for JPEG/WebP
+await page.screenshot({ path: "page.jpg", type: "jpeg", quality: 80 });
+
+await browser.disconnect();
+'
+```
+
+### PDF Generation
+
+```bash
+# Generate PDF (requires headless mode)
+WS_ENDPOINT="ws://..." tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0];
+
+await page.pdf({
+  path: "page.pdf",
+  format: "A4",
+  printBackground: true,
+  margin: { top: "1in", bottom: "1in" }
+});
+console.log("PDF saved: page.pdf");
+await browser.disconnect();
+'
+```
+
+---
+
+## Evaluate in Page Context
+
+```bash
+# Evaluate JavaScript in page context
+WS_ENDPOINT="ws://..." tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0];
+
+// Get data from page
+const title = await page.evaluate(() => document.title);
+console.log("Title:", title);
+
+// With arguments
+const text = await page.evaluate(
+  (selector) => document.querySelector(selector)?.textContent,
+  ".headline"
+);
+console.log("Headline:", text);
+
+// Complex extraction
+const data = await page.evaluate(() => ({
+  url: window.location.href,
+  links: Array.from(document.querySelectorAll("a"))
+    .map(a => ({ href: a.href, text: a.textContent }))
+}));
+console.log("Data:", JSON.stringify(data, null, 2));
+
+await browser.disconnect();
+'
+```
+
+---
+
+## CDP Sessions
+
+Access raw Chrome DevTools Protocol for advanced automation.
+
+### Create Session and Send Commands
+
+```bash
+# CDP session example
+WS_ENDPOINT="ws://..." tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0];
+
+const client = await page.createCDPSession();
+
+// Enable a domain
+await client.send("Network.enable");
+
+// Command with parameters - emulate mobile device
+await client.send("Emulation.setDeviceMetricsOverride", {
+  width: 375,
+  height: 812,
+  deviceScaleFactor: 3,
+  mobile: true
+});
+
+console.log("Mobile emulation enabled");
+await client.detach();
+await browser.disconnect();
+'
+```
+
+### Listen for Events
+
+```bash
+# Monitor network requests via CDP
+WS_ENDPOINT="ws://..." tsx -e '
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const page = (await browser.pages())[0];
+
+const client = await page.createCDPSession();
+await client.send("Network.enable");
+
+client.on("Network.requestWillBeSent", (event) => {
+  console.log("Request:", event.request.url);
+});
+
+client.on("Network.responseReceived", (event) => {
+  console.log("Response:", event.response.status, event.response.url);
+});
+
+// Navigate to trigger events
+await page.goto("https://example.com");
+
+await client.detach();
+await browser.disconnect();
+'
+```
+
+See **advanced/cdp-domains.md** for full CDP domain reference.
+
+---
+
+## Error Handling
+
+```bash
+# Error handling patterns
+tsx -e '
+import puppeteer from "puppeteer-core";
+import { execSync } from "child_process";
+
+// Auto-detect Docker and handle connection errors
+let browserIP = "127.0.0.1";
+try {
+  browserIP = execSync("getent hosts host.docker.internal", { encoding: "utf8" }).split(/\s+/)[0];
+} catch {}
+
+try {
+  const browser = await puppeteer.connect({ browserURL: `http://${browserIP}:9222` });
+  const page = (await browser.pages())[0];
+
+  // Navigation timeout handling
+  try {
+    await page.goto("https://slow-site.example.com", { timeout: 30000 });
+  } catch (error: any) {
+    if (error.name === "TimeoutError") {
+      console.error("Page took too long to load");
+    }
+  }
+
+  // Element not found handling
+  const element = await page.$(".might-not-exist");
+  if (!element) {
+    console.log("Element not found - try different selector");
+  }
+
+  await browser.disconnect();
+} catch (error: any) {
+  if (error.message.includes("ECONNREFUSED")) {
+    console.error("Could not connect. Is the browser running with --remote-debugging-port=9222?");
+  } else {
+    console.error("Connection error:", error.message);
+  }
+}
+'
+```
+
+---
+
+## When to Ask the User
+
+| Situation | Question |
+|-----------|----------|
+| Connection fails on port 9222 | "What port is the browser's remote debugging running on?" |
+| Need wsEndpoint directly | "Please provide the WebSocket endpoint (starts with `ws://`)" |
+| Element not found | "Could not find element. Can you describe what to click?" |
+
+---
+
+## Advanced Topics
+
+| Topic | When to Use | Reference |
+|-------|-------------|-----------|
+| CDP protocol commands | Network interception, performance | advanced/cdp-domains.md |
+| Complex selectors | Shadow DOM, iframes | advanced/selectors.md |
+| Debugging | Connection issues, timeouts | advanced/debugging.md |
+
+---
+
+## Official Documentation
+
+- **Puppeteer**: https://pptr.dev/
+- **API Reference**: https://pptr.dev/api
+- **CDP Protocol**: https://chromedevtools.github.io/devtools-protocol/

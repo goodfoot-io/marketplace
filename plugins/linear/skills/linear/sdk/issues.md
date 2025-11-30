@@ -17,19 +17,18 @@
 
 ## Setup
 
-All examples use the Linear TypeScript SDK with `tsx`:
+All examples use the Linear TypeScript SDK with `tsx -e` inline execution:
 
-```typescript
+```bash
+tsx -e '
 import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
-(async () => {
-  const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
-
-  // Your code here
-})();
+// Your code here
+'
 ```
 
-Run with: `dotenv -- tsx -e '...'` or `dotenv -- tsx script.ts`
+**IMPORTANT**: Always use inline `tsx -e` execution rather than writing script files.
 
 ---
 
@@ -340,36 +339,36 @@ await client.updateIssue(issue.id, {
 
 ## Complete Example
 
-```typescript
+```bash
+# Create issue, assign to self, and start work
+tsx -e '
 import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
-(async () => {
-  const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+// Get team and "In Progress" state
+const teams = await client.teams();
+const team = teams.nodes.find(t => t.key === "ENG");
+const states = await team!.states();
+const inProgress = states.nodes.find(s => s.name === "In Progress");
 
-  // Get team and "In Progress" state
-  const teams = await client.teams();
-  const team = teams.nodes.find(t => t.key === "ENG");
-  const states = await team!.states();
-  const inProgress = states.nodes.find(s => s.name === "In Progress");
+// Create issue
+const payload = await client.createIssue({
+  teamId: team!.id,
+  title: "Investigate login failure",
+  description: "Users reporting intermittent login issues",
+  priority: 2
+});
 
-  // Create issue
-  const payload = await client.createIssue({
-    teamId: team!.id,
-    title: "Investigate login failure",
-    description: "Users reporting intermittent login issues",
-    priority: 2
-  });
+const issue = await payload.issue;
+console.log("Created:", issue?.identifier);
 
-  const issue = await payload.issue;
-  console.log("Created:", issue?.identifier);
+// Assign to self and start work
+const me = await client.viewer;
+await client.updateIssue(issue!.id, {
+  assigneeId: me.id,
+  stateId: inProgress?.id
+});
 
-  // Assign to self and start work
-  const me = await client.viewer;
-  await client.updateIssue(issue!.id, {
-    assigneeId: me.id,
-    stateId: inProgress?.id
-  });
-
-  console.log("Assigned and started:", issue?.identifier);
-})();
+console.log("Assigned and started:", issue?.identifier);
+'
 ```

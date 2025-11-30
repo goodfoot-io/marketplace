@@ -7,7 +7,9 @@ description: Reference for Linear webhooks and TypeScript SDK. Use when receivin
 
 # Linear Reference (SDK)
 
-Uses `@linear/sdk` with `tsx`. Run: `dotenv -- tsx script.ts`
+Uses `@linear/sdk` with `tsx`. Run inline scripts with: `tsx -e 'code...'`
+
+**IMPORTANT**: Always use inline script execution with `tsx -e` rather than writing script files. This is faster and cleaner.
 
 ## Decision Trees
 
@@ -91,36 +93,61 @@ Uses `@linear/sdk` with `tsx`. Run: `dotenv -- tsx script.ts`
 ## Essential Patterns
 
 ### Bot Loop Prevention (CRITICAL)
-```typescript
+```bash
+# Get viewer ID for loop prevention
+tsx -e '
+import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+
 const viewer = await client.viewer;
 const viewerId = viewer.id;  // Cache at startup
+console.log("Viewer ID:", viewerId);
+console.log("Display Name:", viewer.displayName);  // NOT viewer.name!
 
-// In every webhook handler - check FIRST
-if (webhook.type === "Comment" && webhook.data.user?.id === viewerId) {
-  return;  // Ignore own comments
-}
+// In webhook handler - check FIRST:
+// if (webhook.type === "Comment" && webhook.data.user?.id === viewerId) return;
+'
 ```
 
 ### Detect Mentions
-```typescript
-const wasMentioned = /@claude\b/i.test(webhook.data.body);
+```bash
+# Check if @claude is mentioned in webhook body
+tsx -e '
+const body = process.env.WEBHOOK_BODY || "";
+const wasMentioned = /@claude\b/i.test(body);
+console.log("Was mentioned:", wasMentioned);
+'
 ```
 
 ### Extract Issue References
-```typescript
+```bash
+# Extract issue identifiers like ENG-123, PROJ-456
+tsx -e '
+const body = process.env.TEXT || "See ENG-123 and PROJ-456";
 const refs = [...new Set(body.match(/[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+/g) || [])];
+console.log("Issue refs:", refs);
+'
 ```
 
 ### Find State by Type
-```typescript
+```bash
+# Find workflow state by type
+ISSUE_ID="ENG-123" tsx -e '
+import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+
+const issue = await client.issue(process.env.ISSUE_ID!);
 const team = await issue.team;
 const states = await team?.states();
 const inProgress = states?.nodes.find(s => s.type === "started");
+console.log("In Progress state:", inProgress?.name, inProgress?.id);
 // ⚠️ Multiple states may match - this returns first
+'
 ```
 
 ### Detect State Transition
 ```typescript
+// In webhook handler - detect completion
 const wasCompleted =
   webhook.updatedFrom?.state?.type !== "completed" &&
   webhook.data.state?.type === "completed";
@@ -128,24 +155,52 @@ const wasCompleted =
 
 ## SDK Quick Start
 
-```typescript
+### Get Issue Details
+```bash
+ISSUE_ID="ENG-1234" tsx -e '
 import { LinearClient } from "@linear/sdk";
-
 const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
-// Get issue
-const issue = await client.issue("ENG-1234");
+const issue = await client.issue(process.env.ISSUE_ID!);
 const state = await issue.state;
+console.log("Issue:", issue.identifier, issue.title);
+console.log("State:", state?.name, state?.type);
+'
+```
 
-// Update status
-await client.updateIssue(issue.id, { stateId: "state-uuid" });
+### Update Issue Status
+```bash
+ISSUE_ID="ENG-1234" STATE_ID="state-uuid" tsx -e '
+import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
-// Add comment
+await client.updateIssue(process.env.ISSUE_ID!, { stateId: process.env.STATE_ID });
+console.log("Issue updated");
+'
+```
+
+### Add Comment
+```bash
+ISSUE_ID="ENG-1234" tsx -e '
+import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+
+const issue = await client.issue(process.env.ISSUE_ID!);
 await client.createComment({ issueId: issue.id, body: "Done." });
+console.log("Comment added");
+'
+```
 
-// Get my ID (for loop prevention)
+### Get Viewer ID (for loop prevention)
+```bash
+tsx -e '
+import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+
 const viewer = await client.viewer;
-console.log(viewer.id, viewer.displayName);  // NOT viewer.name!
+console.log("ID:", viewer.id);
+console.log("Display Name:", viewer.displayName);  // NOT viewer.name!
+'
 ```
 
 ## Official Documentation

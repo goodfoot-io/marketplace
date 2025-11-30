@@ -102,6 +102,17 @@
         "pnpm",
         "bun"
       ]
+    },
+    {
+      "name": "linear",
+      "source": "./plugins/linear",
+      "tags": [
+        "linear",
+        "webhooks",
+        "issue-tracking",
+        "sdk",
+        "comments"
+      ]
     }
   ]
 }
