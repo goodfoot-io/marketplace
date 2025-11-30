@@ -11,6 +11,15 @@ description: Reference for Linear webhooks and TypeScript SDK. Use when receivin
 # === Linear Skill Environment Check ===
 BLOCKED=""
 
+# Detect package manager
+if [ -f "yarn.lock" ]; then
+  PKG_MGR="yarn" PKG_ADD="yarn add" PKG_GLOBAL="yarn global add"
+elif [ -f "pnpm-lock.yaml" ]; then
+  PKG_MGR="pnpm" PKG_ADD="pnpm add" PKG_GLOBAL="pnpm add -g"
+else
+  PKG_MGR="npm" PKG_ADD="npm install" PKG_GLOBAL="npm install -g"
+fi
+
 # 1. API Key check
 if [ -z "$LINEAR_API_KEY" ]; then
   BLOCKED="yes"
@@ -40,19 +49,19 @@ if command -v tsx >/dev/null 2>&1; then
 else
   BLOCKED="yes"
   echo "❌ BLOCKED: tsx not installed"
-  echo "   Cannot execute scripts. Install with: npm install -g tsx"
+  echo "   Cannot execute scripts. Install with: $PKG_GLOBAL tsx"
 fi
 
 # 3. Package check
 if [ -d "node_modules/@linear/sdk" ]; then
   VER=$(node -p "JSON.parse(require('fs').readFileSync('node_modules/@linear/sdk/package.json')).version" 2>/dev/null || echo "?")
   echo "✓ @linear/sdk@$VER"
-elif command -v npm >/dev/null 2>&1 && npm list @linear/sdk 2>/dev/null | grep -q @linear/sdk; then
-  echo "✓ @linear/sdk (npm)"
+elif command -v $PKG_MGR >/dev/null 2>&1 && $PKG_MGR list @linear/sdk 2>/dev/null | grep -q @linear/sdk; then
+  echo "✓ @linear/sdk ($PKG_MGR)"
 else
   BLOCKED="yes"
   echo "❌ BLOCKED: @linear/sdk not installed"
-  echo "   Cannot execute scripts. Install with: npm install @linear/sdk"
+  echo "   Cannot execute scripts. Install with: $PKG_ADD @linear/sdk"
 fi
 
 # Final status (must exit 0 to not fail skill load)

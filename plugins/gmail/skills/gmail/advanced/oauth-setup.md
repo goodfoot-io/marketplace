@@ -221,11 +221,25 @@ const authUrl = oauth2Client.generateAuthUrl({
   prompt: "consent"        // Force consent to get refresh token
 });
 
-console.log("\n=== Gmail OAuth 2.0 Authorization ===\n");
-console.log("1. Open this URL in your browser:\n");
-console.log(authUrl);
-console.log("\n2. Sign in and grant access to your Gmail account");
-console.log("3. Copy the authorization code from the redirect URL\n");
+console.log(`
+╔══════════════════════════════════════════════════════════════════╗
+║                  GMAIL OAUTH 2.0 AUTHORIZATION                   ║
+╠══════════════════════════════════════════════════════════════════╣
+║  Step 1: Open this URL in your browser                           ║
+╚══════════════════════════════════════════════════════════════════╝
+
+${authUrl}
+
+╔══════════════════════════════════════════════════════════════════╗
+║  Step 2: Sign in and grant access to your Gmail account          ║
+║  Step 3: Copy the authorization code from the redirect URL       ║
+║                                                                  ║
+║  The redirect URL will look like:                                ║
+║  http://localhost/?code=4/0ABC...&scope=...                      ║
+║                                                                  ║
+║  Copy everything after "code=" and before "&scope"               ║
+╚══════════════════════════════════════════════════════════════════╝
+`);
 
 // Read authorization code from stdin
 const rl = createInterface({

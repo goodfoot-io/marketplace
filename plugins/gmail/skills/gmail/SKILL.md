@@ -12,6 +12,15 @@ description: Gmail operations using the googleapis NPM package. Use when sending
 CRED_PATH="$HOME/.gmail-skill"
 BLOCKED=""
 
+# Detect package manager
+if [ -f "yarn.lock" ]; then
+  PKG_MGR="yarn" PKG_ADD="yarn add" PKG_GLOBAL="yarn global add"
+elif [ -f "pnpm-lock.yaml" ]; then
+  PKG_MGR="pnpm" PKG_ADD="pnpm add" PKG_GLOBAL="pnpm add -g"
+else
+  PKG_MGR="npm" PKG_ADD="npm install" PKG_GLOBAL="npm install -g"
+fi
+
 # 1. Credential files check with progressive status
 if [ ! -d "$CRED_PATH" ]; then
   BLOCKED="yes"
@@ -76,19 +85,19 @@ if command -v tsx >/dev/null 2>&1; then
 else
   BLOCKED="yes"
   echo "❌ BLOCKED: tsx not installed"
-  echo "   Cannot execute scripts. Install with: npm install -g tsx"
+  echo "   Cannot execute scripts. Install with: $PKG_GLOBAL tsx"
 fi
 
 # 4. Package checks
 if [ -d "node_modules/googleapis" ]; then
   VER=$(node -p "require('googleapis/package.json').version" 2>/dev/null || echo "?")
   echo "✓ googleapis@$VER"
-elif command -v npm >/dev/null 2>&1 && npm list googleapis 2>/dev/null | grep -q googleapis; then
-  echo "✓ googleapis (npm)"
+elif command -v $PKG_MGR >/dev/null 2>&1 && $PKG_MGR list googleapis 2>/dev/null | grep -q googleapis; then
+  echo "✓ googleapis ($PKG_MGR)"
 else
   BLOCKED="yes"
   echo "❌ BLOCKED: googleapis not installed"
-  echo "   Cannot execute scripts. Install with: npm install googleapis"
+  echo "   Cannot execute scripts. Install with: $PKG_ADD googleapis"
 fi
 
 # 5. Optional: nodemailer for attachments (non-blocking)

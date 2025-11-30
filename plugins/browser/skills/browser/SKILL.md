@@ -11,6 +11,15 @@ description: Browser automation using the puppeteer NPM package. Use when
 # === Browser Skill Environment Check ===
 BLOCKED=""
 
+# Detect package manager
+if [ -f "yarn.lock" ]; then
+  PKG_MGR="yarn" PKG_ADD="yarn add" PKG_GLOBAL="yarn global add"
+elif [ -f "pnpm-lock.yaml" ]; then
+  PKG_MGR="pnpm" PKG_ADD="pnpm add" PKG_GLOBAL="pnpm add -g"
+else
+  PKG_MGR="npm" PKG_ADD="npm install" PKG_GLOBAL="npm install -g"
+fi
+
 # 1. Container detection
 CONTAINER_TYPE="" BROWSER_HOST="127.0.0.1"
 if [ -f /.dockerenv ] || grep -sq "docker\|containerd" /proc/1/cgroup 2>/dev/null; then
@@ -60,19 +69,19 @@ if command -v tsx >/dev/null 2>&1; then
 else
   BLOCKED="yes"
   echo "❌ BLOCKED: tsx not installed"
-  echo "   Cannot execute scripts. Install with: npm install -g tsx"
+  echo "   Cannot execute scripts. Install with: $PKG_GLOBAL tsx"
 fi
 
 # 4. Package check
 if [ -d "node_modules/puppeteer-core" ]; then
   VER=$(node -p "require('puppeteer-core/package.json').version" 2>/dev/null || echo "?")
   echo "✓ puppeteer-core@$VER"
-elif command -v npm >/dev/null 2>&1 && npm list puppeteer-core 2>/dev/null | grep -q puppeteer-core; then
-  echo "✓ puppeteer-core (npm)"
+elif command -v $PKG_MGR >/dev/null 2>&1 && $PKG_MGR list puppeteer-core 2>/dev/null | grep -q puppeteer-core; then
+  echo "✓ puppeteer-core ($PKG_MGR)"
 else
   BLOCKED="yes"
   echo "❌ BLOCKED: puppeteer-core not installed"
-  echo "   Cannot execute scripts. Install with: npm install puppeteer-core"
+  echo "   Cannot execute scripts. Install with: $PKG_ADD puppeteer-core"
 fi
 
 # Final status (must exit 0 to not fail skill load)
