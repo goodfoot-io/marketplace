@@ -7,9 +7,17 @@ description: Reference for Linear webhooks and TypeScript SDK. Use when receivin
 
 # Linear Reference (SDK)
 
-Uses `@linear/sdk` with `tsx`. Run inline scripts with: `tsx -e 'code...'`
+Uses `@linear/sdk` with `tsx`. Run inline scripts using heredocs for top-level await support:
 
-**IMPORTANT**: Always use inline script execution with `tsx -e` rather than writing script files. This is faster and cleaner.
+```bash
+tsx << 'EOF'
+import { LinearClient } from "@linear/sdk";
+const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+// your code with top-level await
+EOF
+```
+
+**IMPORTANT**: Use `tsx << 'EOF' ... EOF` heredoc syntax for inline execution with top-level await. The `tsx -e` flag does NOT support top-level await.
 
 ## Decision Trees
 
@@ -95,7 +103,7 @@ Uses `@linear/sdk` with `tsx`. Run inline scripts with: `tsx -e 'code...'`
 ### Bot Loop Prevention (CRITICAL)
 ```bash
 # Get viewer ID for loop prevention
-tsx -e '
+tsx << 'EOF'
 import { LinearClient } from "@linear/sdk";
 const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
@@ -106,33 +114,33 @@ console.log("Display Name:", viewer.displayName);  // NOT viewer.name!
 
 // In webhook handler - check FIRST:
 // if (webhook.type === "Comment" && webhook.data.user?.id === viewerId) return;
-'
+EOF
 ```
 
 ### Detect Mentions
 ```bash
 # Check if @claude is mentioned in webhook body
-tsx -e '
+WEBHOOK_BODY="Hello @claude please help" tsx << 'EOF'
 const body = process.env.WEBHOOK_BODY || "";
 const wasMentioned = /@claude\b/i.test(body);
 console.log("Was mentioned:", wasMentioned);
-'
+EOF
 ```
 
 ### Extract Issue References
 ```bash
 # Extract issue identifiers like ENG-123, PROJ-456
-tsx -e '
-const body = process.env.TEXT || "See ENG-123 and PROJ-456";
+TEXT="See ENG-123 and PROJ-456" tsx << 'EOF'
+const body = process.env.TEXT || "";
 const refs = [...new Set(body.match(/[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+/g) || [])];
 console.log("Issue refs:", refs);
-'
+EOF
 ```
 
 ### Find State by Type
 ```bash
 # Find workflow state by type
-ISSUE_ID="ENG-123" tsx -e '
+ISSUE_ID="ENG-123" tsx << 'EOF'
 import { LinearClient } from "@linear/sdk";
 const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
@@ -142,7 +150,7 @@ const states = await team?.states();
 const inProgress = states?.nodes.find(s => s.type === "started");
 console.log("In Progress state:", inProgress?.name, inProgress?.id);
 // ⚠️ Multiple states may match - this returns first
-'
+EOF
 ```
 
 ### Detect State Transition
@@ -157,7 +165,7 @@ const wasCompleted =
 
 ### Get Issue Details
 ```bash
-ISSUE_ID="ENG-1234" tsx -e '
+ISSUE_ID="ENG-1234" tsx << 'EOF'
 import { LinearClient } from "@linear/sdk";
 const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
@@ -165,42 +173,42 @@ const issue = await client.issue(process.env.ISSUE_ID!);
 const state = await issue.state;
 console.log("Issue:", issue.identifier, issue.title);
 console.log("State:", state?.name, state?.type);
-'
+EOF
 ```
 
 ### Update Issue Status
 ```bash
-ISSUE_ID="ENG-1234" STATE_ID="state-uuid" tsx -e '
+ISSUE_ID="ENG-1234" STATE_ID="state-uuid" tsx << 'EOF'
 import { LinearClient } from "@linear/sdk";
 const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
 await client.updateIssue(process.env.ISSUE_ID!, { stateId: process.env.STATE_ID });
 console.log("Issue updated");
-'
+EOF
 ```
 
 ### Add Comment
 ```bash
-ISSUE_ID="ENG-1234" tsx -e '
+ISSUE_ID="ENG-1234" tsx << 'EOF'
 import { LinearClient } from "@linear/sdk";
 const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
 const issue = await client.issue(process.env.ISSUE_ID!);
 await client.createComment({ issueId: issue.id, body: "Done." });
 console.log("Comment added");
-'
+EOF
 ```
 
 ### Get Viewer ID (for loop prevention)
 ```bash
-tsx -e '
+tsx << 'EOF'
 import { LinearClient } from "@linear/sdk";
 const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
 const viewer = await client.viewer;
 console.log("ID:", viewer.id);
 console.log("Display Name:", viewer.displayName);  // NOT viewer.name!
-'
+EOF
 ```
 
 ## Official Documentation

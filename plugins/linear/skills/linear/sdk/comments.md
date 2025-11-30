@@ -16,15 +16,15 @@
 ## Setup
 
 ```bash
-tsx -e '
+tsx << 'EOF'
 import { LinearClient } from "@linear/sdk";
 const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 
 // Your code here
-'
+EOF
 ```
 
-**IMPORTANT**: Always use inline `tsx -e` execution rather than writing script files.
+**IMPORTANT**: Use `tsx << 'EOF' ... EOF` heredoc syntax for inline execution with top-level await. The `tsx -e` flag does NOT support top-level await.
 
 ---
 

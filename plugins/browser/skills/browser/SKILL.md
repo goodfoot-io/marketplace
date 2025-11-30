@@ -7,14 +7,23 @@ description: Browser automation using the puppeteer NPM package. Use when
 
 # Puppeteer Reference (SDK)
 
-Uses `puppeteer-core` with `tsx`. Run inline scripts with: `tsx -e 'code...'`
+Uses `puppeteer-core` with `tsx`. Run inline scripts using heredocs for top-level await support:
+
+```bash
+WS_ENDPOINT="..." tsx << 'EOF'
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+// your code with top-level await
+await browser.disconnect();
+EOF
+```
 
 ## Agent Workflow
 
 This skill enables you to control a browser like a human user would. The browser
 runs persistently and you reconnect between script executions.
 
-**IMPORTANT**: Always use inline script execution with `tsx -e` rather than writing script files. This is faster and cleaner.
+**IMPORTANT**: Use `tsx << 'EOF' ... EOF` heredoc syntax for inline execution with top-level await. The `tsx -e` flag does NOT support top-level await.
 
 ### Connection Priority
 
@@ -82,52 +91,49 @@ fi
 
 ```bash
 # Detect Docker environment and connect
-tsx -e '
+tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 import { execSync } from "child_process";
 
-async function connect() {
-  // Try to resolve host.docker.internal for Docker environments
-  let browserIP = "127.0.0.1";
-  try {
-    const result = execSync("getent hosts host.docker.internal", { encoding: "utf8" });
-    browserIP = result.split(/\s+/)[0];
-    console.log("Docker detected, using host IP:", browserIP);
-  } catch { /* Not in Docker, use localhost */ }
+// Try to resolve host.docker.internal for Docker environments
+let browserIP = "127.0.0.1";
+try {
+  const result = execSync("getent hosts host.docker.internal", { encoding: "utf8" });
+  browserIP = result.split(/\s+/)[0];
+  console.log("Docker detected, using host IP:", browserIP);
+} catch { /* Not in Docker, use localhost */ }
 
-  const browser = await puppeteer.connect({ browserURL: `http://${browserIP}:9222` });
-  console.log("Connected! WS_ENDPOINT=" + browser.wsEndpoint());
-  await browser.disconnect();
-}
-connect();
-'
+const browser = await puppeteer.connect({ browserURL: `http://${browserIP}:9222` });
+console.log("Connected! WS_ENDPOINT=" + browser.wsEndpoint());
+await browser.disconnect();
+EOF
 ```
 
 ### Pattern 2: Connect with Known Endpoint
 
 ```bash
 # When wsEndpoint is already known (from previous call or user)
-tsx -e '
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({
   browserWSEndpoint: process.env.WS_ENDPOINT
 });
 console.log("Connected to", (await browser.pages())[0]?.url());
 await browser.disconnect();
-'
+EOF
 ```
 
 ### Pattern 3: Connect with Custom Port/IP
 
 ```bash
 # When user specifies a different port or IP
-BROWSER_IP=192.168.65.254 BROWSER_PORT=9222 tsx -e '
+BROWSER_IP=192.168.65.254 BROWSER_PORT=9222 tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const { BROWSER_IP = "127.0.0.1", BROWSER_PORT = "9222" } = process.env;
 const browser = await puppeteer.connect({ browserURL: `http://${BROWSER_IP}:${BROWSER_PORT}` });
 console.log("Connected! WS_ENDPOINT=" + browser.wsEndpoint());
 await browser.disconnect();
-'
+EOF
 ```
 
 ---
@@ -136,7 +142,7 @@ await browser.disconnect();
 
 ```bash
 # Establish browser session with Docker auto-detection
-tsx -e '
+tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 import { execSync } from "child_process";
 
@@ -154,7 +160,7 @@ await page.setViewport({ width: 1920, height: 1080 });
 console.log("SESSION_ESTABLISHED");
 console.log("WS_ENDPOINT=" + browser.wsEndpoint());
 await browser.disconnect();
-'
+EOF
 ```
 
 ---
@@ -165,7 +171,7 @@ await browser.disconnect();
 
 ```bash
 # Navigate to a URL and take screenshot
-WS_ENDPOINT="ws://..." URL="https://example.com" tsx -e '
+WS_ENDPOINT="ws://..." URL="https://example.com" tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0] || await browser.newPage();
@@ -177,14 +183,14 @@ console.log("Title:", await page.title());
 await page.screenshot({ path: "screenshot.png", fullPage: true });
 console.log("Screenshot saved: screenshot.png");
 await browser.disconnect();
-'
+EOF
 ```
 
 ### Take Screenshot of Current Page
 
 ```bash
 # Screenshot current page state
-WS_ENDPOINT="ws://..." tsx -e '
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0];
@@ -194,14 +200,14 @@ await page.screenshot({ path: "screenshot.png", fullPage: true });
 console.log("Current URL:", page.url());
 console.log("Screenshot saved: screenshot.png");
 await browser.disconnect();
-'
+EOF
 ```
 
 ### Click Element
 
 ```bash
 # Click an element by selector or text
-WS_ENDPOINT="ws://..." SELECTOR="button.submit" tsx -e '
+WS_ENDPOINT="ws://..." SELECTOR="button.submit" tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0];
@@ -219,14 +225,14 @@ try {
   console.error("Could not click:", selector, e.message);
 }
 await browser.disconnect();
-'
+EOF
 ```
 
 ### Type Text
 
 ```bash
 # Type text into an element
-WS_ENDPOINT="ws://..." SELECTOR="input[name=email]" TEXT="user@example.com" tsx -e '
+WS_ENDPOINT="ws://..." SELECTOR="input[name=email]" TEXT="user@example.com" tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0];
@@ -234,14 +240,14 @@ const page = (await browser.pages())[0];
 await page.locator(process.env.SELECTOR).fill(process.env.TEXT);
 console.log("Typed into", process.env.SELECTOR);
 await browser.disconnect();
-'
+EOF
 ```
 
 ### Get Page Content
 
 ```bash
 # Extract text content from page
-WS_ENDPOINT="ws://..." tsx -e '
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0];
@@ -253,7 +259,7 @@ const content = await page.evaluate(() => ({
 }));
 console.log(JSON.stringify(content, null, 2));
 await browser.disconnect();
-'
+EOF
 ```
 
 ---
@@ -262,12 +268,12 @@ await browser.disconnect();
 
 ```bash
 # Close the browser session
-WS_ENDPOINT="ws://..." tsx -e '
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 await browser.close();
 console.log("Browser closed");
-'
+EOF
 ```
 
 ---
@@ -276,7 +282,7 @@ console.log("Browser closed");
 
 ```bash
 # General browser automation with Docker auto-detection
-tsx -e '
+tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 import { execSync } from "child_process";
 
@@ -302,7 +308,7 @@ await page.screenshot({ path: "result.png" });
 
 console.log("WS_ENDPOINT=" + browser.wsEndpoint());
 await browser.disconnect();
-'
+EOF
 ```
 
 ---
@@ -320,7 +326,7 @@ await browser.disconnect();
 
 ```bash
 # List all interactive elements on the page
-WS_ENDPOINT="ws://..." tsx -e '
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0];
@@ -339,7 +345,7 @@ console.log("Buttons:", JSON.stringify(buttons, null, 2));
 console.log("Links:", JSON.stringify(links, null, 2));
 console.log("Inputs:", JSON.stringify(inputs, null, 2));
 await browser.disconnect();
-'
+EOF
 ```
 
 ---
@@ -348,7 +354,7 @@ await browser.disconnect();
 
 ```bash
 # Wait pattern examples
-WS_ENDPOINT="ws://..." tsx -e '
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0];
@@ -369,7 +375,7 @@ await page.goto("https://example.com", { waitUntil: "networkidle2" });
 await page.waitForFunction(() => document.querySelectorAll(".item").length > 10);
 
 await browser.disconnect();
-'
+EOF
 ```
 
 ---
@@ -380,7 +386,7 @@ await browser.disconnect();
 
 ```bash
 # Various screenshot options
-WS_ENDPOINT="ws://..." tsx -e '
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0];
@@ -403,14 +409,14 @@ if (element) await element.screenshot({ path: "element.png" });
 await page.screenshot({ path: "page.jpg", type: "jpeg", quality: 80 });
 
 await browser.disconnect();
-'
+EOF
 ```
 
 ### PDF Generation
 
 ```bash
 # Generate PDF (requires headless mode)
-WS_ENDPOINT="ws://..." tsx -e '
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0];
@@ -423,7 +429,7 @@ await page.pdf({
 });
 console.log("PDF saved: page.pdf");
 await browser.disconnect();
-'
+EOF
 ```
 
 ---
@@ -432,7 +438,7 @@ await browser.disconnect();
 
 ```bash
 # Evaluate JavaScript in page context
-WS_ENDPOINT="ws://..." tsx -e '
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0];
@@ -457,7 +463,7 @@ const data = await page.evaluate(() => ({
 console.log("Data:", JSON.stringify(data, null, 2));
 
 await browser.disconnect();
-'
+EOF
 ```
 
 ---
@@ -470,7 +476,7 @@ Access raw Chrome DevTools Protocol for advanced automation.
 
 ```bash
 # CDP session example
-WS_ENDPOINT="ws://..." tsx -e '
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0];
@@ -491,14 +497,14 @@ await client.send("Emulation.setDeviceMetricsOverride", {
 console.log("Mobile emulation enabled");
 await client.detach();
 await browser.disconnect();
-'
+EOF
 ```
 
 ### Listen for Events
 
 ```bash
 # Monitor network requests via CDP
-WS_ENDPOINT="ws://..." tsx -e '
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
 const page = (await browser.pages())[0];
@@ -519,7 +525,7 @@ await page.goto("https://example.com");
 
 await client.detach();
 await browser.disconnect();
-'
+EOF
 ```
 
 See **advanced/cdp-domains.md** for full CDP domain reference.
@@ -530,7 +536,7 @@ See **advanced/cdp-domains.md** for full CDP domain reference.
 
 ```bash
 # Error handling patterns
-tsx -e '
+tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 import { execSync } from "child_process";
 
@@ -567,7 +573,7 @@ try {
     console.error("Connection error:", error.message);
   }
 }
-'
+EOF
 ```
 
 ---
