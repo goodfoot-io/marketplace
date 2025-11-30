@@ -10,17 +10,30 @@ description: Gmail operations using the googleapis NPM package. Use when sending
 ```!
 # === Gmail Skill Environment Check ===
 CRED_PATH="$HOME/.gmail-skill"
+BLOCKED=""
 
 # 1. Credential files check with progressive status
 if [ ! -d "$CRED_PATH" ]; then
-  echo "⚠️  Setup required: ~/.gmail-skill/ not found"
-  echo "   mkdir -p ~/.gmail-skill && see advanced/oauth-setup.md"
+  BLOCKED="yes"
+  echo "❌ BLOCKED: ~/.gmail-skill/ directory not found"
+  echo ""
+  echo "STOP. Do not attempt Gmail operations."
+  echo "Ask user: \"Gmail credentials aren't configured yet. Would you like me to help you set them up?\""
+  echo "If yes, read: @${CLAUDE_PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
 elif [ ! -f "$CRED_PATH/client_secret.json" ]; then
-  echo "⚠️  Missing: client_secret.json"
-  echo "   Download from Google Cloud Console → Credentials"
+  BLOCKED="yes"
+  echo "❌ BLOCKED: client_secret.json not found"
+  echo ""
+  echo "STOP. Do not attempt Gmail operations."
+  echo "User needs to download OAuth credentials from Google Cloud Console."
+  echo "Setup guide: @${CLAUDE_PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
 elif [ ! -f "$CRED_PATH/tokens.json" ]; then
-  echo "⚠️  Missing: tokens.json (client_secret.json ✓)"
-  echo "   Run authorization flow - see advanced/oauth-setup.md"
+  BLOCKED="yes"
+  echo "❌ BLOCKED: tokens.json not found (client_secret.json ✓)"
+  echo ""
+  echo "STOP. Do not attempt Gmail operations."
+  echo "User needs to complete the OAuth authorization flow."
+  echo "Setup guide: @${CLAUDE_PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
 else
   # 2. Validate JSON and check token status
   if node -e "JSON.parse(require('fs').readFileSync('$CRED_PATH/tokens.json'))" 2>/dev/null; then
@@ -31,48 +44,63 @@ else
     # Token validity
     if [ -n "$EXPIRY" ] && [ "$EXPIRY" != "0" ] && [ "$EXPIRY" -gt "$NOW_MS" ] 2>/dev/null; then
       REMAINING_MIN=$(((EXPIRY - NOW_MS) / 60000))
-      echo "✓ Credentials ready (token valid for ${REMAINING_MIN}m)"
+      echo "✓ Gmail ready (token valid for ${REMAINING_MIN}m)"
     else
-      echo "✓ Credentials ready (token expired, will auto-refresh)"
+      echo "✓ Gmail ready (token expired, will auto-refresh)"
     fi
 
-    # Refresh token warning
-    [ "$HAS_REFRESH" != "yes" ] && echo "  ⚠️  No refresh_token - re-auth needed when token expires"
+    # Refresh token warning (non-blocking)
+    [ "$HAS_REFRESH" != "yes" ] && echo "  ⚠️ No refresh_token - re-auth needed when token expires"
 
-    # 3. Token age check (6-month refresh token expiry warning)
+    # Token age check (non-blocking warning)
     if stat --version 2>/dev/null | grep -q GNU; then
       FILE_MTIME=$(stat -c %Y "$CRED_PATH/tokens.json")
     else
       FILE_MTIME=$(stat -f %m "$CRED_PATH/tokens.json" 2>/dev/null || stat -c %Y "$CRED_PATH/tokens.json")
     fi
     AGE_DAYS=$(( ($(date +%s) - FILE_MTIME) / 86400 ))
-    [ $AGE_DAYS -gt 150 ] && echo "  ⚠️  Token ${AGE_DAYS} days old - refresh token may expire soon (6mo limit)"
+    [ $AGE_DAYS -gt 150 ] && echo "  ⚠️ Token ${AGE_DAYS} days old - refresh token may expire soon"
   else
-    echo "⚠️  tokens.json is invalid JSON - file may be corrupted"
+    BLOCKED="yes"
+    echo "❌ BLOCKED: tokens.json is corrupted (invalid JSON)"
+    echo ""
+    echo "STOP. Do not attempt Gmail operations."
+    echo "User needs to re-run the authorization flow."
+    echo "Setup guide: @${CLAUDE_PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
   fi
 fi
 
-# 4. Runtime check
+# 3. Runtime check
 if command -v tsx >/dev/null 2>&1; then
   echo "✓ tsx $(tsx --version 2>&1 | head -1)"
 else
-  echo "⚠️  tsx not found - npm install -g tsx"
+  BLOCKED="yes"
+  echo "❌ BLOCKED: tsx not installed"
+  echo "   Cannot execute scripts. Install with: npm install -g tsx"
 fi
 
-# 5. Package checks
+# 4. Package checks
 if [ -d "node_modules/googleapis" ]; then
   VER=$(node -p "require('googleapis/package.json').version" 2>/dev/null || echo "?")
   echo "✓ googleapis@$VER"
 elif command -v npm >/dev/null 2>&1 && npm list googleapis 2>/dev/null | grep -q googleapis; then
   echo "✓ googleapis (npm)"
 else
-  echo "⚠️  googleapis not found - npm install googleapis"
+  BLOCKED="yes"
+  echo "❌ BLOCKED: googleapis not installed"
+  echo "   Cannot execute scripts. Install with: npm install googleapis"
 fi
 
-# 6. Optional: nodemailer for attachments
+# 5. Optional: nodemailer for attachments (non-blocking)
 if [ -d "node_modules/nodemailer" ]; then
   VER=$(node -p "require('nodemailer/package.json').version" 2>/dev/null || echo "?")
   echo "✓ nodemailer@$VER (attachments supported)"
+fi
+
+# Final status (must exit 0 to not fail skill load)
+if [ -z "$BLOCKED" ]; then
+  echo ""
+  echo "Ready to execute Gmail operations."
 fi
 ```
 

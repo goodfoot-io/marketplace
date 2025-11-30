@@ -9,19 +9,27 @@ description: Reference for Linear webhooks and TypeScript SDK. Use when receivin
 
 ```!
 # === Linear Skill Environment Check ===
+BLOCKED=""
 
 # 1. API Key check
 if [ -z "$LINEAR_API_KEY" ]; then
-  echo "⚠️  LINEAR_API_KEY not set"
-  echo "   Get key from: Linear → Settings → API → Personal API keys"
-  echo "   Set with: export LINEAR_API_KEY=lin_api_..."
+  BLOCKED="yes"
+  echo "❌ BLOCKED: LINEAR_API_KEY not set"
+  echo ""
+  echo "STOP. Do not attempt Linear operations."
+  echo "Ask user to set their API key:"
+  echo "  export LINEAR_API_KEY=lin_api_..."
+  echo ""
+  echo "Get key from: Linear → Settings → API → Personal API keys"
 else
   case "$LINEAR_API_KEY" in
     lin_api_*)
-      echo "✓ LINEAR_API_KEY set (${LINEAR_API_KEY:0:12}...)"
+      echo "✓ Linear API key set (${LINEAR_API_KEY:0:12}...)"
       ;;
     *)
-      echo "⚠️  LINEAR_API_KEY format unexpected (should start with lin_api_)"
+      # Non-standard format - warn but don't block (might still work)
+      echo "✓ LINEAR_API_KEY set (${LINEAR_API_KEY:0:8}...)"
+      echo "  ⚠️ Unexpected format (should start with lin_api_)"
       ;;
   esac
 fi
@@ -30,7 +38,9 @@ fi
 if command -v tsx >/dev/null 2>&1; then
   echo "✓ tsx $(tsx --version 2>&1 | head -1)"
 else
-  echo "⚠️  tsx not found - npm install -g tsx"
+  BLOCKED="yes"
+  echo "❌ BLOCKED: tsx not installed"
+  echo "   Cannot execute scripts. Install with: npm install -g tsx"
 fi
 
 # 3. Package check
@@ -40,7 +50,15 @@ if [ -d "node_modules/@linear/sdk" ]; then
 elif command -v npm >/dev/null 2>&1 && npm list @linear/sdk 2>/dev/null | grep -q @linear/sdk; then
   echo "✓ @linear/sdk (npm)"
 else
-  echo "⚠️  @linear/sdk not found - npm install @linear/sdk"
+  BLOCKED="yes"
+  echo "❌ BLOCKED: @linear/sdk not installed"
+  echo "   Cannot execute scripts. Install with: npm install @linear/sdk"
+fi
+
+# Final status (must exit 0 to not fail skill load)
+if [ -z "$BLOCKED" ]; then
+  echo ""
+  echo "Ready to execute Linear operations."
 fi
 ```
 

@@ -8,7 +8,10 @@ description: Browser automation using the puppeteer NPM package. Use when
 # Puppeteer Reference (SDK)
 
 ```!
-# === Environment Check ===
+# === Browser Skill Environment Check ===
+BLOCKED=""
+
+# 1. Container detection
 CONTAINER_TYPE="" BROWSER_HOST="127.0.0.1"
 if [ -f /.dockerenv ] || grep -sq "docker\|containerd" /proc/1/cgroup 2>/dev/null; then
   HOST_IP=$(getent hosts host.docker.internal 2>/dev/null | awk '{print $1}')
@@ -22,7 +25,7 @@ elif grep -sq "microsoft\|WSL" /proc/version 2>/dev/null; then
 fi
 [ -n "$CONTAINER_TYPE" ] && echo "📦 $CONTAINER_TYPE detected - Host: $BROWSER_HOST"
 
-# Scan common CDP ports
+# 2. Scan common CDP ports
 FOUND_PORT=""
 for PORT in 9222 9223 9224 9229; do
   CDP_URL="http://${BROWSER_HOST}:${PORT}"
@@ -36,28 +39,46 @@ if [ -n "$FOUND_PORT" ]; then
   VER=$(echo "$CDP_RESPONSE" | grep -o '"Browser"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*: *"//' | tr -d '"')
   WS=$(echo "$CDP_RESPONSE" | grep -o '"webSocketDebuggerUrl"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*: *"//' | tr -d '"')
   PAGES=$(curl -s "$CDP_URL/json/list" 2>/dev/null | grep -c '"id"' || true)
-  [ "$FOUND_PORT" != "9222" ] && echo "ℹ️  Browser on non-standard port $FOUND_PORT"
-  echo "✓ Browser: $VER ($PAGES page(s))"
+  [ "$FOUND_PORT" != "9222" ] && echo "ℹ️ Browser on non-standard port $FOUND_PORT"
+  echo "✓ Browser ready: $VER ($PAGES page(s))"
   echo "  WS_ENDPOINT=$WS"
 else
-  echo "ℹ️  No browser found on $BROWSER_HOST (checked ports 9222-9224, 9229)"
-  echo "   Start Chrome: chrome --remote-debugging-port=9222"
-  echo "   Or specify port: chrome --remote-debugging-port=<PORT>"
+  BLOCKED="yes"
+  echo "❌ BLOCKED: No browser with remote debugging found"
+  echo ""
+  echo "STOP. Do not attempt browser operations."
+  echo "Ask user one of:"
+  echo "  1. \"Is Chrome running with remote debugging? If not: chrome --remote-debugging-port=9222\""
+  echo "  2. \"If it's on a different port, which port?\" (then retry with that port)"
+  echo ""
+  echo "Checked ports 9222-9224, 9229 on $BROWSER_HOST"
 fi
 
+# 3. Runtime check
 if command -v tsx >/dev/null 2>&1; then
   echo "✓ tsx $(tsx --version 2>&1 | head -1)"
 else
-  echo "⚠️  tsx not found - npm install -g tsx"
+  BLOCKED="yes"
+  echo "❌ BLOCKED: tsx not installed"
+  echo "   Cannot execute scripts. Install with: npm install -g tsx"
 fi
 
+# 4. Package check
 if [ -d "node_modules/puppeteer-core" ]; then
   VER=$(node -p "require('puppeteer-core/package.json').version" 2>/dev/null || echo "?")
   echo "✓ puppeteer-core@$VER"
 elif command -v npm >/dev/null 2>&1 && npm list puppeteer-core 2>/dev/null | grep -q puppeteer-core; then
   echo "✓ puppeteer-core (npm)"
 else
-  echo "⚠️  puppeteer-core not found - npm install puppeteer-core"
+  BLOCKED="yes"
+  echo "❌ BLOCKED: puppeteer-core not installed"
+  echo "   Cannot execute scripts. Install with: npm install puppeteer-core"
+fi
+
+# Final status (must exit 0 to not fail skill load)
+if [ -z "$BLOCKED" ]; then
+  echo ""
+  echo "Ready to execute browser operations."
 fi
 ```
 
