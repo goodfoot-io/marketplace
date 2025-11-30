@@ -29,7 +29,8 @@
     "project@goodfoot": true,
     "vscode@goodfoot": true,
     "goodfoot@goodfoot": true,
-    "browser@goodfoot": true
+    "browser@goodfoot": true,
+    "gmail@goodfoot": true
   },
   "extraKnownMarketplaces": {
     "goodfoot": {

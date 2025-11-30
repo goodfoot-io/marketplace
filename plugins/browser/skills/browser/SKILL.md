@@ -7,6 +7,60 @@ description: Browser automation using the puppeteer NPM package. Use when
 
 # Puppeteer Reference (SDK)
 
+```!
+# === Environment Check ===
+CONTAINER_TYPE="" BROWSER_HOST="127.0.0.1"
+if [ -f /.dockerenv ] || grep -sq "docker\|containerd" /proc/1/cgroup 2>/dev/null; then
+  HOST_IP=$(getent hosts host.docker.internal 2>/dev/null | awk '{print $1}')
+  [ -n "$HOST_IP" ] && CONTAINER_TYPE="Docker" && BROWSER_HOST="$HOST_IP"
+elif [ -f /run/.containerenv ]; then
+  HOST_IP=$(getent hosts host.containers.internal 2>/dev/null | awk '{print $1}')
+  [ -n "$HOST_IP" ] && CONTAINER_TYPE="Podman" && BROWSER_HOST="$HOST_IP"
+elif grep -sq "microsoft\|WSL" /proc/version 2>/dev/null; then
+  HOST_IP=$(ip route show default 2>/dev/null | awk '{print $3}')
+  [ -n "$HOST_IP" ] && CONTAINER_TYPE="WSL" && BROWSER_HOST="$HOST_IP"
+fi
+[ -n "$CONTAINER_TYPE" ] && echo "📦 $CONTAINER_TYPE detected - Host: $BROWSER_HOST"
+
+# Scan common CDP ports
+FOUND_PORT=""
+for PORT in 9222 9223 9224 9229; do
+  CDP_URL="http://${BROWSER_HOST}:${PORT}"
+  if CDP_RESPONSE=$(curl -s --connect-timeout 1 "$CDP_URL/json/version" 2>/dev/null) && [ -n "$CDP_RESPONSE" ]; then
+    FOUND_PORT=$PORT
+    break
+  fi
+done
+
+if [ -n "$FOUND_PORT" ]; then
+  VER=$(echo "$CDP_RESPONSE" | grep -o '"Browser"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*: *"//' | tr -d '"')
+  WS=$(echo "$CDP_RESPONSE" | grep -o '"webSocketDebuggerUrl"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*: *"//' | tr -d '"')
+  PAGES=$(curl -s "$CDP_URL/json/list" 2>/dev/null | grep -c '"id"' || true)
+  [ "$FOUND_PORT" != "9222" ] && echo "ℹ️  Browser on non-standard port $FOUND_PORT"
+  echo "✓ Browser: $VER ($PAGES page(s))"
+  echo "  WS_ENDPOINT=$WS"
+else
+  echo "ℹ️  No browser found on $BROWSER_HOST (checked ports 9222-9224, 9229)"
+  echo "   Start Chrome: chrome --remote-debugging-port=9222"
+  echo "   Or specify port: chrome --remote-debugging-port=<PORT>"
+fi
+
+if command -v tsx >/dev/null 2>&1; then
+  echo "✓ tsx $(tsx --version 2>&1 | head -1)"
+else
+  echo "⚠️  tsx not found - npm install -g tsx"
+fi
+
+if [ -d "node_modules/puppeteer-core" ]; then
+  VER=$(node -p "require('puppeteer-core/package.json').version" 2>/dev/null || echo "?")
+  echo "✓ puppeteer-core@$VER"
+elif command -v npm >/dev/null 2>&1 && npm list puppeteer-core 2>/dev/null | grep -q puppeteer-core; then
+  echo "✓ puppeteer-core (npm)"
+else
+  echo "⚠️  puppeteer-core not found - npm install puppeteer-core"
+fi
+```
+
 Uses `puppeteer-core` with `tsx`. Run inline scripts using heredocs for top-level await support:
 
 ```bash
@@ -27,25 +81,9 @@ runs persistently and you reconnect between script executions.
 
 ### Connection Priority
 
-1. **User-provided endpoint** → Use if specified
-2. **Docker environment** → If `host.docker.internal` resolves, use its IP with port 9222
-3. **Default CDP port** → Try `http://127.0.0.1:9222`
-4. **Ask user** → If connection fails, ask for correct port or wsEndpoint
-
-### Docker/Container Environment Detection
-
-When running inside Docker or a devcontainer, `127.0.0.1` refers to the container itself, not the host machine where the browser runs. Use `host.docker.internal` to reach the host:
-
-```bash
-# Check if running in Docker by resolving host.docker.internal
-DOCKER_HOST_IP=$(getent hosts host.docker.internal | awk '{print $1}')
-if [ -n "$DOCKER_HOST_IP" ]; then
-  echo "Docker detected. Host IP: $DOCKER_HOST_IP"
-  # Use http://$DOCKER_HOST_IP:9222 for browser connection
-fi
-```
-
-**Connection URL in Docker**: `http://<host.docker.internal-IP>:9222` (e.g., `http://192.168.65.254:9222`)
+1. **Use WS_ENDPOINT from environment check above** (if browser detected)
+2. **User-provided endpoint** → Use if specified
+3. **Ask user** → If connection fails, ask for correct port or wsEndpoint
 
 ### Session Lifecycle
 
@@ -87,32 +125,7 @@ fi
 
 ## Connection Patterns
 
-### Pattern 1: Auto-detect Docker and Connect
-
-```bash
-# Detect Docker environment and connect
-tsx << 'EOF'
-import puppeteer from "puppeteer-core";
-import { execSync } from "child_process";
-
-// Try to resolve host.docker.internal for Docker environments
-let browserIP = "127.0.0.1";
-try {
-  const result = execSync("getent hosts host.docker.internal", { encoding: "utf8" });
-  browserIP = result.split(/\s+/)[0];
-  console.log("Docker detected, using host IP:", browserIP);
-} catch { /* Not in Docker, use localhost */ }
-
-const browser = await puppeteer.connect({
-  browserURL: `http://${browserIP}:9222`,
-  defaultViewport: null
-});
-console.log("Connected! WS_ENDPOINT=" + browser.wsEndpoint());
-await browser.disconnect();
-EOF
-```
-
-### Pattern 2: Connect with Known Endpoint
+### Connect with Known Endpoint
 
 ```bash
 # When wsEndpoint is already known (from previous call or user)
@@ -147,20 +160,16 @@ EOF
 
 ## First Call: Establish Session
 
+Use the `WS_ENDPOINT` from the environment check above, or connect via browserURL:
+
 ```bash
-# Establish browser session with Docker auto-detection
-tsx << 'EOF'
+# Connect using WS_ENDPOINT from environment check
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-import { execSync } from "child_process";
-
-// Auto-detect Docker environment
-let browserIP = "127.0.0.1";
-try {
-  browserIP = execSync("getent hosts host.docker.internal", { encoding: "utf8" }).split(/\s+/)[0];
-} catch {}
-
-const browserURL = process.env.BROWSER_URL || `http://${browserIP}:9222`;
-const browser = await puppeteer.connect({ browserURL, defaultViewport: null });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = await browser.newPage();
 
 console.log("SESSION_ESTABLISHED");
@@ -302,23 +311,14 @@ EOF
 ## All-in-One Script Template
 
 ```bash
-# General browser automation with Docker auto-detection
-tsx << 'EOF'
+# General browser automation - use WS_ENDPOINT from environment check
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-import { execSync } from "child_process";
 
-// Auto-detect Docker environment
-let browserIP = "127.0.0.1";
-try {
-  browserIP = execSync("getent hosts host.docker.internal", { encoding: "utf8" }).split(/\s+/)[0];
-} catch {}
-
-const browserURL = process.env.BROWSER_URL || `http://${browserIP}:9222`;
-const wsEndpoint = process.env.WS_ENDPOINT;
-
-const browser = wsEndpoint
-  ? await puppeteer.connect({ browserWSEndpoint: wsEndpoint, defaultViewport: null })
-  : await puppeteer.connect({ browserURL, defaultViewport: null });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 
 const page = (await browser.pages())[0] || await browser.newPage();
 
@@ -577,20 +577,13 @@ See **advanced/cdp-domains.md** for full CDP domain reference.
 ## Error Handling
 
 ```bash
-# Error handling patterns
-tsx << 'EOF'
+# Error handling patterns - use WS_ENDPOINT from environment check
+WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-import { execSync } from "child_process";
-
-// Auto-detect Docker and handle connection errors
-let browserIP = "127.0.0.1";
-try {
-  browserIP = execSync("getent hosts host.docker.internal", { encoding: "utf8" }).split(/\s+/)[0];
-} catch {}
 
 try {
   const browser = await puppeteer.connect({
-    browserURL: `http://${browserIP}:9222`,
+    browserWSEndpoint: process.env.WS_ENDPOINT,
     defaultViewport: null
   });
   const page = (await browser.pages())[0];
@@ -612,8 +605,8 @@ try {
 
   await browser.disconnect();
 } catch (error: any) {
-  if (error.message.includes("ECONNREFUSED")) {
-    console.error("Could not connect. Is the browser running with --remote-debugging-port=9222?");
+  if (error.message.includes("ECONNREFUSED") || error.message.includes("WebSocket")) {
+    console.error("Could not connect. Check WS_ENDPOINT is valid.");
   } else {
     console.error("Connection error:", error.message);
   }
@@ -627,8 +620,9 @@ EOF
 
 | Situation | Question |
 |-----------|----------|
-| Connection fails on port 9222 | "What port is the browser's remote debugging running on?" |
-| Need wsEndpoint directly | "Please provide the WebSocket endpoint (starts with `ws://`)" |
+| Environment check shows "No browser found" | "Please start Chrome with `--remote-debugging-port=9222`. If using a different port, let me know." |
+| Browser on unlisted port | "What port is the browser's remote debugging running on?" |
+| WS_ENDPOINT invalid or expired | "Please provide the WebSocket endpoint (starts with `ws://`)" |
 | Element not found | "Could not find element. Can you describe what to click?" |
 
 ---

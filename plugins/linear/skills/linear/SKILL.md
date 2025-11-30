@@ -7,6 +7,43 @@ description: Reference for Linear webhooks and TypeScript SDK. Use when receivin
 
 # Linear Reference (SDK)
 
+```!
+# === Linear Skill Environment Check ===
+
+# 1. API Key check
+if [ -z "$LINEAR_API_KEY" ]; then
+  echo "⚠️  LINEAR_API_KEY not set"
+  echo "   Get key from: Linear → Settings → API → Personal API keys"
+  echo "   Set with: export LINEAR_API_KEY=lin_api_..."
+else
+  case "$LINEAR_API_KEY" in
+    lin_api_*)
+      echo "✓ LINEAR_API_KEY set (${LINEAR_API_KEY:0:12}...)"
+      ;;
+    *)
+      echo "⚠️  LINEAR_API_KEY format unexpected (should start with lin_api_)"
+      ;;
+  esac
+fi
+
+# 2. Runtime check
+if command -v tsx >/dev/null 2>&1; then
+  echo "✓ tsx $(tsx --version 2>&1 | head -1)"
+else
+  echo "⚠️  tsx not found - npm install -g tsx"
+fi
+
+# 3. Package check
+if [ -d "node_modules/@linear/sdk" ]; then
+  VER=$(node -p "JSON.parse(require('fs').readFileSync('node_modules/@linear/sdk/package.json')).version" 2>/dev/null || echo "?")
+  echo "✓ @linear/sdk@$VER"
+elif command -v npm >/dev/null 2>&1 && npm list @linear/sdk 2>/dev/null | grep -q @linear/sdk; then
+  echo "✓ @linear/sdk (npm)"
+else
+  echo "⚠️  @linear/sdk not found - npm install @linear/sdk"
+fi
+```
+
 Uses `@linear/sdk` with `tsx`. Run inline scripts using heredocs for top-level await support:
 
 ```bash

@@ -113,6 +113,17 @@
         "sdk",
         "comments"
       ]
+    },
+    {
+      "name": "gmail",
+      "source": "./plugins/gmail",
+      "tags": [
+        "gmail",
+        "email",
+        "google",
+        "sdk",
+        "oauth"
+      ]
     }
   ]
 }

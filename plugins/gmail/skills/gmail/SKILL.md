@@ -7,98 +7,76 @@ description: Gmail operations using the googleapis NPM package. Use when sending
 
 # Gmail Reference (SDK)
 
-Uses `googleapis` with `tsx`. Run inline scripts using heredocs for top-level await support:
+```!
+# === Gmail Skill Environment Check ===
+CRED_PATH="$HOME/.gmail-skill"
 
-```bash
-tsx << 'EOF'
-import { google } from "googleapis";
-import { readFileSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
+# 1. Credential files check with progressive status
+if [ ! -d "$CRED_PATH" ]; then
+  echo "⚠️  Setup required: ~/.gmail-skill/ not found"
+  echo "   mkdir -p ~/.gmail-skill && see advanced/oauth-setup.md"
+elif [ ! -f "$CRED_PATH/client_secret.json" ]; then
+  echo "⚠️  Missing: client_secret.json"
+  echo "   Download from Google Cloud Console → Credentials"
+elif [ ! -f "$CRED_PATH/tokens.json" ]; then
+  echo "⚠️  Missing: tokens.json (client_secret.json ✓)"
+  echo "   Run authorization flow - see advanced/oauth-setup.md"
+else
+  # 2. Validate JSON and check token status
+  if node -e "JSON.parse(require('fs').readFileSync('$CRED_PATH/tokens.json'))" 2>/dev/null; then
+    EXPIRY=$(node -p "JSON.parse(require('fs').readFileSync('$CRED_PATH/tokens.json')).expiry_date || 0" 2>/dev/null)
+    HAS_REFRESH=$(node -p "JSON.parse(require('fs').readFileSync('$CRED_PATH/tokens.json')).refresh_token ? 'yes' : 'no'" 2>/dev/null)
+    NOW_MS=$(($(date +%s) * 1000))
 
-const credPath = join(homedir(), ".gmail-skill");
-const credentials = JSON.parse(readFileSync(join(credPath, "client_secret.json"), "utf8"));
-const tokens = JSON.parse(readFileSync(join(credPath, "tokens.json"), "utf8"));
+    # Token validity
+    if [ -n "$EXPIRY" ] && [ "$EXPIRY" != "0" ] && [ "$EXPIRY" -gt "$NOW_MS" ] 2>/dev/null; then
+      REMAINING_MIN=$(((EXPIRY - NOW_MS) / 60000))
+      echo "✓ Credentials ready (token valid for ${REMAINING_MIN}m)"
+    else
+      echo "✓ Credentials ready (token expired, will auto-refresh)"
+    fi
 
-const oauth2Client = new google.auth.OAuth2(
-  credentials.installed.client_id,
-  credentials.installed.client_secret,
-  credentials.installed.redirect_uris[0]
-);
-oauth2Client.setCredentials(tokens);
+    # Refresh token warning
+    [ "$HAS_REFRESH" != "yes" ] && echo "  ⚠️  No refresh_token - re-auth needed when token expires"
 
-const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-// your code with top-level await
-EOF
+    # 3. Token age check (6-month refresh token expiry warning)
+    if stat --version 2>/dev/null | grep -q GNU; then
+      FILE_MTIME=$(stat -c %Y "$CRED_PATH/tokens.json")
+    else
+      FILE_MTIME=$(stat -f %m "$CRED_PATH/tokens.json" 2>/dev/null || stat -c %Y "$CRED_PATH/tokens.json")
+    fi
+    AGE_DAYS=$(( ($(date +%s) - FILE_MTIME) / 86400 ))
+    [ $AGE_DAYS -gt 150 ] && echo "  ⚠️  Token ${AGE_DAYS} days old - refresh token may expire soon (6mo limit)"
+  else
+    echo "⚠️  tokens.json is invalid JSON - file may be corrupted"
+  fi
+fi
+
+# 4. Runtime check
+if command -v tsx >/dev/null 2>&1; then
+  echo "✓ tsx $(tsx --version 2>&1 | head -1)"
+else
+  echo "⚠️  tsx not found - npm install -g tsx"
+fi
+
+# 5. Package checks
+if [ -d "node_modules/googleapis" ]; then
+  VER=$(node -p "require('googleapis/package.json').version" 2>/dev/null || echo "?")
+  echo "✓ googleapis@$VER"
+elif command -v npm >/dev/null 2>&1 && npm list googleapis 2>/dev/null | grep -q googleapis; then
+  echo "✓ googleapis (npm)"
+else
+  echo "⚠️  googleapis not found - npm install googleapis"
+fi
+
+# 6. Optional: nodemailer for attachments
+if [ -d "node_modules/nodemailer" ]; then
+  VER=$(node -p "require('nodemailer/package.json').version" 2>/dev/null || echo "?")
+  echo "✓ nodemailer@$VER (attachments supported)"
+fi
 ```
-
-## Agent Workflow
-
-This skill enables you to interact with Gmail like a user would through the Gmail API. Authentication uses OAuth 2.0 with credentials stored locally.
 
 **IMPORTANT**: Use `tsx << 'EOF' ... EOF` heredoc syntax for inline execution with top-level await. The `tsx -e` flag does NOT support top-level await.
-
-### Credential Detection
-
-1. **Check for credentials** -> Look for `~/.gmail-skill/` directory
-2. **Validate files** -> Must contain `client_secret.json` and `tokens.json`
-3. **Test authentication** -> Run a simple profile fetch to verify tokens work
-4. **Handle failures** -> Guide user to OAuth setup if credentials missing or invalid
-
-```bash
-# Check credential status
-tsx << 'EOF'
-import { readFileSync, existsSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
-
-const credPath = join(homedir(), ".gmail-skill");
-const clientSecretPath = join(credPath, "client_secret.json");
-const tokensPath = join(credPath, "tokens.json");
-
-if (!existsSync(credPath)) {
-  console.log("SETUP_REQUIRED: ~/.gmail-skill/ directory not found");
-  console.log("See advanced/oauth-setup.md for setup instructions");
-  process.exit(1);
-}
-
-if (!existsSync(clientSecretPath)) {
-  console.log("SETUP_REQUIRED: client_secret.json not found");
-  process.exit(1);
-}
-
-if (!existsSync(tokensPath)) {
-  console.log("AUTH_REQUIRED: tokens.json not found - run authorization flow");
-  process.exit(1);
-}
-
-const tokens = JSON.parse(readFileSync(tokensPath, "utf8"));
-const expiryDate = tokens.expiry_date;
-const isExpired = expiryDate && Date.now() > expiryDate;
-
-console.log("CREDENTIALS_FOUND");
-console.log("Access token expires:", new Date(expiryDate).toISOString());
-console.log("Token status:", isExpired ? "EXPIRED (will auto-refresh)" : "VALID");
-EOF
-```
-
-### Session Lifecycle
-
-```
-+-------------------------------------------------------------+
-| FIRST CALL: Verify credentials                               |
-|   1. Check ~/.gmail-skill/ for credential files              |
-|   2. If missing, guide user to advanced/oauth-setup.md       |
-|   3. Test connection with profile fetch                      |
-+-------------------------------------------------------------+
-                            |
-+-------------------------------------------------------------+
-| SUBSEQUENT CALLS: Execute operations                         |
-|   1. Load credentials and create auth client                 |
-|   2. Perform Gmail API operations                            |
-|   3. Handle token refresh automatically                      |
-+-------------------------------------------------------------+
-```
 
 ---
 
@@ -128,9 +106,9 @@ EOF
 
 ---
 
-## Gmail Client Setup Pattern
+## Setup Pattern
 
-Every script needs OAuth client initialization. Use this pattern:
+Every script needs OAuth client initialization with token refresh handling:
 
 ```bash
 tsx << 'EOF'
@@ -480,65 +458,23 @@ function decodeBase64url(encoded: string): string {
 
 ## Error Handling
 
-```bash
-tsx << 'EOF'
-import { google } from "googleapis";
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
+Handle API errors in your scripts:
 
-const credPath = join(homedir(), ".gmail-skill");
-
-// Check credentials exist
-if (!existsSync(join(credPath, "client_secret.json"))) {
-  console.error("ERROR: client_secret.json not found");
-  console.error("Run OAuth setup: see advanced/oauth-setup.md");
-  process.exit(1);
-}
-
-if (!existsSync(join(credPath, "tokens.json"))) {
-  console.error("ERROR: tokens.json not found");
-  console.error("Run authorization flow: see advanced/oauth-setup.md");
-  process.exit(1);
-}
-
+```typescript
 try {
-  const credentials = JSON.parse(readFileSync(join(credPath, "client_secret.json"), "utf8"));
-  const tokens = JSON.parse(readFileSync(join(credPath, "tokens.json"), "utf8"));
-
-  const oauth2Client = new google.auth.OAuth2(
-    credentials.installed.client_id,
-    credentials.installed.client_secret,
-    credentials.installed.redirect_uris[0]
-  );
-  oauth2Client.setCredentials(tokens);
-  oauth2Client.on("tokens", (newTokens) => {
-    writeFileSync(join(credPath, "tokens.json"), JSON.stringify({ ...tokens, ...newTokens }, null, 2));
-  });
-
-  const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-
-  // Test connection
-  const profile = await gmail.users.getProfile({ userId: "me" });
-  console.log("Connected as:", profile.data.emailAddress);
-
+  const res = await gmail.users.messages.list({ userId: "me" });
+  // ... process response
 } catch (error: any) {
   if (error.code === 401) {
-    console.error("ERROR: Authentication failed");
-    console.error("Your tokens may be expired or revoked.");
-    console.error("Re-run authorization: see advanced/oauth-setup.md");
+    console.error("Authentication failed - re-run authorization flow");
   } else if (error.code === 403) {
-    console.error("ERROR: Permission denied");
-    console.error("Check that your OAuth app has the required Gmail scopes.");
+    console.error("Permission denied - check OAuth scopes");
   } else if (error.code === 429) {
-    console.error("ERROR: Rate limited");
-    console.error("Wait a moment and try again, or use batch operations.");
+    console.error("Rate limited - wait and retry, or use batch operations");
   } else {
-    console.error("ERROR:", error.message);
+    console.error("Error:", error.message);
   }
-  process.exit(1);
 }
-EOF
 ```
 
 ---
@@ -547,8 +483,8 @@ EOF
 
 | Situation | Question |
 |-----------|----------|
-| Credentials not found | "Gmail credentials not found. Would you like me to guide you through OAuth setup?" |
-| Token refresh failed | "Your Gmail authorization has expired. Please re-authorize the application." |
+| Environment check shows setup warnings | "Gmail credentials need attention. Follow the steps shown above." |
+| 401 error during operation | "Your Gmail authorization has expired. Please re-authorize." |
 | Multiple recipients unclear | "Who should I send this email to?" |
 | Delete vs trash | "Should I move this to trash (recoverable) or permanently delete it?" |
 | Search returns many results | "Found many emails. Can you narrow the search criteria?" |
