@@ -28,6 +28,8 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
+    "google-auth-library": "^10.5.0",
+    "googleapis": "^166.0.0",
     "js-yaml": "^4.1.0",
     "knip": "^5.64.1",
     "ts-morph": "^27.0.0",
