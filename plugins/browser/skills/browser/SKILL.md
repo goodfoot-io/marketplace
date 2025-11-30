@@ -497,6 +497,56 @@ EOF
 
 ---
 
+## Analyzing Screenshots
+
+When you need to understand what's in a screenshot, use the `browser:screenshot-description` agent first. Only view the image directly with the Read tool if the agent's answer is unclear or insufficient.
+
+### Workflow
+
+1. **First**: Ask the screenshot-description agent
+2. **If unclear**: View the image directly with Read tool
+3. **Then**: Delete the screenshot file
+
+### Example: Ask Agent First
+
+```xml
+<invoke name="Task">
+<parameter name="subagent_type">browser:screenshot-description</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">Path: /workspace/screenshot.png
+Question: What error message is displayed on the page?</parameter>
+</invoke>
+```
+
+### Example: Fallback to Direct Viewing
+
+If the agent's response is unclear or you need more detail:
+
+```xml
+<invoke name="Read">
+<parameter name="file_path">/workspace/screenshot.png</parameter>
+</invoke>
+```
+
+### Resizing Large Screenshots
+
+Before viewing a screenshot directly, check its dimensions and resize if needed:
+
+1. Run `identify -format "%wx%h" screenshot.png` to get dimensions (e.g., `2400x1800`)
+2. If either dimension exceeds 2000px, resize with:
+   ```bash
+   npx sharp-cli -i screenshot.png -o screenshot.png resize 2000 2000 --fit inside --withoutEnlargement
+   ```
+
+Then clean up:
+
+```bash
+rm -f /workspace/screenshot.png
+```
+
+
+---
+
 ## Evaluate in Page Context
 
 ```bash

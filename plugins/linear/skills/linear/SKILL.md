@@ -118,6 +118,14 @@ EOF
 3. React based on new type (started, completed, etc.)
 ```
 
+## ⚠️ Cleanup Requirements
+
+**IMPORTANT**: All scripts use inline heredoc execution - no script files are created. No cleanup typically required.
+
+**Best Practice**: Process API responses in memory, output results to console rather than files.
+
+---
+
 ## Critical Gotchas (Verified)
 
 | Issue | Reality | Fix |

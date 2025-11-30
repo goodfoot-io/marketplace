@@ -117,6 +117,19 @@ fi
 
 ---
 
+## ⚠️ Cleanup Requirements
+
+**IMPORTANT**: All scripts use inline heredoc execution - no script files are created. However, be mindful of:
+
+| Item | Created By | Cleanup |
+|------|------------|---------|
+| Downloaded attachments | Attachment download scripts | Delete after processing: `rm -f attachment.*` |
+| Temporary files | Your custom scripts | Delete when done |
+
+**Best Practice**: Process data in memory when possible, avoid saving to disk unless necessary.
+
+---
+
 ## Critical Gotchas
 
 | Issue | Reality | Fix |
