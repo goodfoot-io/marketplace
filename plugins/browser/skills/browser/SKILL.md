@@ -103,7 +103,10 @@ try {
   console.log("Docker detected, using host IP:", browserIP);
 } catch { /* Not in Docker, use localhost */ }
 
-const browser = await puppeteer.connect({ browserURL: `http://${browserIP}:9222` });
+const browser = await puppeteer.connect({
+  browserURL: `http://${browserIP}:9222`,
+  defaultViewport: null
+});
 console.log("Connected! WS_ENDPOINT=" + browser.wsEndpoint());
 await browser.disconnect();
 EOF
@@ -116,7 +119,8 @@ EOF
 WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const browser = await puppeteer.connect({
-  browserWSEndpoint: process.env.WS_ENDPOINT
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
 });
 console.log("Connected to", (await browser.pages())[0]?.url());
 await browser.disconnect();
@@ -130,7 +134,10 @@ EOF
 BROWSER_IP=192.168.65.254 BROWSER_PORT=9222 tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const { BROWSER_IP = "127.0.0.1", BROWSER_PORT = "9222" } = process.env;
-const browser = await puppeteer.connect({ browserURL: `http://${BROWSER_IP}:${BROWSER_PORT}` });
+const browser = await puppeteer.connect({
+  browserURL: `http://${BROWSER_IP}:${BROWSER_PORT}`,
+  defaultViewport: null
+});
 console.log("Connected! WS_ENDPOINT=" + browser.wsEndpoint());
 await browser.disconnect();
 EOF
@@ -153,9 +160,8 @@ try {
 } catch {}
 
 const browserURL = process.env.BROWSER_URL || `http://${browserIP}:9222`;
-const browser = await puppeteer.connect({ browserURL });
+const browser = await puppeteer.connect({ browserURL, defaultViewport: null });
 const page = await browser.newPage();
-await page.setViewport({ width: 1920, height: 1080 });
 
 console.log("SESSION_ESTABLISHED");
 console.log("WS_ENDPOINT=" + browser.wsEndpoint());
@@ -173,14 +179,17 @@ EOF
 # Navigate to a URL and take screenshot
 WS_ENDPOINT="ws://..." URL="https://example.com" tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0] || await browser.newPage();
 
 await page.goto(process.env.URL, { waitUntil: "networkidle2", timeout: 30000 });
 console.log("Navigated to:", page.url());
 console.log("Title:", await page.title());
 
-await page.screenshot({ path: "screenshot.png", fullPage: true });
+await page.screenshot({ path: "screenshot.png", captureBeyondViewport: false });
 console.log("Screenshot saved: screenshot.png");
 await browser.disconnect();
 EOF
@@ -192,11 +201,14 @@ EOF
 # Screenshot current page state
 WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0];
 if (!page) { console.error("No page open"); process.exit(1); }
 
-await page.screenshot({ path: "screenshot.png", fullPage: true });
+await page.screenshot({ path: "screenshot.png", captureBeyondViewport: false });
 console.log("Current URL:", page.url());
 console.log("Screenshot saved: screenshot.png");
 await browser.disconnect();
@@ -209,7 +221,10 @@ EOF
 # Click an element by selector or text
 WS_ENDPOINT="ws://..." SELECTOR="button.submit" tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0];
 const selector = process.env.SELECTOR;
 
@@ -234,7 +249,10 @@ EOF
 # Type text into an element
 WS_ENDPOINT="ws://..." SELECTOR="input[name=email]" TEXT="user@example.com" tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0];
 
 await page.locator(process.env.SELECTOR).fill(process.env.TEXT);
@@ -249,7 +267,10 @@ EOF
 # Extract text content from page
 WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0];
 
 const content = await page.evaluate(() => ({
@@ -296,14 +317,14 @@ const browserURL = process.env.BROWSER_URL || `http://${browserIP}:9222`;
 const wsEndpoint = process.env.WS_ENDPOINT;
 
 const browser = wsEndpoint
-  ? await puppeteer.connect({ browserWSEndpoint: wsEndpoint })
-  : await puppeteer.connect({ browserURL });
+  ? await puppeteer.connect({ browserWSEndpoint: wsEndpoint, defaultViewport: null })
+  : await puppeteer.connect({ browserURL, defaultViewport: null });
 
 const page = (await browser.pages())[0] || await browser.newPage();
 
 // ========== YOUR ACTIONS HERE ==========
 await page.goto("https://example.com");
-await page.screenshot({ path: "result.png" });
+await page.screenshot({ path: "result.png", captureBeyondViewport: false });
 // ========================================
 
 console.log("WS_ENDPOINT=" + browser.wsEndpoint());
@@ -328,7 +349,10 @@ EOF
 # List all interactive elements on the page
 WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0];
 
 const buttons = await page.$$eval("button", els =>
@@ -356,7 +380,10 @@ EOF
 # Wait pattern examples
 WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0];
 
 // Wait for navigation after click
@@ -388,14 +415,17 @@ EOF
 # Various screenshot options
 WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0];
 
-// Full page
-await page.screenshot({ path: "page.png", fullPage: true });
+// Viewport only (default)
+await page.screenshot({ path: "viewport.png", captureBeyondViewport: false });
 
-// Viewport only
-await page.screenshot({ path: "viewport.png" });
+// Full page (scrolls entire document)
+await page.screenshot({ path: "page.png", fullPage: true });
 
 // As buffer (no file)
 const buffer = await page.screenshot();
@@ -418,7 +448,10 @@ EOF
 # Generate PDF (requires headless mode)
 WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0];
 
 await page.pdf({
@@ -440,7 +473,10 @@ EOF
 # Evaluate JavaScript in page context
 WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0];
 
 // Get data from page
@@ -478,7 +514,10 @@ Access raw Chrome DevTools Protocol for advanced automation.
 # CDP session example
 WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0];
 
 const client = await page.createCDPSession();
@@ -506,7 +545,10 @@ EOF
 # Monitor network requests via CDP
 WS_ENDPOINT="ws://..." tsx << 'EOF'
 import puppeteer from "puppeteer-core";
-const browser = await puppeteer.connect({ browserWSEndpoint: process.env.WS_ENDPOINT });
+const browser = await puppeteer.connect({
+  browserWSEndpoint: process.env.WS_ENDPOINT,
+  defaultViewport: null
+});
 const page = (await browser.pages())[0];
 
 const client = await page.createCDPSession();
@@ -547,7 +589,10 @@ try {
 } catch {}
 
 try {
-  const browser = await puppeteer.connect({ browserURL: `http://${browserIP}:9222` });
+  const browser = await puppeteer.connect({
+    browserURL: `http://${browserIP}:9222`,
+    defaultViewport: null
+  });
   const page = (await browser.pages())[0];
 
   // Navigation timeout handling
