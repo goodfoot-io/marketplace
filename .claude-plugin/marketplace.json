@@ -124,6 +124,19 @@
         "sdk",
         "oauth"
       ]
+    },
+    {
+      "name": "github",
+      "source": "./plugins/github",
+      "tags": [
+        "github",
+        "octokit",
+        "issues",
+        "pull-requests",
+        "actions",
+        "sdk",
+        "repositories"
+      ]
     }
   ]
 }

@@ -45,6 +45,7 @@
     "dependency-tree": "^11.2.0",
     "glob-gitignore": "^1.0.15",
     "istextorbinary": "^9.5.0",
+    "octokit": "^5.0.5",
     "puppeteer-core": "^24.31.0",
     "y-protocols": "^1.0.6",
     "y-websocket": "^3.0.0",

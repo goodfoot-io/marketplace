@@ -30,7 +30,8 @@
     "vscode@goodfoot": true,
     "goodfoot@goodfoot": true,
     "browser@goodfoot": true,
-    "gmail@goodfoot": true
+    "gmail@goodfoot": true,
+    "github@goodfoot": true
   },
   "extraKnownMarketplaces": {
     "goodfoot": {

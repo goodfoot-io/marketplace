@@ -1,12 +1,12 @@
 # How to Create SDK-Based Claude Code Skills
 
-A practical guide for creating skills that use NPM packages (SDKs) to accomplish tasks, based on lessons learned building the Linear SDK skill.
+A practical guide for creating skills that use NPM packages (SDKs) to accomplish tasks, based on lessons learned building the Linear, Gmail, and Browser skills.
 
 ## Overview
 
 SDK-based skills help Claude interact with external services through their official TypeScript/JavaScript SDKs. This guide covers the **routing model**: a main SKILL.md that routes to specialized sub-documents based on context.
 
-**This guide assumes** you've read the official Claude Code skill documentation and understand basic skill structure.
+**This guide assumes** you've read the official Claude Code skill documentation, understand basic skill structure, and have read `documentation/how-to-use-embedded-bash-in-skills.md`.
 
 ## When to Use This Pattern
 
@@ -102,15 +102,34 @@ skills/
 ### 2.2 SKILL.md as a Router
 
 Keep SKILL.md **under 200 lines**. It should:
-1. Route to sub-documents by context
-2. Show decision trees for core intents
-3. List verified gotchas
-4. Provide essential patterns (not exhaustive examples)
+1. **Start with embedded bash environment check** (see Phase 3)
+2. Route to sub-documents by context
+3. Show decision trees for core intents
+4. List verified gotchas with cleanup requirements
+5. Provide essential patterns (not exhaustive examples)
 
 ```markdown
 # Service Reference (SDK)
 
-Uses `@service/sdk` with `tsx`. Run: `dotenv -- tsx script.ts`
+\`\`\`!
+# Embedded bash environment check - runs when skill loads
+# See Phase 3 for full template
+\`\`\`
+
+Uses `@service/sdk` with `tsx`. Run inline scripts using heredocs:
+
+\`\`\`bash
+tsx << 'EOF'
+import { Client } from "@service/sdk";
+// your code with top-level await
+EOF
+\`\`\`
+
+**IMPORTANT**: Use `tsx << 'EOF' ... EOF` heredoc syntax for inline execution with top-level await. The `tsx -e` flag does NOT support top-level await.
+
+## ⚠️ Cleanup Requirements
+
+[Document what files/artifacts the skill creates and how to clean them up]
 
 ## Decision Trees
 
@@ -163,9 +182,150 @@ Each sub-document should be self-contained:
 |-------|------|-------------|
 ```
 
-## Phase 3: Verification-Driven Documentation
+## Phase 3: Embedded Bash Environment Checks
 
-### 3.1 The Verification Loop
+Every SDK skill should start with an embedded bash block that validates prerequisites before Claude attempts any operations. This prevents confusing failures and provides clear guidance.
+
+### 3.1 Environment Check Template
+
+```bash
+```!
+# === [Skill Name] Environment Check ===
+BLOCKED=""
+
+# Detect package manager (for install suggestions)
+if [ -f "yarn.lock" ]; then
+  PKG_MGR="yarn" PKG_ADD="yarn add" PKG_GLOBAL="yarn global add"
+elif [ -f "pnpm-lock.yaml" ]; then
+  PKG_MGR="pnpm" PKG_ADD="pnpm add" PKG_GLOBAL="pnpm add -g"
+else
+  PKG_MGR="npm" PKG_ADD="npm install" PKG_GLOBAL="npm install -g"
+fi
+
+# 1. API Key / Credentials check
+if [ -z "$SERVICE_API_KEY" ]; then
+  BLOCKED="yes"
+  echo "❌ BLOCKED: SERVICE_API_KEY not set"
+  echo ""
+  echo "STOP. Do not attempt [service] operations."
+  echo "Ask user to set their API key:"
+  echo "  export SERVICE_API_KEY=..."
+else
+  echo "✓ API key set (${SERVICE_API_KEY:0:8}...)"
+fi
+
+# 2. Runtime check (tsx for TypeScript execution)
+if command -v tsx >/dev/null 2>&1; then
+  echo "✓ tsx $(tsx --version 2>&1 | head -1)"
+else
+  BLOCKED="yes"
+  echo "❌ BLOCKED: tsx not installed"
+  echo "   Cannot execute scripts. Install with: $PKG_GLOBAL tsx"
+fi
+
+# 3. Package check
+if [ -d "node_modules/@service/sdk" ]; then
+  VER=$(node -p "require('@service/sdk/package.json').version" 2>/dev/null || echo "?")
+  echo "✓ @service/sdk@$VER"
+else
+  BLOCKED="yes"
+  echo "❌ BLOCKED: @service/sdk not installed"
+  echo "   Cannot execute scripts. Install with: $PKG_ADD @service/sdk"
+fi
+
+# Final status (MUST exit 0 to not fail skill load)
+if [ -z "$BLOCKED" ]; then
+  echo ""
+  echo "Ready to execute [service] operations."
+fi
+```
+```
+
+### 3.2 Critical Requirements
+
+| Requirement | Why | How |
+|-------------|-----|-----|
+| **Exit code 0** | Non-zero fails skill load | Use `if` statements, not `&&` chains for final output |
+| **BLOCKED messaging** | Agents need clear instructions | Use `❌ BLOCKED:` + `STOP. Do not attempt X.` |
+| **Package manager detection** | Correct install commands | Check for `yarn.lock` / `pnpm-lock.yaml` |
+| **Partial success** | Show what's working | Check each prerequisite independently |
+
+### 3.3 BLOCKED Message Pattern
+
+When a prerequisite is missing, provide explicit agent instructions:
+
+```bash
+BLOCKED="yes"
+echo "❌ BLOCKED: [what's missing]"
+echo ""
+echo "STOP. Do not attempt [service] operations."
+echo "Ask user: \"[specific question or action]\""
+echo ""
+echo "[Additional context or setup instructions]"
+```
+
+**Key elements:**
+- `❌ BLOCKED:` prefix makes the issue obvious
+- `STOP. Do not attempt X.` tells agent what NOT to do
+- `Ask user: "..."` provides exact phrasing for agent to use
+
+### 3.4 Exit Code 0 Requirement
+
+**Critical**: The embedded bash block MUST exit with code 0 or the skill fails to load.
+
+```bash
+# ❌ WRONG - returns exit code 1 when BLOCKED is set
+[ -z "$BLOCKED" ] && echo "Ready to execute operations."
+
+# ✅ CORRECT - if statement always returns 0
+if [ -z "$BLOCKED" ]; then
+  echo ""
+  echo "Ready to execute operations."
+fi
+```
+
+### 3.5 Credential Check Patterns
+
+**Environment variable (simple):**
+```bash
+if [ -z "$API_KEY" ]; then
+  BLOCKED="yes"
+  echo "❌ BLOCKED: API_KEY not set"
+fi
+```
+
+**File-based credentials (OAuth tokens, etc.):**
+```bash
+CRED_PATH="$HOME/.service-skill"
+if [ ! -d "$CRED_PATH" ]; then
+  BLOCKED="yes"
+  echo "❌ BLOCKED: ~/.service-skill/ directory not found"
+  echo "Setup guide: @${CLAUDE_PLUGIN_ROOT}/skills/service/advanced/setup.md"
+elif [ ! -f "$CRED_PATH/tokens.json" ]; then
+  BLOCKED="yes"
+  echo "❌ BLOCKED: tokens.json not found"
+fi
+```
+
+**Token validation (with expiry check):**
+```bash
+if node -e "JSON.parse(require('fs').readFileSync('$CRED_PATH/tokens.json'))" 2>/dev/null; then
+  EXPIRY=$(node -p "JSON.parse(require('fs').readFileSync('$CRED_PATH/tokens.json')).expiry_date || 0" 2>/dev/null)
+  NOW_MS=$(($(date +%s) * 1000))
+  if [ -n "$EXPIRY" ] && [ "$EXPIRY" -gt "$NOW_MS" ] 2>/dev/null; then
+    REMAINING_MIN=$(((EXPIRY - NOW_MS) / 60000))
+    echo "✓ Token valid (${REMAINING_MIN}m remaining)"
+  else
+    echo "✓ Token expired (will auto-refresh)"
+  fi
+fi
+```
+
+---
+
+## Phase 4: Verification-Driven Documentation
+
+### 4.1 The Verification Loop
 
 ```
 1. Write assumption → "parent returns null for top-level items"
@@ -243,9 +403,9 @@ async function main() {
 main();
 ```
 
-## Phase 4: Gotcha Documentation
+## Phase 5: Gotcha Documentation
 
-### 4.1 Common SDK Gotchas
+### 5.1 Common SDK Gotchas
 
 Every SDK has these. Document them prominently:
 
@@ -258,7 +418,7 @@ Every SDK has these. Document them prominently:
 | **Async relations** | `item.relation` might need `await` |
 | **Type collisions** | Multiple statuses/categories share same type |
 
-### 4.2 Gotcha Table Format
+### 5.2 Gotcha Table Format
 
 ```markdown
 ## Critical Gotchas (Verified)
@@ -268,13 +428,68 @@ Every SDK has these. Document them prominently:
 | Bot loops | Your comments trigger webhooks | Check `event.user.id === myId` first |
 | Null check | SDK returns `undefined`, not `null` | Use `!value` or `=== undefined` |
 | Name field | `user.name` = email in SDK | Use `user.displayName` instead |
+| **File accumulation** | Screenshots/PDFs persist after script | Delete files after use |
 ```
 
 The "Verified" label signals these were tested, not assumed.
 
-## Phase 5: Webhook Handling
+### 5.3 Cleanup Requirements Section
 
-### 5.1 Bot Loop Prevention (Critical)
+Every skill that creates files should document cleanup requirements prominently:
+
+```markdown
+## ⚠️ Cleanup Requirements
+
+**CRITICAL**: This skill creates [files]. You MUST clean up generated files:
+
+\`\`\`bash
+# After using files, delete them immediately
+rm -f screenshot.png result.png output.pdf
+\`\`\`
+
+| File Type | Created By | Cleanup |
+|-----------|------------|---------|
+| `*.png` | `screenshot()` | Delete after viewing |
+| `*.pdf` | `generatePDF()` | Delete after processing |
+
+**Best Practice**: Use buffer/memory output instead of files when possible.
+```
+
+### 5.4 Buffer vs File Output
+
+For skills that generate binary output (screenshots, PDFs, etc.), prefer buffer/memory output over file output to avoid file accumulation:
+
+```typescript
+// ✅ PREFERRED: Buffer output (no cleanup needed)
+const buffer = await page.screenshot();
+console.log("Screenshot:", buffer.length, "bytes");
+
+// ⚠️ FILE OUTPUT: Only when needed - MUST clean up after
+await page.screenshot({ path: "temp.png" });
+// ... use file ...
+// Then: rm -f temp.png
+```
+
+**Document both approaches** in your skill, with buffer as default and file as the exception.
+
+**Example cleanup reminder pattern:**
+```markdown
+### Screenshot Options
+
+\`\`\`typescript
+// ✅ PREFERRED: Buffer output (no cleanup needed)
+const buffer = await page.screenshot();
+
+// ⚠️ FILE OUTPUT: Only when needed - MUST clean up after
+// await page.screenshot({ path: "temp.png" });
+// ... use file ...
+// Then run: rm -f temp.png
+\`\`\`
+```
+
+## Phase 6: Webhook Handling
+
+### 6.1 Bot Loop Prevention (Critical)
 
 Every webhook skill needs this. Make it prominent:
 
@@ -292,7 +507,7 @@ function handleWebhook(event) {
 }
 ```
 
-### 5.2 Webhook vs SDK Field Differences
+### 6.2 Webhook vs SDK Field Differences
 
 Document mismatches between webhook payloads and SDK responses:
 
@@ -304,7 +519,7 @@ Document mismatches between webhook payloads and SDK responses:
 | Timestamps | ISO string | Date object |
 ```
 
-### 5.3 Change Detection Patterns
+### 6.3 Change Detection Patterns
 
 ```typescript
 // Detect what changed
@@ -316,9 +531,18 @@ const wasCompleted =
   event.data.status === "done";
 ```
 
-## Phase 6: Quality Checklist
+## Phase 7: Quality Checklist
 
 Before considering the skill complete:
+
+### Embedded Bash Environment Check
+- [ ] Environment check block at start of SKILL.md
+- [ ] Package manager auto-detection (yarn/pnpm/npm)
+- [ ] Credential/API key validation with clear error messages
+- [ ] Runtime check (tsx installed)
+- [ ] SDK package check (node_modules)
+- [ ] BLOCKED messages with explicit agent instructions
+- [ ] Script exits with code 0 (use `if` not `&&`)
 
 ### Documentation Quality
 - [ ] SKILL.md under 200 lines
@@ -326,6 +550,13 @@ Before considering the skill complete:
 - [ ] Gotcha table with verified findings
 - [ ] Each sub-doc has official docs link
 - [ ] Examples are minimal (not exhaustive)
+- [ ] Heredoc syntax documented (`tsx << 'EOF' ... EOF`)
+
+### Cleanup Requirements
+- [ ] Cleanup section documents generated files
+- [ ] Buffer output preferred over file output
+- [ ] File output examples show cleanup commands
+- [ ] File accumulation listed in gotchas table
 
 ### Verification
 - [ ] Verification scripts exist and run
@@ -394,6 +625,48 @@ await client.createComment({ entityId: id, body: "..." });
 See sdk/comments.md#creating for full options.
 ```
 
+### ❌ File Output Without Cleanup
+```typescript
+// Creates files that accumulate
+await page.screenshot({ path: "screenshot.png" });
+await page.screenshot({ path: "result.png" });
+await page.pdf({ path: "output.pdf" });
+// No cleanup - files pile up!
+```
+
+### ✅ Buffer Output or Cleanup Reminder
+```typescript
+// Buffer approach - no files to clean up
+const buffer = await page.screenshot();
+console.log("Screenshot:", buffer.length, "bytes");
+
+// Or file with explicit cleanup
+await page.screenshot({ path: "temp.png" });
+// ... use file ...
+// Then: rm -f temp.png
+```
+
+### ❌ Missing Environment Check
+```markdown
+# Service Reference (SDK)
+
+Uses `@service/sdk` with `tsx`.
+<!-- Agent tries operations without checking prerequisites -->
+```
+
+### ✅ Environment Check First
+```markdown
+# Service Reference (SDK)
+
+\`\`\`!
+# Check prerequisites before agent attempts anything
+if [ -z "$API_KEY" ]; then
+  echo "❌ BLOCKED: API_KEY not set"
+  echo "STOP. Do not attempt operations."
+fi
+\`\`\`
+```
+
 ## Example: Applying to a New SDK (Stripe)
 
 ### 1. Identify 5 Core Intents
@@ -442,11 +715,22 @@ skills/stripe/
 
 ## Summary
 
-1. **Start from user intents**, not API methods
-2. **Verify everything** with runnable scripts
-3. **Keep SKILL.md small** (under 200 lines)
-4. **Document gotchas prominently** - these prevent real bugs
-5. **Bot loop prevention** is critical for webhook handlers
-6. **Link, don't inline** - sub-docs handle details
+1. **Start with environment checks** - Validate prerequisites before agent attempts operations
+2. **Auto-detect package manager** - Provide correct install commands (yarn/pnpm/npm)
+3. **Use BLOCKED messaging** - Clear `❌ BLOCKED:` + `STOP. Do not attempt X.` pattern
+4. **Prefer buffer over file output** - Avoid file accumulation issues
+5. **Document cleanup requirements** - If files are created, show how to clean them up
+6. **Start from user intents**, not API methods
+7. **Verify everything** with runnable scripts
+8. **Keep SKILL.md small** (under 200 lines)
+9. **Document gotchas prominently** - these prevent real bugs
+10. **Bot loop prevention** is critical for webhook handlers
+11. **Link, don't inline** - sub-docs handle details
 
-The goal is a skill that helps users accomplish tasks quickly, warns them about pitfalls, and routes them to details only when needed.
+The goal is a skill that:
+- Validates prerequisites before operations (environment checks)
+- Guides agents clearly when blocked (BLOCKED messaging)
+- Avoids file accumulation (buffer output preferred)
+- Helps users accomplish tasks quickly
+- Warns about pitfalls
+- Routes to details only when needed
