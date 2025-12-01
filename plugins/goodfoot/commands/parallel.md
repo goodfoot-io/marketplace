@@ -12,7 +12,7 @@ Use the `Task()` tool to launch subagents.
 The `<user-message>` will describe the following inputs:
 - [TASKS]: Array of distinct tasks for subagents to perform. Each [TASKS][i] represents one distinct piece of work. (required)
 - [SUBAGENT_COUNT]: The number of subagents to perform the [TASKS]. (optional, default 3)
-- [SUBAGENT_TYPE]: The `subagent_type` to use when invoking the Task tool function. (optional, default "goodfoot:simple-purpose")
+- [SUBAGENT_TYPE]: The `subagent_type` to use when invoking the Task tool function. (optional, default "goodfoot:simple")
 - [SUBAGENT_MODEL]: The model to use for the subagents. (optional, auto-detected if not specified)
 
 You should derive the following from the provided inputs:
