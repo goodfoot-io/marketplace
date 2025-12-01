@@ -6,7 +6,7 @@ volumes:
 services:
   app:
     env_file:
-    - .env 
+      - .env 
     build:
       context: .
       dockerfile: Dockerfile
