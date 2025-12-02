@@ -13,9 +13,9 @@ Use when technology has NOT been chosen and you need to compare 2-3 viable appro
 
 **Derive these values from your context:**
 - `[SPIKE_QUESTION]`: Format as "Which approach ([A] vs [B] vs [C]) best supports [use case] with [constraints]?"
-- `[SCRATCHPAD_PATH]`: Format as `projects/[STATUS]/[PROJECT_NAME]/scratchpad/[test-name]/`
-  - `[STATUS]`: Extract from current project directory (new/active/pending/ready-for-review)
+- `[SCRATCHPAD_PATH]`: Format as `scratchpad/[test-name]/` (relative to project directory)
   - `[test-name]`: Use kebab-case like `realtime-comparison` or `socketio-vs-sse`
+  - Subagent prompts use absolute path: `[PROJECT_PATH]/scratchpad/[test-name]/`
 - `[APPROACHES]`: List 2-3 technologies with versions (e.g., `["Socket.io v4.6.1 (WebSocket)", "EventSource (SSE)", "long-polling"]`)
 - `[COMPARISON_CRITERIA]`: Measurable aspects (e.g., `"Developer experience, bidirectional communication, horizontal scaling"`)
 - `[SPIKE_CONTEXT]`: XML-formatted technical context with absolute paths (see <subagent-context> section below)
@@ -30,8 +30,9 @@ Use when technology IS chosen but specific capability/compatibility needs verifi
 
 **Derive these values from your context:**
 - `[SPIKE_QUESTION]`: Format as "Does [Library@version] support [specific capability]?"
-- `[SCRATCHPAD_PATH]`: Format as `projects/[STATUS]/[PROJECT_NAME]/scratchpad/[test-name]/`
+- `[SCRATCHPAD_PATH]`: Format as `scratchpad/[test-name]/` (relative to project directory)
   - `[test-name]`: Use kebab-case like `redis-compatibility-check` or `react-query-types-export`
+  - Subagent prompts use absolute path: `[PROJECT_PATH]/scratchpad/[test-name]/`
 - `[APPROACH]`: Single technology to validate (e.g., `"Socket.io v4.6.1 with @socket.io/redis-adapter"`)
 - `[VALIDATION_CRITERIA]`: What needs verification (e.g., `"Redis adapter compatibility for horizontal scaling"`)
 - `[SPIKE_CONTEXT]`: XML-formatted technical context with absolute paths (see <subagent-context> section below)
@@ -42,7 +43,9 @@ Use when technology IS chosen but specific capability/compatibility needs verifi
 
 
 <subagent-context>
-Subagents have ZERO context from this conversation. Use FULL ABSOLUTE PATHS starting with `/workspace/` in all semantic tags.
+Subagents have no context from this conversation. Provide workspace-relative paths:
+- Scratchpad: `[PROJECT_PATH]/scratchpad/[test-name]/`
+- Codebase files: `packages/api/src/server.ts` (no prefix needed)
 
 Structure [SUBAGENT_CONTEXT] and [SPIKE_CONTEXT] using semantic XML tags that organize technical details:
 
@@ -61,11 +64,11 @@ Structure [SUBAGENT_CONTEXT] and [SPIKE_CONTEXT] using semantic XML tags that or
 </comparison-criteria>
 
 <technical-context>
-[Relevant technical constraints, requirements, or existing patterns from `/workspace/...`]
+[Relevant technical constraints, requirements, or existing patterns]
 </technical-context>
 
 <scratchpad-path>
-[SCRATCHPAD_PATH] - isolate all artifacts here
+[PROJECT_PATH]/scratchpad/[test-name]/
 </scratchpad-path>
 ```
 
@@ -84,11 +87,11 @@ Structure [SUBAGENT_CONTEXT] and [SPIKE_CONTEXT] using semantic XML tags that or
 </validation-criteria>
 
 <technical-context>
-[Relevant technical constraints, version requirements, or integration points from `/workspace/...`]
+[Relevant technical constraints, version requirements, or integration points]
 </technical-context>
 
 <scratchpad-path>
-[SCRATCHPAD_PATH] - isolate all artifacts here
+[PROJECT_PATH]/scratchpad/[test-name]/
 </scratchpad-path>
 ```
 </subagent-context>
@@ -108,7 +111,7 @@ Instruct the subagent to document findings in a structured format within the scr
   - [Approach 1]: [Specific findings from prototype]
   - [Approach 2]: [Specific findings from prototype]
   - [Approach 3]: [Specific findings from prototype]
-- **Artifacts**: `[scratchpad-path]` contains:
+- **Artifacts**: `scratchpad/[test-name]/` contains:
   - `approach-[name1]/` - [Description]
   - `approach-[name2]/` - [Description]
   - `approach-[name3]/` - [Description]
@@ -126,7 +129,7 @@ Instruct the subagent to document findings in a structured format within the scr
 - **Approach Tested**: [Technology/version being validated]
 - **Result**: [Pass/Fail or capability confirmation]
 - **Evidence**: [Concrete demonstration - working code, API output, test results]
-- **Artifacts**: `[scratchpad-path]` contains:
+- **Artifacts**: `scratchpad/[test-name]/` contains:
   - `test-implementation/` - [Description]
   - `results.md` - Detailed findings
 - **Impact**: [How this result confirms feasibility or influences implementation details]
@@ -136,11 +139,12 @@ Instruct the subagent to document findings in a structured format within the scr
 <example>
 **Comparison Spike Example**:
 
-User message: "Compare WebSocket (Socket.io), Server-Sent Events (EventSource), and long-polling for real-time notifications. Compare developer experience, bidirectional communication support, and horizontal scaling capability. Use scratchpad path `projects/active/notification-system/scratchpad/realtime-comparison/`"
+User message: "Compare WebSocket (Socket.io), Server-Sent Events (EventSource), and long-polling for real-time notifications. Compare developer experience, bidirectional communication support, and horizontal scaling capability. Use scratchpad path `scratchpad/realtime-comparison/`"
 
 Derived values:
 - [SPIKE_QUESTION] = "Which real-time approach (WebSocket, SSE, or long-polling) best supports notification requirements with horizontal scaling?"
-- [SCRATCHPAD_PATH] = "projects/active/notification-system/scratchpad/realtime-comparison/"
+- [SCRATCHPAD_PATH] = "scratchpad/realtime-comparison/" (documented in results)
+- [PROJECT_SCRATCHPAD] = "[PROJECT_PATH]/scratchpad/realtime-comparison/" (used in subagent prompt)
 - [APPROACHES] = ["Socket.io v4.6.1 (WebSocket)", "native EventSource (SSE)", "polling with state management"]
 - [COMPARISON_CRITERIA] = ["Developer experience", "Bidirectional communication support", "Horizontal scaling capability"]
 - [SUBAGENT_TYPE] = "general-purpose"
@@ -150,7 +154,7 @@ Derived values:
 ```
 Compare three real-time communication approaches for a notification system. Create working prototypes of each approach in the scratchpad and compare them against specific criteria.
 
-Create prototypes in `/workspace/projects/active/notification-system/scratchpad/realtime-comparison/`:
+Create prototypes in `[PROJECT_PATH]/scratchpad/realtime-comparison/`:
 1. `approach-socketio/` - Socket.io v4.6.1 implementation with Redis adapter for horizontal scaling
 2. `approach-sse/` - Native EventSource implementation with separate POST endpoint for client→server
 3. `approach-polling/` - Long-polling implementation with state management
@@ -187,11 +191,11 @@ Notification system requires real-time delivery with horizontal scaling. Multipl
 </comparison-criteria>
 
 <technical-context>
-Existing system uses Express.js v4.18.2 in `/workspace/packages/api/src/server.ts`. Production runs 5 instances behind load balancer. Redis v7.0 available for pub/sub if needed.
+Existing system uses Express.js v4.18.2 in `packages/api/src/server.ts`. Production runs 5 instances behind load balancer. Redis v7.0 available for pub/sub if needed.
 </technical-context>
 
 <scratchpad-path>
-/workspace/projects/active/notification-system/scratchpad/realtime-comparison/
+[PROJECT_PATH]/scratchpad/realtime-comparison/
 </scratchpad-path>
 ```
 
@@ -220,17 +224,17 @@ Notification system requires real-time delivery with horizontal scaling. Multipl
 </comparison-criteria>
 
 <technical-context>
-Existing system uses Express.js v4.18.2 in `/workspace/packages/api/src/server.ts`. Production runs 5 instances behind load balancer. Redis v7.0 available for pub/sub if needed.
+Existing system uses Express.js v4.18.2 in `packages/api/src/server.ts`. Production runs 5 instances behind load balancer. Redis v7.0 available for pub/sub if needed.
 </technical-context>
 
 <scratchpad-path>
-/workspace/projects/active/notification-system/scratchpad/realtime-comparison/
+[PROJECT_PATH]/scratchpad/realtime-comparison/
 </scratchpad-path>
 
 <instructions>
 Compare three real-time communication approaches for a notification system. Create working prototypes of each approach in the scratchpad and compare them against specific criteria.
 
-Create prototypes in `/workspace/projects/active/notification-system/scratchpad/realtime-comparison/`:
+Create prototypes in `[PROJECT_PATH]/scratchpad/realtime-comparison/`:
 1. `approach-socketio/` - Socket.io v4.6.1 implementation with Redis adapter for horizontal scaling
 2. `approach-sse/` - Native EventSource implementation with separate POST endpoint for client→server
 3. `approach-polling/` - Long-polling implementation with state management
@@ -255,11 +259,12 @@ Document findings using the Comparison Result Template in `results.md`.
 <example>
 **Validation Spike Example**:
 
-User message: "Verify Socket.io v4.6.1 supports Redis adapter for horizontal scaling. Use scratchpad path `projects/active/notification-system/scratchpad/redis-compatibility/`"
+User message: "Verify Socket.io v4.6.1 supports Redis adapter for horizontal scaling. Use scratchpad path `scratchpad/redis-compatibility/`"
 
 Derived values:
 - [SPIKE_QUESTION] = "Does Socket.io v4.6.1 support Redis adapter for horizontal scaling?"
-- [SCRATCHPAD_PATH] = "projects/active/notification-system/scratchpad/redis-compatibility/"
+- [SCRATCHPAD_PATH] = "scratchpad/redis-compatibility/" (documented in results)
+- [PROJECT_SCRATCHPAD] = "[PROJECT_PATH]/scratchpad/redis-compatibility/" (used in subagent prompt)
 - [APPROACHES] = ["Socket.io v4.6.1 with Redis adapter"]
 - [SUBAGENT_TYPE] = "general-purpose"
 - [SUBAGENT_DESCRIPTION] = "redis-compatibility-check"
@@ -268,7 +273,7 @@ Derived values:
 ```
 Verify Socket.io v4.6.1 supports Redis adapter for horizontal scaling.
 
-Create test implementation in `/workspace/projects/active/notification-system/scratchpad/redis-compatibility/`:
+Create test implementation in `[PROJECT_PATH]/scratchpad/redis-compatibility/`:
 1. `test-implementation/` - Socket.io v4.6.1 with Redis adapter configuration
 2. Install required packages: socket.io@4.6.1, @socket.io/redis-adapter
 3. Test multi-instance communication through Redis
@@ -297,11 +302,11 @@ Socket.io v4.6.1 with @socket.io/redis-adapter - configuration and multi-instanc
 </validation-criteria>
 
 <technical-context>
-Production environment uses Redis v7.0. Target deployment has 5 Node.js instances behind load balancer. Existing stack uses Express.js v4.18.2 in `/workspace/packages/api/src/server.ts`.
+Production environment uses Redis v7.0. Target deployment has 5 Node.js instances behind load balancer. Existing stack uses Express.js v4.18.2 in `packages/api/src/server.ts`.
 </technical-context>
 
 <scratchpad-path>
-/workspace/projects/active/notification-system/scratchpad/redis-compatibility/
+[PROJECT_PATH]/scratchpad/redis-compatibility/
 </scratchpad-path>
 ```
 
@@ -328,17 +333,17 @@ Socket.io v4.6.1 with @socket.io/redis-adapter - configuration and multi-instanc
 </validation-criteria>
 
 <technical-context>
-Production environment uses Redis v7.0. Target deployment has 5 Node.js instances behind load balancer. Existing stack uses Express.js v4.18.2 in `/workspace/packages/api/src/server.ts`.
+Production environment uses Redis v7.0. Target deployment has 5 Node.js instances behind load balancer. Existing stack uses Express.js v4.18.2 in `packages/api/src/server.ts`.
 </technical-context>
 
 <scratchpad-path>
-/workspace/projects/active/notification-system/scratchpad/redis-compatibility/
+[PROJECT_PATH]/scratchpad/redis-compatibility/
 </scratchpad-path>
 
 <instructions>
 Verify Socket.io v4.6.1 supports Redis adapter for horizontal scaling.
 
-Create test implementation in `/workspace/projects/active/notification-system/scratchpad/redis-compatibility/`:
+Create test implementation in `[PROJECT_PATH]/scratchpad/redis-compatibility/`:
 1. `test-implementation/` - Socket.io v4.6.1 with Redis adapter configuration
 2. Install required packages: socket.io@4.6.1, @socket.io/redis-adapter
 3. Test multi-instance communication through Redis

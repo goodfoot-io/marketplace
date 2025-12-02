@@ -199,13 +199,13 @@ Then provide the spike details in your message to the skill:
 ```
 Compare [Approach A], [Approach B], and [Approach C] for [use case].
 Compare [criterion 1], [criterion 2], and [criterion 3].
-Use scratchpad path `projects/[STATUS]/[PROJECT_NAME]/scratchpad/[test-name]/`
+Use scratchpad path `scratchpad/[test-name]/`
 ```
 
 **For Validation Spikes** (testing single approach):
 ```
 Verify [Library@version] supports [specific capability/feature].
-Use scratchpad path `projects/[STATUS]/[PROJECT_NAME]/scratchpad/[test-name]/`
+Use scratchpad path `scratchpad/[test-name]/`
 ```
 
 The spike skill will handle:
@@ -559,7 +559,7 @@ If technical validation was performed:
 - [test_name]: [result summary]
   - Evidence: [key findings from investigation]
   - Version compatibility: [confirmed for X.X.X]
-  - Location: projects/[STATUS]/[PROJECT_NAME]/scratchpad/[test-name]/
+  - Location: scratchpad/[test-name]/
 - [How test results affect the approach]
 - [Any constraints discovered through testing]
 
