@@ -159,7 +159,7 @@ You should track task outcomes and note any errors for the validation phase.
 
 ## Step 5: Run Validation
 
-You should run validation using a haiku subagent:
+Use the Task tool to dispatch a 'general-purpose' subagent to validate the implementation:
 
 ```xml
 <invoke name="Task">
