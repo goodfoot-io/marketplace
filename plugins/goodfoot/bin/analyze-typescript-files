@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# analyze-typescript-files: Extract .ts file paths from input, validate existence, and run dependency analysis
+# Usage: echo "some text with /path/to/file.ts" | analyze-typescript-files
+#    or: analyze-typescript-files "some text with /path/to/file.ts"
+# Returns: Formatted report of dependencies, or nothing if no valid files found
+
+# Get the directory where this script lives (for sibling tool access)
+SCRIPT_DIR="$(dirname "$0")"
+
+# Get input from argument or stdin
+if [ -n "$1" ]; then
+    input="$1"
+else
+    input="$(cat)"
+fi
+
+# Exit silently if no input
+if [ -z "$input" ]; then
+    exit 0
+fi
+
+# Extract potential .ts file paths (matches paths like /foo/bar.ts, ./foo.ts, foo/bar.ts)
+# Excludes .d.ts declaration files and node_modules
+ts_files=$(printf '%s\n' "$input" | grep -oE '([/.a-zA-Z0-9_-]+\.ts)\b' | grep -v '\.d\.ts' | grep -v 'node_modules' | sort -u)
+
+# Exit silently if no .ts files found
+if [ -z "$ts_files" ]; then
+    exit 0
+fi
+
+# Collect valid files
+valid_files=()
+while IFS= read -r file; do
+    # Try to resolve the file path
+    if [ -f "$file" ]; then
+        valid_files+=("$file")
+    elif [ -f "$(pwd)/$file" ]; then
+        valid_files+=("$(pwd)/$file")
+    fi
+done <<< "$ts_files"
+
+# Exit silently if no valid files
+if [ ${#valid_files[@]} -eq 0 ]; then
+    exit 0
+fi
+
+# Analyze each file
+for file in "${valid_files[@]}"; do
+    printf '### %s\n\n' "$file"
+
+    # Dependencies (what this file imports)
+    printf '#### Dependencies\n'
+    deps=$("$SCRIPT_DIR/print-dependencies" "$file" 2>/dev/null)
+    if [ -n "$deps" ]; then
+        printf '```\n%s\n```\n\n' "$deps"
+    else
+        printf 'No dependencies found\n\n'
+    fi
+
+    # Inverse dependencies (what imports this file)
+    printf '#### Dependents (files that import this)\n'
+    inv_deps=$("$SCRIPT_DIR/print-inverse-dependencies" "$file" 2>/dev/null)
+    if [ -n "$inv_deps" ]; then
+        printf '```\n%s\n```\n\n' "$inv_deps"
+    else
+        printf 'No dependents found\n\n'
+    fi
+
+    # Type analysis
+    printf '#### Type Analysis\n'
+    type_info=$("$SCRIPT_DIR/print-type-analysis" "$file" 2>/dev/null)
+    if [ -n "$type_info" ]; then
+        printf '```yaml\n%s\n```\n\n' "$type_info"
+    else
+        printf 'No type information available\n\n'
+    fi
+
+    printf -- '---\n\n'
+done

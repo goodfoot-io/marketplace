@@ -1,0 +1,2 @@
+#!/bin/bash
+exec tsx "$(dirname "$0")/print-type-analysis.ts" "$@"

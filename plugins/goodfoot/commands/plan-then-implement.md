@@ -1,312 +1,368 @@
 ---
 description: Plan and implement development tasks with automatic validation
-allowed-tools: *
 ---
+
+```!
+mkdir -p projects/new projects/pending projects/active projects/ready-for-review projects/complete projects/icebox
+```
 
 <user-message>
 $ARGUMENTS
 </user-message>
 
-<input-format>
-`<user-message>` should describe:
-- What needs to be built, fixed, or changed
-- Any specific requirements or constraints
-- Files, packages, or areas of the codebase involved
+Follow the `<instructions>` below to plan then implement the user's request. Do not skip instructions because the task is simple.
 
-Extract the following from `<user-message>`:
+<input-format>
+Extract from `<user-message>` or recent conversation:
 - [REQUEST] = The development task or goal (required)
 - [REQUIREMENTS] = Specific constraints, patterns to follow, or technical requirements (optional)
-- [SCOPE_HINT] = Files, packages, or areas mentioned by user (optional - command will investigate codebase to determine full scope)
+- [SCOPE_HINT] = Files, packages, or areas mentioned by user (optional)
 
-Variables derived during execution:
-- [OBJECTIVES] = Parsed goals and success criteria (Phase 1.1)
-- [TASKS] = Implementation tasks with dependencies (Phase 1.3)
-- [AFFECTED_PACKAGES] = Packages with modified files (Phase 3.1)
-- [VALIDATION_RESULTS] = Typecheck, test, and lint outcomes (Phase 3.2)
+Derived during execution:
+- [PROJECT_NAME] = Semantic kebab-case name from [REQUEST]
+- [PROJECT_DIR] = Project directory path
 </input-format>
+
+<operational-guidelines>
+You should follow these guidelines throughout execution:
+
+1. **Read before modifying** - Read and understand relevant files before proposing code edits. Do not speculate about code you have not inspected.
+
+2. **Avoid over-engineering** - Only make changes that are directly requested or clearly necessary. Don't add features, refactor code, or make "improvements" beyond what was asked. Don't create helpers, utilities, or abstractions for one-time operations.
+
+3. **Always dispatch tasks** - You should dispatch every implementation task to a haiku subagent. Do not implement tasks directly using Edit/Write tools. This applies regardless of task simplicity.
+
+4. **Use haiku model** - All subagents should use `model="haiku"`.
+
+5. **Self-contained task prompts** - Agents have no conversation context. Include full paths, code snippets, patterns, and requirements in every task prompt.
+</operational-guidelines>
+
+<exploration>
+Launch Explore subagents in parallel. Provide full paths.
+
+```xml
+<!-- PATTERN DISCOVERY -->
+<invoke name="Task">
+<parameter name="description">Discover patterns</parameter>
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">What existing patterns are used for [PROBLEM_AREA] in this codebase? Look for similar implementations, naming conventions, and architectural approaches.</parameter>
+</invoke>
+
+<!-- IMPACT ANALYSIS -->
+<invoke name="Task">
+<parameter name="description">Analyze impact</parameter>
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">What files and modules would be affected if [SCOPE_HINT] changes? Identify consumers, dependents, and integration points.</parameter>
+</invoke>
+
+<!-- TEST DISCOVERY -->
+<invoke name="Task">
+<parameter name="description">Discover tests</parameter>
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">What tests cover [SCOPE_HINT]? What test patterns does this codebase use?</parameter>
+</invoke>
+
+<!-- INTERFACE DISCOVERY -->
+<invoke name="Task">
+<parameter name="description">Discover interfaces</parameter>
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">What types, interfaces, and APIs does [SCOPE_HINT] expose or consume? What contracts must be preserved?</parameter>
+</invoke>
+```
+
+**Dependency Analysis** (run in parallel with above):
+```bash
+print-dependencies [SCOPE_HINT_FILES]
+print-inverse-dependencies [SCOPE_HINT_FILES]
+print-type-analysis [SCOPE_HINT_FILES]
+```
+</exploration>
 
 <instructions>
 ## Phase 1: Understand and Confirm
 
-### Step 1.1: Analyze Request
+### Step 1.1: Explore Codebase
 
-Parse the user's request to identify:
-- **Objectives**: What needs to be accomplished
-- **Scope**: Which files/packages will be affected
-- **Constraints**: Technical requirements, dependencies, patterns to follow
-- **Success Criteria**: How to verify completion
+You should explore the codebase to understand the request:
 
-Use Task with "codebase-analysis" subagent to investigate relevant code (MUST include full paths):
+1. **Launch exploration** - Follow `<exploration>` to discover patterns, impact, tests, and interfaces in parallel
+2. **Extract learnings** - Document problem, patterns, constraints, scope, and test gaps
+3. **Identify gaps** - Determine what remains unclear
+4. **Iterate or proceed** - If gaps exist, launch another targeted round. Otherwise, proceed to Step 1.2.
 
-```xml
-<!-- Examples - adapt to specific request: -->
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">How is authentication implemented in packages/api/src/auth?</parameter>
-</invoke>
+You should only ask the user questions for major ambiguity that would lead to fundamentally different approaches. Defer minor clarifications to Step 1.5.
 
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">What files import the User type from packages/shared/types/user.ts?</parameter>
-</invoke>
+**Completion Criteria** - Proceed when you:
+- Understand the problem and why it matters
+- Know which files need changes and their dependencies
+- Have identified patterns to follow
+- Have no critical open questions
 
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">What Repository pattern implementations exist in packages/api/src/repositories?</parameter>
-</invoke>
-```
+### Step 1.2: Initialize Project
 
-### Step 1.2: Analyze Dependencies
-
-For multi-task work, use dependency analysis tools to check for conflicts:
+You should generate a semantic kebab-case name (max 50 chars) and initialize the project:
 
 ```bash
-# Check what files a target depends on
-print-dependencies packages/api/src/services/user.ts
-
-# Check what would be affected by changes
-print-inverse-dependencies packages/shared/types/user.ts
-
-# Optional: Analyze complexity for refactoring tasks
-print-type-analysis packages/api/src/services/user.ts | grep -A 1 'complexity:'
-# High complexity scores (>10) indicate areas needing careful attention
+PROJECT_DIR=$(`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "[PROJECT_NAME]") && echo "$PROJECT_DIR"
 ```
-
-This helps identify if tasks can run in parallel or must be sequential.
 
 ### Step 1.3: Create Implementation Plan
 
-Based on analysis, generate tasks as either:
+You should bake testing requirements into each task description:
+- New features → "Write behavioral tests first, then implement"
+- Bug fixes → "Write test that reproduces bug, then fix"
+- Refactoring → "Verify test coverage, add tests if gaps, then refactor"
+- Config/docs → "No behavioral tests needed"
 
-**Sequential Tasks** (default when unsure):
-- Tasks that create something another task uses
-- Tasks modifying files with overlapping dependencies
-- Tasks in the same feature area or numbered sequence
+You should group tasks by parallelization potential:
+- **Can parallelize**: Different packages, no file overlap, no dependency conflicts
+- **Must sequence**: Creates dependency, overlapping files, same feature area
 
-**Parallel Tasks** (efficient when independence verified):
-- Different packages/features with verified no file overlap
-- Independent work (e.g., "Add logging" + "Style footer" + "Update README")
-- Use `print-dependencies` to check for conflicts - if none found, parallelize safely
-- Benefits: Faster execution, multiple agents working simultaneously
+### Step 1.4: Write Plan
 
-**For each task, determine testing requirements during planning**:
+You should write the plan using this template:
 
-Analyze the task type and write the task description accordingly:
+```xml
+<invoke name="Write">
+<parameter name="file_path">[PROJECT_DIR]/plan.md</parameter>
+<parameter name="content"># Implementation Plan: [PROJECT_NAME]
 
-- **New features/logic** → Task includes: "Write behavioral tests first, then implement to make them pass"
-- **Bug fixes** → Task includes: "Write test that reproduces the bug, then fix to make it pass"
-- **Refactoring** → Task includes: "Verify existing test coverage, add tests if gaps exist, then refactor"
-- **Config/docs/styling** → Task states: "No behavioral tests needed, verify changes work"
+## Problem
+[What user pain or technical debt does this address?]
 
-For each task, define:
-- **Task Description**: Clear objective WITH testing requirements baked in
-- **Affected Files**: Specific paths (including test files when tests are required)
-- **Dependencies**: What this task requires from others
+## Success Criteria
+- [ ] [Measurable outcome 1]
+- [ ] [Measurable outcome 2]
+- [ ] All tests pass
+- [ ] Types check correctly
 
-### Step 1.4: Present Plan and Confirm
+## Constraints
+- [Pattern to follow]
+- [Interface to preserve]
+- [Dependency to respect]
 
-Display the plan with dependency verification results:
+## Out of Scope
+- [Deferred to future work]
 
-```
-## Implementation Plan
+## Tasks
 
-### Objectives
-[What will be accomplished]
+### Parallel Group 1
 
-### Tasks
-[For sequential: numbered list with dependencies noted]
-[For parallel: grouped by independence with verification]
-
-1. Task 1: [Description with testing requirements baked in]
-   - Files: [paths - include test files when tests are required]
-   - Dependencies: [N files] (from print-dependencies)
-   - Depends on: [none or task IDs]
-
-2. Task 2: [Description with testing requirements baked in]
+1. **[Task name]** - [testing requirement]
+   - Rationale: [Why this task exists]
    - Files: [paths]
-   - Dependencies: [N files]
+   - Parallel with: Task 2
+
+### Sequential
+
+2. **[Task name]** - [testing requirement]
+   - Rationale: [Why this task exists]
+   - Files: [paths]
    - Depends on: Task 1
 
-### Dependency Analysis
-[If parallel considered]:
-- Checked file overlap: ✅ None / ❌ Found overlap
-- Tasks are independent: ✅ Verified / ⚠️ Sequential required
+## Validation Commands
 
-### Validation (after all tasks)
-- Run tests in: [packages]
-- Typecheck: [packages]
-- Lint: [packages]
-
-### Execution Strategy
-[Sequential | Parallel (N tasks)] - [Reasoning with dependency check results]
+### packages/[package-1]
+- Type check: `cd packages/[package-1] && yarn typecheck`
+- Test: `cd packages/[package-1] && yarn test`
+- Lint: `cd packages/[package-1] && yarn lint`
+</parameter>
+</invoke>
 ```
 
-**Example task descriptions:**
-- "Implement user authentication service - write behavioral tests first, then implement"
-- "Fix null pointer in profile loader - write test that reproduces bug, then fix"
-- "Update TypeScript config to ES2022 - no tests needed, verify compilation"
+### Step 1.5: Present to User
 
-Ask: **"Does this plan look correct? Should I proceed with implementation?"**
+You should open the plan for user review:
 
-**CRITICAL: DO NOT CONTINUE TO PHASE 2 until user confirms.**
+```xml
+<invoke name="mcp__plugin_vscode_vscode__open_files">
+<parameter name="workspace_path">/workspace</parameter>
+<parameter name="files">[{"filePath": "[PROJECT_DIR]/plan.md"}]</parameter>
+</invoke>
+```
+
+You should ask: **"I've written the plan to `[PROJECT_DIR]/plan.md`. Does this look correct? Should I proceed with implementation?"**
+
+You should wait for user confirmation before continuing to Phase 2.
 
 ## Phase 2: Execute Implementation
 
-### Step 2.1: Create Tasks
+### Step 2.1: Move Project to Active
 
-For each task, prepare comprehensive context with testing requirements from the plan:
+You should move the project to active status:
+
+```bash
+mv projects/new/[PROJECT_NAME] projects/active/ && echo "projects/active/[PROJECT_NAME]"
+```
+
+You should update [PROJECT_DIR] to `projects/active/[PROJECT_NAME]`.
+
+### Step 2.2: Dispatch Tasks
+
+You should dispatch every task to a haiku subagent using the Task tool. Do not implement tasks directly—always dispatch, even for simple single-file changes.
+
+Each task prompt should be self-contained with full file paths, code snippets, testing requirements, and discovered patterns.
+
+**Task Prompt Template:**
 
 ```xml
 <invoke name="Task">
 <parameter name="description">[short-task-name]</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
-<parameter name="prompt"># Task: [Full description with testing requirements from plan]
+<parameter name="model">haiku</parameter>
+<parameter name="prompt"># Task: [Description with testing requirements]
 
 ## Context
-[Explain what needs to be done and why]
-[Include relevant architecture/patterns from codebase]
+[Why this task exists, what problem it solves]
 
-## Files to Create/Modify
-[Specific paths - include test files when tests are required]
+## File Ownership
+This task owns: [absolute paths]
+Do not modify files outside this list.
+
+## Constraints
+[Patterns, interfaces, dependencies to respect]
 
 ## Requirements
-[Specific requirement 1 - include test requirements from task description]
-[Specific requirement 2]
-[If task requires tests: "Write behavioral tests that verify [specific behaviors]"]
-[If task requires tests: "Then implement code to make tests pass"]
+1. [Requirement]
+2. [Requirement]
 
-## Existing Patterns
-[Show examples from codebase to follow]
+## Patterns to Follow
+[Code snippets showing conventions]
+
+## Guidelines
+- Read files before modifying them
+- Only make requested changes
+- Don't add unrequested features or abstractions
+- Keep implementation minimal and focused
 
 ## Success Criteria
-- Implementation complete and functional
-- [Tests pass (if tests required)]
-- Types are correct
-- Follows existing code patterns</parameter>
+- [ ] Implementation complete
+- [ ] Tests pass (if applicable)
+- [ ] Types correct
+- [ ] Follows existing patterns</parameter>
 </invoke>
 ```
 
-### Step 2.2: Verify Independence (For Parallel Only)
+**Dispatch Strategy:**
+- Parallel groups: You should launch all tasks in a single message
+- Sequential tasks: You should wait for completion before launching the next task
 
-Before launching parallel tasks, verify they won't conflict:
+### Step 2.3: Monitor Completion
 
-```bash
-# Example: Checking if two tasks can run in parallel
-# Task A modifies: packages/api/src/auth.ts
-# Task B modifies: packages/ui/src/login.ts
-
-# Check if auth.ts depends on anything login.ts touches
-print-dependencies packages/api/src/auth.ts | grep -q 'packages/ui/src/login.ts'
-# exit 0=conflict, 1=safe
-
-# Check if login.ts depends on anything auth.ts touches
-print-dependencies packages/ui/src/login.ts | grep -q 'packages/api/src/auth.ts'
-# exit 0=conflict, 1=safe
-
-# If both checks return exit code 1 (no match), tasks are safe to parallelize
-```
-
-### Step 2.3: Dispatch Tasks
-
-**For Sequential Tasks:**
-Launch tasks one at a time, waiting for each to complete before starting the next.
-
-**For Parallel Tasks** (after independence verification):
-Launch all independent tasks in a single message:
-
-```xml
-<invoke name="Task">
-<parameter name="description">task-1</parameter>
-<!-- ... additional parameters ... -->
-</invoke>
-
-<invoke name="Task">
-<parameter name="description">task-2</parameter>
-<!-- ... additional parameters ... -->
-</invoke>
-
-<invoke name="Task">
-<parameter name="description">task-3</parameter>
-<!-- ... additional parameters ... -->
-</invoke>
-```
-
-### Step 2.4: Monitor Completion
-
-Track which tasks complete successfully and which encounter issues.
+You should track task outcomes and note any errors for the validation phase.
 
 ## Phase 3: Validate Results
 
-### Step 3.1: Identify Changed Files
+### Step 3.1: Run Validation
 
-Use git to find all modified files:
+You should run validation using a haiku subagent:
 
+```xml
+<invoke name="Task">
+<parameter name="description">Validate implementation</parameter>
+<parameter name="subagent_type">general-purpose</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt"># Task: Validate Implementation
+
+## Context
+Project plan: @[PROJECT_DIR]/plan.md
+
+## Status Definitions
+- **PRODUCTION_READY**: All validation commands pass, no errors
+- **CONTINUE**: Core works but has fixable issues (failing tests, type errors)
+- **BLOCKED**: System-level impediment (disk full, missing infrastructure)
+
+## Steps
+
+1. Read `[PROJECT_DIR]/plan.md`, extract:
+   - Success Criteria
+   - Validation Commands
+   - Tasks
+
+2. Execute ALL validation commands:
 ```bash
-git diff --name-only HEAD
+cd packages/[package] && yarn typecheck 2>&1
+cd packages/[package] && yarn test 2>&1
+cd packages/[package] && yarn lint 2>&1
 ```
 
-### Step 3.2: Run Validation
+3. Determine status based on results
 
-For each affected package, run:
+4. Append to plan.md:
 
-```bash
-# Typecheck
-cd packages/[PACKAGE] && yarn typecheck 2>&1
+```markdown
+## Execution Results
 
-# Tests (if test files exist)
-cd packages/[PACKAGE] && yarn test 2>&1
+**Completed**: [DATE]
+**Status**: [STATUS]
 
-# Lint
-cd packages/[PACKAGE] && yarn lint 2>&1
+### Quality Assessment
+- Type Check: [PASS/FAIL] ([N] errors)
+- Tests: [PASS/FAIL] ([X]/[Y] passing)
+- Lint: [PASS/FAIL] ([N] issues)
+
+### Issues Found
+[List with file:line references]
+
+### Required Actions
+[If not PRODUCTION_READY]
 ```
 
-If any validation fails:
-1. Capture the specific errors (file paths, line numbers, error codes)
-2. Analyze impact using dependency tools:
-
-```bash
-# For type errors in a specific file
-print-inverse-dependencies packages/api/src/types/user.ts
+5. Return:
+```
+STATUS: [STATUS]
+TYPE_ERRORS: [N]
+TEST_RESULTS: [N passed, N failed]
+LINT_ISSUES: [N]
+```</parameter>
+</invoke>
 ```
 
-3. Use Task with "codebase-analysis" subagent to investigate root causes with full paths
-4. Report issues to user with analysis
+### Step 3.2: Handle Results
 
-### Step 3.3: Report Results
+You should handle results based on status:
 
+**PRODUCTION_READY:**
+- You should proceed to Step 3.3
+
+**CONTINUE:**
+1. You should review errors (file:line references)
+2. You should fix issues (may require additional tasks)
+3. You should re-run Step 3.1
+
+**BLOCKED:**
+1. You should report the impediment to the user
+2. You should keep the project in `projects/active/`
+
+**Report to User:**
 ```
 ## Implementation Complete
 
-### Tasks Executed
-✅ Task 1: [description]
-✅ Task 2: [description]
-[Or ❌ for failures]
+Plan: `[PROJECT_DIR]/plan.md`
+Status: [STATUS]
 
-### Files Modified
-- [file paths from git diff]
+### Quality Assessment
+- Type Check: [PASS/FAIL]
+- Tests: [PASS/FAIL]
+- Lint: [PASS/FAIL]
 
-### Validation Results
-- Typecheck: [✅ Pass | ❌ N errors]
-- Tests: [✅ Pass | ❌ N failures]
-- Lint: [✅ Pass | ❌ N issues]
+### Tasks Completed
+[N]/[N] tasks
 
-[If failures exist, include error details and analysis]
+[If issues: list with file:line references]
 ```
+
+### Step 3.3: Move Project to Ready for Review
+
+If PRODUCTION_READY, you should move the project:
+
+```bash
+mv projects/active/[PROJECT_NAME] projects/ready-for-review/
+```
+
+Otherwise, you should keep the project in `projects/active/` until resolved.
 </instructions>
-
-<things-to-remember>
-**Planning Determines Testing**: During plan creation (Step 1.3), analyze each task and bake testing requirements into the task description:
-- New features/logic → "Write behavioral tests first, then implement"
-- Bug fixes → "Write test that reproduces bug, then fix"
-- Refactoring → "Verify existing coverage, then refactor"
-- Config/docs/styling → "No tests needed, verify changes work"
-- **Never create separate "testing" tasks** - testing is part of the task description
-
-**Agent Context**: Agents invoked with Task() have no information about this conversation. Include all necessary context in each task prompt:
-- Full file paths (not relative)
-- Current state of relevant code
-- Testing requirements from the plan's task description
-- Implementation requirements and patterns
-- Expected outcomes
-
-**Task Independence**: Only use parallel execution when tasks are truly independent. When in doubt, use sequential.
-
-**Validation Purpose**: Phase 3 runs all tests (including those written during tasks) to verify the complete implementation.
-</things-to-remember>
