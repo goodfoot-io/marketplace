@@ -30,7 +30,9 @@ You should follow these guidelines throughout execution:
 
 4. **Use haiku model** - All subagents should use `model="haiku"`.
 
-5. **Self-contained task prompts** - Agents have no conversation context. Include full paths, code snippets, patterns, and requirements in every task prompt.
+5. **Use general-purpose subagent** - All subagents should use `subagent_type="general-purpose"`. Do not substitute other agent types.
+
+6. **Self-contained task prompts** - Agents have no conversation context. Include full paths, code snippets, patterns, and requirements in every task prompt.
 </operational-guidelines>
 
 <instructions>
