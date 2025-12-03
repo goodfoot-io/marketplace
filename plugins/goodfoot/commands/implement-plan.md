@@ -75,7 +75,17 @@ If already in `projects/active/`, skip this step.
 
 ## Step 3: Dispatch Tasks
 
-You should dispatch every task to a haiku subagent using the Task tool. Do not implement tasks directly—always dispatch, even for simple single-file changes.
+You should dispatch tasks to haiku subagents using the Task tool. Do not implement tasks directly—always dispatch, even for simple single-file changes.
+
+**Task Consolidation:** You may consolidate multiple plan tasks into a single subagent dispatch when:
+- Tasks modify the same file(s)
+- Tasks form a tight dependency chain with shared files
+- Tasks are in the same package and implement related parts of the same feature
+
+Do not consolidate when:
+- Tasks are in different packages (keep parallel for speed)
+- Tasks have no file overlap and no dependencies (keep parallel)
+- Combined task would exceed 5 discrete requirements (too complex for haiku)
 
 Each task prompt should be self-contained with:
 - Full file paths (absolute)
@@ -91,7 +101,13 @@ Each task prompt should be self-contained with:
 <parameter name="description">[short-task-name]</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="model">haiku</parameter>
-<parameter name="prompt"># Task: [Description with testing requirements from plan]
+<parameter name="prompt">You are implementing a portion of a plan. Other subagents are also working on this plan.
+
+# Task
+[Description with testing requirements from plan]
+
+## Plan
+@[PROJECT_DIR]/plan.md
 
 ## Context
 [Why this task exists - from plan rationale]
@@ -108,8 +124,10 @@ Do not modify files outside this list.
 [From plan: patterns, interfaces, dependencies to respect]
 
 ## Requirements
-1. [Requirement from plan]
-2. [Requirement from plan]
+[List all requirements - if consolidating multiple tasks, include requirements from each]
+1. [Requirement from task 1]
+2. [Requirement from task 1]
+3. [Requirement from task 2 - if consolidated]
 
 ## Patterns to Follow
 [Code snippets showing conventions - from exploration or file reads]
@@ -129,8 +147,9 @@ Do not modify files outside this list.
 ```
 
 **Dispatch Strategy:**
-- Parallel groups: You should launch all tasks in a single message
+- Parallel groups: You should launch all tasks (or consolidated task groups) in a single message
 - Sequential tasks: You should wait for completion before launching the next task
+- Consolidated tasks: Combine requirements from multiple plan tasks into one dispatch when consolidation criteria are met
 
 ## Step 4: Monitor Completion
 
@@ -147,8 +166,8 @@ You should run validation using a haiku subagent:
 <parameter name="model">haiku</parameter>
 <parameter name="prompt"># Task: Validate Implementation
 
-## Context
-Project plan: @[PROJECT_DIR]/plan.md
+## Plan
+@[PROJECT_DIR]/plan.md
 
 ## Status Definitions
 - **PRODUCTION_READY**: All validation commands pass, no errors

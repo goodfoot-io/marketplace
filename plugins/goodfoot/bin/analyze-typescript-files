@@ -48,9 +48,10 @@ fi
 # Analyze each file
 for file in "${valid_files[@]}"; do
     printf '### %s\n\n' "$file"
+    printf '_The following analysis was pre-computed by analyze-typescript-files. Do not re-run these commands._\n\n'
 
     # Dependencies (what this file imports)
-    printf '#### Dependencies\n'
+    printf '#### Output of `print-dependencies`\n'
     deps=$("$SCRIPT_DIR/print-dependencies" "$file" 2>/dev/null)
     if [ -n "$deps" ]; then
         printf '```\n%s\n```\n\n' "$deps"
@@ -59,7 +60,7 @@ for file in "${valid_files[@]}"; do
     fi
 
     # Inverse dependencies (what imports this file)
-    printf '#### Dependents (files that import this)\n'
+    printf '#### Output of `print-inverse-dependencies`\n'
     inv_deps=$("$SCRIPT_DIR/print-inverse-dependencies" "$file" 2>/dev/null)
     if [ -n "$inv_deps" ]; then
         printf '```\n%s\n```\n\n' "$inv_deps"
@@ -68,7 +69,7 @@ for file in "${valid_files[@]}"; do
     fi
 
     # Type analysis
-    printf '#### Type Analysis\n'
+    printf '#### Output of `print-type-analysis`\n'
     type_info=$("$SCRIPT_DIR/print-type-analysis" "$file" 2>/dev/null)
     if [ -n "$type_info" ]; then
         printf '```yaml\n%s\n```\n\n' "$type_info"
