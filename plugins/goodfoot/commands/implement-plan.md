@@ -22,17 +22,15 @@ If multiple plans exist, list them and ask the user to specify which one.
 <operational-guidelines>
 You should follow these guidelines throughout execution:
 
-1. **Read before modifying** - Read and understand relevant files before proposing code edits. Do not speculate about code you have not inspected.
+1. **Avoid over-engineering** - Only make changes that are directly requested or clearly necessary. Don't add features, refactor code, or make "improvements" beyond what was asked.
 
-2. **Avoid over-engineering** - Only make changes that are directly requested or clearly necessary. Don't add features, refactor code, or make "improvements" beyond what was asked.
+2. **Always dispatch tasks** - You should dispatch every implementation task to a opus subagent. Do not implement tasks directly using Edit/Write tools. This applies regardless of task simplicity.
 
-3. **Always dispatch tasks** - You should dispatch every implementation task to a haiku subagent. Do not implement tasks directly using Edit/Write tools. This applies regardless of task simplicity.
+3. **Use opus model** - All subagents should use `model="opus"`.
 
-4. **Use haiku model** - All subagents should use `model="haiku"`.
+4. **Use general-purpose subagent** - All subagents should use `subagent_type="general-purpose"`. Do not substitute other agent types.
 
-5. **Use general-purpose subagent** - All subagents should use `subagent_type="general-purpose"`. Do not substitute other agent types.
-
-6. **Self-contained task prompts** - Agents have no conversation context. Include full paths, code snippets, patterns, and requirements in every task prompt.
+5. **Self-contained task prompts** - Agents have no conversation context. Include full paths, code snippets, patterns, and requirements in every task prompt.
 </operational-guidelines>
 
 <instructions>
@@ -77,7 +75,7 @@ If already in `projects/active/`, skip this step.
 
 ## Step 3: Dispatch Tasks
 
-You should dispatch tasks to haiku subagents using the Task tool. Do not implement tasks directly—always dispatch, even for simple single-file changes.
+You should dispatch tasks to opus subagents using the Task tool. Do not implement tasks directly—always dispatch, even for simple single-file changes.
 
 **Task Consolidation:** You may consolidate multiple plan tasks into a single subagent dispatch when:
 - Tasks modify the same file(s)
@@ -87,7 +85,6 @@ You should dispatch tasks to haiku subagents using the Task tool. Do not impleme
 Do not consolidate when:
 - Tasks are in different packages (keep parallel for speed)
 - Tasks have no file overlap and no dependencies (keep parallel)
-- Combined task would exceed 5 discrete requirements (too complex for haiku)
 
 Each task prompt should be self-contained with:
 - Full file paths (absolute)
@@ -102,7 +99,7 @@ Each task prompt should be self-contained with:
 <invoke name="Task">
 <parameter name="description">[short-task-name]</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
-<parameter name="model">haiku</parameter>
+<parameter name="model">opus</parameter>
 <parameter name="prompt">You are implementing a portion of a plan. Other subagents are also working on this plan.
 
 # Task
@@ -135,7 +132,6 @@ Do not modify files outside this list.
 [Code snippets showing conventions - from exploration or file reads]
 
 ## Guidelines
-- Read files before modifying them
 - Only make requested changes
 - Don't add unrequested features or abstractions
 - Keep implementation minimal and focused
@@ -165,7 +161,7 @@ Use the Task tool to dispatch a 'general-purpose' subagent to validate the imple
 <invoke name="Task">
 <parameter name="description">Validate implementation</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
-<parameter name="model">haiku</parameter>
+<parameter name="model">opus</parameter>
 <parameter name="prompt"># Task: Validate Implementation
 
 ## Plan
@@ -180,15 +176,18 @@ Use the Task tool to dispatch a 'general-purpose' subagent to validate the imple
 
 1. Read `[PROJECT_DIR]/plan.md`, extract:
    - Success Criteria
-   - Validation Commands
+   - Validation Commands (from "## Validation Commands" section)
    - Tasks
 
-2. Execute ALL validation commands:
-```bash
-cd packages/[package] && yarn typecheck 2>&1
-cd packages/[package] && yarn test 2>&1
-cd packages/[package] && yarn lint 2>&1
-```
+2. Execute ALL commands from the plan's "## Validation Commands" section.
+   Run every command listed under each package heading.
+
+   If no "## Validation Commands" section exists in the plan, use these defaults:
+   ```bash
+   cd packages/[package] && yarn typecheck 2>&1
+   cd packages/[package] && yarn test 2>&1
+   cd packages/[package] && yarn lint 2>&1
+   ```
 
 3. Determine status based on results
 
@@ -231,7 +230,7 @@ You should handle results based on status:
 
 **CONTINUE:**
 1. You should review errors (file:line references)
-2. You should dispatch fix tasks to haiku subagents (do not fix directly)
+2. You should dispatch fix tasks to opus subagents (do not fix directly)
 3. You should re-run Step 5
 
 **BLOCKED:**
