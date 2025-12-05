@@ -1,0 +1,21 @@
+# Test files
+tests/
+*.test.ts
+*.test.js
+
+# Config files
+tsconfig.json
+tsconfig.build.json
+vitest.config.ts
+vitest.d.ts
+eslint.config.mjs
+
+# Build artifacts (keep only needed output)
+build/
+dist/tests/
+types/tests/
+
+# Development
+node_modules/
+*.log
+.eslintcache

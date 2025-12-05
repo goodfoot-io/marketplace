@@ -6,8 +6,8 @@
     "composite": true,
     "incremental": true,
     "tsBuildInfoFile": "./build/.tsbuildinfo",
-    "declarationDir": "./build/types",
-    "outDir": "./build/dist",
+    "declarationDir": "./types",
+    "outDir": "./dist",
     "baseUrl": ".",
     "types": ["node"]
   }

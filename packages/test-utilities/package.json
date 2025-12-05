@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/test-utilities",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "sideEffects": false,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "eslint": "eslint --cache --fix ./src ./tests",
     "eslint:files": "eslint --cache --fix",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --build",
+    "build": "tsc --build tsconfig.build.json",
     "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
     "test": "vitest run",
     "release": "bash ../../scripts/release-package.sh test-utilities",
