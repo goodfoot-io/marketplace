@@ -17,7 +17,7 @@ Review the plan skill immediately to access plan structure and requirements: @!`
 <core-constraints>
 1. **YAGNI (You Aren't Gonna Need It)**: Include only what directly solves the problem
 2. **No estimates**: Exclude time estimates, phases, or resource allocations
-3. **Mandatory assessment**: You must assess every plan using the Task tool
+3. **Dual assessment required**: Every plan must pass BOTH plan-assessor (structural) AND plan-refactor (strategic) assessments, run in parallel
 4. **Append-only logging**: Never edit existing log content. Always append new entries to the project log using the Bash tool with heredoc formatting
 5. **Version verification**: Always identify and document framework/SDK versions before feature work
 6. **Self-contained plans**: Each plan must be a complete, independent document without references to other plan versions
@@ -263,7 +263,12 @@ Common variations are all acceptable - the assessor recognizes multiple formats:
 </format-flexibility>
 
 <assessment-interpretation>
-The assessor uses the Quality Assessment section of the `project:plan` skill for detailed quality methodology.
+## Dual Assessment System
+
+Plans are evaluated by TWO complementary assessors run in parallel:
+
+### Plan Assessor (Structural & Technical)
+Uses the Quality Assessment section of the `project:plan` skill for detailed quality methodology.
 Quality dimensions evaluated include:
 - Requirement clarity (vague language detection)
 - Internal coherence (cross-section consistency)
@@ -272,22 +277,59 @@ Quality dimensions evaluated include:
 - Testability (verifiable criteria)
 - Evolution readiness (living document structure)
 
-The assessor provides:
+Provides:
 - Structural compliance check
 - Overengineering assessment
 - Technical spike validation review
 - **Ready for Implementation: Yes/No/Yes (with suggestions)**
 - Specific improvement recommendations
 
-**Assessment Priority Levels:**
-- **CRITICAL**: Technical accuracy, missing dependencies, architectural soundness
-- **MEDIUM**: Implementation clarity, risk coverage, dependency analysis, missing version information
-- **LOW**: Version format variations (v prefix, @ notation), line number precision, style consistency
+### Plan Refactor (Strategic & Design)
+Applies senior engineering judgment through seven evaluation principles:
+1. **Solve the Actual Problem** - Are we solving the stated problem or an assumption?
+2. **Earn Complexity** - Does every abstraction justify its existence?
+3. **Right Abstraction Level** - Not too general, not too specific?
+4. **Make Implicit Explicit** - Are assumptions and contracts documented?
+5. **Design for Independence** - Can components change without cascading effects?
+6. **Design for Change** - How painful is it to fix if we're wrong?
+7. **Design for Reality** - Does this handle failure and support testing?
 
-#### If "Ready for Implementation: Yes" or "Ready for Implementation: Yes (with suggestions)"
+Provides:
+- Per-principle assessment (SOUND / CONCERNS / RECONSIDER)
+- Key questions for plan author
+- **Overall Assessment: READY / DISCUSS / RECONSIDER**
 
-1. Output the full assessment result (including any style suggestions)
-2. Generate a description for the approved plan, where description-v[N].md correlates to the plan version, i.e. `plan-v2.md` would have `description-v2.md`:
+### Combined Assessment Priority Levels
+- **CRITICAL/RECONSIDER**: Must be addressed before implementation
+- **HIGH/CONCERNS**: Should be addressed or explicitly accepted
+- **MEDIUM**: Implementation clarity, risk coverage, dependency analysis
+- **LOW**: Style suggestions, format variations
+
+### Interpreting Combined Results
+
+| Plan Assessor | Plan Refactor | Action |
+|---------------|---------------|--------|
+| Ready: Yes | READY | Proceed to description generation |
+| Ready: Yes | DISCUSS | Proceed, but document accepted concerns |
+| Ready: Yes | RECONSIDER | Treat as "Not Ready" - address strategic issues |
+| Ready: Yes (suggestions) | READY/DISCUSS | Proceed with awareness of suggestions |
+| Ready: No | Any | Address structural issues first |
+| Any | RECONSIDER | Address strategic issues before proceeding |
+
+#### If Both Assessments Pass (Ready: Yes + READY/DISCUSS)
+
+1. Output both assessment results
+2. If Plan Refactor returned DISCUSS, log accepted concerns:
+   ```bash
+   cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+   ## Accepted Concerns - [timestamp]
+
+   The following strategic concerns were noted but accepted:
+   - [Concern from plan-refactor evaluation]
+   - [Rationale for accepting]
+   EOF
+   ```
+3. Generate a description for the approved plan, where description-v[N].md correlates to the plan version, i.e. `plan-v2.md` would have `description-v2.md`:
    ```xml
    <invoke name="Task">
    <parameter name="description">Describe Plan</parameter>
@@ -340,20 +382,20 @@ Focus on technical precision and architectural reasoning. Avoid marketing langua
 Research the codebase to understand current system behavior and architectural patterns that inform the technical decisions.</parameter>
    </invoke>
    ```
-3. **Check for user feedback** - If user provides corrections or clarifications:
+4. **Check for user feedback** - If user provides corrections or clarifications:
    - Log feedback using the Bash tool with heredoc to append to [ABSOLUTE_PROJECT_PATH]/log.md
-   - Proceed to Step 4 to address the feedback
-4. If no user feedback, HALT - the plan is complete
+   - Proceed to Phase 4 to address the feedback
+5. If no user feedback, HALT - the plan is complete
 
 **Do not implement the project plan.**
 
-#### If "Ready for Implementation: No"
-**Only revise plans for CRITICAL or HIGH priority issues. Do not revise for style suggestions.**
-**Continue to Step 4.**
+#### If Either Assessment Fails (Ready: No OR RECONSIDER)
+**Revise plans for CRITICAL/RECONSIDER or HIGH/CONCERNS issues. Do not revise for style suggestions.**
+**Continue to Phase 4.**
 </assessment-interpretation>
 
 <revision-research-patterns>
-Address issues identified by the assessor or user. Execute multiple investigations in PARALLEL when addressing multiple issues:
+Address issues identified by BOTH assessors (plan-assessor and plan-refactor) or user. Execute multiple investigations in PARALLEL when addressing multiple issues:
 
 #### Parallel Revision Research (send all in ONE message)
 ```xml
@@ -590,11 +632,16 @@ Before running create-plan-version, verify ALL checklist items in the pre-plan-c
 
 ## Phase 3: Quality Assessment
 
-### Step 1: Run Plan Assessment
+### Step 1: Run Dual Assessment (Parallel)
+
+Run BOTH assessors in parallel by sending both Task invocations in a SINGLE message:
 
 ```xml
+<!-- PARALLEL EXECUTION: Send both assessments in ONE message -->
+
+<!-- Assessment 1: Structural & Technical (plan-assessor) -->
 <invoke name="Task">
-<parameter name="description">Assessment - add-user-auth</parameter>
+<parameter name="description">Structural Assessment - add-user-auth</parameter>
 <parameter name="subagent_type">project:plan-assessor</parameter>
 <parameter name="prompt"><project>
 Name: add-user-auth
@@ -606,15 +653,82 @@ Log: @projects/new/add-user-auth/log.md
 Assess the project plan.
 Verify it follows the structure from the project:plan skill</parameter>
 </invoke>
+
+<!-- Assessment 2: Strategic & Design (plan-refactor) - runs in parallel -->
+<invoke name="Task">
+<parameter name="description">Strategic Assessment - add-user-auth</parameter>
+<parameter name="subagent_type">project:plan-refactor</parameter>
+<parameter name="prompt"><project>
+Name: add-user-auth
+Directory: @projects/new/add-user-auth
+Plan: @projects/new/add-user-auth/plan-v3.md
+Log: @projects/new/add-user-auth/log.md
+</project>
+
+Evaluate the project plan using the seven evaluation principles.
+Focus on strategic "should we build it this way" questions.</parameter>
+</invoke>
 ```
 
-### Step 2: Interpret Assessment Results and Take Action
-Follow the guidelines in the assessment-interpretation section above.
+**Important**: Both assessments run simultaneously. Wait for both to complete before interpreting results.
 
-## Phase 4: Revision Cycle (If Assessment Failed or User Provides Feedback)
+### Step 2: Interpret Combined Assessment Results
+Follow the guidelines in the assessment-interpretation section above. Both assessments must pass for the plan to proceed.
 
-### Step 1: Target Research on Issues
-Address each issue identified by the assessor or user using the patterns in the revision-research-patterns section above.
+## Phase 4: Revision Cycle (If Either Assessment Failed or User Provides Feedback)
 
-### Step 2: Create Revised Plan
-Return to Phase 2 and create the next version (plan-v2.md, plan-v3.md, etc.) incorporating your findings. **After creating the revised plan, immediately return to Phase 3 for assessment.**
+### Step 1: Categorize Issues by Source
+
+Organize issues from both assessors before researching:
+
+**From Plan Assessor (Structural/Technical):**
+- CRITICAL issues (must fix)
+- HIGH issues (should fix)
+- MEDIUM issues (consider fixing)
+
+**From Plan Refactor (Strategic/Design):**
+- RECONSIDER findings (must address)
+- CONCERNS findings (should address or accept with rationale)
+- Key questions raised (should answer)
+
+**From User Feedback:**
+- Corrections to requirements
+- Additional constraints
+- Clarifications
+
+### Step 2: Target Research on Issues
+Address issues from BOTH assessors using the patterns in the revision-research-patterns section above.
+
+For strategic issues from plan-refactor, focus research on:
+- **Problem-Solution Fit**: Validate understanding of the actual problem
+- **Complexity Concerns**: Find simpler alternatives
+- **Abstraction Issues**: Research existing patterns before proposing new ones
+- **Implicit Assumptions**: Make explicit through codebase analysis
+- **Coupling/Independence**: Analyze dependencies and boundaries
+- **Reversibility**: Identify one-way vs two-way decisions
+- **Reality Checks**: Research failure modes and testability approaches
+
+### Step 3: Create Revised Plan
+Return to Phase 2 and create the next version (plan-v2.md, plan-v3.md, etc.) incorporating findings from BOTH assessors. **After creating the revised plan, immediately return to Phase 3 for dual assessment.**
+
+### Step 4: Log Revision Rationale
+
+After addressing issues, document what changed and why:
+
+```bash
+cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+## Revision Notes - plan-v[N] to plan-v[N+1]
+
+### Structural Issues Addressed (from plan-assessor)
+- [Issue]: [How it was resolved]
+
+### Strategic Issues Addressed (from plan-refactor)
+- [Principle violated]: [How the approach was changed]
+
+### Questions Answered
+- [Question from assessor]: [Answer with evidence]
+
+### Accepted Trade-offs
+- [Concern that was noted but accepted]: [Rationale]
+EOF
+```
