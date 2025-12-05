@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.3
+- Improved PostgreSQL notice handling to suppress expected duplicate object warnings during test database setup
+
 ## 1.0.2
 
 - Improved error handling for PostgreSQL connection notices
