@@ -2,7 +2,7 @@
 name: plan-assessor
 description: Only use this agent when it is requested by name.
 tools: "*"
-color: orange
+color: cyan
 model: inherit
 skills: project:plan
 ---

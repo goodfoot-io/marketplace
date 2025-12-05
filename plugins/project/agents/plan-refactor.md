@@ -2,7 +2,7 @@
 name: plan-refactor
 description: Only use this agent when it is requested by name.
 tools: "*"
-color: amber
+color: magenta
 model: inherit
 skills: project:plan
 ---

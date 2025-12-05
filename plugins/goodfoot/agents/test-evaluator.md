@@ -2,7 +2,8 @@
 name: test-evaluator
 description: |
   Use this agent when you need to evaluate the quality and validity of specific software tests.
-tools: *
+tools: "*"
+color: cyan
 model: inherit
 ---
 

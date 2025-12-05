@@ -2,6 +2,7 @@
 name: simple
 description: Lightweight agent for subtask execution.
 tools: Read, Glob, Grep, Bash, Write, Edit, MultiEdit, mcp__plugin_vscode_vscode, mcp__plugin_vscode_codebase
+color: purple
 model: inherit
 ---
 

@@ -1,7 +1,8 @@
 ---
 name: test-issue-reproducer
 description: Run tests and analyze failures with streamlined reproduction testing
-tools: *
+tools: "*"
+color: magenta
 model: inherit
 ---
 

@@ -2,7 +2,7 @@
 name: implementation-evaluator
 description: Only use this agent when it is requested by name.
 tools: "*"
-color: yellow
+color: blue
 model: inherit
 ---
 
