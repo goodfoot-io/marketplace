@@ -1,6 +1,7 @@
 # Changelog
 
 ## 1.0.2
+
 - Improved error handling for PostgreSQL connection notices
 
 ## 1.0.1

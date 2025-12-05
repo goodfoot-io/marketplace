@@ -52,6 +52,16 @@ export async function getTestSql(
     debug: options.debug,
     transform: {
       column: postgres.camel.column
+    },
+    onnotice(data) {
+      switch (data.code) {
+        case '42P07':
+        case '42710':
+          return;
+        default:
+          break;
+      }
+      console.log(data);
     }
   });
   let didTeardown = false;
