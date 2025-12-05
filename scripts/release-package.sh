@@ -301,7 +301,7 @@ else
   echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo ""
   echo -e "${BLUE}🔗 Monitor the automated workflow at:${NC}"
-  echo "   https://github.com/wehriam/goodfoot/actions"
+  echo "   https://github.com/goodfoot-io/marketplace/actions"
   echo ""
   echo -e "${BLUE}📋 The workflow will automatically:${NC}"
   echo "   1. Build the package"
@@ -309,13 +309,13 @@ else
   echo "   3. Publish to NPM at:"
   echo "      https://www.npmjs.com/package/@goodfoot/$PACKAGE_NAME"
   echo "   4. Create GitHub release at:"
-  echo "      https://github.com/wehriam/goodfoot/releases/tag/$TAG"
+  echo "      https://github.com/goodfoot-io/marketplace/releases/tag/$TAG"
   echo ""
 
   # Check if CHANGELOG exists and show link
   if [ -f "$CHANGELOG_FILE" ]; then
     echo -e "${BLUE}📝 CHANGELOG:${NC}"
-    echo "   https://github.com/wehriam/goodfoot/blob/main/packages/$PACKAGE_NAME/CHANGELOG.md"
+    echo "   https://github.com/goodfoot-io/marketplace/blob/main/packages/$PACKAGE_NAME/CHANGELOG.md"
     echo ""
   fi
 
