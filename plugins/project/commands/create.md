@@ -316,10 +316,45 @@ Provides:
 | Ready: No | Any | Address structural issues first |
 | Any | RECONSIDER | Address strategic issues before proceeding |
 
+#### After Both Assessments Complete (Always)
+
+Regardless of pass/fail status, present major questions to the user:
+
+1. **Present major questions for user awareness**:
+
+   Extract and display key questions from both assessors in a consolidated summary:
+
+   ```markdown
+   ## Questions Raised During Assessment
+
+   The following questions were raised during assessment. These provide insight into
+   the issues being evaluated (or addressed in revision).
+
+   ### From Structural Assessment (plan-assessor)
+   - [Questions about technical approach, dependencies, or implementation details]
+   - [Recommendations that involve trade-offs]
+   - [CRITICAL/HIGH issues as questions, if any]
+
+   ### From Strategic Assessment (plan-refactor)
+   - [Key questions from the "Key Questions for Plan Author" section]
+   - [Concerns raised under any principle marked as CONCERNS or RECONSIDER]
+
+   ### Implicit Assumptions Identified
+   - [Any assumptions identified that the plan relies on]
+   ```
+
+   **Question Selection Criteria:**
+   - Include all questions from plan-refactor's "Key Questions for Plan Author"
+   - Include recommendations from plan-assessor that involve choices or trade-offs
+   - Include CRITICAL/HIGH issues framed as questions (for failed assessments)
+   - Include any identified implicit assumptions from either assessor
+   - Exclude style suggestions and minor formatting notes
+
+2. **Determine next action** based on combined results (see table above)
+
 #### If Both Assessments Pass (Ready: Yes + READY/DISCUSS)
 
-1. Output both assessment results
-2. If Plan Refactor returned DISCUSS, log accepted concerns:
+1. If Plan Refactor returned DISCUSS, log accepted concerns:
    ```bash
    cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
    ## Accepted Concerns - [timestamp]
@@ -329,7 +364,7 @@ Provides:
    - [Rationale for accepting]
    EOF
    ```
-3. Generate a description for the approved plan, where description-v[N].md correlates to the plan version, i.e. `plan-v2.md` would have `description-v2.md`:
+2. Generate a description for the approved plan, where description-v[N].md correlates to the plan version, i.e. `plan-v2.md` would have `description-v2.md`:
    ```xml
    <invoke name="Task">
    <parameter name="description">Describe Plan</parameter>
@@ -382,10 +417,10 @@ Focus on technical precision and architectural reasoning. Avoid marketing langua
 Research the codebase to understand current system behavior and architectural patterns that inform the technical decisions.</parameter>
    </invoke>
    ```
-4. **Check for user feedback** - If user provides corrections or clarifications:
+3. **Check for user feedback** - If user provides corrections or clarifications:
    - Log feedback using the Bash tool with heredoc to append to [ABSOLUTE_PROJECT_PATH]/log.md
    - Proceed to Phase 4 to address the feedback
-5. If no user feedback, HALT - the plan is complete
+4. If no user feedback, HALT - the plan is complete
 
 **Do not implement the project plan.**
 
