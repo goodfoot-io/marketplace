@@ -185,7 +185,7 @@ You should open the plan for user review:
 
 ```xml
 <invoke name="mcp__plugin_vscode_vscode__open_files">
-<parameter name="workspace_path">/workspace</parameter>
+<parameter name="workspace_path">!`pwd`</parameter>
 <parameter name="files">[{"filePath": "[PROJECT_DIR]/plan.md"}]</parameter>
 </invoke>
 ```
