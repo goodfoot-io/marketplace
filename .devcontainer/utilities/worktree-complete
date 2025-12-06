@@ -104,7 +104,7 @@ touch "$MARKER_FILE"
 # Attempt rebase via Claude (|| true prevents set -e from exiting)
 echo "Attempting to rebase via Claude..."
 cd "$WORKTREE_PATH"
-claude --model haiku -p "Load the 'goodfoot:rebasing-git-history' skill. Rebase the $CURRENT_BRANCH branch. Remove any empty checkpoint commits. Consolidate commits where possible. After you have successfully rebased the branch, remove the .REBASE_FAILED file" || true
+claude --model opus -p "Load the 'goodfoot:rebasing-git-history' skill. Rebase the $CURRENT_BRANCH branch. Remove any empty checkpoint commits. Consolidate commits where possible. After you have successfully rebased the branch, remove the .REBASE_FAILED file" || true
 
 # Check if rebase succeeded by marker file presence
 if [[ -f "$MARKER_FILE" ]]; then

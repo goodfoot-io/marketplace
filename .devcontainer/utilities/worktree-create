@@ -188,13 +188,41 @@ cat > "${WORKTREE_DIR}/.vscode/tasks.json" << EOF
 }
 EOF
 
-# Create settings.json to enable automatic task execution and configure terminal
-cat > "${WORKTREE_DIR}/.vscode/settings.json" << EOF
+# Create settings.json - copy from parent workspace if exists, otherwise create minimal
+if [[ -f "/workspace/.vscode/settings.json" ]]; then
+    echo "Copying VSCode settings from parent workspace..."
+    cp "/workspace/.vscode/settings.json" "${WORKTREE_DIR}/.vscode/settings.json"
+
+    # Ensure required settings are present using node to merge JSON
+    node -e "
+const fs = require('fs');
+const settingsPath = '${WORKTREE_DIR}/.vscode/settings.json';
+const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+
+// Ensure required worktree settings
+settings['task.allowAutomaticTasks'] = 'on';
+settings['terminal.integrated.defaultLocation'] = 'editor';
+
+fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
+"
+    echo "  VSCode settings copied and merged"
+else
+    echo "Creating default VSCode settings..."
+    cat > "${WORKTREE_DIR}/.vscode/settings.json" << EOF
 {
   "task.allowAutomaticTasks": "on",
-  "terminal.integrated.defaultLocation": "editor"
+  "terminal.integrated.defaultLocation": "editor",
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/dist/**": true,
+    "**/.yarn/**": true,
+    "**/coverage/**": true
+  }
 }
 EOF
+fi
 
 # Launch Cursor IDE in the new worktree
 # Since we're already in the devcontainer, just open the folder directly
