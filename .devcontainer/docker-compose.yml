@@ -5,6 +5,7 @@ volumes:
 
 services:
   app:
+    init: true
     env_file:
       - .env 
     build:
