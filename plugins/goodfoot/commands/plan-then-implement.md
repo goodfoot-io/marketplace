@@ -30,9 +30,9 @@ You should follow these guidelines throughout execution:
 
 2. **Avoid over-engineering** - Only make changes that are directly requested or clearly necessary. Don't add features, refactor code, or make "improvements" beyond what was asked. Don't create helpers, utilities, or abstractions for one-time operations.
 
-3. **Always dispatch tasks** - You should dispatch every implementation task to a haiku subagent. Do not implement tasks directly using Edit/Write tools. This applies regardless of task simplicity.
+3. **Always dispatch tasks** - You should dispatch every implementation task to a opus subagent. Do not implement tasks directly using Edit/Write tools. This applies regardless of task simplicity.
 
-4. **Use haiku model** - All subagents should use `model="haiku"`.
+4. **Use opus model** - All subagents should use `model="opus"`.
 
 5. **Self-contained task prompts** - Agents have no conversation context. Include full paths, code snippets, patterns, and requirements in every task prompt.
 </operational-guidelines>
@@ -45,7 +45,7 @@ Launch Explore subagents in parallel. Provide full paths.
 <invoke name="Task">
 <parameter name="description">Discover patterns</parameter>
 <parameter name="subagent_type">Explore</parameter>
-<parameter name="model">haiku</parameter>
+<parameter name="model">opus</parameter>
 <parameter name="prompt">What existing patterns are used for [PROBLEM_AREA] in this codebase? Look for similar implementations, naming conventions, and architectural approaches.</parameter>
 </invoke>
 
@@ -53,7 +53,7 @@ Launch Explore subagents in parallel. Provide full paths.
 <invoke name="Task">
 <parameter name="description">Analyze impact</parameter>
 <parameter name="subagent_type">Explore</parameter>
-<parameter name="model">haiku</parameter>
+<parameter name="model">opus</parameter>
 <parameter name="prompt">What files and modules would be affected if [SCOPE_HINT] changes? Identify consumers, dependents, and integration points.</parameter>
 </invoke>
 
@@ -61,7 +61,7 @@ Launch Explore subagents in parallel. Provide full paths.
 <invoke name="Task">
 <parameter name="description">Discover tests</parameter>
 <parameter name="subagent_type">Explore</parameter>
-<parameter name="model">haiku</parameter>
+<parameter name="model">opus</parameter>
 <parameter name="prompt">What tests cover [SCOPE_HINT]? What test patterns does this codebase use?</parameter>
 </invoke>
 
@@ -69,7 +69,7 @@ Launch Explore subagents in parallel. Provide full paths.
 <invoke name="Task">
 <parameter name="description">Discover interfaces</parameter>
 <parameter name="subagent_type">Explore</parameter>
-<parameter name="model">haiku</parameter>
+<parameter name="model">opus</parameter>
 <parameter name="prompt">What types, interfaces, and APIs does [SCOPE_HINT] expose or consume? What contracts must be preserved?</parameter>
 </invoke>
 ```
@@ -203,7 +203,7 @@ You should update [PROJECT_DIR] to `projects/active/[PROJECT_NAME]`.
 
 ### Step 2.2: Dispatch Tasks
 
-You should dispatch every task to a haiku subagent using the Task tool. Do not implement tasks directly—always dispatch, even for simple single-file changes.
+You should dispatch every task to a opus subagent using the Task tool. Do not implement tasks directly—always dispatch, even for simple single-file changes.
 
 Each task prompt should be self-contained with full file paths, code snippets, testing requirements, and discovered patterns.
 
@@ -213,7 +213,7 @@ Each task prompt should be self-contained with full file paths, code snippets, t
 <invoke name="Task">
 <parameter name="description">[short-task-name]</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
-<parameter name="model">haiku</parameter>
+<parameter name="model">opus</parameter>
 <parameter name="prompt"># Task: [Description with testing requirements]
 
 ## Context
@@ -259,13 +259,13 @@ You should track task outcomes and note any errors for the validation phase.
 
 ### Step 3.1: Run Validation
 
-You should run validation using a haiku subagent:
+You should run validation using a opus subagent:
 
 ```xml
 <invoke name="Task">
 <parameter name="description">Validate implementation</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
-<parameter name="model">haiku</parameter>
+<parameter name="model">opus</parameter>
 <parameter name="prompt"># Task: Validate Implementation
 
 ## Context
