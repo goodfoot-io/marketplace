@@ -386,8 +386,11 @@ ls -la packages/website/app/hooks/
 <parameter name="question">TypeScript error TS2322 at packages/api/src/auth.ts:45. Show ALL type definitions involved.</parameter>
 </invoke>
 
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">What files import AuthUser type from packages/api/src/types/auth.ts?</parameter>
+<!-- Use Explore agent for simple location queries -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">What files import AuthUser type from packages/api/src/types/auth.ts?</parameter>
 </invoke>
 
 <invoke name="mcp__plugin_vscode_codebase__ask">
@@ -529,8 +532,11 @@ ls -la packages/api/src/services/database.ts
 <parameter name="question">How does packages/api/src/services/database.ts work? Show ALL interfaces, EVERY import statement, ALL exported functions, and provide usage examples from other files.</parameter>
 </invoke>
 
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">Are there existing Repository pattern implementations in packages/api/src/repositories/? Show ALL repository files with their complete implementations.</parameter>
+<!-- Use Explore agent for simple location queries -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">Are there existing Repository pattern implementations in packages/api/src/repositories/? List all repository files found.</parameter>
 </invoke>
 ```
 

@@ -41,6 +41,60 @@ EOF
 
 ---
 
+<research-before-asking>
+## Research-Before-Asking Protocol
+
+Before asking the user any question—whether during initial parsing, after assessment, or during revision—follow this protocol.
+
+### Step 1: Conduct Research
+
+1. **Search the codebase** for existing patterns, conventions, and constraints
+2. **Check package.json** and lock files for version constraints and dependencies
+3. **Search the web** for:
+   - Package documentation and API references
+   - Type definitions and interface contracts
+   - Example implementations on GitHub
+   - Known issues, migrations, or compatibility notes
+4. **Conduct technical spikes** when capability or compatibility is uncertain
+5. **Eliminate options** that conflict with architecture, constraints, or documented limitations
+
+**Codebase research tool selection:**
+
+| Query Type | Tool | Why |
+|------------|------|-----|
+| Simple location queries ("where is X?", "find files matching Y") | `Explore` subagent with `haiku` model | Lightweight, minimal context usage |
+| How things work, code flow, dependencies, patterns | `mcp__plugin_vscode_codebase__ask` | Deep analysis with LSP integration, dependency tracing |
+
+### Step 2: Translate Abstract Questions to Concrete Research
+
+| Abstract Question | Concrete Research |
+|-------------------|-------------------|
+| "Solving actual problem?" | Find existing code handling this case, search for related bugs/issues |
+| "Earn complexity?" | Count usages of proposed abstraction, find simpler alternatives in codebase |
+| "Right abstraction level?" | Search for similar patterns, check if over/under-generalized |
+| "Implicit assumptions?" | Search for undocumented conventions, grep for magic values |
+| "Design for independence?" | Run dependency analysis, check for coupling patterns |
+| "Design for change?" | Identify one-way-door decisions, search for migration patterns |
+| "Design for reality?" | Search for error handling patterns, find test infrastructure |
+| "Technical feasibility?" | Web search for examples, spike if uncertain |
+
+### Step 3: Present Findings When Asking
+
+When clarification is still needed after research, present:
+- What you investigated and discovered (codebase, web, spikes)
+- Which options remain viable (and why others were eliminated)
+- Your recommendation with rationale (if you have one)
+- The specific decision you need from the user
+
+### Default Stances (Apply Without Asking)
+
+| Situation | Default |
+|-----------|---------|
+| New package needed | Use latest stable version |
+| Existing package in project | Preserve current version unless new features require upgrade |
+| Single viable approach after research | Proceed with documented rationale |
+</research-before-asking>
+
 <request-parsing-guidelines>
 Understand the user's intent and ensure the request is actionable.
 
@@ -50,17 +104,13 @@ Understand the user's intent and ensure the request is actionable.
 - **Scope**: What's included and what's explicitly out of bounds
 - **Success**: How we'll know it's working correctly
 
-### When to Ask for Clarification
-
-Stop and ask for clarification if:
-- The desired outcome is undefined ("make it better")
-- Multiple valid interpretations exist with significantly different implications
-- Critical technical details are missing (e.g., which API version, what performance target)
+### When Clarification is Needed
+Follow `<research-before-asking>`. Ask only when:
+- The desired outcome is undefined and cannot be inferred from research
+- Multiple valid approaches remain after eliminating incompatible options
 - Requirements contradict each other
-
-Proceed with documented assumptions if the ambiguity only affects implementation details, not the core goal.
-
-**Action**: If the core intent is unclear, ask specific questions and stop. Otherwise, document your understanding and continue.
+- A technical spike reveals ambiguous results
+- The decision involves trade-offs only the user can evaluate
 </request-parsing-guidelines>
 
 <logging-guidelines>
@@ -149,9 +199,12 @@ When investigating multiple independent aspects, execute codebase analysis in pa
 <parameter name="question">What would be affected if I change the auth system at packages/api/src/auth/?</parameter>
 </invoke>
 
-<!-- Fourth investigation - testing infrastructure (runs in parallel) -->
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">What auth-related tests exist in packages/api/tests/ and packages/api/src/**/*.test.ts including test database setup and token handling?</parameter>
+<!-- Fourth investigation - find test files (runs in parallel) -->
+<!-- Use Explore agent for locating files -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">Find all auth-related test files in packages/api/tests/ and packages/api/src/**/*.test.ts</parameter>
 </invoke>
 ```
 
@@ -318,39 +371,13 @@ Provides:
 
 #### After Both Assessments Complete (Always)
 
-Regardless of pass/fail status, present major questions to the user:
-
-1. **Present major questions for user awareness**:
-
-   Extract and display key questions from both assessors in a consolidated summary:
-
-   ```markdown
-   ## Questions Raised During Assessment
-
-   The following questions were raised during assessment. These provide insight into
-   the issues being evaluated (or addressed in revision).
-
-   ### From Structural Assessment (plan-assessor)
-   - [Questions about technical approach, dependencies, or implementation details]
-   - [Recommendations that involve trade-offs]
-   - [CRITICAL/HIGH issues as questions, if any]
-
-   ### From Strategic Assessment (plan-refactor)
-   - [Key questions from the "Key Questions for Plan Author" section]
-   - [Concerns raised under any principle marked as CONCERNS or RECONSIDER]
-
-   ### Implicit Assumptions Identified
-   - [Any assumptions identified that the plan relies on]
-   ```
-
-   **Question Selection Criteria:**
-   - Include all questions from plan-refactor's "Key Questions for Plan Author"
-   - Include recommendations from plan-assessor that involve choices or trade-offs
-   - Include CRITICAL/HIGH issues framed as questions (for failed assessments)
-   - Include any identified implicit assumptions from either assessor
-   - Exclude style suggestions and minor formatting notes
-
-2. **Determine next action** based on combined results (see table above)
+1. **Triage questions** as researchable (technical feasibility, patterns, compatibility) vs requires-user-input (business priorities, trade-off preferences)
+2. **For researchable questions**, follow `<research-before-asking>`
+3. **Present consolidated findings**:
+   - Questions resolved through research (with findings)
+   - Questions requiring user input (with research context and remaining options)
+   - Implicit assumptions validated (with evidence)
+4. **Determine next action** based on combined results (see table above)
 
 #### If Both Assessments Pass (Ready: Yes + READY/DISCUSS)
 
@@ -438,8 +465,11 @@ Address issues identified by BOTH assessors (plan-assessor and plan-refactor) or
 <!-- Note: Tool provides complete code and exact counts by default -->
 
 <!-- Issue 1: Incorrect File Paths (example from assessment: "UserService not found") -->
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">Where is the UserService class located in packages/api/src/ and are there any duplicate classes?</parameter>
+<!-- Use Explore agent for simple location queries -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">Where is the UserService class located in packages/api/src/? Are there any duplicate classes with that name?</parameter>
 </invoke>
 
 <!-- Issue 2: Missing Dependencies (runs in parallel) -->
@@ -470,7 +500,10 @@ When the assessor flags unvalidated assumptions, conduct technical spikes follow
 ## Phase 1: Requirements Analysis
 
 ### Step 1: Parse User Request
-If the core intent is unclear, ask specific questions and stop. Otherwise, document your understanding and continue.
+
+1. Extract the core intent (What, Why, Scope, Success criteria)
+2. If ambiguity exists, follow `<research-before-asking>` to narrow possibilities
+3. Document your understanding (including any defaults applied) and continue
 
 ### Step 2: Initialize Project Directory
 
@@ -537,9 +570,12 @@ Execute parallel investigations to understand different aspects of the codebase 
 <parameter name="question">Map dependencies for adding OAuth to packages/api/src/auth/ including files needing modification, web integration, and schema changes</parameter>
 </invoke>
 
-<!-- Investigation 4: Testing and validation (parallel) -->
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">What authentication testing patterns exist in packages/api/tests/ including test files, user creation, database setup, and token handling?</parameter>
+<!-- Investigation 4: Find test files (parallel) -->
+<!-- Use Explore agent for locating files -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">Find all authentication-related test files in packages/api/tests/ and packages/api/src/**/*.test.ts</parameter>
 </invoke>
 ```
 
@@ -732,16 +768,7 @@ Organize issues from both assessors before researching:
 - Clarifications
 
 ### Step 2: Target Research on Issues
-Address issues from BOTH assessors using the patterns in the revision-research-patterns section above.
-
-For strategic issues from plan-refactor, focus research on:
-- **Problem-Solution Fit**: Validate understanding of the actual problem
-- **Complexity Concerns**: Find simpler alternatives
-- **Abstraction Issues**: Research existing patterns before proposing new ones
-- **Implicit Assumptions**: Make explicit through codebase analysis
-- **Coupling/Independence**: Analyze dependencies and boundaries
-- **Reversibility**: Identify one-way vs two-way decisions
-- **Reality Checks**: Research failure modes and testability approaches
+Address issues from BOTH assessors using `<revision-research-patterns>`. For strategic questions from plan-refactor, use the question-to-research mapping in `<research-before-asking>`.
 
 ### Step 3: Create Revised Plan
 Return to Phase 2 and create the next version (plan-v2.md, plan-v3.md, etc.) incorporating findings from BOTH assessors. **After creating the revised plan, immediately return to Phase 3 for dual assessment.**

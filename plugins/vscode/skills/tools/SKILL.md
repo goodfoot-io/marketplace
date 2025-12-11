@@ -488,19 +488,25 @@ The codebase analysis tool automatically:
 <parameter name="question">TypeScript error TS2322 at packages/api/src/user.ts:45: Why is email required?</parameter>
 </invoke>
 
-<!-- Trace dependencies -->
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">What files import from packages/shared/src/types/user.ts?</parameter>
+<!-- Use Explore agent for simple location queries -->
+<!-- Find files that import from a specific module -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">What files import from packages/shared/src/types/user.ts?</parameter>
 </invoke>
 
-<!-- Analyze code flow -->
+<!-- Use mcp__plugin_vscode_codebase__ask for analyzing dependencies and relationships -->
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">How does packages/api/src/services/user.ts depend on database types?</parameter>
 </invoke>
 
-<!-- Find usage patterns -->
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">Find all console.log statements in packages/api/src/**/*.ts</parameter>
+<!-- Use Explore agent for simple location queries -->
+<!-- Find console.log statements across files -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">Find all console.log statements in packages/api/src/**/*.ts</parameter>
 </invoke>
 ```
 
