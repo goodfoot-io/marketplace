@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# Skill Reloader SessionStart Hook
+#
+# Runs after compaction and outputs instructions to reload previously tracked skills.
+# Implements one-shot behavior by deleting the enablement flag after running.
+
+# Read JSON input from stdin
+input=$(cat)
+
+# Source the find-claude-pid utility
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../bin/find-claude-pid"
+
+# Get the Claude PID for session-scoped storage
+CLAUDE_PID=$(find_claude_pid)
+
+# Define file paths
+ENABLEMENT_FLAG="/tmp/claude_skills_reload_${CLAUDE_PID}.enabled"
+SKILLS_FILE="/tmp/claude_skills_${CLAUDE_PID}.txt"
+
+# Check if enablement flag exists
+if [ ! -f "$ENABLEMENT_FLAG" ]; then
+    # Not enabled - output empty JSON and exit
+    echo '{}'
+    exit 0
+fi
+
+# Check if skills file exists and has content
+if [ ! -f "$SKILLS_FILE" ] || [ ! -s "$SKILLS_FILE" ]; then
+    # No skills tracked - delete enablement flag and output empty JSON
+    rm -f "$ENABLEMENT_FLAG"
+    echo '{}'
+    exit 0
+fi
+
+# Read and deduplicate skill names
+skills=$(sort -u "$SKILLS_FILE")
+
+# Count skills
+skill_count=$(echo "$skills" | wc -l)
+
+# Build the skill list for the message
+if [ "$skill_count" -eq 0 ]; then
+    # No skills after deduplication
+    rm -f "$ENABLEMENT_FLAG"
+    echo '{}'
+    exit 0
+elif [ "$skill_count" -eq 1 ]; then
+    # Single skill: 'skill1'
+    skill_list="'$(echo "$skills" | head -1)'"
+elif [ "$skill_count" -eq 2 ]; then
+    # Two skills: 'skill1' and 'skill2'
+    first=$(echo "$skills" | head -1)
+    second=$(echo "$skills" | tail -1)
+    skill_list="'${first}' and '${second}'"
+else
+    # Three or more skills: 'skill1', 'skill2', and 'skill3'
+    skill_list=""
+    i=1
+    while IFS= read -r skill; do
+        if [ $i -eq 1 ]; then
+            skill_list="'${skill}'"
+        elif [ $i -eq "$skill_count" ]; then
+            skill_list="${skill_list}, and '${skill}'"
+        else
+            skill_list="${skill_list}, '${skill}'"
+        fi
+        ((i++))
+    done <<< "$skills"
+fi
+
+# Delete the enablement flag (one-shot behavior)
+rm -f "$ENABLEMENT_FLAG"
+
+# Extract hook_event_name from input (default to SessionStart)
+hook_event_name=$(echo "$input" | jq -r '.hook_event_name // "SessionStart"')
+
+# Output JSON with reload instructions
+jq -n --arg event "$hook_event_name" --arg skills "$skill_list" '{
+  hookSpecificOutput: {
+    hookEventName: $event,
+    additionalContext: ("Load skill " + $skills + " before continuing")
+  }
+}'
+
+exit 0
