@@ -459,9 +459,7 @@ Research the codebase to understand current system behavior and architectural pa
 4. **Check for user feedback** - If user provides corrections or clarifications:
    - Log feedback using the Bash tool with heredoc to append to [ABSOLUTE_PROJECT_PATH]/log.md
    - Proceed to Phase 4 to address the feedback
-5. If no user feedback, HALT - the plan is complete
-
-**Do not implement the project plan.**
+5. If no user feedback, HALT - the plan is complete. Do not implement the plan. This command is planning only.
 
 #### If Either Assessment Fails (Ready: No OR RECONSIDER)
 **Revise plans for CRITICAL/RECONSIDER or HIGH/CONCERNS issues. Do not revise for style suggestions.**
