@@ -78,13 +78,19 @@ Before asking the user any question—whether during initial parsing, after asse
 | "Design for reality?" | Search for error handling patterns, find test infrastructure |
 | "Technical feasibility?" | Web search for examples, spike if uncertain |
 
-### Step 3: Present Findings When Asking
+### Step 3: Surface Considerations, Then Decide
 
-When clarification is still needed after research, present:
-- What you investigated and discovered (codebase, web, spikes)
-- Which options remain viable (and why others were eliminated)
-- Your recommendation with rationale (if you have one)
-- The specific decision you need from the user
+After research, surface your thinking visibly, then make a decision:
+- State the consideration or question you're weighing
+- Share what you discovered and which options remain viable
+- Make your recommended decision with rationale
+- Document the decision in the plan for user approval
+
+**Only ask the user when:**
+- **Blocking**: Cannot proceed without their input (e.g., missing credentials, conflicting hard requirements)
+- **Intent clarity**: Risk of solving the wrong problem (e.g., "You mentioned X but the codebase suggests Y—which is correct?")
+
+For all other decisions, make your best judgment. The plan is the approval checkpoint.
 
 ### Default Stances (Apply Without Asking)
 
@@ -93,6 +99,8 @@ When clarification is still needed after research, present:
 | New package needed | Use latest stable version |
 | Existing package in project | Preserve current version unless new features require upgrade |
 | Single viable approach after research | Proceed with documented rationale |
+| Multiple viable approaches | Choose recommended approach, surface reasoning, document alternatives in plan |
+| Process/documentation decisions | Decide based on codebase patterns, surface reasoning |
 </research-before-asking>
 
 <request-parsing-guidelines>
@@ -371,13 +379,12 @@ Provides:
 
 #### After Both Assessments Complete (Always)
 
-1. **Triage questions** as researchable (technical feasibility, patterns, compatibility) vs requires-user-input (business priorities, trade-off preferences)
-2. **For researchable questions**, follow `<research-before-asking>`
-3. **Present consolidated findings**:
-   - Questions resolved through research (with findings)
-   - Questions requiring user input (with research context and remaining options)
-   - Implicit assumptions validated (with evidence)
-4. **Determine next action** based on combined results (see table above)
+1. **Resolve questions through research** following `<research-before-asking>`
+2. **Surface considerations visibly** as you work through them
+3. **Track subjective decisions**: Collect design choices and judgment calls (not factual resolutions like "Is X compatible with Y?") for inclusion in the final summary. These help reviewers know where to focus.
+4. **Make decisions** for non-blocking issues and document them in the plan revision
+5. **Only ask the user** for blocking issues or intent clarity
+6. **Determine next action** based on combined results (see table above)
 
 #### If Both Assessments Pass (Ready: Yes + READY/DISCUSS)
 
@@ -444,10 +451,15 @@ Focus on technical precision and architectural reasoning. Avoid marketing langua
 Research the codebase to understand current system behavior and architectural patterns that inform the technical decisions.</parameter>
    </invoke>
    ```
-3. **Check for user feedback** - If user provides corrections or clarifications:
+3. **Present summary to user** including:
+   - Plan location and version
+   - **Subjective decisions made**: List design choices and judgment calls with brief reasoning (e.g., "Chose server-side rendering for initial load performance"). Omit factual resolutions.
+   - Any accepted concerns from DISCUSS assessment
+   - Prompt for feedback
+4. **Check for user feedback** - If user provides corrections or clarifications:
    - Log feedback using the Bash tool with heredoc to append to [ABSOLUTE_PROJECT_PATH]/log.md
    - Proceed to Phase 4 to address the feedback
-4. If no user feedback, HALT - the plan is complete
+5. If no user feedback, HALT - the plan is complete
 
 **Do not implement the project plan.**
 
