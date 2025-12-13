@@ -9,7 +9,7 @@
     },
     "codebase": {
       "command": "npx",
-      "args": ["-y", "@goodfoot/codebase-mcp-server"]
+      "args": ["-y", "@goodfoot/codebase-mcp-server@0.1.3"]
     }
   }
 }

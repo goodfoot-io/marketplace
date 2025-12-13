@@ -780,15 +780,15 @@ ${question}
       prompt,
       options: {
         systemPrompt: customSystemPrompt,
-        model: 'haiku',
+        model: 'sonnet',
         maxTurns: 100,
         includePartialMessages: true,
         abortController,
         // Disallow tools that are not needed for codebase analysis:
         // - ExitPlanMode: Planning mode not applicable
         // - KillBash/BashOutput: Background process management not needed
-        // - mcp__codebase__ask: Prevent recursive calls
-        disallowedTools: ['ExitPlanMode', 'KillBash', 'mcp__codebase__ask', 'BashOutput']
+        // - mcp__codebase: Prevent recursive calls
+        disallowedTools: ['ExitPlanMode', 'mcp__codebase', 'NotebookRead', 'NotebookEdit']
       }
     })) {
       // Check if the operation was aborted

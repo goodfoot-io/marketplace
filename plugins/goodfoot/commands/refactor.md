@@ -13,10 +13,17 @@ Extract from `<user-message>` or recent conversation:
 - [REFACTOR_INTENT] = What improvement is desired: clarity, simplification, pattern alignment, dead code removal (optional)
 - [SCOPE_CONSTRAINTS] = Boundaries or areas to avoid touching (optional)
 
+Resolve [REFACTOR_TARGET] to [TARGET_FILES]:
+- If file path → use directly
+- If directory → find all .ts, .tsx, .js, .jsx files within
+- If glob pattern (e.g., `src/**/*.ts`) → expand to matching files
+- If git range (e.g., `HEAD~3..HEAD`) → extract changed files via `git diff --name-only`
+- If description (e.g., "auth module") → search codebase for matching files
+
 Variables set during execution:
-- [TARGET_FILES] = Resolved list of files to analyze
-- [VALIDATION_COMMANDS] = Discovered validation commands for the affected packages as described in `<validation-discovery>`
-- [BASELINE_TAG] = Git tag marking pre-refactor state as described in `<establish-baseline>`
+- [TARGET_FILES] = Resolved list of absolute file paths to analyze
+- [VALIDATION_COMMANDS] = Discovered validation commands (typecheck, test, lint) for affected packages
+- [BASELINE_TAG] = `goodfoot-refactor/baseline` git tag marking pre-refactor state
 </input-format>
 
 <philosophy>
@@ -32,7 +39,7 @@ Variables set during execution:
 </philosophy>
 
 <refactoring-actions>
-## Refactoring Categories
+## Refactoring Actions
 
 <dead-code-removal>
 ### Dead Code Removal
@@ -124,81 +131,70 @@ Variables set during execution:
 
 </refactoring-actions>
 
-<operational-guidelines>
-1. **Read before refactoring** - Understand code purpose before proposing changes. Do not simplify code you haven't inspected.
-
-2. **Validate incrementally** - Run validation after each significant change. If validation fails, revert and reconsider.
-
-3. **Use haiku model** - All exploration subagents should use `model="haiku"`.
-
-4. **Self-contained exploration prompts** - Exploration agents have no conversation context. Include full paths and specific questions in every prompt.
-
-5. **Preserve behavior** - All refactoring must maintain observable functionality. If uncertain, err on the side of caution.
-
-6. **Never break tests** - Tests must pass before and after refactoring. If a test fails, the refactoring is invalid.
-</operational-guidelines>
-
 <exploration>
-Launch Explore subagents in parallel for analysis. Provide full paths.
+## Tool Selection
+
+**Use Explore agent (haiku) for:**
+- Simple file/pattern discovery
+- Listing what exists in a directory
+- Quick searches without deep analysis
+
+**Use mcp__plugin_vscode_codebase__ask for:**
+- Dead code analysis (requires reference tracing)
+- Complexity analysis (requires understanding call patterns)
+- Abstraction analysis (requires counting implementations)
+- Purpose discovery (requires understanding system context)
+
+**Important**: Neither the Explore agent nor the `mcp__plugin_vscode_codebase__ask` function have conversation context. Include FULL paths and specific questions in every invocation.
+
+## Initial Discovery (Parallel)
+
+Run these in parallel to gather basic information:
 
 ```xml
-<!-- PATTERN DISCOVERY -->
+<!-- PATTERN DISCOVERY - Use Explore for quick pattern listing -->
 <invoke name="Task">
 <parameter name="description">Discover patterns</parameter>
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">What patterns and conventions are used in [TARGET_FILES] and surrounding code? Look for: naming conventions, error handling patterns, abstraction levels, utility usage, and architectural approaches.</parameter>
 </invoke>
-
-<!-- DEAD CODE ANALYSIS -->
-<invoke name="Task">
-<parameter name="description">Find dead code</parameter>
-<parameter name="subagent_type">Explore</parameter>
-<parameter name="model">haiku</parameter>
-<parameter name="prompt">Analyze [TARGET_FILES] for dead code: unused functions, variables, parameters, branches that never execute, commented-out code, and debugging statements. List each finding with file:line reference.</parameter>
-</invoke>
-
-<!-- COMPLEXITY ANALYSIS -->
-<invoke name="Task">
-<parameter name="description">Analyze complexity</parameter>
-<parameter name="subagent_type">Explore</parameter>
-<parameter name="model">haiku</parameter>
-<parameter name="prompt">Analyze [TARGET_FILES] for complexity issues: deeply nested conditionals, functions over 50 lines, overly clever implementations, and opportunities for simplification. List each finding with file:line reference and suggested improvement.</parameter>
-</invoke>
-
-<!-- ABSTRACTION ANALYSIS -->
-<invoke name="Task">
-<parameter name="description">Check abstractions</parameter>
-<parameter name="subagent_type">Explore</parameter>
-<parameter name="model">haiku</parameter>
-<parameter name="prompt">Analyze [TARGET_FILES] for over-engineering: interfaces with single implementations, factory patterns with one product, configurable options that never vary, and "future-proof" extension points with no users. List each finding with file:line reference.</parameter>
-</invoke>
 ```
 
-**Dependency Analysis** (run in parallel with above):
 ```bash
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/print-dependencies [TARGET_FILES]
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/print-inverse-dependencies [TARGET_FILES]
+# DEPENDENCY ANALYSIS - Run in parallel
+print-dependencies [TARGET_FILES]
+print-inverse-dependencies [TARGET_FILES]
 ```
 
-**Purpose Discovery** (run after dependency analysis completes, using discovered references):
+## Deep Analysis (After Initial Discovery)
+
+After dependency analysis completes, run these targeted analyses with full context:
+
 ```xml
-<!-- PURPOSE DISCOVERY -->
-<invoke name="Task">
-<parameter name="description">Understand purpose</parameter>
-<parameter name="subagent_type">Explore</parameter>
-<parameter name="model">haiku</parameter>
-<parameter name="prompt">What is the purpose of [TARGET_FILES]?
+<!-- DEAD CODE ANALYSIS - Requires reference tracing -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Analyze [TARGET_FILES] for dead code. For each function, variable, and parameter: trace ALL references using VSCode LSP. List findings with file:line for: functions with zero callers (excluding exports), variables never read after assignment, parameters always passed the same value, branches that never execute based on type analysis. Show evidence for each finding.</parameter>
+</invoke>
 
-Context from dependency analysis:
-- Dependencies: [DEPENDENCIES]
-- Inverse dependencies (callers): [INVERSE_DEPENDENCIES]
+<!-- COMPLEXITY ANALYSIS - Requires understanding call patterns -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Analyze complexity in [TARGET_FILES]. For each function: count lines, measure nesting depth, identify cyclomatic complexity. List functions over 30 lines or with nesting > 3 levels. For each finding, show the code structure and suggest specific simplification (guard clauses, extraction, etc.) with file:line references.</parameter>
+</invoke>
 
-Describe:
-1. What problem this code solves
-2. Its role in the larger system based on what calls it and what it calls
-3. Key responsibilities
-4. Any non-obvious design decisions that might have good reasons (don't assume complexity is accidental)</parameter>
+<!-- ABSTRACTION ANALYSIS - Requires counting implementations -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">Analyze abstractions in [TARGET_FILES] for over-engineering. For each interface, abstract class, and factory: count ALL implementations using VSCode references. Flag: interfaces with exactly 1 implementation, factories producing 1 product, configurable options with 1 value used. Show evidence with file:line references.</parameter>
+</invoke>
+
+<!-- PURPOSE DISCOVERY - Requires understanding system context -->
+<invoke name="mcp__plugin_vscode_codebase__ask">
+<parameter name="question">What is the purpose of [TARGET_FILES]?
+
+Dependencies: [DEPENDENCIES]
+Inverse dependencies (callers): [INVERSE_DEPENDENCIES]
+
+Describe: (1) What problem this code solves, (2) Its role in the larger system based on callers and callees, (3) Key responsibilities, (4) Any non-obvious design decisions that might have good reasons—don't assume complexity is accidental.</parameter>
 </invoke>
 ```
 </exploration>
@@ -250,39 +246,36 @@ During development you should run linting and targeted tests early and often, i.
 
 1. Launch parallel exploration following `<exploration>`
 2. Wait for all subagents to complete
-3. Synthesize findings into categories from `<refactoring-actions>`
-4. Prioritize by:
-   1. Dead code removal (safest)
-   2. Naming improvements (low risk)
-   3. Logic simplification (moderate risk)
-   4. Over-engineering removal (requires validation)
-   5. Pattern harmonization (requires validation)
+3. Synthesize findings into **all six categories** from `<refactoring-actions>`
+4. Apply categories in this order (safest first):
+   1. Dead code removal
+   2. Naming improvements
+   3. Logic simplification
+   4. Over-engineering removal
+   5. Pattern harmonization
+   6. Test refinement
+
+**Important**: Apply all categories that have findings. Do not stop after the first category—work through all six in order.
 
 ## Phase 2: Refactoring Actions
 
-For each refactoring action from Phase 1, in priority order, apply the refactoring following `<refactoring-actions>`.
+For each category in order, apply all refactorings identified in Phase 1.
 
 For each change:
 1. **Document intent** - State what will change, why it improves the code, and what behavior is preserved
 2. **Make change** - Apply the refactoring using Edit tool
 3. **Validate** - Run [VALIDATION_COMMANDS] and check VSCode diagnostics for faster feedback
-4. **Handle result** - If validation passes, proceed. If validation fails, revert and skip.
+4. **Handle result** - If validation passes, proceed to next change. If validation fails, revert that specific change and continue with remaining changes.
 
 ## Phase 3: Final Validation
 
-Run full validation suite:
-```bash
-[ALL_VALIDATION_COMMANDS]
-```
+Run full validation suite using [VALIDATION_COMMANDS] (typecheck, test, lint for all affected packages).
 
 **If all pass:** Proceed to Phase 4
 
 **If failures:**
 - Report which validations fail
-- Revert to baseline:
-  ```bash
-  git checkout [BASELINE_TAG] -- .
-  ```
+- Revert to baseline: `git checkout [BASELINE_TAG] -- .`
 - Report what refactorings were attempted but failed validation
 
 ## Phase 4: Generate Report
