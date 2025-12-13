@@ -1,6 +1,5 @@
 ---
-description: Perform expert-level refactoring on code without requiring a project plan
-allowed-tools: *
+description: Refactor code
 ---
 
 <user-message>
