@@ -1,5 +1,5 @@
 ---
-description: Refactor code
+description: Refactor code with checkpoints
 ---
 
 <user-message>
