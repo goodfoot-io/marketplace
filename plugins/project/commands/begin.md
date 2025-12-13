@@ -432,6 +432,7 @@ if [ "$NO_PROJECT_FOUND" = "false" ]; then
     echo "Plan: @$PROJECT_PATH/plan.md"
     echo "Log: @$PROJECT_PATH/log.md"
     echo ""
+    echo "**Note**: If the plan references scratchpad paths from planning (e.g., \`scratchpad/test-name/\`), these have moved with the project to \`$PROJECT_PATH/scratchpad/\`."
     echo ""
 else
     # Define BACKTICK for use in markdown code blocks
