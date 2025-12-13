@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.3
+- Upgraded analysis model from Haiku to Sonnet for improved response quality and accuracy
+
 ## 0.1.2
 
 - Added environment-variable-based logging system (enabled via `CODEBASE_MCP_SERVER_LOGGING=true`)
