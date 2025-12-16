@@ -1,6 +1,7 @@
 #!/bin/bash
 # Pre-commit hook to auto-bump plugin versions when plugin files change
 # Bumps the patch version (e.g., 1.0.1 -> 1.0.2) for any plugin with staged changes
+# Also bumps marketplace.json version when any plugin is bumped
 
 set -e
 
@@ -13,6 +14,9 @@ fi
 
 # Track which plugins have been processed to avoid double-bumping
 declare -A PROCESSED_PLUGINS
+
+# Track if any plugins were bumped
+PLUGINS_BUMPED=0
 
 for file in $STAGED_FILES; do
     # Check if the file is in a plugin directory
@@ -73,7 +77,45 @@ for file in $STAGED_FILES; do
         echo "Bumped ${PLUGIN_NAME} version: ${CURRENT_VERSION} -> ${NEW_VERSION}"
 
         PROCESSED_PLUGINS[$PLUGIN_NAME]=1
+        PLUGINS_BUMPED=1
     fi
 done
+
+# If any plugins were bumped, also bump the marketplace.json version
+if [ "$PLUGINS_BUMPED" -eq 1 ]; then
+    MARKETPLACE_JSON=".claude-plugin/marketplace.json"
+
+    if [ -f "$MARKETPLACE_JSON" ]; then
+        # Read current marketplace version from metadata.version
+        MARKETPLACE_VERSION=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$MARKETPLACE_JSON" | head -1 | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
+
+        if [ -n "$MARKETPLACE_VERSION" ]; then
+            # Parse version components
+            IFS='.' read -r M_MAJOR M_MINOR M_PATCH <<< "$MARKETPLACE_VERSION"
+
+            # Bump patch version
+            NEW_M_PATCH=$((M_PATCH + 1))
+            NEW_MARKETPLACE_VERSION="${M_MAJOR}.${M_MINOR}.${NEW_M_PATCH}"
+
+            # Update marketplace.json with new version (only first occurrence in metadata)
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                # macOS sed
+                sed -i '' "0,/\"version\"[[:space:]]*:[[:space:]]*\"${MARKETPLACE_VERSION}\"/s//\"version\": \"${NEW_MARKETPLACE_VERSION}\"/" "$MARKETPLACE_JSON"
+            else
+                # Linux sed
+                sed -i "0,/\"version\"[[:space:]]*:[[:space:]]*\"${MARKETPLACE_VERSION}\"/s//\"version\": \"${NEW_MARKETPLACE_VERSION}\"/" "$MARKETPLACE_JSON"
+            fi
+
+            # Stage the updated marketplace.json
+            git add "$MARKETPLACE_JSON"
+
+            echo "Bumped marketplace.json version: ${MARKETPLACE_VERSION} -> ${NEW_MARKETPLACE_VERSION}"
+        else
+            echo "Warning: Could not parse version from $MARKETPLACE_JSON, skipping marketplace bump"
+        fi
+    else
+        echo "Warning: $MARKETPLACE_JSON not found, skipping marketplace bump"
+    fi
+fi
 
 exit 0

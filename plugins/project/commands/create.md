@@ -63,7 +63,13 @@ Before asking the user any question—whether during initial parsing, after asse
 | Query Type | Tool | Why |
 |------------|------|-----|
 | Simple location queries ("where is X?", "find files matching Y") | `Explore` subagent with `haiku` model | Lightweight, minimal context usage |
-| How things work, code flow, dependencies, patterns | `mcp__plugin_vscode_codebase__ask` | Deep analysis with LSP integration, dependency tracing |
+| List files in directory, find by pattern | `Glob` or `Explore` subagent | Quick discovery without deep analysis |
+| How things work, code flow, dependencies | `mcp__plugin_vscode_codebase__ask` | Deep analysis with LSP integration |
+| Impact analysis ("what breaks if I change X?") | `mcp__plugin_vscode_codebase__ask` | Reference tracing, dependency graphs |
+| Type definitions, interface contracts | `mcp__plugin_vscode_codebase__ask` | LSP hover/definition information |
+| Error root cause ("why does TS2322 occur?") | `mcp__plugin_vscode_codebase__ask` | Type analysis, definition tracing |
+
+**Important**: Neither the Explore agent nor `mcp__plugin_vscode_codebase__ask` have conversation context. Include FULL paths and specific questions in every invocation.
 
 ### Step 2: Translate Abstract Questions to Concrete Research
 
@@ -186,37 +192,44 @@ For EVERY file path you plan to include, you MUST verify in this exact sequence:
 - **Parallel**: When queries are independent (most common case - default to this)
 
 #### Core Research Pattern (Parallel Execution)
-When investigating multiple independent aspects, execute codebase analysis in parallel using a single message with multiple tool invocations:
+When investigating multiple independent aspects, execute in parallel using a single message with multiple tool invocations:
 
 ```xml
 <!-- PARALLEL EXECUTION: Send all these tool calls in ONE message for simultaneous analysis -->
-<!-- Note: The tool provides exhaustive results by default - complete code, all occurrences, line numbers -->
 
-<!-- First investigation - overall architecture -->
+<!-- Deep analysis - use mcp__plugin_vscode_codebase__ask for understanding how things work -->
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">How is user authentication implemented in packages/api/src/auth including framework versions, auth flow, and entry points?</parameter>
 </invoke>
 
-<!-- Second investigation - implementation patterns (runs in parallel) -->
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">What authentication and authorization patterns exist in packages/api including middleware functions, route protection, and role-based access?</parameter>
-</invoke>
-
-<!-- Third investigation - dependencies and impact (runs in parallel) -->
+<!-- Deep analysis - impact and dependency analysis -->
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">What would be affected if I change the auth system at packages/api/src/auth/?</parameter>
 </invoke>
 
-<!-- Fourth investigation - find test files (runs in parallel) -->
-<!-- Use Explore agent for locating files -->
+<!-- Simple location - use Explore agent for finding files by pattern -->
 <invoke name="Task">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Find all auth-related test files in packages/api/tests/ and packages/api/src/**/*.test.ts</parameter>
 </invoke>
+
+<!-- Simple location - find where types are defined -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">Where are the User and AuthUser types defined in packages/api/src/? List all files containing these type definitions.</parameter>
+</invoke>
+
+<!-- Simple location - list middleware files -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">List all middleware files in packages/api/src/middleware/ and packages/api/src/**/middleware.ts</parameter>
+</invoke>
 ```
 
-**Important**: All four investigations above should be sent in a SINGLE message to run in parallel, not sequentially.
+**Important**: All investigations above should be sent in a SINGLE message to run in parallel, not sequentially.
 </research-patterns>
 
 <technical-spike-guidelines>
@@ -472,27 +485,27 @@ Address issues identified by BOTH assessors (plan-assessor and plan-refactor) or
 #### Parallel Revision Research (send all in ONE message)
 ```xml
 <!-- PARALLEL EXECUTION: Address multiple issues simultaneously -->
-<!-- Note: Tool provides complete code and exact counts by default -->
 
-<!-- Issue 1: Incorrect File Paths (example from assessment: "UserService not found") -->
-<!-- Use Explore agent for simple location queries -->
+<!-- Simple location - find where a class is defined -->
 <invoke name="Task">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Where is the UserService class located in packages/api/src/? Are there any duplicate classes with that name?</parameter>
 </invoke>
 
-<!-- Issue 2: Missing Dependencies (runs in parallel) -->
+<!-- Simple location - find repository implementations -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">Find all files containing "Repository" in packages/api/src/repositories/ and packages/api/src/**/*repository*.ts</parameter>
+</invoke>
+
+<!-- Deep analysis - dependency tracing requires codebase tool -->
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">What are the dependencies for packages/api/src/services/user.service.ts including npm packages and circular dependencies?</parameter>
 </invoke>
 
-<!-- Issue 3: Pattern Examples (runs in parallel) -->
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">What Repository pattern implementations exist in packages/api/src/ including interface definitions and database connections?</parameter>
-</invoke>
-
-<!-- Issue 4: Integration Points (runs in parallel) -->
+<!-- Deep analysis - integration flow understanding -->
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">How do packages/api and packages/web integrate for authentication including endpoints, token handling, and error patterns?</parameter>
 </invoke>
@@ -565,27 +578,35 @@ Execute parallel investigations to understand different aspects of the codebase 
 ```xml
 <!-- PARALLEL EXECUTION: Send all tool calls together for maximum efficiency -->
 
-<!-- Investigation 1: Technology and architecture -->
+<!-- Deep analysis - technology stack and architecture understanding -->
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">What is the technology stack for OAuth authentication in packages/api including current auth framework and strategies?</parameter>
 </invoke>
 
-<!-- Investigation 2: Implementation patterns (parallel) -->
-<invoke name="mcp__plugin_vscode_codebase__ask">
-<parameter name="question">What authentication implementations exist in packages/api/src/auth/ including endpoints, middleware, session handling, and password logic?</parameter>
-</invoke>
-
-<!-- Investigation 3: Dependencies and integration (parallel) -->
+<!-- Deep analysis - dependency mapping and impact -->
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">Map dependencies for adding OAuth to packages/api/src/auth/ including files needing modification, web integration, and schema changes</parameter>
 </invoke>
 
-<!-- Investigation 4: Find test files (parallel) -->
-<!-- Use Explore agent for locating files -->
+<!-- Simple location - find test files -->
 <invoke name="Task">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Find all authentication-related test files in packages/api/tests/ and packages/api/src/**/*.test.ts</parameter>
+</invoke>
+
+<!-- Simple location - find existing auth implementations -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">List all files in packages/api/src/auth/ including subdirectories. Show the directory structure.</parameter>
+</invoke>
+
+<!-- Simple location - find config files -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">Find OAuth or authentication config files in packages/api/ (e.g., oauth.config.ts, auth.config.ts, passport.ts)</parameter>
 </invoke>
 ```
 

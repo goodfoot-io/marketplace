@@ -22,7 +22,7 @@ Resolve [REFACTOR_TARGET] to [TARGET_FILES]:
 Variables set during execution:
 - [TARGET_FILES] = Resolved list of absolute file paths to analyze
 - [VALIDATION_COMMANDS] = Discovered validation commands (typecheck, test, lint) for affected packages
-- [BASELINE_TAG] = `goodfoot-refactor/baseline` git tag marking pre-refactor state
+- [BASELINE_TAG] = Semantic git tag `refactor-[SLUG]-[YYYY-MM-DD]/baseline` (e.g., `refactor-auth-system-2025-12-13/baseline`)
 </input-format>
 
 <philosophy>
@@ -203,25 +203,30 @@ Describe: (1) What problem this code solves, (2) Its role in the larger system b
 
 Before making changes, establish a rollback point:
 
-1. Check git state: `git status --porcelain`
+1. **Generate semantic tag name**:
+   - Derive slug from [REFACTOR_TARGET] (e.g., `auth-system`, `user-service`, `api-handlers`)
+   - Append current date: `refactor-[SLUG]-[YYYY-MM-DD]/baseline`
+   - Example: `refactor-auth-system-2025-12-13/baseline`
 
-2. **If dirty and files overlap with [TARGET_FILES]:** Ask user how to proceed:
+2. Check git state: `git status --porcelain`
+
+3. **If dirty and files overlap with [TARGET_FILES]:** Ask user how to proceed:
    - "Stash changes" → `git stash push -m "pre-refactor"`
    - "Commit first" → Exit for user to handle
    - "Proceed anyway" → Continue (warn: limited rollback)
 
    **If clean or changes don't overlap:** Continue.
 
-3. Create baseline tag:
+4. Create baseline tag:
    ```bash
-   git tag -f goodfoot-refactor/baseline HEAD
+   git tag -f [BASELINE_TAG] HEAD
    ```
 
-4. **If baseline validation fails:** Report issues and ask user whether to:
+5. **If baseline validation fails:** Report issues and ask user whether to:
    - "Fix first" → Exit for user to handle
    - "Proceed anyway" → Continue with warning
 
-Set [BASELINE_TAG] = `goodfoot-refactor/baseline`
+Set [BASELINE_TAG] = `refactor-[SLUG]-[YYYY-MM-DD]/baseline`
 </establish-baseline>
 
 <validation-discovery>
@@ -320,12 +325,12 @@ Output report:
 ### Rollback
 To undo all changes:
 ```bash
-git checkout goodfoot-refactor/baseline -- .
+git checkout [BASELINE_TAG] -- .
 ```
 
 To remove baseline tag:
 ```bash
-git tag -d goodfoot-refactor/baseline
+git tag -d [BASELINE_TAG]
 ```
 </report-template>
 

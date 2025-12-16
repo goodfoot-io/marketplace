@@ -56,9 +56,22 @@ Only use TodoWrite and Task tools for coordination.
 When validation discovers linting, type checking, or testing issues:
 
 1. Run validation to get specific errors
-2. Investigate root cause using codebase analysis tools with FULL paths
+2. Investigate root cause using appropriate tools (see tool selection below)
 3. Create todo with investigation findings
 4. Delegate to project:implementer with root cause context
+
+**Tool selection for investigation:**
+
+| Investigation Type | Tool | Why |
+|-------------------|------|-----|
+| Find files by name/pattern | `Explore` agent (haiku) or `Glob` | Simple location, minimal context |
+| List directory contents | `Explore` agent (haiku) | Quick discovery |
+| Type error root cause | `mcp__plugin_vscode_codebase__ask` | Needs LSP type definitions |
+| Test failure analysis | `mcp__plugin_vscode_codebase__ask` | Needs code flow tracing |
+| Dependency/impact analysis | `mcp__plugin_vscode_codebase__ask` | Needs reference tracing |
+| Understanding how code works | `mcp__plugin_vscode_codebase__ask` | Deep analysis required |
+
+**Important**: Neither Explore agent nor `mcp__plugin_vscode_codebase__ask` have conversation context. Include FULL paths in every invocation.
 
 Issues requiring investigation and delegation:
 - Skipped tests (investigate why they're skipped, delegate fix)
@@ -297,25 +310,47 @@ Capture from output:
 
 ### Stage 5: Deep Analysis (Only when errors discovered)
 
-⚠️ **CRITICAL**: The Task tool with "codebase-analysis" subagent requires FULL paths in EVERY question.
+**Tool selection for error analysis:**
+- Use `mcp__plugin_vscode_codebase__ask` for type errors, test failures, and implementation verification (requires LSP, code tracing)
+- Use `Explore` agent (haiku) only for simple file location queries
+
+⚠️ **CRITICAL**: Neither tool has conversation context. Include FULL paths in EVERY question.
 
 Execute parallel analysis for discovered errors:
 
 ```xml
+<!-- Type error analysis - requires LSP type definitions -->
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">TypeScript error TS2322 at packages/api/src/auth/handler.ts:45:8: 'Type User not assignable to AuthUser'. Show BOTH complete type definitions from their source files, highlight EVERY property difference, and provide 3 different ways to fix this with code examples.</parameter>
 </invoke>
 
+<!-- Function signature analysis - requires code tracing -->
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">TypeScript error TS2554 at packages/api/src/services/user.ts:89:15: 'Expected 2 arguments but got 1'. Show the complete function signature, the exact call site with surrounding context, identify what the missing argument should be, and show the corrected code.</parameter>
 </invoke>
 
+<!-- Test failure analysis - requires async flow tracing -->
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">Test 'Authentication › should validate token' timing out in packages/api/tests/auth.test.ts. Show the COMPLETE test code, trace ALL async operations, check for missing awaits or unresolved promises, and identify why it's not completing.</parameter>
 </invoke>
 
+<!-- Implementation verification - requires code comparison -->
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">Does packages/api/src/services/user.ts implement ALL requirements from plan.md section 2.1? Show the actual implementation code and compare with each requirement.</parameter>
+</invoke>
+
+<!-- Simple file location - use Explore agent when you need to find related files -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">Find all test files related to authentication in packages/api/tests/ and packages/api/src/**/*.test.ts</parameter>
+</invoke>
+
+<!-- Simple file location - find where a module is exported from -->
+<invoke name="Task">
+<parameter name="subagent_type">Explore</parameter>
+<parameter name="model">haiku</parameter>
+<parameter name="prompt">Where is the AuthUser type exported from in packages/api/src/? List all files that define or re-export AuthUser.</parameter>
 </invoke>
 ```
 
