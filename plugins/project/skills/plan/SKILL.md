@@ -256,7 +256,7 @@ Technical spikes are empirical investigations that resolve uncertainty through w
   - WebSocket (Socket.io): Bidirectional communication working, <50ms latency, Redis pub/sub integration tested successfully
   - SSE (EventSource): Server→client only, requires separate POST endpoint for client→server
   - Polling: Functional but 23% higher server CPU usage, more complex state synchronization
-- **Artifacts**: `scratchpad/realtime-comparison/` contains:
+- **Artifacts**: `[PROJECT_PATH]/scratchpad/realtime-comparison/` contains:
   - `approach-socketio/` - Socket.io prototype with Redis adapter
   - `approach-sse/` - EventSource implementation with POST fallback
   - `approach-polling/` - Polling strategy with state management
@@ -271,7 +271,7 @@ Technical spikes are empirical investigations that resolve uncertainty through w
 - **Approach Tested**: Created minimal Socket.io server with @socket.io/redis-adapter, tested multi-instance communication
 - **Result**: Confirmed v4.6.1 supports Redis adapter with connection state sharing
 - **Evidence**: Successfully broadcast messages across 3 server instances, verified in scratchpad test
-- **Artifacts**: `scratchpad/socketio-redis-test/` contains server prototype and Redis config
+- **Artifacts**: `[PROJECT_PATH]/scratchpad/socketio-redis-test/` contains server prototype and Redis config
 - **Impact**: Can proceed with horizontal scaling approach; no single-server bottleneck
 
 ### TypeScript Satisfies with Zustand Stores
@@ -282,7 +282,7 @@ Technical spikes are empirical investigations that resolve uncertainty through w
 - **Approach Tested**: Created sample notification store using satisfies for state shape validation
 - **Result**: Zustand fully supports satisfies operator with proper type inference
 - **Evidence**: Store compiles without errors, provides autocomplete, catches violations at compile time
-- **Artifacts**: `scratchpad/zustand-typescript-satisfies/notification-store.ts`
+- **Artifacts**: `[PROJECT_PATH]/scratchpad/zustand-typescript-satisfies/notification-store.ts`
 - **Impact**: Can use type-safe patterns without 'as' assertions, reducing runtime errors
 
 ### Virtual Scrolling with React Concurrent Features
@@ -293,7 +293,7 @@ Technical spikes are empirical investigations that resolve uncertainty through w
 - **Approach Tested**: Created test component with 2000-item list using react-window and concurrent rendering
 - **Result**: Maintains <16ms frame time, smooth 60fps scrolling
 - **Evidence**: Performance profiling shows no layout thrashing, memory stable at ~45MB
-- **Artifacts**: `scratchpad/virtual-scroll-test/NotificationList.tsx` with profiling results
+- **Artifacts**: `[PROJECT_PATH]/scratchpad/virtual-scroll-test/NotificationList.tsx` with profiling results
 - **Impact**: Confirmed approach meets performance requirements; can handle notification list scaling
 ```
 </example>

@@ -150,7 +150,7 @@ When evaluating plans with technical assumptions, assess whether empirical inves
 <parameter name="skill">project:spike</parameter>
 </invoke>
 ```
-Then provide: "Compare [Alternative A], [Alternative B], and [Alternative C] for [use case]. Compare [criteria]. Use scratchpad path `projects/[STATUS]/[PROJECT_NAME]/scratchpad/[test-name]/`"
+Then provide: "Compare [Alternative A], [Alternative B], and [Alternative C] for [use case]. Compare [criteria]. Use scratchpad path `[PROJECT_PATH]/scratchpad/[test-name]/`"
 
 #### Recommend Tactical Spikes When:
 
@@ -172,7 +172,7 @@ Then provide: "Compare [Alternative A], [Alternative B], and [Alternative C] for
 <parameter name="skill">project:spike</parameter>
 </invoke>
 ```
-Then provide: "Verify [Library@version] supports [specific capability]. Use scratchpad path `projects/[STATUS]/[PROJECT_NAME]/scratchpad/[test-name]/`"
+Then provide: "Verify [Library@version] supports [specific capability]. Use scratchpad path `[PROJECT_PATH]/scratchpad/[test-name]/`"
 
 #### Validate Spike Quality (If Spikes Included):
 

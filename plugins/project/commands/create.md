@@ -29,14 +29,20 @@ Review the plan skill immediately to access plan structure and requirements: @!`
 PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "[PROJECT_NAME]")
 
 # To append to project log (never edit existing content), use the Bash tool with heredoc:
-# Note: Use $PROJECT_DIR if available from bash context, otherwise use absolute path
-cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+# Note: Use $PROJECT_DIR if available from bash context, otherwise substitute [PROJECT_PATH]
+cat >> "[PROJECT_PATH]/log.md" <<'EOF'
 [NEW_LOG_ENTRY]
 EOF
 
 # Create or update plan (auto-versioned, using plugin binary)
 !`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/create-plan-version "[PROJECT_NAME]" "[PLAN_CONTENT]"
 ```
+
+**Path Placeholder Convention:**
+- `[PROJECT_PATH]` - Placeholder for the project directory path (e.g., `projects/active/my-project`)
+- Use `[PROJECT_PATH]/scratchpad/[test-name]/` for all scratchpad references in plans
+- Projects move between status directories (`new` → `pending` → `active` → etc.), so never hardcode status in paths
+- When executing, substitute `[PROJECT_PATH]` with the actual path from `$PROJECT_DIR` or the known project location
 </command-reference>
 
 ---
@@ -139,7 +145,7 @@ Follow `<research-before-asking>`. Ask only when:
 5. **Note Urgency**: If the user indicates timeline or blocking issues, document them
 6. **Log Decisions**: For significant technical decisions, append a Decision Record to the project log:
    ```bash
-   cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+   cat >> "[PROJECT_PATH]/log.md" <<'EOF'
    ## Decision Record - [timestamp]
 
    ### Decision
@@ -273,13 +279,13 @@ Then provide the spike details in your message to the skill:
 ```
 Compare [Approach A], [Approach B], and [Approach C] for [use case].
 Compare [criterion 1], [criterion 2], and [criterion 3].
-Use scratchpad path `scratchpad/[test-name]/`
+Use scratchpad path `[PROJECT_PATH]/scratchpad/[test-name]/`
 ```
 
 **For Validation Spikes** (testing single approach):
 ```
 Verify [Library@version] supports [specific capability/feature].
-Use scratchpad path `scratchpad/[test-name]/`
+Use scratchpad path `[PROJECT_PATH]/scratchpad/[test-name]/`
 ```
 
 The spike skill will handle:
@@ -403,7 +409,7 @@ Provides:
 
 1. If Plan Refactor returned DISCUSS, log accepted concerns:
    ```bash
-   cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+   cat >> "[PROJECT_PATH]/log.md" <<'EOF'
    ## Accepted Concerns - [timestamp]
 
    The following strategic concerns were noted but accepted:
@@ -418,12 +424,12 @@ Provides:
    <parameter name="subagent_type">project:codebase-explainer</parameter>
    <parameter name="prompt"><project>
 Name: [PROJECT_NAME]
-Directory: @projects/[STATUS]/[PROJECT_NAME]
-Plan: @projects/[STATUS]/[PROJECT_NAME]/[PLAN_FILE]
-Log: @projects/[STATUS]/[PROJECT_NAME]/log.md
+Directory: @[PROJECT_PATH]
+Plan: @[PROJECT_PATH]/[PLAN_FILE]
+Log: @[PROJECT_PATH]/log.md
 </project>
 
-Create a technical project explanation and output to `projects/[STATUS]/[PROJECT_NAME]/description-v[N].md`
+Create a technical project explanation and output to `[PROJECT_PATH]/description-v[N].md`
 
 Create a concise narrative technical explanation with these constraints:
 
@@ -470,7 +476,7 @@ Research the codebase to understand current system behavior and architectural pa
    - Any accepted concerns from DISCUSS assessment
    - Prompt for feedback
 4. **Check for user feedback** - If user provides corrections or clarifications:
-   - Log feedback using the Bash tool with heredoc to append to [ABSOLUTE_PROJECT_PATH]/log.md
+   - Log feedback using the Bash tool with heredoc to append to [PROJECT_PATH]/log.md
    - Proceed to Phase 4 to address the feedback
 5. If no user feedback, HALT - the plan is complete. Do not implement the plan. This command is planning only.
 
@@ -548,7 +554,7 @@ Verify initialization succeeded before proceeding.
 Immediately append the user's request and your initial understanding to the project log. Capture ALL context, not just the command arguments:
 
 ```bash
-cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+cat >> "[PROJECT_PATH]/log.md" <<'EOF'
 ## User Request
 
 "[Copy the user's exact request verbatim, including all details]"
@@ -664,7 +670,7 @@ After researching the codebase, identify critical dependencies using `print-inve
 After research, record key discoveries including the technology stack, framework constraints, and any test results from isolated validation:
 
 ```bash
-cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+cat >> "[PROJECT_PATH]/log.md" <<'EOF'
 ## Research Findings
 
 I discovered several important aspects that will shape our approach:
@@ -703,7 +709,7 @@ If technical validation was performed:
 - [test_name]: [result summary]
   - Evidence: [key findings from investigation]
   - Version compatibility: [confirmed for X.X.X]
-  - Location: scratchpad/[test-name]/
+  - Location: [PROJECT_PATH]/scratchpad/[test-name]/
 - [How test results affect the approach]
 - [Any constraints discovered through testing]
 
@@ -809,7 +815,7 @@ Return to Phase 2 and create the next version (plan-v2.md, plan-v3.md, etc.) inc
 After addressing issues, document what changed and why:
 
 ```bash
-cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+cat >> "[PROJECT_PATH]/log.md" <<'EOF'
 ## Revision Notes - plan-v[N] to plan-v[N+1]
 
 ### Structural Issues Addressed (from plan-assessor)

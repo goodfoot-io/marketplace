@@ -13,9 +13,9 @@ Use when technology has NOT been chosen and you need to compare 2-3 viable appro
 
 **Derive these values from your context:**
 - `[SPIKE_QUESTION]`: Format as "Which approach ([A] vs [B] vs [C]) best supports [use case] with [constraints]?"
-- `[SCRATCHPAD_PATH]`: Format as `scratchpad/[test-name]/` (relative to project directory)
+- `[SCRATCHPAD_PATH]`: Format as `[PROJECT_PATH]/scratchpad/[test-name]/`
   - `[test-name]`: Use kebab-case like `realtime-comparison` or `socketio-vs-sse`
-  - Subagent prompts use absolute path: `[PROJECT_PATH]/scratchpad/[test-name]/`
+  - `[PROJECT_PATH]` is a placeholder for the project directory (e.g., `projects/active/my-project`)
 - `[APPROACHES]`: List 2-3 technologies with versions (e.g., `["Socket.io v4.6.1 (WebSocket)", "EventSource (SSE)", "long-polling"]`)
 - `[COMPARISON_CRITERIA]`: Measurable aspects (e.g., `"Developer experience, bidirectional communication, horizontal scaling"`)
 - `[SPIKE_CONTEXT]`: XML-formatted technical context with absolute paths (see <subagent-context> section below)
@@ -30,9 +30,9 @@ Use when technology IS chosen but specific capability/compatibility needs verifi
 
 **Derive these values from your context:**
 - `[SPIKE_QUESTION]`: Format as "Does [Library@version] support [specific capability]?"
-- `[SCRATCHPAD_PATH]`: Format as `scratchpad/[test-name]/` (relative to project directory)
+- `[SCRATCHPAD_PATH]`: Format as `[PROJECT_PATH]/scratchpad/[test-name]/`
   - `[test-name]`: Use kebab-case like `redis-compatibility-check` or `react-query-types-export`
-  - Subagent prompts use absolute path: `[PROJECT_PATH]/scratchpad/[test-name]/`
+  - The `[PROJECT_PATH]` placeholder represents the project directory (e.g., `projects/active/my-project`)
 - `[APPROACH]`: Single technology to validate (e.g., `"Socket.io v4.6.1 with @socket.io/redis-adapter"`)
 - `[VALIDATION_CRITERIA]`: What needs verification (e.g., `"Redis adapter compatibility for horizontal scaling"`)
 - `[SPIKE_CONTEXT]`: XML-formatted technical context with absolute paths (see <subagent-context> section below)
@@ -111,7 +111,7 @@ Instruct the subagent to document findings in a structured format within the scr
   - [Approach 1]: [Specific findings from prototype]
   - [Approach 2]: [Specific findings from prototype]
   - [Approach 3]: [Specific findings from prototype]
-- **Artifacts**: `scratchpad/[test-name]/` contains:
+- **Artifacts**: `[PROJECT_PATH]/scratchpad/[test-name]/` contains:
   - `approach-[name1]/` - [Description]
   - `approach-[name2]/` - [Description]
   - `approach-[name3]/` - [Description]
@@ -129,7 +129,7 @@ Instruct the subagent to document findings in a structured format within the scr
 - **Approach Tested**: [Technology/version being validated]
 - **Result**: [Pass/Fail or capability confirmation]
 - **Evidence**: [Concrete demonstration - working code, API output, test results]
-- **Artifacts**: `scratchpad/[test-name]/` contains:
+- **Artifacts**: `[PROJECT_PATH]/scratchpad/[test-name]/` contains:
   - `test-implementation/` - [Description]
   - `results.md` - Detailed findings
 - **Impact**: [How this result confirms feasibility or influences implementation details]
@@ -139,12 +139,11 @@ Instruct the subagent to document findings in a structured format within the scr
 <example>
 **Comparison Spike Example**:
 
-User message: "Compare WebSocket (Socket.io), Server-Sent Events (EventSource), and long-polling for real-time notifications. Compare developer experience, bidirectional communication support, and horizontal scaling capability. Use scratchpad path `scratchpad/realtime-comparison/`"
+User message: "Compare WebSocket (Socket.io), Server-Sent Events (EventSource), and long-polling for real-time notifications. Compare developer experience, bidirectional communication support, and horizontal scaling capability. Use scratchpad path `[PROJECT_PATH]/scratchpad/realtime-comparison/`"
 
 Derived values:
 - [SPIKE_QUESTION] = "Which real-time approach (WebSocket, SSE, or long-polling) best supports notification requirements with horizontal scaling?"
-- [SCRATCHPAD_PATH] = "scratchpad/realtime-comparison/" (documented in results)
-- [PROJECT_SCRATCHPAD] = "[PROJECT_PATH]/scratchpad/realtime-comparison/" (used in subagent prompt)
+- [SCRATCHPAD_PATH] = "[PROJECT_PATH]/scratchpad/realtime-comparison/"
 - [APPROACHES] = ["Socket.io v4.6.1 (WebSocket)", "native EventSource (SSE)", "polling with state management"]
 - [COMPARISON_CRITERIA] = ["Developer experience", "Bidirectional communication support", "Horizontal scaling capability"]
 - [SUBAGENT_TYPE] = "general-purpose"
@@ -259,12 +258,11 @@ Document findings using the Comparison Result Template in `results.md`.
 <example>
 **Validation Spike Example**:
 
-User message: "Verify Socket.io v4.6.1 supports Redis adapter for horizontal scaling. Use scratchpad path `scratchpad/redis-compatibility/`"
+User message: "Verify Socket.io v4.6.1 supports Redis adapter for horizontal scaling. Use scratchpad path `[PROJECT_PATH]/scratchpad/redis-compatibility/`"
 
 Derived values:
 - [SPIKE_QUESTION] = "Does Socket.io v4.6.1 support Redis adapter for horizontal scaling?"
-- [SCRATCHPAD_PATH] = "scratchpad/redis-compatibility/" (documented in results)
-- [PROJECT_SCRATCHPAD] = "[PROJECT_PATH]/scratchpad/redis-compatibility/" (used in subagent prompt)
+- [SCRATCHPAD_PATH] = "[PROJECT_PATH]/scratchpad/redis-compatibility/"
 - [APPROACHES] = ["Socket.io v4.6.1 with Redis adapter"]
 - [SUBAGENT_TYPE] = "general-purpose"
 - [SUBAGENT_DESCRIPTION] = "redis-compatibility-check"

@@ -128,7 +128,7 @@ Implementation must meet ALL criteria:
 Append evaluation results directly to project log using the Bash tool with heredoc:
 
 ```bash
-cat >> "[ABSOLUTE_PROJECT_PATH]/log.md" <<'EOF'
+cat >> "[PROJECT_PATH]/log.md" <<'EOF'
 [Use the complete Implementation Evaluation format from above]
 EOF
 ```

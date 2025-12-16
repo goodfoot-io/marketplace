@@ -39,7 +39,7 @@ Why does this limit exist?
 
 **Example:**
 > "Limited to 1000 notifications/user because IndexedDB performance degrades
-> beyond this threshold on mobile Safari. Validated via spike in scratchpad/indexeddb-perf/."
+> beyond this threshold on mobile Safari. Validated via spike in `[PROJECT_PATH]/scratchpad/indexeddb-perf/`."
 
 ### Exclusion Rationale
 Why is this out of scope?
