@@ -1,0 +1,45 @@
+{
+  "name": "@goodfoot/yarn-plugin-worktree-isolation",
+  "version": "1.0.1",
+  "description": "Yarn plugin that isolates git worktrees by removing external symlinks before installation",
+  "sideEffects": false,
+  "type": "module",
+  "main": "./sources/index.ts",
+  "scripts": {
+    "prettier": "prettier . --write --log-level warn",
+    "prettier:files": "prettier --write --log-level warn",
+    "eslint": "eslint --cache --fix ./sources ./tests",
+    "eslint:files": "eslint --cache --fix",
+    "typecheck": "tsc --noEmit",
+    "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
+    "build": "builder build plugin",
+    "test": "vitest run",
+    "release": "bash ../../scripts/release-package.sh yarn-plugin-worktree-isolation",
+    "release:dry-run": "bash ../../scripts/release-package.sh yarn-plugin-worktree-isolation --dry-run"
+  },
+  "files": [
+    "bundles"
+  ],
+  "keywords": [
+    "yarn-plugin",
+    "yarn",
+    "worktree",
+    "git",
+    "isolation"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "main": "./bundles/@yarnpkg/plugin-worktree-isolation.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@yarnpkg/builder": "^4.1.4",
+    "@yarnpkg/core": "^4.5.0",
+    "eslint": "^9.39.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "vitest": "4.0.13"
+  }
+}
