@@ -19,7 +19,7 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/typescript-check",
-            "timeout": 30
+            "timeout": 60
           }
         ]
       }

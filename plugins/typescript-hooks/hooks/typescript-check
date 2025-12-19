@@ -177,6 +177,46 @@ function parseTypeScriptErrors(output, filePath) {
   return { errors, signatures };
 }
 
+// Parse TypeScript errors from ALL files in project output
+function parseAllTypeScriptErrors(output, packageDir) {
+  const errors = [];
+  const signatures = new Map();
+
+  const cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
+  const lines = cleanOutput.split('\n');
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Match TypeScript error format for ANY file
+    const match = line.match(/^(.+?)(?:\(|:)(\d+)(?:,|:)(\d+)\)?\s*[-:]?\s*error\s+(TS\d+):\s*(.+)$/);
+    if (match) {
+      const [, filePath, lineNum, colNum, code, message] = match;
+
+      // Resolve to absolute path
+      const absolutePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(packageDir, filePath);
+
+      const fileLines = getFileLines(absolutePath);
+
+      errors.push({
+        type: 'typescript',
+        file: absolutePath,
+        line: parseInt(lineNum, 10),
+        column: parseInt(colNum, 10),
+        code: code,
+        message: message.trim(),
+        context: getContextLines(fileLines, lineNum)
+      });
+    }
+    i++;
+  }
+
+  return { errors, signatures };
+}
+
 // Parse ESLint error output
 function parseESLintErrors(output, filePath) {
   const errors = [];
@@ -525,20 +565,76 @@ function runTypeCheck(filePath, packageDir) {
   }
 }
 
+// Run TypeScript type checking for entire project (optimized - single run)
+function runProjectTypeCheck(packageDir) {
+  debug(colors.cyan('🔍 Running TypeScript type check...'));
+
+  try {
+    const tsconfigPath = path.join(packageDir, 'tsconfig.json');
+    if (!fs.existsSync(tsconfigPath)) {
+      debug(colors.yellow('No tsconfig.json found'));
+      return { success: true, errors: [], signatures: new Map() };
+    }
+
+    const tscCommand = `npx tsc --project tsconfig.json --noEmit --incremental --tsBuildInfoFile ./build/.tsbuildinfo-hook --pretty`;
+
+    debug(colors.gray(`Running: ${tscCommand}`));
+
+    execSync(tscCommand, {
+      cwd: packageDir,
+      stdio: 'pipe',
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        NODE_PATH: path.join(packageDir, 'node_modules')
+      }
+    });
+
+    debug(colors.green('✅ TypeScript: No type errors found'));
+    return { success: true, errors: [], signatures: new Map() };
+
+  } catch (error) {
+    const errorOutput = error.stdout || error.stderr || '';
+    const { errors, signatures } = parseAllTypeScriptErrors(errorOutput, packageDir);
+    return { success: false, errors, signatures };
+  }
+}
+
+// Filter errors from a single TypeScript run to find dependent file issues
+function filterDependentFileErrors(allErrors, dependentFiles, editedFile) {
+  const depFileSet = new Set(dependentFiles);
+
+  return allErrors.filter(error => {
+    // Include errors from dependent files
+    if (depFileSet.has(error.file)) {
+      // Only include errors likely caused by changes to the edited file
+      return error.code === 'TS2305' || // Module has no exported member
+             error.code === 'TS2339' || // Property does not exist
+             error.code === 'TS2345' || // Argument type mismatch
+             error.code === 'TS2322' || // Type assignment error
+             error.code === 'TS2554' || // Expected arguments error
+             error.code === 'TS2741' || // Missing properties
+             error.message.toLowerCase().includes('import') ||
+             error.message.toLowerCase().includes('export');
+    }
+    return false;
+  });
+}
+
 // Run ESLint
 function runESLint(filePath, packageDir) {
   debug(colors.cyan('\n🔍 Running ESLint...'));
-  
+
   const relativePath = path.relative(packageDir, filePath);
-  
+
   try {
-    // Run ESLint without --fix first to check for errors
-    const result = execSync(`yarn eslint:files "${relativePath}"`, {
+    // Run ESLint with --cache for faster subsequent runs
+    const result = execSync(`yarn eslint:files "${relativePath}" --cache --cache-location ./build/.eslintcache`, {
       cwd: packageDir,
       stdio: 'pipe',
       encoding: 'utf8'
     });
-    
+
     debug(colors.green('✅ ESLint: No issues found'));
     return { success: true, output: result, errors: [] };
   } catch (lintError) {
@@ -565,137 +661,64 @@ function runESLint(filePath, packageDir) {
   }
 }
 
-// Check dependent files in parallel
-async function checkDependentFiles(dependentFiles, editedFile) {
-  const results = [];
-  
-  // Limit parallel checks to avoid overwhelming the system
-  const checkPromises = dependentFiles.map(async (depFile) => {
-    const depPackageDir = getPackageDirectory(depFile);
-    if (!depPackageDir) return { file: depFile, errors: [] };
-    
-    // Only run TypeScript check for dependent files (skip ESLint for performance)
-    const typeCheckResult = await new Promise(resolve => {
-      try {
-        const result = runTypeCheck(depFile, depPackageDir);
-        // Filter errors to only those potentially related to the edited file
-        const relevantErrors = result.errors.filter(error => {
-          // Include errors that might be caused by changes to the edited file
-          return error.code === 'TS2305' || // Module has no exported member
-                 error.code === 'TS2339' || // Property does not exist
-                 error.code === 'TS2345' || // Argument type mismatch
-                 error.code === 'TS2322' || // Type assignment error
-                 error.code === 'TS2554' || // Expected arguments error
-                 error.code === 'TS2741' || // Missing properties
-                 error.message.toLowerCase().includes('import') ||
-                 error.message.toLowerCase().includes('export');
-        });
-        resolve({ file: depFile, errors: relevantErrors });
-      } catch (e) {
-        resolve({ file: depFile, errors: [] });
-      }
-    });
-    
-    return typeCheckResult;
-  });
-  
-  // Wait for all checks with timeout
-  const timeoutPromise = new Promise(resolve => 
-    setTimeout(() => resolve([]), 5000) // 5 second timeout for dependent checks
-  );
-  
-  try {
-    const completed = await Promise.race([
-      Promise.all(checkPromises),
-      timeoutPromise
-    ]);
-    
-    return completed || [];
-  } catch (e) {
-    debug(colors.yellow('Error checking dependent files:', e.message));
-    return [];
-  }
-}
-
 // Main function
 async function main() {
   try {
-    // Read input from stdin
     const input = await readInput();
-    
-    // Extract file path
     const filePath = extractFilePath(input);
-    
+
     if (!filePath) {
       debug(colors.gray('No file path found in input'));
       process.exit(0);
     }
-    
-    // Only process TypeScript files
+
     if (!isTypeScriptFile(filePath)) {
       debug(colors.gray(`Skipping non-TypeScript file: ${filePath}`));
       process.exit(0);
     }
-    
-    // Check if file exists
+
     if (!fs.existsSync(filePath)) {
-      debug(colors.yellow(`⚠️  File not found: ${filePath}`));
+      debug(colors.yellow(`File not found: ${filePath}`));
       process.exit(0);
     }
-    
-    debug(colors.bold(`\n📄 Checking: ${filePath}`));
-    
-    // Find the package directory
+
+    debug(colors.bold(`\nChecking: ${filePath}`));
+
     const packageDir = getPackageDirectory(filePath);
     if (!packageDir) {
       console.log(JSON.stringify({
         continue: true,
         decision: "block",
         reason: `Could not find package.json for file: ${filePath}`,
-        hookSpecificOutput: {
-          hookEventName: "PostToolUse"
-        }
+        hookSpecificOutput: { hookEventName: "PostToolUse" }
       }));
       process.exit(0);
     }
-    
-    debug(colors.gray(`📦 Package: ${packageDir}`));
-    
-    // Run checks on the edited file
-    const typeCheckResult = runTypeCheck(filePath, packageDir);
-    const eslintResult = runESLint(filePath, packageDir);
-    
-    // Find and check dependent files
-    const dependentFiles = findDependentFiles(filePath, packageDir);
-    let externalErrors = [];
-    
-    if (dependentFiles.length > 0) {
-      debug(colors.cyan(`\n🔗 Checking ${dependentFiles.length} dependent files...`));
-      const depResults = await checkDependentFiles(dependentFiles, filePath);
-      
-      // Collect all external errors
-      for (const result of depResults) {
-        if (result.errors && result.errors.length > 0) {
-          externalErrors.push(...result.errors);
-        }
-      }
-      
-      if (externalErrors.length > 0) {
-        debug(colors.yellow(`⚠️  Found ${externalErrors.length} errors in dependent files`));
-      }
-    }
-    
-    // Collect direct errors from the edited file
-    const directErrors = [...typeCheckResult.errors, ...eslintResult.errors];
-    
-    // Merge signatures from TypeScript check
-    const allSignatures = typeCheckResult.signatures || new Map();
-    
-    if (directErrors.length > 0 || externalErrors.length > 0) {
-      // Output YAML format when errors exist
-      const yamlOutput = formatErrorsAsYAML(directErrors, externalErrors, allSignatures);
 
-      // Output JSON response with continue: true to avoid stopping execution
+    debug(colors.gray(`Package: ${packageDir}`));
+
+    // Run TypeScript check ONCE for entire project
+    const typeCheckResult = runProjectTypeCheck(packageDir);
+
+    // Run ESLint in parallel with dependent file discovery
+    const [eslintResult, dependentFiles] = await Promise.all([
+      Promise.resolve(runESLint(filePath, packageDir)),
+      Promise.resolve(findDependentFiles(filePath, packageDir))
+    ]);
+
+    // Filter errors for edited file
+    const directTsErrors = typeCheckResult.errors.filter(e => e.file === filePath);
+    const directErrors = [...directTsErrors, ...eslintResult.errors];
+
+    // Filter errors for dependent files (no additional tsc runs needed!)
+    const externalErrors = filterDependentFileErrors(
+      typeCheckResult.errors,
+      dependentFiles,
+      filePath
+    );
+
+    if (directErrors.length > 0 || externalErrors.length > 0) {
+      const yamlOutput = formatErrorsAsYAML(directErrors, externalErrors, typeCheckResult.signatures);
       const errorSummary = `Found ${directErrors.length} direct error(s)${externalErrors.length > 0 ? ` and ${externalErrors.length} error(s) in dependent files` : ''}`;
 
       console.log(JSON.stringify({
@@ -707,27 +730,20 @@ async function main() {
           additionalContext: yamlOutput
         }
       }));
-
       process.exit(0);
     }
 
-    // Silent success when no issues - output empty JSON
-    console.log(JSON.stringify({continue: true}));
+    console.log(JSON.stringify({ continue: true }));
     process.exit(0);
 
   } catch (error) {
-    // Output error with JSON and continue: true
     const errorDetails = `Hook execution error: ${error.message}${DEBUG && error.stack ? '\n\n' + error.stack : ''}`;
-
     console.log(JSON.stringify({
       continue: true,
       decision: "block",
       reason: errorDetails,
-      hookSpecificOutput: {
-        hookEventName: "PostToolUse"
-      }
+      hookSpecificOutput: { hookEventName: "PostToolUse" }
     }));
-
     process.exit(0);
   }
 }
