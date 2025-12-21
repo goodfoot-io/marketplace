@@ -207,8 +207,26 @@ extract_and_check_content() {
 output_decision() {
     local decision="$1"
     local reason="$2"
-    
-    cat << EOF
+    local system_msg=""
+
+    # Add helpful systemMessage when denying
+    if [ "$decision" = "deny" ]; then
+        system_msg="ESLint/TypeScript bypass prevention: Fix the underlying issue instead of using disable comments or 'as any' casts."
+    fi
+
+    if [ -n "$system_msg" ]; then
+        cat << EOF
+{
+  "systemMessage": "$system_msg",
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "$decision",
+    "permissionDecisionReason": "$reason"
+  }
+}
+EOF
+    else
+        cat << EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
@@ -217,6 +235,7 @@ output_decision() {
   }
 }
 EOF
+    fi
 }
 
 # Main function

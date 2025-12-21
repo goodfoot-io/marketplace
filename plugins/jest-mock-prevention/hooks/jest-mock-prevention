@@ -202,8 +202,26 @@ extract_content_from_input() {
 output_decision() {
     local decision="$1"
     local reason="$2"
-    
-    cat << EOF
+    local system_msg=""
+
+    # Add helpful systemMessage when denying
+    if [ "$decision" = "deny" ]; then
+        system_msg="Integration testing enforced: Use real implementations (getTestSql, temp directories, real servers) instead of Jest mocks."
+    fi
+
+    if [ -n "$system_msg" ]; then
+        cat << EOF
+{
+  "systemMessage": "$system_msg",
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "$decision",
+    "permissionDecisionReason": "$reason"
+  }
+}
+EOF
+    else
+        cat << EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
@@ -212,6 +230,7 @@ output_decision() {
   }
 }
 EOF
+    fi
 }
 
 # Function to build helpful guidance message

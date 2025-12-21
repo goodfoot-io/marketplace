@@ -720,9 +720,11 @@ async function main() {
     if (directErrors.length > 0 || externalErrors.length > 0) {
       const yamlOutput = formatErrorsAsYAML(directErrors, externalErrors, typeCheckResult.signatures);
       const errorSummary = `Found ${directErrors.length} direct error(s)${externalErrors.length > 0 ? ` and ${externalErrors.length} error(s) in dependent files` : ''}`;
+      const systemMessage = `TypeScript check: ${errorSummary}. Review the error details and fix type issues before proceeding.`;
 
       console.log(JSON.stringify({
         continue: true,
+        systemMessage: systemMessage,
         decision: "block",
         reason: errorSummary,
         hookSpecificOutput: {

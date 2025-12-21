@@ -76,8 +76,9 @@ rm -f "$ENABLEMENT_FLAG"
 # Extract hook_event_name from input (default to SessionStart)
 hook_event_name=$(echo "$input" | jq -r '.hook_event_name // "SessionStart"')
 
-# Output JSON with reload instructions
+# Output JSON with reload instructions and systemMessage
 jq -n --arg event "$hook_event_name" --arg skills "$skill_list" '{
+  systemMessage: ("Skill reloader: Restoring " + $skills + " after context compaction"),
   hookSpecificOutput: {
     hookEventName: $event,
     additionalContext: ("Load skill " + $skills + " before continuing")

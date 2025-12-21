@@ -20,8 +20,8 @@ SESSION_PID=$(find_claude_pid)
 rm -f "/tmp/claude_skills_${SESSION_PID}.txt"
 rm -f "/tmp/claude_skills_reload_${SESSION_PID}.enabled"
 
-# Output empty JSON
-echo '{}'
+# Output JSON with systemMessage confirming cleanup
+echo '{"systemMessage": "Session cleanup: Skill tracking files removed"}'
 
 # Always exit 0 (cleanup hooks should never fail)
 exit 0

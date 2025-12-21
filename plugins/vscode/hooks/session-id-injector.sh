@@ -11,8 +11,9 @@ input=$(cat)
 session_id=$(echo "$input" | jq -r '.session_id // empty')
 hook_event_name=$(echo "$input" | jq -r '.hook_event_name // "SessionStart"')
 
-# Output the session ID as additional context
+# Output the session ID as additional context with systemMessage
 jq -n --arg sid "$session_id" --arg event "$hook_event_name" '{
+  systemMessage: "Session initialized with VSCode integration",
   hookSpecificOutput: {
     hookEventName: $event,
     additionalContext: ("SESSION_ID=" + $sid)
