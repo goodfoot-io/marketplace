@@ -122,7 +122,6 @@ RUN npm install -g @ast-grep/cli ts-morph cyclomatic-complexity fast-check eslin
 # Install dotenv-cli for loading environment variables
 RUN npm install -g dotenv-cli
 
-
 # Install uv for package manager
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
@@ -134,7 +133,6 @@ USER root
 RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
 RUN corepack enable
-RUN npx playwright install-deps
 
 RUN chmod +rx /usr/local/bin/init-firewall.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
@@ -146,4 +144,4 @@ RUN chmod +rx /usr/local/bin/init-firewall.sh && \
 RUN mkdir -p /run/dbus /var/run/dbus && \
   chmod 755 /run/dbus /var/run/dbus
 USER node
-RUN npx playwright install
+
