@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# claude-pretooluse-hook-eslint-typescript-bypass: Prevent ESLint and TypeScript rule bypassing
+# claude-pretooluse-hook-eslint-typescript-bypass: Prevent ESLint, TypeScript, and Biome rule bypassing
 # Usage: Called by Claude Code before Write/Edit/MultiEdit tool usage
 # Returns: JSON with permission decision to allow or deny the tool usage
 # Exit code: 0 for success, non-zero for errors
@@ -42,12 +42,20 @@ check_for_bypass_patterns() {
 
     # Define patterns and their descriptions
     declare -A patterns=(
+        # ESLint patterns
         ["//\s*eslint-disable(-next-line|-line)?\b"]="ESLint disable comment found (// eslint-disable, // eslint-disable-next-line, // eslint-disable-line)"
         ["/\*\s*eslint-disable\b"]="ESLint block disable comment found (/* eslint-disable */)"
+        # TypeScript patterns
         ["//\s*@ts-ignore\b"]="TypeScript @ts-ignore comment found"
         ["//\s*@ts-expect-error\b"]="TypeScript @ts-expect-error comment found"
         ["//\s*@ts-nocheck\b"]="TypeScript @ts-nocheck comment found"
         ["\bas\s+any\b"]="TypeScript 'as any' type casting found"
+        # Biome v2 patterns (order matters - more specific patterns first)
+        ["//\s*biome-ignore-all\b"]="Biome file-level suppress comment found (// biome-ignore-all)"
+        ["//\s*biome-ignore-start\b"]="Biome range suppress start comment found (// biome-ignore-start)"
+        ["//\s*biome-ignore-end\b"]="Biome range suppress end comment found (// biome-ignore-end)"
+        ["//\s*biome-ignore[^-]"]="Biome suppress comment found (// biome-ignore)"
+        ["/\*\s*biome-ignore"]="Biome block suppress comment found (/* biome-ignore */)"
     )
 
     # Check each pattern
@@ -211,7 +219,7 @@ output_decision() {
 
     # Add helpful systemMessage when denying
     if [ "$decision" = "deny" ]; then
-        system_msg="ESLint/TypeScript bypass prevention: Fix the underlying issue instead of using disable comments or 'as any' casts."
+        system_msg="ESLint/TypeScript/Biome bypass prevention: Fix the underlying issue instead of using disable comments or 'as any' casts."
     fi
 
     if [ -n "$system_msg" ]; then
@@ -271,21 +279,21 @@ main() {
 
     if [ ${#results[@]} -eq 0 ]; then
         debug "No violations found, allowing"
-        output_decision "allow" "No ESLint/TypeScript rule bypasses detected"
+        output_decision "allow" "No ESLint/TypeScript/Biome rule bypasses detected"
         return 0
     fi
     
     # Build violation message
-    local violation_msg="The following ESLint/TypeScript rule bypasses are not allowed:"
+    local violation_msg="The following ESLint/TypeScript/Biome rule bypasses are not allowed:"
     for violation in "${results[@]}"; do
         violation_msg="${violation_msg}\n• $violation"
     done
-    
+
     violation_msg="${violation_msg}\n\nInstead of bypassing rules, please:\n"
     violation_msg="${violation_msg}• Fix the underlying type or linting issue\n"
     violation_msg="${violation_msg}• Refactor the code to be type-safe\n"
     violation_msg="${violation_msg}• Use more specific types instead of 'any'\n"
-    violation_msg="${violation_msg}• Configure ESLint/TypeScript rules in project configuration files if needed"
+    violation_msg="${violation_msg}• Configure ESLint/TypeScript/Biome rules in project configuration files if needed"
     
     echo -e "${RED}Rule bypass detected:${NC}" >&2
     for violation in "${results[@]}"; do
