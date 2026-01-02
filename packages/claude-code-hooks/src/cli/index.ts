@@ -692,11 +692,25 @@ async function main(): Promise<void> {
   }
 }
 
-// Run main
-main().catch((error) => {
-  process.stderr.write(`Fatal error: ${error instanceof Error ? error.message : String(error)}\n`);
-  process.exit(1);
-});
+// Run main only when executed directly (not when imported for testing)
+// Check if this file is the entry point by checking if import.meta.url matches process.argv[1]
+const isDirectExecution = (() => {
+  try {
+    const scriptPath = process.argv[1];
+    if (!scriptPath) return false;
+    const scriptUrl = new URL(`file://${scriptPath}`);
+    return import.meta.url === scriptUrl.href;
+  } catch {
+    return false;
+  }
+})();
+
+if (isDirectExecution) {
+  main().catch((error) => {
+    process.stderr.write(`Fatal error: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.exit(1);
+  });
+}
 
 // Export for testing
 export {
