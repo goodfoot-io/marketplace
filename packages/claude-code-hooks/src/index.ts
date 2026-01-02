@@ -10,6 +10,33 @@
 // - Hook factories (preToolUseHook, sessionStartHook, etc.)
 // - Output builders (preToolUseOutput, sessionStartOutput, etc.)
 // - Logger and types
-// - Input types (PreToolUseInput, SessionStartInput, etc.)
 
-export {};
+// Input types - CamelCase transformed from SDK snake_case
+export type {
+  // Base type
+  BaseHookInput,
+  // Individual hook input types
+  PreToolUseInput,
+  PostToolUseInput,
+  PostToolUseFailureInput,
+  NotificationInput,
+  UserPromptSubmitInput,
+  SessionStartInput,
+  SessionEndInput,
+  StopInput,
+  SubagentStartInput,
+  SubagentStopInput,
+  PreCompactInput,
+  PermissionRequestInput,
+  // Discriminated union
+  HookInput,
+  // Supporting types
+  HookEventName,
+  PermissionMode,
+  SessionStartSource,
+  PreCompactTrigger,
+  PermissionUpdate
+} from './types/inputs.js';
+
+// Hook event names constant
+export { HOOK_EVENT_NAMES } from './types/inputs.js';
