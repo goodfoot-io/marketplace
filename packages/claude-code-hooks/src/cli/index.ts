@@ -70,28 +70,35 @@ interface CompiledHook {
 }
 
 /**
- * Entry in the hooks.json "hooks" array.
+ * Individual hook configuration within a matcher group.
  */
-interface HooksJsonEntry {
-  /** Matcher pattern for this hook group. */
-  matcher?: string;
-  /** Array of hook configurations. */
-  hooks: Array<{
-    /** Hook event type. */
-    type: HookEventName;
-    /** Absolute path to compiled hook. */
-    command: string;
-    /** Optional timeout. */
-    timeout?: number;
-  }>;
+interface HookConfig {
+  /** Hook type - always "command" for compiled hooks. */
+  type: 'command';
+  /** Absolute path to compiled hook executable. */
+  command: string;
+  /** Optional timeout in seconds. */
+  timeout?: number;
 }
 
 /**
- * The complete hooks.json structure.
+ * Matcher group entry within an event type.
+ */
+interface MatcherEntry {
+  /** Matcher pattern (tool name, regex, etc.). Optional for some event types. */
+  matcher?: string;
+  /** Array of hook configurations in this matcher group. */
+  hooks: HookConfig[];
+}
+
+/**
+ * The complete hooks.json structure expected by Claude Code.
+ *
+ * Format: { hooks: { EventType: [ { matcher?, hooks: [...] } ] } }
  */
 interface HooksJson {
-  /** Array of hook group entries. */
-  hooks: HooksJsonEntry[];
+  /** Object keyed by event type (PreToolUse, SessionStart, etc.). */
+  hooks: Partial<Record<HookEventName, MatcherEntry[]>>;
   /** Generated file tracking metadata. */
   __generated: {
     /** Array of generated filenames. */
@@ -426,26 +433,66 @@ async function discoverHookFiles(pattern: string, cwd: string): Promise<string[]
 // ============================================================================
 
 /**
- * Compiles a TypeScript hook file to ESM using esbuild.
+ * Compiles a TypeScript hook file to a self-contained ESM executable.
+ *
+ * Creates a wrapper that imports the hook and calls execute(), then bundles
+ * everything together including the runtime.
  * @param sourcePath - Absolute path to source file
  * @param outputDir - Directory for compiled output
  * @returns Compiled output content as a string
  */
 async function compileHook(sourcePath: string, outputDir: string): Promise<string> {
-  // First, compile to a temporary location to get the content
-  const tempOutput = path.join(outputDir, `_temp_${Date.now()}.mjs`);
+  // Create a temporary wrapper file that imports the hook and executes it
+  const tempDir = path.join(outputDir, '_temp_' + Date.now().toString());
+  const wrapperPath = path.join(tempDir, 'wrapper.ts');
+  const tempOutput = path.join(tempDir, 'output.mjs');
+
+  // Get the path to the runtime module (relative to this CLI)
+  const runtimePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../runtime.js');
 
   try {
+    // Ensure temp directory exists
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    // Create wrapper that imports the hook and calls execute
+    const wrapperContent = `
+import hook from '${sourcePath.replace(/\\/g, '/')}';
+import { execute } from '${runtimePath.replace(/\\/g, '/')}';
+
+execute(hook);
+`;
+    fs.writeFileSync(wrapperPath, wrapperContent, 'utf-8');
+
     await esbuild.build({
-      entryPoints: [sourcePath],
+      entryPoints: [wrapperPath],
       outfile: tempOutput,
       format: 'esm',
       platform: 'node',
       target: 'node20',
-      external: ['*'], // Don't bundle any dependencies
-      bundle: true, // But resolve imports to mark them external
+      bundle: true,
       sourcemap: false,
       minify: false,
+      // Keep node built-ins and OpenTelemetry external (OTel has CJS compat issues)
+      external: [
+        'node:*',
+        'http',
+        'https',
+        'url',
+        'stream',
+        'zlib',
+        'events',
+        'buffer',
+        'util',
+        'path',
+        'fs',
+        'os',
+        'crypto',
+        'child_process',
+        'perf_hooks',
+        'async_hooks',
+        'diagnostics_channel',
+        '@opentelemetry/*'
+      ],
       // Ensure we get clean ESM output
       mainFields: ['module', 'main'],
       conditions: ['import', 'node']
@@ -454,14 +501,14 @@ async function compileHook(sourcePath: string, outputDir: string): Promise<strin
     // Read the compiled content
     const content = fs.readFileSync(tempOutput, 'utf-8');
 
-    // Clean up temp file
-    fs.unlinkSync(tempOutput);
+    // Clean up temp directory
+    fs.rmSync(tempDir, { recursive: true });
 
     return content;
   } catch (error) {
-    // Clean up temp file on error
-    if (fs.existsSync(tempOutput)) {
-      fs.unlinkSync(tempOutput);
+    // Clean up temp directory on error
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true });
     }
     throw error;
   }
@@ -538,20 +585,30 @@ async function compileAllHooks(hookFiles: string[], outputDir: string): Promise<
 // ============================================================================
 
 /**
- * Groups compiled hooks by their matcher pattern for hooks.json.
+ * Groups compiled hooks by event type, then by matcher pattern.
  * @param compiledHooks - Array of compiled hooks
- * @returns Map of matcher pattern to hooks
+ * @returns Nested map: EventType -> Matcher -> Hooks
  */
-function groupHooksByMatcher(compiledHooks: CompiledHook[]): Map<string | undefined, CompiledHook[]> {
-  const groups = new Map<string | undefined, CompiledHook[]>();
+function groupHooksByEventAndMatcher(
+  compiledHooks: CompiledHook[]
+): Map<HookEventName, Map<string | undefined, CompiledHook[]>> {
+  const groups = new Map<HookEventName, Map<string | undefined, CompiledHook[]>>();
 
   for (const hook of compiledHooks) {
+    const eventName = hook.metadata.hookEventName;
     const matcher = hook.metadata.matcher;
-    const existing = groups.get(matcher);
+
+    let eventGroup = groups.get(eventName);
+    if (eventGroup === undefined) {
+      eventGroup = new Map<string | undefined, CompiledHook[]>();
+      groups.set(eventName, eventGroup);
+    }
+
+    const existing = eventGroup.get(matcher);
     if (existing !== undefined) {
       existing.push(hook);
     } else {
-      groups.set(matcher, [hook]);
+      eventGroup.set(matcher, [hook]);
     }
   }
 
@@ -559,33 +616,41 @@ function groupHooksByMatcher(compiledHooks: CompiledHook[]): Map<string | undefi
 }
 
 /**
- * Generates the hooks.json content.
+ * Generates the hooks.json content in Claude Code's expected format.
+ *
+ * Format: { hooks: { EventType: [ { matcher?, hooks: [...] } ] } }
  * @param compiledHooks - Array of compiled hooks
  * @returns The hooks.json structure
  */
 function generateHooksJson(compiledHooks: CompiledHook[]): HooksJson {
-  const groups = groupHooksByMatcher(compiledHooks);
-  const entries: HooksJsonEntry[] = [];
+  const groups = groupHooksByEventAndMatcher(compiledHooks);
+  const hooks: Partial<Record<HookEventName, MatcherEntry[]>> = {};
 
-  for (const [matcher, hooks] of groups) {
-    const entry: HooksJsonEntry = {
-      hooks: hooks.map((hook) => ({
-        type: hook.metadata.hookEventName,
-        command: hook.outputPath, // Absolute path
-        ...(hook.metadata.timeout !== undefined ? { timeout: hook.metadata.timeout } : {})
-      }))
-    };
+  for (const [eventName, matcherGroups] of groups) {
+    const entries: MatcherEntry[] = [];
 
-    // Only include matcher if defined
-    if (matcher !== undefined) {
-      entry.matcher = matcher;
+    for (const [matcher, hookList] of matcherGroups) {
+      const entry: MatcherEntry = {
+        hooks: hookList.map((hook) => ({
+          type: 'command' as const,
+          command: hook.outputPath,
+          ...(hook.metadata.timeout !== undefined ? { timeout: hook.metadata.timeout } : {})
+        }))
+      };
+
+      // Only include matcher if defined
+      if (matcher !== undefined) {
+        entry.matcher = matcher;
+      }
+
+      entries.push(entry);
     }
 
-    entries.push(entry);
+    hooks[eventName] = entries;
   }
 
   return {
-    hooks: entries,
+    hooks,
     __generated: {
       files: compiledHooks.map((h) => h.outputFilename),
       timestamp: new Date().toISOString()
@@ -694,11 +759,14 @@ async function main(): Promise<void> {
 
 // Run main only when executed directly (not when imported for testing)
 // Check if this file is the entry point by checking if import.meta.url matches process.argv[1]
+// Resolves symlinks to handle npm bin symlinks correctly
 const isDirectExecution = (() => {
   try {
     const scriptPath = process.argv[1];
     if (!scriptPath) return false;
-    const scriptUrl = new URL(`file://${scriptPath}`);
+    // Resolve symlinks to get the real path (npm creates symlinks in node_modules/.bin)
+    const realScriptPath = fs.realpathSync(scriptPath);
+    const scriptUrl = new URL(`file://${realScriptPath}`);
     return import.meta.url === scriptUrl.href;
   } catch {
     return false;
@@ -721,7 +789,7 @@ export {
   compileHook,
   generateContentHash,
   generateHooksJson,
-  groupHooksByMatcher,
+  groupHooksByEventAndMatcher,
   HOOK_FACTORY_TO_EVENT
 };
-export type { CliArgs, HookMetadata, CompiledHook, HooksJsonEntry, HooksJson };
+export type { CliArgs, HookMetadata, CompiledHook, HookConfig, MatcherEntry, HooksJson };

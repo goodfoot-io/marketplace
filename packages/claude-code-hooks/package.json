@@ -7,6 +7,10 @@
   "engines": {
     "node": ">=20.11.0"
   },
+  "files": [
+    "dist",
+    "types"
+  ],
   "scripts": {
     "prettier": "prettier . --write --log-level warn",
     "prettier:files": "prettier --write --log-level warn",
@@ -25,12 +29,10 @@
       "types": "./src/*.ts"
     }
   },
-  "bin": {
-    "claude-code-hooks": "./dist/cli/index.mjs"
-  },
+  "bin": "./dist/cli/index.js",
   "publishConfig": {
     "bin": {
-      "claude-code-hooks": "./dist/cli/index.mjs"
+      "claude-code-hooks": "./dist/cli/index.js"
     },
     "exports": {
       "./*": {
@@ -47,17 +49,17 @@
     "@opentelemetry/resources": "^1.29.0",
     "@opentelemetry/sdk-node": "^0.57.0",
     "@opentelemetry/semantic-conventions": "^1.28.0",
-    "glob": "^11.0.0"
+    "esbuild": "^0.24.0",
+    "glob": "^11.0.0",
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.76",
     "@types/node": "^24",
-    "esbuild": "^0.24.0",
     "eslint": "^9.36.0",
     "eslint-plugin-jsdoc": "^50.0.0",
     "prettier": "^3.6.2",
     "tsx": "^4.20.3",
-    "typescript": "^5.9.3",
     "vitest": "4.0.13"
   }
 }

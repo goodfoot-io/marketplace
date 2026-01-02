@@ -1672,6 +1672,8 @@ __metadata:
     tsx: "npm:^4.20.3"
     typescript: "npm:^5.9.3"
     vitest: "npm:4.0.13"
+  bin:
+    claude-code-hooks: ./dist/cli/index.js
   languageName: unknown
   linkType: soft
 

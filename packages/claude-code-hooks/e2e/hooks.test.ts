@@ -3,164 +3,73 @@
  *
  * These tests build hook fixtures and execute them via the claude CLI
  * to verify hook behavior in real-world scenarios.
- *
- * Test scenarios:
- * 1. PreToolUse: deny a Bash command, verify tool is blocked
- * 2. SessionStart (startup): inject additionalContext
- * 3. Stop: block with decision='block' and reason, verify Claude receives reason
- * 4. Error handling: hook that throws, verify clean error output
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { exec, spawn, type ChildProcess } from 'node:child_process';
-import { promisify } from 'node:util';
-import { buildSingleHook, cleanDist, runWithRetry, DEFAULT_RETRY_CONFIG } from './setup.js';
-
-const execAsync = promisify(exec);
-
-/**
- * Configuration for Claude CLI execution.
- */
-interface ClaudeExecConfig {
-  /** The prompt to send to Claude */
-  prompt: string;
-  /** Plugin directory path containing hooks.json */
-  pluginDir: string;
-  /** Optional timeout in milliseconds (default: 60000) */
-  timeout?: number;
-  /** Whether to skip permission checks */
-  dangerouslySkipPermissions?: boolean;
-  /** Specific tools to allow */
-  tools?: string[];
-}
+import { execSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { buildSingleHook, cleanDist } from './setup.js';
 
 /**
- * Result of Claude CLI execution.
+ * Quick synchronous check if Claude CLI binary exists.
  */
-interface ClaudeExecResult {
-  /** Standard output */
-  stdout: string;
-  /** Standard error */
-  stderr: string;
-  /** Exit code */
-  exitCode: number;
-}
-
-/**
- * Executes the Claude CLI with specified configuration.
- *
- * Uses --print mode for non-interactive output and --model haiku for fast responses.
- */
-async function runClaude(config: ClaudeExecConfig): Promise<ClaudeExecResult> {
-  const { prompt, pluginDir, timeout = 60000, dangerouslySkipPermissions = true, tools } = config;
-
-  const args: string[] = ['--print', '--model', 'haiku', '--no-session-persistence'];
-
-  // Only add plugin-dir if it's not empty
-  if (pluginDir !== '') {
-    args.push('--plugin-dir', pluginDir);
-  }
-
-  if (dangerouslySkipPermissions) {
-    args.push('--dangerously-skip-permissions');
-  }
-
-  if (tools !== undefined && tools.length > 0) {
-    args.push('--tools', tools.join(','));
-  }
-
-  // Add the prompt as the last argument
-  args.push(prompt);
-
-  return new Promise((resolve, reject) => {
-    let stdout = '';
-    let stderr = '';
-    let resolved = false;
-
-    const child: ChildProcess = spawn('claude', args, {
-      timeout,
-      env: {
-        ...process.env,
-        // Ensure no interactive prompts
-        CI: 'true',
-        CLAUDE_CODE_FORCE_PRINT_MODE: 'true'
-      }
-    });
-
-    child.stdout?.on('data', (data: Buffer) => {
-      stdout += data.toString();
-    });
-
-    child.stderr?.on('data', (data: Buffer) => {
-      stderr += data.toString();
-    });
-
-    child.on('close', (code: number | null) => {
-      if (!resolved) {
-        resolved = true;
-        resolve({
-          stdout,
-          stderr,
-          exitCode: code ?? 0
-        });
-      }
-    });
-
-    child.on('error', (error: Error) => {
-      if (!resolved) {
-        resolved = true;
-        reject(error);
-      }
-    });
-
-    // Timeout handler
-    setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        child.kill('SIGTERM');
-        reject(new Error(`Claude CLI timed out after ${timeout}ms`));
-      }
-    }, timeout);
-  });
-}
-
-/**
- * Checks if the Claude CLI is available and API is accessible.
- */
-async function isClaudeAvailable(): Promise<boolean> {
+function isClaudeBinaryAvailable(): boolean {
   try {
-    // Check if claude binary exists
-    await execAsync('which claude');
-
-    // Quick API check using execAsync - simpler than spawn for availability check
-    const { stdout, stderr } = await execAsync(
-      'claude --print --model haiku --no-session-persistence --dangerously-skip-permissions "Reply with just ok"',
-      { timeout: 30000 }
-    );
-
-    // Check if we got any response
-    return (stdout + stderr).toLowerCase().includes('ok');
-  } catch (error) {
-    // Log error for debugging
-    console.error('Claude availability check failed:', error);
+    execSync('which claude', { stdio: 'ignore' });
+    return true;
+  } catch {
     return false;
   }
 }
 
-describe('E2E: Hook Integration Tests', () => {
-  let skipTests = false;
+const CLAUDE_AVAILABLE = isClaudeBinaryAvailable();
 
-  beforeAll(async () => {
-    // Check if Claude CLI is available
-    const available = await isClaudeAvailable();
-    if (!available) {
-      console.warn('Claude CLI not available or API not accessible - skipping E2E tests');
-      skipTests = true;
+/**
+ * Run claude CLI with given options.
+ */
+function runClaude(options: { prompt: string; pluginDir?: string; timeout?: number; tools?: string[] }): {
+  stdout: string;
+  stderr: string;
+} {
+  const { prompt, pluginDir, timeout = 60000, tools } = options;
+
+  // Build args: flags first, then prompt, then --plugin-dir and --tools
+  // The prompt must come BEFORE --tools and --plugin-dir due to CLI arg parsing
+  const args: string[] = ['--print', '--model', 'haiku', '--no-session-persistence', '--dangerously-skip-permissions'];
+
+  // Add prompt before --plugin-dir and --tools
+  args.push(prompt);
+
+  if (pluginDir) {
+    args.push('--plugin-dir', pluginDir);
+  }
+
+  if (tools && tools.length > 0) {
+    args.push('--tools', tools.join(','));
+  }
+
+  const cmd = `claude ${args.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(' ')}`;
+  try {
+    const stdout = execSync(cmd, {
+      encoding: 'utf-8',
+      timeout,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    return { stdout, stderr: '' };
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'stdout' in error && 'stderr' in error) {
+      return {
+        stdout: String((error as { stdout: unknown }).stdout || ''),
+        stderr: String((error as { stderr: unknown }).stderr || '')
+      };
     }
-  });
+    throw error;
+  }
+}
 
+describe.skipIf(!CLAUDE_AVAILABLE)('E2E: Hook Integration Tests', () => {
   afterAll(() => {
-    // Clean up dist directory after all tests
     cleanDist();
   });
 
@@ -168,28 +77,20 @@ describe('E2E: Hook Integration Tests', () => {
     let pluginDir: string;
 
     beforeAll(async () => {
-      if (skipTests) return;
       pluginDir = await buildSingleHook('deny-bash-hook.ts');
     });
 
-    it('denies Bash commands when hook is active', async () => {
-      if (skipTests) {
-        console.warn('Skipping: Claude CLI not available');
-        return;
-      }
+    it('denies Bash commands when hook is active', () => {
+      const result = runClaude({
+        prompt: 'Run this exact bash command: echo HOOKTEST123 - do not explain, just run it',
+        pluginDir,
+        tools: ['Bash']
+      });
 
-      const result = await runWithRetry(async () => {
-        return await runClaude({
-          prompt: 'Run this exact bash command: echo "test" - do not explain, just run it',
-          pluginDir,
-          timeout: 60000,
-          tools: ['Bash'] // Only allow Bash tool to make test focused
-        });
-      }, DEFAULT_RETRY_CONFIG);
-
-      // The hook should deny the command, so Claude's response should mention it was blocked
+      // When the hook denies the command, the Bash tool doesn't execute,
+      // so we should NOT see the echo output in stdout
       const combinedOutput = result.stdout + result.stderr;
-      expect(combinedOutput.toLowerCase()).toMatch(/block|denied|not allowed|cannot|refused|hook/i);
+      expect(combinedOutput).not.toContain('HOOKTEST123');
     });
   });
 
@@ -197,26 +98,16 @@ describe('E2E: Hook Integration Tests', () => {
     let pluginDir: string;
 
     beforeAll(async () => {
-      if (skipTests) return;
       pluginDir = await buildSingleHook('session-context-hook.ts');
     });
 
-    it('injects context that Claude acknowledges', async () => {
-      if (skipTests) {
-        console.warn('Skipping: Claude CLI not available');
-        return;
-      }
+    it('injects context that Claude acknowledges', () => {
+      const result = runClaude({
+        prompt: 'What is the magic test word that was injected? Just say the word.',
+        pluginDir,
+        tools: []
+      });
 
-      const result = await runWithRetry(async () => {
-        return await runClaude({
-          prompt: 'What is the magic test word that was injected? Just say the word.',
-          pluginDir,
-          timeout: 60000,
-          tools: [] // No tools needed
-        });
-      }, DEFAULT_RETRY_CONFIG);
-
-      // The hook injects "HOOK_INJECTED_BANANA" as context
       expect(result.stdout.toLowerCase()).toContain('banana');
     });
   });
@@ -225,38 +116,28 @@ describe('E2E: Hook Integration Tests', () => {
     let pluginDir: string;
 
     beforeAll(async () => {
-      if (skipTests) return;
       pluginDir = await buildSingleHook('stop-block-hook.ts');
     });
 
-    it('blocks stop and shows reason to Claude', async () => {
-      if (skipTests) {
-        console.warn('Skipping: Claude CLI not available');
-        return;
-      }
-
-      // Note: Testing stop hooks is tricky because Claude needs to actually try to stop
-      // We'll verify the hook is loaded by checking if it compiles correctly
-      // and the hooks.json is generated
-      const fs = await import('node:fs');
-      const path = await import('node:path');
-
+    it('generates valid hooks.json for stop hook', () => {
       const hooksJsonPath = path.join(pluginDir, 'hooks.json');
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
       const hooksJson = JSON.parse(fs.readFileSync(hooksJsonPath, 'utf-8'));
       expect(hooksJson.hooks).toBeDefined();
-      expect(Array.isArray(hooksJson.hooks)).toBe(true);
+      expect(typeof hooksJson.hooks).toBe('object');
 
-      // Find the Stop hook entry
-      const stopEntry = hooksJson.hooks.find((entry: { hooks: Array<{ type: string }> }) =>
-        entry.hooks.some((h) => h.type === 'Stop')
-      );
-      expect(stopEntry).toBeDefined();
+      // New format: hooks.Stop is an array of matcher entries
+      expect(hooksJson.hooks.Stop).toBeDefined();
+      expect(Array.isArray(hooksJson.hooks.Stop)).toBe(true);
+      expect(hooksJson.hooks.Stop.length).toBeGreaterThan(0);
 
-      // Verify the compiled hook file exists
-      const compiledHook = stopEntry.hooks.find((h: { type: string }) => h.type === 'Stop');
-      expect(compiledHook).toBeDefined();
+      const stopEntry = hooksJson.hooks.Stop[0];
+      expect(stopEntry.hooks).toBeDefined();
+      expect(stopEntry.hooks.length).toBeGreaterThan(0);
+
+      const compiledHook = stopEntry.hooks[0];
+      expect(compiledHook.type).toBe('command');
       expect(fs.existsSync(compiledHook.command)).toBe(true);
     });
   });
@@ -265,51 +146,21 @@ describe('E2E: Hook Integration Tests', () => {
     let pluginDir: string;
 
     beforeAll(async () => {
-      if (skipTests) return;
       pluginDir = await buildSingleHook('error-hook.ts');
     });
 
-    it('handles hook errors gracefully', async () => {
-      if (skipTests) {
-        console.warn('Skipping: Claude CLI not available');
-        return;
-      }
-
-      const result = await runWithRetry(async () => {
-        return await runClaude({
-          prompt: 'Read the file /etc/hostname and tell me what it says',
-          pluginDir,
-          timeout: 60000,
-          tools: ['Read'] // Only allow Read tool - our error hook targets Read
-        });
-      }, DEFAULT_RETRY_CONFIG);
-
-      // The hook throws an error on Read. Claude should still respond
-      // (the error is non-blocking with exit code 1)
-      // Either Claude completed despite the error, or the error was shown
-      expect(result.exitCode).toBeDefined();
-    });
-
-    it('generates valid hooks.json for error hook', async () => {
-      if (skipTests) {
-        console.warn('Skipping: Claude CLI not available');
-        return;
-      }
-
-      const fs = await import('node:fs');
-      const path = await import('node:path');
-
+    it('generates valid hooks.json for error hook', () => {
       const hooksJsonPath = path.join(pluginDir, 'hooks.json');
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
       const hooksJson = JSON.parse(fs.readFileSync(hooksJsonPath, 'utf-8'));
       expect(hooksJson.hooks).toBeDefined();
 
-      // Find the PreToolUse hook entry with Read matcher
-      const readEntry = hooksJson.hooks.find(
-        (entry: { matcher?: string; hooks: Array<{ type: string }> }) =>
-          entry.matcher === 'Read' && entry.hooks.some((h) => h.type === 'PreToolUse')
-      );
+      // New format: hooks.PreToolUse is an array of matcher entries
+      expect(hooksJson.hooks.PreToolUse).toBeDefined();
+      expect(Array.isArray(hooksJson.hooks.PreToolUse)).toBe(true);
+
+      const readEntry = hooksJson.hooks.PreToolUse.find((entry: { matcher?: string }) => entry.matcher === 'Read');
       expect(readEntry).toBeDefined();
     });
   });
