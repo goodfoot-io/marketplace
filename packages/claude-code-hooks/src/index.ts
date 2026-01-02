@@ -93,3 +93,9 @@ export {
   preCompactOutput,
   permissionRequestOutput
 } from './outputs.js';
+
+// Logger types
+export type { LogLevel, LogEvent, LogEventError, LogEventHandler, Unsubscribe, LoggerConfig } from './logger.js';
+
+// Logger exports
+export { LOG_LEVELS, Logger, logger } from './logger.js';
