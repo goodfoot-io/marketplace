@@ -146,3 +146,12 @@ export {
   preCompactHook,
   permissionRequestHook
 } from './hooks.js';
+
+// Runtime exports - execute function and key transformation utilities
+export {
+  // Main execute function for compiled hooks
+  execute,
+  // Key transformation utilities (exported for testing)
+  snakeToCamelCase,
+  camelToSnakeCase
+} from './runtime.js';
