@@ -3,7 +3,9 @@ name: claude-code-hooks
 description: Type-safe TypeScript hooks for Claude Code using @goodfoot/claude-code-hooks. Use when creating new Claude Code hooks, porting bash hooks to TypeScript, or working with hook output builders, input types, and logging.
 ---
 
-# Claude Code Hooks Reference (TypeScript)
+<instructions>
+
+## 1. Environment Check
 
 ```!
 # === Claude Code Hooks Environment Check ===
@@ -59,7 +61,7 @@ if [ -z "$BLOCKED" ]; then
 fi
 ```
 
-## Quick Start {#setup}
+## 2. Quick Start
 
 Uses `@goodfoot/claude-code-hooks` with `tsx` runtime. Every hook file follows this pattern:
 
@@ -82,11 +84,11 @@ process.exit(output.exitCode);
 
 Hook files are registered in `hooks.json` and executed by Claude Code.
 
-## Copy-Paste Examples {#examples}
+## 3. Copy-Paste Examples
 
 These complete examples work immediately after environment check passes.
 
-### PreToolUse: Block Dangerous Commands
+### 3.1 PreToolUse: Block Dangerous Commands
 
 ```typescript
 #!/usr/bin/env tsx
@@ -113,7 +115,7 @@ process.stdout.write(JSON.stringify(output.stdout));
 process.exit(output.exitCode);
 ```
 
-### SessionStart: Inject Project Context
+### 3.2 SessionStart: Inject Project Context
 
 ```typescript
 #!/usr/bin/env tsx
@@ -143,7 +145,7 @@ process.stdout.write(JSON.stringify(output.stdout));
 process.exit(output.exitCode);
 ```
 
-### Stop: Require Uncommitted Changes Check
+### 3.3 Stop: Require Uncommitted Changes Check
 
 ```typescript
 #!/usr/bin/env tsx
@@ -178,101 +180,86 @@ process.stdout.write(JSON.stringify(output.stdout));
 process.exit(output.exitCode);
 ```
 
-## I Want To... {#router}
+## 4. Task Router
 
-### Create New Hooks
-| Task | Reference |
-|------|-----------|
-| Set up hooks from scratch | reference/installation.md |
-| Create a PreToolUse hook | #pretooluse-pattern |
-| Create a SessionStart hook | #sessionstart-pattern |
-| Create a Stop hook | #stop-pattern |
-| Create any other hook type | reference/output-builders.md |
+Based on what you need to do:
 
-### Port Existing Hooks
-| Task | Reference |
-|------|-----------|
-| Convert bash hook to TypeScript | reference/porting.md#bash-to-typescript |
-| Migrate multiple hooks | reference/porting.md#batch-migration |
-| Handle complex bash logic | reference/porting.md#complex-logic |
+**Creating new hooks:**
+- **Set up hooks from scratch**: Read reference/installation.md
+- **Create a PreToolUse hook**: See Section 5.1
+- **Create a SessionStart hook**: See Section 5.2
+- **Create a Stop hook**: See Section 5.3
+- **Create any other hook type**: Read reference/output-builders.md
 
-### Understand Hook Types
-| Task | Reference |
-|------|-----------|
-| See all 12 hook types | reference/output-builders.md#hook-types |
-| Understand exit codes | #exit-codes |
-| Learn input type structure | reference/output-builders.md#input-types |
-| Use hook-specific options | reference/output-builders.md#hook-specific-options |
+**Porting existing hooks:**
+- **Convert bash hook to TypeScript**: Read reference/porting.md#bash-to-typescript
+- **Migrate multiple hooks**: Read reference/porting.md#batch-migration
+- **Handle complex bash logic**: Read reference/porting.md#complex-logic
 
-### Add Logging
-| Task | Reference |
-|------|-----------|
-| Set up file logging | reference/logging.md#file-output |
-| Subscribe to log events | reference/logging.md#event-subscription |
-| Log errors with context | reference/logging.md#error-logging |
+**Understanding hook types:**
+- **See all 12 hook types**: Read reference/output-builders.md#hook-types
+- **Understand exit codes**: See Section 6
+- **Learn input type structure**: Read reference/output-builders.md#input-types
+- **Use hook-specific options**: Read reference/output-builders.md#hook-specific-options
 
-## Hook Type Patterns {#patterns}
+**Adding logging:**
+- **Set up file logging**: Read reference/logging.md#file-output
+- **Subscribe to log events**: Read reference/logging.md#event-subscription
+- **Log errors with context**: Read reference/logging.md#error-logging
 
-### PreToolUse Pattern {#pretooluse-pattern}
+## 5. Hook Type Patterns
 
-PreToolUse fires **before** any tool executes. Use for:
-- Blocking dangerous commands
-- Modifying tool inputs
-- Requiring confirmation
+### 5.1 PreToolUse Pattern
+
+PreToolUse fires **before** any tool executes. Use for blocking dangerous commands, modifying tool inputs, or requiring confirmation.
 
 ```typescript
 import { preToolUseOutput, type PreToolUseInput } from '@goodfoot/claude-code-hooks';
-
-// Decision options (mutually exclusive):
-preToolUseOutput({ allow: true });                    // Permit execution
-preToolUseOutput({ deny: 'Reason shown to Claude' }); // Block with reason
-preToolUseOutput({ ask: 'Confirm this action?' });    // Request user confirmation
-preToolUseOutput({ allow: true, updatedInput: {...}}); // Allow with modified input
-preToolUseOutput({});                                  // Default permission behavior
 ```
 
+Based on desired behavior:
+- **Permit execution**: `preToolUseOutput({ allow: true })`
+- **Block with reason**: `preToolUseOutput({ deny: 'Reason shown to Claude' })`
+- **Request confirmation**: `preToolUseOutput({ ask: 'Confirm this action?' })`
+- **Allow with modified input**: `preToolUseOutput({ allow: true, updatedInput: {...} })`
+- **Default permission behavior**: `preToolUseOutput({})`
+
 **Input fields (camelCase):**
-- `toolName`: string - Name of the tool (e.g., 'Bash', 'Write', 'Read')
-- `toolInput`: Record<string, unknown> - Tool parameters
+- `toolName` — Name of the tool (e.g., `'Bash'`, `'Write'`, `'Read'`)
+- `toolInput` — Tool parameters as `Record<string, unknown>`
 
-### SessionStart Pattern {#sessionstart-pattern}
+### 5.2 SessionStart Pattern
 
-SessionStart fires when a session begins. Use for:
-- Injecting project context
-- Setting up environment
-- Different behavior for startup vs resume
+SessionStart fires when a session begins. Use for injecting project context, setting up environment, or different behavior for startup vs resume.
 
 ```typescript
 import { sessionStartOutput, type SessionStartInput } from '@goodfoot/claude-code-hooks';
-
-// Available options:
-sessionStartOutput({ additionalContext: 'Context string' });
-sessionStartOutput({ systemMessage: 'System instruction' });
-sessionStartOutput({});  // No additional context
-
-// Input fields:
-// - source: 'startup' | 'resume' | 'clear' | 'compact'
-// - cwd: string - Working directory
-// - claudeVersion: string - Claude Code version
 ```
 
-### Stop Pattern {#stop-pattern}
+Based on desired behavior:
+- **Inject context**: `sessionStartOutput({ additionalContext: 'Context string' })`
+- **Add system instruction**: `sessionStartOutput({ systemMessage: 'System instruction' })`
+- **No additional context**: `sessionStartOutput({})`
 
-Stop fires when Claude Code is about to stop. Use for:
-- Preventing premature stops
-- Cleanup validation
-- Final checks
+**Input fields:**
+- `source` — `'startup'` | `'resume'` | `'clear'` | `'compact'`
+- `cwd` — Working directory
+- `claudeVersion` — Claude Code version
+
+### 5.3 Stop Pattern
+
+Stop fires when Claude Code is about to stop. Use for preventing premature stops, cleanup validation, or final checks.
 
 ```typescript
 import { stopOutput, type StopInput } from '@goodfoot/claude-code-hooks';
-
-// Decision options:
-stopOutput({ decision: 'approve' });                    // Allow stop
-stopOutput({ decision: 'block', reason: 'Not ready' }); // Prevent stop
-stopOutput({});                                         // Default: allow stop
 ```
 
-## Exit Codes {#exit-codes}
+Based on desired behavior:
+- **Allow stop**: `stopOutput({ decision: 'approve' })`
+- **Prevent stop**: `stopOutput({ decision: 'block', reason: 'Not ready' })`
+- **Default (allow stop)**: `stopOutput({})`
+
+## 6. Exit Codes
 
 | Exit Code | Name | When Used | Claude Code Behavior |
 |-----------|------|-----------|---------------------|
@@ -293,7 +280,7 @@ preToolUseOutput({ block: 'Operation not permitted' });
 preToolUseOutput({ error: 'Something went wrong' });
 ```
 
-## hooks.json Configuration {#hooks-json}
+## 7. hooks.json Configuration
 
 Register hooks in `.claude/hooks.json` or project hooks file:
 
@@ -344,7 +331,7 @@ Register hooks in `.claude/hooks.json` or project hooks file:
 | SubagentStart | `agent_type` | Subagent type |
 | Stop | N/A (no matcher) | Fires on all stop events |
 
-## All 12 Hook Types {#all-hooks}
+## 8. All 12 Hook Types
 
 | Hook Type | When It Fires | Common Uses |
 |-----------|---------------|-------------|
@@ -361,16 +348,16 @@ Register hooks in `.claude/hooks.json` or project hooks file:
 | PreCompact | Before compaction | Preserve context |
 | PermissionRequest | Permission prompt shown | Auto-approve/deny |
 
-## Troubleshooting {#troubleshooting}
+## 9. Troubleshooting
 
-### Hook Not Firing
+### 9.1 Hook Not Firing
 
 1. Check `hooks.json` path is correct
 2. Verify matcher matches (case-sensitive)
 3. Ensure `tsx` is in PATH
 4. Check hook file has execute permissions
 
-### JSON Parse Errors
+### 9.2 JSON Parse Errors
 
 Always handle stdin completely before parsing:
 
@@ -384,19 +371,16 @@ const stdin = await new Promise<string>((resolve) => {
 const input = JSON.parse(stdin);
 ```
 
-### Type Errors
+### 9.3 Type Errors
 
-Ensure you're using the correct input type for your hook:
+Based on hook type, use the correct input type:
+- **PreToolUse**: `PreToolUseInput`
+- **PostToolUse**: `PostToolUseInput`
+- **SessionStart**: `SessionStartInput`
+- **Stop**: `StopInput`
+- **Other types**: See reference/output-builders.md
 
-| Hook Type | Input Type |
-|-----------|------------|
-| PreToolUse | `PreToolUseInput` |
-| PostToolUse | `PostToolUseInput` |
-| SessionStart | `SessionStartInput` |
-| Stop | `StopInput` |
-| ... | See reference/output-builders.md |
-
-### Exit Code Issues
+### 9.4 Exit Code Issues
 
 Output builders return the correct exit code automatically. Don't override unless necessary:
 
@@ -406,12 +390,14 @@ process.exit(output.exitCode); // Correct - uses builder's exit code
 // process.exit(0);           // WRONG - would indicate success
 ```
 
-## Common Gotchas {#gotchas}
+## 10. Common Gotchas
 
 | Issue | What Happens | Fix |
 |-------|--------------|-----|
-| **Missing await on stdin** | Empty input | Always await stdin read |
-| **stdout before processing** | Corrupted JSON | Only write final JSON to stdout |
-| **Logging to console** | Breaks hook protocol | Use file logging or event subscription |
-| **Forgetting exit code** | Process hangs | Always call `process.exit(output.exitCode)` |
-| **Wrong input type** | Type errors | Match input type to hook event |
+| Missing await on stdin | Empty input | Always await stdin read |
+| stdout before processing | Corrupted JSON | Only write final JSON to stdout |
+| Logging to console | Breaks hook protocol | Use file logging or event subscription |
+| Forgetting exit code | Process hangs | Always call `process.exit(output.exitCode)` |
+| Wrong input type | Type errors | Match input type to hook event |
+
+</instructions>
