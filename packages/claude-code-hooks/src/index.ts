@@ -40,3 +40,56 @@ export type {
 
 // Hook event names constant
 export { HOOK_EVENT_NAMES } from './types/inputs.js';
+
+// Output types and builders
+export type {
+  // Core output types
+  HookOutput,
+  SyncHookJSONOutput,
+  ExitCode,
+  // Hook-specific output types
+  HookSpecificOutput,
+  PreToolUseHookSpecificOutput,
+  PostToolUseHookSpecificOutput,
+  PostToolUseFailureHookSpecificOutput,
+  UserPromptSubmitHookSpecificOutput,
+  SessionStartHookSpecificOutput,
+  SubagentStartHookSpecificOutput,
+  PermissionRequestHookSpecificOutput,
+  PermissionRequestDecision,
+  PermissionRequestAllowDecision,
+  PermissionRequestDenyDecision,
+  // Options types for output builders
+  BaseOptions,
+  PreToolUseOptions,
+  PostToolUseOptions,
+  PostToolUseFailureOptions,
+  UserPromptSubmitOptions,
+  SessionStartOptions,
+  SessionEndOptions,
+  StopOptions,
+  SubagentStartOptions,
+  SubagentStopOptions,
+  NotificationOptions,
+  PreCompactOptions,
+  PermissionRequestOptions
+} from './outputs.js';
+
+// Output builder functions
+export {
+  // Exit codes
+  EXIT_CODES,
+  // All 12 output builder functions
+  preToolUseOutput,
+  postToolUseOutput,
+  postToolUseFailureOutput,
+  userPromptSubmitOutput,
+  sessionStartOutput,
+  sessionEndOutput,
+  stopOutput,
+  subagentStartOutput,
+  subagentStopOutput,
+  notificationOutput,
+  preCompactOutput,
+  permissionRequestOutput
+} from './outputs.js';
