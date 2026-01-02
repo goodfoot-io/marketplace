@@ -2,18 +2,18 @@
 
 > [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Porting](porting.md) | [Output Builders](output-builders.md)
 
-Complete reference for the `@goodfoot/claude-code-hooks` logging system.
+<instructions>
 
-## Why Not Console.log? {#why-not-console}
+## 1. Why Not Console.log?
 
 Hook protocol reserves stdout for JSON responses:
-- **stdout**: Reserved for hook JSON output
-- **stderr**: May conflict with Claude Code error handling
-- **console.log**: Goes to stdout - breaks hook protocol!
+- **stdout** — Reserved for hook JSON output
+- **stderr** — May conflict with Claude Code error handling
+- **console.log** — Goes to stdout, breaks hook protocol!
 
 The logger provides safe alternatives.
 
-## Logger Behavior
+## 2. Logger Behavior
 
 | Configuration | Behavior |
 |--------------|----------|
@@ -22,22 +22,22 @@ The logger provides safe alternatives.
 | `.on(level, handler)` | Events delivered to handlers |
 | Multiple destinations | All receive events |
 
-## File Output {#file-output}
+## 3. File Output {#file-output}
 
-### Via Environment Variable
+### 3.1 Via Environment Variable
 
 ```bash
 # Set before running claude
 export CLAUDE_CODE_HOOKS_LOG_FILE=/tmp/hooks.log
 ```
 
-### Via CLI Argument (when using hook factories)
+### 3.2 Via CLI Argument (when using hook factories)
 
 ```bash
 tsx ./hooks/my-hook.ts --log /tmp/hooks.log
 ```
 
-### Log File Format
+### 3.3 Log File Format
 
 Logs are written as JSON Lines (one JSON object per line):
 
@@ -46,7 +46,7 @@ Logs are written as JSON Lines (one JSON object per line):
 {"timestamp":"2024-01-15T10:30:01.000Z","level":"warn","hookType":"PreToolUse","message":"Dangerous command detected"}
 ```
 
-### Reading Log Files
+### 3.4 Reading Log Files
 
 ```bash
 # View last 10 entries
@@ -59,7 +59,7 @@ cat /tmp/hooks.log | jq 'select(.level == "error")'
 cat /tmp/hooks.log | jq 'select(.hookType == "PreToolUse")'
 ```
 
-## Event Subscription {#event-subscription}
+## 4. Event Subscription {#event-subscription}
 
 Subscribe to log events programmatically:
 
@@ -78,7 +78,7 @@ const unsubscribe = logger.on('error', (event) => {
 unsubscribe();
 ```
 
-### Log Levels
+### 4.1 Log Levels
 
 | Level | Severity | Use Case |
 |-------|----------|----------|
@@ -87,7 +87,7 @@ unsubscribe();
 | `warn` | Medium | Potential issues |
 | `error` | High | Errors requiring attention |
 
-### Subscribe to Multiple Levels
+### 4.2 Subscribe to Multiple Levels
 
 ```typescript
 import { logger, LOG_LEVELS } from '@goodfoot/claude-code-hooks';
@@ -104,7 +104,7 @@ logger.on('warn', handleWarning);
 logger.on('error', handleError);
 ```
 
-## Error Logging {#error-logging}
+## 5. Error Logging {#error-logging}
 
 Use `logError` for caught exceptions:
 
@@ -121,7 +121,7 @@ try {
 }
 ```
 
-### Error Event Structure
+### 5.1 Error Event Structure
 
 ```typescript
 interface LogEventError {
@@ -132,7 +132,7 @@ interface LogEventError {
 }
 ```
 
-## Log Event Structure
+## 6. Log Event Structure
 
 ```typescript
 interface LogEvent {
@@ -146,9 +146,9 @@ interface LogEvent {
 }
 ```
 
-## Usage in Hooks
+## 7. Usage in Hooks
 
-### Direct Logger Usage
+### 7.1 Direct Logger Usage
 
 ```typescript
 #!/usr/bin/env tsx
@@ -183,7 +183,7 @@ async function main() {
 }
 ```
 
-### Logging Methods
+### 7.2 Logging Methods
 
 ```typescript
 // Debug - detailed info
@@ -202,9 +202,9 @@ logger.error('Failed to parse', { reason: 'invalid JSON' });
 logger.logError(err, 'Operation failed', { context: 'cleanup' });
 ```
 
-## Integration with External Loggers
+## 8. Integration with External Loggers
 
-### Pino
+### 8.1 Pino
 
 ```typescript
 import { logger } from '@goodfoot/claude-code-hooks';
@@ -218,7 +218,7 @@ logger.on('warn', (event) => pinoLogger.warn(event, event.message));
 logger.on('error', (event) => pinoLogger.error(event, event.message));
 ```
 
-### Winston
+### 8.2 Winston
 
 ```typescript
 import { logger } from '@goodfoot/claude-code-hooks';
@@ -236,7 +236,7 @@ logger.on('warn', (e) => winstonLogger.warn(e.message, e));
 logger.on('error', (e) => winstonLogger.error(e.message, e));
 ```
 
-### Custom Handler
+### 8.3 Custom Handler
 
 ```typescript
 import { logger, type LogEvent, type LogLevel } from '@goodfoot/claude-code-hooks';
@@ -255,9 +255,9 @@ logger.on('warn', sendToMonitoring);
 logger.on('error', sendToMonitoring);
 ```
 
-## Runtime Configuration
+## 9. Runtime Configuration
 
-### Set Log File at Runtime
+### 9.1 Set Log File at Runtime
 
 ```typescript
 import { logger } from '@goodfoot/claude-code-hooks';
@@ -269,7 +269,7 @@ logger.setLogFile('/var/log/claude-hooks.log');
 logger.setLogFile(null);
 ```
 
-### Check for Active Destinations
+### 9.2 Check for Active Destinations
 
 ```typescript
 if (logger.hasDestinations()) {
@@ -277,23 +277,23 @@ if (logger.hasDestinations()) {
 }
 ```
 
-### Close Logger
+### 9.3 Close Logger
 
 ```typescript
 // Flush and close file handle
 logger.close();
 ```
 
-## Environment Variables
+## 10. Environment Variables
 
 | Variable | Description |
 |----------|-------------|
 | `CLAUDE_CODE_HOOKS_LOG_FILE` | Path to log file |
 | `CLAUDE_CODE_HOOKS_ENABLE_TELEMETRY` | Enable OpenTelemetry (future) |
 
-## Best Practices
+## 11. Best Practices
 
-### Do
+**Do:**
 
 ```typescript
 // Log to file or handlers, not console
@@ -311,7 +311,7 @@ const unsub = logger.on('error', handler);
 unsub();
 ```
 
-### Don't
+**Don't:**
 
 ```typescript
 // Never log to console in hooks
@@ -327,9 +327,9 @@ try { ... } catch (e) {
 logger.setContext(hookType, input);
 ```
 
-## Troubleshooting
+## 12. Troubleshooting
 
-### Logs Not Appearing
+### 12.1 Logs Not Appearing
 
 1. Check `CLAUDE_CODE_HOOKS_LOG_FILE` is set
 2. Verify directory exists and is writable
@@ -340,7 +340,7 @@ logger.setContext(hookType, input);
 touch /tmp/hooks.log && rm /tmp/hooks.log
 ```
 
-### Too Verbose
+### 12.2 Too Verbose
 
 Filter by level:
 
@@ -357,9 +357,11 @@ logger.on('warn', handler);
 logger.on('error', handler);
 ```
 
-### Performance Concerns
+### 12.3 Performance Concerns
 
 Logging is designed to be low-impact:
 - Silent by default (no I/O unless configured)
 - Handler errors are silently ignored
 - File writes use synchronous I/O to avoid async complexity
+
+</instructions>

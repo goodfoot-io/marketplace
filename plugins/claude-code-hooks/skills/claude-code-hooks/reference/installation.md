@@ -2,15 +2,15 @@
 
 > [Back to SKILL.md](../SKILL.md) | [Porting](porting.md) | [Output Builders](output-builders.md) | [Logging](logging.md)
 
-Complete guide for setting up `@goodfoot/claude-code-hooks` from scratch.
+<instructions>
 
-## Prerequisites
+## 1. Prerequisites
 
 - Node.js v20+
 - Package manager: npm, yarn, pnpm, or bun
 - TypeScript project (recommended)
 
-## Step 1: Install Dependencies
+## 2. Install Dependencies
 
 ```bash
 # Using yarn (recommended)
@@ -26,7 +26,7 @@ pnpm add @goodfoot/claude-code-hooks
 pnpm add -D tsx typescript
 ```
 
-## Step 2: Create Hooks Directory
+## 3. Create Hooks Directory
 
 ```bash
 mkdir -p .claude/hooks
@@ -46,7 +46,7 @@ your-project/
 └── tsconfig.json
 ```
 
-## Step 3: Create hooks.json
+## 4. Create hooks.json
 
 Create `.claude/hooks.json`:
 
@@ -77,7 +77,7 @@ Create `.claude/hooks.json`:
 }
 ```
 
-## Step 4: Create Your First Hook
+## 5. Create Your First Hook
 
 Create `.claude/hooks/pre-tool-use.ts`:
 
@@ -110,7 +110,7 @@ async function main() {
 main();
 ```
 
-## Step 5: Test Your Hook
+## 6. Test Your Hook
 
 Test the hook manually by piping JSON input:
 
@@ -123,7 +123,7 @@ Expected output:
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}
 ```
 
-## TypeScript Configuration
+## 7. TypeScript Configuration
 
 For optimal type checking, add to your `tsconfig.json`:
 
@@ -140,7 +140,7 @@ For optimal type checking, add to your `tsconfig.json`:
 }
 ```
 
-## Hook File Template
+## 8. Hook File Template
 
 Use this template for any hook type:
 
@@ -177,7 +177,7 @@ async function main() {
 main();
 ```
 
-## Matcher Patterns
+## 9. Matcher Patterns
 
 Matchers use regex to filter when hooks fire:
 
@@ -192,17 +192,16 @@ Matchers use regex to filter when hooks fire:
 
 **Important**: Use escaped pipes (`\|`) in JSON for OR patterns.
 
-## Project-Level vs User-Level Hooks
+## 10. Project-Level vs User-Level Hooks
 
-| Location | Scope | Use Case |
-|----------|-------|----------|
-| `.claude/hooks.json` | Project | Project-specific rules |
-| `~/.claude/hooks.json` | User | Global personal hooks |
-| `~/.config/claude/hooks.json` | User (XDG) | Global on XDG systems |
+Based on scope needed:
+- **Project-specific rules**: Use `.claude/hooks.json`
+- **Global personal hooks**: Use `~/.claude/hooks.json`
+- **Global on XDG systems**: Use `~/.config/claude/hooks.json`
 
 Project-level hooks take precedence when both exist.
 
-## Validation Checklist
+## 11. Validation Checklist
 
 After setup, verify:
 
@@ -214,9 +213,9 @@ After setup, verify:
 - [ ] Test piping JSON produces valid output
 - [ ] Exit codes are correct (0 for success, 2 for block)
 
-## Common Installation Issues
+## 12. Common Installation Issues
 
-### tsx Not Found
+### 12.1 tsx Not Found
 
 ```bash
 # Add to devDependencies
@@ -226,14 +225,14 @@ yarn add -D tsx
 yarn global add tsx
 ```
 
-### Permission Denied
+### 12.2 Permission Denied
 
 ```bash
 # Make hook executable
 chmod +x .claude/hooks/pre-tool-use.ts
 ```
 
-### Module Not Found
+### 12.3 Module Not Found
 
 Ensure `@goodfoot/claude-code-hooks` is installed in the project where hooks run:
 
@@ -245,7 +244,7 @@ ls node_modules/@goodfoot/claude-code-hooks
 yarn add @goodfoot/claude-code-hooks
 ```
 
-### Path Issues
+### 12.4 Path Issues
 
 Use absolute paths in `hooks.json` if relative paths don't work:
 
@@ -262,3 +261,5 @@ Or use environment variables:
   "command": "tsx ${PWD}/.claude/hooks/pre-tool-use.ts"
 }
 ```
+
+</instructions>

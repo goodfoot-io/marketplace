@@ -2,9 +2,9 @@
 
 > [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Porting](porting.md) | [Logging](logging.md)
 
-Complete reference for all 12 hook output builders and their input types.
+<instructions>
 
-## All Hook Types {#hook-types}
+## 1. All Hook Types {#hook-types}
 
 | Hook Type | Output Builder | Input Type | When It Fires |
 |-----------|----------------|------------|---------------|
@@ -21,9 +21,9 @@ Complete reference for all 12 hook output builders and their input types.
 | PreCompact | `preCompactOutput()` | `PreCompactInput` | Before compaction |
 | PermissionRequest | `permissionRequestOutput()` | `PermissionRequestInput` | Permission prompt |
 
-## Input Types {#input-types}
+## 2. Input Types {#input-types}
 
-### Base Input Fields
+### 2.1 Base Input Fields
 
 All input types include these base fields:
 
@@ -37,7 +37,7 @@ interface BaseHookInput {
 }
 ```
 
-### PreToolUseInput
+### 2.2 PreToolUseInput
 
 ```typescript
 interface PreToolUseInput extends BaseHookInput {
@@ -53,7 +53,7 @@ Common `toolInput` shapes:
 - **Read**: `{ file_path: string }`
 - **Edit**: `{ file_path: string, old_string: string, new_string: string }`
 
-### PostToolUseInput
+### 2.3 PostToolUseInput
 
 ```typescript
 interface PostToolUseInput extends BaseHookInput {
@@ -64,7 +64,7 @@ interface PostToolUseInput extends BaseHookInput {
 }
 ```
 
-### PostToolUseFailureInput
+### 2.4 PostToolUseFailureInput
 
 ```typescript
 interface PostToolUseFailureInput extends BaseHookInput {
@@ -75,7 +75,7 @@ interface PostToolUseFailureInput extends BaseHookInput {
 }
 ```
 
-### SessionStartInput
+### 2.5 SessionStartInput
 
 ```typescript
 interface SessionStartInput extends BaseHookInput {
@@ -84,7 +84,7 @@ interface SessionStartInput extends BaseHookInput {
 }
 ```
 
-### SessionEndInput
+### 2.6 SessionEndInput
 
 ```typescript
 interface SessionEndInput extends BaseHookInput {
@@ -93,7 +93,7 @@ interface SessionEndInput extends BaseHookInput {
 }
 ```
 
-### StopInput
+### 2.7 StopInput
 
 ```typescript
 interface StopInput extends BaseHookInput {
@@ -102,7 +102,7 @@ interface StopInput extends BaseHookInput {
 }
 ```
 
-### SubagentStartInput
+### 2.8 SubagentStartInput
 
 ```typescript
 interface SubagentStartInput extends BaseHookInput {
@@ -113,7 +113,7 @@ interface SubagentStartInput extends BaseHookInput {
 }
 ```
 
-### SubagentStopInput
+### 2.9 SubagentStopInput
 
 ```typescript
 interface SubagentStopInput extends BaseHookInput {
@@ -123,7 +123,7 @@ interface SubagentStopInput extends BaseHookInput {
 }
 ```
 
-### UserPromptSubmitInput
+### 2.10 UserPromptSubmitInput
 
 ```typescript
 interface UserPromptSubmitInput extends BaseHookInput {
@@ -132,7 +132,7 @@ interface UserPromptSubmitInput extends BaseHookInput {
 }
 ```
 
-### NotificationInput
+### 2.11 NotificationInput
 
 ```typescript
 interface NotificationInput extends BaseHookInput {
@@ -142,7 +142,7 @@ interface NotificationInput extends BaseHookInput {
 }
 ```
 
-### PreCompactInput
+### 2.12 PreCompactInput
 
 ```typescript
 interface PreCompactInput extends BaseHookInput {
@@ -151,7 +151,7 @@ interface PreCompactInput extends BaseHookInput {
 }
 ```
 
-### PermissionRequestInput
+### 2.13 PermissionRequestInput
 
 ```typescript
 interface PermissionRequestInput extends BaseHookInput {
@@ -162,38 +162,26 @@ interface PermissionRequestInput extends BaseHookInput {
 }
 ```
 
-## Output Builders Detail {#hook-specific-options}
+## 3. Output Builders Detail {#hook-specific-options}
 
-### preToolUseOutput()
+### 3.1 preToolUseOutput()
 
 Controls tool execution before it happens.
 
 ```typescript
 import { preToolUseOutput } from '@goodfoot/claude-code-hooks';
-
-// Allow execution
-preToolUseOutput({ allow: true });
-
-// Allow with modified input
-preToolUseOutput({
-  allow: true,
-  updatedInput: { command: 'safe-command' }
-});
-
-// Deny with reason
-preToolUseOutput({ deny: 'Reason shown to Claude' });
-
-// Ask for confirmation
-preToolUseOutput({ ask: 'This will modify files. Continue?' });
-
-// Default behavior (no decision)
-preToolUseOutput({});
-
-// Block with exit code 2
-preToolUseOutput({ block: 'Hard block reason' });
 ```
 
+Based on desired behavior:
+- **Allow execution**: `preToolUseOutput({ allow: true })`
+- **Allow with modified input**: `preToolUseOutput({ allow: true, updatedInput: { command: 'safe-command' } })`
+- **Deny with reason**: `preToolUseOutput({ deny: 'Reason shown to Claude' })`
+- **Ask for confirmation**: `preToolUseOutput({ ask: 'This will modify files. Continue?' })`
+- **Default behavior (no decision)**: `preToolUseOutput({})`
+- **Block with exit code 2**: `preToolUseOutput({ block: 'Hard block reason' })`
+
 **Options:**
+
 | Option | Type | Description |
 |--------|------|-------------|
 | `allow` | `true` | Permit execution |
@@ -201,34 +189,27 @@ preToolUseOutput({ block: 'Hard block reason' });
 | `ask` | `string` | Request confirmation |
 | `updatedInput` | `object` | Modified tool input (with allow) |
 
-### postToolUseOutput()
+### 3.2 postToolUseOutput()
 
 Add context after successful tool execution.
 
 ```typescript
 import { postToolUseOutput } from '@goodfoot/claude-code-hooks';
-
-// Add context to transcript
-postToolUseOutput({
-  additionalContext: 'File contained sensitive data'
-});
-
-// Modify MCP tool output
-postToolUseOutput({
-  updatedMCPToolOutput: { sanitized: true, data: '...' }
-});
-
-// No modifications
-postToolUseOutput({});
 ```
 
+Based on desired behavior:
+- **Add context to transcript**: `postToolUseOutput({ additionalContext: 'File contained sensitive data' })`
+- **Modify MCP tool output**: `postToolUseOutput({ updatedMCPToolOutput: { sanitized: true, data: '...' } })`
+- **No modifications**: `postToolUseOutput({})`
+
 **Options:**
+
 | Option | Type | Description |
 |--------|------|-------------|
 | `additionalContext` | `string` | Context for Claude |
 | `updatedMCPToolOutput` | `unknown` | Replace MCP output |
 
-### postToolUseFailureOutput()
+### 3.3 postToolUseFailureOutput()
 
 Add context after tool failure.
 
@@ -242,79 +223,63 @@ postToolUseFailureOutput({
 ```
 
 **Options:**
+
 | Option | Type | Description |
 |--------|------|-------------|
 | `additionalContext` | `string` | Recovery guidance |
 
-### sessionStartOutput()
+### 3.4 sessionStartOutput()
 
 Inject context when session starts.
 
 ```typescript
 import { sessionStartOutput } from '@goodfoot/claude-code-hooks';
-
-// Inject project context
-sessionStartOutput({
-  additionalContext: JSON.stringify({
-    project: 'my-app',
-    rules: ['no-delete', 'test-first']
-  })
-});
-
-// Add system message
-sessionStartOutput({
-  systemMessage: 'This is a production environment'
-});
 ```
 
+Based on desired behavior:
+- **Inject project context**: `sessionStartOutput({ additionalContext: JSON.stringify({ project: 'my-app', rules: ['no-delete'] }) })`
+- **Add system message**: `sessionStartOutput({ systemMessage: 'This is a production environment' })`
+- **No additional context**: `sessionStartOutput({})`
+
 **Options:**
+
 | Option | Type | Description |
 |--------|------|-------------|
 | `additionalContext` | `string` | Initial context |
 
-### sessionEndOutput()
+### 3.5 sessionEndOutput()
 
 Handle session cleanup.
 
 ```typescript
 import { sessionEndOutput } from '@goodfoot/claude-code-hooks';
-
-// Simple acknowledgment
-sessionEndOutput({});
-
-// With cleanup message
-sessionEndOutput({
-  systemMessage: 'Cleanup complete'
-});
 ```
 
-### stopOutput()
+Based on desired behavior:
+- **Simple acknowledgment**: `sessionEndOutput({})`
+- **With cleanup message**: `sessionEndOutput({ systemMessage: 'Cleanup complete' })`
+
+### 3.6 stopOutput()
 
 Control whether Claude can stop.
 
 ```typescript
 import { stopOutput } from '@goodfoot/claude-code-hooks';
-
-// Allow stop
-stopOutput({ decision: 'approve' });
-
-// Block stop with reason
-stopOutput({
-  decision: 'block',
-  reason: 'Uncommitted changes present'
-});
-
-// Default (allow stop)
-stopOutput({});
 ```
 
+Based on desired behavior:
+- **Allow stop**: `stopOutput({ decision: 'approve' })`
+- **Block stop with reason**: `stopOutput({ decision: 'block', reason: 'Uncommitted changes present' })`
+- **Default (allow stop)**: `stopOutput({})`
+
 **Options:**
+
 | Option | Type | Description |
 |--------|------|-------------|
 | `decision` | `'approve' \| 'block'` | Stop decision |
 | `reason` | `string` | Reason for blocking |
 
-### subagentStartOutput()
+### 3.7 subagentStartOutput()
 
 Inject context for Task agents.
 
@@ -328,11 +293,12 @@ subagentStartOutput({
 ```
 
 **Options:**
+
 | Option | Type | Description |
 |--------|------|-------------|
 | `additionalContext` | `string` | Subagent instructions |
 
-### subagentStopOutput()
+### 3.8 subagentStopOutput()
 
 Handle subagent completion.
 
@@ -343,63 +309,46 @@ import { subagentStopOutput } from '@goodfoot/claude-code-hooks';
 subagentStopOutput({});
 ```
 
-### notificationOutput()
+### 3.9 notificationOutput()
 
 Handle notifications.
 
 ```typescript
 import { notificationOutput } from '@goodfoot/claude-code-hooks';
-
-// Acknowledge
-notificationOutput({});
-
-// With message
-notificationOutput({
-  systemMessage: 'Forwarded to Slack'
-});
 ```
 
-### preCompactOutput()
+Based on desired behavior:
+- **Acknowledge**: `notificationOutput({})`
+- **With message**: `notificationOutput({ systemMessage: 'Forwarded to Slack' })`
+
+### 3.10 preCompactOutput()
 
 Handle pre-compaction.
 
 ```typescript
 import { preCompactOutput } from '@goodfoot/claude-code-hooks';
-
-// Preserve context through compaction
-preCompactOutput({
-  systemMessage: 'Remember: strict mode enabled'
-});
 ```
 
-### permissionRequestOutput()
+Based on desired behavior:
+- **Simple acknowledgment**: `preCompactOutput({})`
+- **Preserve context through compaction**: `preCompactOutput({ systemMessage: 'Remember: strict mode enabled' })`
+
+### 3.11 permissionRequestOutput()
 
 Auto-respond to permission prompts.
 
 ```typescript
 import { permissionRequestOutput } from '@goodfoot/claude-code-hooks';
-
-// Auto-approve
-permissionRequestOutput({ allow: true });
-
-// Auto-approve with modified input
-permissionRequestOutput({
-  allow: true,
-  updatedInput: { file_path: '/safe/path' }
-});
-
-// Auto-deny
-permissionRequestOutput({
-  deny: true,
-  message: 'This operation is not allowed',
-  interrupt: true
-});
-
-// Fall through to normal prompt
-permissionRequestOutput({});
 ```
 
+Based on desired behavior:
+- **Auto-approve**: `permissionRequestOutput({ allow: true })`
+- **Auto-approve with modified input**: `permissionRequestOutput({ allow: true, updatedInput: { file_path: '/safe/path' } })`
+- **Auto-deny**: `permissionRequestOutput({ deny: true, message: 'This operation is not allowed', interrupt: true })`
+- **Fall through to normal prompt**: `permissionRequestOutput({})`
+
 **Options:**
+
 | Option | Type | Description |
 |--------|------|-------------|
 | `allow` | `true` | Auto-approve |
@@ -409,7 +358,7 @@ permissionRequestOutput({});
 | `message` | `string` | Denial message (with deny) |
 | `interrupt` | `boolean` | Interrupt operation (with deny) |
 
-## Base Options {#base-options}
+## 4. Base Options {#base-options}
 
 All output builders support these options:
 
@@ -444,7 +393,7 @@ sessionStartOutput({
 });
 ```
 
-## Exit Codes
+## 5. Exit Codes
 
 Output builders set exit codes automatically:
 
@@ -464,7 +413,7 @@ const output = preToolUseOutput({ deny: 'Blocked' });
 process.exit(output.exitCode); // Use this!
 ```
 
-## Import Patterns
+## 6. Import Patterns
 
 ```typescript
 // Import specific builders and types
@@ -488,3 +437,5 @@ console.log(EXIT_CODES.SUCCESS); // 0
 console.log(EXIT_CODES.ERROR);   // 1
 console.log(EXIT_CODES.BLOCK);   // 2
 ```
+
+</instructions>

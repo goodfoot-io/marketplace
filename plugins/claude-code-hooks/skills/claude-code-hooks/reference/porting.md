@@ -2,9 +2,9 @@
 
 > [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Output Builders](output-builders.md) | [Logging](logging.md)
 
-Guide for converting existing bash hooks to type-safe TypeScript using `@goodfoot/claude-code-hooks`.
+<instructions>
 
-## Why Port to TypeScript? {#why}
+## 1. Why Port to TypeScript?
 
 | Benefit | Description |
 |---------|-------------|
@@ -14,9 +14,9 @@ Guide for converting existing bash hooks to type-safe TypeScript using `@goodfoo
 | Debugging | Better error messages and stack traces |
 | Testability | Unit test hooks with proper mocking |
 
-## Bash to TypeScript Conversion {#bash-to-typescript}
+## 2. Bash to TypeScript Conversion {#bash-to-typescript}
 
-### Step 1: Identify Hook Type
+### 2.1 Identify Hook Type
 
 Find the hook type from your `hooks.json`:
 
@@ -33,7 +33,7 @@ Find the hook type from your `hooks.json`:
 
 This is a `PreToolUse` hook.
 
-### Step 2: Analyze Bash Logic
+### 2.2 Analyze Bash Logic
 
 Example bash hook:
 
@@ -58,7 +58,7 @@ echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"
 exit 0
 ```
 
-### Step 3: Create TypeScript Equivalent
+### 2.3 Create TypeScript Equivalent
 
 ```typescript
 #!/usr/bin/env tsx
@@ -95,7 +95,7 @@ async function main() {
 main();
 ```
 
-### Step 4: Update hooks.json
+### 2.4 Update hooks.json
 
 ```json
 {
@@ -108,7 +108,7 @@ main();
 }
 ```
 
-## Field Name Mapping {#field-mapping}
+## 3. Field Name Mapping
 
 The library uses **camelCase** for TypeScript while Claude Code uses **snake_case** in JSON:
 
@@ -124,11 +124,9 @@ The library uses **camelCase** for TypeScript while Claude Code uses **snake_cas
 
 Input types automatically handle this conversion when you type your input correctly.
 
-## Batch Migration {#batch-migration}
+## 4. Batch Migration {#batch-migration}
 
-For migrating multiple hooks:
-
-### 1. Create Shared Utilities
+### 4.1 Create Shared Utilities
 
 Create `.claude/hooks/utils.ts`:
 
@@ -147,7 +145,7 @@ export function writeOutput(output: { stdout: unknown; exitCode: number }): neve
 }
 ```
 
-### 2. Use in Each Hook
+### 4.2 Use in Each Hook
 
 ```typescript
 #!/usr/bin/env tsx
@@ -163,7 +161,7 @@ async function main() {
 main();
 ```
 
-### 3. Migration Checklist
+### 4.3 Migration Checklist
 
 For each bash hook:
 
@@ -177,11 +175,11 @@ For each bash hook:
 - [ ] Test with sample input
 - [ ] Remove bash file after verification
 
-## Complex Logic Patterns {#complex-logic}
+## 5. Complex Logic Patterns {#complex-logic}
 
-### Pattern: Multiple Conditions
+### 5.1 Multiple Conditions
 
-Bash:
+**Bash:**
 ```bash
 if [[ "$TOOL_NAME" == "Bash" ]]; then
   if [[ "$COMMAND" == *"sudo"* ]]; then
@@ -194,7 +192,7 @@ if [[ "$TOOL_NAME" == "Bash" ]]; then
 fi
 ```
 
-TypeScript:
+**TypeScript:**
 ```typescript
 if (input.toolName === 'Bash') {
   const command = (input.toolInput as { command?: string })?.command ?? '';
@@ -211,9 +209,9 @@ if (input.toolName === 'Bash') {
 writeOutput(preToolUseOutput({ allow: true }));
 ```
 
-### Pattern: File System Checks
+### 5.2 File System Checks
 
-Bash:
+**Bash:**
 ```bash
 if [ -f "$CWD/.no-delete" ]; then
   echo '{"decision":"block","reason":"Deletions disabled"}'
@@ -221,7 +219,7 @@ if [ -f "$CWD/.no-delete" ]; then
 fi
 ```
 
-TypeScript:
+**TypeScript:**
 ```typescript
 import { existsSync } from 'fs';
 import { join } from 'path';
@@ -231,9 +229,9 @@ if (existsSync(join(input.cwd, '.no-delete'))) {
 }
 ```
 
-### Pattern: External Command
+### 5.3 External Command
 
-Bash:
+**Bash:**
 ```bash
 GIT_STATUS=$(git status --porcelain 2>/dev/null)
 if [ -n "$GIT_STATUS" ]; then
@@ -242,7 +240,7 @@ if [ -n "$GIT_STATUS" ]; then
 fi
 ```
 
-TypeScript:
+**TypeScript:**
 ```typescript
 import { execSync } from 'child_process';
 
@@ -259,47 +257,47 @@ try {
 }
 ```
 
-### Pattern: JSON Processing
+### 5.4 JSON Processing
 
-Bash:
+**Bash:**
 ```bash
 # Extract nested field
 VALUE=$(echo "$INPUT" | jq -r '.tool_input.path // ""')
 ```
 
-TypeScript:
+**TypeScript:**
 ```typescript
 // Type-safe nested access
 const toolInput = input.toolInput as { path?: string };
 const value = toolInput?.path ?? '';
 ```
 
-### Pattern: Environment Variables
+### 5.5 Environment Variables
 
-Bash:
+**Bash:**
 ```bash
 if [ -z "$ALLOW_DANGEROUS" ]; then
   # Block dangerous commands
 fi
 ```
 
-TypeScript:
+**TypeScript:**
 ```typescript
 if (!process.env.ALLOW_DANGEROUS) {
   // Block dangerous commands
 }
 ```
 
-## Testing Ported Hooks {#testing}
+## 6. Testing Ported Hooks
 
-### Manual Testing
+### 6.1 Manual Testing
 
 ```bash
 # Test with sample input
 echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' | tsx .claude/hooks/pre-tool-use.ts
 ```
 
-### Unit Testing with Vitest
+### 6.2 Unit Testing with Vitest
 
 ```typescript
 import { describe, it, expect } from 'vitest';
@@ -322,7 +320,7 @@ describe('PreToolUse Hook Logic', () => {
 });
 ```
 
-## Common Porting Mistakes
+## 7. Common Porting Mistakes
 
 | Mistake | Fix |
 |---------|-----|
@@ -332,7 +330,7 @@ describe('PreToolUse Hook Logic', () => {
 | Missing type assertion | Cast `toolInput` to expected shape |
 | Logging to console | Use file logging instead |
 
-## Complete Migration Example
+## 8. Complete Migration Example
 
 **Before (bash):**
 ```bash
@@ -384,3 +382,5 @@ async function main() {
 
 main();
 ```
+
+</instructions>
