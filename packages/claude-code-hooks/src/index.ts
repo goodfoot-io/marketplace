@@ -99,3 +99,31 @@ export type { LogLevel, LogEvent, LogEventError, LogEventHandler, Unsubscribe, L
 
 // Logger exports
 export { LOG_LEVELS, Logger, logger } from './logger.js';
+
+// Telemetry types
+export type { TelemetryConfig, MetricAttributes } from './telemetry.js';
+
+// Telemetry exports
+export {
+  // Initialization and shutdown
+  initializeTelemetry,
+  shutdownTelemetry,
+  // Metric recording
+  recordInvocation,
+  recordDuration,
+  recordError,
+  recordExitCode,
+  // Log event emission
+  emitLogEvent,
+  emitHookStart,
+  emitHookEnd,
+  emitHandlerError,
+  // Logger integration
+  createTelemetryEmitter,
+  wireLoggerTelemetry,
+  // Status checks
+  isTelemetryInitialized,
+  isTelemetryEnabledCheck,
+  // Constants
+  METRIC_NAMES
+} from './telemetry.js';
