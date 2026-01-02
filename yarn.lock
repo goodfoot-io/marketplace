@@ -185,9 +185,44 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@anthropic-ai/claude-code@npm:^2.0.53":
-  version: 2.0.54
-  resolution: "@anthropic-ai/claude-code@npm:2.0.54"
+"@anthropic-ai/claude-agent-sdk@npm:^0.1.76":
+  version: 0.1.76
+  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.1.76"
+  dependencies:
+    "@img/sharp-darwin-arm64": "npm:^0.33.5"
+    "@img/sharp-darwin-x64": "npm:^0.33.5"
+    "@img/sharp-linux-arm": "npm:^0.33.5"
+    "@img/sharp-linux-arm64": "npm:^0.33.5"
+    "@img/sharp-linux-x64": "npm:^0.33.5"
+    "@img/sharp-linuxmusl-arm64": "npm:^0.33.5"
+    "@img/sharp-linuxmusl-x64": "npm:^0.33.5"
+    "@img/sharp-win32-x64": "npm:^0.33.5"
+  peerDependencies:
+    zod: ^3.24.1 || ^4.0.0
+  dependenciesMeta:
+    "@img/sharp-darwin-arm64":
+      optional: true
+    "@img/sharp-darwin-x64":
+      optional: true
+    "@img/sharp-linux-arm":
+      optional: true
+    "@img/sharp-linux-arm64":
+      optional: true
+    "@img/sharp-linux-x64":
+      optional: true
+    "@img/sharp-linuxmusl-arm64":
+      optional: true
+    "@img/sharp-linuxmusl-x64":
+      optional: true
+    "@img/sharp-win32-x64":
+      optional: true
+  checksum: 10c0/610ee969423852ef6aee621833c14e3fca8e732bbb1078bc420732c6e616719fc4d40b3eb3899f71f166ba51370e3b3b4f465a1e1db5658a7ce16af06363432b
+  languageName: node
+  linkType: hard
+
+"@anthropic-ai/claude-code@npm:^2.0.76":
+  version: 2.0.76
+  resolution: "@anthropic-ai/claude-code@npm:2.0.76"
   dependencies:
     "@img/sharp-darwin-arm64": "npm:^0.33.5"
     "@img/sharp-darwin-x64": "npm:^0.33.5"
@@ -216,7 +251,7 @@ __metadata:
       optional: true
   bin:
     claude: cli.js
-  checksum: 10c0/7fc917009845fcb47ff206604d07be1f145a9eaef4028e589e599bb8c18dfa4b4fd6f621e1a3105acaf346c68c8f06cbf2e43ff7da46fa80e264937fd05ea177
+  checksum: 10c0/5a37a1ac8127804b1d7c2060942892ff64dcfab44617a380df587b6e44ef0804d4d21dad64be572ca5c8235929acbcb0f86223511ad26801be8cdfa85d69bbb0
   languageName: node
   linkType: hard
 
@@ -1330,8 +1365,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/marketplace@workspace:."
   dependencies:
-    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.37"
-    "@anthropic-ai/claude-code": "npm:^2.0.53"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.1.76"
+    "@anthropic-ai/claude-code": "npm:^2.0.76"
     "@anthropic-ai/sdk": "npm:^0.68.0"
     "@changesets/get-dependents-graph": "npm:^2.1.3"
     "@eslint/js": "npm:^9.36.0"
