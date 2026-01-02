@@ -25,7 +25,13 @@
       "types": "./src/*.ts"
     }
   },
+  "bin": {
+    "claude-code-hooks": "./dist/cli/index.mjs"
+  },
   "publishConfig": {
+    "bin": {
+      "claude-code-hooks": "./dist/cli/index.mjs"
+    },
     "exports": {
       "./*": {
         "import": "./dist/*.js",
