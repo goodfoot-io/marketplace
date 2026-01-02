@@ -127,3 +127,22 @@ export {
   // Constants
   METRIC_NAMES
 } from './telemetry.js';
+
+// Hook factory types
+export type { HookConfig, HookContext, HookHandler, HookFunction } from './hooks.js';
+
+// Hook factory functions - all 12 hook types
+export {
+  preToolUseHook,
+  postToolUseHook,
+  postToolUseFailureHook,
+  notificationHook,
+  userPromptSubmitHook,
+  sessionStartHook,
+  sessionEndHook,
+  stopHook,
+  subagentStartHook,
+  subagentStopHook,
+  preCompactHook,
+  permissionRequestHook
+} from './hooks.js';
