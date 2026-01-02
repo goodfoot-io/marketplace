@@ -1,0 +1,57 @@
+{
+  "name": "@goodfoot/claude-code-hooks",
+  "version": "0.0.1",
+  "description": "Type-safe Claude Code hooks library with camelCase types, output builders, and OpenTelemetry support",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "prettier": "prettier . --write --log-level warn",
+    "prettier:files": "prettier --write --log-level warn",
+    "eslint": "eslint --cache --fix ./src",
+    "eslint:files": "eslint --cache --fix",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --build tsconfig.build.json",
+    "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
+    "test": "vitest run",
+    "test:types": "vitest run --typecheck",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+  },
+  "exports": {
+    "./*": {
+      "import": "./src/*.ts",
+      "types": "./src/*.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      "./*": {
+        "import": "./dist/*.js",
+        "types": "./types/*.d.ts"
+      }
+    }
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.57.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.57.0",
+    "@opentelemetry/exporter-prometheus": "^0.57.0",
+    "@opentelemetry/resources": "^1.29.0",
+    "@opentelemetry/sdk-node": "^0.57.0",
+    "@opentelemetry/semantic-conventions": "^1.28.0",
+    "glob": "^11.0.0"
+  },
+  "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.76",
+    "@types/node": "^24",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.36.0",
+    "eslint-plugin-jsdoc": "^50.0.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.3",
+    "vitest": "4.0.13"
+  }
+}
