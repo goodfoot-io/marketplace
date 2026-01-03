@@ -14,7 +14,7 @@
     "target": "ES2022",
     "module": "NodeNext",
     "declaration": true,
-    "declarationMap": true,
+    "declarationMap": false,
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
     "strict": true,

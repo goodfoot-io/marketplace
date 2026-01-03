@@ -8,12 +8,12 @@
  * - HOOK_FACTORY_TO_EVENT mapping
  */
 
-import type { CliArgs } from '../src/cli/index.js';
+import type { CliArgs } from '../src/cli.js';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { parseArgs, validateArgs, analyzeHookFile, HOOK_FACTORY_TO_EVENT } from '../src/cli/index.js';
+import { parseArgs, validateArgs, analyzeHookFile, HOOK_FACTORY_TO_EVENT } from '../src/cli.js';
 
 describe('HOOK_FACTORY_TO_EVENT', () => {
   it('maps all 12 hook factory names to event names', () => {

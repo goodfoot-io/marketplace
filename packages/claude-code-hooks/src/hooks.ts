@@ -5,7 +5,6 @@
  * - Input type narrowing based on hook event type
  * - Output type enforcement via return types
  * - Error wrapping with automatic logging
- * - Telemetry recording when enabled
  * - Logger context injection
  *
  * Each factory accepts a HookConfig with optional matcher and timeout settings,
@@ -23,6 +22,21 @@
  * @see https://code.claude.com/docs/en/hooks
  */
 
+import type {
+  PreToolUseInput,
+  PostToolUseInput,
+  PostToolUseFailureInput,
+  NotificationInput,
+  UserPromptSubmitInput,
+  SessionStartInput,
+  SessionEndInput,
+  StopInput,
+  SubagentStartInput,
+  SubagentStopInput,
+  PreCompactInput,
+  PermissionRequestInput,
+  HookEventName
+} from './inputs.js';
 import type { Logger } from './logger.js';
 import type {
   SpecificHookOutput,
@@ -39,21 +53,6 @@ import type {
   PreCompactOutput,
   PermissionRequestOutput
 } from './outputs.js';
-import type {
-  PreToolUseInput,
-  PostToolUseInput,
-  PostToolUseFailureInput,
-  NotificationInput,
-  UserPromptSubmitInput,
-  SessionStartInput,
-  SessionEndInput,
-  StopInput,
-  SubagentStartInput,
-  SubagentStopInput,
-  PreCompactInput,
-  PermissionRequestInput,
-  HookEventName
-} from './types/inputs.js';
 
 // ============================================================================
 // Configuration Types
@@ -165,7 +164,7 @@ export interface HookContext {
    *
    * The logger is pre-configured with the hook context (hookType, input)
    * so log events are automatically enriched. Use this instead of
-   * console.log/error to ensure logs go to file/telemetry, not stdout/stderr
+   * console.log/error to ensure logs go to file, not stdout/stderr
    * which would interfere with the hook protocol.
    * @example
    * ```typescript
@@ -207,7 +206,7 @@ export type HookHandler<TInput, TOutput extends SpecificHookOutput> = (
  * The result of a hook factory - a function that wraps the handler.
  *
  * This is what gets exported from hook files and invoked by the runtime.
- * The wrapper handles error catching, logging, and telemetry.
+ * The wrapper handles error catching and logging.
  * @template TInput - The input type for this hook
  * @template TOutput - The specific output type for this hook
  */
@@ -244,7 +243,7 @@ export interface HookFunction<TInput, TOutput extends SpecificHookOutput> {
  * Creates a hook factory function for a specific hook type.
  *
  * This is the internal implementation used by all typed factories.
- * It wraps the handler with error catching, logging, and telemetry.
+ * It wraps the handler with error catching and logging.
  * @param hookEventName - The hook event name
  * @param config - Hook configuration
  * @param handler - The handler function to wrap

@@ -10,7 +10,7 @@
 import * as fs from 'node:fs';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
-import { readHooksJson } from './test-utils.js';
+import { CLAUDE_AVAILABLE, runClaude, readHooksJson } from './test-utils.js';
 
 describe('E2E: PostToolUse Hooks', () => {
   describe('Context injection', () => {
@@ -22,6 +22,23 @@ describe('E2E: PostToolUse Hooks', () => {
 
     afterAll(() => {
       cleanOutputDir(pluginDir);
+    });
+
+    it.skipIf(!CLAUDE_AVAILABLE)('injects context after Bash tool execution', () => {
+      const result = runClaude({
+        prompt: 'Run: echo POSTTEST123 - then confirm you saw the hook context message',
+        pluginDir,
+        tools: ['Bash']
+      });
+
+      const combinedOutput = result.stdout + result.stderr;
+      // The hook should have added context (check if Claude acknowledges it)
+      // Claude may paraphrase, so check for key terms from the hook output
+      const hasHookOutput =
+        combinedOutput.includes('E2E_POST_TOOL_CONTEXT') ||
+        combinedOutput.includes('Command completed successfully') ||
+        combinedOutput.includes('hook context');
+      expect(hasHookOutput).toBe(true);
     });
 
     it('generates valid hooks.json with PostToolUse event and Bash matcher', () => {

@@ -23,15 +23,15 @@ import type {
  * | Exit Code | Name | When Used | Claude Code Behavior |
  * |-----------|------|-----------|---------------------|
  * | 0 | Success | Handler returns normally | Continue, parse stdout as JSON |
- * | 1 | Error | Handler throws, invalid input, non-blocking error | Non-blocking, stderr to user only |
- * | 2 | Block | `stopReason` set or `stopOutput({ decision: 'block' })` | Blocking, stderr shown to Claude |
+ * | 1 | Error | Invalid input, non-blocking error | Non-blocking, stderr to user only |
+ * | 2 | Block | Handler throws OR `stopReason` set | Blocking, stderr shown to Claude |
  */
 export const EXIT_CODES = {
   /** Handler completed successfully. Claude Code parses stdout as JSON. */
   SUCCESS: 0,
-  /** Non-blocking error occurred. stderr shown to user only. */
+  /** Non-blocking error occurred (e.g., invalid input). stderr shown to user only. */
   ERROR: 1,
-  /** Blocking action requested. stderr shown to Claude. */
+  /** Handler threw exception OR blocking action requested. stderr shown to Claude. */
   BLOCK: 2
 } as const;
 

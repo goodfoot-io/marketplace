@@ -149,12 +149,15 @@ export default sessionStartHook({ matcher: 'startup' }, (input, { logger }) => {
 ```typescript
 // hooks/check-uncommitted.ts
 import { stopHook, stopOutput } from '@goodfoot/claude-code-hooks';
-import { execSync } from 'child_process';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
-export default stopHook({}, (input, { logger }) => {
+const execAsync = promisify(exec);
+
+export default stopHook({}, async (input, { logger }) => {
   // Check for uncommitted changes
   try {
-    const status = execSync('git status --porcelain', {
+    const { stdout: status } = await execAsync('git status --porcelain', {
       encoding: 'utf-8',
       cwd: input.cwd
     });
@@ -220,17 +223,15 @@ Based on what you need to do:
 
 ## 5. Hook Type Patterns
 
-All hooks use the factory + output builder pattern with default export.
+All hooks use the factory + output builder pattern with default export. For what each hook type does, see https://code.claude.com/docs/en/hooks.
 
 ### 5.1 PreToolUse Pattern
-
-PreToolUse fires **before** any tool executes. Use for blocking dangerous commands, modifying tool inputs, or requiring confirmation.
 
 ```typescript
 import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
 
 export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
-  // Your logic using input.toolName, input.toolInput
+  // Access input.toolName, input.toolInput (camelCase)
   return preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
 });
 ```
@@ -248,13 +249,11 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 
 ### 5.2 SessionStart Pattern
 
-SessionStart fires when a session begins. Use for injecting project context, setting up environment, or different behavior for startup vs resume.
-
 ```typescript
 import { sessionStartHook, sessionStartOutput } from '@goodfoot/claude-code-hooks';
 
 export default sessionStartHook({ matcher: 'startup' }, (input, { logger }) => {
-  // Your logic using input.source, input.cwd
+  // Access input.source, input.cwd
   return sessionStartOutput({ hookSpecificOutput: { additionalContext: 'Context' } });
 });
 ```
@@ -270,13 +269,11 @@ export default sessionStartHook({ matcher: 'startup' }, (input, { logger }) => {
 
 ### 5.3 Stop Pattern
 
-Stop fires when Claude Code is about to stop. Use for preventing premature stops, cleanup validation, or final checks.
-
 ```typescript
 import { stopHook, stopOutput } from '@goodfoot/claude-code-hooks';
 
 export default stopHook({}, (input, { logger }) => {
-  // Your logic - no matcher needed for Stop hooks
+  // No matcher needed for Stop hooks
   return stopOutput({ decision: 'approve' });
 });
 ```
@@ -356,69 +353,22 @@ The CLI extracts matchers from your hook factory calls and generates the correct
 
 ## 8. All 12 Hook Types
 
-| Hook Type | When It Fires | Common Uses |
-|-----------|---------------|-------------|
-| PreToolUse | Before tool execution | Block/allow commands, modify inputs |
-| PostToolUse | After successful tool | Add context, modify output |
-| PostToolUseFailure | After tool failure | Add recovery guidance |
-| UserPromptSubmit | User submits prompt | Inject context |
-| SessionStart | Session begins | Initialize context, persist env vars |
-| SessionEnd | Session ends | Cleanup |
-| Stop | Claude about to stop | Validate before stopping |
-| SubagentStart | Task agent starts | Subagent-specific context |
-| SubagentStop | Task agent stops | Subagent cleanup |
-| Notification | Notification sent | Forward notifications |
-| PreCompact | Before compaction | Preserve context |
-| PermissionRequest | Permission prompt shown | Auto-approve/deny permissions |
+For descriptions of when each hook type fires, see https://code.claude.com/docs/en/hooks.
 
-### 8.1 PreToolUse vs PermissionRequest
-
-These hooks are related but serve different purposes:
-
-| Aspect | PreToolUse | PermissionRequest |
-|--------|------------|-------------------|
-| **When** | Before every tool execution | Only when permission dialog would show |
-| **Purpose** | Control whether Claude executes tools | Auto-respond to permission prompts |
-| **Scope** | All tool invocations (even allowed ones) | Only tools requiring user permission |
-| **Output** | `permissionDecision: 'allow'/'deny'/'ask'` | `decision: { behavior: 'allow'/'deny' }` |
-| **Use case** | Block dangerous commands, modify inputs | Eliminate permission dialogs for trusted operations |
-
-**Use PreToolUse when you want to:**
-- Block dangerous commands regardless of permission settings
-- Modify tool inputs before execution
-- Log all tool invocations
-- Apply custom security rules
-
-**Use PermissionRequest when you want to:**
-- Auto-approve safe operations without prompts
-- Auto-deny certain operations silently
-- Customize the permission flow
-
-**Example: Both hooks working together:**
-
-```typescript
-// PreToolUse: Block rm -rf / regardless of permissions
-export default preToolUseHook({ matcher: 'Bash' }, (input) => {
-  const cmd = (input.toolInput as { command?: string })?.command ?? '';
-  if (cmd.includes('rm -rf /')) {
-    return preToolUseOutput({
-      hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'Blocked' }
-    });
-  }
-  return preToolUseOutput({}); // Let normal permission flow continue
-});
-
-// PermissionRequest: Auto-approve safe git commands
-export default permissionRequestHook({ matcher: 'Bash' }, (input) => {
-  const cmd = (input.toolInput as { command?: string })?.command ?? '';
-  if (cmd.startsWith('git status') || cmd.startsWith('git diff')) {
-    return permissionRequestOutput({
-      hookSpecificOutput: { decision: { behavior: 'allow' } }
-    });
-  }
-  return permissionRequestOutput({}); // Show normal permission prompt
-});
-```
+| Hook Type | Factory | Output Builder | Matcher Field |
+|-----------|---------|----------------|---------------|
+| PreToolUse | `preToolUseHook()` | `preToolUseOutput()` | `toolName` |
+| PostToolUse | `postToolUseHook()` | `postToolUseOutput()` | `toolName` |
+| PostToolUseFailure | `postToolUseFailureHook()` | `postToolUseFailureOutput()` | `toolName` |
+| UserPromptSubmit | `userPromptSubmitHook()` | `userPromptSubmitOutput()` | N/A |
+| SessionStart | `sessionStartHook()` | `sessionStartOutput()` | `source` |
+| SessionEnd | `sessionEndHook()` | `sessionEndOutput()` | `reason` |
+| Stop | `stopHook()` | `stopOutput()` | N/A |
+| SubagentStart | `subagentStartHook()` | `subagentStartOutput()` | `agentType` |
+| SubagentStop | `subagentStopHook()` | `subagentStopOutput()` | `agentType` |
+| Notification | `notificationHook()` | `notificationOutput()` | `notificationType` |
+| PreCompact | `preCompactHook()` | `preCompactOutput()` | `trigger` |
+| PermissionRequest | `permissionRequestHook()` | `permissionRequestOutput()` | `toolName` |
 
 ## 9. Troubleshooting
 

@@ -6,20 +6,22 @@
 
 ## 1. All Hook Types {#hook-types}
 
-| Hook Type | Hook Factory | Output Builder | When It Fires |
+For descriptions of when each hook type fires, see https://code.claude.com/docs/en/hooks.
+
+| Hook Type | Hook Factory | Output Builder | Matcher Field |
 |-----------|--------------|----------------|---------------|
-| PreToolUse | `preToolUseHook()` | `preToolUseOutput()` | Before tool execution |
-| PostToolUse | `postToolUseHook()` | `postToolUseOutput()` | After successful tool |
-| PostToolUseFailure | `postToolUseFailureHook()` | `postToolUseFailureOutput()` | After tool failure |
-| UserPromptSubmit | `userPromptSubmitHook()` | `userPromptSubmitOutput()` | User submits prompt |
-| SessionStart | `sessionStartHook()` | `sessionStartOutput()` | Session begins |
-| SessionEnd | `sessionEndHook()` | `sessionEndOutput()` | Session ends |
-| Stop | `stopHook()` | `stopOutput()` | Claude about to stop |
-| SubagentStart | `subagentStartHook()` | `subagentStartOutput()` | Task agent starts |
-| SubagentStop | `subagentStopHook()` | `subagentStopOutput()` | Task agent stops |
-| Notification | `notificationHook()` | `notificationOutput()` | Notification sent |
-| PreCompact | `preCompactHook()` | `preCompactOutput()` | Before compaction |
-| PermissionRequest | `permissionRequestHook()` | `permissionRequestOutput()` | Permission prompt |
+| PreToolUse | `preToolUseHook()` | `preToolUseOutput()` | `toolName` |
+| PostToolUse | `postToolUseHook()` | `postToolUseOutput()` | `toolName` |
+| PostToolUseFailure | `postToolUseFailureHook()` | `postToolUseFailureOutput()` | `toolName` |
+| UserPromptSubmit | `userPromptSubmitHook()` | `userPromptSubmitOutput()` | N/A |
+| SessionStart | `sessionStartHook()` | `sessionStartOutput()` | `source` |
+| SessionEnd | `sessionEndHook()` | `sessionEndOutput()` | `reason` |
+| Stop | `stopHook()` | `stopOutput()` | N/A |
+| SubagentStart | `subagentStartHook()` | `subagentStartOutput()` | `agentType` |
+| SubagentStop | `subagentStopHook()` | `subagentStopOutput()` | `agentType` |
+| Notification | `notificationHook()` | `notificationOutput()` | `notificationType` |
+| PreCompact | `preCompactHook()` | `preCompactOutput()` | `trigger` |
+| PermissionRequest | `permissionRequestHook()` | `permissionRequestOutput()` | `toolName` |
 
 **Usage pattern:** Import the hook factory and output builder, export default the hook:
 
@@ -176,13 +178,11 @@ interface PermissionRequestInput extends BaseHookInput {
 
 ### 3.1 preToolUseOutput()
 
-Controls tool execution before it happens.
-
 ```typescript
 import { preToolUseOutput } from '@goodfoot/claude-code-hooks';
 ```
 
-Based on desired behavior:
+**Usage:**
 - **Allow execution**: `preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } })`
 - **Allow with modified input**: `preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow', updatedInput: { command: 'safe-command' } } })`
 - **Deny with reason**: `preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'Reason shown to Claude' } })`
@@ -200,13 +200,11 @@ Based on desired behavior:
 
 ### 3.2 postToolUseOutput()
 
-Add context after successful tool execution.
-
 ```typescript
 import { postToolUseOutput } from '@goodfoot/claude-code-hooks';
 ```
 
-Based on desired behavior:
+**Usage:**
 - **Add context to transcript**: `postToolUseOutput({ hookSpecificOutput: { additionalContext: 'File contained sensitive data' } })`
 - **Modify MCP tool output**: `postToolUseOutput({ hookSpecificOutput: { updatedMCPToolOutput: { sanitized: true, data: '...' } } })`
 - **No modifications**: `postToolUseOutput({})`
@@ -220,12 +218,9 @@ Based on desired behavior:
 
 ### 3.3 postToolUseFailureOutput()
 
-Add context after tool failure.
-
 ```typescript
 import { postToolUseFailureOutput } from '@goodfoot/claude-code-hooks';
 
-// Add recovery guidance
 postToolUseFailureOutput({
   hookSpecificOutput: {
     additionalContext: 'Try using a different approach'
@@ -241,13 +236,11 @@ postToolUseFailureOutput({
 
 ### 3.4 sessionStartOutput()
 
-Inject context when session starts.
-
 ```typescript
 import { sessionStartOutput } from '@goodfoot/claude-code-hooks';
 ```
 
-Based on desired behavior:
+**Usage:**
 - **Inject project context**: `sessionStartOutput({ hookSpecificOutput: { additionalContext: JSON.stringify({ project: 'my-app', rules: ['no-delete'] }) } })`
 - **Add system message**: `sessionStartOutput({ systemMessage: 'This is a production environment' })`
 - **No additional context**: `sessionStartOutput({})`
@@ -260,25 +253,21 @@ Based on desired behavior:
 
 ### 3.5 sessionEndOutput()
 
-Handle session cleanup.
-
 ```typescript
 import { sessionEndOutput } from '@goodfoot/claude-code-hooks';
 ```
 
-Based on desired behavior:
+**Usage:**
 - **Simple acknowledgment**: `sessionEndOutput({})`
 - **With cleanup message**: `sessionEndOutput({ systemMessage: 'Cleanup complete' })`
 
 ### 3.6 stopOutput()
 
-Control whether Claude can stop.
-
 ```typescript
 import { stopOutput } from '@goodfoot/claude-code-hooks';
 ```
 
-Based on desired behavior:
+**Usage:**
 - **Allow stop**: `stopOutput({ decision: 'approve' })`
 - **Block stop with reason**: `stopOutput({ decision: 'block', reason: 'Uncommitted changes present' })`
 - **Default (allow stop)**: `stopOutput({})`
@@ -292,12 +281,9 @@ Based on desired behavior:
 
 ### 3.7 subagentStartOutput()
 
-Inject context for Task agents.
-
 ```typescript
 import { subagentStartOutput } from '@goodfoot/claude-code-hooks';
 
-// Add subagent context
 subagentStartOutput({
   hookSpecificOutput: {
     additionalContext: 'Focus on finding patterns'
@@ -313,13 +299,11 @@ subagentStartOutput({
 
 ### 3.8 subagentStopOutput()
 
-Handle subagent completion.
-
 ```typescript
 import { subagentStopOutput } from '@goodfoot/claude-code-hooks';
 ```
 
-Based on desired behavior:
+**Usage:**
 - **Allow stop**: `subagentStopOutput({ decision: 'approve' })`
 - **Block stop with reason**: `subagentStopOutput({ decision: 'block', reason: 'Task not complete' })`
 - **Default (allow stop)**: `subagentStopOutput({})`
@@ -333,13 +317,11 @@ Based on desired behavior:
 
 ### 3.9 notificationOutput()
 
-Handle notifications with optional context.
-
 ```typescript
 import { notificationOutput } from '@goodfoot/claude-code-hooks';
 ```
 
-Based on desired behavior:
+**Usage:**
 - **Add context**: `notificationOutput({ hookSpecificOutput: { additionalContext: 'Forwarded to Slack #alerts' } })`
 - **With system message**: `notificationOutput({ systemMessage: 'Notification processed' })`
 - **Suppress notification**: `notificationOutput({ suppressOutput: true })`
@@ -353,25 +335,21 @@ Based on desired behavior:
 
 ### 3.10 preCompactOutput()
 
-Handle pre-compaction.
-
 ```typescript
 import { preCompactOutput } from '@goodfoot/claude-code-hooks';
 ```
 
-Based on desired behavior:
+**Usage:**
 - **Simple acknowledgment**: `preCompactOutput({})`
 - **Preserve context through compaction**: `preCompactOutput({ systemMessage: 'Remember: strict mode enabled' })`
 
 ### 3.11 permissionRequestOutput()
 
-Auto-respond to permission prompts.
-
 ```typescript
 import { permissionRequestOutput } from '@goodfoot/claude-code-hooks';
 ```
 
-Based on desired behavior:
+**Usage:**
 - **Auto-approve**: `permissionRequestOutput({ hookSpecificOutput: { decision: { behavior: 'allow' } } })`
 - **Auto-approve with modified input**: `permissionRequestOutput({ hookSpecificOutput: { decision: { behavior: 'allow', updatedInput: { file_path: '/safe/path' } } } })`
 - **Auto-deny**: `permissionRequestOutput({ hookSpecificOutput: { decision: { behavior: 'deny', message: 'This operation is not allowed', interrupt: true } } })`

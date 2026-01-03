@@ -44,7 +44,7 @@ export function getHooksJsonPath(pluginDir: string): string {
 /**
  * Path to the CLI script.
  */
-const CLI_PATH = path.join(__dirname, '..', 'src', 'cli', 'index.ts');
+const CLI_PATH = path.join(__dirname, '..', 'src', 'cli.ts');
 
 /**
  * Generates a unique suffix for output directories.

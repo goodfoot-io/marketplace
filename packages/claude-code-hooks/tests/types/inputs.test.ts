@@ -20,7 +20,7 @@ import type {
   SubagentStopInput,
   PreCompactInput,
   PermissionRequestInput
-} from '../../src/types/inputs.js';
+} from '../../src/inputs.js';
 import { describe, it, expect } from 'vitest';
 
 describe('HookInput discriminated union', () => {
@@ -260,6 +260,7 @@ describe('HookInput discriminated union', () => {
         cwd: '/workspace',
         stopHookActive: false,
         agentId: 'agent-001',
+        agentType: 'explore',
         agentTranscriptPath: '/path/to/agent/transcript'
       };
 
@@ -461,6 +462,7 @@ describe('HookInput discriminated union', () => {
           cwd: '/c',
           stopHookActive: false,
           agentId: 'a',
+          agentType: 't',
           agentTranscriptPath: '/atp'
         },
         {

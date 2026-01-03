@@ -17,12 +17,12 @@ const __dirname = path.dirname(__filename);
 /**
  * Path to the CLI script.
  */
-const CLI_PATH = path.join(__dirname, '..', 'src', 'cli', 'index.ts');
+const CLI_PATH = path.join(__dirname, '..', 'src', 'cli.ts');
 
 /**
  * Directory containing build test fixtures.
  */
-const BUILD_TEST_FIXTURES = path.join(__dirname, 'fixtures', 'build-test');
+const BUILD_TEST_FIXTURES = path.join(__dirname, 'fixtures');
 
 /**
  * Output directory for build test results.
@@ -82,6 +82,22 @@ function readHooksJson(hooksJsonPath: string): HooksJson {
 }
 
 /**
+ * Resolves a command path that may contain ${CLAUDE_PLUGIN_ROOT:-./} to an absolute path.
+ * @param command - The command string from hooks.json (e.g., "${CLAUDE_PLUGIN_ROOT:-./}/build/hook.abc123.mjs")
+ * @param hooksJsonDir - Directory containing hooks.json (used as default for ./)
+ * @returns Resolved absolute path
+ */
+function resolveCommandPath(command: string, hooksJsonDir: string): string {
+  // Extract the path from the command template (e.g., "build/hook.abc123.mjs")
+  const match = command.match(/\$\{CLAUDE_PLUGIN_ROOT:-\.\/\}\/(.+)$/);
+  if (match) {
+    return path.join(hooksJsonDir, match[1]);
+  }
+  // Fallback: return as-is if it doesn't match the expected pattern
+  return command;
+}
+
+/**
  * Cleans up the build test output directory.
  */
 function cleanBuildTestOutput(): void {
@@ -129,10 +145,11 @@ describe('E2E: Build Process', () => {
       expect(entry.hooks[0].type).toBe('command');
       expect(entry.hooks[0].timeout).toBe(5000);
 
-      // Verify compiled file exists
-      const commandPath = entry.hooks[0].command;
+      // Verify compiled file exists - command uses ${CLAUDE_PLUGIN_ROOT:-./}/build/ template
+      const command = entry.hooks[0].command;
+      expect(command).toMatch(/^\$\{CLAUDE_PLUGIN_ROOT:-\.\/\}\/build\/.+\.mjs$/);
+      const commandPath = resolveCommandPath(command, outputDir);
       expect(fs.existsSync(commandPath)).toBe(true);
-      expect(commandPath.endsWith('.mjs')).toBe(true);
     });
 
     it('compiles a hook without matcher', () => {
@@ -206,7 +223,9 @@ describe('E2E: Build Process', () => {
           for (const hook of entry.hooks) {
             expect(hook.type).toBe('command');
             expect(typeof hook.command).toBe('string');
-            expect(fs.existsSync(hook.command)).toBe(true);
+            expect(hook.command).toMatch(/^\$\{CLAUDE_PLUGIN_ROOT:-\.\/\}\/build\//);
+            const resolvedPath = resolveCommandPath(hook.command, outputDir);
+            expect(fs.existsSync(resolvedPath)).toBe(true);
           }
         }
       }
@@ -365,10 +384,11 @@ describe('E2E: Build Process', () => {
       expect(result.success).toBe(true);
 
       const hooksJson = readHooksJson(outputPath);
-      const commandPath = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
+      const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
 
-      expect(commandPath).toBeDefined();
-      expect(commandPath.endsWith('.mjs')).toBe(true);
+      expect(command).toBeDefined();
+      expect(command).toMatch(/^\$\{CLAUDE_PLUGIN_ROOT:-\.\/\}\/build\/.+\.mjs$/);
+      const commandPath = resolveCommandPath(command, outputDir);
 
       // Read the compiled file
       const content = fs.readFileSync(commandPath, 'utf-8');
@@ -392,9 +412,10 @@ describe('E2E: Build Process', () => {
       expect(result.success).toBe(true);
 
       const hooksJson = readHooksJson(outputPath);
-      const commandPath = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
+      const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
 
-      expect(commandPath).toBeDefined();
+      expect(command).toBeDefined();
+      const commandPath = resolveCommandPath(command, outputDir);
 
       // Try to execute the hook with mock input
       const mockInput = JSON.stringify({
@@ -423,6 +444,94 @@ describe('E2E: Build Process', () => {
       }
     });
 
+    it('compiled hook that throws exits with code 2 and outputs stacktrace to stderr', () => {
+      const outputDir = path.join(BUILD_TEST_OUTPUT, 'error-hook');
+      const outputPath = path.join(outputDir, 'hooks.json');
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      const inputPath = path.join(BUILD_TEST_FIXTURES, 'error-hook.ts');
+      const result = runCli(inputPath, outputPath);
+
+      expect(result.success).toBe(true);
+
+      const hooksJson = readHooksJson(outputPath);
+      const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
+
+      expect(command).toBeDefined();
+      const commandPath = resolveCommandPath(command, outputDir);
+
+      // Execute with mock input that will trigger the error
+      const mockInput = JSON.stringify({
+        hook_event_name: 'PreToolUse',
+        session_id: 'test-session',
+        cwd: '/tmp',
+        transcript_path: '/tmp/transcript.jsonl',
+        tool_name: 'Read',
+        tool_input: { file_path: '/tmp/test.txt' },
+        tool_use_id: 'test-tool-use-id'
+      });
+
+      const execResult = spawnSync('node', [commandPath], {
+        input: mockInput,
+        encoding: 'utf-8',
+        timeout: 5000
+      });
+
+      // Handler errors should exit with code 2
+      expect(execResult.status).toBe(2);
+
+      // Stderr should contain the error message and stack trace
+      expect(execResult.stderr).toContain('E2E_TEST_ERROR');
+      expect(execResult.stderr).toContain('Error');
+
+      // Stdout should be empty (no JSON output on error)
+      expect(execResult.stdout).toBe('');
+    });
+
+    it('compiled async hook that throws exits with code 2 and outputs stacktrace to stderr', () => {
+      const outputDir = path.join(BUILD_TEST_OUTPUT, 'async-error-hook');
+      const outputPath = path.join(outputDir, 'hooks.json');
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      const inputPath = path.join(BUILD_TEST_FIXTURES, 'async-error-hook.ts');
+      const result = runCli(inputPath, outputPath);
+
+      expect(result.success).toBe(true);
+
+      const hooksJson = readHooksJson(outputPath);
+      const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
+
+      expect(command).toBeDefined();
+      const commandPath = resolveCommandPath(command, outputDir);
+
+      // Execute with mock input that will trigger the async error
+      const mockInput = JSON.stringify({
+        hook_event_name: 'PreToolUse',
+        session_id: 'test-session',
+        cwd: '/tmp',
+        transcript_path: '/tmp/transcript.jsonl',
+        tool_name: 'Read',
+        tool_input: { file_path: '/tmp/test.txt' },
+        tool_use_id: 'test-tool-use-id'
+      });
+
+      const execResult = spawnSync('node', [commandPath], {
+        input: mockInput,
+        encoding: 'utf-8',
+        timeout: 5000
+      });
+
+      // Async handler errors should also exit with code 2
+      expect(execResult.status).toBe(2);
+
+      // Stderr should contain the async error message and stack trace
+      expect(execResult.stderr).toContain('E2E_ASYNC_TEST_ERROR');
+      expect(execResult.stderr).toContain('Error');
+
+      // Stdout should be empty (no JSON output on error)
+      expect(execResult.stdout).toBe('');
+    });
+
     it('compiled hook output uses camelCase keys (not snake_case)', () => {
       const outputDir = path.join(BUILD_TEST_OUTPUT, 'camelcase-output');
       const outputPath = path.join(outputDir, 'hooks.json');
@@ -435,9 +544,10 @@ describe('E2E: Build Process', () => {
       expect(result.success).toBe(true);
 
       const hooksJson = readHooksJson(outputPath);
-      const commandPath = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
+      const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
 
-      expect(commandPath).toBeDefined();
+      expect(command).toBeDefined();
+      const commandPath = resolveCommandPath(command, outputDir);
 
       // Execute with mock PreToolUse input (snake_case as Claude Code sends)
       const mockInput = JSON.stringify({
@@ -494,11 +604,13 @@ describe('E2E: Build Process', () => {
 
       const hooksJson = readHooksJson(outputPath);
       const hookType = Object.keys(hooksJson.hooks)[0];
-      const commandPath = hooksJson.hooks[hookType]?.[0]?.hooks[0]?.command;
+      const command = hooksJson.hooks[hookType]?.[0]?.hooks[0]?.command;
 
-      if (!commandPath) {
+      if (!command) {
         throw new Error(`No command found in hooks.json for ${fixtureFile}`);
       }
+
+      const commandPath = resolveCommandPath(command, outputDir);
 
       const execResult = spawnSync('node', [commandPath], {
         input: JSON.stringify(mockInput),

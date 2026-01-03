@@ -21,7 +21,7 @@
  */
 import type { HookFunction } from './hooks.js';
 import type { HookOutput, SpecificHookOutput } from './outputs.js';
-import type { HookInput } from './types/inputs.js';
+import type { HookInput } from './inputs.js';
 /**
  * Deeply transforms object keys from snake_case to camelCase.
  *
@@ -96,14 +96,11 @@ export declare function convertToHookOutput(specificOutput: SpecificHookOutput):
  * 2. Parses JSON
  * 3. Transforms snake_case input to camelCase
  * 4. Sets up logger context (hookType, input)
- * 5. Records telemetry start metrics
- * 6. Calls handler with input and context (logger)
- * 7. Handles any errors, logs them
- * 8. Records telemetry end metrics
- * 9. Transforms output to snake_case for Claude Code
- * 10. Writes JSON to stdout
- * 11. Flushes telemetry, closes logger
- * 12. Exits with appropriate code
+ * 5. Calls handler with input and context (logger)
+ * 6. Handles any errors, logs them
+ * 7. Writes JSON to stdout
+ * 8. Closes logger
+ * 9. Exits with appropriate code
  * @param hookFn - The hook function to execute (from hook factory)
  * @example
  * ```typescript
@@ -120,5 +117,6 @@ export declare function convertToHookOutput(specificOutput: SpecificHookOutput):
  * ```
  * @see https://code.claude.com/docs/en/hooks
  */
-export declare function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(hookFn: HookFunction<TInput, TOutput>): Promise<void>;
-//# sourceMappingURL=runtime.d.ts.map
+export declare function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(
+  hookFn: HookFunction<TInput, TOutput>
+): Promise<void>;

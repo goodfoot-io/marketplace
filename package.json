@@ -13,7 +13,8 @@
     "knip:fix": "knip --fix --config ./knip.config.json",
     "build": "yarn workspaces foreach -A run build",
     "lint": "yarn workspaces foreach -A run lint",
-    "test": "yarn workspaces foreach -A run test"
+    "test": "yarn workspaces foreach -A run test",
+    "build:hooks": "npx ./packages/claude-code-hooks -i plugins/typescript-hooks/hooks/src/**/* -o plugins/typescript-hooks/hooks/hooks.json"
   },
   "private": true,
   "packageManager": "yarn@4.12.0",

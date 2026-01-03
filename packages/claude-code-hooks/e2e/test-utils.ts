@@ -32,11 +32,15 @@ export interface HooksJson {
   hooks: {
     PreToolUse?: MatcherEntry[];
     PostToolUse?: MatcherEntry[];
+    PostToolUseFailure?: MatcherEntry[];
     SessionStart?: MatcherEntry[];
+    SessionEnd?: MatcherEntry[];
     UserPromptSubmit?: MatcherEntry[];
     PreCompact?: MatcherEntry[];
     PermissionRequest?: MatcherEntry[];
     Stop?: MatcherEntry[];
+    SubagentStart?: MatcherEntry[];
+    SubagentStop?: MatcherEntry[];
     Notification?: MatcherEntry[];
   };
 }

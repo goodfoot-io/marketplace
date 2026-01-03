@@ -2,6 +2,29 @@
 
 A dual-purpose repository providing both a Claude Code plugin marketplace and a collection of MCP (Model Context Protocol) server packages for professional development workflows.
 
+## Claude Code Hooks: Practical Focus
+
+Users of `@goodfoot/claude-code-hooks` tend to struggle with a specific set of package-level details (not the general hook mechanics). This README now prioritizes those topics and links to a deeper write-up in `documentation/claude-code-hooks-docs-topics.md`.
+
+Key topics covered:
+
+- Hook factory + default export requirements for CLI detection.
+- CLI build outputs, hashed filenames, and absolute paths in `hooks.json`.
+- Rebuild needs when moving a repo or switching machines.
+- Plugin portability with `${CLAUDE_PLUGIN_ROOT}` path rewrites.
+- Logging configuration (env vs CLI) and JSONL log output.
+- Avoiding stdout/stderr in hooks; use the logger.
+- Handler error behavior (exit 2 + stack trace) and safe try/catch patterns.
+- Local testing workflow for compiled hooks.
+- Timeout units (milliseconds) and how the CLI writes them.
+- Runtime safety for `toolInput` and other untyped fields.
+- CLI skip rules for non-hook files and named exports.
+- SessionStart-only env persistence helpers.
+- ESM output expectations for compiled hooks.
+- How to load the claude-code-hooks plugin and skill for guidance.
+
+See `documentation/claude-code-hooks-docs-topics.md` for short, actionable explanations and why each topic matters.
+
 ## Quick Start
 
 ### Adding the Marketplace

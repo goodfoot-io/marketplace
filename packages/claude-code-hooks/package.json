@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/claude-code-hooks",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Type-safe Claude Code hooks library with camelCase types and output builders",
   "type": "module",
   "sideEffects": false,
@@ -21,7 +21,9 @@
     "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
     "test": "vitest run",
     "test:types": "vitest run --typecheck",
-    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "release": "bash ../../scripts/release-package.sh claude-code-hooks",
+    "release:dry-run": "bash ../../scripts/release-package.sh claude-code-hooks --dry-run"
   },
   "exports": {
     "./*": {
@@ -29,10 +31,10 @@
       "types": "./src/*.ts"
     }
   },
-  "bin": "./dist/cli/index.js",
+  "bin": "./dist/cli.js",
   "publishConfig": {
     "bin": {
-      "claude-code-hooks": "./dist/cli/index.js"
+      "claude-code-hooks": "./dist/cli.js"
     },
     "exports": {
       "./*": {

@@ -1,0 +1,17 @@
+/**
+ * Test fixture: PostToolUseFailure hook that logs failure details.
+ *
+ * Used to verify PostToolUseFailure hooks are built correctly.
+ */
+
+import { postToolUseFailureHook, postToolUseFailureOutput } from '../../src/index.js';
+
+export default postToolUseFailureHook({ matcher: '.*' }, (input, { logger }) => {
+  logger.info('Tool failed', {
+    toolName: input.toolName,
+    error: input.error
+  });
+  return postToolUseFailureOutput({
+    hookSpecificOutput: { additionalContext: 'Build test: Tool failure logged' }
+  });
+});

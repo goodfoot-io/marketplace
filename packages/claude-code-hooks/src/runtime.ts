@@ -21,8 +21,8 @@
  */
 
 import type { HookFunction } from './hooks.js';
+import type { HookInput } from './inputs.js';
 import type { HookOutput, SpecificHookOutput, SyncHookJSONOutput } from './outputs.js';
-import type { HookInput } from './types/inputs.js';
 import { logger } from './logger.js';
 import { EXIT_CODES } from './outputs.js';
 
@@ -224,13 +224,31 @@ function createMalformedInputOutput(error: unknown): HookOutput {
 }
 
 /**
- * Creates an error output for handler exceptions.
+ * Writes handler error stacktrace to stderr and exits with code 2.
+ *
+ * When a hook handler throws an exception:
+ * - Stacktrace (with sourcemaps if available) is output to stderr
+ * - Process exits with code 2 (BLOCK)
+ * - No JSON is output to stdout
  * @param error - The error thrown by the handler
- * @returns HookOutput with empty stdout
  */
-function createHandlerErrorOutput(error: unknown): HookOutput {
+function handleHandlerError(error: unknown): never {
+  // Write stack trace to stderr (sourcemaps are applied automatically by Node.js)
+  if (error instanceof Error) {
+    process.stderr.write(`${error.stack ?? error.message}\n`);
+  } else {
+    process.stderr.write(`${String(error)}\n`);
+  }
+
+  // Log to file if configured
   logger.error(`Hook handler error: ${error instanceof Error ? error.message : String(error)}`);
-  return { stdout: {} };
+
+  // Clear logger context and close
+  logger.clearContext();
+  logger.close();
+
+  // Exit with code 2 (BLOCK) - no JSON output
+  process.exit(EXIT_CODES.BLOCK);
 }
 
 /**
@@ -269,14 +287,11 @@ export function convertToHookOutput(specificOutput: SpecificHookOutput): HookOut
  * 2. Parses JSON
  * 3. Transforms snake_case input to camelCase
  * 4. Sets up logger context (hookType, input)
- * 5. Records telemetry start metrics
- * 6. Calls handler with input and context (logger)
- * 7. Handles any errors, logs them
- * 8. Records telemetry end metrics
- * 9. Transforms output to snake_case for Claude Code
- * 10. Writes JSON to stdout
- * 11. Flushes telemetry, closes logger
- * 12. Exits with appropriate code
+ * 5. Calls handler with input and context (logger)
+ * 6. Handles any errors, logs them
+ * 7. Writes JSON to stdout
+ * 8. Closes logger
+ * 9. Exits with appropriate code
  * @param hookFn - The hook function to execute (from hook factory)
  * @example
  * ```typescript
@@ -299,6 +314,26 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
   let output: HookOutput | undefined;
 
   try {
+    // Check for log file configuration conflicts
+    // CLAUDE_CODE_HOOKS_CLI_LOG_FILE is injected by the CLI --log parameter
+    // CLAUDE_CODE_HOOKS_LOG_FILE is the user's environment variable
+    const cliLogFile = process.env['CLAUDE_CODE_HOOKS_CLI_LOG_FILE'];
+    const envLogFile = process.env['CLAUDE_CODE_HOOKS_LOG_FILE'];
+
+    if (cliLogFile !== undefined && envLogFile !== undefined && cliLogFile !== envLogFile) {
+      // Write error to stderr and exit with error code
+      process.stderr.write(
+        `Log file configuration conflict: CLI --log="${cliLogFile}" vs CLAUDE_CODE_HOOKS_LOG_FILE="${envLogFile}". ` +
+          'Use only one method to configure hook logging.\n'
+      );
+      process.exit(EXIT_CODES.ERROR);
+    }
+
+    // If CLI log file is set, configure the logger
+    if (cliLogFile !== undefined) {
+      logger.setLogFile(cliLogFile);
+    }
+
     // Read and parse stdin
     let stdinContent: string;
     try {
@@ -328,11 +363,9 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
       const specificOutput = await hookFn(input, { logger });
       output = convertToHookOutput(specificOutput);
     } catch (error) {
-      // Log the error
-      logger.logError(error, 'Hook handler threw an exception');
-
-      // Create error output
-      output = createHandlerErrorOutput(error);
+      // Handler threw - output stacktrace to stderr and exit with code 2
+      // This call never returns (process.exit)
+      handleHandlerError(error);
     }
   } finally {
     // Write output if we have it
@@ -344,7 +377,7 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
     logger.clearContext();
     logger.close();
 
-    // Exit with success (hooks always exit 0)
+    // Exit with success (handler errors exit via handleHandlerError with code 2)
     process.exit(EXIT_CODES.SUCCESS);
   }
 }

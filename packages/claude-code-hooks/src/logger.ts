@@ -20,7 +20,7 @@
  * @see https://code.claude.com/docs/en/hooks
  */
 
-import type { HookEventName, HookInput } from './types/inputs.js';
+import type { HookEventName, HookInput } from './inputs.js';
 import { closeSync, existsSync, mkdirSync, openSync, writeSync } from 'node:fs';
 import { dirname } from 'node:path';
 
@@ -507,8 +507,7 @@ export class Logger {
   /**
    * Checks if there are any active handlers or destinations.
    *
-   * Returns true if any handlers are registered, file logging is enabled,
-   * or telemetry is configured.
+   * Returns true if any handlers are registered or file logging is enabled.
    * @returns Whether the logger has any active output destinations
    */
   hasDestinations(): boolean {

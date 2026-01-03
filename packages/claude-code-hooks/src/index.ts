@@ -1,7 +1,7 @@
 /**
  * Type-safe Claude Code hooks library.
  *
- * Provides camelCase types, output builders, logging system, and OpenTelemetry support
+ * Provides camelCase types, output builders, and logging system
  * for building Claude Code hooks with full type safety.
  * @module
  */
@@ -37,10 +37,10 @@ export type {
   SessionEndReason,
   PreCompactTrigger,
   PermissionUpdate
-} from './types/inputs.js';
+} from './inputs.js';
 
 // Hook event names constant
-export { HOOK_EVENT_NAMES } from './types/inputs.js';
+export { HOOK_EVENT_NAMES } from './inputs.js';
 
 // Output types and builders
 export type {

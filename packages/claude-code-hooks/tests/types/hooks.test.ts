@@ -7,8 +7,8 @@
  */
 
 import type { HookConfig, HookContext, HookHandler } from '../../src/index.js';
+import type { PreToolUseInput } from '../../src/inputs.js';
 import type { PreToolUseOutput } from '../../src/outputs.js';
-import type { PreToolUseInput } from '../../src/types/inputs.js';
 import { describe, it, expect } from 'vitest';
 import {
   preToolUseHook,

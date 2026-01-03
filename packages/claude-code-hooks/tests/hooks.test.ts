@@ -21,7 +21,7 @@ import type {
   SubagentStopInput,
   PreCompactInput,
   PermissionRequestInput
-} from '../src/types/inputs.js';
+} from '../src/inputs.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   preToolUseHook,
@@ -173,6 +173,7 @@ function createSubagentStopInput(): SubagentStopInput {
     permissionMode: 'default',
     stopHookActive: false,
     agentId: 'agent_123',
+    agentType: 'explore',
     agentTranscriptPath: '/path/to/agent/transcript'
   };
 }

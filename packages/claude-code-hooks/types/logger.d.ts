@@ -19,7 +19,7 @@
  * ```
  * @see https://code.claude.com/docs/en/hooks
  */
-import type { HookEventName, HookInput } from './types/inputs.js';
+import type { HookEventName, HookInput } from './inputs.js';
 /**
  * Available log levels.
  *
@@ -34,7 +34,7 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 /**
  * All log levels in order of severity (lowest to highest).
  */
-export declare const LOG_LEVELS: readonly ["debug", "info", "warn", "error"];
+export declare const LOG_LEVELS: readonly ['debug', 'info', 'warn', 'error'];
 /**
  * A structured log event emitted by the logger.
  *
@@ -53,60 +53,60 @@ export declare const LOG_LEVELS: readonly ["debug", "info", "warn", "error"];
  * ```
  */
 export interface LogEvent {
-    /**
-     * ISO 8601 timestamp of when the event occurred.
-     * @example '2024-01-15T10:30:00.000Z'
-     */
-    timestamp: string;
-    /**
-     * Severity level of the log event.
-     */
-    level: LogLevel;
-    /**
-     * Type of hook that generated this event.
-     * May be undefined for events outside hook context.
-     */
-    hookType?: HookEventName;
-    /**
-     * Human-readable description of what happened.
-     */
-    message: string;
-    /**
-     * Hook input data at the time of logging.
-     * Useful for debugging and reproducing issues.
-     */
-    input?: Partial<HookInput>;
-    /**
-     * Error information if this event represents an error.
-     * Contains structured error details for analysis.
-     */
-    error?: LogEventError;
-    /**
-     * Additional context data provided by the caller.
-     * Can contain arbitrary metadata relevant to the event.
-     */
-    context?: Record<string, unknown>;
+  /**
+   * ISO 8601 timestamp of when the event occurred.
+   * @example '2024-01-15T10:30:00.000Z'
+   */
+  timestamp: string;
+  /**
+   * Severity level of the log event.
+   */
+  level: LogLevel;
+  /**
+   * Type of hook that generated this event.
+   * May be undefined for events outside hook context.
+   */
+  hookType?: HookEventName;
+  /**
+   * Human-readable description of what happened.
+   */
+  message: string;
+  /**
+   * Hook input data at the time of logging.
+   * Useful for debugging and reproducing issues.
+   */
+  input?: Partial<HookInput>;
+  /**
+   * Error information if this event represents an error.
+   * Contains structured error details for analysis.
+   */
+  error?: LogEventError;
+  /**
+   * Additional context data provided by the caller.
+   * Can contain arbitrary metadata relevant to the event.
+   */
+  context?: Record<string, unknown>;
 }
 /**
  * Structured error information within a log event.
  */
 export interface LogEventError {
-    /**
-     * Error name (e.g., 'TypeError', 'ValidationError').
-     */
-    name: string;
-    /**
-     * Error message describing what went wrong.
-     */
-    message: string;
-    /**
-     * Stack trace if available.
-     */
-    stack?: string;
-    /**
-     * Error cause chain if the error was wrapped.
-     */
-    cause?: LogEventError;
+  /**
+   * Error name (e.g., 'TypeError', 'ValidationError').
+   */
+  name: string;
+  /**
+   * Error message describing what went wrong.
+   */
+  message: string;
+  /**
+   * Stack trace if available.
+   */
+  stack?: string;
+  /**
+   * Error cause chain if the error was wrapped.
+   */
+  cause?: LogEventError;
 }
 /**
  * Handler function invoked when a log event is emitted.
@@ -144,12 +144,12 @@ export type Unsubscribe = () => void;
  * Configuration options for the Logger.
  */
 export interface LoggerConfig {
-    /**
-     * Path to the log file for file output.
-     * If not set, file logging is disabled.
-     * Can also be set via `CLAUDE_CODE_HOOKS_LOG_FILE` environment variable.
-     */
-    logFilePath?: string;
+  /**
+   * Path to the log file for file output.
+   * If not set, file logging is disabled.
+   * Can also be set via `CLAUDE_CODE_HOOKS_LOG_FILE` environment variable.
+   */
+  logFilePath?: string;
 }
 /**
  * Logger for Claude Code hooks with event subscription and file output.
@@ -186,234 +186,233 @@ export interface LoggerConfig {
  * ```
  */
 export declare class Logger {
-    /**
-     * Registered event handlers by log level.
-     */
-    private handlers;
-    /**
-     * File descriptor for log file output.
-     * Lazily initialized on first write.
-     */
-    private logFileFd;
-    /**
-     * Path to the log file, if configured.
-     */
-    private logFilePath;
-    /**
-     * Whether file initialization has been attempted.
-     */
-    private fileInitialized;
-    /**
-     * Current hook context for enriching log events.
-     */
-    private currentHookType;
-    /**
-     * Current hook input for enriching log events.
-     */
-    private currentInput;
-    /**
-     * Creates a new Logger instance.
-     *
-     * Typically you should use the exported `logger` singleton rather than
-     * creating new instances.
-     * @param config - Optional configuration
-     * @example
-     * ```typescript
-     * // Use singleton (recommended)
-     * import { logger } from '@goodfoot/claude-code-hooks';
-     *
-     * // Or create custom instance
-     * const customLogger = new Logger({ logFilePath: '/var/log/hooks.log' });
-     * ```
-     */
-    constructor(config?: LoggerConfig);
-    /**
-     * Logs a debug message.
-     *
-     * Use for detailed debugging information that is typically only useful
-     * during development or troubleshooting.
-     * @param message - The debug message
-     * @param context - Optional additional context
-     * @example
-     * ```typescript
-     * logger.debug('Processing tool input', { toolName: 'Bash', inputSize: 256 });
-     * ```
-     */
-    debug(message: string, context?: Record<string, unknown>): void;
-    /**
-     * Logs an info message.
-     *
-     * Use for general operational events like hook invocations, successful
-     * completions, or state changes.
-     * @param message - The info message
-     * @param context - Optional additional context
-     * @example
-     * ```typescript
-     * logger.info('Session started', { source: 'startup', sessionId: 'abc123' });
-     * ```
-     */
-    info(message: string, context?: Record<string, unknown>): void;
-    /**
-     * Logs a warning message.
-     *
-     * Use for conditions that may indicate issues but don't prevent
-     * operation, such as deprecated patterns or performance concerns.
-     * @param message - The warning message
-     * @param context - Optional additional context
-     * @example
-     * ```typescript
-     * logger.warn('Deprecated hook pattern detected', { pattern: 'legacyMatcher' });
-     * ```
-     */
-    warn(message: string, context?: Record<string, unknown>): void;
-    /**
-     * Logs an error message.
-     *
-     * Use for error conditions that require attention but were handled
-     * gracefully. For exceptions, prefer {@link logError}.
-     * @param message - The error message
-     * @param context - Optional additional context
-     * @example
-     * ```typescript
-     * logger.error('Failed to validate tool input', { toolName: 'Bash', reason: 'empty command' });
-     * ```
-     */
-    error(message: string, context?: Record<string, unknown>): void;
-    /**
-     * Logs a structured error with full error details.
-     *
-     * Use this method when logging caught exceptions to capture the full
-     * error context including name, message, stack trace, and cause chain.
-     * @param error - The error to log
-     * @param message - Human-readable description of what failed
-     * @param context - Optional additional context
-     * @example
-     * ```typescript
-     * try {
-     *   await dangerousOperation();
-     * } catch (err) {
-     *   logger.logError(err, 'Failed to execute dangerous operation', {
-     *     operation: 'delete',
-     *     target: '/important/file.txt'
-     *   });
-     * }
-     * ```
-     */
-    logError(error: unknown, message: string, context?: Record<string, unknown>): void;
-    /**
-     * Subscribes a handler to log events at the specified level.
-     *
-     * The handler will be called for every log event at the specified level.
-     * Returns an unsubscribe function that should be called when the handler
-     * is no longer needed.
-     * @param level - The log level to subscribe to
-     * @param handler - The handler function to call for each event
-     * @returns A function to unsubscribe the handler
-     * @example
-     * ```typescript
-     * // Subscribe to error events
-     * const unsubscribe = logger.on('error', (event) => {
-     *   console.error(`[${event.hookType}] ${event.message}`);
-     *   if (event.error) {
-     *     console.error(event.error.stack);
-     *   }
-     * });
-     *
-     * // Later, clean up
-     * unsubscribe();
-     * ```
-     * @example
-     * ```typescript
-     * // Forward to external logging library
-     * import pino from 'pino';
-     * const pinoLogger = pino();
-     *
-     * logger.on('info', (event) => pinoLogger.info(event, event.message));
-     * logger.on('warn', (event) => pinoLogger.warn(event, event.message));
-     * logger.on('error', (event) => pinoLogger.error(event, event.message));
-     * ```
-     */
-    on(level: LogLevel, handler: LogEventHandler): Unsubscribe;
-    /**
-     * Sets the current hook context for enriching log events.
-     *
-     * This is called internally by the runtime before invoking hook handlers.
-     * You typically don't need to call this directly.
-     * @param hookType - The type of hook being executed
-     * @param input - The hook input data
-     * @internal
-     */
-    setContext(hookType: HookEventName | undefined, input: Partial<HookInput> | undefined): void;
-    /**
-     * Clears the current hook context.
-     *
-     * Called internally by the runtime after hook execution completes.
-     * @internal
-     */
-    clearContext(): void;
-    /**
-     * Configures the log file path at runtime.
-     *
-     * Call this to enable or change file logging. Setting to `null` disables
-     * file logging (but doesn't close existing file handle immediately).
-     * @param filePath - Path to the log file, or null to disable
-     * @example
-     * ```typescript
-     * // Enable file logging at runtime
-     * logger.setLogFile('/var/log/claude-hooks.log');
-     *
-     * // Disable file logging
-     * logger.setLogFile(null);
-     * ```
-     */
-    setLogFile(filePath: string | null): void;
-    /**
-     * Closes all resources held by the logger.
-     *
-     * Call this during graceful shutdown to ensure all log data is flushed.
-     * @example
-     * ```typescript
-     * process.on('exit', () => {
-     *   logger.close();
-     * });
-     * ```
-     */
-    close(): void;
-    /**
-     * Checks if there are any active handlers or destinations.
-     *
-     * Returns true if any handlers are registered, file logging is enabled,
-     * or telemetry is configured.
-     * @returns Whether the logger has any active output destinations
-     */
-    hasDestinations(): boolean;
-    /**
-     * Emits a log event.
-     * @param level - The severity level of the event
-     * @param message - The log message
-     * @param context - Optional additional context data
-     */
-    private emit;
-    /**
-     * Delivers an event to all registered destinations.
-     * @param event - The log event to deliver
-     */
-    private deliverEvent;
-    /**
-     * Writes an event to the log file.
-     * @param event - The log event to write
-     */
-    private writeToFile;
-    /**
-     * Initializes the log file for writing.
-     */
-    private initializeFile;
-    /**
-     * Extracts structured error information from an unknown error.
-     * @param error - The error to extract information from
-     * @returns Structured error information
-     */
-    private extractErrorInfo;
+  /**
+   * Registered event handlers by log level.
+   */
+  private handlers;
+  /**
+   * File descriptor for log file output.
+   * Lazily initialized on first write.
+   */
+  private logFileFd;
+  /**
+   * Path to the log file, if configured.
+   */
+  private logFilePath;
+  /**
+   * Whether file initialization has been attempted.
+   */
+  private fileInitialized;
+  /**
+   * Current hook context for enriching log events.
+   */
+  private currentHookType;
+  /**
+   * Current hook input for enriching log events.
+   */
+  private currentInput;
+  /**
+   * Creates a new Logger instance.
+   *
+   * Typically you should use the exported `logger` singleton rather than
+   * creating new instances.
+   * @param config - Optional configuration
+   * @example
+   * ```typescript
+   * // Use singleton (recommended)
+   * import { logger } from '@goodfoot/claude-code-hooks';
+   *
+   * // Or create custom instance
+   * const customLogger = new Logger({ logFilePath: '/var/log/hooks.log' });
+   * ```
+   */
+  constructor(config?: LoggerConfig);
+  /**
+   * Logs a debug message.
+   *
+   * Use for detailed debugging information that is typically only useful
+   * during development or troubleshooting.
+   * @param message - The debug message
+   * @param context - Optional additional context
+   * @example
+   * ```typescript
+   * logger.debug('Processing tool input', { toolName: 'Bash', inputSize: 256 });
+   * ```
+   */
+  debug(message: string, context?: Record<string, unknown>): void;
+  /**
+   * Logs an info message.
+   *
+   * Use for general operational events like hook invocations, successful
+   * completions, or state changes.
+   * @param message - The info message
+   * @param context - Optional additional context
+   * @example
+   * ```typescript
+   * logger.info('Session started', { source: 'startup', sessionId: 'abc123' });
+   * ```
+   */
+  info(message: string, context?: Record<string, unknown>): void;
+  /**
+   * Logs a warning message.
+   *
+   * Use for conditions that may indicate issues but don't prevent
+   * operation, such as deprecated patterns or performance concerns.
+   * @param message - The warning message
+   * @param context - Optional additional context
+   * @example
+   * ```typescript
+   * logger.warn('Deprecated hook pattern detected', { pattern: 'legacyMatcher' });
+   * ```
+   */
+  warn(message: string, context?: Record<string, unknown>): void;
+  /**
+   * Logs an error message.
+   *
+   * Use for error conditions that require attention but were handled
+   * gracefully. For exceptions, prefer {@link logError}.
+   * @param message - The error message
+   * @param context - Optional additional context
+   * @example
+   * ```typescript
+   * logger.error('Failed to validate tool input', { toolName: 'Bash', reason: 'empty command' });
+   * ```
+   */
+  error(message: string, context?: Record<string, unknown>): void;
+  /**
+   * Logs a structured error with full error details.
+   *
+   * Use this method when logging caught exceptions to capture the full
+   * error context including name, message, stack trace, and cause chain.
+   * @param error - The error to log
+   * @param message - Human-readable description of what failed
+   * @param context - Optional additional context
+   * @example
+   * ```typescript
+   * try {
+   *   await dangerousOperation();
+   * } catch (err) {
+   *   logger.logError(err, 'Failed to execute dangerous operation', {
+   *     operation: 'delete',
+   *     target: '/important/file.txt'
+   *   });
+   * }
+   * ```
+   */
+  logError(error: unknown, message: string, context?: Record<string, unknown>): void;
+  /**
+   * Subscribes a handler to log events at the specified level.
+   *
+   * The handler will be called for every log event at the specified level.
+   * Returns an unsubscribe function that should be called when the handler
+   * is no longer needed.
+   * @param level - The log level to subscribe to
+   * @param handler - The handler function to call for each event
+   * @returns A function to unsubscribe the handler
+   * @example
+   * ```typescript
+   * // Subscribe to error events
+   * const unsubscribe = logger.on('error', (event) => {
+   *   console.error(`[${event.hookType}] ${event.message}`);
+   *   if (event.error) {
+   *     console.error(event.error.stack);
+   *   }
+   * });
+   *
+   * // Later, clean up
+   * unsubscribe();
+   * ```
+   * @example
+   * ```typescript
+   * // Forward to external logging library
+   * import pino from 'pino';
+   * const pinoLogger = pino();
+   *
+   * logger.on('info', (event) => pinoLogger.info(event, event.message));
+   * logger.on('warn', (event) => pinoLogger.warn(event, event.message));
+   * logger.on('error', (event) => pinoLogger.error(event, event.message));
+   * ```
+   */
+  on(level: LogLevel, handler: LogEventHandler): Unsubscribe;
+  /**
+   * Sets the current hook context for enriching log events.
+   *
+   * This is called internally by the runtime before invoking hook handlers.
+   * You typically don't need to call this directly.
+   * @param hookType - The type of hook being executed
+   * @param input - The hook input data
+   * @internal
+   */
+  setContext(hookType: HookEventName | undefined, input: Partial<HookInput> | undefined): void;
+  /**
+   * Clears the current hook context.
+   *
+   * Called internally by the runtime after hook execution completes.
+   * @internal
+   */
+  clearContext(): void;
+  /**
+   * Configures the log file path at runtime.
+   *
+   * Call this to enable or change file logging. Setting to `null` disables
+   * file logging (but doesn't close existing file handle immediately).
+   * @param filePath - Path to the log file, or null to disable
+   * @example
+   * ```typescript
+   * // Enable file logging at runtime
+   * logger.setLogFile('/var/log/claude-hooks.log');
+   *
+   * // Disable file logging
+   * logger.setLogFile(null);
+   * ```
+   */
+  setLogFile(filePath: string | null): void;
+  /**
+   * Closes all resources held by the logger.
+   *
+   * Call this during graceful shutdown to ensure all log data is flushed.
+   * @example
+   * ```typescript
+   * process.on('exit', () => {
+   *   logger.close();
+   * });
+   * ```
+   */
+  close(): void;
+  /**
+   * Checks if there are any active handlers or destinations.
+   *
+   * Returns true if any handlers are registered or file logging is enabled.
+   * @returns Whether the logger has any active output destinations
+   */
+  hasDestinations(): boolean;
+  /**
+   * Emits a log event.
+   * @param level - The severity level of the event
+   * @param message - The log message
+   * @param context - Optional additional context data
+   */
+  private emit;
+  /**
+   * Delivers an event to all registered destinations.
+   * @param event - The log event to deliver
+   */
+  private deliverEvent;
+  /**
+   * Writes an event to the log file.
+   * @param event - The log event to write
+   */
+  private writeToFile;
+  /**
+   * Initializes the log file for writing.
+   */
+  private initializeFile;
+  /**
+   * Extracts structured error information from an unknown error.
+   * @param error - The error to extract information from
+   * @returns Structured error information
+   */
+  private extractErrorInfo;
 }
 /**
  * Global logger instance for Claude Code hooks.
@@ -470,4 +469,3 @@ export declare class Logger {
  * ```
  */
 export declare const logger: Logger;
-//# sourceMappingURL=logger.d.ts.map

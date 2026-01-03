@@ -269,15 +269,18 @@ fi
 
 **TypeScript:**
 ```typescript
-import { execSync } from 'child_process';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 try {
-  const status = execSync('git status --porcelain', { encoding: 'utf-8' });
+  const { stdout: status } = await execAsync('git status --porcelain', { encoding: 'utf-8' });
   if (status.trim().length > 0) {
-    writeOutput(stopOutput({
+    return stopOutput({
       decision: 'block',
       reason: 'Uncommitted changes present'
-    }));
+    });
   }
 } catch {
   // Not a git repo, continue
