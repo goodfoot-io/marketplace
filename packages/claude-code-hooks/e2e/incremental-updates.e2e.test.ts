@@ -161,8 +161,8 @@ describe('E2E: Incremental Updates', () => {
 
       // SessionStart external hook should also be preserved
       expect(hooksJson.hooks.SessionStart).toBeDefined();
-      const externalSessionHook = hooksJson.hooks.SessionStart.find(
-        (e) => e.hooks.some((h) => h.command === '/path/to/another-external-hook')
+      const externalSessionHook = hooksJson.hooks.SessionStart.find((e) =>
+        e.hooks.some((h) => h.command === '/path/to/another-external-hook')
       );
       expect(externalSessionHook).toBeDefined();
 

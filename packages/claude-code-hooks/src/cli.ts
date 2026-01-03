@@ -770,9 +770,7 @@ function removeOldGeneratedFiles(existingHooksJson: HooksJson, outputDir: string
  * @param existingHooksJson - The existing hooks.json content
  * @returns Object containing preserved hooks (keyed by event type)
  */
-function extractPreservedHooks(
-  existingHooksJson: HooksJson
-): Partial<Record<HookEventName, MatcherEntry[]>> {
+function extractPreservedHooks(existingHooksJson: HooksJson): Partial<Record<HookEventName, MatcherEntry[]>> {
   const generatedFiles = new Set(existingHooksJson.__generated?.files ?? []);
   const preserved: Partial<Record<HookEventName, MatcherEntry[]>> = {};
 
