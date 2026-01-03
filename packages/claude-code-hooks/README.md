@@ -1,8 +1,8 @@
 # @goodfoot/claude-code-hooks
 
-> **The Missing Manual for building type-safe, compiled hooks for Claude Code.**
+> **Build Claude Code hooks in TypeScript.**
 
-This package is not just a library; it is a **build system** and a **runtime wrapper**. Unlike standard Node.js scripts, you cannot simply point Claude at these files. You write TypeScript, this package compiles it into self-contained executables, and *those* are what Claude runs.
+This package is not just a library; it is a **build system** and a **runtime wrapper**. You write TypeScript, this package compiles it into self-contained executables, and *those* are what Claude runs.
 
 ## ⚡ Quick Start
 
