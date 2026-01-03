@@ -22,6 +22,8 @@ import * as path from 'node:path';
 import * as esbuild from 'esbuild';
 import { glob } from 'glob';
 import ts from 'typescript';
+import { HOOK_FACTORY_TO_EVENT } from './constants.js';
+import { scaffoldProject } from './scaffold.js';
 
 // ============================================================================
 // Types
@@ -192,24 +194,6 @@ Troubleshooting:
   - Use absolute paths in your glob patterns if relative paths aren't finding files.
   - Check the log file specified by --log if hooks don't seem to run.
 `;
-
-/**
- * Maps hook factory function names to their event names.
- */
-const HOOK_FACTORY_TO_EVENT: Record<string, HookEventName> = {
-  preToolUseHook: 'PreToolUse',
-  postToolUseHook: 'PostToolUse',
-  postToolUseFailureHook: 'PostToolUseFailure',
-  notificationHook: 'Notification',
-  userPromptSubmitHook: 'UserPromptSubmit',
-  sessionStartHook: 'SessionStart',
-  sessionEndHook: 'SessionEnd',
-  stopHook: 'Stop',
-  subagentStartHook: 'SubagentStart',
-  subagentStopHook: 'SubagentStop',
-  preCompactHook: 'PreCompact',
-  permissionRequestHook: 'PermissionRequest'
-};
 
 // ============================================================================
 // Logging
@@ -942,6 +926,17 @@ async function main(): Promise<void> {
     process.stderr.write(`Error: ${validationError}\n\n`);
     process.stdout.write(HELP_TEXT);
     process.exit(1);
+  }
+
+  // Handle scaffold mode
+  if (args.scaffold !== undefined && args.scaffold !== '') {
+    const hookNames = (args.hooks ?? '').split(',').filter((h) => h.length > 0);
+    scaffoldProject({
+      directory: args.scaffold,
+      hooks: hookNames,
+      outputPath: args.output
+    });
+    process.exit(0);
   }
 
   try {
