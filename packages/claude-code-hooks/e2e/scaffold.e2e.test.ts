@@ -165,17 +165,17 @@ describe('E2E: Scaffold Command', () => {
 
       expect(result.exitCode).toBe(0);
 
-      // Check PreToolUse hook
+      // Check PreToolUse hook (uses double quotes to match biome formatting)
       const preToolUseContent = fs.readFileSync(path.join(testDir, 'src', 'pre-tool-use.ts'), 'utf-8');
       expect(preToolUseContent).toContain('import { preToolUseHook, preToolUseOutput }');
-      expect(preToolUseContent).toContain("from '@goodfoot/claude-code-hooks'");
+      expect(preToolUseContent).toContain('from "@goodfoot/claude-code-hooks"');
       expect(preToolUseContent).toContain('export default preToolUseHook');
       expect(preToolUseContent).toContain('permissionDecision');
 
-      // Check Stop hook
+      // Check Stop hook (uses double quotes to match biome formatting)
       const stopContent = fs.readFileSync(path.join(testDir, 'src', 'stop.ts'), 'utf-8');
       expect(stopContent).toContain('import { stopHook, stopOutput }');
-      expect(stopContent).toContain("decision: 'approve'");
+      expect(stopContent).toContain('decision: "approve"');
     });
 
     it('generates test files with correct structure', () => {
@@ -184,13 +184,14 @@ describe('E2E: Scaffold Command', () => {
 
       expect(result.exitCode).toBe(0);
 
+      // Test files use double quotes and alphabetical import order to match biome formatting
       const testContent = fs.readFileSync(path.join(testDir, 'test', 'notification.test.ts'), 'utf-8');
 
-      expect(testContent).toContain("import { describe, it, expect } from 'vitest'");
-      expect(testContent).toContain("import hook from '../src/notification.js'");
-      expect(testContent).toContain("describe('Notification Hook'");
+      expect(testContent).toContain('import { describe, expect, it } from "vitest"');
+      expect(testContent).toContain('import hook from "../src/notification.js"');
+      expect(testContent).toContain('describe("Notification Hook"');
       expect(testContent).toContain('hookEventName');
-      expect(testContent).toContain("toBe('Notification')");
+      expect(testContent).toContain('toBe("Notification")');
     });
 
     it('generates CLAUDE.md with skill loading instruction', () => {

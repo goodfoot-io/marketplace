@@ -152,9 +152,10 @@ function generatePackageJson(projectName: string, outputPath: string): string {
       '@goodfoot/claude-code-hooks': '^1.0.0'
     },
     devDependencies: {
+      '@biomejs/biome': '^1.9.0',
+      '@types/node': '^20.0.0',
       typescript: '^5.6.0',
-      vitest: '^2.0.0',
-      '@biomejs/biome': '^1.9.0'
+      vitest: '^2.0.0'
     },
     engines: {
       node: '>=20.11.0'
@@ -191,46 +192,52 @@ function generateTsConfig(): string {
 
 /**
  * Generates biome.json content for the scaffolded project.
+ *
+ * The ignore array is formatted on one line to match biome's own formatting preferences.
+ * This avoids lint errors when running `biome check` on the generated project.
  * @returns JSON string for biome.json
  */
 function generateBiomeConfig(): string {
-  const biomeConfig = {
-    $schema: 'https://biomejs.dev/schemas/1.9.0/schema.json',
-    organizeImports: {
-      enabled: true
-    },
-    formatter: {
-      enabled: true,
-      indentStyle: 'space',
-      indentWidth: 2,
-      lineWidth: 120
-    },
-    linter: {
-      enabled: true,
-      rules: {
-        recommended: true
-      }
-    },
-    files: {
-      ignore: ['node_modules', 'dist', '*.json']
+  // Generate JSON manually to ensure ignore array is on one line
+  // (biome's formatter expects this format)
+  return `{
+  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
+  "organizeImports": {
+    "enabled": true
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
     }
-  };
-
-  return JSON.stringify(biomeConfig, null, 2) + '\n';
+  },
+  "files": {
+    "ignore": ["node_modules", "dist", "build", "*.json"]
+  }
+}
+`;
 }
 
 /**
  * Generates vitest.config.ts content for the scaffolded project.
+ *
+ * Uses double quotes and trailing commas to match biome's formatting preferences.
  * @returns TypeScript content for vitest.config.ts
  */
 function generateVitestConfig(): string {
-  return `import { defineConfig } from 'vitest/config';
+  return `import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    include: ['test/**/*.test.ts'],
-    globals: false
-  }
+    include: ["test/**/*.test.ts"],
+    globals: false,
+  },
 });
 `;
 }
@@ -292,6 +299,8 @@ To get started, run \`npm install\` to install dependencies, then \`npm run buil
 
 /**
  * Generates a hook template file for a specific hook type.
+ *
+ * Uses double quotes for all strings to match biome's formatting preferences.
  * @param eventName - Hook event name (e.g., 'Stop')
  * @returns TypeScript content for the hook file
  */
@@ -304,11 +313,11 @@ function generateHookTemplate(eventName: HookEventName): string {
   switch (eventName) {
     case 'Stop':
     case 'SubagentStop':
-      returnStatement = `return ${outputName}({ decision: 'approve' });`;
+      returnStatement = `return ${outputName}({ decision: "approve" });`;
       break;
     case 'PreToolUse':
       returnStatement = `return ${outputName}({
-    hookSpecificOutput: { permissionDecision: 'allow' }
+    hookSpecificOutput: { permissionDecision: "allow" },
   });`;
       break;
     default:
@@ -325,10 +334,10 @@ function generateHookTemplate(eventName: HookEventName): string {
  * @see https://code.claude.com/docs/en/hooks#${eventName.toLowerCase()}
  */
 
-import { ${factoryName}, ${outputName} } from '@goodfoot/claude-code-hooks';
+import { ${factoryName}, ${outputName} } from "@goodfoot/claude-code-hooks";
 
 export default ${factoryName}({}, (input, ${contextDestructure}) => {
-  logger.info('${eventName} hook triggered', { input });
+  logger.info("${eventName} hook triggered", { input });
   ${returnStatement}
 });
 `;
@@ -336,6 +345,9 @@ export default ${factoryName}({}, (input, ${contextDestructure}) => {
 
 /**
  * Generates a test file for a specific hook type.
+ *
+ * Uses double quotes, alphabetical import order (describe, expect, it),
+ * and trailing commas to match biome's formatting preferences.
  * @param eventName - Hook event name (e.g., 'Stop')
  * @param hookFilename - Kebab-case filename of the hook (e.g., 'stop')
  * @returns TypeScript content for the test file
@@ -347,7 +359,7 @@ function generateTestFile(eventName: HookEventName, hookFilename: string): strin
       ? `{
       logger: mockLogger,
       persistEnvVar: () => {},
-      persistEnvVars: () => {}
+      persistEnvVars: () => {},
     }`
       : '{ logger: mockLogger }';
 
@@ -355,20 +367,20 @@ function generateTestFile(eventName: HookEventName, hookFilename: string): strin
  * Tests for the ${eventName} hook.
  */
 
-import { describe, it, expect } from 'vitest';
-import hook from '../src/${hookFilename}.js';
+import { describe, expect, it } from "vitest";
+import hook from "../src/${hookFilename}.js";
 
-describe('${eventName} Hook', () => {
-  it('exports a valid hook function', () => {
+describe("${eventName} Hook", () => {
+  it("exports a valid hook function", () => {
     expect(hook).toBeDefined();
-    expect(typeof hook).toBe('function');
+    expect(typeof hook).toBe("function");
   });
 
-  it('has correct hookEventName metadata', () => {
-    expect(hook.hookEventName).toBe('${eventName}');
+  it("has correct hookEventName metadata", () => {
+    expect(hook.hookEventName).toBe("${eventName}");
   });
 
-  it('returns a valid output shape', async () => {
+  it("returns a valid output shape", async () => {
     // Create minimal mock input and logger
     const mockInput = {} as Parameters<typeof hook>[0];
     const mockLogger = {
@@ -376,7 +388,7 @@ describe('${eventName} Hook', () => {
       warn: () => {},
       error: () => {},
       debug: () => {},
-      logError: () => {}
+      logError: () => {},
     };
     const mockContext = ${mockContextCode};
 
@@ -384,9 +396,9 @@ describe('${eventName} Hook', () => {
 
     // Verify output has expected structure
     expect(result).toBeDefined();
-    expect(result).toHaveProperty('_type', '${eventName}');
-    expect(result).toHaveProperty('stdout');
-    expect(typeof result.stdout).toBe('object');
+    expect(result).toHaveProperty("_type", "${eventName}");
+    expect(result).toHaveProperty("stdout");
+    expect(typeof result.stdout).toBe("object");
   });
 });
 `;
