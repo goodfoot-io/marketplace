@@ -76,7 +76,7 @@ export {
 } from './outputs.js';
 export type { LogLevel, LogEvent, LogEventError, LogEventHandler, Unsubscribe, LoggerConfig } from './logger.js';
 export { LOG_LEVELS, Logger, logger } from './logger.js';
-export type { HookConfig, HookContext, HookHandler, HookFunction } from './hooks.js';
+export type { HookConfig, HookContext, HookHandler, HookFunction, SessionStartContext } from './hooks.js';
 export {
   preToolUseHook,
   postToolUseHook,
