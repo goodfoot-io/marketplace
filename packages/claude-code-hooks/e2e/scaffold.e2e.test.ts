@@ -91,6 +91,7 @@ describe('E2E: Scaffold Command', () => {
       expect(fs.existsSync(path.join(testDir, 'tsconfig.json'))).toBe(true);
       expect(fs.existsSync(path.join(testDir, 'biome.json'))).toBe(true);
       expect(fs.existsSync(path.join(testDir, 'vitest.config.ts'))).toBe(true);
+      expect(fs.existsSync(path.join(testDir, 'CLAUDE.md'))).toBe(true);
 
       // Verify src directory contains hook files
       expect(fs.existsSync(path.join(testDir, 'src', 'stop.ts'))).toBe(true);
@@ -177,6 +178,19 @@ describe('E2E: Scaffold Command', () => {
       expect(testContent).toContain("describe('Notification Hook'");
       expect(testContent).toContain('hookEventName');
       expect(testContent).toContain("toBe('Notification')");
+    });
+
+    it('generates CLAUDE.md with skill loading instruction', () => {
+      const testDir = getTestDir('claude-md-content');
+      const result = runScaffoldCli(['--scaffold', testDir, '--hooks', 'Stop', '-o', 'dist/hooks.json']);
+
+      expect(result.exitCode).toBe(0);
+
+      const claudeMdContent = fs.readFileSync(path.join(testDir, 'CLAUDE.md'), 'utf-8');
+
+      expect(claudeMdContent).toBe(
+        'Load the `claude-code-hooks:claude-code-hooks` skill immediately if it is available.\n'
+      );
     });
 
     it('supports all 12 hook types', () => {

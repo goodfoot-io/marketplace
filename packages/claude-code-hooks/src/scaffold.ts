@@ -234,6 +234,14 @@ export default defineConfig({
 }
 
 /**
+ * Generates CLAUDE.md content for the scaffolded project.
+ * @returns Markdown content for CLAUDE.md
+ */
+function generateClaudeMd(): string {
+  return 'Load the `claude-code-hooks:claude-code-hooks` skill immediately if it is available.\n';
+}
+
+/**
  * Generates a hook template file for a specific hook type.
  * @param eventName - Hook event name (e.g., 'Stop')
  * @returns TypeScript content for the hook file
@@ -383,6 +391,7 @@ export function scaffoldProject(options: ScaffoldOptions): void {
   fs.writeFileSync(path.join(absoluteDir, 'tsconfig.json'), generateTsConfig());
   fs.writeFileSync(path.join(absoluteDir, 'biome.json'), generateBiomeConfig());
   fs.writeFileSync(path.join(absoluteDir, 'vitest.config.ts'), generateVitestConfig());
+  fs.writeFileSync(path.join(absoluteDir, 'CLAUDE.md'), generateClaudeMd());
 
   // Generate hook files and tests
   for (const eventName of normalizedHooks) {

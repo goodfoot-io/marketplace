@@ -59,16 +59,16 @@ npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
 
 **Incremental Rebuilds:**
 When rebuilding, the tool automatically:
-- Removes old generated `.mjs` files
-- Preserves external hooks not created by this package
-- Updates the manifest with new compiled hooks
+- Removes old generated `.mjs` files.
+- Preserves external hooks not created by this package.
+- Updates the manifest with new compiled hooks.
 
 ## 5. Configuration
 
 After building, tell Claude where to find the manifest. The location depends on your setup:
 
 **Option A: Standalone Project**
-Add to `~/.claude/config.json` or `.claude/config.json`:
+Add the absolute path to `~/.claude/config.json` or project-local `.claude/config.json`:
 ```json
 {
   "hooks": "/absolute/path/to/your/project/dist/hooks.json"
@@ -90,7 +90,6 @@ Build command:
 ```bash
 npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hooks.json"
 ```
-`CLAUDE_PLUGIN_ROOT` is set automatically, so paths resolve correctly.
 
 **Option C: User-level Hooks**
 Build to `~/.claude/hooks/` for hooks that apply to all sessions:
@@ -102,14 +101,9 @@ npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o ~/.claude/hooks/hooks.json
 
 The build tool is designed to **coexist safely** with other hook sources:
 
-- **External hooks are preserved**: Hooks not tracked in `__generated.files` are never touched
-- **Atomic updates**: Uses temp-file-then-rename for safe writes
-- **Clean rebuilds**: Old generated files are removed before new ones are written
-
-This means you can:
-- Mix TypeScript hooks with shell script hooks in the same `hooks.json`
-- Let multiple tools contribute to the same manifest
-- Manually add hooks without worrying about them being overwritten
+- **External hooks are preserved**: Hooks not tracked in `__generated.files` are never touched.
+- **Atomic updates**: Uses temp-file-then-rename for safe writes.
+- **Clean rebuilds**: Old generated files are removed before new ones are written.
 
 ## 7. Verification
 
@@ -117,9 +111,18 @@ Run this test to ensure your hook is compiled and executable:
 
 ```bash
 # Pipe a mock JSON payload into the compiled file
-echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' | node build/allow-read.*.mjs
+echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' | node dist/build/allow-read.*.mjs
 ```
 
 If successful, you will see a JSON response. If you see nothing or an error, check the logs.
+
+## 8. Validation Checklist
+
+After setup, verify:
+
+- [ ] `@goodfoot/claude-code-hooks` is installed.
+- [ ] Hook files use hook factory pattern with `export default`.
+- [ ] Build command executed successfully.
+- [ ] Manifest path is correctly registered in Claude configuration.
 
 </instructions>
