@@ -104,7 +104,7 @@ export type { LogLevel, LogEvent, LogEventError, LogEventHandler, Unsubscribe, L
 export { LOG_LEVELS, Logger, logger } from './logger.js';
 
 // Hook factory types
-export type { HookConfig, HookContext, HookHandler, HookFunction } from './hooks.js';
+export type { HookConfig, HookContext, HookHandler, HookFunction, SessionStartContext } from './hooks.js';
 
 // Hook factory functions - all 12 hook types
 export {
@@ -138,8 +138,5 @@ export {
   // Getters
   getProjectDir,
   getEnvFilePath,
-  isRemoteEnvironment,
-  // Persistence utilities (SessionStart only)
-  persistEnvVar,
-  persistEnvVars
+  isRemoteEnvironment
 } from './env.js';

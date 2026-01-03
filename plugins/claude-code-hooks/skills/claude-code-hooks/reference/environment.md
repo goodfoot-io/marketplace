@@ -28,22 +28,34 @@ Returns `true` if running in a web/remote container.
 
 **Restriction:** You can ONLY persist environment variables during **SessionStart**.
 
-```typescript
-import { sessionStartHook, sessionStartOutput, persistEnvVar } from '@goodfoot/claude-code-hooks';
+The `persistEnvVar` and `persistEnvVars` functions are available as context parameters in SessionStart hooks:
 
-export default sessionStartHook({ matcher: 'startup' }, (input, { logger }) => {
-  
+```typescript
+import { sessionStartHook, sessionStartOutput } from '@goodfoot/claude-code-hooks';
+
+export default sessionStartHook({ matcher: 'startup' }, (input, { logger, persistEnvVar }) => {
   // Set NODE_ENV for the entire session
   persistEnvVar('NODE_ENV', 'development');
-  
-  // Set multiple
-  // persistEnvVars({ API_KEY: '...', DEBUG: 'true' });
 
   return sessionStartOutput({});
 });
 ```
 
-*Warning: Calling `persistEnvVar` in other hooks (like PreToolUse) will throw an error.*
+**Using `persistEnvVars` to set multiple variables at once:**
+
+```typescript
+export default sessionStartHook({ matcher: 'startup' }, (input, { logger, persistEnvVars }) => {
+  persistEnvVars({
+    NODE_ENV: 'development',
+    API_KEY: process.env.MY_API_KEY ?? 'default',
+    DEBUG: 'true'
+  });
+
+  return sessionStartOutput({});
+});
+```
+
+*Note: `persistEnvVar` and `persistEnvVars` are only available in SessionStart hooks.*
 
 ## 3. Hook Context
 

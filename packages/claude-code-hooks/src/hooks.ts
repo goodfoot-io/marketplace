@@ -185,6 +185,57 @@ export interface HookContext {
   logger: Logger;
 }
 
+/**
+ * Extended context for SessionStart hooks.
+ *
+ * SessionStart hooks have additional capabilities for persisting environment
+ * variables that will be available in all subsequent bash commands.
+ * @example
+ * ```typescript
+ * export default sessionStartHook({}, async (input, { logger, persistEnvVar }) => {
+ *   // Set environment variables for the session
+ *   persistEnvVar('NODE_ENV', 'development');
+ *   persistEnvVar('DEBUG', 'true');
+ *
+ *   return sessionStartOutput({});
+ * });
+ * ```
+ */
+export interface SessionStartContext extends HookContext {
+  /**
+   * Persists an environment variable for use in subsequent bash commands.
+   *
+   * This function writes a shell export statement to the `CLAUDE_ENV_FILE`,
+   * which Claude Code sources before running bash commands. This allows
+   * SessionStart hooks to configure the environment for the entire session.
+   * @param name - The environment variable name
+   * @param value - The environment variable value (will be shell-escaped)
+   * @example
+   * ```typescript
+   * persistEnvVar('NODE_ENV', 'production');
+   * persistEnvVar('API_KEY', 'secret-key');
+   * ```
+   */
+  persistEnvVar: (name: string, value: string) => void;
+
+  /**
+   * Persists multiple environment variables at once.
+   *
+   * This is a convenience wrapper around `persistEnvVar` for setting
+   * multiple variables in a single call.
+   * @param vars - Object mapping variable names to values
+   * @example
+   * ```typescript
+   * persistEnvVars({
+   *   NODE_ENV: 'production',
+   *   API_KEY: 'secret',
+   *   DEBUG: 'false'
+   * });
+   * ```
+   */
+  persistEnvVars: (vars: Record<string, string>) => void;
+}
+
 // ============================================================================
 // Handler Types
 // ============================================================================
@@ -196,10 +247,11 @@ export interface HookContext {
  * Can be async for operations that require awaiting.
  * @template TInput - The input type for this hook
  * @template TOutput - The specific output type for this hook
+ * @template TContext - The context type (defaults to HookContext)
  */
-export type HookHandler<TInput, TOutput extends SpecificHookOutput> = (
+export type HookHandler<TInput, TOutput extends SpecificHookOutput, TContext extends HookContext = HookContext> = (
   input: TInput,
-  context: HookContext
+  context: TContext
 ) => TOutput | Promise<TOutput>;
 
 /**
@@ -209,15 +261,20 @@ export type HookHandler<TInput, TOutput extends SpecificHookOutput> = (
  * The wrapper handles error catching and logging.
  * @template TInput - The input type for this hook
  * @template TOutput - The specific output type for this hook
+ * @template TContext - The context type (defaults to HookContext)
  */
-export interface HookFunction<TInput, TOutput extends SpecificHookOutput> {
+export interface HookFunction<
+  TInput,
+  TOutput extends SpecificHookOutput,
+  TContext extends HookContext = HookContext
+> {
   /**
    * Execute the hook handler with the given input and context.
    * @param input - The hook input data
    * @param context - The hook execution context
    * @returns The hook output (specific type, converted to HookOutput by runtime)
    */
-  (input: TInput, context: HookContext): Promise<TOutput>;
+  (input: TInput, context: TContext): Promise<TOutput>;
 
   /**
    * The hook event name this handler is for.
@@ -250,12 +307,12 @@ export interface HookFunction<TInput, TOutput extends SpecificHookOutput> {
  * @returns A wrapped hook function
  * @internal
  */
-function createHookFunction<TInput, TOutput extends SpecificHookOutput>(
+function createHookFunction<TInput, TOutput extends SpecificHookOutput, TContext extends HookContext = HookContext>(
   hookEventName: HookEventName,
   config: HookConfig,
-  handler: HookHandler<TInput, TOutput>
-): HookFunction<TInput, TOutput> {
-  const hookFn = async (input: TInput, context: HookContext): Promise<TOutput> => {
+  handler: HookHandler<TInput, TOutput, TContext>
+): HookFunction<TInput, TOutput, TContext> {
+  const hookFn = async (input: TInput, context: TContext): Promise<TOutput> => {
     // Delegate error handling to the runtime - just execute the handler
     // The runtime will catch errors, log them, and return appropriate output
     return await handler(input, context);
@@ -494,9 +551,13 @@ export function userPromptSubmitHook(
  * allowing you to:
  * - Initialize session state
  * - Inject context or instructions
+ * - Persist environment variables for subsequent bash commands
  * - Set up logging or monitoring
  *
  * **Matcher**: Matches against `source` ('startup', 'resume', 'clear', 'compact')
+ *
+ * **Context**: SessionStart hooks receive an extended context with `persistEnvVar`
+ * and `persistEnvVars` functions for setting environment variables.
  * @param config - Hook configuration with optional matcher and timeout
  * @param handler - The handler function to execute
  * @returns A hook function that can be exported as the default export
@@ -504,36 +565,30 @@ export function userPromptSubmitHook(
  * ```typescript
  * import { sessionStartHook, sessionStartOutput } from '@goodfoot/claude-code-hooks';
  *
- * // Initialize context for new sessions
- * export default sessionStartHook({ matcher: 'startup' }, async (input, { logger }) => {
+ * // Persist environment variables for the session
+ * export default sessionStartHook({ matcher: 'startup' }, async (input, { logger, persistEnvVar }) => {
  *   logger.info('New session started', {
  *     sessionId: input.sessionId,
  *     cwd: input.cwd
  *   });
  *
- *   return sessionStartOutput({
- *     additionalContext: JSON.stringify({
- *       project: 'my-project',
- *       initialized: true
- *     })
- *   });
+ *   // Set environment variables for all subsequent bash commands
+ *   persistEnvVar('NODE_ENV', 'development');
+ *   persistEnvVar('DEBUG', 'true');
+ *
+ *   return sessionStartOutput({});
  * });
  * ```
  * @example
  * ```typescript
- * // Handle different session sources
- * export default sessionStartHook({}, async (input, { logger }) => {
- *   switch (input.source) {
- *     case 'startup':
- *       logger.info('Fresh session');
- *       break;
- *     case 'resume':
- *       logger.info('Resuming session');
- *       break;
- *     case 'compact':
- *       logger.info('Post-compaction restart');
- *       break;
- *   }
+ * // Set multiple environment variables at once
+ * export default sessionStartHook({}, async (input, { persistEnvVars }) => {
+ *   persistEnvVars({
+ *     NODE_ENV: 'production',
+ *     API_KEY: 'secret',
+ *     DEBUG: 'false'
+ *   });
+ *
  *   return sessionStartOutput({});
  * });
  * ```
@@ -541,8 +596,8 @@ export function userPromptSubmitHook(
  */
 export function sessionStartHook(
   config: HookConfig,
-  handler: HookHandler<SessionStartInput, SessionStartOutput>
-): HookFunction<SessionStartInput, SessionStartOutput> {
+  handler: HookHandler<SessionStartInput, SessionStartOutput, SessionStartContext>
+): HookFunction<SessionStartInput, SessionStartOutput, SessionStartContext> {
   return createHookFunction('SessionStart', config, handler);
 }
 

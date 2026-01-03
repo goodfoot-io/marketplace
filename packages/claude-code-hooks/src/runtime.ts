@@ -20,9 +20,10 @@
  * @see https://code.claude.com/docs/en/hooks
  */
 
-import type { HookFunction } from './hooks.js';
+import type { HookContext, HookFunction, SessionStartContext } from './hooks.js';
 import type { HookInput } from './inputs.js';
 import type { HookOutput, SpecificHookOutput, SyncHookJSONOutput } from './outputs.js';
+import { persistEnvVar, persistEnvVars } from './env.js';
 import { logger } from './logger.js';
 import { EXIT_CODES } from './outputs.js';
 
@@ -358,9 +359,15 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
     const hookEventName = hookFn.hookEventName;
     logger.setContext(hookEventName, input);
 
+    // Build context - SessionStart hooks get extended context with persistEnvVar
+    const context: HookContext | SessionStartContext =
+      hookEventName === 'SessionStart'
+        ? { logger, persistEnvVar, persistEnvVars }
+        : { logger };
+
     // Execute handler
     try {
-      const specificOutput = await hookFn(input, { logger });
+      const specificOutput = await hookFn(input, context as Parameters<typeof hookFn>[1]);
       output = convertToHookOutput(specificOutput);
     } catch (error) {
       // Handler threw - output stacktrace to stderr and exit with code 2
