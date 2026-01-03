@@ -168,7 +168,7 @@ describe('E2E: Scaffold Command', () => {
       // Check PreToolUse hook
       const preToolUseContent = fs.readFileSync(path.join(testDir, 'src', 'pre-tool-use.ts'), 'utf-8');
       expect(preToolUseContent).toContain('import { preToolUseHook, preToolUseOutput }');
-      expect(preToolUseContent).toContain("from '@goodfoot/claude-code-hooks/index'");
+      expect(preToolUseContent).toContain("from '@goodfoot/claude-code-hooks'");
       expect(preToolUseContent).toContain('export default preToolUseHook');
       expect(preToolUseContent).toContain('permissionDecision');
 

@@ -244,6 +244,53 @@ function generateClaudeMd(): string {
 }
 
 /**
+ * Generates .gitignore content for the scaffolded project.
+ * @returns Content for .gitignore
+ */
+function generateGitignore(): string {
+  return `# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.mjs
+
+# Generated files
+hooks.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+`;
+}
+
+/**
+ * Generates README.md content for the scaffolded project.
+ * @param projectName - Name of the project
+ * @param hooks - Array of hook event names included in this project
+ * @returns Markdown content for README.md
+ */
+function generateReadme(projectName: string, hooks: HookEventName[]): string {
+  const hookList = hooks.map((h) => `\`${h}\``).join(', ');
+  return `# ${projectName}
+
+This project contains [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-code/hooks) built with the \`@goodfoot/claude-code-hooks\` library. Hooks let you extend Claude Code's behavior by running custom code at specific points during a session—before or after tool execution, when Claude starts or stops, and more. This project includes hooks for: ${hookList}.
+
+To get started, run \`npm install\` to install dependencies, then \`npm run build\` to compile your hooks into \`hooks.json\`. Copy the generated \`hooks.json\` to your Claude Code settings directory (or reference it in your \`.claude/settings.json\`), and your hooks will run automatically. Edit the files in \`src/\` to customize behavior, and use \`npm test\` to verify your changes work correctly.
+`;
+}
+
+/**
  * Generates a hook template file for a specific hook type.
  * @param eventName - Hook event name (e.g., 'Stop')
  * @returns TypeScript content for the hook file
@@ -269,15 +316,18 @@ function generateHookTemplate(eventName: HookEventName): string {
       returnStatement = `return ${outputName}({});`;
   }
 
+  // SessionStart hooks get extended context with persistEnvVar
+  const contextDestructure = eventName === 'SessionStart' ? '{ logger, persistEnvVar }' : '{ logger }';
+
   return `/**
  * ${eventName} hook implementation.
  *
  * @see https://code.claude.com/docs/en/hooks#${eventName.toLowerCase()}
  */
 
-import { ${factoryName}, ${outputName} } from '@goodfoot/claude-code-hooks/index';
+import { ${factoryName}, ${outputName} } from '@goodfoot/claude-code-hooks';
 
-export default ${factoryName}({}, (input, { logger }) => {
+export default ${factoryName}({}, (input, ${contextDestructure}) => {
   logger.info('${eventName} hook triggered', { input });
   ${returnStatement}
 });
@@ -291,6 +341,16 @@ export default ${factoryName}({}, (input, { logger }) => {
  * @returns TypeScript content for the test file
  */
 function generateTestFile(eventName: HookEventName, hookFilename: string): string {
+  // SessionStart hooks need extended context with persistEnvVar
+  const mockContextCode =
+    eventName === 'SessionStart'
+      ? `{
+      logger: mockLogger,
+      persistEnvVar: () => {},
+      persistEnvVars: () => {}
+    }`
+      : '{ logger: mockLogger }';
+
   return `/**
  * Tests for the ${eventName} hook.
  */
@@ -318,7 +378,7 @@ describe('${eventName} Hook', () => {
       debug: () => {},
       logError: () => {}
     };
-    const mockContext = { logger: mockLogger };
+    const mockContext = ${mockContextCode};
 
     const result = await hook(mockInput, mockContext);
 
@@ -392,6 +452,8 @@ export function scaffoldProject(options: ScaffoldOptions): void {
   fs.writeFileSync(path.join(absoluteDir, 'biome.json'), generateBiomeConfig());
   fs.writeFileSync(path.join(absoluteDir, 'vitest.config.ts'), generateVitestConfig());
   fs.writeFileSync(path.join(absoluteDir, 'CLAUDE.md'), generateClaudeMd());
+  fs.writeFileSync(path.join(absoluteDir, '.gitignore'), generateGitignore());
+  fs.writeFileSync(path.join(absoluteDir, 'README.md'), generateReadme(projectName, normalizedHooks));
 
   // Generate hook files and tests
   for (const eventName of normalizedHooks) {

@@ -20,8 +20,8 @@
  * @see https://code.claude.com/docs/en/hooks
  */
 import type { HookFunction } from './hooks.js';
-import type { HookOutput, SpecificHookOutput } from './outputs.js';
 import type { HookInput } from './inputs.js';
+import type { HookOutput, SpecificHookOutput } from './outputs.js';
 /**
  * Deeply transforms object keys from snake_case to camelCase.
  *

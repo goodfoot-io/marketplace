@@ -92,11 +92,4 @@ export {
   permissionRequestHook
 } from './hooks.js';
 export { execute, snakeToCamelCase, camelToSnakeCase } from './runtime.js';
-export {
-  CLAUDE_ENV_VARS,
-  getProjectDir,
-  getEnvFilePath,
-  isRemoteEnvironment,
-  persistEnvVar,
-  persistEnvVars
-} from './env.js';
+export { CLAUDE_ENV_VARS, getProjectDir, getEnvFilePath, isRemoteEnvironment } from './env.js';

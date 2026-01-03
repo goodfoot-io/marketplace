@@ -4,125 +4,77 @@
 
 <instructions>
 
-## 1. Prerequisites
+## 1. Quick Start: Scaffolding (Recommended)
 
-- Node.js v20+
-- Package manager: npm, yarn, pnpm, or bun
-- TypeScript project (recommended)
-
-## 2. Install Dependencies
-
-You need the hooks package and TypeScript tools:
+The easiest way to start is to scaffold a complete project with TypeScript, testing, and build scripts configured.
 
 ```bash
-# Using yarn
+# Generate a new project in ./my-hooks with Stop and SessionStart hooks
+npx @goodfoot/claude-code-hooks --scaffold ./my-hooks --hooks Stop,SessionStart -o ./hooks.json
+```
+
+**What happens next:**
+1.  `cd my-hooks`
+2.  `npm install`
+3.  `npm run build` (Compiles hooks to `dist/hooks.json`)
+4.  `npm test` (Runs generated tests)
+
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`
+
+## 2. Manual Setup (Alternative)
+
+If you prefer to integrate into an existing project:
+
+### 2.1 Prerequisites
+- Node.js v20+
+- Package manager: npm, yarn, pnpm, or bun
+- TypeScript project
+
+### 2.2 Install Dependencies
+```bash
 yarn add @goodfoot/claude-code-hooks
 yarn add -D tsx typescript
-
-# Using npm
-npm install @goodfoot/claude-code-hooks
-npm install -D tsx typescript
 ```
 
-## 3. Project Structure
-
-We recommend placing hooks in a dedicated `hooks/` directory.
-
+### 2.3 Project Structure
+We recommend this layout:
 ```
-your-project/
+project/
 ├── hooks/
-│   ├── allow-read.ts        # PreToolUse hook
-│   └── setup-env.ts         # SessionStart hook
+│   ├── allow-read.ts        # Source
 ├── dist/
-│   ├── hooks.json           # Generated manifest
-│   └── build/
-│       ├── allow-read.abc123.mjs   # Compiled hooks
-│       └── setup-env.def456.mjs
-├── package.json
-└── tsconfig.json
+│   ├── hooks.json           # Manifest
+│   └── build/               # Compiled output
 ```
 
-## 4. The Build System
-
-Hooks **must be compiled** to run. You cannot point Claude at the `.ts` files directly.
-
-The build tool (`claude-code-hooks`) does three things:
-1.  Compiles your TS into standalone `.mjs` executables in a `build/` subdirectory.
-2.  Embeds the runtime wrapper (handling JSON protocol, camelCase conversion).
-3.  Generates a `hooks.json` manifest with paths using `${CLAUDE_PLUGIN_ROOT:-./}/build/`.
-
-**Run the build:**
-
+### 2.4 The Build System
+Hooks **must be compiled**. Run the build CLI:
 ```bash
 npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
 ```
 
-**Incremental Rebuilds:**
-When rebuilding, the tool automatically:
-- Removes old generated `.mjs` files.
-- Preserves external hooks not created by this package.
-- Updates the manifest with new compiled hooks.
+## 3. Configuration
 
-## 5. Configuration
-
-After building, tell Claude where to find the manifest. The location depends on your setup:
+After building (Scaffolded or Manual), tell Claude where to find the manifest.
 
 **Option A: Standalone Project**
-Add the absolute path to `~/.claude/config.json` or project-local `.claude/config.json`:
+Add absolute path to `~/.claude/config.json`:
 ```json
-{
-  "hooks": "/absolute/path/to/your/project/dist/hooks.json"
-}
+{ "hooks": "/absolute/path/to/your/project/dist/hooks.json" }
 ```
 
-**Option B: Claude Code Plugin (Recommended)**
-Plugins auto-load `hooks.json` from the plugin root. Use this structure:
-```
-plugins/my-plugin/
-├── hooks/
-│   └── src/
-│       └── my-hook.ts       # Source files
-├── hooks.json               # Build output (auto-loaded)
-└── build/
-    └── my-hook.abc123.mjs   # Compiled hooks
-```
-Build command:
+**Option B: Claude Code Plugin**
+Plugins auto-load `hooks.json` from the plugin root.
 ```bash
+# Build to plugin root
 npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hooks.json"
 ```
 
-**Option C: User-level Hooks**
-Build to `~/.claude/hooks/` for hooks that apply to all sessions:
+## 4. Verification
+
+Test the compiled hook by piping JSON:
 ```bash
-npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o ~/.claude/hooks/hooks.json
-```
-
-## 6. Coexistence with Other Hook Sources
-
-The build tool is designed to **coexist safely** with other hook sources:
-
-- **External hooks are preserved**: Hooks not tracked in `__generated.files` are never touched.
-- **Atomic updates**: Uses temp-file-then-rename for safe writes.
-- **Clean rebuilds**: Old generated files are removed before new ones are written.
-
-## 7. Verification
-
-Run this test to ensure your hook is compiled and executable:
-
-```bash
-# Pipe a mock JSON payload into the compiled file
 echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' | node dist/build/allow-read.*.mjs
 ```
-
-If successful, you will see a JSON response. If you see nothing or an error, check the logs.
-
-## 8. Validation Checklist
-
-After setup, verify:
-
-- [ ] `@goodfoot/claude-code-hooks` is installed.
-- [ ] Hook files use hook factory pattern with `export default`.
-- [ ] Build command executed successfully.
-- [ ] Manifest path is correctly registered in Claude configuration.
 
 </instructions>

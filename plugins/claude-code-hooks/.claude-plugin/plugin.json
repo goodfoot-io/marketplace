@@ -1,6 +1,6 @@
 {
   "name": "claude-code-hooks",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Type-safe TypeScript hooks for Claude Code using @goodfoot/claude-code-hooks library",
   "author": {
     "name": "Goodfoot",

@@ -263,11 +263,7 @@ export type HookHandler<TInput, TOutput extends SpecificHookOutput, TContext ext
  * @template TOutput - The specific output type for this hook
  * @template TContext - The context type (defaults to HookContext)
  */
-export interface HookFunction<
-  TInput,
-  TOutput extends SpecificHookOutput,
-  TContext extends HookContext = HookContext
-> {
+export interface HookFunction<TInput, TOutput extends SpecificHookOutput, TContext extends HookContext = HookContext> {
   /**
    * Execute the hook handler with the given input and context.
    * @param input - The hook input data

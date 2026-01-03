@@ -7,7 +7,7 @@
  * - Handler receives correct context (logger)
  */
 
-import type { HookContext } from '../src/hooks.js';
+import type { HookContext, SessionStartContext } from '../src/hooks.js';
 import type {
   PreToolUseInput,
   PostToolUseInput,
@@ -388,7 +388,12 @@ describe('Hook Factory Functions', () => {
         return sessionStartOutput({});
       });
 
-      await hook(createSessionStartInput(), { logger: testLogger });
+      const sessionStartContext: SessionStartContext = {
+        logger: testLogger,
+        persistEnvVar: () => {},
+        persistEnvVars: () => {}
+      };
+      await hook(createSessionStartInput(), sessionStartContext);
 
       expect(receivedInput?.source).toBe('startup');
     });
@@ -585,7 +590,12 @@ describe('Hook Factory Functions', () => {
       it('returns a callable async function', async () => {
         const hook = sessionStartHook({}, () => sessionStartOutput({}));
         expect(typeof hook).toBe('function');
-        const result = hook(createSessionStartInput(), { logger: testLogger });
+        const sessionStartContext: SessionStartContext = {
+          logger: testLogger,
+          persistEnvVar: () => {},
+          persistEnvVars: () => {}
+        };
+        const result = hook(createSessionStartInput(), sessionStartContext);
         expect(result).toBeInstanceOf(Promise);
         const resolved = await result;
         expect(resolved).toHaveProperty('stdout');

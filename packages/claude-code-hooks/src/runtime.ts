@@ -361,9 +361,7 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
 
     // Build context - SessionStart hooks get extended context with persistEnvVar
     const context: HookContext | SessionStartContext =
-      hookEventName === 'SessionStart'
-        ? { logger, persistEnvVar, persistEnvVars }
-        : { logger };
+      hookEventName === 'SessionStart' ? { logger, persistEnvVar, persistEnvVars } : { logger };
 
     // Execute handler
     try {

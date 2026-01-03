@@ -270,7 +270,7 @@ You can safely:
     - Reads `stdin`.
     - Parses JSON.
     - CamelCases keys.
-    - Injects `logger`.
+    - Injects context (`logger`, and `persistEnvVar`/`persistEnvVars` for SessionStart hooks).
     - Executes your handler.
     - Formats the output.
     - Writes to `stdout`.

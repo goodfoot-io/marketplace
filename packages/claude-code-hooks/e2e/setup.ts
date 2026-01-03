@@ -178,6 +178,82 @@ export function cleanOutputDir(outputDir: string): void {
 }
 
 /**
+ * Builds multiple test hook fixtures as a single valid Claude Code plugin.
+ *
+ * Creates the proper plugin directory structure with all hooks combined:
+ * ```
+ * <plugin-dir>/
+ * .claude-plugin/
+ * plugin.json
+ * hooks/
+ * hooks.json (combined)
+ * build/
+ * hook-file-1.mjs
+ * hook-file-2.mjs
+ * ```
+ * @param fixtureFiles - Array of fixture file names (e.g., ['session-start.ts', 'stop.ts'])
+ * @param pluginName - Optional name for the plugin directory (defaults to 'multi-hook')
+ * @returns Path to the plugin directory (use with --plugin-dir)
+ * @example
+ * ```typescript
+ * const pluginDir = buildMultipleHooks(['session-start.ts', 'stop.ts'], 'env-test');
+ * // pluginDir: '/path/to/e2e/dist/env-test-1234567890-abc123'
+ * ```
+ */
+export function buildMultipleHooks(fixtureFiles: string[], pluginName = 'multi-hook'): string {
+  const hookPaths = fixtureFiles.map((f) => path.join(FIXTURES_DIR, f));
+  const pluginDir = path.join(DIST_DIR, `${pluginName}-${uniqueSuffix()}`);
+
+  // Create plugin directory structure
+  const claudePluginDir = path.join(pluginDir, '.claude-plugin');
+  const hooksDir = path.join(pluginDir, 'hooks');
+  const buildDir = path.join(hooksDir, 'build');
+
+  fs.mkdirSync(claudePluginDir, { recursive: true });
+  fs.mkdirSync(buildDir, { recursive: true });
+
+  // Create plugin.json
+  const pluginJson = {
+    name: `test-${pluginName}`,
+    version: '1.0.0',
+    description: `Test plugin for ${pluginName}`
+  };
+  fs.writeFileSync(path.join(claudePluginDir, 'plugin.json'), JSON.stringify(pluginJson, null, 2));
+
+  // Build all hooks together - CLI outputs to buildDir, hooks.json to hooksDir
+  const tempHooksJsonPath = path.join(hooksDir, 'hooks.json');
+  const inputGlob = hookPaths.map((p) => `"${p}"`).join(' ');
+  execSync(`npx tsx ${CLI_PATH} -i ${inputGlob} -o "${tempHooksJsonPath}"`, {
+    cwd: path.dirname(CLI_PATH),
+    encoding: 'utf-8',
+    stdio: 'pipe'
+  });
+
+  // Move .mjs files from hooksDir to buildDir
+  const mjsFiles = fs.readdirSync(hooksDir).filter((f) => f.endsWith('.mjs'));
+  for (const mjsFile of mjsFiles) {
+    fs.renameSync(path.join(hooksDir, mjsFile), path.join(buildDir, mjsFile));
+  }
+
+  // Post-process hooks.json to use ${CLAUDE_PLUGIN_ROOT} paths
+  const hooksJson = JSON.parse(fs.readFileSync(tempHooksJsonPath, 'utf-8')) as HooksJsonStructure;
+
+  for (const eventType of Object.keys(hooksJson.hooks)) {
+    for (const matcherEntry of hooksJson.hooks[eventType]) {
+      for (const hook of matcherEntry.hooks) {
+        // Replace absolute path with ${CLAUDE_PLUGIN_ROOT}/hooks/build/filename.mjs
+        const filename = path.basename(hook.command);
+        hook.command = `\${CLAUDE_PLUGIN_ROOT}/hooks/build/${filename}`;
+      }
+    }
+  }
+
+  fs.writeFileSync(tempHooksJsonPath, JSON.stringify(hooksJson, null, 2));
+
+  return pluginDir;
+}
+
+/**
  * @deprecated Use cleanOutputDir(pluginDir) instead to avoid race conditions between tests.
  * @example
  * Cleans up the entire dist directory - only use when running tests serially.

@@ -60,41 +60,35 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 });
 ```
 
-## 3. The Golden Path for New Hooks
+## 3. The Golden Path: Scaffolding a New Project
 
-The fastest way to start a new hook project is the scaffold command:
+The fastest way to start is using the scaffold command. This generates a complete TypeScript project with tests, linting, and build scripts.
 
+**Scaffold Command:**
 ```bash
 npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,SubagentStop -o ./hooks.json
 ```
 
-This generates a complete TypeScript project with:
-- `src/` directory with type-safe hook implementations
-- `test/` directory with Vitest tests
-- `package.json` with build/test/lint scripts
-- `tsconfig.json` configured for ESM and Node 20
-- `biome.json` for linting
-- `CLAUDE.md` with skill loading instruction
+**What you get:**
+*   `src/`: Type-safe hook implementations.
+*   `test/`: Vitest tests for your hooks.
+*   `package.json`: Configured with `build`, `test`, and `lint` scripts.
+*   `tsconfig.json` & `biome.json`: Best-practice configuration.
 
-**Next steps after scaffolding:**
-```bash
-cd my-hooks
-npm install
-npm run build   # Compiles hooks to the -o path
-npm test        # Runs Vitest tests
-```
+**Next Steps:**
+1.  `cd my-hooks`
+2.  `npm install`
+3.  `npm run build` (Compiles hooks to the specified output path)
+4.  `npm test` (Runs the generated tests)
 
-**Available hook types (12 total):**
-`PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`
-
-Hook names are case-insensitive.
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`
 
 ## 4. Agent Protocol: The "Forensic" Method
 
 When helping a user with hooks, you **MUST** follow this protocol:
 
 1.  **Verify the Package:** Ensure usage of `@goodfoot/claude-code-hooks`.
-2.  **Enforce the Build Step:** Remind the user to run `npx ...` after every edit.
+2.  **Enforce the Build Step:** Remind the user to run `npx ...` (or `npm run build` if scaffolded) after every edit.
 3.  **Ban `console.log` & `console.error`:** Aggressively correct any code using `console.log` or `console.error` to use `context.logger`. Stdio is reserved for the protocol; direct writes cause silent failures or UI corruption.
 4.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`.
 
@@ -142,7 +136,7 @@ Build command: `npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hoo
 
 ## 7. Reference Links
 
-*   **[Installation & Setup](reference/installation.md)**: Setup guide.
+*   **[Installation & Setup](reference/installation.md)**: Setup guide (Scaffolding vs Manual).
 *   **[All 12 Hook Types](reference/output-builders.md)**: Factories, builders, and inputs.
 *   **[Porting from Bash](reference/porting.md)**: Migration guide.
 *   **[Logging & Debugging](reference/logging.md)**: How to see what's happening.
