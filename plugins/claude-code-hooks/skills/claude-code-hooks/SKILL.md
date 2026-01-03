@@ -13,7 +13,6 @@ When helping a user with hooks, you **MUST** follow this protocol to prevent com
 2.  **Enforce the Build Step:** Users often forget this is a *compiled* system. Always remind them to run the `npx` build command after editing.
 3.  **Ban `console.log`:** Aggressively correct any code using `console.log` to use `context.logger`. `console.log` corrupts the JSON protocol.
 4.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`. Named exports are ignored by the compiler.
-5.  **Validate Matchers:** Ensure matchers in `hooks.json` are valid regex strings (e.g., `"Bash|Write"`).
 
 ## 2. Quick Check: Environment & Health
 
@@ -35,7 +34,7 @@ else
   # Check for build script
   if ! grep -q "claude-code-hooks" package.json; then
     echo "⚠️ No build script detected in package.json."
-    echo "   Recommended: Add '"build:hooks": "claude-code-hooks -i \"hooks/*.ts\" -o \"dist/hooks.json\""'"
+    echo "   Recommended: Add '\"build:hooks\": \"claude-code-hooks -i \\\"hooks/*.ts\\\" -o \\\"dist/hooks.json\\\"\"'"
   fi
 fi
 
@@ -57,7 +56,7 @@ To create a working hook, follow this exact sequence:
 ### Configuration by Setup Type
 
 **Standalone Project:**
-Add to `~/.claude/config.json` or `.claude/config.json`:
+Add the absolute path to your `~/.claude/config.json` or project-local `.claude/config.json`:
 ```json
 { "hooks": "/absolute/path/to/project/dist/hooks.json" }
 ```
@@ -76,7 +75,6 @@ Build command:
 ```bash
 npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hooks.json"
 ```
-`CLAUDE_PLUGIN_ROOT` is set automatically, so paths resolve correctly.
 
 **User-level Hooks:**
 Build to `~/.claude/hooks/` for hooks that apply to all sessions:
@@ -160,25 +158,25 @@ dist/
 
 ### Path Resolution
 Command paths use `${CLAUDE_PLUGIN_ROOT:-./}/build/filename.mjs`:
-- In plugins, `CLAUDE_PLUGIN_ROOT` is set automatically
-- For standalone projects, defaults to `./` (relative to `hooks.json`)
+- In plugins, `CLAUDE_PLUGIN_ROOT` is set automatically.
+- For standalone projects, it resolves relative to `hooks.json`.
 
 ### Incremental Rebuilds
 Rebuilding preserves hooks from other sources:
-- External hooks (not in `__generated.files`) are kept
-- Old generated `.mjs` files are removed
-- New compiled hooks are merged in
+- External hooks (not in `__generated.files`) are kept.
+- Old generated `.mjs` files are removed.
+- New compiled hooks are merged in.
 
 ## 6. Troubleshooting Matrix
 
 | Symptom | Probable Cause | Fix |
 | :--- | :--- | :--- |
 | **Hook ignores me** | Forgot to rebuild | Run `npx -y @goodfoot/claude-code-hooks ...` |
-| **Hook ignores me** | `hooks.json` path is relative | Use absolute path in `~/.claude/config.json` |
-| **Claude crashes/errors** | Used `console.log` | Change to `logger.info()` |
-| **Type Error** | Wrong Factory/Builder pair | Check `reference/output-builders.md` |
-| **"Command not found"** | `hooks.json` points to wrong file | Re-run build to regenerate paths |
-| **Missing build/ directory** | Outdated build | Re-run build (now uses `build/` subdir) |
+| **Hook ignores me** | Manifest not registered | Ensure absolute path to `hooks.json` is in config. |
+| **Claude crashes/errors** | Used `console.log` | Change to `logger.info()`. |
+| **Type Error** | Wrong Factory/Builder pair | Check `reference/output-builders.md`. |
+| **"Command not found"** | Stale paths | Re-run build to regenerate `hooks.json`. |
+| **Missing build/ directory** | Outdated build | Re-run build (now uses `build/` subdir). |
 
 ## 7. Reference Links
 

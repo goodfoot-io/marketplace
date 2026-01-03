@@ -141,13 +141,6 @@ find . -path "./.worktrees" -prune -o -path "./.git" -prune -o -type f \( -name 
 done
 cd "${WORKTREE_DIR}"
 
-# Allow direnv to load .envrc in the worktree
-if command -v direnv &> /dev/null && [[ -f "${WORKTREE_DIR}/.envrc" ]]; then
-    echo "Allowing direnv for worktree..."
-    direnv allow "${WORKTREE_DIR}"
-    echo "  direnv allowed for ${WORKTREE_DIR}"
-fi
-
 # Create a .vscode directory with workspace settings
 mkdir -p "${WORKTREE_DIR}/.vscode"
 

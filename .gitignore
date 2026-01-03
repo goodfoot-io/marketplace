@@ -42,10 +42,6 @@ update-vm.sh
 .env.local
 *.env.local
 
-# Branch-specific environment files are COMMITTED (shared team resources)
-# Only exclude personal override files
-environment/*.env.local
-
 .credentials
 .config
 

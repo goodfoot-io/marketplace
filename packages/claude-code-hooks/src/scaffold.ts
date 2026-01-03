@@ -267,7 +267,7 @@ function generateHookTemplate(eventName: HookEventName): string {
  * @see https://code.claude.com/docs/en/hooks#${eventName.toLowerCase()}
  */
 
-import { ${factoryName}, ${outputName} } from '@goodfoot/claude-code-hooks';
+import { ${factoryName}, ${outputName} } from '@goodfoot/claude-code-hooks/index';
 
 export default ${factoryName}({}, (input, { logger }) => {
   logger.info('${eventName} hook triggered', { input });
