@@ -44,13 +44,27 @@ npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
 ```
 
 ### 4. Configure Claude
-Tell Claude where your hooks are by pointing to the **generated** JSON.
+Tell Claude where your hooks are. The location depends on your setup:
 
+**Standalone Project:**
 ```bash
 # In ~/.claude/config.json or project-local .claude/config.json
 {
   "hooks": "/absolute/path/to/your/project/dist/hooks.json"
 }
+```
+
+**Claude Code Plugin:**
+Plugins automatically load `hooks.json` from the plugin root. Place your output there:
+```bash
+npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "./hooks.json"
+```
+The `CLAUDE_PLUGIN_ROOT` variable is set automatically, so paths resolve correctly.
+
+**User-level Hooks:**
+For hooks that apply to all sessions, build to `~/.claude/hooks/`:
+```bash
+npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o ~/.claude/hooks/hooks.json
 ```
 
 ---
@@ -112,6 +126,44 @@ npx -y @goodfoot/claude-code-hooks ... --log /tmp/claude-hooks.log
 ```bash
 tail -f /tmp/claude-hooks.log | jq
 ```
+
+---
+
+## 📁 Recommended Plugin Structure
+
+For Claude Code plugins, use this directory layout:
+
+```
+plugins/my-plugin/
+├── hooks/
+│   └── src/
+│       ├── block-dangerous.ts
+│       └── inject-context.ts
+├── hooks.json                    # Build output (auto-loaded by plugin)
+└── build/
+    ├── block-dangerous.abc123.mjs
+    └── inject-context.def456.mjs
+```
+
+Build command:
+```bash
+npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hooks.json"
+```
+
+---
+
+## 🤝 Coexistence with Other Hooks
+
+The build tool is designed to **play well with others**:
+
+- **External hooks are preserved**: Hooks not in `__generated.files` are never touched
+- **Atomic writes**: Uses temp-file-then-rename for safe updates
+- **Clean rebuilds**: Only removes files it previously generated
+
+You can safely:
+- Mix TypeScript hooks with shell script hooks in the same `hooks.json`
+- Let multiple tools contribute to the same manifest
+- Manually add hooks without worrying about them being overwritten
 
 ---
 
