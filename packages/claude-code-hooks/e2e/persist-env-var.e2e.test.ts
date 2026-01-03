@@ -272,26 +272,23 @@ describe('E2E: persistEnvVar', () => {
       cleanOutputDir(pluginDir);
     });
 
-    it.skipIf(!CLAUDE_AVAILABLE)(
-      'persistEnvVar in SessionStart makes env var available to Stop hook',
-      () => {
-        // Run Claude with a simple prompt that will trigger both hooks
-        // SessionStart runs at session start, Stop runs when Claude finishes
-        const result = runClaude({
-          prompt: 'Say "done" and nothing else.',
-          pluginDir,
-          tools: [],
-          timeout: 120000
-        });
+    it.skipIf(!CLAUDE_AVAILABLE)('persistEnvVar in SessionStart makes env var available to Stop hook', () => {
+      // Run Claude with a simple prompt that will trigger both hooks
+      // SessionStart runs at session start, Stop runs when Claude finishes
+      const result = runClaude({
+        prompt: 'Say "done" and nothing else.',
+        pluginDir,
+        tools: [],
+        timeout: 120000
+      });
 
-        // The test passes if Claude completes without errors
-        // The Stop hook will log success/failure which we verify via the hook's reason
-        // Since the hooks log to their file, we can verify via the log
-        expect(result.stderr).not.toContain('Error');
+      // The test passes if Claude completes without errors
+      // The Stop hook will log success/failure which we verify via the hook's reason
+      // Since the hooks log to their file, we can verify via the log
+      expect(result.stderr).not.toContain('Error');
 
-        // At minimum, verify Claude ran and produced output
-        expect(result.stdout.length).toBeGreaterThan(0);
-      }
-    );
+      // At minimum, verify Claude ran and produced output
+      expect(result.stdout.length).toBeGreaterThan(0);
+    });
   });
 });

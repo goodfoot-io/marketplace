@@ -1,6 +1,6 @@
 ---
 name: claude-code-hooks
-description: Expert system for creating, debugging, and maintaining Claude Code hooks using @goodfoot/claude-code-hooks.
+description: Load this skill immediately after a user mentions "@goodfoot/claude-code-hooks" or Claude Code hooks.
 ---
 
 <instructions>
