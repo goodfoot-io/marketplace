@@ -5,20 +5,104 @@ description: Expert system for creating, debugging, and maintaining Claude Code 
 
 <instructions>
 
-## 1. Agent Protocol: The "Forensic" Method
+## 1. The Build Process (First & Foremost)
 
-When helping a user with hooks, you **MUST** follow this protocol to prevent common failures:
+Hooks are **compiled executables**, not scripts. You must build them before Claude can see them.
 
-1.  **Verify the Package:** Ensure usage of `@goodfoot/claude-code-hooks` (NOT `claude-code-hooks`).
-2.  **Enforce the Build Step:** Users often forget this is a *compiled* system. Always remind them to run the `npx` build command after editing.
-3.  **Ban `console.log`:** Aggressively correct any code using `console.log` to use `context.logger`. `console.log` corrupts the JSON protocol.
-4.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`. Named exports are ignored by the compiler.
+**The Build Command:**
+```bash
+npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
+```
 
-## 2. Quick Check: Environment & Health
+**Parameters Explained:**
+*   `-i "hooks/*.ts"`: **Input Glob.** This tells the compiler where your TypeScript source files are.
+    *   *Critical:* Quote the glob pattern (`"..."`) to prevent your shell from expanding it before the CLI sees it.
+*   `-o "dist/hooks.json"`: **Output Manifest.** This is the file you register in your config.
+    *   The CLI creates a `build/` folder next to this file containing the compiled `.mjs` executables.
+*   `--log "/tmp/hooks.log"` (Optional): **Runtime Log.** Forces all hooks to write `logger` output to this file. Essential for debugging.
 
-Run this to verify the user's setup before making changes:
+## 2. Hook Factory Demonstration
 
-```!
+Here is a complete, working example of a `PreToolUse` hook. It uses the Factory Pattern (`preToolUseHook`) and the Output Builder (`preToolUseOutput`).
+
+**Goal:** Prevent accidental deletion of the root directory.
+
+```typescript
+// hooks/block-dangerous.ts
+import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
+
+// 1. Export Default is MANDATORY.
+// 2. Factory handles input typing and error wrapping.
+// 3. Matcher 'Bash' ensures this only runs for Bash commands.
+export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
+  
+  // 4. Input is camelCased (toolInput, toolName).
+  // 5. Cast toolInput to the expected shape (it is 'unknown' by default).
+  const command = (input.toolInput as { command?: string })?.command ?? '';
+
+  // 6. Logging uses the context logger, NEVER console.log.
+  logger.info('Checking command safety', { command });
+
+  if (command.includes('rm -rf /')) {
+    logger.warn('Blocked dangerous root deletion', { command });
+    
+    // 7. Return structured output using the builder.
+    return preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: 'Safety Policy: Root deletion is forbidden.'
+      }
+    });
+  }
+
+  // 8. Default: Allow execution.
+  return preToolUseOutput({});
+});
+```
+
+## 3. The Golden Path for New Hooks
+
+The fastest way to start a new hook project is the scaffold command:
+
+```bash
+npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,SubagentStop -o ./hooks.json
+```
+
+This generates a complete TypeScript project with:
+- `src/` directory with type-safe hook implementations
+- `test/` directory with Vitest tests
+- `package.json` with build/test/lint scripts
+- `tsconfig.json` configured for ESM and Node 20
+- `biome.json` for linting
+- `CLAUDE.md` with skill loading instruction
+
+**Next steps after scaffolding:**
+```bash
+cd my-hooks
+npm install
+npm run build   # Compiles hooks to the -o path
+npm test        # Runs Vitest tests
+```
+
+**Available hook types (12 total):**
+`PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`
+
+Hook names are case-insensitive.
+
+## 4. Agent Protocol: The "Forensic" Method
+
+When helping a user with hooks, you **MUST** follow this protocol:
+
+1.  **Verify the Package:** Ensure usage of `@goodfoot/claude-code-hooks`.
+2.  **Enforce the Build Step:** Remind the user to run `npx ...` after every edit.
+3.  **Ban `console.log`:** Aggressively correct any code using `console.log` to use `context.logger`.
+4.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`.
+
+## 5. Quick Check: Environment & Health
+
+Run this to verify the user's setup:
+
+```! 
 # === Hook System Health Check ===
 if [ ! -f "package.json" ]; then
   echo "❌ No package.json found. Run 'npm init -y' first."
@@ -44,139 +128,17 @@ if ! command -v tsc >/dev/null 2>&1; then
 fi
 ```
 
-## 3. The "Golden Path" for New Hooks
-
-To create a working hook, follow this exact sequence:
-
-1.  **Create File:** `hooks/my-hook.ts`
-2.  **Implement:** Use the factory pattern (see patterns below).
-3.  **Build:** `npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"`
-4.  **Register:** Depends on your setup (see below).
-
-### Configuration by Setup Type
+## 6. Configuration by Setup Type
 
 **Standalone Project:**
-Add the absolute path to your `~/.claude/config.json` or project-local `.claude/config.json`:
+Add the absolute path to your `~/.claude/config.json`:
 ```json
 { "hooks": "/absolute/path/to/project/dist/hooks.json" }
 ```
 
-**Claude Code Plugin (Recommended Structure):**
-```
-plugins/my-plugin/
-├── hooks/
-│   └── src/
-│       └── my-hook.ts       # Source files
-├── hooks.json               # Build output (auto-loaded)
-└── build/
-    └── my-hook.abc123.mjs   # Compiled hooks
-```
-Build command:
-```bash
-npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hooks.json"
-```
-
-**User-level Hooks:**
-Build to `~/.claude/hooks/` for hooks that apply to all sessions:
-```bash
-npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o ~/.claude/hooks/hooks.json
-```
-
-## 4. Hook Patterns (Copy-Paste Ready)
-
-### 4.1 Security: Block Dangerous Commands (PreToolUse)
-
-```typescript
-import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
-
-export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
-  const cmd = (input.toolInput as { command?: string })?.command ?? '';
-  
-  // FAIL-SAFE: Block root deletions
-  if (cmd.includes('rm -rf /')) {
-    logger.warn('Blocked dangerous command', { cmd });
-    return preToolUseOutput({
-      hookSpecificOutput: { 
-        permissionDecision: 'deny',
-        permissionDecisionReason: 'Root deletion detected' 
-      }
-    });
-  }
-
-  return preToolUseOutput({});
-});
-```
-
-### 4.2 Context: Inject Guidelines (SessionStart)
-
-```typescript
-import { sessionStartHook, sessionStartOutput } from '@goodfoot/claude-code-hooks';
-
-export default sessionStartHook({ matcher: 'startup' }, (input, { logger }) => {
-  logger.info('Session starting', { cwd: input.cwd });
-  
-  return sessionStartOutput({
-    systemMessage: 'CRITICAL: Always use TypeScript. Never use "any".'
-  });
-});
-```
-
-### 4.3 Safety: Prevent Stop on Uncommitted Changes (Stop)
-
-```typescript
-import { stopHook, stopOutput } from '@goodfoot/claude-code-hooks';
-import { execSync } from 'child_process';
-
-export default stopHook({}, (input, { logger }) => {
-  try {
-    const status = execSync('git status --porcelain', { cwd: input.cwd, encoding: 'utf-8' });
-    if (status.trim()) {
-      return stopOutput({
-        decision: 'block',
-        reason: 'You have uncommitted changes. Please commit or stash them.'
-      });
-    }
-  } catch (e) {
-    logger.debug('Git check failed', { error: String(e) });
-  }
-  
-  return stopOutput({ decision: 'approve' });
-});
-```
-
-## 5. Build System Details
-
-### Output Structure
-The build tool creates a `build/` subdirectory for compiled hooks:
-```
-dist/
-├── hooks.json              # Manifest (points to build/)
-└── build/
-    ├── my-hook.abc123.mjs  # Compiled hooks
-    └── other-hook.def456.mjs
-```
-
-### Path Resolution
-Command paths use `${CLAUDE_PLUGIN_ROOT:-./}/build/filename.mjs`:
-- In plugins, `CLAUDE_PLUGIN_ROOT` is set automatically.
-- For standalone projects, it resolves relative to `hooks.json`.
-
-### Incremental Rebuilds
-Rebuilding preserves hooks from other sources:
-- External hooks (not in `__generated.files`) are kept.
-- Old generated `.mjs` files are removed.
-- New compiled hooks are merged in.
-
-## 6. Troubleshooting Matrix
-
-| Symptom | Probable Cause | Fix |
-| :--- | :--- | :--- |
-| **Hook ignores me** | Forgot to rebuild | Run `npx -y @goodfoot/claude-code-hooks ...` |
-| **Hook ignores me** | Manifest not registered | Ensure absolute path to `hooks.json` is in config. |
-| **Claude crashes/errors** | Used `console.log` | Change to `logger.info()`. |
-| **Type Error** | Wrong Factory/Builder pair | Check `reference/output-builders.md`. |
-| **"Command not found"** | Stale paths | Re-run build to regenerate `hooks.json`. |
-| **Missing build/ directory** | Outdated build | Re-run build (now uses `build/` subdir). |
+**Claude Code Plugin (Recommended):**
+The `hooks.json` is auto-detected if placed in the plugin root.
+Build command: `npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hooks.json"`
 
 ## 7. Reference Links
 

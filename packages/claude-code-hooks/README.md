@@ -50,6 +50,65 @@ npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
 
 Tell Claude where your hooks are. The location depends on your setup:
 
+---
+
+## Scaffolding a New Project
+
+Bootstrap a complete hook project with TypeScript, testing, and build configuration:
+
+```bash
+npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,SubagentStop -o ./hooks.json
+```
+
+This creates a ready-to-use project structure:
+
+```
+my-hooks/
+├── src/
+│   ├── stop.ts              # Hook implementation
+│   └── subagent-stop.ts     # Hook implementation
+├── test/
+│   ├── stop.test.ts         # Vitest tests
+│   └── subagent-stop.test.ts
+├── package.json             # Dependencies + build script
+├── tsconfig.json            # TypeScript config
+├── vitest.config.ts         # Test config
+├── biome.json               # Linting config
+└── CLAUDE.md                # Skill loading instruction
+```
+
+**Next steps:**
+
+```bash
+cd my-hooks
+npm install
+npm run build   # Outputs hooks.json to specified -o path
+npm test        # Run tests
+```
+
+### Available Hook Types
+
+The `--hooks` argument accepts a comma-separated list of any of these 12 event types:
+
+| Hook Type            | Description                                |
+| -------------------- | ------------------------------------------ |
+| `PreToolUse`         | Before a tool executes (allow/deny/modify) |
+| `PostToolUse`        | After a tool completes successfully        |
+| `PostToolUseFailure` | After a tool fails                         |
+| `Notification`       | When Claude requests permissions           |
+| `UserPromptSubmit`   | When user submits a prompt                 |
+| `SessionStart`       | When session begins                        |
+| `SessionEnd`         | When session terminates                    |
+| `Stop`               | After main agent finishes                  |
+| `SubagentStart`      | When a Task tool starts                    |
+| `SubagentStop`       | When a Task tool completes                 |
+| `PreCompact`         | Before context compaction                  |
+| `PermissionRequest`  | When permission is requested               |
+
+Hook names are case-insensitive: `stop`, `Stop`, and `STOP` all work.
+
+---
+
 **Standalone Project:**
 
 ```bash

@@ -4,13 +4,121 @@
 
 <instructions>
 
-## 1. The Golden Rule
+## 1. Intent-Based Examples
 
-**Always use a Factory and an Output Builder together.**
+Instead of just listing types, here is how to accomplish specific goals using the output builders.
 
-Do not manually construct JSON. Do not manually parse `process.stdin`. The library handles the protocol safety for you.
+### Goal: Auto-Approve Specific Safe Commands (PermissionRequest)
 
-## 2. All 12 Hook Types
+Use `permissionRequestHook` to bypass the "Allow?" prompt for known safe operations.
+
+```typescript
+import { permissionRequestHook, permissionRequestOutput } from '@goodfoot/claude-code-hooks';
+
+export default permissionRequestHook({ matcher: 'Bash' }, (input, { logger }) => {
+  const command = input.toolInput as { command?: string };
+
+  // Only auto-allow echo commands
+  if (command.command?.startsWith('echo ')) {
+    logger.info('Auto-allowing echo command', { command: command.command });
+    
+    return permissionRequestOutput({
+      systemMessage: 'Auto-approved echo command.',
+      hookSpecificOutput: {
+        decision: { behavior: 'allow' }
+      }
+    });
+  }
+
+  // Fall through to normal permission prompt
+  return permissionRequestOutput({});
+});
+```
+
+### Goal: Inject Project Context (UserPromptSubmit)
+
+Use `userPromptSubmitHook` to remind Claude of project details whenever the user types.
+
+```typescript
+import { userPromptSubmitHook, userPromptSubmitOutput } from '@goodfoot/claude-code-hooks';
+
+export default userPromptSubmitHook({}, (input, { logger }) => {
+  return userPromptSubmitOutput({
+    hookSpecificOutput: {
+      additionalContext: JSON.stringify({ 
+        projectName: 'acme-app', 
+        version: '3.2.1',
+        stack: ['React', 'TypeScript'] 
+      })
+    }
+  });
+});
+```
+
+### Goal: Block Stop on Condition (Stop)
+
+Use `stopHook` to prevent Claude from exiting if criteria aren't met.
+
+```typescript
+import { stopHook, stopOutput } from '@goodfoot/claude-code-hooks';
+
+export default stopHook({}, (_input, { logger }) => {
+  const isReady = false; // Replace with real check logic
+
+  if (!isReady) {
+    logger.info('Blocking stop');
+    return stopOutput({
+      decision: 'block',
+      reason: 'Cannot stop - pending operations must complete first.'
+    });
+  }
+  
+  return stopOutput({ decision: 'approve' });
+});
+```
+
+### Goal: Add Context After Tool Execution (PostToolUse)
+
+Use `postToolUseHook` to analyze the result of a tool and add helpful notes.
+
+```typescript
+import { postToolUseHook, postToolUseOutput } from '@goodfoot/claude-code-hooks';
+
+export default postToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
+  return postToolUseOutput({
+    hookSpecificOutput: { 
+      additionalContext: 'Command completed successfully. You may proceed.' 
+    }
+  });
+});
+```
+
+### Goal: Deny Specific Tools (PreToolUse)
+
+Use `preToolUseHook` to enforce security policies.
+
+```typescript
+import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
+
+export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
+  const command = (input.toolInput as { command?: string }).command ?? '';
+  
+  // Example: Block 'curl'
+  if (command.startsWith('curl')) {
+    logger.info('Denying curl command', { command });
+    return preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: 'Network requests via curl are disabled.'
+      }
+    });
+  }
+  
+  return preToolUseOutput({});
+});
+```
+
+## 2. All 12 Hook Types Reference
 
 | Hook Type | Factory | Builder | Input Key |
 | :--- | :--- | :--- | :--- |
@@ -27,90 +135,47 @@ Do not manually construct JSON. Do not manually parse `process.stdin`. The libra
 | **PreCompact** | `preCompactHook` | `preCompactOutput` | `trigger` |
 | **PermissionRequest** | `permissionRequestHook` | `permissionRequestOutput` | `toolName` |
 
-## 3. Anti-Patterns (Don't Do This)
+## 3. Builder Options Cheat Sheet
 
-### ❌ The "Console Logger"
-```typescript
-// WRONG
-console.log("Checking command..."); 
-// Result: Corrupts JSON stdout. Claude fails silently.
-```
-
-### ❌ The "Manual Return"
-```typescript
-// WRONG
-return { stdout: { decision: 'allow' } };
-// Result: Likely to miss protocol fields or structure.
-```
-
-### ❌ The "Type Assumption"
-```typescript
-// WRONG
-const cmd = input.toolInput.command;
-// Result: TypeScript error. input.toolInput is 'unknown'.
-// FIX: const cmd = (input.toolInput as { command: string }).command;
-```
-
-## 4. Detailed Builder Usage
-
-### 4.1 preToolUseOutput
-Control tool execution.
-
-```typescript
-// Allow
-preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
-
-// Deny
-preToolUseOutput({ 
-  hookSpecificOutput: { 
-    permissionDecision: 'deny', 
-    permissionDecisionReason: 'Policy violation' 
-  } 
-});
-
-// Modify Input
-preToolUseOutput({
-  hookSpecificOutput: {
-    permissionDecision: 'allow',
-    updatedInput: { command: 'ls -la' }
-  }
-});
-```
-
-### 4.2 stopOutput
-Control whether Claude can exit.
-
-```typescript
-// Allow Exit
-stopOutput({ decision: 'approve' });
-
-// Block Exit
-stopOutput({ 
-  decision: 'block', 
-  reason: 'You must commit changes first.' 
-});
-```
-
-### 4.3 sessionStartOutput
-Inject context at startup.
-
-```typescript
-sessionStartOutput({
-  hookSpecificOutput: {
-    additionalContext: 'Project Guidelines: ...'
-  },
-  systemMessage: 'Always prioritize performance.'
-});
-```
-
-### 4.4 Common Options
-All builders accept these:
-
+### preToolUseOutput
 ```typescript
 {
-  stopReason: "Fatal error", // Exits with code 2 (Block)
-  systemMessage: "Inject instruction",
-  continue: true // Continue even if error
+  hookSpecificOutput: {
+    permissionDecision: 'allow' | 'deny' | 'ask',
+    permissionDecisionReason: string,
+    updatedInput: object
+  }
+}
+```
+
+### stopOutput / subagentStopOutput
+```typescript
+{
+  decision: 'approve' | 'block',
+  reason: string
+}
+```
+
+### permissionRequestOutput
+```typescript
+{
+  hookSpecificOutput: {
+    decision: {
+      behavior: 'allow' | 'deny',
+      message?: string,     // for deny
+      interrupt?: boolean,  // for deny
+      updatedInput?: object // for allow
+    }
+  }
+}
+```
+
+### Common Options (All Builders)
+```typescript
+{
+  stopReason: string,   // Force block with exit code 2
+  systemMessage: string, // Inject instruction
+  continue: boolean      // Continue despite errors
 }
 ```
 
