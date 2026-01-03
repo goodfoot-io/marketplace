@@ -47,18 +47,18 @@ export default sessionStartHook({ matcher: 'startup' }, (input, { logger }) => {
 
 ## 3. Hook Context
 
-Every hook receives a context object with useful metadata.
+Every hook receives a context object with useful metadata. Use the `logger` to inspect these values safely.
 
 ```typescript
 export default preToolUseHook({}, (input, { logger }) => {
-  console.error(input.cwd);       // Current Working Directory
-  console.error(input.sessionId); // Unique Session ID
-  console.error(input.permissionMode); // e.g., "default", "stealth"
+  logger.info('Hook Context', {
+    cwd: input.cwd,
+    sessionId: input.sessionId,
+    permissionMode: input.permissionMode
+  });
   
   return preToolUseOutput({});
 });
 ```
-
-*(Note: `console.error` goes to stderr and is visible to the user/Claude, but does not break the JSON protocol. Use sparingly.)*
 
 </instructions>

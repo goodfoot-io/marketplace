@@ -6,9 +6,12 @@
 
 ## 1. The Cardinal Sin
 
-**NEVER use `console.log` in a hook.**
+**NEVER use `console.log`, `console.error`, or direct `process.stdout/stderr` writes.**
 
-Hooks communicate with Claude via `stdout`. If you print arbitrary text, Claude's JSON parser will fail, and your hook will appear to do nothing or crash the agent.
+Hooks communicate with Claude via `stdout`. `stderr` is only shown to the user during fatal exits (Exit 2), which we avoid by using structured JSON. Printing arbitrary text anywhere will:
+1.  Corrupt the JSON protocol (on stdout).
+2.  Be swallowed or cause UI glitches (on stderr).
+3.  Fail to appear in your structured logs.
 
 ## 2. Enabling Logs
 

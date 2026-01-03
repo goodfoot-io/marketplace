@@ -40,7 +40,7 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
   // 5. Cast toolInput to the expected shape (it is 'unknown' by default).
   const command = (input.toolInput as { command?: string })?.command ?? '';
 
-  // 6. Logging uses the context logger, NEVER console.log.
+  // 6. Logging uses the context logger, NEVER console.log or console.error.
   logger.info('Checking command safety', { command });
 
   if (command.includes('rm -rf /')) {
@@ -95,7 +95,7 @@ When helping a user with hooks, you **MUST** follow this protocol:
 
 1.  **Verify the Package:** Ensure usage of `@goodfoot/claude-code-hooks`.
 2.  **Enforce the Build Step:** Remind the user to run `npx ...` after every edit.
-3.  **Ban `console.log`:** Aggressively correct any code using `console.log` to use `context.logger`.
+3.  **Ban `console.log` & `console.error`:** Aggressively correct any code using `console.log` or `console.error` to use `context.logger`. Stdio is reserved for the protocol; direct writes cause silent failures or UI corruption.
 4.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`.
 
 ## 5. Quick Check: Environment & Health

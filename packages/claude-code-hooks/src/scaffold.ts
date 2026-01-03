@@ -46,6 +46,14 @@ export interface ScaffoldOptions {
 const VALID_HOOK_EVENT_NAMES: Set<HookEventName> = new Set(Object.values(HOOK_FACTORY_TO_EVENT));
 
 /**
+ * Case-insensitive lookup map for hook event names.
+ * Built once at module load to avoid recreation on each validation call.
+ */
+const CASE_INSENSITIVE_EVENT_LOOKUP: Map<string, HookEventName> = new Map(
+  Array.from(VALID_HOOK_EVENT_NAMES).map((name) => [name.toLowerCase(), name])
+);
+
+/**
  * Mapping from hook event name to factory function name.
  */
 const EVENT_TO_HOOK_FACTORY: Record<HookEventName, string> = Object.fromEntries(
@@ -87,14 +95,8 @@ function validateHookNames(
   const normalized: HookEventName[] = [];
   const invalid: string[] = [];
 
-  // Create case-insensitive lookup map
-  const caseInsensitiveMap = new Map<string, HookEventName>();
-  for (const eventName of VALID_HOOK_EVENT_NAMES) {
-    caseInsensitiveMap.set(eventName.toLowerCase(), eventName);
-  }
-
   for (const hookName of hookNames) {
-    const normalizedName = caseInsensitiveMap.get(hookName.toLowerCase());
+    const normalizedName = CASE_INSENSITIVE_EVENT_LOOKUP.get(hookName.toLowerCase());
     if (normalizedName !== undefined) {
       normalized.push(normalizedName);
     } else {
@@ -262,10 +264,8 @@ function generateHookTemplate(eventName: HookEventName): string {
     hookSpecificOutput: { permissionDecision: 'allow' }
   });`;
       break;
-    case 'PermissionRequest':
-      returnStatement = `return ${outputName}({});`;
-      break;
     default:
+      // All other hooks use empty output (pass-through)
       returnStatement = `return ${outputName}({});`;
   }
 

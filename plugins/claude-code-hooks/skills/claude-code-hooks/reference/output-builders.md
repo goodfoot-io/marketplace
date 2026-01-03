@@ -45,10 +45,10 @@ import { userPromptSubmitHook, userPromptSubmitOutput } from '@goodfoot/claude-c
 export default userPromptSubmitHook({}, (input, { logger }) => {
   return userPromptSubmitOutput({
     hookSpecificOutput: {
-      additionalContext: JSON.stringify({ 
-        projectName: 'acme-app', 
+      additionalContext: JSON.stringify({
+        projectName: 'acme-app',
         version: '3.2.1',
-        stack: ['React', 'TypeScript'] 
+        stack: ['React', 'TypeScript']
       })
     }
   });
@@ -86,8 +86,8 @@ import { postToolUseHook, postToolUseOutput } from '@goodfoot/claude-code-hooks'
 
 export default postToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
   return postToolUseOutput({
-    hookSpecificOutput: { 
-      additionalContext: 'Command completed successfully. You may proceed.' 
+    hookSpecificOutput: {
+      additionalContext: 'Command completed successfully. You may proceed.'
     }
   });
 });
@@ -118,7 +118,67 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 });
 ```
 
-## 2. All 12 Hook Types Reference
+## 2. Async & Filesystem Operations
+
+Hooks support `async/await` out of the box. This is critical for checking file state or reading configs.
+
+### Goal: Read Config File Async (SessionStart)
+
+```typescript
+import { sessionStartHook, sessionStartOutput } from '@goodfoot/claude-code-hooks';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+
+export default sessionStartHook({ matcher: 'startup' }, async (input, { logger }) => {
+  try {
+    const configPath = join(input.cwd, 'CONTRIBUTING.md');
+    const content = await readFile(configPath, 'utf-8');
+    
+    logger.info('Injecting CONTRIBUTING.md', { path: configPath });
+    
+    return sessionStartOutput({
+      hookSpecificOutput: {
+        additionalContext: `Project Guidelines:\n${content.slice(0, 1000)}...` 
+      }
+    });
+  } catch (error) {
+    logger.debug('No CONTRIBUTING.md found', { error: String(error) });
+    return sessionStartOutput({});
+  }
+});
+```
+
+### Goal: Check File Existence Before Command (PreToolUse)
+
+```typescript
+import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
+import { access } from 'fs/promises';
+import { constants } from 'fs';
+import { join } from 'path';
+
+export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => {
+  const cmd = (input.toolInput as { command?: string }).command ?? '';
+
+  if (cmd.includes('npm publish')) {
+    try {
+      // Ensure .npmrc exists before publishing
+      await access(join(input.cwd, '.npmrc'), constants.F_OK);
+    } catch {
+      logger.warn('Blocked publish: missing .npmrc');
+      return preToolUseOutput({
+        hookSpecificOutput: {
+          permissionDecision: 'deny',
+          permissionDecisionReason: 'Safety Check: .npmrc is missing. Cannot publish.'
+        }
+      });
+    }
+  }
+
+  return preToolUseOutput({});
+});
+```
+
+## 3. All 12 Hook Types Reference
 
 | Hook Type | Factory | Builder | Input Key |
 | :--- | :--- | :--- | :--- |
@@ -135,7 +195,7 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 | **PreCompact** | `preCompactHook` | `preCompactOutput` | `trigger` |
 | **PermissionRequest** | `permissionRequestHook` | `permissionRequestOutput` | `toolName` |
 
-## 3. Builder Options Cheat Sheet
+## 4. Builder Options Cheat Sheet
 
 ### preToolUseOutput
 ```typescript

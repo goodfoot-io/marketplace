@@ -67,6 +67,19 @@ function getTestDir(testName: string): string {
   return path.join(SCAFFOLD_TEST_OUTPUT, testName);
 }
 
+/**
+ * Modifies a scaffolded project's package.json to use local file: protocol.
+ * This allows npm install to use the local package instead of fetching from npm.
+ * @param testDir - Path to the scaffolded project directory
+ */
+function useLocalPackage(testDir: string): void {
+  const packageJsonPath = path.join(testDir, 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')) as Record<string, unknown>;
+  const deps = packageJson.dependencies as Record<string, string>;
+  deps['@goodfoot/claude-code-hooks'] = `file:${PACKAGE_ROOT}`;
+  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
+}
+
 describe('E2E: Scaffold Command', () => {
   beforeAll(() => {
     // Ensure clean output directory
@@ -251,12 +264,8 @@ describe('E2E: Scaffold Command', () => {
 
       expect(scaffoldResult.exitCode).toBe(0);
 
-      // Modify package.json to use file: protocol pointing to local package
-      const packageJsonPath = path.join(testDir, 'package.json');
-      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')) as Record<string, unknown>;
-      const deps = packageJson.dependencies as Record<string, string>;
-      deps['@goodfoot/claude-code-hooks'] = `file:${PACKAGE_ROOT}`;
-      fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
+      // Modify package.json to use local package for testing
+      useLocalPackage(testDir);
 
       // Run npm install in scaffolded project (as recommended by scaffold command)
       const installResult = spawnSync('npm', ['install'], {
@@ -305,12 +314,8 @@ describe('E2E: Scaffold Command', () => {
 
       expect(scaffoldResult.exitCode).toBe(0);
 
-      // Modify package.json to use file: protocol pointing to local package
-      const packageJsonPath = path.join(testDir, 'package.json');
-      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')) as Record<string, unknown>;
-      const deps = packageJson.dependencies as Record<string, string>;
-      deps['@goodfoot/claude-code-hooks'] = `file:${PACKAGE_ROOT}`;
-      fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
+      // Modify package.json to use local package for testing
+      useLocalPackage(testDir);
 
       // Run npm install (as recommended by scaffold command)
       const installResult = spawnSync('npm', ['install'], {
