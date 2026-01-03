@@ -41,6 +41,10 @@ interface CliArgs {
   help: boolean;
   /** Show version. */
   version: boolean;
+  /** Directory path for scaffolding a new hook project. */
+  scaffold?: string;
+  /** Comma-separated list of hook types to generate when scaffolding. */
+  hooks?: string;
 }
 
 /**
@@ -124,8 +128,9 @@ Description:
 
 Usage:
   npx -y @goodfoot/claude-code-hooks -i <glob> -o <path> [options]
+  npx -y @goodfoot/claude-code-hooks --scaffold <dir> --hooks <types> -o <path>
 
-Required Arguments:
+Build Mode (compile existing hooks):
   -i, --input <glob>
       Glob pattern to find your hook source files.
       Example: "hooks/**/*.ts" (Quotes are recommended to prevent shell expansion)
@@ -134,6 +139,24 @@ Required Arguments:
       Path where the hooks.json manifest should be generated.
       Compiled hook files (.mjs) will be placed in the same directory as this file.
       Example: "dist/hooks.json"
+
+Scaffold Mode (create new hook project):
+  --scaffold <directory>
+      Create a new hook project at the specified directory path.
+      The directory must not already exist.
+      Example: --scaffold ./my-hooks
+
+  --hooks <types>
+      Comma-separated list of hook types to generate in the scaffolded project.
+      Valid types: PreToolUse, PostToolUse, PostToolUseFailure, Notification,
+                   UserPromptSubmit, SessionStart, SessionEnd, Stop,
+                   SubagentStart, SubagentStop, PreCompact, PermissionRequest
+      Example: --hooks Stop,SubagentStop,PreToolUse
+
+  -o, --output <path>
+      In scaffold mode, configures where the generated build script will output hooks.json.
+      This path is relative to the scaffolded project directory.
+      Example: -o dist/hooks.json
 
 Optional Arguments:
   --log <path>
@@ -155,7 +178,10 @@ Examples:
   2. With Runtime Logging:
      npx -y @goodfoot/claude-code-hooks -i "src/hooks/*.ts" -o "build/hooks.json" --log /tmp/claude-hooks.log
 
-  3. Configure Claude to use the hooks:
+  3. Scaffold a New Hook Project:
+     npx -y @goodfoot/claude-code-hooks --scaffold ./my-hooks --hooks Stop,SubagentStop -o dist/hooks.json
+
+  4. Configure Claude to use the hooks:
      After building, add this to your ~/.claude/config.json:
      {
        "hooks": "/absolute/path/to/your/project/dist/hooks.json"
@@ -275,6 +301,12 @@ function parseArgs(argv: string[]): CliArgs {
       case '--version':
         args.version = true;
         break;
+      case '--scaffold':
+        args.scaffold = argv[++i] ?? '';
+        break;
+      case '--hooks':
+        args.hooks = argv[++i] ?? '';
+        break;
       default:
         // Unknown argument - ignore
         break;
@@ -294,6 +326,19 @@ function validateArgs(args: CliArgs): string | undefined {
     return undefined;
   }
 
+  // Scaffold mode validation
+  if (args.scaffold !== undefined && args.scaffold !== '') {
+    if (args.hooks === undefined || args.hooks === '') {
+      return 'Scaffold mode requires --hooks argument (comma-separated hook types)';
+    }
+    if (args.output === '') {
+      return 'Scaffold mode requires -o/--output argument (path for generated hooks.json)';
+    }
+    // In scaffold mode, --input is not required
+    return undefined;
+  }
+
+  // Normal build mode validation
   if (args.input === '') {
     return 'Missing required argument: -i/--input <glob>';
   }
