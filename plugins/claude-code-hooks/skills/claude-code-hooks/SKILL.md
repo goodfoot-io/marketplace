@@ -75,7 +75,9 @@ import {
 const input: PreToolUseInput = JSON.parse(await readStdin());
 
 // Your logic here
-const output = preToolUseOutput({ allow: true });
+const output = preToolUseOutput({
+  hookSpecificOutput: { permissionDecision: 'allow' }
+});
 
 // Write result
 process.stdout.write(JSON.stringify(output.stdout));
@@ -104,13 +106,20 @@ const input: PreToolUseInput = JSON.parse(
 
 // Block dangerous rm commands
 if (input.toolName === 'Bash' && input.toolInput?.command?.includes('rm -rf /')) {
-  const output = preToolUseOutput({ deny: 'Blocking dangerous rm -rf / command' });
+  const output = preToolUseOutput({
+    hookSpecificOutput: {
+      permissionDecision: 'deny',
+      permissionDecisionReason: 'Blocking dangerous rm -rf / command'
+    }
+  });
   process.stdout.write(JSON.stringify(output.stdout));
   process.exit(output.exitCode);
 }
 
 // Allow everything else
-const output = preToolUseOutput({ allow: true });
+const output = preToolUseOutput({
+  hookSpecificOutput: { permissionDecision: 'allow' }
+});
 process.stdout.write(JSON.stringify(output.stdout));
 process.exit(output.exitCode);
 ```
@@ -140,7 +149,9 @@ if (input.source === 'startup') {
   }
 }
 
-const output = sessionStartOutput({ additionalContext });
+const output = sessionStartOutput({
+  hookSpecificOutput: additionalContext ? { additionalContext } : undefined
+});
 process.stdout.write(JSON.stringify(output.stdout));
 process.exit(output.exitCode);
 ```
@@ -218,10 +229,10 @@ import { preToolUseOutput, type PreToolUseInput } from '@goodfoot/claude-code-ho
 ```
 
 Based on desired behavior:
-- **Permit execution**: `preToolUseOutput({ allow: true })`
-- **Block with reason**: `preToolUseOutput({ deny: 'Reason shown to Claude' })`
-- **Request confirmation**: `preToolUseOutput({ ask: 'Confirm this action?' })`
-- **Allow with modified input**: `preToolUseOutput({ allow: true, updatedInput: {...} })`
+- **Permit execution**: `preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } })`
+- **Block with reason**: `preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'Reason shown to Claude' } })`
+- **Request confirmation**: `preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'ask', permissionDecisionReason: 'Confirm this action?' } })`
+- **Allow with modified input**: `preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow', updatedInput: {...} } })`
 - **Default permission behavior**: `preToolUseOutput({})`
 
 **Input fields (camelCase):**
@@ -237,7 +248,7 @@ import { sessionStartOutput, type SessionStartInput } from '@goodfoot/claude-cod
 ```
 
 Based on desired behavior:
-- **Inject context**: `sessionStartOutput({ additionalContext: 'Context string' })`
+- **Inject context**: `sessionStartOutput({ hookSpecificOutput: { additionalContext: 'Context string' } })`
 - **Add system instruction**: `sessionStartOutput({ systemMessage: 'System instruction' })`
 - **No additional context**: `sessionStartOutput({})`
 
@@ -265,19 +276,19 @@ Based on desired behavior:
 |-----------|------|-----------|---------------------|
 | `0` | Success | Handler returns normally | Continue, parse stdout as JSON |
 | `1` | Error | Handler throws, invalid input | Non-blocking, stderr to user only |
-| `2` | Block | `{ block: "reason" }` output | Blocking, stderr shown to Claude |
+| `2` | Block | `stopReason` set or `decision: 'block'` | Blocking, stderr shown to Claude |
 
 The output builders handle exit codes automatically:
 
 ```typescript
 // Exit 0 - normal success
-preToolUseOutput({ allow: true });
+preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
 
-// Exit 2 - blocking
-preToolUseOutput({ block: 'Operation not permitted' });
+// Exit 2 - blocking (via stopReason)
+preToolUseOutput({ stopReason: 'Operation not permitted' });
 
-// Exit 1 - error (for manual errors)
-preToolUseOutput({ error: 'Something went wrong' });
+// Exit 2 - blocking (for Stop/SubagentStop hooks)
+stopOutput({ decision: 'block', reason: 'Uncommitted changes' });
 ```
 
 ## 7. hooks.json Configuration
@@ -329,6 +340,7 @@ Register hooks in `.claude/hooks.json` or project hooks file:
 | PostToolUse | `tool_name` | `'Bash'`, `'Skill'` |
 | SessionStart | `source` | `'startup'`, `'resume'`, `'compact'` |
 | SubagentStart | `agent_type` | Subagent type |
+| SubagentStop | N/A (no matcher) | Fires on all subagent stop events |
 | Stop | N/A (no matcher) | Fires on all stop events |
 
 ## 8. All 12 Hook Types
@@ -385,7 +397,12 @@ Based on hook type, use the correct input type:
 Output builders return the correct exit code automatically. Don't override unless necessary:
 
 ```typescript
-const output = preToolUseOutput({ deny: 'Blocked' });
+const output = preToolUseOutput({
+  hookSpecificOutput: {
+    permissionDecision: 'deny',
+    permissionDecisionReason: 'Blocked'
+  }
+});
 process.exit(output.exitCode); // Correct - uses builder's exit code
 // process.exit(0);           // WRONG - would indicate success
 ```

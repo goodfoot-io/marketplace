@@ -7,7 +7,7 @@
 
 import { stopHook, stopOutput } from '../../src/index.js';
 
-export default stopHook({}, async (_input, { logger }) => {
+export default stopHook({}, (_input, { logger }) => {
   logger.info('Blocking stop');
 
   return stopOutput({

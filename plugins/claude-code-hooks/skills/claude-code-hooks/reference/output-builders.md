@@ -107,9 +107,8 @@ interface StopInput extends BaseHookInput {
 ```typescript
 interface SubagentStartInput extends BaseHookInput {
   hookEventName: 'SubagentStart';
-  agentType?: string;            // Type of subagent
-  description?: string;          // Task description
-  prompt?: string;               // Task prompt
+  agentId: string;               // Subagent instance ID
+  agentType: string;             // Type of subagent (used for matcher)
 }
 ```
 
@@ -118,8 +117,9 @@ interface SubagentStartInput extends BaseHookInput {
 ```typescript
 interface SubagentStopInput extends BaseHookInput {
   hookEventName: 'SubagentStop';
-  agentType?: string;
-  result?: unknown;              // Subagent result
+  stopHookActive: boolean;       // Whether stop hook is active
+  agentId: string;               // Subagent instance ID
+  agentTranscriptPath: string;   // Path to subagent transcript
 }
 ```
 
@@ -173,21 +173,20 @@ import { preToolUseOutput } from '@goodfoot/claude-code-hooks';
 ```
 
 Based on desired behavior:
-- **Allow execution**: `preToolUseOutput({ allow: true })`
-- **Allow with modified input**: `preToolUseOutput({ allow: true, updatedInput: { command: 'safe-command' } })`
-- **Deny with reason**: `preToolUseOutput({ deny: 'Reason shown to Claude' })`
-- **Ask for confirmation**: `preToolUseOutput({ ask: 'This will modify files. Continue?' })`
+- **Allow execution**: `preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } })`
+- **Allow with modified input**: `preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow', updatedInput: { command: 'safe-command' } } })`
+- **Deny with reason**: `preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'Reason shown to Claude' } })`
+- **Ask for confirmation**: `preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'ask', permissionDecisionReason: 'This will modify files. Continue?' } })`
 - **Default behavior (no decision)**: `preToolUseOutput({})`
-- **Block with exit code 2**: `preToolUseOutput({ block: 'Hard block reason' })`
+- **Block with exit code 2**: `preToolUseOutput({ stopReason: 'Hard block reason' })`
 
-**Options:**
+**hookSpecificOutput Options:**
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `allow` | `true` | Permit execution |
-| `deny` | `string` | Block with reason |
-| `ask` | `string` | Request confirmation |
-| `updatedInput` | `object` | Modified tool input (with allow) |
+| `permissionDecision` | `'allow' \| 'deny' \| 'ask'` | Permission decision |
+| `permissionDecisionReason` | `string` | Reason for the decision |
+| `updatedInput` | `Record<string, unknown>` | Modified tool input |
 
 ### 3.2 postToolUseOutput()
 
@@ -198,11 +197,11 @@ import { postToolUseOutput } from '@goodfoot/claude-code-hooks';
 ```
 
 Based on desired behavior:
-- **Add context to transcript**: `postToolUseOutput({ additionalContext: 'File contained sensitive data' })`
-- **Modify MCP tool output**: `postToolUseOutput({ updatedMCPToolOutput: { sanitized: true, data: '...' } })`
+- **Add context to transcript**: `postToolUseOutput({ hookSpecificOutput: { additionalContext: 'File contained sensitive data' } })`
+- **Modify MCP tool output**: `postToolUseOutput({ hookSpecificOutput: { updatedMCPToolOutput: { sanitized: true, data: '...' } } })`
 - **No modifications**: `postToolUseOutput({})`
 
-**Options:**
+**hookSpecificOutput Options:**
 
 | Option | Type | Description |
 |--------|------|-------------|
@@ -218,11 +217,13 @@ import { postToolUseFailureOutput } from '@goodfoot/claude-code-hooks';
 
 // Add recovery guidance
 postToolUseFailureOutput({
-  additionalContext: 'Try using a different approach'
+  hookSpecificOutput: {
+    additionalContext: 'Try using a different approach'
+  }
 });
 ```
 
-**Options:**
+**hookSpecificOutput Options:**
 
 | Option | Type | Description |
 |--------|------|-------------|
@@ -237,11 +238,11 @@ import { sessionStartOutput } from '@goodfoot/claude-code-hooks';
 ```
 
 Based on desired behavior:
-- **Inject project context**: `sessionStartOutput({ additionalContext: JSON.stringify({ project: 'my-app', rules: ['no-delete'] }) })`
+- **Inject project context**: `sessionStartOutput({ hookSpecificOutput: { additionalContext: JSON.stringify({ project: 'my-app', rules: ['no-delete'] }) } })`
 - **Add system message**: `sessionStartOutput({ systemMessage: 'This is a production environment' })`
 - **No additional context**: `sessionStartOutput({})`
 
-**Options:**
+**hookSpecificOutput Options:**
 
 | Option | Type | Description |
 |--------|------|-------------|
@@ -288,11 +289,13 @@ import { subagentStartOutput } from '@goodfoot/claude-code-hooks';
 
 // Add subagent context
 subagentStartOutput({
-  additionalContext: 'Focus on finding patterns'
+  hookSpecificOutput: {
+    additionalContext: 'Focus on finding patterns'
+  }
 });
 ```
 
-**Options:**
+**hookSpecificOutput Options:**
 
 | Option | Type | Description |
 |--------|------|-------------|
@@ -304,10 +307,19 @@ Handle subagent completion.
 
 ```typescript
 import { subagentStopOutput } from '@goodfoot/claude-code-hooks';
-
-// Acknowledgment
-subagentStopOutput({});
 ```
+
+Based on desired behavior:
+- **Allow stop**: `subagentStopOutput({ decision: 'approve' })`
+- **Block stop with reason**: `subagentStopOutput({ decision: 'block', reason: 'Task not complete' })`
+- **Default (allow stop)**: `subagentStopOutput({})`
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `decision` | `'approve' \| 'block'` | Stop decision |
+| `reason` | `string` | Reason for blocking |
 
 ### 3.9 notificationOutput()
 
@@ -342,44 +354,45 @@ import { permissionRequestOutput } from '@goodfoot/claude-code-hooks';
 ```
 
 Based on desired behavior:
-- **Auto-approve**: `permissionRequestOutput({ allow: true })`
-- **Auto-approve with modified input**: `permissionRequestOutput({ allow: true, updatedInput: { file_path: '/safe/path' } })`
-- **Auto-deny**: `permissionRequestOutput({ deny: true, message: 'This operation is not allowed', interrupt: true })`
+- **Auto-approve**: `permissionRequestOutput({ hookSpecificOutput: { decision: { behavior: 'allow' } } })`
+- **Auto-approve with modified input**: `permissionRequestOutput({ hookSpecificOutput: { decision: { behavior: 'allow', updatedInput: { file_path: '/safe/path' } } } })`
+- **Auto-deny**: `permissionRequestOutput({ hookSpecificOutput: { decision: { behavior: 'deny', message: 'This operation is not allowed', interrupt: true } } })`
 - **Fall through to normal prompt**: `permissionRequestOutput({})`
 
-**Options:**
+**hookSpecificOutput.decision (Allow):**
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `allow` | `true` | Auto-approve |
-| `deny` | `true` | Auto-deny |
-| `updatedInput` | `object` | Modified input (with allow) |
+| `behavior` | `'allow'` | Auto-approve (required) |
+| `updatedInput` | `Record<string, unknown>` | Modified input |
 | `updatedPermissions` | `PermissionUpdate[]` | Permission updates |
-| `message` | `string` | Denial message (with deny) |
-| `interrupt` | `boolean` | Interrupt operation (with deny) |
 
-## 4. Base Options {#base-options}
+**hookSpecificOutput.decision (Deny):**
 
-All output builders support these options:
+| Option | Type | Description |
+|--------|------|-------------|
+| `behavior` | `'deny'` | Auto-deny (required) |
+| `message` | `string` | Denial message |
+| `interrupt` | `boolean` | Interrupt operation |
+
+## 4. Common Options {#base-options}
+
+All output builders support these common options:
 
 ```typescript
-interface BaseOptions {
-  block?: string;         // Block with exit code 2
-  error?: string;         // Error with exit code 1
-  continue?: boolean;     // Continue despite errors
+interface CommonOptions {
+  continue?: boolean;      // Continue despite errors
   suppressOutput?: boolean; // Suppress hook output
-  systemMessage?: string; // Inject system message
+  systemMessage?: string;  // Inject system message
+  stopReason?: string;     // Block with exit code 2
 }
 ```
 
 **Usage:**
 
 ```typescript
-// Block execution (any hook type)
-preToolUseOutput({ block: 'Hard block reason' });
-
-// Report non-blocking error
-sessionStartOutput({ error: 'Warning: config not found' });
+// Block execution (any hook type) - sets exit code to 2
+preToolUseOutput({ stopReason: 'Hard block reason' });
 
 // Continue despite issues
 postToolUseOutput({ continue: true });
@@ -399,17 +412,21 @@ Output builders set exit codes automatically:
 
 | Builder Call | Exit Code | Meaning |
 |--------------|-----------|---------|
-| `*Output({ allow: true })` | 0 | Success |
 | `*Output({})` | 0 | Success (default) |
-| `*Output({ error: '...' })` | 1 | Non-blocking error |
-| `*Output({ block: '...' })` | 2 | Blocking |
-| `*Output({ deny: '...' })` | 0 | Denial (handled in output) |
-| `stopOutput({ decision: 'block' })` | 0 | Stop blocked (via output) |
+| `*Output({ hookSpecificOutput: {...} })` | 0 | Success with hook-specific data |
+| `*Output({ stopReason: '...' })` | 2 | Blocking (via stopReason) |
+| `stopOutput({ decision: 'block' })` | 2 | Stop blocked (via decision) |
+| `subagentStopOutput({ decision: 'block' })` | 2 | Subagent stop blocked |
 
 Always use `output.exitCode`:
 
 ```typescript
-const output = preToolUseOutput({ deny: 'Blocked' });
+const output = preToolUseOutput({
+  hookSpecificOutput: {
+    permissionDecision: 'deny',
+    permissionDecisionReason: 'Blocked'
+  }
+});
 process.exit(output.exitCode); // Use this!
 ```
 

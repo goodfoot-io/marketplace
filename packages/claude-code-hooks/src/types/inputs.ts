@@ -35,6 +35,16 @@ export type SessionStartSource = 'startup' | 'resume' | 'clear' | 'compact';
 export type PreCompactTrigger = 'manual' | 'auto';
 
 /**
+ * Reason for session end events.
+ *
+ * - `'clear'` - Session cleared by user
+ * - `'logout'` - User logged out
+ * - `'prompt_input_exit'` - User exited at prompt input
+ * - `'other'` - Other reasons
+ */
+export type SessionEndReason = 'clear' | 'logout' | 'prompt_input_exit' | 'other';
+
+/**
  * Common fields present in all hook inputs.
  *
  * Every hook receives these base fields providing session context.
@@ -354,9 +364,13 @@ export interface SessionEndInput extends BaseHookInput {
 
   /**
    * The reason the session ended.
-   * Common values include completion, user exit, error, etc.
+   *
+   * - `'clear'` - Session cleared by user
+   * - `'logout'` - User logged out
+   * - `'prompt_input_exit'` - User exited at prompt input
+   * - `'other'` - Other reasons
    */
-  reason: string;
+  reason: SessionEndReason;
 }
 
 /**
@@ -438,14 +452,18 @@ export interface SubagentStartInput extends BaseHookInput {
  * - Process subagent results
  * - Clean up subagent resources
  * - Log subagent completion
+ * - Block subagent from stopping
  *
- * This hook uses `agentType` for matcher matching.
+ * This hook does not support matchers.
  * @example
  * ```typescript
- * // Log subagent completion
+ * // Block subagent if task incomplete
  * subagentStopHook({}, async (input: SubagentStopInput) => {
- *   console.log(`Subagent ${input.agentId} completed`);
- *   return subagentStopOutput({});
+ *   console.log(`Subagent ${input.agentId} stopping`);
+ *   return subagentStopOutput({
+ *     decision: 'block',
+ *     reason: 'Please verify all files were explored'
+ *   });
  * });
  * ```
  * @see https://code.claude.com/docs/en/hooks#subagentstop
@@ -545,6 +563,11 @@ export interface PermissionRequestInput extends BaseHookInput {
    * Input parameters for the tool.
    */
   toolInput: unknown;
+
+  /**
+   * Unique identifier for this specific tool invocation.
+   */
+  toolUseId: string;
 
   /**
    * Suggested permission updates that would prevent future prompts.

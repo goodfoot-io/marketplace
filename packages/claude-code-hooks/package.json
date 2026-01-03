@@ -14,7 +14,7 @@
   "scripts": {
     "prettier": "prettier . --write --log-level warn",
     "prettier:files": "prettier --write --log-level warn",
-    "eslint": "eslint --cache --fix ./src",
+    "eslint": "eslint --cache --fix ./src ./tests ./e2e",
     "eslint:files": "eslint --cache --fix",
     "typecheck": "tsc --noEmit",
     "build": "tsc --build tsconfig.build.json",

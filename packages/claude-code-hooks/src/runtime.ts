@@ -21,7 +21,7 @@
  */
 
 import type { HookFunction } from './hooks.js';
-import type { ExitCode, HookOutput, SyncHookJSONOutput } from './outputs.js';
+import type { ExitCode, HookOutput, SpecificHookOutput, SyncHookJSONOutput } from './outputs.js';
 import type { HookInput } from './types/inputs.js';
 import { logger } from './logger.js';
 import { EXIT_CODES } from './outputs.js';
@@ -270,6 +270,34 @@ function createHandlerErrorOutput(error: unknown): HookOutput {
   };
 }
 
+/**
+ * Converts a SpecificHookOutput to HookOutput for wire format.
+ *
+ * SpecificHookOutput types have: { _type, exitCode, stdout, stderr? }
+ * HookOutput has: { exitCode, stdout, stderr? }
+ *
+ * Since output builders now produce wire-format directly, this function
+ * simply strips the `_type` discriminator field.
+ * @param specificOutput - The specific output from a hook handler
+ * @returns HookOutput ready for serialization
+ * @see https://code.claude.com/docs/en/hooks#hook-output-structure
+ * @example
+ * ```typescript
+ * const specificOutput = preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
+ * const hookOutput = convertToHookOutput(specificOutput);
+ * // hookOutput: { exitCode: 0, stdout: { hookSpecificOutput: { ... } } }
+ * ```
+ */
+export function convertToHookOutput(specificOutput: SpecificHookOutput): HookOutput {
+  const { exitCode, stdout, stderr } = specificOutput;
+
+  return {
+    exitCode,
+    stdout,
+    ...(stderr !== undefined ? { stderr } : {})
+  };
+}
+
 // ============================================================================
 // Execute Function
 // ============================================================================
@@ -308,7 +336,9 @@ function createHandlerErrorOutput(error: unknown): HookOutput {
  * ```
  * @see https://code.claude.com/docs/en/hooks
  */
-export async function execute<TInput extends HookInput>(hookFn: HookFunction<TInput>): Promise<void> {
+export async function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(
+  hookFn: HookFunction<TInput, TOutput>
+): Promise<void> {
   const startTime = performance.now();
   let exitCode: ExitCode = EXIT_CODES.SUCCESS;
   let output: HookOutput | undefined;
@@ -352,7 +382,8 @@ export async function execute<TInput extends HookInput>(hookFn: HookFunction<TIn
 
     // Execute handler
     try {
-      output = await hookFn(input, { logger });
+      const specificOutput = await hookFn(input, { logger });
+      output = convertToHookOutput(specificOutput);
       exitCode = output.exitCode;
     } catch (error) {
       // Log the error

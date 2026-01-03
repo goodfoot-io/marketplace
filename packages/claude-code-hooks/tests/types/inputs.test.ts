@@ -220,10 +220,10 @@ describe('HookInput discriminated union', () => {
         sessionId: 'sess-123',
         transcriptPath: '/path',
         cwd: '/workspace',
-        reason: 'User exit'
+        reason: 'other'
       };
 
-      expect(input.reason).toBe('User exit');
+      expect(input.reason).toBe('other');
     });
 
     it('StopInput has stopHookActive field', () => {
@@ -288,6 +288,7 @@ describe('HookInput discriminated union', () => {
         cwd: '/workspace',
         toolName: 'Bash',
         toolInput: { command: 'rm file.txt' },
+        toolUseId: 'tool-1',
         permissionSuggestions: []
       };
 
@@ -436,7 +437,7 @@ describe('HookInput discriminated union', () => {
           sessionId: 's',
           transcriptPath: '/p',
           cwd: '/c',
-          reason: 'r'
+          reason: 'other'
         },
         {
           hookEventName: 'Stop',
@@ -476,7 +477,8 @@ describe('HookInput discriminated union', () => {
           transcriptPath: '/p',
           cwd: '/c',
           toolName: 'T',
-          toolInput: {}
+          toolInput: {},
+          toolUseId: 't'
         }
       ];
 

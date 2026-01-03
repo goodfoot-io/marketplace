@@ -6,14 +6,9 @@
  * @module
  */
 
-import type { HookOutput, HookConfig, HookContext, HookFunction, HookHandler } from '../../src/index.js';
-import type {
-  PreToolUseInput,
-  PostToolUseInput,
-  SessionStartInput,
-  StopInput,
-  PermissionRequestInput
-} from '../../src/types/inputs.js';
+import type { HookConfig, HookContext, HookHandler } from '../../src/index.js';
+import type { PreToolUseOutput } from '../../src/outputs.js';
+import type { PreToolUseInput } from '../../src/types/inputs.js';
 import { describe, it, expect } from 'vitest';
 import {
   preToolUseHook,
@@ -39,7 +34,7 @@ import {
 describe('hook factory type enforcement', () => {
   describe('preToolUseHook', () => {
     it('enforces PreToolUseInput type in handler', () => {
-      const hook = preToolUseHook({}, async (input, { logger }) => {
+      const hook = preToolUseHook({}, (input, { logger }) => {
         // TypeScript knows these properties exist
         const toolName: string = input.toolName;
         const toolInput: unknown = input.toolInput;
@@ -52,23 +47,23 @@ describe('hook factory type enforcement', () => {
         expect(hookEventName).toBe('PreToolUse');
         expect(logger).toBeDefined();
 
-        return preToolUseOutput({ allow: true });
+        return preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
       });
 
       expect(hook.hookEventName).toBe('PreToolUse');
     });
 
     it('requires handler to return HookOutput', () => {
-      const hook = preToolUseHook({}, async () => {
+      const hook = preToolUseHook({}, () => {
         // Return type must be HookOutput
-        return preToolUseOutput({ allow: true });
+        return preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
       });
 
       expect(hook).toBeDefined();
     });
 
     it('accepts config with matcher', () => {
-      const hook = preToolUseHook({ matcher: 'Bash' }, async () => {
+      const hook = preToolUseHook({ matcher: 'Bash' }, () => {
         return preToolUseOutput({});
       });
 
@@ -76,7 +71,7 @@ describe('hook factory type enforcement', () => {
     });
 
     it('accepts config with timeout', () => {
-      const hook = preToolUseHook({ timeout: 5000 }, async () => {
+      const hook = preToolUseHook({ timeout: 5000 }, () => {
         return preToolUseOutput({});
       });
 
@@ -86,7 +81,7 @@ describe('hook factory type enforcement', () => {
 
   describe('postToolUseHook', () => {
     it('enforces PostToolUseInput type in handler', () => {
-      const hook = postToolUseHook({}, async (input) => {
+      const hook = postToolUseHook({}, (input) => {
         // TypeScript knows toolResponse exists on PostToolUseInput
         const toolResponse: unknown = input.toolResponse;
         const toolName: string = input.toolName;
@@ -105,7 +100,7 @@ describe('hook factory type enforcement', () => {
 
   describe('sessionStartHook', () => {
     it('enforces SessionStartInput type in handler', () => {
-      const hook = sessionStartHook({}, async (input) => {
+      const hook = sessionStartHook({}, (input) => {
         // TypeScript knows source exists on SessionStartInput
         const source: 'startup' | 'resume' | 'clear' | 'compact' = input.source;
         const hookEventName: 'SessionStart' = input.hookEventName;
@@ -120,7 +115,7 @@ describe('hook factory type enforcement', () => {
     });
 
     it('allows matching on source', () => {
-      const hook = sessionStartHook({ matcher: 'startup' }, async () => {
+      const hook = sessionStartHook({ matcher: 'startup' }, () => {
         return sessionStartOutput({});
       });
 
@@ -130,7 +125,7 @@ describe('hook factory type enforcement', () => {
 
   describe('stopHook', () => {
     it('enforces StopInput type in handler', () => {
-      const hook = stopHook({}, async (input) => {
+      const hook = stopHook({}, (input) => {
         // TypeScript knows stopHookActive exists on StopInput
         const stopHookActive: boolean = input.stopHookActive;
         const hookEventName: 'Stop' = input.hookEventName;
@@ -145,11 +140,11 @@ describe('hook factory type enforcement', () => {
     });
 
     it('allows block and approve decisions', () => {
-      const approveHook = stopHook({}, async () => {
+      const approveHook = stopHook({}, () => {
         return stopOutput({ decision: 'approve' });
       });
 
-      const blockHook = stopHook({}, async () => {
+      const blockHook = stopHook({}, () => {
         return stopOutput({ decision: 'block', reason: 'Pending changes' });
       });
 
@@ -160,7 +155,7 @@ describe('hook factory type enforcement', () => {
 
   describe('permissionRequestHook', () => {
     it('enforces PermissionRequestInput type in handler', () => {
-      const hook = permissionRequestHook({}, async (input) => {
+      const hook = permissionRequestHook({}, (input) => {
         // TypeScript knows these fields exist
         const toolName: string = input.toolName;
         const toolInput: unknown = input.toolInput;
@@ -180,33 +175,35 @@ describe('hook factory type enforcement', () => {
 
 describe('HookFunction type properties', () => {
   it('has hookEventName property', () => {
-    const hook = preToolUseHook({}, async () => preToolUseOutput({}));
+    const hook = preToolUseHook({}, () => preToolUseOutput({}));
     expect(hook.hookEventName).toBe('PreToolUse');
   });
 
   it('has optional matcher property', () => {
-    const hookWithMatcher = preToolUseHook({ matcher: 'Bash' }, async () => preToolUseOutput({}));
+    const hookWithMatcher = preToolUseHook({ matcher: 'Bash' }, () => preToolUseOutput({}));
     expect(hookWithMatcher.matcher).toBe('Bash');
 
-    const hookWithoutMatcher = preToolUseHook({}, async () => preToolUseOutput({}));
+    const hookWithoutMatcher = preToolUseHook({}, () => preToolUseOutput({}));
     expect(hookWithoutMatcher.matcher).toBeUndefined();
   });
 
   it('has optional timeout property', () => {
-    const hookWithTimeout = preToolUseHook({ timeout: 10000 }, async () => preToolUseOutput({}));
+    const hookWithTimeout = preToolUseHook({ timeout: 10000 }, () => preToolUseOutput({}));
     expect(hookWithTimeout.timeout).toBe(10000);
 
-    const hookWithoutTimeout = preToolUseHook({}, async () => preToolUseOutput({}));
+    const hookWithoutTimeout = preToolUseHook({}, () => preToolUseOutput({}));
     expect(hookWithoutTimeout.timeout).toBeUndefined();
   });
 
   it('is callable with input and context', async () => {
-    const hook = preToolUseHook({}, async (input) => {
+    const hook = preToolUseHook({}, (input) => {
       // Conditional logic that always returns valid output
       if (input.toolName === 'Read') {
-        return preToolUseOutput({ allow: true });
+        return preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
       }
-      return preToolUseOutput({ deny: 'Not Read tool' });
+      return preToolUseOutput({
+        hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'Not Read tool' }
+      });
     });
 
     const mockInput: PreToolUseInput = {
@@ -234,7 +231,7 @@ describe('HookFunction type properties', () => {
 
 describe('HookContext type', () => {
   it('provides logger in context', () => {
-    const hook = preToolUseHook({}, async (_input, { logger }) => {
+    const hook = preToolUseHook({}, (_input, { logger }) => {
       // Logger should have all standard methods
       expect(logger).toBeDefined();
       expect(typeof logger.debug).toBe('function');
@@ -276,7 +273,7 @@ describe('HookConfig type', () => {
 
 describe('HookHandler type', () => {
   it('is a function taking input and context', () => {
-    const handler: HookHandler<PreToolUseInput> = async (input, context) => {
+    const handler: HookHandler<PreToolUseInput, PreToolUseOutput> = (input, context) => {
       expect(input.toolName).toBeDefined();
       expect(context.logger).toBeDefined();
       return preToolUseOutput({});
@@ -286,25 +283,29 @@ describe('HookHandler type', () => {
   });
 
   it('can be synchronous', () => {
-    const syncHandler: HookHandler<PreToolUseInput> = (input) => {
+    const syncHandler: HookHandler<PreToolUseInput, PreToolUseOutput> = (input) => {
       // Conditional logic that always returns valid output
       if (input.toolName === 'Read') {
-        return preToolUseOutput({ allow: true });
+        return preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
       }
-      return preToolUseOutput({ deny: 'Not Read tool' });
+      return preToolUseOutput({
+        hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'Not Read tool' }
+      });
     };
 
     expect(syncHandler).toBeDefined();
   });
 
   it('can be asynchronous', () => {
-    const asyncHandler: HookHandler<PreToolUseInput> = async (input) => {
+    const asyncHandler: HookHandler<PreToolUseInput, PreToolUseOutput> = async (input) => {
       await Promise.resolve();
       // Conditional logic that always returns valid output
       if (input.toolName === 'Read') {
-        return preToolUseOutput({ allow: true });
+        return preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
       }
-      return preToolUseOutput({ deny: 'Not Read tool' });
+      return preToolUseOutput({
+        hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'Not Read tool' }
+      });
     };
 
     expect(asyncHandler).toBeDefined();
@@ -331,7 +332,7 @@ describe('all hook factories', () => {
     for (const { name, factory } of factories) {
       it(`${name} returns HookFunction`, () => {
         // Need to cast to avoid complex generic inference issues
-        const hook = (factory as typeof preToolUseHook)({}, async () => preToolUseOutput({}));
+        const hook = (factory as typeof preToolUseHook)({}, () => preToolUseOutput({}));
         expect(hook).toHaveProperty('hookEventName');
       });
     }
@@ -342,7 +343,7 @@ describe('all hook factories', () => {
       it(`${name} accepts config with matcher and timeout`, () => {
         const config: HookConfig = { matcher: 'test', timeout: 1000 };
         // Cast to avoid complex generic inference issues
-        const hook = (factory as typeof preToolUseHook)(config, async () => preToolUseOutput({}));
+        const hook = (factory as typeof preToolUseHook)(config, () => preToolUseOutput({}));
         expect(hook.matcher).toBe('test');
         expect(hook.timeout).toBe(1000);
       });

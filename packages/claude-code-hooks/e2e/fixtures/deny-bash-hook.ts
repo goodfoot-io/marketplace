@@ -6,11 +6,14 @@
 
 import { preToolUseHook, preToolUseOutput } from '../../src/index.js';
 
-export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => {
+export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
   const command = (input.toolInput as { command?: string }).command ?? '';
   logger.info('Denying Bash command', { command });
 
   return preToolUseOutput({
-    deny: 'Bash commands are blocked by test hook'
+    hookSpecificOutput: {
+      permissionDecision: 'deny',
+      permissionDecisionReason: 'Bash commands are blocked by test hook'
+    }
   });
 });

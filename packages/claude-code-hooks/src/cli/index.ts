@@ -472,7 +472,7 @@ execute(hook);
       bundle: true,
       sourcemap: false,
       minify: false,
-      // Keep node built-ins and OpenTelemetry external (OTel has CJS compat issues)
+      // Keep only node built-ins external
       external: [
         'node:*',
         'http',
@@ -490,8 +490,7 @@ execute(hook);
         'child_process',
         'perf_hooks',
         'async_hooks',
-        'diagnostics_channel',
-        '@opentelemetry/*'
+        'diagnostics_channel'
       ],
       // Ensure we get clean ESM output
       mainFields: ['module', 'main'],

@@ -8,7 +8,7 @@
  * - HOOK_FACTORY_TO_EVENT mapping
  */
 
-import type { CliArgs, HookMetadata } from '../src/cli/index.js';
+import type { CliArgs } from '../src/cli/index.js';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';

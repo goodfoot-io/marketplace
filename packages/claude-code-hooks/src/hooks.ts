@@ -24,7 +24,21 @@
  */
 
 import type { Logger } from './logger.js';
-import type { HookOutput } from './outputs.js';
+import type {
+  SpecificHookOutput,
+  PreToolUseOutput,
+  PostToolUseOutput,
+  PostToolUseFailureOutput,
+  NotificationOutput,
+  UserPromptSubmitOutput,
+  SessionStartOutput,
+  SessionEndOutput,
+  StopOutput,
+  SubagentStartOutput,
+  SubagentStopOutput,
+  PreCompactOutput,
+  PermissionRequestOutput
+} from './outputs.js';
 import type {
   PreToolUseInput,
   PostToolUseInput,
@@ -179,25 +193,32 @@ export interface HookContext {
 /**
  * Handler function for a specific hook type.
  *
- * Receives the typed input and context, returns a HookOutput.
+ * Receives the typed input and context, returns a specific output type.
  * Can be async for operations that require awaiting.
+ * @template TInput - The input type for this hook
+ * @template TOutput - The specific output type for this hook
  */
-export type HookHandler<TInput> = (input: TInput, context: HookContext) => HookOutput | Promise<HookOutput>;
+export type HookHandler<TInput, TOutput extends SpecificHookOutput> = (
+  input: TInput,
+  context: HookContext
+) => TOutput | Promise<TOutput>;
 
 /**
  * The result of a hook factory - a function that wraps the handler.
  *
  * This is what gets exported from hook files and invoked by the runtime.
  * The wrapper handles error catching, logging, and telemetry.
+ * @template TInput - The input type for this hook
+ * @template TOutput - The specific output type for this hook
  */
-export interface HookFunction<TInput> {
+export interface HookFunction<TInput, TOutput extends SpecificHookOutput> {
   /**
    * Execute the hook handler with the given input and context.
    * @param input - The hook input data
    * @param context - The hook execution context
-   * @returns The hook output
+   * @returns The hook output (specific type, converted to HookOutput by runtime)
    */
-  (input: TInput, context: HookContext): Promise<HookOutput>;
+  (input: TInput, context: HookContext): Promise<TOutput>;
 
   /**
    * The hook event name this handler is for.
@@ -230,12 +251,12 @@ export interface HookFunction<TInput> {
  * @returns A wrapped hook function
  * @internal
  */
-function createHookFunction<TInput>(
+function createHookFunction<TInput, TOutput extends SpecificHookOutput>(
   hookEventName: HookEventName,
   config: HookConfig,
-  handler: HookHandler<TInput>
-): HookFunction<TInput> {
-  const hookFn = async (input: TInput, context: HookContext): Promise<HookOutput> => {
+  handler: HookHandler<TInput, TOutput>
+): HookFunction<TInput, TOutput> {
+  const hookFn = async (input: TInput, context: HookContext): Promise<TOutput> => {
     // Delegate error handling to the runtime - just execute the handler
     // The runtime will catch errors, log them, and return appropriate output
     return await handler(input, context);
@@ -297,8 +318,8 @@ function createHookFunction<TInput>(
  */
 export function preToolUseHook(
   config: HookConfig,
-  handler: HookHandler<PreToolUseInput>
-): HookFunction<PreToolUseInput> {
+  handler: HookHandler<PreToolUseInput, PreToolUseOutput>
+): HookFunction<PreToolUseInput, PreToolUseOutput> {
   return createHookFunction('PreToolUse', config, handler);
 }
 
@@ -336,8 +357,8 @@ export function preToolUseHook(
  */
 export function postToolUseHook(
   config: HookConfig,
-  handler: HookHandler<PostToolUseInput>
-): HookFunction<PostToolUseInput> {
+  handler: HookHandler<PostToolUseInput, PostToolUseOutput>
+): HookFunction<PostToolUseInput, PostToolUseOutput> {
   return createHookFunction('PostToolUse', config, handler);
 }
 
@@ -377,8 +398,8 @@ export function postToolUseHook(
  */
 export function postToolUseFailureHook(
   config: HookConfig,
-  handler: HookHandler<PostToolUseFailureInput>
-): HookFunction<PostToolUseFailureInput> {
+  handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>
+): HookFunction<PostToolUseFailureInput, PostToolUseFailureOutput> {
   return createHookFunction('PostToolUseFailure', config, handler);
 }
 
@@ -418,8 +439,8 @@ export function postToolUseFailureHook(
  */
 export function notificationHook(
   config: HookConfig,
-  handler: HookHandler<NotificationInput>
-): HookFunction<NotificationInput> {
+  handler: HookHandler<NotificationInput, NotificationOutput>
+): HookFunction<NotificationInput, NotificationOutput> {
   return createHookFunction('Notification', config, handler);
 }
 
@@ -458,8 +479,8 @@ export function notificationHook(
  */
 export function userPromptSubmitHook(
   config: HookConfig,
-  handler: HookHandler<UserPromptSubmitInput>
-): HookFunction<UserPromptSubmitInput> {
+  handler: HookHandler<UserPromptSubmitInput, UserPromptSubmitOutput>
+): HookFunction<UserPromptSubmitInput, UserPromptSubmitOutput> {
   return createHookFunction('UserPromptSubmit', config, handler);
 }
 
@@ -521,8 +542,8 @@ export function userPromptSubmitHook(
  */
 export function sessionStartHook(
   config: HookConfig,
-  handler: HookHandler<SessionStartInput>
-): HookFunction<SessionStartInput> {
+  handler: HookHandler<SessionStartInput, SessionStartOutput>
+): HookFunction<SessionStartInput, SessionStartOutput> {
   return createHookFunction('SessionStart', config, handler);
 }
 
@@ -562,8 +583,8 @@ export function sessionStartHook(
  */
 export function sessionEndHook(
   config: HookConfig,
-  handler: HookHandler<SessionEndInput>
-): HookFunction<SessionEndInput> {
+  handler: HookHandler<SessionEndInput, SessionEndOutput>
+): HookFunction<SessionEndInput, SessionEndOutput> {
   return createHookFunction('SessionEnd', config, handler);
 }
 
@@ -609,7 +630,10 @@ export function sessionEndHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#stop
  */
-export function stopHook(config: HookConfig, handler: HookHandler<StopInput>): HookFunction<StopInput> {
+export function stopHook(
+  config: HookConfig,
+  handler: HookHandler<StopInput, StopOutput>
+): HookFunction<StopInput, StopOutput> {
   return createHookFunction('Stop', config, handler);
 }
 
@@ -649,8 +673,8 @@ export function stopHook(config: HookConfig, handler: HookHandler<StopInput>): H
  */
 export function subagentStartHook(
   config: HookConfig,
-  handler: HookHandler<SubagentStartInput>
-): HookFunction<SubagentStartInput> {
+  handler: HookHandler<SubagentStartInput, SubagentStartOutput>
+): HookFunction<SubagentStartInput, SubagentStartOutput> {
   return createHookFunction('SubagentStart', config, handler);
 }
 
@@ -662,34 +686,39 @@ export function subagentStartHook(
  * Creates a SubagentStop hook handler.
  *
  * SubagentStop hooks fire when a subagent completes or stops, allowing you to:
+ * - Block the subagent from stopping
  * - Process subagent results
  * - Clean up subagent resources
  * - Log subagent completion
  *
- * **Matcher**: Matches against `agentType`
- * @param config - HookConfig is not used for SubagentStop - no fields available for matching
+ * **Matcher**: Matches against `agentType` (e.g., 'explore', 'codebase-analysis')
+ * @param config - Hook configuration with optional matcher and timeout
  * @param handler - The handler function to execute
  * @returns A hook function that can be exported as the default export
  * @example
  * ```typescript
  * import { subagentStopHook, subagentStopOutput } from '@goodfoot/claude-code-hooks';
  *
- * // Log subagent completion
- * export default subagentStopHook({}, async (input, { logger }) => {
- *   logger.info('Subagent completed', {
+ * // Block explore subagents if task incomplete
+ * export default subagentStopHook({ matcher: 'explore' }, async (input, { logger }) => {
+ *   logger.info('Subagent stopping', {
  *     agentId: input.agentId,
- *     transcriptPath: input.agentTranscriptPath
+ *     agentType: input.agentType
  *   });
  *
- *   return subagentStopOutput({});
+ *   // Block if transcript shows incomplete work
+ *   return subagentStopOutput({
+ *     decision: 'block',
+ *     reason: 'Please verify exploration is complete'
+ *   });
  * });
  * ```
  * @see https://code.claude.com/docs/en/hooks#subagentstop
  */
 export function subagentStopHook(
   config: HookConfig,
-  handler: HookHandler<SubagentStopInput>
-): HookFunction<SubagentStopInput> {
+  handler: HookHandler<SubagentStopInput, SubagentStopOutput>
+): HookFunction<SubagentStopInput, SubagentStopOutput> {
   return createHookFunction('SubagentStop', config, handler);
 }
 
@@ -737,8 +766,8 @@ export function subagentStopHook(
  */
 export function preCompactHook(
   config: HookConfig,
-  handler: HookHandler<PreCompactInput>
-): HookFunction<PreCompactInput> {
+  handler: HookHandler<PreCompactInput, PreCompactOutput>
+): HookFunction<PreCompactInput, PreCompactOutput> {
   return createHookFunction('PreCompact', config, handler);
 }
 
@@ -798,7 +827,7 @@ export function preCompactHook(
  */
 export function permissionRequestHook(
   config: HookConfig,
-  handler: HookHandler<PermissionRequestInput>
-): HookFunction<PermissionRequestInput> {
+  handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>
+): HookFunction<PermissionRequestInput, PermissionRequestOutput> {
   return createHookFunction('PermissionRequest', config, handler);
 }

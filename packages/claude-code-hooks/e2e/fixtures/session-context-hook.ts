@@ -7,10 +7,10 @@
 
 import { sessionStartHook, sessionStartOutput } from '../../src/index.js';
 
-export default sessionStartHook({}, async (_input, { logger }) => {
+export default sessionStartHook({}, (_input, { logger }) => {
   logger.info('Injecting session context');
 
   return sessionStartOutput({
-    additionalContext: 'E2E_TEST_CONTEXT: The magic test word is "HOOK_INJECTED_BANANA".'
+    hookSpecificOutput: { additionalContext: 'E2E_TEST_CONTEXT: The magic test word is "HOOK_INJECTED_BANANA".' }
   });
 });

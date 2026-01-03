@@ -55,27 +55,33 @@ interface CompiledHook {
   metadata: HookMetadata;
 }
 /**
- * Entry in the hooks.json "hooks" array.
+ * Individual hook configuration within a matcher group.
  */
-interface HooksJsonEntry {
-  /** Matcher pattern for this hook group. */
-  matcher?: string;
-  /** Array of hook configurations. */
-  hooks: Array<{
-    /** Hook event type. */
-    type: HookEventName;
-    /** Absolute path to compiled hook. */
-    command: string;
-    /** Optional timeout. */
-    timeout?: number;
-  }>;
+interface HookConfig {
+  /** Hook type - always "command" for compiled hooks. */
+  type: 'command';
+  /** Absolute path to compiled hook executable. */
+  command: string;
+  /** Optional timeout in seconds. */
+  timeout?: number;
 }
 /**
- * The complete hooks.json structure.
+ * Matcher group entry within an event type.
+ */
+interface MatcherEntry {
+  /** Matcher pattern (tool name, regex, etc.). Optional for some event types. */
+  matcher?: string;
+  /** Array of hook configurations in this matcher group. */
+  hooks: HookConfig[];
+}
+/**
+ * The complete hooks.json structure expected by Claude Code.
+ *
+ * Format: { hooks: { EventType: [ { matcher?, hooks: [...] } ] } }
  */
 interface HooksJson {
-  /** Array of hook group entries. */
-  hooks: HooksJsonEntry[];
+  /** Object keyed by event type (PreToolUse, SessionStart, etc.). */
+  hooks: Partial<Record<HookEventName, MatcherEntry[]>>;
   /** Generated file tracking metadata. */
   __generated: {
     /** Array of generated filenames. */
@@ -141,13 +147,17 @@ declare function compileHook(sourcePath: string, outputDir: string): Promise<str
  */
 declare function generateContentHash(content: string): string;
 /**
- * Groups compiled hooks by their matcher pattern for hooks.json.
+ * Groups compiled hooks by event type, then by matcher pattern.
  * @param compiledHooks - Array of compiled hooks
- * @returns Map of matcher pattern to hooks
+ * @returns Nested map: EventType -> Matcher -> Hooks
  */
-declare function groupHooksByMatcher(compiledHooks: CompiledHook[]): Map<string | undefined, CompiledHook[]>;
+declare function groupHooksByEventAndMatcher(
+  compiledHooks: CompiledHook[]
+): Map<HookEventName, Map<string | undefined, CompiledHook[]>>;
 /**
- * Generates the hooks.json content.
+ * Generates the hooks.json content in Claude Code's expected format.
+ *
+ * Format: { hooks: { EventType: [ { matcher?, hooks: [...] } ] } }
  * @param compiledHooks - Array of compiled hooks
  * @returns The hooks.json structure
  */
@@ -160,8 +170,8 @@ export {
   compileHook,
   generateContentHash,
   generateHooksJson,
-  groupHooksByMatcher,
+  groupHooksByEventAndMatcher,
   HOOK_FACTORY_TO_EVENT
 };
-export type { CliArgs, HookMetadata, CompiledHook, HooksJsonEntry, HooksJson };
+export type { CliArgs, HookMetadata, CompiledHook, HookConfig, MatcherEntry, HooksJson };
 //# sourceMappingURL=index.d.ts.map

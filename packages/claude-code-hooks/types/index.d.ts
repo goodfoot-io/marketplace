@@ -23,6 +23,7 @@ export type {
   HookEventName,
   PermissionMode,
   SessionStartSource,
+  SessionEndReason,
   PreCompactTrigger,
   PermissionUpdate
 } from './types/inputs.js';
@@ -42,6 +43,8 @@ export type {
   PermissionRequestDecision,
   PermissionRequestAllowDecision,
   PermissionRequestDenyDecision,
+  CommonOptions,
+  /** @deprecated Use CommonOptions instead */
   BaseOptions,
   PreToolUseOptions,
   PostToolUseOptions,
@@ -107,4 +110,12 @@ export {
   permissionRequestHook
 } from './hooks.js';
 export { execute, snakeToCamelCase, camelToSnakeCase } from './runtime.js';
+export {
+  CLAUDE_ENV_VARS,
+  getProjectDir,
+  getEnvFilePath,
+  isRemoteEnvironment,
+  persistEnvVar,
+  persistEnvVars
+} from './env.js';
 //# sourceMappingURL=index.d.ts.map

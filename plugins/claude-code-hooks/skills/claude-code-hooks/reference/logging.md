@@ -138,7 +138,7 @@ interface LogEventError {
 interface LogEvent {
   timestamp: string;           // ISO 8601 format
   level: 'debug' | 'info' | 'warn' | 'error';
-  hookType?: string;           // PreToolUse, SessionStart, etc.
+  hookType?: HookEventName;    // PreToolUse, SessionStart, etc.
   message: string;             // Human-readable description
   input?: Partial<HookInput>;  // Hook input at log time
   error?: LogEventError;       // Error details (for errors)
@@ -171,13 +171,20 @@ async function main() {
       command: input.toolInput?.command
     });
 
-    const output = preToolUseOutput({ deny: 'Dangerous command' });
+    const output = preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: 'Dangerous command'
+      }
+    });
     process.stdout.write(JSON.stringify(output.stdout));
     process.exit(output.exitCode);
   }
 
   logger.info('Allowing command');
-  const output = preToolUseOutput({ allow: true });
+  const output = preToolUseOutput({
+    hookSpecificOutput: { permissionDecision: 'allow' }
+  });
   process.stdout.write(JSON.stringify(output.stdout));
   process.exit(output.exitCode);
 }

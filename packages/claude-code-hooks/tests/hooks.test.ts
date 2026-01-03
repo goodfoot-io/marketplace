@@ -8,7 +8,6 @@
  */
 
 import type { HookContext } from '../src/hooks.js';
-import type { HookOutput } from '../src/outputs.js';
 import type {
   PreToolUseInput,
   PostToolUseInput,
@@ -39,7 +38,20 @@ import {
   permissionRequestHook
 } from '../src/hooks.js';
 import { Logger } from '../src/logger.js';
-import { preToolUseOutput, sessionStartOutput, stopOutput } from '../src/outputs.js';
+import {
+  preToolUseOutput,
+  postToolUseOutput,
+  postToolUseFailureOutput,
+  notificationOutput,
+  userPromptSubmitOutput,
+  sessionStartOutput,
+  sessionEndOutput,
+  stopOutput,
+  subagentStartOutput,
+  subagentStopOutput,
+  preCompactOutput,
+  permissionRequestOutput
+} from '../src/outputs.js';
 
 // Helper to create minimal valid inputs for each hook type
 function createPreToolUseInput(): PreToolUseInput {
@@ -125,7 +137,7 @@ function createSessionEndInput(): SessionEndInput {
     transcriptPath: '/path/to/transcript',
     cwd: '/workspace',
     permissionMode: 'default',
-    reason: 'user_exit'
+    reason: 'other'
   };
 }
 
@@ -185,7 +197,8 @@ function createPermissionRequestInput(): PermissionRequestInput {
     cwd: '/workspace',
     permissionMode: 'default',
     toolName: 'Bash',
-    toolInput: { command: 'rm -rf /' }
+    toolInput: { command: 'rm -rf /' },
+    toolUseId: 'tool_use_123'
   };
 }
 
@@ -257,21 +270,26 @@ describe('Hook Factory Functions', () => {
     });
 
     it('returns handler output', async () => {
-      const hook = preToolUseHook({}, () => preToolUseOutput({ deny: 'Blocked' }));
+      const hook = preToolUseHook({}, () =>
+        preToolUseOutput({
+          hookSpecificOutput: { permissionDecision: 'deny', permissionDecisionReason: 'Blocked' }
+        })
+      );
 
       const result = await hook(createPreToolUseInput(), { logger: testLogger });
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout.hookSpecificOutput).toMatchObject({
-        hookEventName: 'PreToolUse',
-        permissionDecision: 'deny'
-      });
+      expect(result.stdout.hookSpecificOutput?.hookEventName).toBe('PreToolUse');
+      if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
+        expect(result.stdout.hookSpecificOutput.permissionDecision).toBe('deny');
+        expect(result.stdout.hookSpecificOutput.permissionDecisionReason).toBe('Blocked');
+      }
     });
   });
 
   describe('postToolUseHook', () => {
     it('returns a HookFunction with correct hookEventName', () => {
-      const hook = postToolUseHook({}, () => ({ exitCode: 0, stdout: {} }));
+      const hook = postToolUseHook({}, () => postToolUseOutput({}));
       expect(hook.hookEventName).toBe('PostToolUse');
     });
 
@@ -280,7 +298,7 @@ describe('Hook Factory Functions', () => {
 
       const hook = postToolUseHook({}, (input) => {
         receivedInput = input;
-        return { exitCode: 0, stdout: {} };
+        return postToolUseOutput({});
       });
 
       await hook(createPostToolUseInput(), { logger: testLogger });
@@ -291,7 +309,7 @@ describe('Hook Factory Functions', () => {
 
   describe('postToolUseFailureHook', () => {
     it('returns a HookFunction with correct hookEventName', () => {
-      const hook = postToolUseFailureHook({}, () => ({ exitCode: 0, stdout: {} }));
+      const hook = postToolUseFailureHook({}, () => postToolUseFailureOutput({}));
       expect(hook.hookEventName).toBe('PostToolUseFailure');
     });
 
@@ -300,7 +318,7 @@ describe('Hook Factory Functions', () => {
 
       const hook = postToolUseFailureHook({}, (input) => {
         receivedInput = input;
-        return { exitCode: 0, stdout: {} };
+        return postToolUseFailureOutput({});
       });
 
       await hook(createPostToolUseFailureInput(), { logger: testLogger });
@@ -312,7 +330,7 @@ describe('Hook Factory Functions', () => {
 
   describe('notificationHook', () => {
     it('returns a HookFunction with correct hookEventName', () => {
-      const hook = notificationHook({}, () => ({ exitCode: 0, stdout: {} }));
+      const hook = notificationHook({}, () => notificationOutput({}));
       expect(hook.hookEventName).toBe('Notification');
     });
 
@@ -321,7 +339,7 @@ describe('Hook Factory Functions', () => {
 
       const hook = notificationHook({}, (input) => {
         receivedInput = input;
-        return { exitCode: 0, stdout: {} };
+        return notificationOutput({});
       });
 
       await hook(createNotificationInput(), { logger: testLogger });
@@ -333,7 +351,7 @@ describe('Hook Factory Functions', () => {
 
   describe('userPromptSubmitHook', () => {
     it('returns a HookFunction with correct hookEventName', () => {
-      const hook = userPromptSubmitHook({}, () => ({ exitCode: 0, stdout: {} }));
+      const hook = userPromptSubmitHook({}, () => userPromptSubmitOutput({}));
       expect(hook.hookEventName).toBe('UserPromptSubmit');
     });
 
@@ -342,7 +360,7 @@ describe('Hook Factory Functions', () => {
 
       const hook = userPromptSubmitHook({}, (input) => {
         receivedInput = input;
-        return { exitCode: 0, stdout: {} };
+        return userPromptSubmitOutput({});
       });
 
       await hook(createUserPromptSubmitInput(), { logger: testLogger });
@@ -378,7 +396,7 @@ describe('Hook Factory Functions', () => {
 
   describe('sessionEndHook', () => {
     it('returns a HookFunction with correct hookEventName', () => {
-      const hook = sessionEndHook({}, () => ({ exitCode: 0, stdout: {} }));
+      const hook = sessionEndHook({}, () => sessionEndOutput({}));
       expect(hook.hookEventName).toBe('SessionEnd');
     });
 
@@ -387,12 +405,12 @@ describe('Hook Factory Functions', () => {
 
       const hook = sessionEndHook({}, (input) => {
         receivedInput = input;
-        return { exitCode: 0, stdout: {} };
+        return sessionEndOutput({});
       });
 
       await hook(createSessionEndInput(), { logger: testLogger });
 
-      expect(receivedInput?.reason).toBe('user_exit');
+      expect(receivedInput?.reason).toBe('other');
     });
   });
 
@@ -427,15 +445,12 @@ describe('Hook Factory Functions', () => {
 
   describe('subagentStartHook', () => {
     it('returns a HookFunction with correct hookEventName', () => {
-      const hook = subagentStartHook({}, () => ({ exitCode: 0, stdout: {} }));
+      const hook = subagentStartHook({}, () => subagentStartOutput({}));
       expect(hook.hookEventName).toBe('SubagentStart');
     });
 
     it('supports matcher for agentType', () => {
-      const hook = subagentStartHook({ matcher: 'explore' }, () => ({
-        exitCode: 0,
-        stdout: {}
-      }));
+      const hook = subagentStartHook({ matcher: 'explore' }, () => subagentStartOutput({}));
       expect(hook.matcher).toBe('explore');
     });
 
@@ -444,7 +459,7 @@ describe('Hook Factory Functions', () => {
 
       const hook = subagentStartHook({}, (input) => {
         receivedInput = input;
-        return { exitCode: 0, stdout: {} };
+        return subagentStartOutput({});
       });
 
       await hook(createSubagentStartInput(), { logger: testLogger });
@@ -456,7 +471,7 @@ describe('Hook Factory Functions', () => {
 
   describe('subagentStopHook', () => {
     it('returns a HookFunction with correct hookEventName', () => {
-      const hook = subagentStopHook({}, () => ({ exitCode: 0, stdout: {} }));
+      const hook = subagentStopHook({}, () => subagentStopOutput({}));
       expect(hook.hookEventName).toBe('SubagentStop');
     });
 
@@ -465,7 +480,7 @@ describe('Hook Factory Functions', () => {
 
       const hook = subagentStopHook({}, (input) => {
         receivedInput = input;
-        return { exitCode: 0, stdout: {} };
+        return subagentStopOutput({});
       });
 
       await hook(createSubagentStopInput(), { logger: testLogger });
@@ -476,15 +491,12 @@ describe('Hook Factory Functions', () => {
 
   describe('preCompactHook', () => {
     it('returns a HookFunction with correct hookEventName', () => {
-      const hook = preCompactHook({}, () => ({ exitCode: 0, stdout: {} }));
+      const hook = preCompactHook({}, () => preCompactOutput({}));
       expect(hook.hookEventName).toBe('PreCompact');
     });
 
     it('supports matcher for trigger', () => {
-      const hook = preCompactHook({ matcher: 'manual' }, () => ({
-        exitCode: 0,
-        stdout: {}
-      }));
+      const hook = preCompactHook({ matcher: 'manual' }, () => preCompactOutput({}));
       expect(hook.matcher).toBe('manual');
     });
 
@@ -493,7 +505,7 @@ describe('Hook Factory Functions', () => {
 
       const hook = preCompactHook({}, (input) => {
         receivedInput = input;
-        return { exitCode: 0, stdout: {} };
+        return preCompactOutput({});
       });
 
       await hook(createPreCompactInput(), { logger: testLogger });
@@ -505,15 +517,12 @@ describe('Hook Factory Functions', () => {
 
   describe('permissionRequestHook', () => {
     it('returns a HookFunction with correct hookEventName', () => {
-      const hook = permissionRequestHook({}, () => ({ exitCode: 0, stdout: {} }));
+      const hook = permissionRequestHook({}, () => permissionRequestOutput({}));
       expect(hook.hookEventName).toBe('PermissionRequest');
     });
 
     it('supports matcher for toolName', () => {
-      const hook = permissionRequestHook({ matcher: 'Bash' }, () => ({
-        exitCode: 0,
-        stdout: {}
-      }));
+      const hook = permissionRequestHook({ matcher: 'Bash' }, () => permissionRequestOutput({}));
       expect(hook.matcher).toBe('Bash');
     });
 
@@ -522,7 +531,7 @@ describe('Hook Factory Functions', () => {
 
       const hook = permissionRequestHook({}, (input) => {
         receivedInput = input;
-        return { exitCode: 0, stdout: {} };
+        return permissionRequestOutput({});
       });
 
       await hook(createPermissionRequestInput(), { logger: testLogger });
@@ -535,7 +544,7 @@ describe('Hook Factory Functions', () => {
   describe('All factories share common behavior', () => {
     describe('preToolUseHook common behavior', () => {
       it('returns a callable async function', async () => {
-        const hook = preToolUseHook({}, () => ({ exitCode: 0, stdout: {} }));
+        const hook = preToolUseHook({}, () => preToolUseOutput({}));
         expect(typeof hook).toBe('function');
         const result = hook(createPreToolUseInput(), { logger: testLogger });
         expect(result).toBeInstanceOf(Promise);
@@ -545,12 +554,12 @@ describe('Hook Factory Functions', () => {
       });
 
       it('has undefined matcher when not provided', () => {
-        const hook = preToolUseHook({}, () => ({ exitCode: 0, stdout: {} }));
+        const hook = preToolUseHook({}, () => preToolUseOutput({}));
         expect(hook.matcher).toBeUndefined();
       });
 
       it('has undefined timeout when not provided', () => {
-        const hook = preToolUseHook({}, () => ({ exitCode: 0, stdout: {} }));
+        const hook = preToolUseHook({}, () => preToolUseOutput({}));
         expect(hook.timeout).toBeUndefined();
       });
 
@@ -559,14 +568,14 @@ describe('Hook Factory Functions', () => {
         const hook = preToolUseHook({}, async () => {
           await new Promise((resolve) => setTimeout(resolve, 10));
           executed = true;
-          return { exitCode: 0, stdout: {} };
+          return preToolUseOutput({});
         });
         await hook(createPreToolUseInput(), { logger: testLogger });
         expect(executed).toBe(true);
       });
 
-      it('supports sync handlers returning HookOutput', async () => {
-        const output: HookOutput = { exitCode: 0, stdout: { continue: true } };
+      it('supports sync handlers returning PreToolUseOutput', async () => {
+        const output = preToolUseOutput({ continue: true });
         const hook = preToolUseHook({}, () => output);
         const result = await hook(createPreToolUseInput(), { logger: testLogger });
         expect(result).toBe(output);
@@ -575,7 +584,7 @@ describe('Hook Factory Functions', () => {
 
     describe('sessionStartHook common behavior', () => {
       it('returns a callable async function', async () => {
-        const hook = sessionStartHook({}, () => ({ exitCode: 0, stdout: {} }));
+        const hook = sessionStartHook({}, () => sessionStartOutput({}));
         expect(typeof hook).toBe('function');
         const result = hook(createSessionStartInput(), { logger: testLogger });
         expect(result).toBeInstanceOf(Promise);
@@ -585,19 +594,19 @@ describe('Hook Factory Functions', () => {
       });
 
       it('has undefined matcher when not provided', () => {
-        const hook = sessionStartHook({}, () => ({ exitCode: 0, stdout: {} }));
+        const hook = sessionStartHook({}, () => sessionStartOutput({}));
         expect(hook.matcher).toBeUndefined();
       });
 
       it('has undefined timeout when not provided', () => {
-        const hook = sessionStartHook({}, () => ({ exitCode: 0, stdout: {} }));
+        const hook = sessionStartHook({}, () => sessionStartOutput({}));
         expect(hook.timeout).toBeUndefined();
       });
     });
 
     describe('stopHook common behavior', () => {
       it('returns a callable async function', async () => {
-        const hook = stopHook({}, () => ({ exitCode: 0, stdout: {} }));
+        const hook = stopHook({}, () => stopOutput({}));
         expect(typeof hook).toBe('function');
         const result = hook(createStopInput(), { logger: testLogger });
         expect(result).toBeInstanceOf(Promise);
@@ -609,7 +618,7 @@ describe('Hook Factory Functions', () => {
 
     describe('permissionRequestHook common behavior', () => {
       it('returns a callable async function', async () => {
-        const hook = permissionRequestHook({}, () => ({ exitCode: 0, stdout: {} }));
+        const hook = permissionRequestHook({}, () => permissionRequestOutput({}));
         expect(typeof hook).toBe('function');
         const result = hook(createPermissionRequestInput(), { logger: testLogger });
         expect(result).toBeInstanceOf(Promise);

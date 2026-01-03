@@ -20,6 +20,7 @@
  * @see https://code.claude.com/docs/en/hooks
  */
 import type { HookFunction } from './hooks.js';
+import type { HookOutput, SpecificHookOutput } from './outputs.js';
 import type { HookInput } from './types/inputs.js';
 /**
  * Deeply transforms object keys from snake_case to camelCase.
@@ -76,6 +77,20 @@ export declare function snakeToCamelCase<T>(obj: T): T;
  */
 export declare function camelToSnakeCase<T>(obj: T): T;
 /**
+ * Converts a SpecificHookOutput to HookOutput for wire format.
+ *
+ * SpecificHookOutput types have: { _type, exitCode, stdout, stderr? }
+ * HookOutput has: { exitCode, stdout, stderr? }
+ *
+ * Since output builders now produce wire-format directly, this function
+ * simply strips the `_type` discriminator field.
+ * @param specificOutput - The specific output from a hook handler
+ * @returns HookOutput ready for serialization
+ * @see https://code.claude.com/docs/en/hooks#hook-output-structure
+ * @example
+ */
+export declare function convertToHookOutput(specificOutput: SpecificHookOutput): HookOutput;
+/**
  * Executes a hook handler with full runtime orchestration.
  *
  * This is the main entry point that compiled hooks use. When a compiled hook
@@ -109,5 +124,7 @@ export declare function camelToSnakeCase<T>(obj: T): T;
  * ```
  * @see https://code.claude.com/docs/en/hooks
  */
-export declare function execute<TInput extends HookInput>(hookFn: HookFunction<TInput>): Promise<void>;
+export declare function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(
+  hookFn: HookFunction<TInput, TOutput>
+): Promise<void>;
 //# sourceMappingURL=runtime.d.ts.map

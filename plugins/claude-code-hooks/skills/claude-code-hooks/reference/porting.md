@@ -81,13 +81,20 @@ async function main() {
 
   // Check for dangerous commands
   if (toolName === 'Bash' && command.includes('rm -rf /')) {
-    const output = preToolUseOutput({ deny: 'Dangerous command blocked' });
+    const output = preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: 'Dangerous command blocked'
+      }
+    });
     process.stdout.write(JSON.stringify(output.stdout));
     process.exit(output.exitCode);
   }
 
   // Allow by default
-  const output = preToolUseOutput({ allow: true });
+  const output = preToolUseOutput({
+    hookSpecificOutput: { permissionDecision: 'allow' }
+  });
   process.stdout.write(JSON.stringify(output.stdout));
   process.exit(output.exitCode);
 }
@@ -155,7 +162,9 @@ import { readStdin, writeOutput } from './utils.js';
 async function main() {
   const input: PreToolUseInput = JSON.parse(await readStdin());
   // ... your logic
-  writeOutput(preToolUseOutput({ allow: true }));
+  writeOutput(preToolUseOutput({
+    hookSpecificOutput: { permissionDecision: 'allow' }
+  }));
 }
 
 main();
@@ -198,15 +207,27 @@ if (input.toolName === 'Bash') {
   const command = (input.toolInput as { command?: string })?.command ?? '';
 
   if (command.includes('sudo')) {
-    writeOutput(preToolUseOutput({ ask: 'Sudo command detected. Continue?' }));
+    writeOutput(preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'ask',
+        permissionDecisionReason: 'Sudo command detected. Continue?'
+      }
+    }));
   }
 
   if (command.includes('rm') && !command.includes('-i')) {
-    writeOutput(preToolUseOutput({ ask: 'Destructive command. Continue?' }));
+    writeOutput(preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'ask',
+        permissionDecisionReason: 'Destructive command. Continue?'
+      }
+    }));
   }
 }
 
-writeOutput(preToolUseOutput({ allow: true }));
+writeOutput(preToolUseOutput({
+  hookSpecificOutput: { permissionDecision: 'allow' }
+}));
 ```
 
 ### 5.2 File System Checks
@@ -225,7 +246,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 
 if (existsSync(join(input.cwd, '.no-delete'))) {
-  writeOutput(preToolUseOutput({ block: 'Deletions disabled' }));
+  writeOutput(preToolUseOutput({ stopReason: 'Deletions disabled' }));
 }
 ```
 
@@ -293,8 +314,8 @@ if (!process.env.ALLOW_DANGEROUS) {
 ### 6.1 Manual Testing
 
 ```bash
-# Test with sample input
-echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' | tsx .claude/hooks/pre-tool-use.ts
+# Test with sample input (camelCase for direct tsx testing)
+echo '{"hookEventName":"PreToolUse","toolName":"Bash","toolInput":{"command":"ls"}}' | tsx .claude/hooks/pre-tool-use.ts
 ```
 
 ### 6.2 Unit Testing with Vitest
@@ -307,14 +328,21 @@ describe('PreToolUse Hook Logic', () => {
   it('should allow safe commands', () => {
     const input = { toolName: 'Bash', toolInput: { command: 'ls -la' } };
     // Your logic here
-    const result = preToolUseOutput({ allow: true });
+    const result = preToolUseOutput({
+      hookSpecificOutput: { permissionDecision: 'allow' }
+    });
     expect(result.exitCode).toBe(0);
   });
 
   it('should block dangerous commands', () => {
     const input = { toolName: 'Bash', toolInput: { command: 'rm -rf /' } };
     // Your logic here
-    const result = preToolUseOutput({ deny: 'Dangerous command' });
+    const result = preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: 'Dangerous command'
+      }
+    });
     expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('deny');
   });
 });
@@ -369,13 +397,20 @@ async function main() {
   if (input.toolName === 'Bash') {
     const cmd = (input.toolInput as { command?: string })?.command ?? '';
     if (cmd.includes('rm -rf')) {
-      const output = preToolUseOutput({ deny: 'rm -rf blocked' });
+      const output = preToolUseOutput({
+        hookSpecificOutput: {
+          permissionDecision: 'deny',
+          permissionDecisionReason: 'rm -rf blocked'
+        }
+      });
       process.stdout.write(JSON.stringify(output.stdout));
       process.exit(output.exitCode);
     }
   }
 
-  const output = preToolUseOutput({ allow: true });
+  const output = preToolUseOutput({
+    hookSpecificOutput: { permissionDecision: 'allow' }
+  });
   process.stdout.write(JSON.stringify(output.stdout));
   process.exit(output.exitCode);
 }

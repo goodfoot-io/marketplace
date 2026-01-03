@@ -3,8 +3,8 @@
  *
  * Tests all 12 output builder functions for:
  * - Correct exit codes
- * - Correct JSON output structure
- * - BaseOptions (block, error, continue, suppressOutput, systemMessage)
+ * - Wire format output structure (hookSpecificOutput)
+ * - CommonOptions (stopReason, continue, suppressOutput, systemMessage)
  * - Hook-specific options
  * - Empty options semantics
  */
@@ -35,100 +35,106 @@ describe('EXIT_CODES', () => {
 });
 
 describe('preToolUseOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 and correct _type for empty options', () => {
     const result = preToolUseOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
-    expect(result.stderr).toBeUndefined();
+    expect(result._type).toBe('PreToolUse');
+    expect(result.stdout.hookSpecificOutput).toBeUndefined();
   });
 
-  it('produces allow decision with permissionDecision=allow', () => {
-    const result = preToolUseOutput({ allow: true });
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PreToolUse',
-      permissionDecision: 'allow',
-      updatedInput: undefined
+  it('produces allow decision in hookSpecificOutput', () => {
+    const result = preToolUseOutput({
+      hookSpecificOutput: { permissionDecision: 'allow' }
     });
+    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+    expect(result.stdout.hookSpecificOutput).toBeDefined();
+    expect(result.stdout.hookSpecificOutput?.hookEventName).toBe('PreToolUse');
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
+      expect(result.stdout.hookSpecificOutput.permissionDecision).toBe('allow');
+    }
   });
 
   it('produces allow decision with updatedInput', () => {
     const result = preToolUseOutput({
-      allow: true,
-      updatedInput: { command: 'ls -la' }
+      hookSpecificOutput: {
+        permissionDecision: 'allow',
+        updatedInput: { command: 'ls -la' }
+      }
     });
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PreToolUse',
-      permissionDecision: 'allow',
-      updatedInput: { command: 'ls -la' }
-    });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
+      expect(result.stdout.hookSpecificOutput.permissionDecision).toBe('allow');
+      expect(result.stdout.hookSpecificOutput.updatedInput).toEqual({ command: 'ls -la' });
+    }
   });
 
-  it('produces deny decision with permissionDecision=deny', () => {
-    const result = preToolUseOutput({ deny: 'Dangerous command' });
+  it('produces deny decision with reason', () => {
+    const result = preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: 'Dangerous command'
+      }
+    });
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PreToolUse',
-      permissionDecision: 'deny',
-      permissionDecisionReason: 'Dangerous command'
-    });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
+      expect(result.stdout.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(result.stdout.hookSpecificOutput.permissionDecisionReason).toBe('Dangerous command');
+    }
   });
 
-  it('produces ask decision with permissionDecision=ask', () => {
-    const result = preToolUseOutput({ ask: 'Are you sure?' });
+  it('produces ask decision with reason', () => {
+    const result = preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'ask',
+        permissionDecisionReason: 'Are you sure?'
+      }
+    });
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PreToolUse',
-      permissionDecision: 'ask',
-      permissionDecisionReason: 'Are you sure?'
-    });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
+      expect(result.stdout.hookSpecificOutput.permissionDecision).toBe('ask');
+      expect(result.stdout.hookSpecificOutput.permissionDecisionReason).toBe('Are you sure?');
+    }
   });
 
-  it('allows updatedInput without explicit allow', () => {
-    const result = preToolUseOutput({ updatedInput: { file: '/tmp/test' } });
+  it('allows updatedInput without explicit decision', () => {
+    const result = preToolUseOutput({
+      hookSpecificOutput: { updatedInput: { file: '/tmp/test' } }
+    });
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PreToolUse',
-      updatedInput: { file: '/tmp/test' }
-    });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
+      expect(result.stdout.hookSpecificOutput.updatedInput).toEqual({ file: '/tmp/test' });
+      expect(result.stdout.hookSpecificOutput.permissionDecision).toBeUndefined();
+    }
   });
 
-  it('handles block option with exit code 2', () => {
-    const result = preToolUseOutput({ block: 'Operation blocked' });
+  it('handles stopReason with exit code 2', () => {
+    const result = preToolUseOutput({ stopReason: 'Operation blocked' });
     expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
     expect(result.stdout.stopReason).toBe('Operation blocked');
     expect(result.stderr).toBe('Operation blocked');
   });
 
-  it('handles error option with exit code 1', () => {
-    const result = preToolUseOutput({ error: 'Something went wrong' });
-    expect(result.exitCode).toBe(EXIT_CODES.ERROR);
-    expect(result.stdout).toEqual({});
-    expect(result.stderr).toBe('Something went wrong');
-  });
-
-  it('handles systemMessage base option', () => {
+  it('handles systemMessage option', () => {
     const result = preToolUseOutput({
-      allow: true,
+      hookSpecificOutput: { permissionDecision: 'allow' },
       systemMessage: 'Tool was allowed'
     });
     expect(result.stdout.systemMessage).toBe('Tool was allowed');
   });
 
-  it('handles continue base option', () => {
-    const result = preToolUseOutput({ allow: true, continue: true });
+  it('handles continue option', () => {
+    const result = preToolUseOutput({ continue: true });
     expect(result.stdout.continue).toBe(true);
   });
 
-  it('handles suppressOutput base option', () => {
-    const result = preToolUseOutput({ allow: true, suppressOutput: true });
+  it('handles suppressOutput option', () => {
+    const result = preToolUseOutput({ suppressOutput: true });
     expect(result.stdout.suppressOutput).toBe(true);
   });
 
-  it('block option includes systemMessage when provided', () => {
+  it('stopReason includes systemMessage when provided', () => {
     const result = preToolUseOutput({
-      block: 'Blocked',
+      stopReason: 'Blocked',
       systemMessage: 'Contact admin'
     });
     expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
@@ -138,101 +144,90 @@ describe('preToolUseOutput', () => {
 });
 
 describe('postToolUseOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 for empty options', () => {
     const result = postToolUseOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
+    expect(result._type).toBe('PostToolUse');
   });
 
   it('produces additionalContext in hookSpecificOutput', () => {
-    const result = postToolUseOutput({ additionalContext: 'File was read' });
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PostToolUse',
-      additionalContext: 'File was read',
-      updatedMCPToolOutput: undefined
+    const result = postToolUseOutput({
+      hookSpecificOutput: { additionalContext: 'File was read' }
     });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PostToolUse') {
+      expect(result.stdout.hookSpecificOutput.additionalContext).toBe('File was read');
+    }
   });
 
   it('produces updatedMCPToolOutput in hookSpecificOutput', () => {
     const result = postToolUseOutput({
-      updatedMCPToolOutput: { modified: true, data: 'test' }
+      hookSpecificOutput: { updatedMCPToolOutput: { modified: true, data: 'test' } }
     });
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PostToolUse',
-      additionalContext: undefined,
-      updatedMCPToolOutput: { modified: true, data: 'test' }
-    });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PostToolUse') {
+      expect(result.stdout.hookSpecificOutput.updatedMCPToolOutput).toEqual({ modified: true, data: 'test' });
+    }
   });
 
-  it('handles block option', () => {
-    const result = postToolUseOutput({ block: 'Blocked after tool use' });
+  it('handles stopReason', () => {
+    const result = postToolUseOutput({ stopReason: 'Blocked after tool use' });
     expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
-    expect(result.stderr).toBe('Blocked after tool use');
-  });
-
-  it('handles error option', () => {
-    const result = postToolUseOutput({ error: 'Post-tool error' });
-    expect(result.exitCode).toBe(EXIT_CODES.ERROR);
-    expect(result.stderr).toBe('Post-tool error');
+    expect(result.stdout.stopReason).toBe('Blocked after tool use');
   });
 });
 
 describe('postToolUseFailureOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 for empty options', () => {
     const result = postToolUseFailureOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
+    expect(result._type).toBe('PostToolUseFailure');
   });
 
   it('produces additionalContext in hookSpecificOutput', () => {
     const result = postToolUseFailureOutput({
-      additionalContext: 'Try alternative approach'
+      hookSpecificOutput: { additionalContext: 'Try alternative approach' }
     });
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PostToolUseFailure',
-      additionalContext: 'Try alternative approach'
-    });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PostToolUseFailure') {
+      expect(result.stdout.hookSpecificOutput.additionalContext).toBe('Try alternative approach');
+    }
   });
 
-  it('handles block option', () => {
-    const result = postToolUseFailureOutput({ block: 'Critical failure' });
+  it('handles stopReason', () => {
+    const result = postToolUseFailureOutput({ stopReason: 'Critical failure' });
     expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
   });
 });
 
 describe('userPromptSubmitOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 for empty options', () => {
     const result = userPromptSubmitOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
+    expect(result._type).toBe('UserPromptSubmit');
   });
 
   it('produces additionalContext in hookSpecificOutput', () => {
     const result = userPromptSubmitOutput({
-      additionalContext: 'Project uses TypeScript'
+      hookSpecificOutput: { additionalContext: 'Project uses TypeScript' }
     });
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'UserPromptSubmit',
-      additionalContext: 'Project uses TypeScript'
-    });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'UserPromptSubmit') {
+      expect(result.stdout.hookSpecificOutput.additionalContext).toBe('Project uses TypeScript');
+    }
   });
 });
 
 describe('sessionStartOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 for empty options', () => {
     const result = sessionStartOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
+    expect(result._type).toBe('SessionStart');
   });
 
   it('produces additionalContext in hookSpecificOutput', () => {
     const result = sessionStartOutput({
-      additionalContext: JSON.stringify({ initialized: true })
+      hookSpecificOutput: { additionalContext: JSON.stringify({ initialized: true }) }
     });
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'SessionStart',
-      additionalContext: '{"initialized":true}'
-    });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'SessionStart') {
+      expect(result.stdout.hookSpecificOutput.additionalContext).toBe('{"initialized":true}');
+    }
   });
 
   it('handles systemMessage without additionalContext', () => {
@@ -243,10 +238,10 @@ describe('sessionStartOutput', () => {
 });
 
 describe('sessionEndOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 for empty options', () => {
     const result = sessionEndOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
+    expect(result._type).toBe('SessionEnd');
   });
 
   it('handles systemMessage', () => {
@@ -254,31 +249,32 @@ describe('sessionEndOutput', () => {
     expect(result.stdout.systemMessage).toBe('Session cleanup complete');
   });
 
-  it('handles block option', () => {
-    const result = sessionEndOutput({ block: 'Cannot end session' });
+  it('handles stopReason', () => {
+    const result = sessionEndOutput({ stopReason: 'Cannot end session' });
     expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
   });
 });
 
 describe('stopOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 with approve decision for empty options', () => {
     const result = stopOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
+    expect(result._type).toBe('Stop');
+    expect(result.stdout.decision).toBe('approve');
   });
 
-  it('produces approve decision at top-level', () => {
+  it('produces approve decision', () => {
     const result = stopOutput({ decision: 'approve' });
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result.stdout.decision).toBe('approve');
   });
 
-  it('produces block decision with reason at top-level', () => {
+  it('produces block decision with reason and exit code 2', () => {
     const result = stopOutput({
       decision: 'block',
       reason: 'Uncommitted changes present'
     });
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+    expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
     expect(result.stdout.decision).toBe('block');
     expect(result.stdout.reason).toBe('Uncommitted changes present');
   });
@@ -292,51 +288,54 @@ describe('stopOutput', () => {
     expect(result.stdout.systemMessage).toBe('Please commit before stopping');
     expect(result.stdout.decision).toBe('block');
   });
-
-  it('block base option overrides decision', () => {
-    // When block base option is used, it takes precedence
-    const result = stopOutput({ block: 'Hard block' });
-    expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
-    expect(result.stdout.stopReason).toBe('Hard block');
-  });
 });
 
 describe('subagentStartOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 for empty options', () => {
     const result = subagentStartOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
+    expect(result._type).toBe('SubagentStart');
   });
 
   it('produces additionalContext in hookSpecificOutput', () => {
     const result = subagentStartOutput({
-      additionalContext: 'Focus on patterns'
+      hookSpecificOutput: { additionalContext: 'Focus on patterns' }
     });
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'SubagentStart',
-      additionalContext: 'Focus on patterns'
-    });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'SubagentStart') {
+      expect(result.stdout.hookSpecificOutput.additionalContext).toBe('Focus on patterns');
+    }
   });
 });
 
 describe('subagentStopOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 with approve decision for empty options', () => {
     const result = subagentStopOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
+    expect(result._type).toBe('SubagentStop');
+    expect(result.stdout.decision).toBe('approve');
   });
 
   it('handles systemMessage', () => {
     const result = subagentStopOutput({ systemMessage: 'Subagent completed' });
     expect(result.stdout.systemMessage).toBe('Subagent completed');
   });
+
+  it('produces block decision with exit code 2', () => {
+    const result = subagentStopOutput({
+      decision: 'block',
+      reason: 'Task incomplete'
+    });
+    expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
+    expect(result.stdout.decision).toBe('block');
+    expect(result.stdout.reason).toBe('Task incomplete');
+  });
 });
 
 describe('notificationOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 for empty options', () => {
     const result = notificationOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
+    expect(result._type).toBe('Notification');
   });
 
   it('handles systemMessage', () => {
@@ -348,10 +347,10 @@ describe('notificationOutput', () => {
 });
 
 describe('preCompactOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 for empty options', () => {
     const result = preCompactOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
+    expect(result._type).toBe('PreCompact');
   });
 
   it('handles systemMessage for context preservation', () => {
@@ -363,37 +362,39 @@ describe('preCompactOutput', () => {
 });
 
 describe('permissionRequestOutput', () => {
-  it('produces exit 0 and empty JSON for empty options', () => {
+  it('produces exit 0 for empty options', () => {
     const result = permissionRequestOutput({});
     expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-    expect(result.stdout).toEqual({});
+    expect(result._type).toBe('PermissionRequest');
+    expect(result.stdout.hookSpecificOutput).toBeUndefined();
   });
 
   it('produces allow decision in hookSpecificOutput', () => {
-    const result = permissionRequestOutput({ allow: true });
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PermissionRequest',
-      decision: {
-        behavior: 'allow',
-        updatedInput: undefined,
-        updatedPermissions: undefined
+    const result = permissionRequestOutput({
+      hookSpecificOutput: {
+        decision: { behavior: 'allow' }
       }
     });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PermissionRequest') {
+      expect(result.stdout.hookSpecificOutput.decision).toEqual({ behavior: 'allow' });
+    }
   });
 
   it('produces allow decision with updatedInput', () => {
     const result = permissionRequestOutput({
-      allow: true,
-      updatedInput: { file_path: '/safe/path/file.txt' }
-    });
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PermissionRequest',
-      decision: {
-        behavior: 'allow',
-        updatedInput: { file_path: '/safe/path/file.txt' },
-        updatedPermissions: undefined
+      hookSpecificOutput: {
+        decision: {
+          behavior: 'allow',
+          updatedInput: { file_path: '/safe/path/file.txt' }
+        }
       }
     });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PermissionRequest') {
+      expect(result.stdout.hookSpecificOutput.decision).toEqual({
+        behavior: 'allow',
+        updatedInput: { file_path: '/safe/path/file.txt' }
+      });
+    }
   });
 
   it('produces allow decision with updatedPermissions', () => {
@@ -406,54 +407,58 @@ describe('permissionRequestOutput', () => {
       }
     ];
     const result = permissionRequestOutput({
-      allow: true,
-      updatedPermissions
-    });
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PermissionRequest',
-      decision: {
-        behavior: 'allow',
-        updatedInput: undefined,
-        updatedPermissions
+      hookSpecificOutput: {
+        decision: {
+          behavior: 'allow',
+          updatedPermissions
+        }
       }
     });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PermissionRequest') {
+      expect(result.stdout.hookSpecificOutput.decision).toEqual({
+        behavior: 'allow',
+        updatedPermissions
+      });
+    }
   });
 
-  it('produces deny decision in hookSpecificOutput', () => {
-    const result = permissionRequestOutput({ deny: true });
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PermissionRequest',
-      decision: {
-        behavior: 'deny',
-        message: undefined,
-        interrupt: undefined
+  it('produces deny decision', () => {
+    const result = permissionRequestOutput({
+      hookSpecificOutput: {
+        decision: { behavior: 'deny' }
       }
     });
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PermissionRequest') {
+      expect(result.stdout.hookSpecificOutput.decision).toEqual({ behavior: 'deny' });
+    }
   });
 
   it('produces deny decision with message and interrupt', () => {
     const result = permissionRequestOutput({
-      deny: true,
-      message: 'Operation not allowed',
-      interrupt: true
+      hookSpecificOutput: {
+        decision: {
+          behavior: 'deny',
+          message: 'Operation not allowed',
+          interrupt: true
+        }
+      }
     });
-    expect(result.stdout.hookSpecificOutput).toEqual({
-      hookEventName: 'PermissionRequest',
-      decision: {
+    if (result.stdout.hookSpecificOutput?.hookEventName === 'PermissionRequest') {
+      expect(result.stdout.hookSpecificOutput.decision).toEqual({
         behavior: 'deny',
         message: 'Operation not allowed',
         interrupt: true
-      }
-    });
+      });
+    }
   });
 
-  it('handles block option', () => {
-    const result = permissionRequestOutput({ block: 'Permission denied' });
+  it('handles stopReason', () => {
+    const result = permissionRequestOutput({ stopReason: 'Permission denied' });
     expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
   });
 });
 
-describe('BaseOptions handling across all builders', () => {
+describe('CommonOptions handling across all builders', () => {
   const outputBuilders = [
     { name: 'preToolUseOutput', fn: preToolUseOutput },
     { name: 'postToolUseOutput', fn: postToolUseOutput },
@@ -471,21 +476,30 @@ describe('BaseOptions handling across all builders', () => {
 
   for (const { name, fn } of outputBuilders) {
     describe(`${name}`, () => {
-      it('block option produces exit code 2', () => {
-        const result = fn({ block: 'Test block' });
+      it('stopReason produces exit code 2', () => {
+        const result = fn({ stopReason: 'Test block' });
         expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
-        expect(result.stderr).toBe('Test block');
-      });
-
-      it('error option produces exit code 1', () => {
-        const result = fn({ error: 'Test error' });
-        expect(result.exitCode).toBe(EXIT_CODES.ERROR);
-        expect(result.stderr).toBe('Test error');
+        expect(result.stdout.stopReason).toBe('Test block');
       });
 
       it('empty options produces exit code 0', () => {
         const result = fn({});
         expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+      });
+
+      it('continue option is preserved', () => {
+        const result = fn({ continue: true });
+        expect(result.stdout.continue).toBe(true);
+      });
+
+      it('suppressOutput option is preserved', () => {
+        const result = fn({ suppressOutput: true });
+        expect(result.stdout.suppressOutput).toBe(true);
+      });
+
+      it('systemMessage option is preserved', () => {
+        const result = fn({ systemMessage: 'Test message' });
+        expect(result.stdout.systemMessage).toBe('Test message');
       });
     });
   }

@@ -4,9 +4,9 @@
  * Provides utilities to build hook fixtures using the CLI before tests run.
  */
 
+import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -34,11 +34,15 @@ const CLI_PATH = path.join(__dirname, '..', 'src', 'cli', 'index.ts');
 
 /**
  * Builds a single test hook fixture.
- *
  * @param fixtureFile - Name of the fixture file (e.g., 'deny-bash-hook.ts')
- * @returns Path to the generated hooks.json
+ * @returns Path to the output directory containing the compiled hook
+ * @example
+ * ```typescript
+ * const outputDir = buildSingleHook('deny-bash-hook.ts');
+ * // outputDir: '/path/to/e2e/dist/deny-bash-hook'
+ * ```
  */
-export async function buildSingleHook(fixtureFile: string): Promise<string> {
+export function buildSingleHook(fixtureFile: string): string {
   const hookPath = path.join(FIXTURES_DIR, fixtureFile);
   const outputDir = path.join(DIST_DIR, path.basename(fixtureFile, '.ts'));
   const outputPath = path.join(outputDir, 'hooks.json');
@@ -60,10 +64,14 @@ export async function buildSingleHook(fixtureFile: string): Promise<string> {
 
 /**
  * Builds all test hook fixtures.
- *
- * @returns Path to the directory containing all compiled hooks
+ * @returns Path to the dist directory containing all compiled hooks
+ * @example
+ * ```typescript
+ * const distDir = buildAllHooks();
+ * // distDir: '/path/to/e2e/dist'
+ * ```
  */
-export async function buildAllHooks(): Promise<string> {
+export function buildAllHooks(): string {
   // Ensure dist directory exists
   if (!fs.existsSync(DIST_DIR)) {
     fs.mkdirSync(DIST_DIR, { recursive: true });
@@ -80,7 +88,24 @@ export async function buildAllHooks(): Promise<string> {
 }
 
 /**
- * Cleans up the dist directory.
+ * Cleans up a specific output directory.
+ * @param outputDir - The directory to clean (e.g., from buildSingleHook return value)
+ * @example
+ * ```typescript
+ * const pluginDir = buildSingleHook('deny-bash-hook.ts');
+ * // ... run tests ...
+ * cleanOutputDir(pluginDir); // Only removes this specific hook's directory
+ * ```
+ */
+export function cleanOutputDir(outputDir: string): void {
+  if (fs.existsSync(outputDir)) {
+    fs.rmSync(outputDir, { recursive: true });
+  }
+}
+
+/**
+ * @deprecated Use cleanOutputDir(pluginDir) instead to avoid race conditions between tests.
+ * Cleans up the entire dist directory - only use when running tests serially.
  */
 export function cleanDist(): void {
   if (fs.existsSync(DIST_DIR)) {
@@ -90,9 +115,13 @@ export function cleanDist(): void {
 
 /**
  * Creates a minimal plugin directory structure for a single hook.
- *
  * @param hookOutputDir - The directory containing the compiled hook and hooks.json
- * @returns Path to the plugin directory
+ * @returns Path to the plugin directory (same as input for simple cases)
+ * @example
+ * ```typescript
+ * const pluginDir = getPluginDir('/path/to/hook-output');
+ * // Use pluginDir with --plugin-dir flag
+ * ```
  */
 export function getPluginDir(hookOutputDir: string): string {
   return hookOutputDir;
@@ -118,11 +147,16 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
 
 /**
  * Runs a function with exponential backoff retry logic.
- *
  * @param fn - The async function to execute
- * @param config - Retry configuration
- * @returns The result of the function
+ * @param config - Retry configuration (defaults to 3 retries with 2s base delay)
+ * @returns The result of the function if successful
  * @throws The last error if all retries fail
+ * @example
+ * ```typescript
+ * const result = await runWithRetry(async () => {
+ *   return await fetchData();
+ * }, { maxRetries: 5, baseDelayMs: 1000 });
+ * ```
  */
 export async function runWithRetry<T>(fn: () => Promise<T>, config: RetryConfig = DEFAULT_RETRY_CONFIG): Promise<T> {
   let lastError: Error | undefined;
@@ -146,8 +180,12 @@ export async function runWithRetry<T>(fn: () => Promise<T>, config: RetryConfig 
 
 /**
  * Sleep for a specified duration.
- *
- * @param ms - Duration in milliseconds
+ * @param ms - Duration in milliseconds to wait
+ * @returns A promise that resolves after the specified duration
+ * @example
+ * ```typescript
+ * await sleep(1000); // Wait 1 second
+ * ```
  */
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -102,7 +102,9 @@ async function main() {
   // (logging to file - see logging.md for details)
 
   // Allow all tools by default
-  const output = preToolUseOutput({ allow: true });
+  const output = preToolUseOutput({
+    hookSpecificOutput: { permissionDecision: 'allow' }
+  });
   process.stdout.write(JSON.stringify(output.stdout));
   process.exit(output.exitCode);
 }
@@ -115,10 +117,10 @@ main();
 Test the hook manually by piping JSON input:
 
 ```bash
-echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls -la"}}' | tsx .claude/hooks/pre-tool-use.ts
+echo '{"hookEventName":"PreToolUse","toolName":"Bash","toolInput":{"command":"ls -la"}}' | tsx .claude/hooks/pre-tool-use.ts
 ```
 
-Expected output:
+Expected output (when using `hookSpecificOutput`):
 ```json
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}
 ```
@@ -169,7 +171,9 @@ async function main() {
   // Access input fields in camelCase: input.toolName, input.toolInput, etc.
 
   // Return appropriate output
-  const output = preToolUseOutput({ allow: true });
+  const output = preToolUseOutput({
+    hookSpecificOutput: { permissionDecision: 'allow' }
+  });
   process.stdout.write(JSON.stringify(output.stdout));
   process.exit(output.exitCode);
 }

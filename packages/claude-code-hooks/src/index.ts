@@ -34,6 +34,7 @@ export type {
   HookEventName,
   PermissionMode,
   SessionStartSource,
+  SessionEndReason,
   PreCompactTrigger,
   PermissionUpdate
 } from './types/inputs.js';
@@ -60,6 +61,8 @@ export type {
   PermissionRequestAllowDecision,
   PermissionRequestDenyDecision,
   // Options types for output builders
+  CommonOptions,
+  /** @deprecated Use CommonOptions instead */
   BaseOptions,
   PreToolUseOptions,
   PostToolUseOptions,
@@ -155,3 +158,16 @@ export {
   snakeToCamelCase,
   camelToSnakeCase
 } from './runtime.js';
+
+// Environment variable utilities
+export {
+  // Environment variable name constants
+  CLAUDE_ENV_VARS,
+  // Getters
+  getProjectDir,
+  getEnvFilePath,
+  isRemoteEnvironment,
+  // Persistence utilities (SessionStart only)
+  persistEnvVar,
+  persistEnvVars
+} from './env.js';

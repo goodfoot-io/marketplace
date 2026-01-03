@@ -1,0 +1,152 @@
+/**
+ * Shared utilities for E2E tests.
+ */
+
+import { execSync } from 'node:child_process';
+import * as fs from 'node:fs';
+
+/**
+ * Represents a compiled hook entry in hooks.json.
+ */
+export interface CompiledHookEntry {
+  type: string;
+  command: string;
+}
+
+/**
+ * Represents a matcher entry in hooks.json.
+ */
+export interface MatcherEntry {
+  matcher?: string;
+  hooks: CompiledHookEntry[];
+}
+
+/**
+ * Represents the hooks.json file structure.
+ */
+export interface HooksJson {
+  __generated: {
+    files: string[];
+    timestamp: string;
+  };
+  hooks: {
+    PreToolUse?: MatcherEntry[];
+    PostToolUse?: MatcherEntry[];
+    SessionStart?: MatcherEntry[];
+    UserPromptSubmit?: MatcherEntry[];
+    PreCompact?: MatcherEntry[];
+    PermissionRequest?: MatcherEntry[];
+    Stop?: MatcherEntry[];
+    Notification?: MatcherEntry[];
+  };
+}
+
+/**
+ * Reads and parses a hooks.json file with proper typing.
+ * @param hooksJsonPath - Absolute path to the hooks.json file
+ * @returns Parsed hooks.json content with typed structure
+ * @example
+ * ```typescript
+ * const hooks = readHooksJson('/path/to/hooks.json');
+ * console.log(hooks.hooks.PreToolUse);
+ * ```
+ */
+export function readHooksJson(hooksJsonPath: string): HooksJson {
+  return JSON.parse(fs.readFileSync(hooksJsonPath, 'utf-8')) as HooksJson;
+}
+
+/**
+ * Quick synchronous check if Claude CLI binary exists.
+ * @returns True if the `claude` command is available in PATH
+ * @example
+ * ```typescript
+ * if (isClaudeBinaryAvailable()) {
+ *   // Run tests that require Claude CLI
+ * }
+ * ```
+ */
+export function isClaudeBinaryAvailable(): boolean {
+  try {
+    execSync('which claude', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether the Claude CLI is available in the environment.
+ */
+export const CLAUDE_AVAILABLE = isClaudeBinaryAvailable();
+
+/**
+ * Options for running the Claude CLI.
+ */
+export interface RunClaudeOptions {
+  prompt: string;
+  pluginDir?: string;
+  timeout?: number;
+  tools?: string[];
+}
+
+/**
+ * Result from running the Claude CLI.
+ */
+export interface RunClaudeResult {
+  stdout: string;
+  stderr: string;
+}
+
+/**
+ * Run claude CLI with given options.
+ * @param options - CLI options including prompt, pluginDir, timeout, and tools
+ * @returns Object containing stdout and stderr from the command
+ * @example
+ * ```typescript
+ * const result = runClaude({
+ *   prompt: 'Hello, Claude!',
+ *   pluginDir: '/path/to/plugin',
+ *   timeout: 30000
+ * });
+ * console.log(result.stdout);
+ * ```
+ */
+export function runClaude(options: RunClaudeOptions): RunClaudeResult {
+  const { prompt, pluginDir, timeout = 60000, tools } = options;
+
+  // Build args: flags first, then prompt, then --plugin-dir and --tools
+  // The prompt must come BEFORE --tools and --plugin-dir due to CLI arg parsing
+  const args: string[] = ['--print', '--model', 'haiku', '--no-session-persistence', '--dangerously-skip-permissions'];
+
+  // Add prompt before --plugin-dir and --tools
+  args.push(prompt);
+
+  if (pluginDir) {
+    args.push('--plugin-dir', pluginDir);
+  }
+
+  if (tools && tools.length > 0) {
+    args.push('--tools', tools.join(','));
+  }
+
+  const cmd = `claude ${args.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(' ')}`;
+  try {
+    const stdout = execSync(cmd, {
+      encoding: 'utf-8',
+      timeout,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    return { stdout, stderr: '' };
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'stdout' in error && 'stderr' in error) {
+      const execError = error as { stdout: Buffer | string | null; stderr: Buffer | string | null };
+      const stdout = execError.stdout;
+      const stderr = execError.stderr;
+      return {
+        stdout: typeof stdout === 'string' ? stdout : (stdout?.toString() ?? ''),
+        stderr: typeof stderr === 'string' ? stderr : (stderr?.toString() ?? '')
+      };
+    }
+    throw error;
+  }
+}
