@@ -53,6 +53,7 @@ import type {
   PreCompactOutput,
   PermissionRequestOutput
 } from './outputs.js';
+import type { ToolInputMap, KnownToolName } from './tool-inputs.js';
 
 // ============================================================================
 // Configuration Types
@@ -144,6 +145,79 @@ export interface HookConfig {
    */
   timeout?: number;
 }
+
+// ============================================================================
+// Typed Configuration Types (for single-tool matchers)
+// ============================================================================
+
+/**
+ * Configuration for hooks with a known single-tool matcher.
+ *
+ * When the matcher is a single known tool name, the handler receives
+ * automatically typed toolInput based on the tool type.
+ * @template T - The known tool name
+ * @example
+ * ```typescript
+ * // toolInput is automatically typed as WriteToolInput
+ * preToolUseHook({ matcher: 'Write' }, (input) => {
+ *   console.log(input.toolInput.file_path); // Typed!
+ *   console.log(input.toolInput.content);   // Typed!
+ * });
+ * ```
+ */
+export interface TypedHookConfig<T extends KnownToolName> {
+  /**
+   * The single tool name to match.
+   * When this is a known tool name, toolInput will be automatically typed.
+   */
+  matcher: T;
+  /**
+   * Handler execution timeout in milliseconds.
+   */
+  timeout?: number;
+}
+
+/**
+ * PreToolUseInput with typed toolInput for a specific tool.
+ * @template T - The known tool name
+ */
+export type TypedPreToolUseInput<T extends KnownToolName> = Omit<PreToolUseInput, 'toolName' | 'toolInput'> & {
+  toolName: T;
+  toolInput: ToolInputMap[T];
+};
+
+/**
+ * PostToolUseInput with typed toolInput for a specific tool.
+ * @template T - The known tool name
+ */
+export type TypedPostToolUseInput<T extends KnownToolName> = Omit<PostToolUseInput, 'toolName' | 'toolInput'> & {
+  toolName: T;
+  toolInput: ToolInputMap[T];
+};
+
+/**
+ * PostToolUseFailureInput with typed toolInput for a specific tool.
+ * @template T - The known tool name
+ */
+export type TypedPostToolUseFailureInput<T extends KnownToolName> = Omit<
+  PostToolUseFailureInput,
+  'toolName' | 'toolInput'
+> & {
+  toolName: T;
+  toolInput: ToolInputMap[T];
+};
+
+/**
+ * PermissionRequestInput with typed toolInput for a specific tool.
+ * @template T - The known tool name
+ */
+export type TypedPermissionRequestInput<T extends KnownToolName> = Omit<
+  PermissionRequestInput,
+  'toolName' | 'toolInput'
+> & {
+  toolName: T;
+  toolInput: ToolInputMap[T];
+};
 
 /**
  * Context provided to hook handlers.
@@ -335,6 +409,10 @@ function createHookFunction<TInput, TOutput extends SpecificHookOutput, TContext
  * - Add custom permission logic
  *
  * **Matcher**: Matches against `toolName` (e.g., 'Bash', 'Read', 'Write')
+ *
+ * **Typed Overload**: When the matcher is a single known tool name (Write, Edit,
+ * MultiEdit, Read, Bash, Glob, Grep), the handler receives automatically typed
+ * `toolInput` based on the tool type.
  * @param config - Hook configuration with optional matcher and timeout
  * @param handler - The handler function to execute
  * @returns A hook function that can be exported as the default export
@@ -342,31 +420,47 @@ function createHookFunction<TInput, TOutput extends SpecificHookOutput, TContext
  * ```typescript
  * import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
  *
- * // Block dangerous Bash commands
+ * // Typed overload: toolInput is automatically typed as BashToolInput
  * export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => {
- *   const command = input.toolInput.command as string;
- *
- *   if (command.includes('rm -rf')) {
- *     logger.warn('Blocking destructive command', { command });
+ *   // input.toolInput.command is typed as string - no cast needed!
+ *   if (input.toolInput.command.includes('rm -rf')) {
+ *     logger.warn('Blocking destructive command', { command: input.toolInput.command });
  *     return preToolUseOutput({
- *       deny: 'Destructive commands are not allowed'
+ *       hookSpecificOutput: {
+ *         permissionDecision: 'deny',
+ *         permissionDecisionReason: 'Destructive commands are not allowed'
+ *       }
  *     });
  *   }
  *
- *   return preToolUseOutput({ allow: true });
+ *   return preToolUseOutput({
+ *     hookSpecificOutput: { permissionDecision: 'allow' }
+ *   });
  * });
  * ```
  * @example
  * ```typescript
- * // Modify tool input before execution
- * export default preToolUseHook({ matcher: 'Bash' }, async (input) => {
- *   return preToolUseOutput({
- *     allow: true,
- *     updatedInput: { command: `timeout 30 ${input.toolInput.command}` }
- *   });
+ * // Typed overload: toolInput is automatically typed as WriteToolInput
+ * export default preToolUseHook({ matcher: 'Write' }, (input) => {
+ *   const { file_path, content } = input.toolInput; // Full autocomplete!
+ *   // ...
  * });
  * ```
  * @see https://code.claude.com/docs/en/hooks#pretooluse
+ */
+export function preToolUseHook<T extends KnownToolName>(
+  config: TypedHookConfig<T>,
+  handler: HookHandler<TypedPreToolUseInput<T>, PreToolUseOutput>
+): HookFunction<TypedPreToolUseInput<T>, PreToolUseOutput>;
+export function preToolUseHook(
+  config: HookConfig,
+  handler: HookHandler<PreToolUseInput, PreToolUseOutput>
+): HookFunction<PreToolUseInput, PreToolUseOutput>;
+/**
+ *
+ * @param config
+ * @param handler
+ * @example
  */
 export function preToolUseHook(
   config: HookConfig,
@@ -388,6 +482,9 @@ export function preToolUseHook(
  * - Modify MCP tool output
  *
  * **Matcher**: Matches against `toolName`
+ *
+ * **Typed Overload**: When the matcher is a single known tool name, the handler
+ * receives automatically typed `toolInput` based on the tool type.
  * @param config - Hook configuration with optional matcher and timeout
  * @param handler - The handler function to execute
  * @returns A hook function that can be exported as the default export
@@ -395,17 +492,33 @@ export function preToolUseHook(
  * ```typescript
  * import { postToolUseHook, postToolUseOutput } from '@goodfoot/claude-code-hooks';
  *
- * // Add context after file reads
+ * // Typed overload: toolInput is automatically typed as ReadToolInput
  * export default postToolUseHook({ matcher: 'Read' }, async (input, { logger }) => {
- *   const filePath = input.toolInput.file_path as string;
- *   logger.info('File read completed', { filePath });
+ *   // input.toolInput.file_path is typed as string - no cast needed!
+ *   logger.info('File read completed', { filePath: input.toolInput.file_path });
  *
  *   return postToolUseOutput({
- *     additionalContext: `File ${filePath} was read successfully`
+ *     hookSpecificOutput: {
+ *       additionalContext: `File ${input.toolInput.file_path} was read successfully`
+ *     }
  *   });
  * });
  * ```
  * @see https://code.claude.com/docs/en/hooks#posttooluse
+ */
+export function postToolUseHook<T extends KnownToolName>(
+  config: TypedHookConfig<T>,
+  handler: HookHandler<TypedPostToolUseInput<T>, PostToolUseOutput>
+): HookFunction<TypedPostToolUseInput<T>, PostToolUseOutput>;
+export function postToolUseHook(
+  config: HookConfig,
+  handler: HookHandler<PostToolUseInput, PostToolUseOutput>
+): HookFunction<PostToolUseInput, PostToolUseOutput>;
+/**
+ *
+ * @param config
+ * @param handler
+ * @example
  */
 export function postToolUseHook(
   config: HookConfig,
@@ -427,6 +540,9 @@ export function postToolUseHook(
  * - Take corrective action
  *
  * **Matcher**: Matches against `toolName`
+ *
+ * **Typed Overload**: When the matcher is a single known tool name, the handler
+ * receives automatically typed `toolInput` based on the tool type.
  * @param config - Hook configuration with optional matcher and timeout
  * @param handler - The handler function to execute
  * @returns A hook function that can be exported as the default export
@@ -435,18 +551,35 @@ export function postToolUseHook(
  * import { postToolUseFailureHook, postToolUseFailureOutput } from '@goodfoot/claude-code-hooks';
  *
  * // Log tool failures and suggest alternatives
- * export default postToolUseFailureHook({ matcher: '.*' }, async (input, { logger }) => {
- *   logger.error('Tool failed', {
- *     toolName: input.toolName,
+ * export default postToolUseFailureHook({ matcher: 'Bash' }, async (input, { logger }) => {
+ *   // input.toolInput.command is typed as string
+ *   logger.error('Bash command failed', {
+ *     command: input.toolInput.command,
  *     error: input.error
  *   });
  *
  *   return postToolUseFailureOutput({
- *     additionalContext: 'Please try an alternative approach'
+ *     hookSpecificOutput: {
+ *       additionalContext: 'Please try an alternative approach'
+ *     }
  *   });
  * });
  * ```
  * @see https://code.claude.com/docs/en/hooks#posttoolusefailure
+ */
+export function postToolUseFailureHook<T extends KnownToolName>(
+  config: TypedHookConfig<T>,
+  handler: HookHandler<TypedPostToolUseFailureInput<T>, PostToolUseFailureOutput>
+): HookFunction<TypedPostToolUseFailureInput<T>, PostToolUseFailureOutput>;
+export function postToolUseFailureHook(
+  config: HookConfig,
+  handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>
+): HookFunction<PostToolUseFailureInput, PostToolUseFailureOutput>;
+/**
+ *
+ * @param config
+ * @param handler
+ * @example
  */
 export function postToolUseFailureHook(
   config: HookConfig,
@@ -835,6 +968,9 @@ export function preCompactHook(
  * - Modify tool inputs before approval
  *
  * **Matcher**: Matches against `toolName`
+ *
+ * **Typed Overload**: When the matcher is a single known tool name, the handler
+ * receives automatically typed `toolInput` based on the tool type.
  * @param config - Hook configuration with optional matcher and timeout
  * @param handler - The handler function to execute
  * @returns A hook function that can be exported as the default export
@@ -842,13 +978,14 @@ export function preCompactHook(
  * ```typescript
  * import { permissionRequestHook, permissionRequestOutput } from '@goodfoot/claude-code-hooks';
  *
- * // Auto-approve read operations in allowed directories
+ * // Typed overload: toolInput is automatically typed as ReadToolInput
  * export default permissionRequestHook({ matcher: 'Read' }, async (input, { logger }) => {
- *   const filePath = input.toolInput.file_path as string;
- *
- *   if (filePath.startsWith('/allowed/')) {
- *     logger.info('Auto-approving read in allowed directory', { filePath });
- *     return permissionRequestOutput({ allow: true });
+ *   // input.toolInput.file_path is typed as string - no cast needed!
+ *   if (input.toolInput.file_path.startsWith('/allowed/')) {
+ *     logger.info('Auto-approving read in allowed directory', { filePath: input.toolInput.file_path });
+ *     return permissionRequestOutput({
+ *       hookSpecificOutput: { decision: { behavior: 'allow' } }
+ *     });
  *   }
  *
  *   // Fall through to normal permission prompt
@@ -857,16 +994,19 @@ export function preCompactHook(
  * ```
  * @example
  * ```typescript
- * // Auto-deny dangerous operations
+ * // Typed overload: toolInput is automatically typed as BashToolInput
  * export default permissionRequestHook({ matcher: 'Bash' }, async (input, { logger }) => {
- *   const command = input.toolInput.command as string;
- *
- *   if (command.includes('sudo')) {
- *     logger.warn('Denying sudo command', { command });
+ *   // input.toolInput.command is typed as string - no cast needed!
+ *   if (input.toolInput.command.includes('sudo')) {
+ *     logger.warn('Denying sudo command', { command: input.toolInput.command });
  *     return permissionRequestOutput({
- *       deny: true,
- *       message: 'sudo commands are not allowed',
- *       interrupt: true
+ *       hookSpecificOutput: {
+ *         decision: {
+ *           behavior: 'deny',
+ *           message: 'sudo commands are not allowed',
+ *           interrupt: true
+ *         }
+ *       }
  *     });
  *   }
  *
@@ -874,6 +1014,20 @@ export function preCompactHook(
  * });
  * ```
  * @see https://code.claude.com/docs/en/hooks#permissionrequest
+ */
+export function permissionRequestHook<T extends KnownToolName>(
+  config: TypedHookConfig<T>,
+  handler: HookHandler<TypedPermissionRequestInput<T>, PermissionRequestOutput>
+): HookFunction<TypedPermissionRequestInput<T>, PermissionRequestOutput>;
+export function permissionRequestHook(
+  config: HookConfig,
+  handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>
+): HookFunction<PermissionRequestInput, PermissionRequestOutput>;
+/**
+ *
+ * @param config
+ * @param handler
+ * @example
  */
 export function permissionRequestHook(
   config: HookConfig,

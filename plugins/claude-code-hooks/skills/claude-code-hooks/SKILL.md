@@ -33,19 +33,19 @@ import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
 
 // 1. Export Default is MANDATORY.
 // 2. Factory handles input typing and error wrapping.
-// 3. Matcher 'Bash' ensures this only runs for Bash commands.
+// 3. Matcher 'Bash' with typed overload: toolInput is automatically typed as BashToolInput!
 export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
-  
+
   // 4. Input is camelCased (toolInput, toolName).
-  // 5. Cast toolInput to the expected shape (it is 'unknown' by default).
-  const command = (input.toolInput as { command?: string })?.command ?? '';
+  // 5. With typed overload, toolInput.command is typed as string - no cast needed!
+  const command = input.toolInput.command;
 
   // 6. Logging uses the context logger, NEVER console.log or console.error.
   logger.info('Checking command safety', { command });
 
   if (command.includes('rm -rf /')) {
     logger.warn('Blocked dangerous root deletion', { command });
-    
+
     // 7. Return structured output using the builder.
     return preToolUseOutput({
       hookSpecificOutput: {
@@ -56,6 +56,35 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
   }
 
   // 8. Default: Allow execution.
+  return preToolUseOutput({});
+});
+```
+
+**Multi-tool hooks with type guards:**
+
+For hooks matching multiple tools (e.g., `'Write|Edit|MultiEdit'`), use type guards:
+
+```typescript
+import {
+  preToolUseHook, preToolUseOutput,
+  isWriteTool, isEditTool, getFilePath, isTsFile, checkContentForPattern
+} from '@goodfoot/claude-code-hooks';
+
+export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { logger }) => {
+  const filePath = getFilePath(input);
+  if (!filePath || !isTsFile(filePath)) return preToolUseOutput({});
+
+  // Check if problematic patterns are being added
+  const result = checkContentForPattern(input, /console\.log/g);
+  if (result?.isAddition) {
+    return preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: `Cannot add console.log: ${result.matches.join(', ')}`
+      }
+    });
+  }
+
   return preToolUseOutput({});
 });
 ```
@@ -138,6 +167,7 @@ Build command: `npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hoo
 
 *   **[Installation & Setup](reference/installation.md)**: Setup guide (Scaffolding vs Manual).
 *   **[All 12 Hook Types](reference/output-builders.md)**: Factories, builders, and inputs.
+*   **[Tool Input Types](reference/input-types.md)**: Type guards, helpers, and typed overloads.
 *   **[Porting from Bash](reference/porting.md)**: Migration guide.
 *   **[Logging & Debugging](reference/logging.md)**: How to see what's happening.
 *   **[Environment Vars](reference/environment.md)**: `getProjectDir`, `persistEnvVar`.

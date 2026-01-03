@@ -104,7 +104,19 @@ export type { LogLevel, LogEvent, LogEventError, LogEventHandler, Unsubscribe, L
 export { LOG_LEVELS, Logger, logger } from './logger.js';
 
 // Hook factory types
-export type { HookConfig, HookContext, HookHandler, HookFunction, SessionStartContext } from './hooks.js';
+export type {
+  HookConfig,
+  HookContext,
+  HookHandler,
+  HookFunction,
+  SessionStartContext,
+  // Typed hook config and input types for single-tool matchers
+  TypedHookConfig,
+  TypedPreToolUseInput,
+  TypedPostToolUseInput,
+  TypedPostToolUseFailureInput,
+  TypedPermissionRequestInput
+} from './hooks.js';
 
 // Hook factory functions - all 12 hook types
 export {
@@ -140,3 +152,47 @@ export {
   getEnvFilePath,
   isRemoteEnvironment
 } from './env.js';
+
+// Tool input types - Well-known tool input structures
+export type {
+  // File operation tools
+  WriteToolInput,
+  EditToolInput,
+  MultiEditEntry,
+  MultiEditToolInput,
+  ReadToolInput,
+  // Command tools
+  BashToolInput,
+  // Search tools
+  GlobToolInput,
+  GrepToolInput,
+  // Union types
+  FileModifyingToolInput,
+  FileModifyingToolName,
+  KnownToolInput,
+  KnownToolName,
+  ToolInputMap
+} from './tool-inputs.js';
+
+// Tool helper types
+export type { ToolUseInput, PatternCheckResult, ContentContext } from './tool-helpers.js';
+
+// Tool helper functions - Type guards and utilities
+export {
+  // Type guards
+  isWriteTool,
+  isEditTool,
+  isMultiEditTool,
+  isFileModifyingTool,
+  isReadTool,
+  isBashTool,
+  isGlobTool,
+  isGrepTool,
+  // File path utilities
+  getFilePath,
+  isJsTsFile,
+  isTsFile,
+  // Content inspection
+  checkContentForPattern,
+  forEachContent
+} from './tool-helpers.js';

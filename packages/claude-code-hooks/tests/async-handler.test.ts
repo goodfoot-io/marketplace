@@ -2,7 +2,8 @@
  * Tests for async handler support.
  */
 
-import type { PreToolUseInput, StopInput } from '../src/inputs.js';
+import type { TypedPreToolUseInput } from '../src/hooks.js';
+import type { StopInput } from '../src/inputs.js';
 import { describe, it, expect } from 'vitest';
 import { stopHook, stopOutput, preToolUseHook, preToolUseOutput, Logger } from '../src/index.js';
 
@@ -59,7 +60,7 @@ describe('async handler support', () => {
       });
     });
 
-    const mockInput: PreToolUseInput = {
+    const mockInput: TypedPreToolUseInput<'Bash'> = {
       ...baseInput,
       hookEventName: 'PreToolUse',
       toolName: 'Bash',

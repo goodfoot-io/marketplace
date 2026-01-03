@@ -13,7 +13,10 @@ BaseOptions, PreToolUseOptions, PostToolUseOptions, PostToolUseFailureOptions, U
 export { EXIT_CODES, preToolUseOutput, postToolUseOutput, postToolUseFailureOutput, userPromptSubmitOutput, sessionStartOutput, sessionEndOutput, stopOutput, subagentStartOutput, subagentStopOutput, notificationOutput, preCompactOutput, permissionRequestOutput } from './outputs.js';
 export type { LogLevel, LogEvent, LogEventError, LogEventHandler, Unsubscribe, LoggerConfig } from './logger.js';
 export { LOG_LEVELS, Logger, logger } from './logger.js';
-export type { HookConfig, HookContext, HookHandler, HookFunction, SessionStartContext } from './hooks.js';
+export type { HookConfig, HookContext, HookHandler, HookFunction, SessionStartContext, TypedHookConfig, TypedPreToolUseInput, TypedPostToolUseInput, TypedPostToolUseFailureInput, TypedPermissionRequestInput } from './hooks.js';
 export { preToolUseHook, postToolUseHook, postToolUseFailureHook, notificationHook, userPromptSubmitHook, sessionStartHook, sessionEndHook, stopHook, subagentStartHook, subagentStopHook, preCompactHook, permissionRequestHook } from './hooks.js';
 export { execute, snakeToCamelCase, camelToSnakeCase } from './runtime.js';
 export { CLAUDE_ENV_VARS, getProjectDir, getEnvFilePath, isRemoteEnvironment } from './env.js';
+export type { WriteToolInput, EditToolInput, MultiEditEntry, MultiEditToolInput, ReadToolInput, BashToolInput, GlobToolInput, GrepToolInput, FileModifyingToolInput, FileModifyingToolName, KnownToolInput, KnownToolName, ToolInputMap } from './tool-inputs.js';
+export type { ToolUseInput, PatternCheckResult, ContentContext } from './tool-helpers.js';
+export { isWriteTool, isEditTool, isMultiEditTool, isFileModifyingTool, isReadTool, isBashTool, isGlobTool, isGrepTool, getFilePath, isJsTsFile, isTsFile, checkContentForPattern, forEachContent } from './tool-helpers.js';

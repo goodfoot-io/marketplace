@@ -100,9 +100,11 @@ Use `preToolUseHook` to enforce security policies.
 ```typescript
 import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
 
+// Typed overload: toolInput is automatically typed as BashToolInput
 export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
-  const command = (input.toolInput as { command?: string }).command ?? '';
-  
+  // No cast needed - input.toolInput.command is typed as string
+  const command = input.toolInput.command;
+
   // Example: Block 'curl'
   if (command.startsWith('curl')) {
     logger.info('Denying curl command', { command });
@@ -113,8 +115,62 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
       }
     });
   }
-  
+
   return preToolUseOutput({});
+});
+```
+
+### Goal: Inspect Write/Edit/MultiEdit Content (PreToolUse)
+
+Use `checkContentForPattern` to detect patterns being added to files:
+
+```typescript
+import {
+  preToolUseHook, preToolUseOutput,
+  getFilePath, isTsFile, checkContentForPattern
+} from '@goodfoot/claude-code-hooks';
+
+export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { logger }) => {
+  const filePath = getFilePath(input);
+  if (!filePath || !isTsFile(filePath)) return preToolUseOutput({});
+
+  // Check if console.log is being added (not just present)
+  const result = checkContentForPattern(input, /console\.log/g);
+  if (result?.isAddition) {
+    logger.warn('Blocking console.log addition', { matches: result.matches });
+    return preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: `Cannot add console.log: ${result.matches.join(', ')}`
+      }
+    });
+  }
+
+  return preToolUseOutput({});
+});
+```
+
+### Goal: Signal Errors Without Blocking (PostToolUse)
+
+Use `postToolUseHook` with `systemMessage` to inform Claude about issues without blocking:
+
+```typescript
+import { postToolUseHook, postToolUseOutput, isBashTool } from '@goodfoot/claude-code-hooks';
+
+export default postToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
+  // Check if the command output indicates a warning
+  const response = String(input.toolResponse);
+
+  if (response.includes('DEPRECATION WARNING')) {
+    return postToolUseOutput({
+      systemMessage: 'Warning: The command produced deprecation warnings. Consider updating dependencies.',
+      hookSpecificOutput: {
+        additionalContext: 'Deprecation warnings were detected in the output.'
+      }
+    });
+  }
+
+  return postToolUseOutput({});
 });
 ```
 
