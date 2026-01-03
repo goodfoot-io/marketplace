@@ -201,7 +201,6 @@ export function cleanOutputDir(outputDir: string): void {
  * ```
  */
 export function buildMultipleHooks(fixtureFiles: string[], pluginName = 'multi-hook'): string {
-  const hookPaths = fixtureFiles.map((f) => path.join(FIXTURES_DIR, f));
   const pluginDir = path.join(DIST_DIR, `${pluginName}-${uniqueSuffix()}`);
 
   // Create plugin directory structure
@@ -220,10 +219,12 @@ export function buildMultipleHooks(fixtureFiles: string[], pluginName = 'multi-h
   };
   fs.writeFileSync(path.join(claudePluginDir, 'plugin.json'), JSON.stringify(pluginJson, null, 2));
 
-  // Build all hooks together - CLI outputs to buildDir, hooks.json to hooksDir
+  // Build all hooks together using brace expansion glob pattern
+  // The glob package supports patterns like "{file1,file2}.ts"
   const tempHooksJsonPath = path.join(hooksDir, 'hooks.json');
-  const inputGlob = hookPaths.map((p) => `"${p}"`).join(' ');
-  execSync(`npx tsx ${CLI_PATH} -i ${inputGlob} -o "${tempHooksJsonPath}"`, {
+  const basenames = fixtureFiles.map((f) => path.basename(f, '.ts'));
+  const inputGlob = path.join(FIXTURES_DIR, `{${basenames.join(',')}}.ts`);
+  execSync(`npx tsx ${CLI_PATH} -i "${inputGlob}" -o "${tempHooksJsonPath}"`, {
     cwd: path.dirname(CLI_PATH),
     encoding: 'utf-8',
     stdio: 'pipe'
