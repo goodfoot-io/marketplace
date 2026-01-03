@@ -8,16 +8,11 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanDist } from './setup.js';
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
 import { readHooksJson } from './test-utils.js';
 
 describe('E2E: PermissionRequest Hooks', () => {
-  afterAll(() => {
-    cleanDist();
-  });
-
   describe('Auto-allow', () => {
     let pluginDir: string;
 
@@ -25,8 +20,12 @@ describe('E2E: PermissionRequest Hooks', () => {
       pluginDir = buildSingleHook('permission-auto-allow-hook.ts');
     });
 
+    afterAll(() => {
+      cleanOutputDir(pluginDir);
+    });
+
     it('generates hooks.json with PermissionRequest event and Bash matcher', () => {
-      const hooksJsonPath = path.join(pluginDir, 'hooks.json');
+      const hooksJsonPath = getHooksJsonPath(pluginDir);
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
       const hooksJson = readHooksJson(hooksJsonPath);

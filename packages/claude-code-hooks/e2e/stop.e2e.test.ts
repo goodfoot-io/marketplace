@@ -8,16 +8,11 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanDist } from './setup.js';
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
 import { readHooksJson } from './test-utils.js';
 
 describe('E2E: Stop Hooks', () => {
-  afterAll(() => {
-    cleanDist();
-  });
-
   describe('Block with reason', () => {
     let pluginDir: string;
 
@@ -25,8 +20,12 @@ describe('E2E: Stop Hooks', () => {
       pluginDir = buildSingleHook('stop-block-hook.ts');
     });
 
+    afterAll(() => {
+      cleanOutputDir(pluginDir);
+    });
+
     it('generates valid hooks.json for stop hook', () => {
-      const hooksJsonPath = path.join(pluginDir, 'hooks.json');
+      const hooksJsonPath = getHooksJsonPath(pluginDir);
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
       const hooksJson = readHooksJson(hooksJsonPath);
@@ -45,7 +44,11 @@ describe('E2E: Stop Hooks', () => {
       const compiledHook = stopEntry?.hooks[0];
       expect(compiledHook?.type).toBe('command');
       expect(compiledHook?.command).toBeDefined();
-      expect(fs.existsSync(compiledHook?.command ?? '')).toBe(true);
+      expect(compiledHook?.command).toContain('${CLAUDE_PLUGIN_ROOT}');
+
+      // Resolve the template path and verify file exists
+      const resolvedPath = compiledHook?.command?.replace('${CLAUDE_PLUGIN_ROOT}', pluginDir);
+      expect(fs.existsSync(resolvedPath ?? '')).toBe(true);
     });
   });
 });

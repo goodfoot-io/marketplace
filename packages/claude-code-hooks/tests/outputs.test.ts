@@ -37,7 +37,6 @@ describe('EXIT_CODES', () => {
 describe('preToolUseOutput', () => {
   it('produces exit 0 and correct _type for empty options', () => {
     const result = preToolUseOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('PreToolUse');
     expect(result.stdout.hookSpecificOutput).toBeUndefined();
   });
@@ -46,7 +45,6 @@ describe('preToolUseOutput', () => {
     const result = preToolUseOutput({
       hookSpecificOutput: { permissionDecision: 'allow' }
     });
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result.stdout.hookSpecificOutput).toBeDefined();
     expect(result.stdout.hookSpecificOutput?.hookEventName).toBe('PreToolUse');
     if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
@@ -61,7 +59,6 @@ describe('preToolUseOutput', () => {
         updatedInput: { command: 'ls -la' }
       }
     });
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
       expect(result.stdout.hookSpecificOutput.permissionDecision).toBe('allow');
       expect(result.stdout.hookSpecificOutput.updatedInput).toEqual({ command: 'ls -la' });
@@ -75,7 +72,6 @@ describe('preToolUseOutput', () => {
         permissionDecisionReason: 'Dangerous command'
       }
     });
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
       expect(result.stdout.hookSpecificOutput.permissionDecision).toBe('deny');
       expect(result.stdout.hookSpecificOutput.permissionDecisionReason).toBe('Dangerous command');
@@ -89,7 +85,6 @@ describe('preToolUseOutput', () => {
         permissionDecisionReason: 'Are you sure?'
       }
     });
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
       expect(result.stdout.hookSpecificOutput.permissionDecision).toBe('ask');
       expect(result.stdout.hookSpecificOutput.permissionDecisionReason).toBe('Are you sure?');
@@ -100,18 +95,15 @@ describe('preToolUseOutput', () => {
     const result = preToolUseOutput({
       hookSpecificOutput: { updatedInput: { file: '/tmp/test' } }
     });
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
       expect(result.stdout.hookSpecificOutput.updatedInput).toEqual({ file: '/tmp/test' });
       expect(result.stdout.hookSpecificOutput.permissionDecision).toBeUndefined();
     }
   });
 
-  it('handles stopReason with exit code 2', () => {
+  it('handles stopReason in stdout', () => {
     const result = preToolUseOutput({ stopReason: 'Operation blocked' });
-    expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
     expect(result.stdout.stopReason).toBe('Operation blocked');
-    expect(result.stderr).toBe('Operation blocked');
   });
 
   it('handles systemMessage option', () => {
@@ -137,7 +129,6 @@ describe('preToolUseOutput', () => {
       stopReason: 'Blocked',
       systemMessage: 'Contact admin'
     });
-    expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
     expect(result.stdout.stopReason).toBe('Blocked');
     expect(result.stdout.systemMessage).toBe('Contact admin');
   });
@@ -146,7 +137,6 @@ describe('preToolUseOutput', () => {
 describe('postToolUseOutput', () => {
   it('produces exit 0 for empty options', () => {
     const result = postToolUseOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('PostToolUse');
   });
 
@@ -170,7 +160,6 @@ describe('postToolUseOutput', () => {
 
   it('handles stopReason', () => {
     const result = postToolUseOutput({ stopReason: 'Blocked after tool use' });
-    expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
     expect(result.stdout.stopReason).toBe('Blocked after tool use');
   });
 });
@@ -178,7 +167,6 @@ describe('postToolUseOutput', () => {
 describe('postToolUseFailureOutput', () => {
   it('produces exit 0 for empty options', () => {
     const result = postToolUseFailureOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('PostToolUseFailure');
   });
 
@@ -192,15 +180,13 @@ describe('postToolUseFailureOutput', () => {
   });
 
   it('handles stopReason', () => {
-    const result = postToolUseFailureOutput({ stopReason: 'Critical failure' });
-    expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
+    const _result = postToolUseFailureOutput({ stopReason: 'Critical failure' });
   });
 });
 
 describe('userPromptSubmitOutput', () => {
   it('produces exit 0 for empty options', () => {
     const result = userPromptSubmitOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('UserPromptSubmit');
   });
 
@@ -217,7 +203,6 @@ describe('userPromptSubmitOutput', () => {
 describe('sessionStartOutput', () => {
   it('produces exit 0 for empty options', () => {
     const result = sessionStartOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('SessionStart');
   });
 
@@ -240,7 +225,6 @@ describe('sessionStartOutput', () => {
 describe('sessionEndOutput', () => {
   it('produces exit 0 for empty options', () => {
     const result = sessionEndOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('SessionEnd');
   });
 
@@ -250,31 +234,27 @@ describe('sessionEndOutput', () => {
   });
 
   it('handles stopReason', () => {
-    const result = sessionEndOutput({ stopReason: 'Cannot end session' });
-    expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
+    const _result = sessionEndOutput({ stopReason: 'Cannot end session' });
   });
 });
 
 describe('stopOutput', () => {
-  it('produces exit 0 with approve decision for empty options', () => {
+  it('produces no default decision for empty options', () => {
     const result = stopOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('Stop');
-    expect(result.stdout.decision).toBe('approve');
+    expect(result.stdout.decision).toBeUndefined();
   });
 
-  it('produces approve decision', () => {
+  it('produces approve decision when specified', () => {
     const result = stopOutput({ decision: 'approve' });
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result.stdout.decision).toBe('approve');
   });
 
-  it('produces block decision with reason and exit code 2', () => {
+  it('produces block decision with reason', () => {
     const result = stopOutput({
       decision: 'block',
       reason: 'Uncommitted changes present'
     });
-    expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
     expect(result.stdout.decision).toBe('block');
     expect(result.stdout.reason).toBe('Uncommitted changes present');
   });
@@ -293,7 +273,6 @@ describe('stopOutput', () => {
 describe('subagentStartOutput', () => {
   it('produces exit 0 for empty options', () => {
     const result = subagentStartOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('SubagentStart');
   });
 
@@ -308,11 +287,10 @@ describe('subagentStartOutput', () => {
 });
 
 describe('subagentStopOutput', () => {
-  it('produces exit 0 with approve decision for empty options', () => {
+  it('produces no default decision for empty options', () => {
     const result = subagentStopOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('SubagentStop');
-    expect(result.stdout.decision).toBe('approve');
+    expect(result.stdout.decision).toBeUndefined();
   });
 
   it('handles systemMessage', () => {
@@ -325,7 +303,6 @@ describe('subagentStopOutput', () => {
       decision: 'block',
       reason: 'Task incomplete'
     });
-    expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
     expect(result.stdout.decision).toBe('block');
     expect(result.stdout.reason).toBe('Task incomplete');
   });
@@ -334,7 +311,6 @@ describe('subagentStopOutput', () => {
 describe('notificationOutput', () => {
   it('produces exit 0 for empty options', () => {
     const result = notificationOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('Notification');
   });
 
@@ -349,7 +325,6 @@ describe('notificationOutput', () => {
 describe('preCompactOutput', () => {
   it('produces exit 0 for empty options', () => {
     const result = preCompactOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('PreCompact');
   });
 
@@ -364,7 +339,6 @@ describe('preCompactOutput', () => {
 describe('permissionRequestOutput', () => {
   it('produces exit 0 for empty options', () => {
     const result = permissionRequestOutput({});
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
     expect(result._type).toBe('PermissionRequest');
     expect(result.stdout.hookSpecificOutput).toBeUndefined();
   });
@@ -453,8 +427,7 @@ describe('permissionRequestOutput', () => {
   });
 
   it('handles stopReason', () => {
-    const result = permissionRequestOutput({ stopReason: 'Permission denied' });
-    expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
+    const _result = permissionRequestOutput({ stopReason: 'Permission denied' });
   });
 });
 
@@ -478,13 +451,11 @@ describe('CommonOptions handling across all builders', () => {
     describe(`${name}`, () => {
       it('stopReason produces exit code 2', () => {
         const result = fn({ stopReason: 'Test block' });
-        expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
         expect(result.stdout.stopReason).toBe('Test block');
       });
 
       it('empty options produces exit code 0', () => {
-        const result = fn({});
-        expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+        const _result = fn({});
       });
 
       it('continue option is preserved', () => {

@@ -21,22 +21,10 @@
  */
 
 import type { HookFunction } from './hooks.js';
-import type { ExitCode, HookOutput, SpecificHookOutput, SyncHookJSONOutput } from './outputs.js';
+import type { HookOutput, SpecificHookOutput, SyncHookJSONOutput } from './outputs.js';
 import type { HookInput } from './types/inputs.js';
 import { logger } from './logger.js';
 import { EXIT_CODES } from './outputs.js';
-import {
-  initializeTelemetry,
-  shutdownTelemetry,
-  wireLoggerTelemetry,
-  recordInvocation,
-  recordDuration,
-  recordError,
-  recordExitCode,
-  emitHookStart,
-  emitHookEnd,
-  emitHandlerError
-} from './telemetry.js';
 
 // ============================================================================
 // Key Transformation Utilities
@@ -132,26 +120,17 @@ export function snakeToCamelCase<T>(obj: T): T {
  * This function recursively processes objects and arrays, converting all
  * camelCase keys to snake_case while preserving values. Primitive values
  * are returned unchanged.
+ *
+ * **Note:** Hook output uses camelCase and should NOT be converted to snake_case.
+ * This utility is for other use cases requiring case transformation.
  * @param obj - The object to transform
  * @returns A new object with snake_case keys
  * @example
  * ```typescript
- * const output = {
- *   hookSpecificOutput: {
- *     hookEventName: 'PreToolUse',
- *     permissionDecision: 'allow'
- *   }
- * };
- *
- * const result = camelToSnakeCase(output);
- * // {
- * //   hook_specific_output: {
- * //     hook_event_name: 'PreToolUse',
- * //     permission_decision: 'allow'
- * //   }
- * // }
+ * const input = { firstName: 'John', lastName: 'Doe' };
+ * const result = camelToSnakeCase(input);
+ * // { first_name: 'John', last_name: 'Doe' }
  * ```
- * @see https://code.claude.com/docs/en/hooks#hook-output-structure
  */
 export function camelToSnakeCase<T>(obj: T): T {
   if (obj === null || obj === undefined) {
@@ -221,21 +200,13 @@ function parseStdinInput(stdinContent: string): HookInput {
 /**
  * Writes hook output to stdout.
  *
- * Transforms camelCase keys to snake_case before serializing to JSON.
+ * Output uses camelCase keys per Claude Code hook specification.
  * @param output - The hook output to write
+ * @see https://code.claude.com/docs/en/hooks#hook-output-structure
  */
 function writeStdout(output: SyncHookJSONOutput): void {
-  // Transform camelCase to snake_case for Claude Code compatibility
-  const snakeCaseOutput = camelToSnakeCase(output);
-  process.stdout.write(JSON.stringify(snakeCaseOutput));
-}
-
-/**
- * Writes error message to stderr.
- * @param message - The error message to write
- */
-function writeStderr(message: string): void {
-  process.stderr.write(message);
+  // Output uses camelCase - no transformation needed
+  process.stdout.write(JSON.stringify(output));
 }
 
 // ============================================================================
@@ -245,29 +216,21 @@ function writeStderr(message: string): void {
 /**
  * Creates an error output for malformed stdin JSON.
  * @param error - The parse error
- * @returns HookOutput with exit code 1
+ * @returns HookOutput with empty stdout
  */
 function createMalformedInputOutput(error: unknown): HookOutput {
-  const message = error instanceof Error ? error.message : String(error);
-  return {
-    exitCode: EXIT_CODES.ERROR,
-    stdout: {},
-    stderr: `Invalid JSON input: ${message}`
-  };
+  logger.error(`Invalid JSON input: ${error instanceof Error ? error.message : String(error)}`);
+  return { stdout: {} };
 }
 
 /**
  * Creates an error output for handler exceptions.
  * @param error - The error thrown by the handler
- * @returns HookOutput with exit code 1
+ * @returns HookOutput with empty stdout
  */
 function createHandlerErrorOutput(error: unknown): HookOutput {
-  const message = error instanceof Error ? error.message : String(error);
-  return {
-    exitCode: EXIT_CODES.ERROR,
-    stdout: {},
-    stderr: `Hook handler error: ${message}`
-  };
+  logger.error(`Hook handler error: ${error instanceof Error ? error.message : String(error)}`);
+  return { stdout: {} };
 }
 
 /**
@@ -289,13 +252,7 @@ function createHandlerErrorOutput(error: unknown): HookOutput {
  * ```
  */
 export function convertToHookOutput(specificOutput: SpecificHookOutput): HookOutput {
-  const { exitCode, stdout, stderr } = specificOutput;
-
-  return {
-    exitCode,
-    stdout,
-    ...(stderr !== undefined ? { stderr } : {})
-  };
+  return { stdout: specificOutput.stdout };
 }
 
 // ============================================================================
@@ -339,18 +296,9 @@ export function convertToHookOutput(specificOutput: SpecificHookOutput): HookOut
 export async function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(
   hookFn: HookFunction<TInput, TOutput>
 ): Promise<void> {
-  const startTime = performance.now();
-  let exitCode: ExitCode = EXIT_CODES.SUCCESS;
   let output: HookOutput | undefined;
-  let input: TInput | undefined;
 
   try {
-    // Initialize telemetry (lazy - only initializes if enabled)
-    initializeTelemetry();
-
-    // Wire logger to telemetry if enabled
-    wireLoggerTelemetry(logger);
-
     // Read and parse stdin
     let stdinContent: string;
     try {
@@ -358,17 +306,16 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
     } catch (error) {
       logger.logError(error, 'Failed to read stdin');
       output = createMalformedInputOutput(error);
-      exitCode = output.exitCode;
       return;
     }
 
     // Parse and transform input
+    let input: TInput;
     try {
       input = parseStdinInput(stdinContent) as TInput;
     } catch (error) {
       logger.logError(error, 'Failed to parse stdin JSON');
       output = createMalformedInputOutput(error);
-      exitCode = output.exitCode;
       return;
     }
 
@@ -376,56 +323,28 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
     const hookEventName = hookFn.hookEventName;
     logger.setContext(hookEventName, input);
 
-    // Record telemetry start
-    recordInvocation(hookEventName);
-    emitHookStart(hookEventName, input as unknown as Record<string, unknown>);
-
     // Execute handler
     try {
       const specificOutput = await hookFn(input, { logger });
       output = convertToHookOutput(specificOutput);
-      exitCode = output.exitCode;
     } catch (error) {
       // Log the error
       logger.logError(error, 'Hook handler threw an exception');
 
-      // Record error telemetry
-      const errorType = error instanceof Error ? error.name : 'UnknownError';
-      recordError(hookEventName, errorType);
-      emitHandlerError(hookEventName, error, { input: input as unknown as Record<string, unknown> });
-
       // Create error output
       output = createHandlerErrorOutput(error);
-      exitCode = output.exitCode;
     }
   } finally {
-    // Calculate duration
-    const durationMs = performance.now() - startTime;
-
-    // Record telemetry end metrics
-    if (input !== undefined) {
-      const hookEventName = hookFn.hookEventName;
-      recordDuration(hookEventName, durationMs);
-      recordExitCode(hookEventName, exitCode);
-      emitHookEnd(hookEventName, exitCode, durationMs);
-    }
-
     // Write output if we have it
     if (output !== undefined) {
       writeStdout(output.stdout);
-      if (output.stderr !== undefined) {
-        writeStderr(output.stderr);
-      }
     }
 
     // Clear logger context
     logger.clearContext();
-
-    // Flush telemetry and close logger
-    await shutdownTelemetry();
     logger.close();
 
-    // Exit with appropriate code
-    process.exit(exitCode);
+    // Exit with success (hooks always exit 0)
+    process.exit(EXIT_CODES.SUCCESS);
   }
 }

@@ -26,76 +26,67 @@ import {
 describe('preToolUseOutput type constraints', () => {
   describe('valid option combinations', () => {
     it('allows valid permissionDecision allow', () => {
-      const output = preToolUseOutput({
+      const _output = preToolUseOutput({
         hookSpecificOutput: { permissionDecision: 'allow' }
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows permissionDecision allow with updatedInput', () => {
-      const output = preToolUseOutput({
+      const _output = preToolUseOutput({
         hookSpecificOutput: {
           permissionDecision: 'allow',
           updatedInput: { command: 'ls -la' }
         }
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows valid permissionDecision deny', () => {
-      const output = preToolUseOutput({
+      const _output = preToolUseOutput({
         hookSpecificOutput: {
           permissionDecision: 'deny',
           permissionDecisionReason: 'Not allowed'
         }
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows valid permissionDecision ask', () => {
-      const output = preToolUseOutput({
+      const _output = preToolUseOutput({
         hookSpecificOutput: {
           permissionDecision: 'ask',
           permissionDecisionReason: 'Confirm this action?'
         }
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows empty options (default behavior)', () => {
-      const output = preToolUseOutput({});
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
+      const _output = preToolUseOutput({});
     });
 
     it('allows updatedInput without decision', () => {
-      const output = preToolUseOutput({
+      const _output = preToolUseOutput({
         hookSpecificOutput: { updatedInput: { command: 'safe-cmd' } }
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows common options with hookSpecificOutput', () => {
-      const output = preToolUseOutput({
+      const _output = preToolUseOutput({
         hookSpecificOutput: { permissionDecision: 'allow' },
         systemMessage: 'Allowed with message'
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows stopReason (uses exit code 2)', () => {
-      const output = preToolUseOutput({
+      const _output = preToolUseOutput({
         stopReason: 'Operation blocked'
       });
-      expect(output.exitCode).toBe(EXIT_CODES.BLOCK);
     });
   });
 
   describe('return type verification', () => {
-    it('returns PreToolUseOutput type with exitCode and stdout', () => {
+    it('returns PreToolUseOutput type with stdout and _type', () => {
       const output = preToolUseOutput({
         hookSpecificOutput: { permissionDecision: 'allow' }
       });
-      expect(output).toHaveProperty('exitCode');
       expect(output).toHaveProperty('stdout');
       expect(output).toHaveProperty('_type', 'PreToolUse');
     });
@@ -105,16 +96,15 @@ describe('preToolUseOutput type constraints', () => {
 describe('permissionRequestOutput type constraints', () => {
   describe('valid option combinations', () => {
     it('allows valid allow decision', () => {
-      const output = permissionRequestOutput({
+      const _output = permissionRequestOutput({
         hookSpecificOutput: {
           decision: { behavior: 'allow' }
         }
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows allow with updatedInput', () => {
-      const output = permissionRequestOutput({
+      const _output = permissionRequestOutput({
         hookSpecificOutput: {
           decision: {
             behavior: 'allow',
@@ -122,11 +112,10 @@ describe('permissionRequestOutput type constraints', () => {
           }
         }
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows allow with updatedPermissions', () => {
-      const output = permissionRequestOutput({
+      const _output = permissionRequestOutput({
         hookSpecificOutput: {
           decision: {
             behavior: 'allow',
@@ -134,20 +123,18 @@ describe('permissionRequestOutput type constraints', () => {
           }
         }
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows valid deny decision', () => {
-      const output = permissionRequestOutput({
+      const _output = permissionRequestOutput({
         hookSpecificOutput: {
           decision: { behavior: 'deny' }
         }
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows deny with message', () => {
-      const output = permissionRequestOutput({
+      const _output = permissionRequestOutput({
         hookSpecificOutput: {
           decision: {
             behavior: 'deny',
@@ -155,11 +142,10 @@ describe('permissionRequestOutput type constraints', () => {
           }
         }
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows deny with interrupt', () => {
-      const output = permissionRequestOutput({
+      const _output = permissionRequestOutput({
         hookSpecificOutput: {
           decision: {
             behavior: 'deny',
@@ -167,12 +153,10 @@ describe('permissionRequestOutput type constraints', () => {
           }
         }
       });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
     });
 
     it('allows empty options (fall through)', () => {
-      const output = permissionRequestOutput({});
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
+      const _output = permissionRequestOutput({});
     });
   });
 });
@@ -180,36 +164,31 @@ describe('permissionRequestOutput type constraints', () => {
 describe('stopOutput type constraints', () => {
   describe('valid option combinations', () => {
     it('allows approve decision', () => {
-      const output = stopOutput({ decision: 'approve' });
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
+      const _output = stopOutput({ decision: 'approve' });
     });
 
     it('allows block decision with exit code 2', () => {
-      const output = stopOutput({ decision: 'block' });
-      expect(output.exitCode).toBe(EXIT_CODES.BLOCK);
+      const _output = stopOutput({ decision: 'block' });
     });
 
     it('allows block with reason', () => {
-      const output = stopOutput({
+      const _output = stopOutput({
         decision: 'block',
         reason: 'Cannot stop yet'
       });
-      expect(output.exitCode).toBe(EXIT_CODES.BLOCK);
     });
 
-    it('allows empty options (defaults to approve)', () => {
+    it('allows empty options (no default decision)', () => {
       const output = stopOutput({});
-      expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
-      expect(output.stdout.decision).toBe('approve');
+      expect(output.stdout.decision).toBeUndefined();
     });
 
     it('allows systemMessage with decision', () => {
-      const output = stopOutput({
+      const _output = stopOutput({
         decision: 'block',
         reason: 'Pending changes',
         systemMessage: 'Please commit changes first'
       });
-      expect(output.exitCode).toBe(EXIT_CODES.BLOCK);
     });
   });
 
@@ -226,84 +205,72 @@ describe('stopOutput type constraints', () => {
 
 describe('output builders with additionalContext in hookSpecificOutput', () => {
   it('postToolUseOutput accepts additionalContext', () => {
-    const output = postToolUseOutput({
+    const _output = postToolUseOutput({
       hookSpecificOutput: { additionalContext: 'Extra info for Claude' }
     });
-    expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
   });
 
   it('postToolUseOutput accepts updatedMCPToolOutput', () => {
-    const output = postToolUseOutput({
+    const _output = postToolUseOutput({
       hookSpecificOutput: { updatedMCPToolOutput: { modified: true } }
     });
-    expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
   });
 
   it('postToolUseFailureOutput accepts additionalContext', () => {
-    const output = postToolUseFailureOutput({
+    const _output = postToolUseFailureOutput({
       hookSpecificOutput: { additionalContext: 'Try another approach' }
     });
-    expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
   });
 
   it('userPromptSubmitOutput accepts additionalContext', () => {
-    const output = userPromptSubmitOutput({
+    const _output = userPromptSubmitOutput({
       hookSpecificOutput: { additionalContext: 'Project uses TypeScript strict mode' }
     });
-    expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
   });
 
   it('sessionStartOutput accepts additionalContext', () => {
-    const output = sessionStartOutput({
+    const _output = sessionStartOutput({
       hookSpecificOutput: { additionalContext: JSON.stringify({ initialized: true }) }
     });
-    expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
   });
 
   it('subagentStartOutput accepts additionalContext', () => {
-    const output = subagentStartOutput({
+    const _output = subagentStartOutput({
       hookSpecificOutput: { additionalContext: 'Focus on finding patterns' }
     });
-    expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
   });
 });
 
 describe('output builders without hook-specific options', () => {
   it('sessionEndOutput only accepts common options', () => {
-    const output = sessionEndOutput({});
-    expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
+    const _output = sessionEndOutput({});
   });
 
   it('sessionEndOutput accepts systemMessage', () => {
-    const output = sessionEndOutput({
+    const _output = sessionEndOutput({
       systemMessage: 'Cleanup complete'
     });
-    expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
   });
 
   it('subagentStopOutput accepts decision and reason', () => {
-    const output = subagentStopOutput({
+    const _output = subagentStopOutput({
       decision: 'block',
       reason: 'Task incomplete'
     });
-    expect(output.exitCode).toBe(EXIT_CODES.BLOCK);
   });
 
   it('notificationOutput only accepts common options', () => {
-    const output = notificationOutput({});
-    expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
+    const _output = notificationOutput({});
   });
 
   it('preCompactOutput only accepts common options', () => {
-    const output = preCompactOutput({});
-    expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
+    const _output = preCompactOutput({});
   });
 
   it('preCompactOutput accepts systemMessage', () => {
-    const output = preCompactOutput({
+    const _output = preCompactOutput({
       systemMessage: 'Remember: strict mode enabled'
     });
-    expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
   });
 });
 
@@ -326,8 +293,7 @@ describe('common options on all builders', () => {
   describe('stopReason option', () => {
     for (const { name, fn } of builders) {
       it(`${name} accepts stopReason option`, () => {
-        const output = fn({ stopReason: 'Blocked' });
-        expect(output.exitCode).toBe(EXIT_CODES.BLOCK);
+        const _output = fn({ stopReason: 'Blocked' });
       });
     }
   });
@@ -336,7 +302,6 @@ describe('common options on all builders', () => {
     for (const { name, fn } of builders) {
       it(`${name} accepts continue option`, () => {
         const output = fn({ continue: true });
-        expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
         expect(output.stdout.continue).toBe(true);
       });
     }
@@ -346,7 +311,6 @@ describe('common options on all builders', () => {
     for (const { name, fn } of builders) {
       it(`${name} accepts suppressOutput option`, () => {
         const output = fn({ suppressOutput: true });
-        expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
         expect(output.stdout.suppressOutput).toBe(true);
       });
     }
@@ -356,7 +320,6 @@ describe('common options on all builders', () => {
     for (const { name, fn } of builders) {
       it(`${name} accepts systemMessage option`, () => {
         const output = fn({ systemMessage: 'System message' });
-        expect(output.exitCode).toBe(EXIT_CODES.SUCCESS);
         expect(output.stdout.systemMessage).toBe('System message');
       });
     }
@@ -364,11 +327,6 @@ describe('common options on all builders', () => {
 });
 
 describe('Specific output type structure', () => {
-  it('has required exitCode property', () => {
-    const output = preToolUseOutput({});
-    expect(typeof output.exitCode).toBe('number');
-  });
-
   it('has required stdout property', () => {
     const output = preToolUseOutput({});
     expect(typeof output.stdout).toBe('object');

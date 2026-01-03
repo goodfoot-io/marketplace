@@ -278,7 +278,6 @@ describe('Hook Factory Functions', () => {
 
       const result = await hook(createPreToolUseInput(), { logger: testLogger });
 
-      expect(result.exitCode).toBe(0);
       expect(result.stdout.hookSpecificOutput?.hookEventName).toBe('PreToolUse');
       if (result.stdout.hookSpecificOutput?.hookEventName === 'PreToolUse') {
         expect(result.stdout.hookSpecificOutput.permissionDecision).toBe('deny');
@@ -549,7 +548,6 @@ describe('Hook Factory Functions', () => {
         const result = hook(createPreToolUseInput(), { logger: testLogger });
         expect(result).toBeInstanceOf(Promise);
         const resolved = await result;
-        expect(resolved).toHaveProperty('exitCode');
         expect(resolved).toHaveProperty('stdout');
       });
 
@@ -589,7 +587,6 @@ describe('Hook Factory Functions', () => {
         const result = hook(createSessionStartInput(), { logger: testLogger });
         expect(result).toBeInstanceOf(Promise);
         const resolved = await result;
-        expect(resolved).toHaveProperty('exitCode');
         expect(resolved).toHaveProperty('stdout');
       });
 
@@ -611,7 +608,6 @@ describe('Hook Factory Functions', () => {
         const result = hook(createStopInput(), { logger: testLogger });
         expect(result).toBeInstanceOf(Promise);
         const resolved = await result;
-        expect(resolved).toHaveProperty('exitCode');
         expect(resolved).toHaveProperty('stdout');
       });
     });
@@ -623,7 +619,6 @@ describe('Hook Factory Functions', () => {
         const result = hook(createPermissionRequestInput(), { logger: testLogger });
         expect(result).toBeInstanceOf(Promise);
         const resolved = await result;
-        expect(resolved).toHaveProperty('exitCode');
         expect(resolved).toHaveProperty('stdout');
       });
     });

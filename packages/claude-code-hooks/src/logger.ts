@@ -201,7 +201,6 @@ export interface LoggerConfig {
  * | No config (default) | **Silent** - no output anywhere |
  * | `CLAUDE_CODE_HOOKS_LOG_FILE` env var | Append JSON lines to file |
  * | `.on(level, handler)` registered | Events delivered to handlers only |
- * | OpenTelemetry enabled | Emit as OpenTelemetry log events |
  * | Multiple destinations | All destinations receive events |
  *
  * ## Important Notes
@@ -257,12 +256,6 @@ export class Logger {
    * Current hook input for enriching log events.
    */
   private currentInput: Partial<HookInput> | undefined;
-
-  /**
-   * OpenTelemetry emitter function, set by telemetry module.
-   * @internal
-   */
-  public telemetryEmitter: ((event: LogEvent) => void) | null = null;
 
   /**
    * Creates a new Logger instance.
@@ -522,7 +515,7 @@ export class Logger {
     for (const handlers of this.handlers.values()) {
       if (handlers.size > 0) return true;
     }
-    return this.logFilePath !== null || this.telemetryEmitter !== null;
+    return this.logFilePath !== null;
   }
 
   // ============================================================================
@@ -567,15 +560,6 @@ export class Logger {
 
     // Write to file if configured
     this.writeToFile(event);
-
-    // Emit to OpenTelemetry if configured
-    if (this.telemetryEmitter) {
-      try {
-        this.telemetryEmitter(event);
-      } catch {
-        // Silently ignore telemetry errors
-      }
-    }
   }
 
   /**
@@ -670,7 +654,6 @@ export class Logger {
  * | Environment Variable | Description |
  * |---------------------|-------------|
  * | `CLAUDE_CODE_HOOKS_LOG_FILE` | Path to log file (JSON Lines format) |
- * | `CLAUDE_CODE_HOOKS_ENABLE_TELEMETRY` | Enable OpenTelemetry integration |
  *
  * ## Usage in Hooks
  *

@@ -443,35 +443,6 @@ describe('Logger', () => {
 
       expect(logger.hasDestinations()).toBe(false);
     });
-
-    it('returns true when telemetryEmitter is set', () => {
-      logger = new Logger();
-      logger.telemetryEmitter = () => {};
-      expect(logger.hasDestinations()).toBe(true);
-    });
-  });
-
-  describe('telemetry integration', () => {
-    it('calls telemetryEmitter when set', () => {
-      const emittedEvents: LogEvent[] = [];
-      logger = new Logger();
-      logger.telemetryEmitter = (event) => emittedEvents.push(event);
-
-      logger.info('Telemetry test');
-
-      expect(emittedEvents).toHaveLength(1);
-      expect(emittedEvents[0].message).toBe('Telemetry test');
-    });
-
-    it('silently ignores telemetryEmitter errors', () => {
-      logger = new Logger();
-      logger.telemetryEmitter = () => {
-        throw new Error('Telemetry error');
-      };
-
-      // Should not throw
-      expect(() => logger.info('Test')).not.toThrow();
-    });
   });
 
   describe('close()', () => {

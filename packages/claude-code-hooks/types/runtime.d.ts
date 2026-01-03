@@ -54,26 +54,17 @@ export declare function snakeToCamelCase<T>(obj: T): T;
  * This function recursively processes objects and arrays, converting all
  * camelCase keys to snake_case while preserving values. Primitive values
  * are returned unchanged.
+ *
+ * **Note:** Hook output uses camelCase and should NOT be converted to snake_case.
+ * This utility is for other use cases requiring case transformation.
  * @param obj - The object to transform
  * @returns A new object with snake_case keys
  * @example
  * ```typescript
- * const output = {
- *   hookSpecificOutput: {
- *     hookEventName: 'PreToolUse',
- *     permissionDecision: 'allow'
- *   }
- * };
- *
- * const result = camelToSnakeCase(output);
- * // {
- * //   hook_specific_output: {
- * //     hook_event_name: 'PreToolUse',
- * //     permission_decision: 'allow'
- * //   }
- * // }
+ * const input = { firstName: 'John', lastName: 'Doe' };
+ * const result = camelToSnakeCase(input);
+ * // { first_name: 'John', last_name: 'Doe' }
  * ```
- * @see https://code.claude.com/docs/en/hooks#hook-output-structure
  */
 export declare function camelToSnakeCase<T>(obj: T): T;
 /**
@@ -88,6 +79,11 @@ export declare function camelToSnakeCase<T>(obj: T): T;
  * @returns HookOutput ready for serialization
  * @see https://code.claude.com/docs/en/hooks#hook-output-structure
  * @example
+ * ```typescript
+ * const specificOutput = preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
+ * const hookOutput = convertToHookOutput(specificOutput);
+ * // hookOutput: { exitCode: 0, stdout: { hookSpecificOutput: { ... } } }
+ * ```
  */
 export declare function convertToHookOutput(specificOutput: SpecificHookOutput): HookOutput;
 /**
@@ -124,7 +120,5 @@ export declare function convertToHookOutput(specificOutput: SpecificHookOutput):
  * ```
  * @see https://code.claude.com/docs/en/hooks
  */
-export declare function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(
-  hookFn: HookFunction<TInput, TOutput>
-): Promise<void>;
+export declare function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(hookFn: HookFunction<TInput, TOutput>): Promise<void>;
 //# sourceMappingURL=runtime.d.ts.map

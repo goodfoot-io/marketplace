@@ -5,19 +5,23 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { describe, it, expect, afterAll } from 'vitest';
-import { buildSingleHook, cleanDist } from './setup.js';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
 import { readHooksJson } from './test-utils.js';
 
 describe('E2E: hooks.json Structure Validation', () => {
+  let pluginDir: string;
+
+  beforeAll(() => {
+    pluginDir = buildSingleHook('deny-bash-hook.ts');
+  });
+
   afterAll(() => {
-    cleanDist();
+    cleanOutputDir(pluginDir);
   });
 
   it('includes __generated metadata with files and timestamp', () => {
-    const pluginDir = buildSingleHook('deny-bash-hook.ts');
-    const hooksJsonPath = path.join(pluginDir, 'hooks.json');
+    const hooksJsonPath = getHooksJsonPath(pluginDir);
     const hooksJson = readHooksJson(hooksJsonPath);
 
     expect(hooksJson.__generated).toBeDefined();
@@ -27,16 +31,19 @@ describe('E2E: hooks.json Structure Validation', () => {
   });
 
   it('compiled hook files are executable', () => {
-    const pluginDir = buildSingleHook('deny-bash-hook.ts');
-    const hooksJsonPath = path.join(pluginDir, 'hooks.json');
+    const hooksJsonPath = getHooksJsonPath(pluginDir);
     const hooksJson = readHooksJson(hooksJsonPath);
 
     const entry = hooksJson.hooks.PreToolUse?.[0];
     const hookCommand = entry?.hooks[0].command;
 
-    // Verify the file exists and ends with .mjs
+    // Verify the command uses ${CLAUDE_PLUGIN_ROOT} template
     expect(hookCommand).toBeDefined();
-    expect(fs.existsSync(hookCommand ?? '')).toBe(true);
+    expect(hookCommand).toContain('${CLAUDE_PLUGIN_ROOT}');
     expect(hookCommand?.endsWith('.mjs')).toBe(true);
+
+    // Resolve the actual file path and verify it exists
+    const resolvedPath = hookCommand?.replace('${CLAUDE_PLUGIN_ROOT}', pluginDir);
+    expect(fs.existsSync(resolvedPath ?? '')).toBe(true);
   });
 });

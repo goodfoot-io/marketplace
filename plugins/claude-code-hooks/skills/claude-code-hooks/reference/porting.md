@@ -1,6 +1,6 @@
 # Porting Bash Hooks to TypeScript
 
-> [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Output Builders](output-builders.md) | [Logging](logging.md)
+> [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Output Builders](output-builders.md) | [Logging](logging.md) | [Environment](environment.md)
 
 <instructions>
 
@@ -117,19 +117,25 @@ main();
 
 ## 3. Field Name Mapping
 
-The library uses **camelCase** for TypeScript while Claude Code uses **snake_case** in JSON:
+**Input** from Claude Code uses snake_case. **Output** to Claude Code uses camelCase.
 
-| Bash (snake_case) | TypeScript (camelCase) |
+| Direction | Format | Example |
+|-----------|--------|---------|
+| Input (stdin) | snake_case | `hook_event_name`, `tool_name`, `tool_input` |
+| Output (stdout) | camelCase | `hookSpecificOutput`, `permissionDecision` |
+
+The library automatically converts input snake_case to camelCase in your handler:
+
+| Input (snake_case) | Handler (camelCase) |
 |-------------------|------------------------|
 | `hook_event_name` | `hookEventName` |
 | `tool_name` | `toolName` |
 | `tool_input` | `toolInput` |
 | `session_id` | `sessionId` |
-| `cwd` | `cwd` |
 | `claude_version` | `claudeVersion` |
 | `permission_mode` | `permissionMode` |
 
-Input types automatically handle this conversion when you type your input correctly.
+Output builders produce camelCase JSON that Claude Code expects.
 
 ## 4. Batch Migration {#batch-migration}
 

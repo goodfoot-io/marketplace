@@ -7,10 +7,7 @@
  * @see https://code.claude.com/docs/en/hooks
  * @module
  */
-import type {
-  PermissionUpdate,
-  SyncHookJSONOutput as SDKSyncHookJSONOutput
-} from '@anthropic-ai/claude-agent-sdk/entrypoints/agentSdkTypes.js';
+import type { PermissionUpdate, SyncHookJSONOutput as SDKSyncHookJSONOutput } from '@anthropic-ai/claude-agent-sdk/entrypoints/agentSdkTypes.js';
 /**
  * Exit codes used by Claude Code hooks.
  *
@@ -21,12 +18,12 @@ import type {
  * | 2 | Block | `stopReason` set or `stopOutput({ decision: 'block' })` | Blocking, stderr shown to Claude |
  */
 export declare const EXIT_CODES: {
-  /** Handler completed successfully. Claude Code parses stdout as JSON. */
-  readonly SUCCESS: 0;
-  /** Non-blocking error occurred. stderr shown to user only. */
-  readonly ERROR: 1;
-  /** Blocking action requested. stderr shown to Claude. */
-  readonly BLOCK: 2;
+    /** Handler completed successfully. Claude Code parses stdout as JSON. */
+    readonly SUCCESS: 0;
+    /** Non-blocking error occurred. stderr shown to user only. */
+    readonly ERROR: 1;
+    /** Blocking action requested. stderr shown to Claude. */
+    readonly BLOCK: 2;
 };
 /**
  * Exit code type.
@@ -42,69 +39,76 @@ export type { SDKSyncHookJSONOutput };
  * Omits `hookEventName` which is added automatically.
  */
 export interface PreToolUseHookSpecificOutput {
-  /** Permission decision: 'allow', 'deny', or 'ask' */
-  permissionDecision?: 'allow' | 'deny' | 'ask';
-  /** Reason for the permission decision. */
-  permissionDecisionReason?: string;
-  /** Modified tool input to use instead of original. */
-  updatedInput?: Record<string, unknown>;
+    /** Permission decision: 'allow', 'deny', or 'ask' */
+    permissionDecision?: 'allow' | 'deny' | 'ask';
+    /** Reason for the permission decision. */
+    permissionDecisionReason?: string;
+    /** Modified tool input to use instead of original. */
+    updatedInput?: Record<string, unknown>;
 }
 /**
  * PostToolUse hook-specific output fields.
  */
 export interface PostToolUseHookSpecificOutput {
-  /** Additional context to add to the transcript. */
-  additionalContext?: string;
-  /** Updated MCP tool output to replace the original. */
-  updatedMCPToolOutput?: unknown;
+    /** Additional context to add to the transcript. */
+    additionalContext?: string;
+    /** Updated MCP tool output to replace the original. */
+    updatedMCPToolOutput?: unknown;
 }
 /**
  * PostToolUseFailure hook-specific output fields.
  */
 export interface PostToolUseFailureHookSpecificOutput {
-  /** Additional context to add after the failure. */
-  additionalContext?: string;
+    /** Additional context to add after the failure. */
+    additionalContext?: string;
 }
 /**
  * UserPromptSubmit hook-specific output fields.
  */
 export interface UserPromptSubmitHookSpecificOutput {
-  /** Additional context to inject into the conversation. */
-  additionalContext?: string;
+    /** Additional context to inject into the conversation. */
+    additionalContext?: string;
 }
 /**
  * SessionStart hook-specific output fields.
  */
 export interface SessionStartHookSpecificOutput {
-  /** Additional context to inject at session start. */
-  additionalContext?: string;
+    /** Additional context to inject at session start. */
+    additionalContext?: string;
 }
 /**
  * SubagentStart hook-specific output fields.
  */
 export interface SubagentStartHookSpecificOutput {
-  /** Additional context to inject for the subagent. */
-  additionalContext?: string;
+    /** Additional context to inject for the subagent. */
+    additionalContext?: string;
+}
+/**
+ * Notification hook-specific output fields.
+ */
+export interface NotificationHookSpecificOutput {
+    /** Additional context to add about the notification. */
+    additionalContext?: string;
 }
 /**
  * Allow decision for permission requests.
  */
 export interface PermissionRequestAllowDecision {
-  behavior: 'allow';
-  /** Updated tool input to use. */
-  updatedInput?: Record<string, unknown>;
-  /** Permission updates to apply. */
-  updatedPermissions?: PermissionUpdate[];
+    behavior: 'allow';
+    /** Updated tool input to use. */
+    updatedInput?: Record<string, unknown>;
+    /** Permission updates to apply. */
+    updatedPermissions?: PermissionUpdate[];
 }
 /**
  * Deny decision for permission requests.
  */
 export interface PermissionRequestDenyDecision {
-  behavior: 'deny';
-  /** Message explaining the denial. */
-  message?: string;
-  /** Whether to interrupt the current operation. */
-  interrupt?: boolean;
+    behavior: 'deny';
+    /** Message explaining the denial. */
+    message?: string;
+    /** Whether to interrupt the current operation. */
+    interrupt?: boolean;
 }
 /**
  * Permission request decision - either allow or deny.
@@ -114,87 +118,77 @@ export type PermissionRequestDecision = PermissionRequestAllowDecision | Permiss
  * PermissionRequest hook-specific output fields.
  */
 export interface PermissionRequestHookSpecificOutput {
-  /** Permission decision details. */
-  decision: PermissionRequestDecision;
+    /** Permission decision details. */
+    decision: PermissionRequestDecision;
 }
 /**
  * Full hook-specific output with hookEventName discriminator.
  */
-export type HookSpecificOutput =
-  | ({
-      hookEventName: 'PreToolUse';
-    } & PreToolUseHookSpecificOutput)
-  | ({
-      hookEventName: 'PostToolUse';
-    } & PostToolUseHookSpecificOutput)
-  | ({
-      hookEventName: 'PostToolUseFailure';
-    } & PostToolUseFailureHookSpecificOutput)
-  | ({
-      hookEventName: 'UserPromptSubmit';
-    } & UserPromptSubmitHookSpecificOutput)
-  | ({
-      hookEventName: 'SessionStart';
-    } & SessionStartHookSpecificOutput)
-  | ({
-      hookEventName: 'SubagentStart';
-    } & SubagentStartHookSpecificOutput)
-  | ({
-      hookEventName: 'PermissionRequest';
-    } & PermissionRequestHookSpecificOutput);
+export type HookSpecificOutput = ({
+    hookEventName: 'PreToolUse';
+} & PreToolUseHookSpecificOutput) | ({
+    hookEventName: 'PostToolUse';
+} & PostToolUseHookSpecificOutput) | ({
+    hookEventName: 'PostToolUseFailure';
+} & PostToolUseFailureHookSpecificOutput) | ({
+    hookEventName: 'UserPromptSubmit';
+} & UserPromptSubmitHookSpecificOutput) | ({
+    hookEventName: 'SessionStart';
+} & SessionStartHookSpecificOutput) | ({
+    hookEventName: 'SubagentStart';
+} & SubagentStartHookSpecificOutput) | ({
+    hookEventName: 'Notification';
+} & NotificationHookSpecificOutput) | ({
+    hookEventName: 'PermissionRequest';
+} & PermissionRequestHookSpecificOutput);
 /**
  * The JSON output format expected by Claude Code (sync hooks only).
  * Matches the SDK's SyncHookJSONOutput type.
  */
 export interface SyncHookJSONOutput {
-  /** If true, continue processing even after errors. */
-  continue?: boolean;
-  /** If true, suppress the hook's output from being displayed. */
-  suppressOutput?: boolean;
-  /** Reason for stopping the session (when blocking). */
-  stopReason?: string;
-  /** Decision for Stop/SubagentStop hooks: 'approve' allows stop, 'block' prevents it. */
-  decision?: 'approve' | 'block';
-  /** System message to inject into Claude's context. */
-  systemMessage?: string;
-  /** Reason shown to Claude when blocking. */
-  reason?: string;
-  /** Hook-specific output based on the hook type. */
-  hookSpecificOutput?: HookSpecificOutput;
+    /** If true, continue processing even after errors. */
+    continue?: boolean;
+    /** If true, suppress the hook's output from being displayed. */
+    suppressOutput?: boolean;
+    /** Reason for stopping the session (when blocking). */
+    stopReason?: string;
+    /** Decision for Stop/SubagentStop hooks: 'approve' allows stop, 'block' prevents it. */
+    decision?: 'approve' | 'block';
+    /** System message to inject into Claude's context. */
+    systemMessage?: string;
+    /** Reason shown to Claude when blocking. */
+    reason?: string;
+    /** Hook-specific output based on the hook type. */
+    hookSpecificOutput?: HookSpecificOutput;
 }
 /**
  * The result of a hook handler, ready for the runtime to process.
+ * Exit code is always SUCCESS (0) - blocking behavior is communicated via stdout fields.
  */
 export interface HookOutput {
-  /** Exit code for the hook process. */
-  exitCode: ExitCode;
-  /** JSON-serializable output to write to stdout. */
-  stdout: SyncHookJSONOutput;
-  /** Optional message to write to stderr. */
-  stderr?: string;
+    /** JSON-serializable output to write to stdout. */
+    stdout: SyncHookJSONOutput;
 }
 /**
  * Common options available to all output builders.
  * These map directly to the wire format fields.
  */
 export interface CommonOptions {
-  /** If true, continue processing even after errors. */
-  continue?: boolean;
-  /** If true, suppress the hook's output from being displayed. */
-  suppressOutput?: boolean;
-  /** System message to inject into Claude's context. */
-  systemMessage?: string;
-  /** Reason for stopping/blocking (sets exit code to BLOCK). */
-  stopReason?: string;
+    /** If true, continue processing even after errors. */
+    continue?: boolean;
+    /** If true, suppress the hook's output from being displayed. */
+    suppressOutput?: boolean;
+    /** System message to inject into Claude's context. */
+    systemMessage?: string;
+    /** Reason for stopping/blocking (sets exit code to BLOCK). */
+    stopReason?: string;
 }
 /**
  * Base structure for all specific outputs.
  */
 interface BaseSpecificOutput<T extends string> {
-  readonly _type: T;
-  exitCode: ExitCode;
-  stdout: SyncHookJSONOutput;
-  stderr?: string;
+    readonly _type: T;
+    stdout: SyncHookJSONOutput;
 }
 /**
  *
@@ -247,26 +241,23 @@ export type PermissionRequestOutput = BaseSpecificOutput<'PermissionRequest'>;
 /**
  * Union of all specific output types.
  */
-export type SpecificHookOutput =
-  | PreToolUseOutput
-  | PostToolUseOutput
-  | PostToolUseFailureOutput
-  | NotificationOutput
-  | UserPromptSubmitOutput
-  | SessionStartOutput
-  | SessionEndOutput
-  | StopOutput
-  | SubagentStartOutput
-  | SubagentStopOutput
-  | PreCompactOutput
-  | PermissionRequestOutput;
+export type SpecificHookOutput = PreToolUseOutput | PostToolUseOutput | PostToolUseFailureOutput | NotificationOutput | UserPromptSubmitOutput | SessionStartOutput | SessionEndOutput | StopOutput | SubagentStartOutput | SubagentStopOutput | PreCompactOutput | PermissionRequestOutput;
+/**
+ * Options for decision-based hooks (Stop, SubagentStop).
+ */
+interface DecisionOptions extends CommonOptions {
+    /** Decision: 'approve' allows the action, 'block' prevents it. */
+    decision?: 'approve' | 'block';
+    /** Reason for the decision (shown to Claude when blocking). */
+    reason?: string;
+}
 /**
  * Options for the PreToolUse output builder.
  * Uses wire format: hookSpecificOutput with permissionDecision.
  */
 export type PreToolUseOptions = CommonOptions & {
-  /** Hook-specific output matching the wire format. */
-  hookSpecificOutput?: PreToolUseHookSpecificOutput;
+    /** Hook-specific output matching the wire format. */
+    hookSpecificOutput?: PreToolUseHookSpecificOutput;
 };
 /**
  * Creates an output for PreToolUse hooks.
@@ -296,13 +287,18 @@ export type PreToolUseOptions = CommonOptions & {
  * });
  * ```
  */
-export declare function preToolUseOutput(options?: PreToolUseOptions): PreToolUseOutput;
+export declare const preToolUseOutput: (options?: CommonOptions & {
+    hookSpecificOutput?: PreToolUseHookSpecificOutput | undefined;
+}) => {
+    readonly _type: "PreToolUse";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * Options for the PostToolUse output builder.
  */
 export type PostToolUseOptions = CommonOptions & {
-  /** Hook-specific output matching the wire format. */
-  hookSpecificOutput?: PostToolUseHookSpecificOutput;
+    /** Hook-specific output matching the wire format. */
+    hookSpecificOutput?: PostToolUseHookSpecificOutput;
 };
 /**
  * Creates an output for PostToolUse hooks.
@@ -318,13 +314,18 @@ export type PostToolUseOptions = CommonOptions & {
  * });
  * ```
  */
-export declare function postToolUseOutput(options?: PostToolUseOptions): PostToolUseOutput;
+export declare const postToolUseOutput: (options?: CommonOptions & {
+    hookSpecificOutput?: PostToolUseHookSpecificOutput | undefined;
+}) => {
+    readonly _type: "PostToolUse";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * Options for the PostToolUseFailure output builder.
  */
 export type PostToolUseFailureOptions = CommonOptions & {
-  /** Hook-specific output matching the wire format. */
-  hookSpecificOutput?: PostToolUseFailureHookSpecificOutput;
+    /** Hook-specific output matching the wire format. */
+    hookSpecificOutput?: PostToolUseFailureHookSpecificOutput;
 };
 /**
  * Creates an output for PostToolUseFailure hooks.
@@ -339,13 +340,18 @@ export type PostToolUseFailureOptions = CommonOptions & {
  * });
  * ```
  */
-export declare function postToolUseFailureOutput(options?: PostToolUseFailureOptions): PostToolUseFailureOutput;
+export declare const postToolUseFailureOutput: (options?: CommonOptions & {
+    hookSpecificOutput?: PostToolUseFailureHookSpecificOutput | undefined;
+}) => {
+    readonly _type: "PostToolUseFailure";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * Options for the UserPromptSubmit output builder.
  */
 export type UserPromptSubmitOptions = CommonOptions & {
-  /** Hook-specific output matching the wire format. */
-  hookSpecificOutput?: UserPromptSubmitHookSpecificOutput;
+    /** Hook-specific output matching the wire format. */
+    hookSpecificOutput?: UserPromptSubmitHookSpecificOutput;
 };
 /**
  * Creates an output for UserPromptSubmit hooks.
@@ -360,13 +366,18 @@ export type UserPromptSubmitOptions = CommonOptions & {
  * });
  * ```
  */
-export declare function userPromptSubmitOutput(options?: UserPromptSubmitOptions): UserPromptSubmitOutput;
+export declare const userPromptSubmitOutput: (options?: CommonOptions & {
+    hookSpecificOutput?: UserPromptSubmitHookSpecificOutput | undefined;
+}) => {
+    readonly _type: "UserPromptSubmit";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * Options for the SessionStart output builder.
  */
 export type SessionStartOptions = CommonOptions & {
-  /** Hook-specific output matching the wire format. */
-  hookSpecificOutput?: SessionStartHookSpecificOutput;
+    /** Hook-specific output matching the wire format. */
+    hookSpecificOutput?: SessionStartHookSpecificOutput;
 };
 /**
  * Creates an output for SessionStart hooks.
@@ -381,7 +392,12 @@ export type SessionStartOptions = CommonOptions & {
  * });
  * ```
  */
-export declare function sessionStartOutput(options?: SessionStartOptions): SessionStartOutput;
+export declare const sessionStartOutput: (options?: CommonOptions & {
+    hookSpecificOutput?: SessionStartHookSpecificOutput | undefined;
+}) => {
+    readonly _type: "SessionStart";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * Options for the SessionEnd output builder.
  * SessionEnd hooks only support common options.
@@ -396,15 +412,18 @@ export type SessionEndOptions = CommonOptions;
  * sessionEndOutput({});
  * ```
  */
-export declare function sessionEndOutput(options?: SessionEndOptions): SessionEndOutput;
+export declare const sessionEndOutput: (options?: CommonOptions) => {
+    readonly _type: "SessionEnd";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * Options for the Stop output builder.
  */
 export interface StopOptions extends CommonOptions {
-  /** Decision: 'approve' allows stop, 'block' prevents it. */
-  decision?: 'approve' | 'block';
-  /** Reason for the decision (shown to Claude when blocking). */
-  reason?: string;
+    /** Decision: 'approve' allows stop, 'block' prevents it. */
+    decision?: 'approve' | 'block';
+    /** Reason for the decision (shown to Claude when blocking). */
+    reason?: string;
 }
 /**
  * Creates an output for Stop hooks.
@@ -422,13 +441,16 @@ export interface StopOptions extends CommonOptions {
  * });
  * ```
  */
-export declare function stopOutput(options?: StopOptions): StopOutput;
+export declare const stopOutput: (options?: DecisionOptions) => {
+    readonly _type: "Stop";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * Options for the SubagentStart output builder.
  */
 export type SubagentStartOptions = CommonOptions & {
-  /** Hook-specific output matching the wire format. */
-  hookSpecificOutput?: SubagentStartHookSpecificOutput;
+    /** Hook-specific output matching the wire format. */
+    hookSpecificOutput?: SubagentStartHookSpecificOutput;
 };
 /**
  * Creates an output for SubagentStart hooks.
@@ -443,15 +465,20 @@ export type SubagentStartOptions = CommonOptions & {
  * });
  * ```
  */
-export declare function subagentStartOutput(options?: SubagentStartOptions): SubagentStartOutput;
+export declare const subagentStartOutput: (options?: CommonOptions & {
+    hookSpecificOutput?: SubagentStartHookSpecificOutput | undefined;
+}) => {
+    readonly _type: "SubagentStart";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * Options for the SubagentStop output builder.
  */
 export interface SubagentStopOptions extends CommonOptions {
-  /** Decision: 'approve' allows stop, 'block' prevents it. */
-  decision?: 'approve' | 'block';
-  /** Reason for the decision (shown to subagent when blocking). */
-  reason?: string;
+    /** Decision: 'approve' allows stop, 'block' prevents it. */
+    decision?: 'approve' | 'block';
+    /** Reason for the decision (shown to subagent when blocking). */
+    reason?: string;
 }
 /**
  * Creates an output for SubagentStop hooks.
@@ -466,22 +493,40 @@ export interface SubagentStopOptions extends CommonOptions {
  * });
  * ```
  */
-export declare function subagentStopOutput(options?: SubagentStopOptions): SubagentStopOutput;
+export declare const subagentStopOutput: (options?: DecisionOptions) => {
+    readonly _type: "SubagentStop";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * Options for the Notification output builder.
- * Notification hooks only support common options.
  */
-export type NotificationOptions = CommonOptions;
+export type NotificationOptions = CommonOptions & {
+    /** Hook-specific output matching the wire format. */
+    hookSpecificOutput?: NotificationHookSpecificOutput;
+};
 /**
  * Creates an output for Notification hooks.
  * @param options - Configuration options for the hook output
  * @returns A NotificationOutput object ready for the runtime
  * @example
  * ```typescript
- * notificationOutput({});
+ * // Add context about the notification
+ * notificationOutput({
+ *   hookSpecificOutput: {
+ *     additionalContext: 'Notification forwarded to Slack #alerts channel'
+ *   }
+ * });
+ *
+ * // Suppress the notification
+ * notificationOutput({ suppressOutput: true });
  * ```
  */
-export declare function notificationOutput(options?: NotificationOptions): NotificationOutput;
+export declare const notificationOutput: (options?: CommonOptions & {
+    hookSpecificOutput?: NotificationHookSpecificOutput | undefined;
+}) => {
+    readonly _type: "Notification";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * Options for the PreCompact output builder.
  * PreCompact hooks only support common options.
@@ -498,13 +543,16 @@ export type PreCompactOptions = CommonOptions;
  * });
  * ```
  */
-export declare function preCompactOutput(options?: PreCompactOptions): PreCompactOutput;
+export declare const preCompactOutput: (options?: CommonOptions) => {
+    readonly _type: "PreCompact";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * Options for the PermissionRequest output builder.
  */
 export type PermissionRequestOptions = CommonOptions & {
-  /** Hook-specific output matching the wire format. */
-  hookSpecificOutput?: PermissionRequestHookSpecificOutput;
+    /** Hook-specific output matching the wire format. */
+    hookSpecificOutput?: PermissionRequestHookSpecificOutput;
 };
 /**
  * Creates an output for PermissionRequest hooks.
@@ -544,7 +592,12 @@ export type PermissionRequestOptions = CommonOptions & {
  * permissionRequestOutput({});
  * ```
  */
-export declare function permissionRequestOutput(options?: PermissionRequestOptions): PermissionRequestOutput;
+export declare const permissionRequestOutput: (options?: CommonOptions & {
+    hookSpecificOutput?: PermissionRequestHookSpecificOutput | undefined;
+}) => {
+    readonly _type: "PermissionRequest";
+    stdout: SyncHookJSONOutput;
+};
 /**
  * @deprecated Use CommonOptions instead
  */

@@ -15,8 +15,7 @@ import {
   permissionRequestOutput,
   stopOutput,
   sessionStartOutput,
-  notificationOutput,
-  preCompactOutput
+  notificationOutput
 } from '../src/outputs.js';
 import { snakeToCamelCase, camelToSnakeCase, convertToHookOutput } from '../src/runtime.js';
 
@@ -387,54 +386,46 @@ describe('camelToSnakeCase', () => {
     });
   });
 
-  describe('real hook output examples', () => {
-    it('transforms PreToolUse output', () => {
-      const output = {
-        hookSpecificOutput: {
-          hookEventName: 'PreToolUse',
-          permissionDecision: 'allow',
-          updatedInput: { command: 'safe_command' }
+  describe('complex nested objects', () => {
+    // Note: Hook output uses camelCase and should NOT be converted.
+    // These tests verify the function works correctly on arbitrary nested objects.
+    it('transforms deeply nested camelCase keys', () => {
+      const input = {
+        outerLevel: {
+          innerLevel: {
+            deepValue: 'test'
+          },
+          anotherKey: 'value'
         }
       };
-      const result = camelToSnakeCase(output);
+      const result = camelToSnakeCase(input);
       expect(result).toEqual({
-        hook_specific_output: {
-          hook_event_name: 'PreToolUse',
-          permission_decision: 'allow',
-          updated_input: { command: 'safe_command' }
+        outer_level: {
+          inner_level: {
+            deep_value: 'test'
+          },
+          another_key: 'value'
         }
       });
     });
 
-    it('transforms SessionStart output', () => {
-      const output = {
-        hookSpecificOutput: {
-          hookEventName: 'SessionStart',
-          additionalContext: '{"initialized":true}'
-        },
-        systemMessage: 'Welcome'
+    it('transforms object with mixed content', () => {
+      const input = {
+        userName: 'john',
+        isActive: true,
+        accountSettings: {
+          notifyEmail: true,
+          preferredLanguage: 'en'
+        }
       };
-      const result = camelToSnakeCase(output);
+      const result = camelToSnakeCase(input);
       expect(result).toEqual({
-        hook_specific_output: {
-          hook_event_name: 'SessionStart',
-          additional_context: '{"initialized":true}'
-        },
-        system_message: 'Welcome'
-      });
-    });
-
-    it('transforms Stop output', () => {
-      const output = {
-        decision: 'block',
-        reason: 'Pending changes',
-        systemMessage: 'Please commit first'
-      };
-      const result = camelToSnakeCase(output);
-      expect(result).toEqual({
-        decision: 'block',
-        reason: 'Pending changes',
-        system_message: 'Please commit first'
+        user_name: 'john',
+        is_active: true,
+        account_settings: {
+          notify_email: true,
+          preferred_language: 'en'
+        }
       });
     });
   });
@@ -501,20 +492,22 @@ describe('roundtrip transformations', () => {
     expect(backToSnake).toEqual(originalInput);
   });
 
-  it('camel -> snake -> camel preserves hook output data', () => {
-    const originalOutput = {
-      hookSpecificOutput: {
-        hookEventName: 'PreToolUse',
-        permissionDecision: 'deny',
-        permissionDecisionReason: 'Dangerous command'
+  it('camel -> snake -> camel roundtrip preserves data', () => {
+    // Note: Hook output uses camelCase and should NOT be converted.
+    // This test verifies roundtrip data preservation for the utility functions.
+    const originalData = {
+      outerField: {
+        innerName: 'PreToolUse',
+        someDecision: 'deny',
+        reasonText: 'Dangerous command'
       },
-      systemMessage: 'Command blocked'
+      messageField: 'Command blocked'
     };
 
-    const snakeCase = camelToSnakeCase(originalOutput);
+    const snakeCase = camelToSnakeCase(originalData);
     const backToCamel = snakeToCamelCase(snakeCase);
 
-    expect(backToCamel).toEqual(originalOutput);
+    expect(backToCamel).toEqual(originalData);
   });
 
   it('preserves primitive values through transformations', () => {
@@ -598,7 +591,7 @@ describe('convertToHookOutput', () => {
   });
 
   describe('PostToolUse wire format', () => {
-    it('passes through stopReason for blocking', () => {
+    it('passes through stopReason in stdout', () => {
       const specificOutput = postToolUseOutput({
         stopReason: 'Output contains sensitive data'
       });
@@ -606,7 +599,6 @@ describe('convertToHookOutput', () => {
       const result = convertToHookOutput(specificOutput);
 
       expect(result.stdout.stopReason).toBe('Output contains sensitive data');
-      expect(result.stderr).toBe('Output contains sensitive data');
     });
 
     it('passes through additionalContext in hookSpecificOutput', () => {
@@ -760,7 +752,7 @@ describe('convertToHookOutput', () => {
       expect(result.stdout.systemMessage).toBe('Welcome');
     });
 
-    it('passes through stopReason and stderr', () => {
+    it('passes through stopReason in stdout', () => {
       const specificOutput = notificationOutput({
         stopReason: 'Notification blocked'
       });
@@ -768,19 +760,6 @@ describe('convertToHookOutput', () => {
       const result = convertToHookOutput(specificOutput);
 
       expect(result.stdout.stopReason).toBe('Notification blocked');
-      expect(result.stderr).toBe('Notification blocked');
-    });
-
-    it('preserves stderr from specific output', () => {
-      // Create output with explicit stderr
-      const specificOutput = {
-        ...preCompactOutput({ stopReason: 'Something went wrong' }),
-        stderr: 'Custom error message'
-      };
-
-      const result = convertToHookOutput(specificOutput);
-
-      expect(result.stderr).toBe('Custom error message');
     });
   });
 });

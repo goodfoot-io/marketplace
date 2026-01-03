@@ -422,6 +422,276 @@ describe('E2E: Build Process', () => {
         expect(output).toBeDefined();
       }
     });
+
+    it('compiled hook output uses camelCase keys (not snake_case)', () => {
+      const outputDir = path.join(BUILD_TEST_OUTPUT, 'camelcase-output');
+      const outputPath = path.join(outputDir, 'hooks.json');
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      // Use hook-with-timeout.ts which returns PreToolUse output with permissionDecision
+      const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
+      const result = runCli(inputPath, outputPath);
+
+      expect(result.success).toBe(true);
+
+      const hooksJson = readHooksJson(outputPath);
+      const commandPath = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
+
+      expect(commandPath).toBeDefined();
+
+      // Execute with mock PreToolUse input (snake_case as Claude Code sends)
+      const mockInput = JSON.stringify({
+        hook_event_name: 'PreToolUse',
+        session_id: 'test-session',
+        cwd: '/tmp',
+        tool_name: 'Write',
+        tool_input: { file_path: '/tmp/test.txt', content: 'test' },
+        tool_use_id: 'test-tool-use-id'
+      });
+
+      const execResult = spawnSync('node', [commandPath], {
+        input: mockInput,
+        encoding: 'utf-8',
+        timeout: 5000
+      });
+
+      expect(execResult.status).toBe(0);
+      expect(execResult.stdout).toBeTruthy();
+
+      const output = JSON.parse(execResult.stdout) as Record<string, unknown>;
+
+      // Verify output uses camelCase keys (per https://code.claude.com/docs/en/hooks)
+      expect(output).toHaveProperty('hookSpecificOutput');
+      expect(output).not.toHaveProperty('hook_specific_output');
+
+      const hookOutput = output.hookSpecificOutput as Record<string, unknown>;
+      expect(hookOutput).toHaveProperty('permissionDecision');
+      expect(hookOutput).not.toHaveProperty('permission_decision');
+    });
+  });
+
+  describe('Hook Output Format by Type', () => {
+    /**
+     * Helper to compile a hook and execute it with mock input.
+     * @param fixtureFile - Name of the fixture file to compile
+     * @param mockInput - Mock input to pass to the compiled hook
+     * @returns The parsed stdout output and exit code
+     */
+    function compileAndExecuteHook(
+      fixtureFile: string,
+      mockInput: Record<string, unknown>
+    ): { output: Record<string, unknown>; exitCode: number } {
+      const outputDir = path.join(BUILD_TEST_OUTPUT, `output-${fixtureFile.replace('.ts', '')}`);
+      const outputPath = path.join(outputDir, 'hooks.json');
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      const inputPath = path.join(BUILD_TEST_FIXTURES, fixtureFile);
+      const result = runCli(inputPath, outputPath);
+
+      if (!result.success) {
+        throw new Error(`CLI failed: ${result.stderr}`);
+      }
+
+      const hooksJson = readHooksJson(outputPath);
+      const hookType = Object.keys(hooksJson.hooks)[0];
+      const commandPath = hooksJson.hooks[hookType]?.[0]?.hooks[0]?.command;
+
+      if (!commandPath) {
+        throw new Error(`No command found in hooks.json for ${fixtureFile}`);
+      }
+
+      const execResult = spawnSync('node', [commandPath], {
+        input: JSON.stringify(mockInput),
+        encoding: 'utf-8',
+        timeout: 5000
+      });
+
+      return {
+        output: execResult.stdout ? (JSON.parse(execResult.stdout) as Record<string, unknown>) : {},
+        exitCode: execResult.status ?? 1
+      };
+    }
+
+    it('PreToolUse output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('hook-with-timeout.ts', {
+        hook_event_name: 'PreToolUse',
+        session_id: 'test',
+        cwd: '/tmp',
+        tool_name: 'Write',
+        tool_input: { file_path: '/tmp/test.txt', content: 'test' },
+        tool_use_id: 'tu_123'
+      });
+
+      expect(output).toHaveProperty('hookSpecificOutput');
+      expect(output).not.toHaveProperty('hook_specific_output');
+      const hookOutput = output.hookSpecificOutput as Record<string, unknown>;
+      expect(hookOutput).toHaveProperty('permissionDecision');
+    });
+
+    it('PostToolUse output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('post-tool-use-hook.ts', {
+        hook_event_name: 'PostToolUse',
+        session_id: 'test',
+        cwd: '/tmp',
+        tool_name: 'Read',
+        tool_input: { file_path: '/tmp/test.txt' },
+        tool_use_id: 'tu_123',
+        tool_result: 'file contents'
+      });
+
+      expect(output).toHaveProperty('hookSpecificOutput');
+      expect(output).not.toHaveProperty('hook_specific_output');
+      const hookOutput = output.hookSpecificOutput as Record<string, unknown>;
+      expect(hookOutput).toHaveProperty('additionalContext');
+      expect(hookOutput).not.toHaveProperty('additional_context');
+    });
+
+    it('PostToolUseFailure output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('post-tool-use-failure-hook.ts', {
+        hook_event_name: 'PostToolUseFailure',
+        session_id: 'test',
+        cwd: '/tmp',
+        tool_name: 'Write',
+        tool_input: { file_path: '/tmp/test.txt' },
+        tool_use_id: 'tu_123',
+        error: 'Permission denied'
+      });
+
+      expect(output).toHaveProperty('hookSpecificOutput');
+      expect(output).not.toHaveProperty('hook_specific_output');
+      const hookOutput = output.hookSpecificOutput as Record<string, unknown>;
+      expect(hookOutput).toHaveProperty('additionalContext');
+    });
+
+    it('SessionStart output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('hook-without-matcher.ts', {
+        hook_event_name: 'SessionStart',
+        session_id: 'test',
+        cwd: '/tmp',
+        source: 'startup'
+      });
+
+      expect(output).toHaveProperty('hookSpecificOutput');
+      expect(output).not.toHaveProperty('hook_specific_output');
+      const hookOutput = output.hookSpecificOutput as Record<string, unknown>;
+      expect(hookOutput).toHaveProperty('additionalContext');
+    });
+
+    it('SessionEnd output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('session-end-hook.ts', {
+        hook_event_name: 'SessionEnd',
+        session_id: 'test',
+        cwd: '/tmp'
+      });
+
+      // SessionEnd may not have hookSpecificOutput, just verify no snake_case
+      expect(output).not.toHaveProperty('hook_specific_output');
+      expect(output).not.toHaveProperty('system_message');
+    });
+
+    it('UserPromptSubmit output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('user-prompt-submit-hook.ts', {
+        hook_event_name: 'UserPromptSubmit',
+        session_id: 'test',
+        cwd: '/tmp',
+        prompt: 'Hello, world!'
+      });
+
+      expect(output).toHaveProperty('hookSpecificOutput');
+      expect(output).not.toHaveProperty('hook_specific_output');
+      const hookOutput = output.hookSpecificOutput as Record<string, unknown>;
+      expect(hookOutput).toHaveProperty('additionalContext');
+    });
+
+    it('Stop output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('stop-hook.ts', {
+        hook_event_name: 'Stop',
+        session_id: 'test',
+        cwd: '/tmp',
+        stop_hook_active: false
+      });
+
+      // Stop uses decision/reason at top level, not hookSpecificOutput
+      expect(output).not.toHaveProperty('hook_specific_output');
+      if (output.decision) {
+        expect(output).not.toHaveProperty('stop_reason');
+      }
+    });
+
+    it('SubagentStart output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('subagent-start-hook.ts', {
+        hook_event_name: 'SubagentStart',
+        session_id: 'test',
+        cwd: '/tmp',
+        agent_id: 'agent_123',
+        agent_type: 'explore'
+      });
+
+      expect(output).toHaveProperty('hookSpecificOutput');
+      expect(output).not.toHaveProperty('hook_specific_output');
+      const hookOutput = output.hookSpecificOutput as Record<string, unknown>;
+      expect(hookOutput).toHaveProperty('additionalContext');
+    });
+
+    it('SubagentStop output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('subagent-stop-hook.ts', {
+        hook_event_name: 'SubagentStop',
+        session_id: 'test',
+        cwd: '/tmp',
+        agent_id: 'agent_123',
+        stop_hook_active: false,
+        agent_transcript_path: '/tmp/transcript.jsonl'
+      });
+
+      // SubagentStop uses decision/reason at top level
+      expect(output).not.toHaveProperty('hook_specific_output');
+      expect(output).not.toHaveProperty('stop_reason');
+    });
+
+    it('Notification output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('notification-hook.ts', {
+        hook_event_name: 'Notification',
+        session_id: 'test',
+        cwd: '/tmp',
+        notification_type: 'idle_prompt',
+        message: 'Test notification'
+      });
+
+      // Notification may not have hookSpecificOutput
+      expect(output).not.toHaveProperty('hook_specific_output');
+      expect(output).not.toHaveProperty('system_message');
+    });
+
+    it('PreCompact output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('pre-compact-hook.ts', {
+        hook_event_name: 'PreCompact',
+        session_id: 'test',
+        cwd: '/tmp',
+        trigger: 'auto'
+      });
+
+      // PreCompact may have systemMessage
+      expect(output).not.toHaveProperty('hook_specific_output');
+      expect(output).not.toHaveProperty('system_message');
+      if (output.systemMessage) {
+        expect(output).toHaveProperty('systemMessage');
+      }
+    });
+
+    it('PermissionRequest output uses camelCase', () => {
+      const { output } = compileAndExecuteHook('permission-request-hook.ts', {
+        hook_event_name: 'PermissionRequest',
+        session_id: 'test',
+        cwd: '/tmp',
+        tool_name: 'Read',
+        tool_input: { file_path: '/tmp/test.txt' }
+      });
+
+      expect(output).toHaveProperty('hookSpecificOutput');
+      expect(output).not.toHaveProperty('hook_specific_output');
+      const hookOutput = output.hookSpecificOutput as Record<string, unknown>;
+      expect(hookOutput).toHaveProperty('decision');
+    });
   });
 
   describe('Error Handling', () => {

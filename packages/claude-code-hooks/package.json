@@ -1,7 +1,7 @@
 {
   "name": "@goodfoot/claude-code-hooks",
   "version": "0.0.1",
-  "description": "Type-safe Claude Code hooks library with camelCase types, output builders, and OpenTelemetry support",
+  "description": "Type-safe Claude Code hooks library with camelCase types and output builders",
   "type": "module",
   "sideEffects": false,
   "engines": {
@@ -42,13 +42,6 @@
     }
   },
   "dependencies": {
-    "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/exporter-logs-otlp-http": "^0.57.0",
-    "@opentelemetry/exporter-metrics-otlp-http": "^0.57.0",
-    "@opentelemetry/exporter-prometheus": "^0.57.0",
-    "@opentelemetry/resources": "^1.29.0",
-    "@opentelemetry/sdk-node": "^0.57.0",
-    "@opentelemetry/semantic-conventions": "^1.28.0",
     "esbuild": "^0.24.0",
     "glob": "^11.0.0",
     "typescript": "^5.9.3"

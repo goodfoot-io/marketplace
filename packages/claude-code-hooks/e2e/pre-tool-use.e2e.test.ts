@@ -8,24 +8,23 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanDist } from './setup.js';
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
 import { CLAUDE_AVAILABLE, runClaude, readHooksJson } from './test-utils.js';
 
-describe.skipIf(!CLAUDE_AVAILABLE)('E2E: PreToolUse Hooks', () => {
-  afterAll(() => {
-    cleanDist();
-  });
-
-  describe.only('Bash denial', () => {
+describe('E2E: PreToolUse Hooks', () => {
+  describe('Bash denial', () => {
     let pluginDir: string;
 
     beforeAll(() => {
       pluginDir = buildSingleHook('deny-bash-hook.ts');
     });
 
-    it('denies Bash commands when hook is active', () => {
+    afterAll(() => {
+      cleanOutputDir(pluginDir);
+    });
+
+    it.skipIf(!CLAUDE_AVAILABLE)('denies Bash commands when hook is active', () => {
       const result = runClaude({
         prompt: 'Run this exact bash command: echo HOOKTEST123 - do not explain, just run it',
         pluginDir,
@@ -39,7 +38,7 @@ describe.skipIf(!CLAUDE_AVAILABLE)('E2E: PreToolUse Hooks', () => {
     });
 
     it('generates valid hooks.json with PreToolUse event and Bash matcher', () => {
-      const hooksJsonPath = path.join(pluginDir, 'hooks.json');
+      const hooksJsonPath = getHooksJsonPath(pluginDir);
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
       const hooksJson = readHooksJson(hooksJsonPath);
@@ -59,8 +58,12 @@ describe.skipIf(!CLAUDE_AVAILABLE)('E2E: PreToolUse Hooks', () => {
       pluginDir = buildSingleHook('pre-tool-use-multi-matcher-hook.ts');
     });
 
+    afterAll(() => {
+      cleanOutputDir(pluginDir);
+    });
+
     it('generates hooks.json with regex alternation matcher', () => {
-      const hooksJsonPath = path.join(pluginDir, 'hooks.json');
+      const hooksJsonPath = getHooksJsonPath(pluginDir);
       const hooksJson = readHooksJson(hooksJsonPath);
 
       const entry = hooksJson.hooks.PreToolUse?.find((e) => e.matcher === 'Read|Glob|Grep');
@@ -75,8 +78,12 @@ describe.skipIf(!CLAUDE_AVAILABLE)('E2E: PreToolUse Hooks', () => {
       pluginDir = buildSingleHook('error-hook.ts');
     });
 
+    afterAll(() => {
+      cleanOutputDir(pluginDir);
+    });
+
     it('generates valid hooks.json for error hook', () => {
-      const hooksJsonPath = path.join(pluginDir, 'hooks.json');
+      const hooksJsonPath = getHooksJsonPath(pluginDir);
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
       const hooksJson = readHooksJson(hooksJsonPath);

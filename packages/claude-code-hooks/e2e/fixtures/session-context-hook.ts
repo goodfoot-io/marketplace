@@ -1,8 +1,7 @@
 /**
- * Test fixture: SessionStart hook that injects additional context.
+ * Test fixture: SessionStart hook that injects project context.
  *
- * Used to verify that SessionStart hooks can successfully inject context
- * that Claude will see and acknowledge.
+ * Injects a simple project configuration that Claude should acknowledge.
  */
 
 import { sessionStartHook, sessionStartOutput } from '../../src/index.js';
@@ -11,6 +10,8 @@ export default sessionStartHook({}, (_input, { logger }) => {
   logger.info('Injecting session context');
 
   return sessionStartOutput({
-    hookSpecificOutput: { additionalContext: 'E2E_TEST_CONTEXT: The magic test word is "HOOK_INJECTED_BANANA".' }
+    hookSpecificOutput: {
+      additionalContext: `JSON Context: ${JSON.stringify({ category: 'clothing', price: 12499 })}`
+    }
   });
 });

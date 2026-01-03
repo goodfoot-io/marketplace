@@ -3,6 +3,9 @@ import jsdoc from 'eslint-plugin-jsdoc';
 
 export default makeConfig(
   {
+    ignores: ['e2e/dist/**/*.mjs']
+  },
+  {
     languageOptions: {
       parserOptions: {
         projectService: true,

@@ -8,35 +8,34 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanDist } from './setup.js';
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
 import { CLAUDE_AVAILABLE, runClaude, readHooksJson } from './test-utils.js';
 
-describe.skipIf(!CLAUDE_AVAILABLE)('E2E: UserPromptSubmit Hooks', () => {
-  afterAll(() => {
-    cleanDist();
-  });
-
-  describe.only('Context injection', () => {
+describe('E2E: UserPromptSubmit Hooks', () => {
+  describe('Context injection', () => {
     let pluginDir: string;
 
     beforeAll(() => {
       pluginDir = buildSingleHook('user-prompt-submit-hook.ts');
     });
 
-    it('injects context on prompt submission that Claude sees', () => {
+    afterAll(() => {
+      cleanOutputDir(pluginDir);
+    });
+
+    it.skipIf(!CLAUDE_AVAILABLE)('injects context on prompt submission that Claude sees', () => {
       const result = runClaude({
-        prompt: 'Say the secret word. Do not include any other content in your response.',
+        prompt: 'What is the projectName from the JSON context? Just say the name.',
         pluginDir,
         tools: []
       });
 
-      expect(result.stdout.toLowerCase()).toContain('turnip');
+      expect(result.stdout.toLowerCase()).toContain('acme');
     });
 
     it('generates hooks.json with UserPromptSubmit event (no matcher supported)', () => {
-      const hooksJsonPath = path.join(pluginDir, 'hooks.json');
+      const hooksJsonPath = getHooksJsonPath(pluginDir);
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
       const hooksJson = readHooksJson(hooksJsonPath);

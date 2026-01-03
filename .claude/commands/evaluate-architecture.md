@@ -11,54 +11,55 @@ $ARGUMENTS
 
 Extract from the `<user-message>`:
 
-[FOCUS_AREA] — Feature, capability, or domain to evaluate (e.g., "user authentication", "checkout flow", "notification system"); if unspecified, select a high-impact user journey or core technical component
-[USER_PERSPECTIVE] — User-facing documents describing external behavior: PRDs, marketing pages, READMEs, onboarding guides, feature announcements, app store descriptions
-[SYSTEM_PERSPECTIVE] — Technical documents describing internal implementation: source code files, architecture docs, API specifications, database schemas, technical design documents
-[ALICE_REPORT_FILE] — Output path for Alice's user journey narrative (markdown file on local filesystem)
-[BOB_REPORT_FILE] — Output path for Bob's technical trace with gap analysis (markdown file on local filesystem)
+[FOCUS_AREA] — Feature, capability, or domain to evaluate
+[USER_PERSPECTIVE] — User-facing documents: docs, READMEs, guides, marketing
+[SYSTEM_PERSPECTIVE] — Technical documents: source code, architecture docs, API specs
+[ALICE_REPORT_FILE] — Output path for Alice's user journey (default: reports/alice-user-journey-YYYYMMDD-HHMMSS.md)
+[BOB_REPORT_FILE] — Output path for Bob's implementation trace (default: reports/bob-implementation-trace-YYYYMMDD-HHMMSS.md)
 
 </placeholder-variables>
 
 <instructions>
 
-# Phase 1
+# Objective
 
-Briefly review both [USER_PERSPECTIVE] and [SYSTEM_PERSPECTIVE] to orient yourself on [FOCUS_AREA].
+Find **implementation gaps** where user documentation promises capabilities that the code doesn't fully support. Prioritize gaps that require code changes over documentation-only fixes.
 
-# Phase 2
+# Phase 1: User Journey
 
-Invoke an `Alice` subagent to describe the user journey for [FOCUS_AREA]. Provide her with [USER_PERSPECTIVE] and ask her to write the journey narrative to [ALICE_REPORT_FILE].
+Invoke `Alice` to describe what users expect based on [USER_PERSPECTIVE].
 
 ```xml
 <invoke name="Task">
-<parameter name="description">Describe [FOCUS_AREA] user journey</parameter>
 <parameter name="subagent_type">Alice</parameter>
 <parameter name="prompt">
-Describe the user journey for [FOCUS_AREA] using only these documents: [USER_PERSPECTIVE]
-
-Write your narrative to [ALICE_REPORT_FILE].
+Describe the user journey for [FOCUS_AREA] using: [USER_PERSPECTIVE]
+Write to [ALICE_REPORT_FILE].
 </parameter>
 </invoke>
 ```
 
-# Phase 3
+# Phase 2: Implementation Trace
 
-Invoke a `Bob` subagent to trace Alice's journey through the implementation. Provide him with [ALICE_REPORT_FILE], [SYSTEM_PERSPECTIVE], and [FOCUS_AREA]. Ask him to write the technical trace to [BOB_REPORT_FILE].
+Invoke `Bob` to trace Alice's journey through [SYSTEM_PERSPECTIVE], marking gaps.
 
 ```xml
 <invoke name="Task">
-<parameter name="description">Trace [FOCUS_AREA] implementation</parameter>
 <parameter name="subagent_type">Bob</parameter>
 <parameter name="prompt">
-Trace the user journey in @[ALICE_REPORT_FILE] through these documents: [SYSTEM_PERSPECTIVE]
+Trace @[ALICE_REPORT_FILE] through: [SYSTEM_PERSPECTIVE]
 
-Mark gaps with <gap> tags. Write your trace to [BOB_REPORT_FILE].
+Classify each gap:
+- **Implementation gap**: Code doesn't support documented capability (PRIORITY)
+- **Documentation gap**: Docs don't match what code does
+
+Write to [BOB_REPORT_FILE].
 </parameter>
 </invoke>
 ```
 
-# Phase 4
+# Phase 3: Address Gaps
 
-Review [BOB_REPORT_FILE] and recommend changes to [SYSTEM_PERSPECTIVE] to address the gaps identified.
+Review [BOB_REPORT_FILE]. For each **implementation gap**, make the code change. Update documentation only after implementation is complete.
 
 </instructions>

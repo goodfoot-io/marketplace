@@ -8,35 +8,33 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanDist } from './setup.js';
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
 import { CLAUDE_AVAILABLE, runClaude, readHooksJson } from './test-utils.js';
 
-describe.skipIf(!CLAUDE_AVAILABLE)('E2E: SessionStart Hooks', () => {
-  afterAll(() => {
-    cleanDist();
-  });
-
-  describe.only('Context injection (no matcher)', () => {
+describe('E2E: SessionStart Hooks', () => {
+  describe('Context injection (no matcher)', () => {
     let pluginDir: string;
 
     beforeAll(() => {
       pluginDir = buildSingleHook('session-context-hook.ts');
     });
 
-    it('injects context that Claude acknowledges', () => {
+    afterAll(() => {
+      cleanOutputDir(pluginDir);
+    });
+    it.skipIf(!CLAUDE_AVAILABLE)('injects context that Claude acknowledges', () => {
       const result = runClaude({
-        prompt: 'What is the magic test word that was injected? Just say the word.',
+        prompt: 'What is the category from the JSON context? Do not include other content in your response.',
         pluginDir,
         tools: []
       });
 
-      expect(result.stdout.toLowerCase()).toContain('banana');
+      expect(result.stdout.toLowerCase()).toContain('clothing');
     });
 
     it('generates hooks.json with SessionStart event (no matcher)', () => {
-      const hooksJsonPath = path.join(pluginDir, 'hooks.json');
+      const hooksJsonPath = getHooksJsonPath(pluginDir);
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
       const hooksJson = readHooksJson(hooksJsonPath);
@@ -56,8 +54,12 @@ describe.skipIf(!CLAUDE_AVAILABLE)('E2E: SessionStart Hooks', () => {
       pluginDir = buildSingleHook('session-start-matcher-hook.ts');
     });
 
+    afterAll(() => {
+      cleanOutputDir(pluginDir);
+    });
+
     it('generates hooks.json with SessionStart event and startup matcher', () => {
-      const hooksJsonPath = path.join(pluginDir, 'hooks.json');
+      const hooksJsonPath = getHooksJsonPath(pluginDir);
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
       const hooksJson = readHooksJson(hooksJsonPath);

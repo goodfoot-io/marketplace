@@ -28,38 +28,112 @@ export const DIST_DIR = path.join(__dirname, 'dist');
 export const HOOKS_JSON_PATH = path.join(DIST_DIR, 'hooks.json');
 
 /**
+ * Gets the path to hooks.json within a plugin directory.
+ * @param pluginDir - The plugin directory returned by buildSingleHook
+ * @returns Path to hooks/hooks.json
+ * @example
+ * ```typescript
+ * const pluginDir = buildSingleHook('my-hook.ts');
+ * const hooksJsonPath = getHooksJsonPath(pluginDir);
+ * ```
+ */
+export function getHooksJsonPath(pluginDir: string): string {
+  return path.join(pluginDir, 'hooks', 'hooks.json');
+}
+
+/**
  * Path to the CLI script.
  */
 const CLI_PATH = path.join(__dirname, '..', 'src', 'cli', 'index.ts');
 
 /**
- * Builds a single test hook fixture.
+ * Generates a unique suffix for output directories.
+ * @returns A unique string combining timestamp and random characters
+ */
+function uniqueSuffix(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Represents the hooks.json file structure for post-processing.
+ */
+interface HooksJsonStructure {
+  hooks: Record<string, Array<{ matcher?: string; hooks: Array<{ type: string; command: string; timeout?: number }> }>>;
+  __generated?: { files: string[]; timestamp: string };
+}
+
+/**
+ * Builds a single test hook fixture as a valid Claude Code plugin.
+ *
+ * Creates the proper plugin directory structure:
+ * ```
+ * <plugin-dir>/
+ * .claude-plugin/
+ * plugin.json
+ * hooks/
+ * hooks.json
+ * build/
+ * hook-file.mjs
+ * ```
  * @param fixtureFile - Name of the fixture file (e.g., 'deny-bash-hook.ts')
- * @returns Path to the output directory containing the compiled hook
+ * @returns Path to the plugin directory (use with --plugin-dir)
  * @example
  * ```typescript
- * const outputDir = buildSingleHook('deny-bash-hook.ts');
- * // outputDir: '/path/to/e2e/dist/deny-bash-hook'
+ * const pluginDir = buildSingleHook('deny-bash-hook.ts');
+ * // pluginDir: '/path/to/e2e/dist/deny-bash-hook-1234567890-abc123'
  * ```
  */
 export function buildSingleHook(fixtureFile: string): string {
   const hookPath = path.join(FIXTURES_DIR, fixtureFile);
-  const outputDir = path.join(DIST_DIR, path.basename(fixtureFile, '.ts'));
-  const outputPath = path.join(outputDir, 'hooks.json');
+  const baseName = path.basename(fixtureFile, '.ts');
+  const pluginDir = path.join(DIST_DIR, `${baseName}-${uniqueSuffix()}`);
 
-  // Ensure output directory exists
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
+  // Create plugin directory structure
+  const claudePluginDir = path.join(pluginDir, '.claude-plugin');
+  const hooksDir = path.join(pluginDir, 'hooks');
+  const buildDir = path.join(hooksDir, 'build');
 
-  // Build the hook using tsx to run the CLI
-  execSync(`npx tsx ${CLI_PATH} -i "${hookPath}" -o "${outputPath}"`, {
+  fs.mkdirSync(claudePluginDir, { recursive: true });
+  fs.mkdirSync(buildDir, { recursive: true });
+
+  // Create plugin.json
+  const pluginJson = {
+    name: `test-${baseName}`,
+    version: '1.0.0',
+    description: `Test plugin for ${baseName}`
+  };
+  fs.writeFileSync(path.join(claudePluginDir, 'plugin.json'), JSON.stringify(pluginJson, null, 2));
+
+  // Build the hook - CLI outputs to buildDir, hooks.json to hooksDir
+  const tempHooksJsonPath = path.join(hooksDir, 'hooks.json');
+  execSync(`npx tsx ${CLI_PATH} -i "${hookPath}" -o "${tempHooksJsonPath}"`, {
     cwd: path.dirname(CLI_PATH),
     encoding: 'utf-8',
     stdio: 'pipe'
   });
 
-  return outputDir;
+  // Move .mjs files from hooksDir to buildDir
+  const mjsFiles = fs.readdirSync(hooksDir).filter((f) => f.endsWith('.mjs'));
+  for (const mjsFile of mjsFiles) {
+    fs.renameSync(path.join(hooksDir, mjsFile), path.join(buildDir, mjsFile));
+  }
+
+  // Post-process hooks.json to use ${CLAUDE_PLUGIN_ROOT} paths
+  const hooksJson = JSON.parse(fs.readFileSync(tempHooksJsonPath, 'utf-8')) as HooksJsonStructure;
+
+  for (const eventType of Object.keys(hooksJson.hooks)) {
+    for (const matcherEntry of hooksJson.hooks[eventType]) {
+      for (const hook of matcherEntry.hooks) {
+        // Replace absolute path with ${CLAUDE_PLUGIN_ROOT}/hooks/build/filename.mjs
+        const filename = path.basename(hook.command);
+        hook.command = `\${CLAUDE_PLUGIN_ROOT}/hooks/build/${filename}`;
+      }
+    }
+  }
+
+  fs.writeFileSync(tempHooksJsonPath, JSON.stringify(hooksJson, null, 2));
+
+  return pluginDir;
 }
 
 /**
@@ -105,6 +179,7 @@ export function cleanOutputDir(outputDir: string): void {
 
 /**
  * @deprecated Use cleanOutputDir(pluginDir) instead to avoid race conditions between tests.
+ * @example
  * Cleans up the entire dist directory - only use when running tests serially.
  */
 export function cleanDist(): void {

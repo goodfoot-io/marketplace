@@ -1,25 +1,35 @@
 # Output Builders Reference
 
-> [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Porting](porting.md) | [Logging](logging.md)
+> [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Porting](porting.md) | [Logging](logging.md) | [Environment](environment.md)
 
 <instructions>
 
 ## 1. All Hook Types {#hook-types}
 
-| Hook Type | Output Builder | Input Type | When It Fires |
-|-----------|----------------|------------|---------------|
-| PreToolUse | `preToolUseOutput()` | `PreToolUseInput` | Before tool execution |
-| PostToolUse | `postToolUseOutput()` | `PostToolUseInput` | After successful tool |
-| PostToolUseFailure | `postToolUseFailureOutput()` | `PostToolUseFailureInput` | After tool failure |
-| UserPromptSubmit | `userPromptSubmitOutput()` | `UserPromptSubmitInput` | User submits prompt |
-| SessionStart | `sessionStartOutput()` | `SessionStartInput` | Session begins |
-| SessionEnd | `sessionEndOutput()` | `SessionEndInput` | Session ends |
-| Stop | `stopOutput()` | `StopInput` | Claude about to stop |
-| SubagentStart | `subagentStartOutput()` | `SubagentStartInput` | Task agent starts |
-| SubagentStop | `subagentStopOutput()` | `SubagentStopInput` | Task agent stops |
-| Notification | `notificationOutput()` | `NotificationInput` | Notification sent |
-| PreCompact | `preCompactOutput()` | `PreCompactInput` | Before compaction |
-| PermissionRequest | `permissionRequestOutput()` | `PermissionRequestInput` | Permission prompt |
+| Hook Type | Hook Factory | Output Builder | When It Fires |
+|-----------|--------------|----------------|---------------|
+| PreToolUse | `preToolUseHook()` | `preToolUseOutput()` | Before tool execution |
+| PostToolUse | `postToolUseHook()` | `postToolUseOutput()` | After successful tool |
+| PostToolUseFailure | `postToolUseFailureHook()` | `postToolUseFailureOutput()` | After tool failure |
+| UserPromptSubmit | `userPromptSubmitHook()` | `userPromptSubmitOutput()` | User submits prompt |
+| SessionStart | `sessionStartHook()` | `sessionStartOutput()` | Session begins |
+| SessionEnd | `sessionEndHook()` | `sessionEndOutput()` | Session ends |
+| Stop | `stopHook()` | `stopOutput()` | Claude about to stop |
+| SubagentStart | `subagentStartHook()` | `subagentStartOutput()` | Task agent starts |
+| SubagentStop | `subagentStopHook()` | `subagentStopOutput()` | Task agent stops |
+| Notification | `notificationHook()` | `notificationOutput()` | Notification sent |
+| PreCompact | `preCompactHook()` | `preCompactOutput()` | Before compaction |
+| PermissionRequest | `permissionRequestHook()` | `permissionRequestOutput()` | Permission prompt |
+
+**Usage pattern:** Import the hook factory and output builder, export default the hook:
+
+```typescript
+import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
+
+export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
+  return preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
+});
+```
 
 ## 2. Input Types {#input-types}
 
@@ -323,15 +333,23 @@ Based on desired behavior:
 
 ### 3.9 notificationOutput()
 
-Handle notifications.
+Handle notifications with optional context.
 
 ```typescript
 import { notificationOutput } from '@goodfoot/claude-code-hooks';
 ```
 
 Based on desired behavior:
-- **Acknowledge**: `notificationOutput({})`
-- **With message**: `notificationOutput({ systemMessage: 'Forwarded to Slack' })`
+- **Add context**: `notificationOutput({ hookSpecificOutput: { additionalContext: 'Forwarded to Slack #alerts' } })`
+- **With system message**: `notificationOutput({ systemMessage: 'Notification processed' })`
+- **Suppress notification**: `notificationOutput({ suppressOutput: true })`
+- **Acknowledge only**: `notificationOutput({})`
+
+**hookSpecificOutput Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `additionalContext` | `string` | Context about notification handling |
 
 ### 3.10 preCompactOutput()
 
@@ -418,41 +436,59 @@ Output builders set exit codes automatically:
 | `stopOutput({ decision: 'block' })` | 2 | Stop blocked (via decision) |
 | `subagentStopOutput({ decision: 'block' })` | 2 | Subagent stop blocked |
 
-Always use `output.exitCode`:
-
-```typescript
-const output = preToolUseOutput({
-  hookSpecificOutput: {
-    permissionDecision: 'deny',
-    permissionDecisionReason: 'Blocked'
-  }
-});
-process.exit(output.exitCode); // Use this!
-```
+When using hook factories, exit codes are handled automatically by the runtime.
 
 ## 6. Import Patterns
 
+**Hook factories + output builders (recommended):**
+
 ```typescript
-// Import specific builders and types
+// Import hook factory and output builder together
+import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
+
+export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
+  return preToolUseOutput({
+    hookSpecificOutput: { permissionDecision: 'allow' }
+  });
+});
+```
+
+**All hook factories:**
+
+```typescript
+import {
+  preToolUseHook,
+  postToolUseHook,
+  postToolUseFailureHook,
+  sessionStartHook,
+  sessionEndHook,
+  stopHook,
+  subagentStartHook,
+  subagentStopHook,
+  userPromptSubmitHook,
+  notificationHook,
+  preCompactHook,
+  permissionRequestHook
+} from '@goodfoot/claude-code-hooks';
+```
+
+**All output builders:**
+
+```typescript
 import {
   preToolUseOutput,
   postToolUseOutput,
+  postToolUseFailureOutput,
   sessionStartOutput,
+  sessionEndOutput,
   stopOutput,
-  type PreToolUseInput,
-  type SessionStartInput,
-  type StopInput
+  subagentStartOutput,
+  subagentStopOutput,
+  userPromptSubmitOutput,
+  notificationOutput,
+  preCompactOutput,
+  permissionRequestOutput
 } from '@goodfoot/claude-code-hooks';
-
-// Import all exports
-import * as hooks from '@goodfoot/claude-code-hooks';
-const output = hooks.preToolUseOutput({ allow: true });
-
-// Import exit codes constant
-import { EXIT_CODES } from '@goodfoot/claude-code-hooks';
-console.log(EXIT_CODES.SUCCESS); // 0
-console.log(EXIT_CODES.ERROR);   // 1
-console.log(EXIT_CODES.BLOCK);   // 2
 ```
 
 </instructions>

@@ -27,8 +27,7 @@ import {
   postToolUseOutput,
   sessionStartOutput,
   stopOutput,
-  permissionRequestOutput,
-  EXIT_CODES
+  permissionRequestOutput
 } from '../../src/index.js';
 
 describe('hook factory type enforcement', () => {
@@ -225,7 +224,8 @@ describe('HookFunction type properties', () => {
     };
 
     const result = await hook(mockInput, mockContext);
-    expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+    expect(result).toHaveProperty('stdout');
+    expect(result).toHaveProperty('_type', 'PreToolUse');
   });
 });
 

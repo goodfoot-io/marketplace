@@ -1,6 +1,6 @@
 # Logging Reference
 
-> [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Porting](porting.md) | [Output Builders](output-builders.md)
+> [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Porting](porting.md) | [Output Builders](output-builders.md) | [Environment](environment.md)
 
 <instructions>
 
@@ -296,7 +296,6 @@ logger.close();
 | Variable | Description |
 |----------|-------------|
 | `CLAUDE_CODE_HOOKS_LOG_FILE` | Path to log file |
-| `CLAUDE_CODE_HOOKS_ENABLE_TELEMETRY` | Enable OpenTelemetry (future) |
 
 ## 11. Best Practices
 

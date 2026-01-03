@@ -110,6 +110,14 @@ export interface SubagentStartHookSpecificOutput {
 }
 
 /**
+ * Notification hook-specific output fields.
+ */
+export interface NotificationHookSpecificOutput {
+  /** Additional context to add about the notification. */
+  additionalContext?: string;
+}
+
+/**
  * Allow decision for permission requests.
  */
 export interface PermissionRequestAllowDecision {
@@ -158,6 +166,7 @@ export type HookSpecificOutput =
   | ({ hookEventName: 'UserPromptSubmit' } & UserPromptSubmitHookSpecificOutput)
   | ({ hookEventName: 'SessionStart' } & SessionStartHookSpecificOutput)
   | ({ hookEventName: 'SubagentStart' } & SubagentStartHookSpecificOutput)
+  | ({ hookEventName: 'Notification' } & NotificationHookSpecificOutput)
   | ({ hookEventName: 'PermissionRequest' } & PermissionRequestHookSpecificOutput);
 
 /**
@@ -183,14 +192,11 @@ export interface SyncHookJSONOutput {
 
 /**
  * The result of a hook handler, ready for the runtime to process.
+ * Exit code is always SUCCESS (0) - blocking behavior is communicated via stdout fields.
  */
 export interface HookOutput {
-  /** Exit code for the hook process. */
-  exitCode: ExitCode;
   /** JSON-serializable output to write to stdout. */
   stdout: SyncHookJSONOutput;
-  /** Optional message to write to stderr. */
-  stderr?: string;
 }
 
 // ============================================================================
@@ -221,9 +227,7 @@ export interface CommonOptions {
  */
 interface BaseSpecificOutput<T extends string> {
   readonly _type: T;
-  exitCode: ExitCode;
   stdout: SyncHookJSONOutput;
-  stderr?: string;
 }
 
 /**
@@ -293,6 +297,65 @@ export type SpecificHookOutput =
   | PermissionRequestOutput;
 
 // ============================================================================
+// Output Builder Factories
+// ============================================================================
+
+/**
+ * Factory for hooks that have hookSpecificOutput with a hookEventName discriminator.
+ * @param hookType - The hook type name used as the _type discriminator
+ * @returns A builder function that creates the output object
+ * @internal
+ */
+function createHookSpecificOutputBuilder<T extends string, THookSpecific>(hookType: T) {
+  return (
+    options: CommonOptions & { hookSpecificOutput?: THookSpecific } = {}
+  ): { readonly _type: T; stdout: SyncHookJSONOutput } => {
+    const { hookSpecificOutput, ...rest } = options;
+    const stdout: SyncHookJSONOutput =
+      hookSpecificOutput !== undefined
+        ? { ...rest, hookSpecificOutput: { hookEventName: hookType, ...hookSpecificOutput } as HookSpecificOutput }
+        : rest;
+    return { _type: hookType, stdout };
+  };
+}
+
+/**
+ * Factory for hooks that only use CommonOptions (simple passthrough).
+ * @param hookType - The hook type name used as the _type discriminator
+ * @returns A builder function that creates the output object
+ * @internal
+ */
+function createSimpleOutputBuilder<T extends string>(hookType: T) {
+  return (options: CommonOptions = {}): { readonly _type: T; stdout: SyncHookJSONOutput } => ({
+    _type: hookType,
+    stdout: options
+  });
+}
+
+/**
+ * Options for decision-based hooks (Stop, SubagentStop).
+ */
+interface DecisionOptions extends CommonOptions {
+  /** Decision: 'approve' allows the action, 'block' prevents it. */
+  decision?: 'approve' | 'block';
+  /** Reason for the decision (shown to Claude when blocking). */
+  reason?: string;
+}
+
+/**
+ * Factory for hooks that use decision-based options (Stop, SubagentStop).
+ * @param hookType - The hook type name used as the _type discriminator
+ * @returns A builder function that creates the output object
+ * @internal
+ */
+function createDecisionOutputBuilder<T extends string>(hookType: T) {
+  return (options: DecisionOptions = {}): { readonly _type: T; stdout: SyncHookJSONOutput } => ({
+    _type: hookType,
+    stdout: options
+  });
+}
+
+// ============================================================================
 // PreToolUse Output Builder
 // ============================================================================
 
@@ -333,30 +396,9 @@ export type PreToolUseOptions = CommonOptions & {
  * });
  * ```
  */
-export function preToolUseOutput(options: PreToolUseOptions = {}): PreToolUseOutput {
-  const exitCode = options.stopReason !== undefined ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  const stdout: SyncHookJSONOutput = {
-    continue: options.continue,
-    suppressOutput: options.suppressOutput,
-    systemMessage: options.systemMessage,
-    stopReason: options.stopReason
-  };
-
-  if (options.hookSpecificOutput !== undefined) {
-    stdout.hookSpecificOutput = {
-      hookEventName: 'PreToolUse',
-      ...options.hookSpecificOutput
-    };
-  }
-
-  return {
-    _type: 'PreToolUse',
-    exitCode,
-    stdout,
-    stderr: options.stopReason
-  };
-}
+export const preToolUseOutput = createHookSpecificOutputBuilder<'PreToolUse', PreToolUseHookSpecificOutput>(
+  'PreToolUse'
+);
 
 // ============================================================================
 // PostToolUse Output Builder
@@ -384,30 +426,9 @@ export type PostToolUseOptions = CommonOptions & {
  * });
  * ```
  */
-export function postToolUseOutput(options: PostToolUseOptions = {}): PostToolUseOutput {
-  const exitCode = options.stopReason !== undefined ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  const stdout: SyncHookJSONOutput = {
-    continue: options.continue,
-    suppressOutput: options.suppressOutput,
-    systemMessage: options.systemMessage,
-    stopReason: options.stopReason
-  };
-
-  if (options.hookSpecificOutput !== undefined) {
-    stdout.hookSpecificOutput = {
-      hookEventName: 'PostToolUse',
-      ...options.hookSpecificOutput
-    };
-  }
-
-  return {
-    _type: 'PostToolUse',
-    exitCode,
-    stdout,
-    stderr: options.stopReason
-  };
-}
+export const postToolUseOutput = createHookSpecificOutputBuilder<'PostToolUse', PostToolUseHookSpecificOutput>(
+  'PostToolUse'
+);
 
 // ============================================================================
 // PostToolUseFailure Output Builder
@@ -434,30 +455,10 @@ export type PostToolUseFailureOptions = CommonOptions & {
  * });
  * ```
  */
-export function postToolUseFailureOutput(options: PostToolUseFailureOptions = {}): PostToolUseFailureOutput {
-  const exitCode = options.stopReason !== undefined ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  const stdout: SyncHookJSONOutput = {
-    continue: options.continue,
-    suppressOutput: options.suppressOutput,
-    systemMessage: options.systemMessage,
-    stopReason: options.stopReason
-  };
-
-  if (options.hookSpecificOutput !== undefined) {
-    stdout.hookSpecificOutput = {
-      hookEventName: 'PostToolUseFailure',
-      ...options.hookSpecificOutput
-    };
-  }
-
-  return {
-    _type: 'PostToolUseFailure',
-    exitCode,
-    stdout,
-    stderr: options.stopReason
-  };
-}
+export const postToolUseFailureOutput = createHookSpecificOutputBuilder<
+  'PostToolUseFailure',
+  PostToolUseFailureHookSpecificOutput
+>('PostToolUseFailure');
 
 // ============================================================================
 // UserPromptSubmit Output Builder
@@ -484,30 +485,10 @@ export type UserPromptSubmitOptions = CommonOptions & {
  * });
  * ```
  */
-export function userPromptSubmitOutput(options: UserPromptSubmitOptions = {}): UserPromptSubmitOutput {
-  const exitCode = options.stopReason !== undefined ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  const stdout: SyncHookJSONOutput = {
-    continue: options.continue,
-    suppressOutput: options.suppressOutput,
-    systemMessage: options.systemMessage,
-    stopReason: options.stopReason
-  };
-
-  if (options.hookSpecificOutput !== undefined) {
-    stdout.hookSpecificOutput = {
-      hookEventName: 'UserPromptSubmit',
-      ...options.hookSpecificOutput
-    };
-  }
-
-  return {
-    _type: 'UserPromptSubmit',
-    exitCode,
-    stdout,
-    stderr: options.stopReason
-  };
-}
+export const userPromptSubmitOutput = createHookSpecificOutputBuilder<
+  'UserPromptSubmit',
+  UserPromptSubmitHookSpecificOutput
+>('UserPromptSubmit');
 
 // ============================================================================
 // SessionStart Output Builder
@@ -534,30 +515,9 @@ export type SessionStartOptions = CommonOptions & {
  * });
  * ```
  */
-export function sessionStartOutput(options: SessionStartOptions = {}): SessionStartOutput {
-  const exitCode = options.stopReason !== undefined ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  const stdout: SyncHookJSONOutput = {
-    continue: options.continue,
-    suppressOutput: options.suppressOutput,
-    systemMessage: options.systemMessage,
-    stopReason: options.stopReason
-  };
-
-  if (options.hookSpecificOutput !== undefined) {
-    stdout.hookSpecificOutput = {
-      hookEventName: 'SessionStart',
-      ...options.hookSpecificOutput
-    };
-  }
-
-  return {
-    _type: 'SessionStart',
-    exitCode,
-    stdout,
-    stderr: options.stopReason
-  };
-}
+export const sessionStartOutput = createHookSpecificOutputBuilder<'SessionStart', SessionStartHookSpecificOutput>(
+  'SessionStart'
+);
 
 // ============================================================================
 // SessionEnd Output Builder
@@ -578,21 +538,7 @@ export type SessionEndOptions = CommonOptions;
  * sessionEndOutput({});
  * ```
  */
-export function sessionEndOutput(options: SessionEndOptions = {}): SessionEndOutput {
-  const exitCode = options.stopReason !== undefined ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  return {
-    _type: 'SessionEnd',
-    exitCode,
-    stdout: {
-      continue: options.continue,
-      suppressOutput: options.suppressOutput,
-      systemMessage: options.systemMessage,
-      stopReason: options.stopReason
-    },
-    stderr: options.stopReason
-  };
-}
+export const sessionEndOutput = createSimpleOutputBuilder<'SessionEnd'>('SessionEnd');
 
 // ============================================================================
 // Stop Output Builder
@@ -624,24 +570,7 @@ export interface StopOptions extends CommonOptions {
  * });
  * ```
  */
-export function stopOutput(options: StopOptions = {}): StopOutput {
-  const decision = options.decision ?? 'approve';
-  const exitCode = options.stopReason !== undefined || decision === 'block' ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  return {
-    _type: 'Stop',
-    exitCode,
-    stdout: {
-      continue: options.continue,
-      suppressOutput: options.suppressOutput,
-      systemMessage: options.systemMessage,
-      stopReason: options.stopReason,
-      decision,
-      reason: options.reason
-    },
-    stderr: options.stopReason ?? (decision === 'block' ? options.reason : undefined)
-  };
-}
+export const stopOutput = createDecisionOutputBuilder<'Stop'>('Stop');
 
 // ============================================================================
 // SubagentStart Output Builder
@@ -668,30 +597,9 @@ export type SubagentStartOptions = CommonOptions & {
  * });
  * ```
  */
-export function subagentStartOutput(options: SubagentStartOptions = {}): SubagentStartOutput {
-  const exitCode = options.stopReason !== undefined ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  const stdout: SyncHookJSONOutput = {
-    continue: options.continue,
-    suppressOutput: options.suppressOutput,
-    systemMessage: options.systemMessage,
-    stopReason: options.stopReason
-  };
-
-  if (options.hookSpecificOutput !== undefined) {
-    stdout.hookSpecificOutput = {
-      hookEventName: 'SubagentStart',
-      ...options.hookSpecificOutput
-    };
-  }
-
-  return {
-    _type: 'SubagentStart',
-    exitCode,
-    stdout,
-    stderr: options.stopReason
-  };
-}
+export const subagentStartOutput = createHookSpecificOutputBuilder<'SubagentStart', SubagentStartHookSpecificOutput>(
+  'SubagentStart'
+);
 
 // ============================================================================
 // SubagentStop Output Builder
@@ -720,24 +628,7 @@ export interface SubagentStopOptions extends CommonOptions {
  * });
  * ```
  */
-export function subagentStopOutput(options: SubagentStopOptions = {}): SubagentStopOutput {
-  const decision = options.decision ?? 'approve';
-  const exitCode = options.stopReason !== undefined || decision === 'block' ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  return {
-    _type: 'SubagentStop',
-    exitCode,
-    stdout: {
-      continue: options.continue,
-      suppressOutput: options.suppressOutput,
-      systemMessage: options.systemMessage,
-      stopReason: options.stopReason,
-      decision,
-      reason: options.reason
-    },
-    stderr: options.stopReason ?? (decision === 'block' ? options.reason : undefined)
-  };
-}
+export const subagentStopOutput = createDecisionOutputBuilder<'SubagentStop'>('SubagentStop');
 
 // ============================================================================
 // Notification Output Builder
@@ -745,9 +636,11 @@ export function subagentStopOutput(options: SubagentStopOptions = {}): SubagentS
 
 /**
  * Options for the Notification output builder.
- * Notification hooks only support common options.
  */
-export type NotificationOptions = CommonOptions;
+export type NotificationOptions = CommonOptions & {
+  /** Hook-specific output matching the wire format. */
+  hookSpecificOutput?: NotificationHookSpecificOutput;
+};
 
 /**
  * Creates an output for Notification hooks.
@@ -755,24 +648,20 @@ export type NotificationOptions = CommonOptions;
  * @returns A NotificationOutput object ready for the runtime
  * @example
  * ```typescript
- * notificationOutput({});
+ * // Add context about the notification
+ * notificationOutput({
+ *   hookSpecificOutput: {
+ *     additionalContext: 'Notification forwarded to Slack #alerts channel'
+ *   }
+ * });
+ *
+ * // Suppress the notification
+ * notificationOutput({ suppressOutput: true });
  * ```
  */
-export function notificationOutput(options: NotificationOptions = {}): NotificationOutput {
-  const exitCode = options.stopReason !== undefined ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  return {
-    _type: 'Notification',
-    exitCode,
-    stdout: {
-      continue: options.continue,
-      suppressOutput: options.suppressOutput,
-      systemMessage: options.systemMessage,
-      stopReason: options.stopReason
-    },
-    stderr: options.stopReason
-  };
-}
+export const notificationOutput = createHookSpecificOutputBuilder<'Notification', NotificationHookSpecificOutput>(
+  'Notification'
+);
 
 // ============================================================================
 // PreCompact Output Builder
@@ -795,21 +684,7 @@ export type PreCompactOptions = CommonOptions;
  * });
  * ```
  */
-export function preCompactOutput(options: PreCompactOptions = {}): PreCompactOutput {
-  const exitCode = options.stopReason !== undefined ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  return {
-    _type: 'PreCompact',
-    exitCode,
-    stdout: {
-      continue: options.continue,
-      suppressOutput: options.suppressOutput,
-      systemMessage: options.systemMessage,
-      stopReason: options.stopReason
-    },
-    stderr: options.stopReason
-  };
-}
+export const preCompactOutput = createSimpleOutputBuilder<'PreCompact'>('PreCompact');
 
 // ============================================================================
 // PermissionRequest Output Builder
@@ -861,30 +736,10 @@ export type PermissionRequestOptions = CommonOptions & {
  * permissionRequestOutput({});
  * ```
  */
-export function permissionRequestOutput(options: PermissionRequestOptions = {}): PermissionRequestOutput {
-  const exitCode = options.stopReason !== undefined ? EXIT_CODES.BLOCK : EXIT_CODES.SUCCESS;
-
-  const stdout: SyncHookJSONOutput = {
-    continue: options.continue,
-    suppressOutput: options.suppressOutput,
-    systemMessage: options.systemMessage,
-    stopReason: options.stopReason
-  };
-
-  if (options.hookSpecificOutput !== undefined) {
-    stdout.hookSpecificOutput = {
-      hookEventName: 'PermissionRequest',
-      ...options.hookSpecificOutput
-    };
-  }
-
-  return {
-    _type: 'PermissionRequest',
-    exitCode,
-    stdout,
-    stderr: options.stopReason
-  };
-}
+export const permissionRequestOutput = createHookSpecificOutputBuilder<
+  'PermissionRequest',
+  PermissionRequestHookSpecificOutput
+>('PermissionRequest');
 
 // ============================================================================
 // Legacy type aliases for backwards compatibility

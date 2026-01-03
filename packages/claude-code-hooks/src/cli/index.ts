@@ -472,7 +472,7 @@ execute(hook);
       bundle: true,
       sourcemap: false,
       minify: false,
-      // Keep only node built-ins external
+      // Keep node built-ins external
       external: [
         'node:*',
         'http',
@@ -564,8 +564,9 @@ async function compileAllHooks(hookFiles: string[], outputDir: string): Promise<
     const outputFilename = `${baseName}.${hash}.mjs`;
     const outputPath = path.join(outputDir, outputFilename);
 
-    // Write compiled output
-    fs.writeFileSync(outputPath, compiledContent, 'utf-8');
+    // Write compiled output with shebang for direct execution
+    const shebang = '#!/usr/bin/env node\n';
+    fs.writeFileSync(outputPath, shebang + compiledContent, { encoding: 'utf-8', mode: 0o755 });
     log('info', `Wrote: ${outputPath}`);
 
     compiledHooks.push({

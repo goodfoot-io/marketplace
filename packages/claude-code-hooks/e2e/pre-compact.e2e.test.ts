@@ -7,16 +7,11 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanDist } from './setup.js';
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
 import { readHooksJson } from './test-utils.js';
 
 describe('E2E: PreCompact Hooks', () => {
-  afterAll(() => {
-    cleanDist();
-  });
-
   describe('System message injection', () => {
     let pluginDir: string;
 
@@ -24,8 +19,12 @@ describe('E2E: PreCompact Hooks', () => {
       pluginDir = buildSingleHook('pre-compact-hook.ts');
     });
 
+    afterAll(() => {
+      cleanOutputDir(pluginDir);
+    });
+
     it('generates hooks.json with PreCompact event (no matcher)', () => {
-      const hooksJsonPath = path.join(pluginDir, 'hooks.json');
+      const hooksJsonPath = getHooksJsonPath(pluginDir);
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
       const hooksJson = readHooksJson(hooksJsonPath);
