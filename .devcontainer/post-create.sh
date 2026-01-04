@@ -48,9 +48,7 @@ claude mcp add codebase -- node /workspace/.devcontainer/utilities/codebase-mcp-
 claude mcp add browser -- node /workspace/.devcontainer/utilities/browser-mcp-server.mjs --browserUrl "http://192.168.65.254:9222/" || true
 
 # claude mcp remove file
-# claude mcp remove vscode 
-# claude mcp remove codebase 
+# claude mcp remove vscode
+# claude mcp remove codebase
 # claude mcp remove browser
 # claude mcp add chrome -- npx -y chrome-devtools-mcp@latest --browserUrl "http://192.168.65.254:9222/"
-
-cd /workspace && direnv allow

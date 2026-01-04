@@ -72,6 +72,5 @@
     "PGPORT": "54321"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
-  "postCreateCommand": "/workspace/.devcontainer/post-create.sh",
-  "postStartCommand": "/workspace/.devcontainer/post-start.sh"
+  "postCreateCommand": "/workspace/.devcontainer/post-create.sh"
 }
