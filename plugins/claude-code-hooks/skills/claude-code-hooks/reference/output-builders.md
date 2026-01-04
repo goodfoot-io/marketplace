@@ -172,6 +172,47 @@ export default postToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 });
 ```
 
+### Goal: Run Validation and Report Errors (PostToolUse)
+
+Use `postToolUseHook` to run external validation tools (tsc, eslint, etc.) and return structured feedback:
+
+```typescript
+import { postToolUseHook, postToolUseOutput, getFilePath, isTsFile } from '@goodfoot/claude-code-hooks';
+import { execSync } from 'child_process';
+
+export default postToolUseHook({ matcher: 'Write|Edit|MultiEdit', timeout: 60000 }, (input, { logger }) => {
+  const filePath = getFilePath(input);
+  if (!filePath || !isTsFile(filePath)) return postToolUseOutput({});
+
+  try {
+    execSync('tsc --noEmit', {
+      cwd: input.cwd,
+      encoding: 'utf-8',
+      timeout: 30000,
+      env: { ...process.env }
+    });
+    return postToolUseOutput({});  // Success - no output needed
+  } catch (error) {
+    const stderr = (error as { stderr?: string }).stderr ?? '';
+    logger.warn('TypeScript errors detected', { file: filePath });
+
+    // Return errors as structured context - Claude will see this
+    return postToolUseOutput({
+      hookSpecificOutput: {
+        additionalContext: `TypeScript errors:\n${stderr}`
+      }
+    });
+  }
+});
+```
+
+**Key Points:**
+- PostToolUse hooks **cannot block** - the tool already ran
+- Use `additionalContext` to inform Claude about issues
+- Use `timeout` in hook config for long-running checks (60000ms = 1 minute)
+- Set subprocess `timeout` slightly lower than hook timeout
+- Return empty `postToolUseOutput({})` for silent success
+
 ## 2. Async & Filesystem Operations
 
 Hooks support `async/await` out of the box. This is critical for checking file state or reading configs.
@@ -300,9 +341,11 @@ These options are available on ALL output builders:
 | Option | Type | Effect |
 |--------|------|--------|
 | `systemMessage` | string | Message injected into Claude's context. Use for instructions or warnings. |
-| `continue` | boolean | If `true`, Claude continues even if the hook signals issues. |
+| `continue` | boolean | Continue processing even after errors. Only meaningful with `stopReason`. |
 | `stopReason` | string | **Causes exit code 2** and blocks Claude. Use sparingly. |
 | `suppressOutput` | boolean | If `true`, hook output is hidden from the user. |
+
+**Clarification on `continue`**: This field is only meaningful when used alongside `stopReason`. PostToolUse hooks always continue by default since the tool has already run. Use `additionalContext` to inform Claude about issues.
 
 **When to use which mechanism:**
 

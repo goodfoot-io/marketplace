@@ -136,21 +136,24 @@ echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command"
 
 Many hooks need to run external tools (tsc, eslint, etc.). Use `execSync`:
 
+### Basic Pattern
+
 ```typescript
 import { execSync } from 'child_process';
 import { postToolUseHook, postToolUseOutput } from '@goodfoot/claude-code-hooks';
 
-export default postToolUseHook({ matcher: 'Write|Edit' }, (input, { logger }) => {
+export default postToolUseHook({ matcher: 'Write|Edit', timeout: 60000 }, (input, { logger }) => {
   try {
     // Run tsc and capture output
     execSync('tsc --noEmit', {
       cwd: input.cwd,
       encoding: 'utf-8',
       timeout: 30000,
+      env: { ...process.env },  // Pass through environment variables
       stdio: ['pipe', 'pipe', 'pipe']  // Capture stdout and stderr
     });
 
-    return postToolUseOutput({ continue: true });
+    return postToolUseOutput({});  // Success - no output needed
   } catch (error) {
     // execSync throws on non-zero exit
     const stderr = (error as { stderr?: Buffer | string }).stderr?.toString() ?? '';
@@ -166,10 +169,41 @@ export default postToolUseHook({ matcher: 'Write|Edit' }, (input, { logger }) =>
 });
 ```
 
+### Robust Error Handling
+
+For production hooks, use a typed error interface:
+
+```typescript
+interface ExecError extends Error {
+  stdout?: Buffer | string;
+  stderr?: Buffer | string;
+  status?: number;
+}
+
+function runCommand(cmd: string, cwd: string, timeoutMs: number): { ok: boolean; output: string } {
+  try {
+    const output = execSync(cmd, {
+      cwd,
+      encoding: 'utf-8',
+      timeout: timeoutMs,
+      env: { ...process.env }
+    });
+    return { ok: true, output };
+  } catch (e) {
+    const error = e as ExecError;
+    const stderr = error.stderr?.toString() ?? '';
+    const stdout = error.stdout?.toString() ?? '';
+    return { ok: false, output: stderr || stdout || error.message };
+  }
+}
+```
+
 **Key points:**
 - Use `encoding: 'utf-8'` to get string output
-- Set `timeout` to prevent hanging
-- `execSync` throws on non-zero exit - use try/catch
-- Access stderr via `(error as { stderr?: ... }).stderr`
+- Set `timeout` on both hook config and execSync (hook timeout should be higher)
+- Pass `env: { ...process.env }` to inherit environment variables
+- `execSync` throws on non-zero exit - always use try/catch
+- Access stderr via `(error as ExecError).stderr`
+- Return empty `postToolUseOutput({})` for silent success
 
 </instructions>

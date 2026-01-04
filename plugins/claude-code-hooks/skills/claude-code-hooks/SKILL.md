@@ -132,7 +132,76 @@ Different hooks have different capabilities. This table clarifies what each hook
 
 **Key distinction**: Only `Stop` and `SubagentStop` hooks can use `decision: 'block'`. Other hooks signal issues through `additionalContext`, `systemMessage`, or `permissionDecision`.
 
-## 5. Agent Protocol: The "Forensic" Method
+## 5. Common Patterns
+
+### Pattern A: Multi-Pattern Bypass Prevention (PreToolUse)
+
+Block ESLint/TypeScript disable comments and type bypasses:
+
+```typescript
+const BYPASS_PATTERNS = [
+  { pattern: /\/\/\s*eslint-disable/g, name: 'ESLint disable' },
+  { pattern: /\/\/\s*@ts-ignore/g, name: '@ts-ignore' },
+  { pattern: /\bas\s+any\b/g, name: 'as any' },
+] as const;
+
+export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { logger }) => {
+  const filePath = getFilePath(input);
+  if (!filePath || !isJsTsFile(filePath)) return preToolUseOutput({});
+
+  const violations: string[] = [];
+  for (const { pattern, name } of BYPASS_PATTERNS) {
+    const result = checkContentForPattern(input, pattern);
+    if (result?.isAddition) violations.push(name);
+  }
+
+  if (violations.length > 0) {
+    return preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: `Cannot add: ${violations.join(', ')}`
+      }
+    });
+  }
+  return preToolUseOutput({});
+});
+```
+
+See [Checking Multiple Patterns](reference/input-types.md#checking-multiple-patterns) for the complete example.
+
+### Pattern B: Subprocess Validation (PostToolUse)
+
+Run TypeScript or ESLint after file changes and return errors:
+
+```typescript
+export default postToolUseHook({ matcher: 'Write|Edit|MultiEdit', timeout: 60000 }, (input, { logger }) => {
+  const filePath = getFilePath(input);
+  if (!filePath || !isTsFile(filePath)) return postToolUseOutput({});
+
+  try {
+    execSync('tsc --noEmit', { cwd: input.cwd, encoding: 'utf-8', timeout: 30000 });
+    return postToolUseOutput({});  // Silent success
+  } catch (error) {
+    const stderr = (error as { stderr?: string }).stderr ?? '';
+    return postToolUseOutput({
+      hookSpecificOutput: { additionalContext: `TypeScript errors:\n${stderr}` }
+    });
+  }
+});
+```
+
+See [Run Validation and Report Errors](reference/output-builders.md#goal-run-validation-and-report-errors-posttooluse) for details.
+
+### Pattern C: File-Type Filtering
+
+Standard pattern to skip non-relevant files:
+
+```typescript
+const filePath = getFilePath(input);
+if (!filePath || !isTsFile(filePath)) return preToolUseOutput({});
+```
+
+## 6. Agent Protocol: The "Forensic" Method
 
 When helping a user with hooks, you **MUST** follow this protocol:
 
@@ -141,7 +210,7 @@ When helping a user with hooks, you **MUST** follow this protocol:
 3.  **Ban `console.log` & `console.error`:** Aggressively correct any code using `console.log` or `console.error` to use `context.logger`. Stdio is reserved for the protocol; direct writes cause silent failures or UI corruption.
 4.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`.
 
-## 6. Pre-Flight Checklist
+## 7. Pre-Flight Checklist
 
 Before debugging hook issues, verify:
 
@@ -151,7 +220,7 @@ Before debugging hook issues, verify:
 - [ ] No `console.log` or `console.error` in hook code (use `logger` instead)
 - [ ] Hook files use `export default hookFactory(...)` pattern
 
-## 7. Configuration by Setup Type
+## 8. Configuration by Setup Type
 
 **Standalone Project:**
 Add the absolute path to your `~/.claude/config.json`:
@@ -163,7 +232,10 @@ Add the absolute path to your `~/.claude/config.json`:
 The `hooks.json` is auto-detected if placed in the plugin root.
 Build command: `npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hooks.json"`
 
-## 8. Reference Links
+**Monorepo Project:**
+For hooks in a separate package that output to a plugin directory, see [Monorepo Integration](reference/installation.md#5-monorepo-integration). This is the recommended pattern for migrating existing hooks.
+
+## 9. Reference Links
 
 *   **[Installation & Setup](reference/installation.md)**: Setup guide (Scaffolding vs Manual).
 *   **[All 12 Hook Types](reference/output-builders.md)**: Factories, builders, and inputs.

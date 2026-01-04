@@ -228,6 +228,49 @@ interface PatternCheckResult {
 }
 ```
 
+### Checking Multiple Patterns
+
+For hooks that need to check many patterns (e.g., blocking various bypass comments), iterate and collect violations:
+
+```typescript
+import {
+  preToolUseHook, preToolUseOutput,
+  getFilePath, isJsTsFile, checkContentForPattern
+} from '@goodfoot/claude-code-hooks';
+
+const BYPASS_PATTERNS = [
+  { pattern: /\/\/\s*eslint-disable/g, name: 'ESLint disable' },
+  { pattern: /\/\/\s*@ts-ignore/g, name: 'TypeScript @ts-ignore' },
+  { pattern: /\/\/\s*@ts-expect-error/g, name: 'TypeScript @ts-expect-error' },
+  { pattern: /\bas\s+any\b/g, name: 'as any cast' },
+] as const;
+
+export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { logger }) => {
+  const filePath = getFilePath(input);
+  if (!filePath || !isJsTsFile(filePath)) return preToolUseOutput({});
+
+  const violations: string[] = [];
+  for (const { pattern, name } of BYPASS_PATTERNS) {
+    const result = checkContentForPattern(input, pattern);
+    if (result?.isAddition) {
+      violations.push(name);
+      logger.warn('Bypass pattern detected', { pattern: name });
+    }
+  }
+
+  if (violations.length > 0) {
+    return preToolUseOutput({
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: `Cannot add: ${violations.join(', ')}`
+      }
+    });
+  }
+
+  return preToolUseOutput({});
+});
+```
+
 ### forEachContent
 
 Iterate over content in Write/Edit/MultiEdit:
@@ -279,6 +322,18 @@ Supported tools for automatic typing:
 - `Grep` - GrepToolInput
 
 **Note**: Multi-tool matchers like `'Write|Edit'` or regex patterns like `'.*'` use the non-typed overload where `tool_input` remains `unknown`. Use type guards in those cases.
+
+### Choosing Between Typed Overloads and Type Guards
+
+| Scenario | Use | Reason |
+|----------|-----|--------|
+| Single tool: `{ matcher: 'Bash' }` | Typed overload | `tool_input` is automatically typed as `BashToolInput` |
+| Single tool: `{ matcher: 'Write' }` | Typed overload | `tool_input` is automatically typed as `WriteToolInput` |
+| Multi-tool: `{ matcher: 'Write\|Edit\|MultiEdit' }` | Type guards | `tool_input` is `unknown`, use `isWriteTool()`, `isEditTool()` |
+| Regex: `{ matcher: '.*' }` | Type guards | Matches all tools, must inspect at runtime |
+| Need tool-specific logic | Type guards | Different behavior per tool type |
+
+**Rule of thumb**: If your matcher is a single known tool name, use the typed overload for automatic type inference. Otherwise, use type guards to narrow the type at runtime.
 
 ## Union Types
 
