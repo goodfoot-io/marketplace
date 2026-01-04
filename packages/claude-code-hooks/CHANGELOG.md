@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+- Changed compiled hooks output directory from `build/` to `bin/` for consistency with standard binary conventions
+- Standardized TypeScript type declaration formatting for improved IDE readability
+
 ## 1.0.2
 
 - Improved README documentation with clearer formatting and command examples
