@@ -1,0 +1,23 @@
+{
+  "name": "jest-mock-prevention",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "npx tsx ../claude-code-hooks/src/cli.ts -i \"src/**/*.ts\" -o \"../../plugins/jest-mock-prevention/hooks/hooks.json\"",
+    "test": "vitest run",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@goodfoot/claude-code-hooks": "workspace:*"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  }
+}
