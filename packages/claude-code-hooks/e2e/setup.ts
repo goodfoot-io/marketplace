@@ -72,7 +72,7 @@ interface HooksJsonStructure {
  * plugin.json
  * hooks/
  * hooks.json
- * build/
+ * bin/
  * hook-file.mjs
  * ```
  * @param fixtureFile - Name of the fixture file (e.g., 'deny-bash-hook.ts')
@@ -91,10 +91,10 @@ export function buildSingleHook(fixtureFile: string): string {
   // Create plugin directory structure
   const claudePluginDir = path.join(pluginDir, '.claude-plugin');
   const hooksDir = path.join(pluginDir, 'hooks');
-  const buildDir = path.join(hooksDir, 'build');
+  const binDir = path.join(hooksDir, 'bin');
 
   fs.mkdirSync(claudePluginDir, { recursive: true });
-  fs.mkdirSync(buildDir, { recursive: true });
+  fs.mkdirSync(binDir, { recursive: true });
 
   // Create plugin.json
   const pluginJson = {
@@ -112,10 +112,10 @@ export function buildSingleHook(fixtureFile: string): string {
     stdio: 'pipe'
   });
 
-  // Move .mjs files from hooksDir to buildDir
+  // Move .mjs files from hooksDir to binDir
   const mjsFiles = fs.readdirSync(hooksDir).filter((f) => f.endsWith('.mjs'));
   for (const mjsFile of mjsFiles) {
-    fs.renameSync(path.join(hooksDir, mjsFile), path.join(buildDir, mjsFile));
+    fs.renameSync(path.join(hooksDir, mjsFile), path.join(binDir, mjsFile));
   }
 
   // Post-process hooks.json to use node $CLAUDE_PLUGIN_ROOT paths
@@ -124,9 +124,9 @@ export function buildSingleHook(fixtureFile: string): string {
   for (const eventType of Object.keys(hooksJson.hooks)) {
     for (const matcherEntry of hooksJson.hooks[eventType]) {
       for (const hook of matcherEntry.hooks) {
-        // Replace path with node $CLAUDE_PLUGIN_ROOT/hooks/build/filename.mjs
+        // Replace path with node $CLAUDE_PLUGIN_ROOT/hooks/bin/filename.mjs
         const filename = path.basename(hook.command);
-        hook.command = `node $CLAUDE_PLUGIN_ROOT/hooks/build/${filename}`;
+        hook.command = `node $CLAUDE_PLUGIN_ROOT/hooks/bin/${filename}`;
       }
     }
   }
@@ -187,7 +187,7 @@ export function cleanOutputDir(outputDir: string): void {
  * plugin.json
  * hooks/
  * hooks.json (combined)
- * build/
+ * bin/
  * hook-file-1.mjs
  * hook-file-2.mjs
  * ```
@@ -206,10 +206,10 @@ export function buildMultipleHooks(fixtureFiles: string[], pluginName = 'multi-h
   // Create plugin directory structure
   const claudePluginDir = path.join(pluginDir, '.claude-plugin');
   const hooksDir = path.join(pluginDir, 'hooks');
-  const buildDir = path.join(hooksDir, 'build');
+  const binDir = path.join(hooksDir, 'bin');
 
   fs.mkdirSync(claudePluginDir, { recursive: true });
-  fs.mkdirSync(buildDir, { recursive: true });
+  fs.mkdirSync(binDir, { recursive: true });
 
   // Create plugin.json
   const pluginJson = {
@@ -230,10 +230,10 @@ export function buildMultipleHooks(fixtureFiles: string[], pluginName = 'multi-h
     stdio: 'pipe'
   });
 
-  // Move .mjs files from hooksDir to buildDir
+  // Move .mjs files from hooksDir to binDir
   const mjsFiles = fs.readdirSync(hooksDir).filter((f) => f.endsWith('.mjs'));
   for (const mjsFile of mjsFiles) {
-    fs.renameSync(path.join(hooksDir, mjsFile), path.join(buildDir, mjsFile));
+    fs.renameSync(path.join(hooksDir, mjsFile), path.join(binDir, mjsFile));
   }
 
   // Post-process hooks.json to use node $CLAUDE_PLUGIN_ROOT paths
@@ -242,9 +242,9 @@ export function buildMultipleHooks(fixtureFiles: string[], pluginName = 'multi-h
   for (const eventType of Object.keys(hooksJson.hooks)) {
     for (const matcherEntry of hooksJson.hooks[eventType]) {
       for (const hook of matcherEntry.hooks) {
-        // Replace path with node $CLAUDE_PLUGIN_ROOT/hooks/build/filename.mjs
+        // Replace path with node $CLAUDE_PLUGIN_ROOT/hooks/bin/filename.mjs
         const filename = path.basename(hook.command);
-        hook.command = `node $CLAUDE_PLUGIN_ROOT/hooks/build/${filename}`;
+        hook.command = `node $CLAUDE_PLUGIN_ROOT/hooks/bin/${filename}`;
       }
     }
   }

@@ -20,7 +20,7 @@ npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
 *   `-i "hooks/*.ts"`: **Input Glob.** This tells the compiler where your TypeScript source files are.
     *   *Critical:* Quote the glob pattern (`"..."`) to prevent your shell from expanding it before the CLI sees it.
 *   `-o "dist/hooks.json"`: **Output Manifest.** This is the file you register in your config.
-    *   The CLI creates a `build/` folder next to this file containing the compiled `.mjs` executables.
+    *   The CLI creates a `bin/` folder next to this file containing the compiled `.mjs` executables.
 *   `--log "/tmp/hooks.log"` (Optional): **Runtime Log.** Forces all hooks to write `logger` output to this file. Essential for debugging.
 
 ## 2. Hook Factory Demonstration
@@ -226,7 +226,7 @@ When helping a user with hooks, you **MUST** follow this protocol:
 
 1.  **Verify the Package:** Ensure usage of `@goodfoot/claude-code-hooks`.
 2.  **Enforce the Build Step:** Remind the user to run `npx ...` (or `npm run build` if scaffolded) after every edit.
-3.  **Ban `console.log` & `console.error`:** Aggressively correct any code using `console.log` or `console.error` to use `context.logger`. Stdio is reserved for the protocol; direct writes cause silent failures or UI corruption.
+3.  **Ban `console.log` & `console.error`:** Aggressively correct any code using `console.log` or `console.error` to use `logger`. Stdio is reserved for the protocol; direct writes cause silent failures or UI corruption.
 4.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`.
 
 ## 7. Pre-Flight Checklist

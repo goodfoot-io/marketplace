@@ -193,7 +193,7 @@ Examples:
      npx -y @goodfoot/claude-code-hooks -i "hooks/**/*.ts" -o "dist/hooks.json"
 
   2. With Runtime Logging:
-     npx -y @goodfoot/claude-code-hooks -i "src/hooks/*.ts" -o "build/hooks.json" --log /tmp/claude-hooks.log
+     npx -y @goodfoot/claude-code-hooks -i "src/hooks/*.ts" -o "bin/hooks.json" --log /tmp/claude-hooks.log
 
   3. Scaffold a New Hook Project:
      npx -y @goodfoot/claude-code-hooks --scaffold ./my-hooks --hooks Stop,SubagentStop -o dist/hooks.json
@@ -790,13 +790,13 @@ function detectHookContext(outputPath: string): HookContextInfo {
 /**
  * Generates a command path based on the hook context.
  *
- * Calculates the relative path from the root directory to the build directory.
+ * Calculates the relative path from the root directory to the bin directory.
  * Prepends the node executable.
  *
- * - `plugin`: Uses `node $CLAUDE_PLUGIN_ROOT/hooks/build/filename`
- * - `agent`: Uses `node "$CLAUDE_PROJECT_DIR"/.claude/hooks/build/filename`
+ * - `plugin`: Uses `node $CLAUDE_PLUGIN_ROOT/hooks/bin/filename`
+ * - `agent`: Uses `node "$CLAUDE_PROJECT_DIR"/.claude/hooks/bin/filename`
  * @param filename - The compiled hook filename
- * @param buildDir - Absolute path to the build directory
+ * @param buildDir - Absolute path to the bin directory
  * @param contextInfo - Hook context info including root directory
  * @param executable - Node executable path (default: "node")
  * @returns The command path string
@@ -807,7 +807,7 @@ function generateCommandPath(
   contextInfo: HookContextInfo,
   executable: string = 'node'
 ): string {
-  // Calculate relative path from root to build directory
+  // Calculate relative path from root to bin directory
   const relativeBuildPath = path.relative(contextInfo.rootDir, buildDir);
   // Normalize to forward slashes for cross-platform compatibility
   const normalizedRelativePath = relativeBuildPath.replace(/\\/g, '/');
@@ -825,7 +825,7 @@ function generateCommandPath(
  *
  * Format: { hooks: { EventType: [ { matcher?, hooks: [...] } ] } }
  * @param compiledHooks - Array of compiled hooks
- * @param buildDir - Absolute path to the build directory
+ * @param buildDir - Absolute path to the bin directory
  * @param contextInfo - Hook context info for path resolution
  * @param executable - Node executable path (default: "node")
  * @returns The hooks.json structure
@@ -1066,8 +1066,8 @@ async function main(): Promise<void> {
     const cwd = process.cwd();
     const outputPath = path.resolve(cwd, args.output);
     const hooksJsonDir = path.dirname(outputPath);
-    // Compiled hooks go in a 'build' subdirectory relative to hooks.json
-    const buildDir = path.join(hooksJsonDir, 'build');
+    // Compiled hooks go in a 'bin' subdirectory relative to hooks.json
+    const buildDir = path.join(hooksJsonDir, 'bin');
 
     // Resolve log file path to absolute if provided
     const logFilePath = args.log !== undefined ? path.resolve(cwd, args.log) : undefined;

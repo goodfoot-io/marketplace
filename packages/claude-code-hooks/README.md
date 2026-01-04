@@ -12,10 +12,9 @@ Run:
 
 `claude plugin marketplace add goodfoot-io/marketplace && claude plugin install claude-code-hooks@goodfoot"`
 
-then: 
+then:
 
 `claude -p "Load the 'claude-code-hooks:sdk' skill then scaffold a new hook package in ./packages/hooks that outputs to '.claude/hooks/hooks.json' and contains an example SessionStart hook."`
-
 
 ## ⚡ Quick Start
 
@@ -158,9 +157,9 @@ Violating these rules will cause your hooks to fail silently or block Claude ent
 
 1.  **NO `console.log`**: The hook communicates with Claude via `stdout`. If you print "Hello world", you corrupt the JSON protocol.
     - **Bad:** `console.log("Checking command")`
-    - **Good:** `context.logger.info("Checking command")`
-2.  **Relative Paths via Environment Variable**: The generated `hooks.json` uses `node $CLAUDE_PLUGIN_ROOT/hooks/build/` paths.
-    - Compiled hooks are placed in a `build/` subdirectory relative to `hooks.json`.
+    - **Good:** `logger.info("Checking command")`
+2.  **Relative Paths via Environment Variable**: The generated `hooks.json` uses `node $CLAUDE_PLUGIN_ROOT/hooks/bin/` paths.
+    - Compiled hooks are placed in a `bin/` subdirectory relative to `hooks.json`.
     - The `$CLAUDE_PLUGIN_ROOT` environment variable is set by Claude Code at runtime.
     - Use the `--executable` CLI option to specify a custom executable (e.g., `bun`, `/usr/local/bin/node22`).
 3.  **`export default` is Mandatory**: The CLI uses static analysis to find your hooks. It looks specifically for `export default factory(...)`.
@@ -253,7 +252,7 @@ plugins/my-plugin/
 │       ├── block-dangerous.ts
 │       └── inject-context.ts
 ├── hooks.json                    # Build output (auto-loaded by plugin)
-└── build/
+└── bin/
     ├── block-dangerous.abc123.mjs
     └── inject-context.def456.mjs
 ```

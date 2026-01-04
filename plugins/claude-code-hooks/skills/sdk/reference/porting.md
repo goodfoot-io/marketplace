@@ -134,7 +134,7 @@ Test the compiled hook with real JSON:
 ```bash
 # After running: npm run build
 echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"},"session_id":"test","cwd":"/tmp","transcript_path":"/tmp/t.jsonl","tool_use_id":"123"}' \
-  | node dist/build/my-hook.*.mjs
+  | node dist/bin/my-hook.*.mjs
 ```
 
 ## Executing External Commands

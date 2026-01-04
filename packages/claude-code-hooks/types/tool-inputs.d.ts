@@ -32,10 +32,10 @@
  * ```
  */
 export interface WriteToolInput {
-    /** Absolute path to the file to write. */
-    file_path: string;
-    /** The content to write to the file. */
-    content: string;
+  /** Absolute path to the file to write. */
+  file_path: string;
+  /** The content to write to the file. */
+  content: string;
 }
 /**
  * Input structure for the Edit tool.
@@ -53,23 +53,23 @@ export interface WriteToolInput {
  * ```
  */
 export interface EditToolInput {
-    /** Absolute path to the file to edit. */
-    file_path: string;
-    /** The text to search for (must be unique in the file unless replace_all is true). */
-    old_string: string;
-    /** The text to replace old_string with. */
-    new_string: string;
-    /** If true, replace all occurrences. If false, old_string must be unique. */
-    replace_all?: boolean;
+  /** Absolute path to the file to edit. */
+  file_path: string;
+  /** The text to search for (must be unique in the file unless replace_all is true). */
+  old_string: string;
+  /** The text to replace old_string with. */
+  new_string: string;
+  /** If true, replace all occurrences. If false, old_string must be unique. */
+  replace_all?: boolean;
 }
 /**
  * A single edit entry within a MultiEdit operation.
  */
 export interface MultiEditEntry {
-    /** The text to search for. */
-    old_string: string;
-    /** The text to replace old_string with. */
-    new_string: string;
+  /** The text to search for. */
+  old_string: string;
+  /** The text to replace old_string with. */
+  new_string: string;
 }
 /**
  * Input structure for the MultiEdit tool.
@@ -89,10 +89,10 @@ export interface MultiEditEntry {
  * ```
  */
 export interface MultiEditToolInput {
-    /** Absolute path to the file to edit. */
-    file_path: string;
-    /** Array of edit operations to apply. */
-    edits: MultiEditEntry[];
+  /** Absolute path to the file to edit. */
+  file_path: string;
+  /** Array of edit operations to apply. */
+  edits: MultiEditEntry[];
 }
 /**
  * Input structure for the Read tool.
@@ -109,12 +109,12 @@ export interface MultiEditToolInput {
  * ```
  */
 export interface ReadToolInput {
-    /** Absolute path to the file to read. */
-    file_path: string;
-    /** Line offset to start reading from. */
-    offset?: number;
-    /** Maximum number of lines to read. */
-    limit?: number;
+  /** Absolute path to the file to read. */
+  file_path: string;
+  /** Line offset to start reading from. */
+  offset?: number;
+  /** Maximum number of lines to read. */
+  limit?: number;
 }
 /**
  * Input structure for the Bash tool.
@@ -131,12 +131,12 @@ export interface ReadToolInput {
  * ```
  */
 export interface BashToolInput {
-    /** The command to execute. */
-    command: string;
-    /** Optional timeout in milliseconds. */
-    timeout?: number;
-    /** Optional description of what the command does. */
-    description?: string;
+  /** The command to execute. */
+  command: string;
+  /** Optional timeout in milliseconds. */
+  timeout?: number;
+  /** Optional description of what the command does. */
+  description?: string;
 }
 /**
  * Input structure for the Glob tool.
@@ -152,10 +152,10 @@ export interface BashToolInput {
  * ```
  */
 export interface GlobToolInput {
-    /** Glob pattern to match files against. */
-    pattern: string;
-    /** Directory to search in (defaults to cwd). */
-    path?: string;
+  /** Glob pattern to match files against. */
+  pattern: string;
+  /** Directory to search in (defaults to cwd). */
+  path?: string;
 }
 /**
  * Input structure for the Grep tool.
@@ -172,12 +172,12 @@ export interface GlobToolInput {
  * ```
  */
 export interface GrepToolInput {
-    /** Regular expression pattern to search for. */
-    pattern: string;
-    /** Directory to search in (defaults to cwd). */
-    path?: string;
-    /** Glob pattern to filter files. */
-    glob?: string;
+  /** Regular expression pattern to search for. */
+  pattern: string;
+  /** Directory to search in (defaults to cwd). */
+  path?: string;
+  /** Glob pattern to filter files. */
+  glob?: string;
 }
 /**
  * Union of all file-modifying tool inputs.
@@ -196,7 +196,14 @@ export type FileModifyingToolName = 'Write' | 'Edit' | 'MultiEdit';
  *
  * This includes all tool inputs that have well-defined type structures.
  */
-export type KnownToolInput = WriteToolInput | EditToolInput | MultiEditToolInput | ReadToolInput | BashToolInput | GlobToolInput | GrepToolInput;
+export type KnownToolInput =
+  | WriteToolInput
+  | EditToolInput
+  | MultiEditToolInput
+  | ReadToolInput
+  | BashToolInput
+  | GlobToolInput
+  | GrepToolInput;
 /**
  * Tool names for all known tools with typed inputs.
  */
@@ -211,11 +218,11 @@ export type KnownToolName = 'Write' | 'Edit' | 'MultiEdit' | 'Read' | 'Bash' | '
  * ```
  */
 export interface ToolInputMap {
-    Write: WriteToolInput;
-    Edit: EditToolInput;
-    MultiEdit: MultiEditToolInput;
-    Read: ReadToolInput;
-    Bash: BashToolInput;
-    Glob: GlobToolInput;
-    Grep: GrepToolInput;
+  Write: WriteToolInput;
+  Edit: EditToolInput;
+  MultiEdit: MultiEditToolInput;
+  Read: ReadToolInput;
+  Bash: BashToolInput;
+  Glob: GlobToolInput;
+  Grep: GrepToolInput;
 }

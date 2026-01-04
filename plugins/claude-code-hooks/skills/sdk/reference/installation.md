@@ -66,7 +66,7 @@ project/
 │   ├── allow-read.ts        # Source
 ├── dist/
 │   ├── hooks.json           # Manifest
-│   └── build/               # Compiled output
+│   └── bin/                 # Compiled output
 ```
 
 ### The Build System
@@ -90,8 +90,8 @@ npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json" --execut
 ```
 
 This affects the generated `hooks.json` commands:
-- Default: `node $CLAUDE_PLUGIN_ROOT/build/hook.mjs`
-- With `--executable bun`: `bun $CLAUDE_PLUGIN_ROOT/build/hook.mjs`
+- Default: `node $CLAUDE_PLUGIN_ROOT/bin/hook.mjs`
+- With `--executable bun`: `bun $CLAUDE_PLUGIN_ROOT/bin/hook.mjs`
 
 ## Configuration
 
@@ -119,7 +119,7 @@ npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hooks.json"
 Test the compiled hook by piping JSON:
 
 ```bash
-echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' | node dist/build/allow-read.*.mjs
+echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' | node dist/bin/allow-read.*.mjs
 ```
 
 ## Monorepo Integration

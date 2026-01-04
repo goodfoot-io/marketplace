@@ -218,7 +218,7 @@ function generateBiomeConfig(): string {
     }
   },
   "files": {
-    "ignore": ["node_modules", "dist", "build", "*.json"]
+    "ignore": ["node_modules", "dist", "bin", "*.json"]
   }
 }
 `;
@@ -260,7 +260,7 @@ node_modules/
 
 # Build outputs
 dist/
-build/
+bin/
 *.mjs
 
 # Generated files

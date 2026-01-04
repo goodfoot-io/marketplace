@@ -175,7 +175,7 @@ describe('E2E: Incremental Updates', () => {
       // Find the generated hook
       const generatedEntry = hooksJson.hooks.PreToolUse.find((e) => e.matcher === 'Write');
       expect(generatedEntry).toBeDefined();
-      expect(generatedEntry?.hooks[0].command).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\/hooks\/build\//);
+      expect(generatedEntry?.hooks[0].command).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\/hooks\/bin\//);
 
       // SessionStart external hook should also be preserved
       expect(hooksJson.hooks.SessionStart).toBeDefined();
@@ -238,7 +238,7 @@ describe('E2E: Incremental Updates', () => {
   describe('Removing Old Generated Files', () => {
     it('removes old generated .mjs files when rebuilding', () => {
       const { hooksDir, outputPath } = createPluginStructure('remove-old-files');
-      const buildDir = path.join(hooksDir, 'build');
+      const buildDir = path.join(hooksDir, 'bin');
 
       // First build
       const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
@@ -332,7 +332,7 @@ describe('E2E: Incremental Updates', () => {
 
     it('updates __generated metadata on each rebuild', () => {
       const { hooksDir, outputPath } = createPluginStructure('update-generated-meta');
-      const buildDir = path.join(hooksDir, 'build');
+      const buildDir = path.join(hooksDir, 'bin');
 
       // First build
       const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
