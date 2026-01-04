@@ -38,22 +38,22 @@
  * These are the environment variables that Claude Code sets when running hooks.
  */
 export declare const CLAUDE_ENV_VARS: {
-    /**
-     * Absolute path to the project root directory where Claude Code was started.
-     * Available in all hooks.
-     */
-    readonly PROJECT_DIR: "CLAUDE_PROJECT_DIR";
-    /**
-     * Path to a file where SessionStart hooks can persist environment variables.
-     * Variables written to this file will be available in all subsequent bash commands.
-     * Only available in SessionStart hooks.
-     */
-    readonly ENV_FILE: "CLAUDE_ENV_FILE";
-    /**
-     * Set to "true" when running in a remote (web) environment.
-     * Not set or empty when running in local CLI environment.
-     */
-    readonly REMOTE: "CLAUDE_CODE_REMOTE";
+  /**
+   * Absolute path to the project root directory where Claude Code was started.
+   * Available in all hooks.
+   */
+  readonly PROJECT_DIR: 'CLAUDE_PROJECT_DIR';
+  /**
+   * Path to a file where SessionStart hooks can persist environment variables.
+   * Variables written to this file will be available in all subsequent bash commands.
+   * Only available in SessionStart hooks.
+   */
+  readonly ENV_FILE: 'CLAUDE_ENV_FILE';
+  /**
+   * Set to "true" when running in a remote (web) environment.
+   * Not set or empty when running in local CLI environment.
+   */
+  readonly REMOTE: 'CLAUDE_CODE_REMOTE';
 };
 /**
  * Gets the Claude Code project directory.

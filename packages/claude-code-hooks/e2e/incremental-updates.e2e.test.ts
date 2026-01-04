@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -92,6 +92,26 @@ function cleanTestOutput(): void {
   }
 }
 
+/**
+ * Creates a proper plugin directory structure for testing.
+ * @param testName - Name for the test directory
+ * @returns Object with pluginDir, hooksDir, outputPath
+ */
+function createPluginStructure(testName: string): {
+  pluginDir: string;
+  hooksDir: string;
+  outputPath: string;
+} {
+  const pluginDir = path.join(TEST_OUTPUT, testName);
+  const hooksDir = path.join(pluginDir, 'hooks');
+  const outputPath = path.join(hooksDir, 'hooks.json');
+
+  fs.mkdirSync(path.join(pluginDir, '.claude-plugin'), { recursive: true });
+  fs.mkdirSync(hooksDir, { recursive: true });
+
+  return { pluginDir, hooksDir, outputPath };
+}
+
 describe('E2E: Incremental Updates', () => {
   beforeAll(() => {
     cleanTestOutput();
@@ -104,9 +124,7 @@ describe('E2E: Incremental Updates', () => {
 
   describe('Preserving External Hooks', () => {
     it('preserves hooks from other sources when rebuilding', () => {
-      const outputDir = path.join(TEST_OUTPUT, 'preserve-external');
-      const outputPath = path.join(outputDir, 'hooks.json');
-      fs.mkdirSync(outputDir, { recursive: true });
+      const { outputPath } = createPluginStructure('preserve-external');
 
       // First, create an initial hooks.json with an external hook
       const externalHooksJson: HooksJson = {
@@ -157,7 +175,7 @@ describe('E2E: Incremental Updates', () => {
       // Find the generated hook
       const generatedEntry = hooksJson.hooks.PreToolUse.find((e) => e.matcher === 'Write');
       expect(generatedEntry).toBeDefined();
-      expect(generatedEntry?.hooks[0].command).toMatch(/\$\{CLAUDE_PLUGIN_ROOT:-\.\/\}\/build\//);
+      expect(generatedEntry?.hooks[0].command).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\/hooks\/build\//);
 
       // SessionStart external hook should also be preserved
       expect(hooksJson.hooks.SessionStart).toBeDefined();
@@ -172,9 +190,7 @@ describe('E2E: Incremental Updates', () => {
     });
 
     it('handles mixed external and generated hooks in the same matcher group', () => {
-      const outputDir = path.join(TEST_OUTPUT, 'mixed-hooks');
-      const outputPath = path.join(outputDir, 'hooks.json');
-      fs.mkdirSync(outputDir, { recursive: true });
+      const { outputPath } = createPluginStructure('mixed-hooks');
 
       // Create hooks.json with an external hook using the same matcher as our generated hook
       const mixedHooksJson: HooksJson = {
@@ -213,7 +229,7 @@ describe('E2E: Incremental Updates', () => {
 
       // Find generated hook entry
       const generatedEntry = hooksJson.hooks.PreToolUse.find(
-        (e) => e.matcher === 'Write' && e.hooks.some((h) => h.command.includes('${CLAUDE_PLUGIN_ROOT'))
+        (e) => e.matcher === 'Write' && e.hooks.some((h) => h.command.includes('$CLAUDE_PLUGIN_ROOT'))
       );
       expect(generatedEntry).toBeDefined();
     });
@@ -221,10 +237,8 @@ describe('E2E: Incremental Updates', () => {
 
   describe('Removing Old Generated Files', () => {
     it('removes old generated .mjs files when rebuilding', () => {
-      const outputDir = path.join(TEST_OUTPUT, 'remove-old-files');
-      const outputPath = path.join(outputDir, 'hooks.json');
-      const buildDir = path.join(outputDir, 'build');
-      fs.mkdirSync(outputDir, { recursive: true });
+      const { hooksDir, outputPath } = createPluginStructure('remove-old-files');
+      const buildDir = path.join(hooksDir, 'build');
 
       // First build
       const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
@@ -259,12 +273,10 @@ describe('E2E: Incremental Updates', () => {
     });
 
     it('does not remove files not tracked in __generated', () => {
-      const outputDir = path.join(TEST_OUTPUT, 'preserve-untracked');
-      const outputPath = path.join(outputDir, 'hooks.json');
-      fs.mkdirSync(outputDir, { recursive: true });
+      const { pluginDir, outputPath } = createPluginStructure('preserve-untracked');
 
-      // Create an untracked file in the output directory
-      const untrackedFile = path.join(outputDir, 'untracked-file.txt');
+      // Create an untracked file in the plugin directory
+      const untrackedFile = path.join(pluginDir, 'untracked-file.txt');
       fs.writeFileSync(untrackedFile, 'This should not be deleted');
 
       // Create initial hooks.json without __generated
@@ -293,9 +305,7 @@ describe('E2E: Incremental Updates', () => {
 
   describe('Rebuilding Generated Hooks', () => {
     it('replaces old generated hooks with new ones on rebuild', () => {
-      const outputDir = path.join(TEST_OUTPUT, 'replace-generated');
-      const outputPath = path.join(outputDir, 'hooks.json');
-      fs.mkdirSync(outputDir, { recursive: true });
+      const { outputPath } = createPluginStructure('replace-generated');
 
       // First build with one hook
       const inputPath1 = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
@@ -321,10 +331,8 @@ describe('E2E: Incremental Updates', () => {
     });
 
     it('updates __generated metadata on each rebuild', () => {
-      const outputDir = path.join(TEST_OUTPUT, 'update-generated-meta');
-      const outputPath = path.join(outputDir, 'hooks.json');
-      const buildDir = path.join(outputDir, 'build');
-      fs.mkdirSync(outputDir, { recursive: true });
+      const { hooksDir, outputPath } = createPluginStructure('update-generated-meta');
+      const buildDir = path.join(hooksDir, 'build');
 
       // First build
       const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
@@ -363,9 +371,7 @@ describe('E2E: Incremental Updates', () => {
 
   describe('Atomic Writes', () => {
     it('does not leave partial hooks.json on error', () => {
-      const outputDir = path.join(TEST_OUTPUT, 'atomic-write');
-      const outputPath = path.join(outputDir, 'hooks.json');
-      fs.mkdirSync(outputDir, { recursive: true });
+      const { pluginDir, outputPath } = createPluginStructure('atomic-write');
 
       // Create initial valid hooks.json
       const initialHooksJson: HooksJson = {
@@ -390,7 +396,7 @@ describe('E2E: Incremental Updates', () => {
       expect(afterContent).toBe(initialContent);
 
       // No temp files should be left behind
-      const files = fs.readdirSync(outputDir);
+      const files = fs.readdirSync(pluginDir);
       const tempFiles = files.filter((f) => f.includes('.tmp.'));
       expect(tempFiles).toHaveLength(0);
     });
@@ -398,9 +404,7 @@ describe('E2E: Incremental Updates', () => {
 
   describe('Edge Cases', () => {
     it('handles empty existing hooks.json gracefully', () => {
-      const outputDir = path.join(TEST_OUTPUT, 'empty-existing');
-      const outputPath = path.join(outputDir, 'hooks.json');
-      fs.mkdirSync(outputDir, { recursive: true });
+      const { outputPath } = createPluginStructure('empty-existing');
 
       // Create empty hooks.json
       fs.writeFileSync(outputPath, JSON.stringify({ hooks: {} }, null, 2));
@@ -415,9 +419,7 @@ describe('E2E: Incremental Updates', () => {
     });
 
     it('handles malformed existing hooks.json by overwriting', () => {
-      const outputDir = path.join(TEST_OUTPUT, 'malformed-existing');
-      const outputPath = path.join(outputDir, 'hooks.json');
-      fs.mkdirSync(outputDir, { recursive: true });
+      const { outputPath } = createPluginStructure('malformed-existing');
 
       // Create malformed hooks.json
       fs.writeFileSync(outputPath, '{ invalid json }');
@@ -432,9 +434,7 @@ describe('E2E: Incremental Updates', () => {
     });
 
     it('handles hooks.json without __generated field', () => {
-      const outputDir = path.join(TEST_OUTPUT, 'no-generated-field');
-      const outputPath = path.join(outputDir, 'hooks.json');
-      fs.mkdirSync(outputDir, { recursive: true });
+      const { outputPath } = createPluginStructure('no-generated-field');
 
       // Create hooks.json without __generated
       const legacyHooksJson: HooksJson = {

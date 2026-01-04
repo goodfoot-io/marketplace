@@ -146,9 +146,10 @@ Violating these rules will cause your hooks to fail silently or block Claude ent
 1.  **NO `console.log`**: The hook communicates with Claude via `stdout`. If you print "Hello world", you corrupt the JSON protocol.
     - **Bad:** `console.log("Checking command")`
     - **Good:** `context.logger.info("Checking command")`
-2.  **Relative Paths via Environment Variable**: The generated `hooks.json` uses `${CLAUDE_PLUGIN_ROOT:-./}/build/` paths.
+2.  **Relative Paths via Environment Variable**: The generated `hooks.json` uses `node $CLAUDE_PLUGIN_ROOT/hooks/build/` paths.
     - Compiled hooks are placed in a `build/` subdirectory relative to `hooks.json`.
-    - If `CLAUDE_PLUGIN_ROOT` is set, it's used as the base; otherwise defaults to `./`.
+    - The `$CLAUDE_PLUGIN_ROOT` environment variable is set by Claude Code at runtime.
+    - Use the `--executable` CLI option to specify a custom executable (e.g., `bun`, `/usr/local/bin/node22`).
 3.  **`export default` is Mandatory**: The CLI uses static analysis to find your hooks. It looks specifically for `export default factory(...)`.
     - **Ignored:** `export const myHook = ...`
     - **Ignored:** `module.exports = ...`

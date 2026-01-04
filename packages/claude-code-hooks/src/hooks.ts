@@ -456,12 +456,7 @@ export function preToolUseHook(
   config: HookConfig,
   handler: HookHandler<PreToolUseInput, PreToolUseOutput>
 ): HookFunction<PreToolUseInput, PreToolUseOutput>;
-/**
- *
- * @param config
- * @param handler
- * @example
- */
+/** @inheritdoc */
 export function preToolUseHook(
   config: HookConfig,
   handler: HookHandler<PreToolUseInput, PreToolUseOutput>
@@ -514,12 +509,7 @@ export function postToolUseHook(
   config: HookConfig,
   handler: HookHandler<PostToolUseInput, PostToolUseOutput>
 ): HookFunction<PostToolUseInput, PostToolUseOutput>;
-/**
- *
- * @param config
- * @param handler
- * @example
- */
+/** @inheritdoc */
 export function postToolUseHook(
   config: HookConfig,
   handler: HookHandler<PostToolUseInput, PostToolUseOutput>
@@ -575,12 +565,7 @@ export function postToolUseFailureHook(
   config: HookConfig,
   handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>
 ): HookFunction<PostToolUseFailureInput, PostToolUseFailureOutput>;
-/**
- *
- * @param config
- * @param handler
- * @example
- */
+/** @inheritdoc */
 export function postToolUseFailureHook(
   config: HookConfig,
   handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>
@@ -1023,12 +1008,7 @@ export function permissionRequestHook(
   config: HookConfig,
   handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>
 ): HookFunction<PermissionRequestInput, PermissionRequestOutput>;
-/**
- *
- * @param config
- * @param handler
- * @example
- */
+/** @inheritdoc */
 export function permissionRequestHook(
   config: HookConfig,
   handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>

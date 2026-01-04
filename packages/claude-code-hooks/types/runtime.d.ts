@@ -70,4 +70,6 @@ export declare function convertToHookOutput(specificOutput: SpecificHookOutput):
  * ```
  * @see https://code.claude.com/docs/en/hooks
  */
-export declare function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(hookFn: HookFunction<TInput, TOutput>): Promise<void>;
+export declare function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(
+  hookFn: HookFunction<TInput, TOutput>
+): Promise<void>;

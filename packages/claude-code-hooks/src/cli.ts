@@ -32,7 +32,7 @@ import { scaffoldProject } from './scaffold.js';
 /**
  * Hook context determines how paths are resolved in hooks.json.
  *
- * - `plugin`: Uses `${CLAUDE_PLUGIN_ROOT:-./}` for plugin hooks
+ * - `plugin`: Uses `$CLAUDE_PLUGIN_ROOT` for plugin hooks
  * - `agent`: Uses `"$CLAUDE_PROJECT_DIR"` for agent hooks (.claude/hooks/)
  */
 type HookContext = 'plugin' | 'agent';
@@ -55,6 +55,8 @@ interface CliArgs {
   scaffold?: string;
   /** Comma-separated list of hook types to generate when scaffolding. */
   hooks?: string;
+  /** Node executable path to use in command output (default: "node"). */
+  executable?: string;
 }
 
 /**
@@ -175,6 +177,11 @@ Optional Arguments:
       This is equivalent to setting the CLAUDE_CODE_HOOKS_LOG_FILE environment variable.
       Example: "/tmp/claude-hooks.log"
 
+  --executable <path>
+      Node executable path to use in generated commands (default: "node").
+      Use this to specify a custom node path in the generated hooks.json commands.
+      Example: "/usr/local/bin/node" or "node22"
+
   -h, --help
       Show this help message.
 
@@ -191,7 +198,10 @@ Examples:
   3. Scaffold a New Hook Project:
      npx -y @goodfoot/claude-code-hooks --scaffold ./my-hooks --hooks Stop,SubagentStop -o dist/hooks.json
 
-  4. Configure Claude to use the hooks:
+  4. With Custom Node Executable:
+     npx -y @goodfoot/claude-code-hooks -i "hooks/**/*.ts" -o "dist/hooks.json" --executable /usr/local/bin/node
+
+  5. Configure Claude to use the hooks:
      After building, add this to your ~/.claude/config.json:
      {
        "hooks": "/absolute/path/to/your/project/dist/hooks.json"
@@ -298,6 +308,9 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case '--hooks':
         args.hooks = argv[++i] ?? '';
+        break;
+      case '--executable':
+        args.executable = argv[++i] ?? '';
         break;
       default:
         // Unknown argument - ignore
@@ -728,8 +741,8 @@ interface HookContextInfo {
  *
  * Detection logic:
  * - If output path contains `.claude/` directory segment → agent context, root is parent of .claude/
- * - If `.claude-plugin/` directory exists relative to output → plugin context, root is that directory
- * - Default: plugin context with build directory's parent as root
+ * - If `.claude-plugin/` directory exists within 3 levels up → plugin context, root is that directory
+ * - Default: plugin context with hooks.json parent directory as root
  * @param outputPath - Absolute path to the hooks.json output file
  * @returns Detected hook context and root directory
  */
@@ -748,11 +761,14 @@ function detectHookContext(outputPath: string): HookContextInfo {
   }
 
   // Check if a .claude-plugin/ directory exists relative to the output
-  // Walk up from the output directory to find .claude-plugin/
+  // Walk up from the output directory to find .claude-plugin/, but limit to 4 levels
+  // This supports structures like: plugin-root/src/hooks/output/hooks.json
   let currentDir = path.dirname(outputPath);
   const root = path.parse(currentDir).root;
+  const maxLevels = 4;
+  let level = 0;
 
-  while (currentDir !== root) {
+  while (currentDir !== root && level < maxLevels) {
     const pluginDir = path.join(currentDir, '.claude-plugin');
     if (fs.existsSync(pluginDir) && fs.statSync(pluginDir).isDirectory()) {
       return {
@@ -761,6 +777,7 @@ function detectHookContext(outputPath: string): HookContextInfo {
       };
     }
     currentDir = path.dirname(currentDir);
+    level++;
   }
 
   // Default to plugin context with output directory as root
@@ -773,17 +790,23 @@ function detectHookContext(outputPath: string): HookContextInfo {
 /**
  * Generates a command path based on the hook context.
  *
- * Calculates the relative path from the root directory to the build directory
- * and uses the appropriate environment variable.
+ * Calculates the relative path from the root directory to the build directory.
+ * Prepends the node executable.
  *
- * - `plugin`: Uses `$CLAUDE_PLUGIN_ROOT/<relative-path>/filename`
- * - `agent`: Uses `"$CLAUDE_PROJECT_DIR"/<relative-path>/filename`
+ * - `plugin`: Uses `node $CLAUDE_PLUGIN_ROOT/hooks/build/filename`
+ * - `agent`: Uses `node "$CLAUDE_PROJECT_DIR"/.claude/hooks/build/filename`
  * @param filename - The compiled hook filename
  * @param buildDir - Absolute path to the build directory
  * @param contextInfo - Hook context info including root directory
+ * @param executable - Node executable path (default: "node")
  * @returns The command path string
  */
-function generateCommandPath(filename: string, buildDir: string, contextInfo: HookContextInfo): string {
+function generateCommandPath(
+  filename: string,
+  buildDir: string,
+  contextInfo: HookContextInfo,
+  executable: string = 'node'
+): string {
   // Calculate relative path from root to build directory
   const relativeBuildPath = path.relative(contextInfo.rootDir, buildDir);
   // Normalize to forward slashes for cross-platform compatibility
@@ -791,10 +814,10 @@ function generateCommandPath(filename: string, buildDir: string, contextInfo: Ho
 
   if (contextInfo.context === 'agent') {
     // Agent hooks use $CLAUDE_PROJECT_DIR with shell-style quoting
-    return `"$CLAUDE_PROJECT_DIR"/${normalizedRelativePath}/${filename}`;
+    return `${executable} "$CLAUDE_PROJECT_DIR"/${normalizedRelativePath}/${filename}`;
   }
   // Plugin hooks use $CLAUDE_PLUGIN_ROOT
-  return `$CLAUDE_PLUGIN_ROOT/${normalizedRelativePath}/${filename}`;
+  return `${executable} $CLAUDE_PLUGIN_ROOT/${normalizedRelativePath}/${filename}`;
 }
 
 /**
@@ -804,9 +827,15 @@ function generateCommandPath(filename: string, buildDir: string, contextInfo: Ho
  * @param compiledHooks - Array of compiled hooks
  * @param buildDir - Absolute path to the build directory
  * @param contextInfo - Hook context info for path resolution
+ * @param executable - Node executable path (default: "node")
  * @returns The hooks.json structure
  */
-function generateHooksJson(compiledHooks: CompiledHook[], buildDir: string, contextInfo: HookContextInfo): HooksJson {
+function generateHooksJson(
+  compiledHooks: CompiledHook[],
+  buildDir: string,
+  contextInfo: HookContextInfo,
+  executable: string = 'node'
+): HooksJson {
   const groups = groupHooksByEventAndMatcher(compiledHooks);
   const hooks: Partial<Record<HookEventName, MatcherEntry[]>> = {};
 
@@ -817,7 +846,7 @@ function generateHooksJson(compiledHooks: CompiledHook[], buildDir: string, cont
       const entry: MatcherEntry = {
         hooks: hookList.map((hook) => ({
           type: 'command' as const,
-          command: generateCommandPath(hook.outputFilename, buildDir, contextInfo),
+          command: generateCommandPath(hook.outputFilename, buildDir, contextInfo, executable),
           ...(hook.metadata.timeout !== undefined ? { timeout: hook.metadata.timeout } : {})
         }))
       };
@@ -1092,7 +1121,8 @@ async function main(): Promise<void> {
     log('info', `Detected hook context: ${hookContext.context}`, { rootDir: hookContext.rootDir });
 
     // Generate hooks.json for newly compiled hooks
-    const newHooksJson = generateHooksJson(compiledHooks, buildDir, hookContext);
+    const executable = args.executable !== undefined && args.executable !== '' ? args.executable : 'node';
+    const newHooksJson = generateHooksJson(compiledHooks, buildDir, hookContext, executable);
 
     // Merge with preserved hooks
     const finalHooksJson = mergeHooksJson(newHooksJson, preservedHooks);

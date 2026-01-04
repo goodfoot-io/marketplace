@@ -44,10 +44,11 @@ describe('E2E: Stop Hooks', () => {
       const compiledHook = stopEntry?.hooks[0];
       expect(compiledHook?.type).toBe('command');
       expect(compiledHook?.command).toBeDefined();
-      expect(compiledHook?.command).toContain('${CLAUDE_PLUGIN_ROOT}');
+      expect(compiledHook?.command).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\//);
 
       // Resolve the template path and verify file exists
-      const resolvedPath = compiledHook?.command?.replace('${CLAUDE_PLUGIN_ROOT}', pluginDir);
+      const pathPart = compiledHook?.command?.replace(/^node /, '');
+      const resolvedPath = pathPart?.replace('$CLAUDE_PLUGIN_ROOT', pluginDir);
       expect(fs.existsSync(resolvedPath ?? '')).toBe(true);
     });
   });

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "npx tsx ../claude-code-hooks/src/cli.ts -i \"src/**/*.ts\" -o \"../../plugins/typescript-hooks/hooks/hooks.json\"",
+    "build": "claude-code-hooks -i \"src/**/*.ts\" -o \"../../plugins/typescript-hooks/hooks/hooks.json\"",
     "test": "vitest run",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit"

@@ -671,20 +671,20 @@ describe('detectHookContext', () => {
 });
 
 describe('generateCommandPath', () => {
-  it('generates plugin-style path for plugin context', () => {
+  it('generates plugin-style path for plugin context with default node executable', () => {
     const contextInfo = { context: 'plugin' as const, rootDir: '/workspace/plugins/my-plugin' };
     const buildDir = '/workspace/plugins/my-plugin/hooks/build';
     const result = generateCommandPath('my-hook.abc123.mjs', buildDir, contextInfo);
 
-    expect(result).toBe('$CLAUDE_PLUGIN_ROOT/hooks/build/my-hook.abc123.mjs');
+    expect(result).toBe('node $CLAUDE_PLUGIN_ROOT/hooks/build/my-hook.abc123.mjs');
   });
 
-  it('generates agent-style path for agent context', () => {
+  it('generates agent-style path for agent context with default node executable', () => {
     const contextInfo = { context: 'agent' as const, rootDir: '/workspace/my-project' };
     const buildDir = '/workspace/my-project/.claude/hooks/build';
     const result = generateCommandPath('my-hook.abc123.mjs', buildDir, contextInfo);
 
-    expect(result).toBe('"$CLAUDE_PROJECT_DIR"/.claude/hooks/build/my-hook.abc123.mjs');
+    expect(result).toBe('node "$CLAUDE_PROJECT_DIR"/.claude/hooks/build/my-hook.abc123.mjs');
   });
 
   it('handles filenames with special characters', () => {
@@ -696,15 +696,39 @@ describe('generateCommandPath', () => {
     const agentBuildDir = '/workspace/project/.claude/hooks/build';
     const agentResult = generateCommandPath('pre-tool-use.12345678.mjs', agentBuildDir, agentContext);
 
-    expect(pluginResult).toBe('$CLAUDE_PLUGIN_ROOT/hooks/build/pre-tool-use.12345678.mjs');
-    expect(agentResult).toBe('"$CLAUDE_PROJECT_DIR"/.claude/hooks/build/pre-tool-use.12345678.mjs');
+    expect(pluginResult).toBe('node $CLAUDE_PLUGIN_ROOT/hooks/build/pre-tool-use.12345678.mjs');
+    expect(agentResult).toBe('node "$CLAUDE_PROJECT_DIR"/.claude/hooks/build/pre-tool-use.12345678.mjs');
   });
 
-  it('handles build directory directly under root', () => {
+  it('handles standard plugin structure with hooks/build', () => {
     const contextInfo = { context: 'plugin' as const, rootDir: '/workspace/plugins/simple' };
-    const buildDir = '/workspace/plugins/simple/build';
+    const buildDir = '/workspace/plugins/simple/hooks/build';
     const result = generateCommandPath('hook.mjs', buildDir, contextInfo);
 
-    expect(result).toBe('$CLAUDE_PLUGIN_ROOT/build/hook.mjs');
+    expect(result).toBe('node $CLAUDE_PLUGIN_ROOT/hooks/build/hook.mjs');
+  });
+
+  it('uses custom executable when provided', () => {
+    const contextInfo = { context: 'plugin' as const, rootDir: '/workspace/plugins/my-plugin' };
+    const buildDir = '/workspace/plugins/my-plugin/hooks/build';
+    const result = generateCommandPath('my-hook.abc123.mjs', buildDir, contextInfo, '/usr/local/bin/node');
+
+    expect(result).toBe('/usr/local/bin/node $CLAUDE_PLUGIN_ROOT/hooks/build/my-hook.abc123.mjs');
+  });
+
+  it('uses custom executable for agent context', () => {
+    const contextInfo = { context: 'agent' as const, rootDir: '/workspace/my-project' };
+    const buildDir = '/workspace/my-project/.claude/hooks/build';
+    const result = generateCommandPath('my-hook.abc123.mjs', buildDir, contextInfo, 'node22');
+
+    expect(result).toBe('node22 "$CLAUDE_PROJECT_DIR"/.claude/hooks/build/my-hook.abc123.mjs');
+  });
+
+  it('uses bun as executable when specified', () => {
+    const contextInfo = { context: 'plugin' as const, rootDir: '/workspace/plugins/my-plugin' };
+    const buildDir = '/workspace/plugins/my-plugin/hooks/build';
+    const result = generateCommandPath('my-hook.abc123.mjs', buildDir, contextInfo, 'bun');
+
+    expect(result).toBe('bun $CLAUDE_PLUGIN_ROOT/hooks/build/my-hook.abc123.mjs');
   });
 });

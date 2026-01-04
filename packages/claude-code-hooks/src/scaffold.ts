@@ -143,7 +143,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
     version: '1.0.0',
     type: 'module',
     scripts: {
-      build: `npx -y @goodfoot/claude-code-hooks -i "src/**/*.ts" -o "${outputPath}"`,
+      build: `claude-code-hooks -i "src/**/*.ts" -o "${outputPath}"`,
       test: 'vitest run',
       lint: 'biome check .',
       typecheck: 'tsc --noEmit'

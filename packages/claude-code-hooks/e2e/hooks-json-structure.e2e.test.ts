@@ -37,13 +37,14 @@ describe('E2E: hooks.json Structure Validation', () => {
     const entry = hooksJson.hooks.PreToolUse?.[0];
     const hookCommand = entry?.hooks[0].command;
 
-    // Verify the command uses ${CLAUDE_PLUGIN_ROOT} template
+    // Verify the command uses node $CLAUDE_PLUGIN_ROOT template
     expect(hookCommand).toBeDefined();
-    expect(hookCommand).toContain('${CLAUDE_PLUGIN_ROOT}');
+    expect(hookCommand).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\//);
     expect(hookCommand?.endsWith('.mjs')).toBe(true);
 
-    // Resolve the actual file path and verify it exists
-    const resolvedPath = hookCommand?.replace('${CLAUDE_PLUGIN_ROOT}', pluginDir);
+    // Resolve the actual file path and verify it exists (strip 'node ' prefix first)
+    const pathPart = hookCommand?.replace(/^node /, '');
+    const resolvedPath = pathPart?.replace('$CLAUDE_PLUGIN_ROOT', pluginDir);
     expect(fs.existsSync(resolvedPath ?? '')).toBe(true);
   });
 });

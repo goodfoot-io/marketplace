@@ -13,12 +13,16 @@ import { buildMultipleHooks, cleanOutputDir, getHooksJsonPath } from './setup.js
 import { CLAUDE_AVAILABLE, runClaude, readHooksJson } from './test-utils.js';
 
 /**
- * Resolves a command path that may contain ${CLAUDE_PLUGIN_ROOT} to an absolute path.
- * @param command
- * @param pluginDir
+ * Resolves a command path that may contain $CLAUDE_PLUGIN_ROOT to an absolute path.
+ * The command format is: "node $CLAUDE_PLUGIN_ROOT/hooks/build/hook.abc123.mjs"
+ * @param command - The command string from hooks.json
+ * @param pluginDir - Directory containing the plugin
+ * @returns Resolved absolute path
  */
 function resolveCommandPath(command: string, pluginDir: string): string {
-  return command.replace('${CLAUDE_PLUGIN_ROOT}', pluginDir);
+  // Strip the node prefix if present
+  const pathPart = command.replace(/^node /, '');
+  return pathPart.replace('$CLAUDE_PLUGIN_ROOT', pluginDir);
 }
 
 describe('E2E: persistEnvVar', () => {

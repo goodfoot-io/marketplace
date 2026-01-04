@@ -77,6 +77,22 @@ Hooks **must be compiled**. Run the build CLI:
 npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
 ```
 
+### Custom Node Executable
+
+By default, generated commands use `node` as the executable. Use `--executable` to specify an alternative:
+
+```bash
+# Use a specific node version
+npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json" --executable /usr/local/bin/node22
+
+# Use bun instead of node
+npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json" --executable bun
+```
+
+This affects the generated `hooks.json` commands:
+- Default: `node $CLAUDE_PLUGIN_ROOT/build/hook.mjs`
+- With `--executable bun`: `bun $CLAUDE_PLUGIN_ROOT/build/hook.mjs`
+
 ## Configuration
 
 After building (Scaffolded or Manual), tell Claude where to find the manifest.
