@@ -21,7 +21,7 @@ Create `hooks/allow-ls.ts`. **Note:** You _must_ use `export default` and the fa
 import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
 
 export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => {
-  const { command } = input.toolInput as { command: string };
+  const { command } = input.tool_input as { command: string };
 
   // Use logger, NEVER console.log
   logger.info('Checking command', { command });
@@ -156,15 +156,14 @@ Violating these rules will cause your hooks to fail silently or block Claude ent
 
 ### Type-Safe Inputs
 
-The runtime automatically converts snake_case inputs (from Claude) to **camelCase**.
+Input properties use the wire format (snake_case) directly for consistency.
 
 ```typescript
 // Claude sends: { "file_path": "src/main.ts", "tool_name": "Read" }
 // You receive:
 export default preToolUseHook({}, async (input) => {
-  console.log(input.toolName); // "Read"
-  // Note: toolInput contents are NOT transformed recursively by default types,
-  // but the top-level keys are. Check your specific tool's shape!
+  console.log(input.tool_name); // "Read"
+  console.log(input.tool_input.file_path); // "src/main.ts" (when typed)
 });
 ```
 
@@ -259,7 +258,7 @@ You can safely:
 **"I can't see the tool input."**
 
 1.  Use the logger to dump it: `logger.info('Input', { input })`.
-2.  Remember `input.toolInput` is `unknown`. Cast it safely.
+2.  Remember `input.tool_input` is `unknown`. Cast it safely, or use typed matchers.
 
 ---
 
@@ -268,8 +267,7 @@ You can safely:
 1.  **CLI (`claude-code-hooks`)**: Scans your TS files, extracts metadata (events, matchers) via AST, and compiles them using `esbuild`.
 2.  **Runtime (`runtime.ts`)**: The compiled files import a runtime wrapper. This wrapper:
     - Reads `stdin`.
-    - Parses JSON.
-    - CamelCases keys.
+    - Parses JSON (wire format with snake_case properties).
     - Injects context (`logger`, and `persistEnvVar`/`persistEnvVars` for SessionStart hooks).
     - Executes your handler.
     - Formats the output.

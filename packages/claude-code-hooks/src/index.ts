@@ -1,7 +1,7 @@
 /**
  * Type-safe Claude Code hooks library.
  *
- * Provides camelCase types, output builders, and logging system
+ * Provides typed input/output handling, output builders, and logging system
  * for building Claude Code hooks with full type safety.
  * @module
  */
@@ -11,7 +11,7 @@
 // - Output builders (preToolUseOutput, sessionStartOutput, etc.)
 // - Logger and types
 
-// Input types - CamelCase transformed from SDK snake_case
+// Input types - Wire format (snake_case) matching the Claude Code protocol
 export type {
   // Base type
   BaseHookInput,

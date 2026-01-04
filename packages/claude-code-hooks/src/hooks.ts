@@ -100,11 +100,11 @@ export interface HookConfig {
    * Regular expression pattern for matching hook events.
    *
    * What the pattern matches against depends on the hook type:
-   * - Tool hooks (PreToolUse, PostToolUse, etc.): matches `toolName`
+   * - Tool hooks (PreToolUse, PostToolUse, etc.): matches `tool_name`
    * - SessionStart: matches `source`
    * - SessionEnd: matches `reason`
-   * - SubagentStart/Stop: matches `agentType`
-   * - Notification: matches `notificationType`
+   * - SubagentStart/Stop: matches `agent_type`
+   * - Notification: matches `notification_type`
    * - PreCompact: matches `trigger`
    * - Stop, UserPromptSubmit: no matcher (fires on all events)
    *

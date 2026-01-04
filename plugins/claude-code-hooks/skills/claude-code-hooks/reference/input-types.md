@@ -121,7 +121,7 @@ interface GrepToolInput {
 
 ## Type Guards
 
-Use type guards to safely narrow the type of `toolInput`:
+Use type guards to safely narrow the type of `tool_input`:
 
 ```typescript
 import {
