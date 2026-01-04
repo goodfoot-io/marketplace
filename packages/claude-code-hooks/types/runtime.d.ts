@@ -3,10 +3,9 @@
  *
  * Handles stdin/stdout/exit code semantics for compiled hook execution.
  * This module is the core orchestrator that:
- * - Reads JSON from stdin
- * - Transforms snake_case to camelCase
+ * - Reads JSON from stdin (wire format with snake_case properties)
  * - Invokes the hook handler
- * - Transforms output back and writes to stdout
+ * - Writes output to stdout
  * - Manages exit codes
  * @module
  * @example
@@ -22,51 +21,6 @@
 import type { HookFunction } from './hooks.js';
 import type { HookInput } from './inputs.js';
 import type { HookOutput, SpecificHookOutput } from './outputs.js';
-/**
- * Deeply transforms object keys from snake_case to camelCase.
- *
- * This function recursively processes objects and arrays, converting all
- * snake_case keys to camelCase while preserving values. Primitive values
- * are returned unchanged.
- * @param obj - The object to transform
- * @returns A new object with camelCase keys
- * @example
- * ```typescript
- * const input = {
- *   session_id: '123',
- *   tool_name: 'Bash',
- *   tool_input: { file_path: '/test' }
- * };
- *
- * const output = snakeToCamelCase(input);
- * // {
- * //   sessionId: '123',
- * //   toolName: 'Bash',
- * //   toolInput: { filePath: '/test' }
- * // }
- * ```
- * @see https://code.claude.com/docs/en/hooks#hook-input-structure
- */
-export declare function snakeToCamelCase<T>(obj: T): T;
-/**
- * Deeply transforms object keys from camelCase to snake_case.
- *
- * This function recursively processes objects and arrays, converting all
- * camelCase keys to snake_case while preserving values. Primitive values
- * are returned unchanged.
- *
- * **Note:** Hook output uses camelCase and should NOT be converted to snake_case.
- * This utility is for other use cases requiring case transformation.
- * @param obj - The object to transform
- * @returns A new object with snake_case keys
- * @example
- * ```typescript
- * const input = { firstName: 'John', lastName: 'Doe' };
- * const result = camelToSnakeCase(input);
- * // { first_name: 'John', last_name: 'Doe' }
- * ```
- */
-export declare function camelToSnakeCase<T>(obj: T): T;
 /**
  * Converts a SpecificHookOutput to HookOutput for wire format.
  *
@@ -93,14 +47,13 @@ export declare function convertToHookOutput(specificOutput: SpecificHookOutput):
  * runs as a CLI:
  *
  * 1. Reads all stdin
- * 2. Parses JSON
- * 3. Transforms snake_case input to camelCase
- * 4. Sets up logger context (hookType, input)
- * 5. Calls handler with input and context (logger)
- * 6. Handles any errors, logs them
- * 7. Writes JSON to stdout
- * 8. Closes logger
- * 9. Exits with appropriate code
+ * 2. Parses JSON (wire format with snake_case properties)
+ * 3. Sets up logger context (hookType, input)
+ * 4. Calls handler with input and context (logger)
+ * 5. Handles any errors, logs them
+ * 6. Writes JSON to stdout
+ * 7. Closes logger
+ * 8. Exits with appropriate code
  * @param hookFn - The hook function to execute (from hook factory)
  * @example
  * ```typescript

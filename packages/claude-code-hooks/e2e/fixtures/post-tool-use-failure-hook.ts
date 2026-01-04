@@ -8,7 +8,7 @@ import { postToolUseFailureHook, postToolUseFailureOutput } from '../../src/inde
 
 export default postToolUseFailureHook({ matcher: '.*' }, (input, { logger }) => {
   logger.info('Tool failed', {
-    toolName: input.toolName,
+    tool_name: input.tool_name,
     error: input.error
   });
   return postToolUseFailureOutput({

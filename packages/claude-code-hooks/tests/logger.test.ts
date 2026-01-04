@@ -278,7 +278,7 @@ describe('Logger', () => {
       const events: LogEvent[] = [];
       logger.on('info', (event) => events.push(event));
 
-      const input = { sessionId: 'abc', toolName: 'Bash' };
+      const input = { session_id: 'abc', tool_name: 'Bash' };
       logger.setContext('PreToolUse', input);
       logger.info('Test message');
 
@@ -289,7 +289,7 @@ describe('Logger', () => {
       const events: LogEvent[] = [];
       logger.on('info', (event) => events.push(event));
 
-      logger.setContext('PreToolUse', { sessionId: 'abc' });
+      logger.setContext('PreToolUse', { session_id: 'abc' });
       logger.clearContext();
       logger.info('Test message');
 
@@ -301,11 +301,11 @@ describe('Logger', () => {
       const events: LogEvent[] = [];
       logger.on('error', (event) => events.push(event));
 
-      logger.setContext('SessionStart', { sessionId: 'test123' });
+      logger.setContext('SessionStart', { session_id: 'test123' });
       logger.logError(new Error('Test'), 'Error with context');
 
       expect(events[0].hookType).toBe('SessionStart');
-      expect(events[0].input).toEqual({ sessionId: 'test123' });
+      expect(events[0].input).toEqual({ session_id: 'test123' });
     });
   });
 

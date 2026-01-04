@@ -16,7 +16,7 @@ Use `permissionRequestHook` to bypass the "Allow?" prompt for known safe operati
 import { permissionRequestHook, permissionRequestOutput } from '@goodfoot/claude-code-hooks';
 
 export default permissionRequestHook({ matcher: 'Bash' }, (input, { logger }) => {
-  const command = input.toolInput as { command?: string };
+  const command = input.tool_input as { command?: string };
 
   // Only auto-allow echo commands
   if (command.command?.startsWith('echo ')) {
@@ -100,10 +100,10 @@ Use `preToolUseHook` to enforce security policies.
 ```typescript
 import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
 
-// Typed overload: toolInput is automatically typed as BashToolInput
+// Typed overload: tool_input is automatically typed as BashToolInput
 export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
-  // No cast needed - input.toolInput.command is typed as string
-  const command = input.toolInput.command;
+  // No cast needed - input.tool_input.command is typed as string
+  const command = input.tool_input.command;
 
   // Example: Block 'curl'
   if (command.startsWith('curl')) {
@@ -159,7 +159,7 @@ import { postToolUseHook, postToolUseOutput, isBashTool } from '@goodfoot/claude
 
 export default postToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
   // Check if the command output indicates a warning
-  const response = String(input.toolResponse);
+  const response = String(input.tool_response);
 
   if (response.includes('DEPRECATION WARNING')) {
     return postToolUseOutput({
@@ -213,7 +213,7 @@ import { constants } from 'fs';
 import { join } from 'path';
 
 export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => {
-  const cmd = (input.toolInput as { command?: string }).command ?? '';
+  const cmd = (input.tool_input as { command?: string }).command ?? '';
 
   if (cmd.includes('npm publish')) {
     try {
@@ -238,18 +238,18 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 
 | Hook Type | Factory | Builder | Input Key |
 | :--- | :--- | :--- | :--- |
-| **PreToolUse** | `preToolUseHook` | `preToolUseOutput` | `toolName` |
-| **PostToolUse** | `postToolUseHook` | `postToolUseOutput` | `toolName` |
-| **PostToolUseFailure** | `postToolUseFailureHook` | `postToolUseFailureOutput` | `toolName` |
+| **PreToolUse** | `preToolUseHook` | `preToolUseOutput` | `tool_name` |
+| **PostToolUse** | `postToolUseHook` | `postToolUseOutput` | `tool_name` |
+| **PostToolUseFailure** | `postToolUseFailureHook` | `postToolUseFailureOutput` | `tool_name` |
 | **SessionStart** | `sessionStartHook` | `sessionStartOutput` | `source` |
 | **SessionEnd** | `sessionEndHook` | `sessionEndOutput` | `reason` |
 | **Stop** | `stopHook` | `stopOutput` | N/A |
 | **UserPromptSubmit** | `userPromptSubmitHook` | `userPromptSubmitOutput` | N/A |
-| **Notification** | `notificationHook` | `notificationOutput` | `notificationType` |
-| **SubagentStart** | `subagentStartHook` | `subagentStartOutput` | `agentType` |
-| **SubagentStop** | `subagentStopHook` | `subagentStopOutput` | `agentType` |
+| **Notification** | `notificationHook` | `notificationOutput` | `notification_type` |
+| **SubagentStart** | `subagentStartHook` | `subagentStartOutput` | `agent_type` |
+| **SubagentStop** | `subagentStopHook` | `subagentStopOutput` | `agent_type` |
 | **PreCompact** | `preCompactHook` | `preCompactOutput` | `trigger` |
-| **PermissionRequest** | `permissionRequestHook` | `permissionRequestOutput` | `toolName` |
+| **PermissionRequest** | `permissionRequestHook` | `permissionRequestOutput` | `tool_name` |
 
 ## 4. Builder Options Cheat Sheet
 

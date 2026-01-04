@@ -33,12 +33,12 @@ import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
 
 // 1. Export Default is MANDATORY.
 // 2. Factory handles input typing and error wrapping.
-// 3. Matcher 'Bash' with typed overload: toolInput is automatically typed as BashToolInput!
+// 3. Matcher 'Bash' with typed overload: tool_input is automatically typed as BashToolInput!
 export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 
-  // 4. Input is camelCased (toolInput, toolName).
-  // 5. With typed overload, toolInput.command is typed as string - no cast needed!
-  const command = input.toolInput.command;
+  // 4. Input uses wire format (snake_case: tool_input, tool_name).
+  // 5. With typed overload, tool_input.command is typed as string - no cast needed!
+  const command = input.tool_input.command;
 
   // 6. Logging uses the context logger, NEVER console.log or console.error.
   logger.info('Checking command safety', { command });

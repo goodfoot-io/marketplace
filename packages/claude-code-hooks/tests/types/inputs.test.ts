@@ -25,21 +25,21 @@ import { describe, it, expect } from 'vitest';
 
 describe('HookInput discriminated union', () => {
   describe('type narrowing', () => {
-    it('narrows correctly on hookEventName', () => {
+    it('narrows correctly on hook_event_name', () => {
       const handleHook = (input: HookInput): string => {
-        switch (input.hookEventName) {
+        switch (input.hook_event_name) {
           case 'PreToolUse':
-            // TypeScript should know input.toolName exists
-            return input.toolName;
+            // TypeScript should know input.tool_name exists
+            return input.tool_name;
           case 'PostToolUse':
-            // TypeScript should know input.toolResponse exists
-            return String(input.toolResponse);
+            // TypeScript should know input.tool_response exists
+            return String(input.tool_response);
           case 'SessionStart':
             // TypeScript should know input.source exists
             return input.source;
           case 'Stop':
-            // TypeScript should know input.stopHookActive exists
-            return String(input.stopHookActive);
+            // TypeScript should know input.stop_hook_active exists
+            return String(input.stop_hook_active);
           case 'PostToolUseFailure':
             return input.error;
           case 'Notification':
@@ -49,13 +49,13 @@ describe('HookInput discriminated union', () => {
           case 'SessionEnd':
             return input.reason;
           case 'SubagentStart':
-            return input.agentId;
+            return input.agent_id;
           case 'SubagentStop':
-            return input.agentTranscriptPath;
+            return input.agent_transcript_path;
           case 'PreCompact':
             return input.trigger;
           case 'PermissionRequest':
-            return input.toolName;
+            return input.tool_name;
           default: {
             // Exhaustiveness check
             const _exhaustive: never = input;
@@ -70,12 +70,12 @@ describe('HookInput discriminated union', () => {
 
     it('provides correct fields after narrowing to PreToolUse', () => {
       const handlePreToolUse = (input: HookInput): void => {
-        if (input.hookEventName === 'PreToolUse') {
+        if (input.hook_event_name === 'PreToolUse') {
           // All these should be valid
-          const _toolName: string = input.toolName;
-          const _toolInput: unknown = input.toolInput;
-          const _toolUseId: string = input.toolUseId;
-          const _sessionId: string = input.sessionId;
+          const _toolName: string = input.tool_name;
+          const _toolInput: unknown = input.tool_input;
+          const _toolUseId: string = input.tool_use_id;
+          const _sessionId: string = input.session_id;
 
           expect(_toolName).toBeDefined();
           expect(_toolInput).toBeDefined();
@@ -89,10 +89,10 @@ describe('HookInput discriminated union', () => {
 
     it('provides correct fields after narrowing to SessionStart', () => {
       const handleSessionStart = (input: HookInput): void => {
-        if (input.hookEventName === 'SessionStart') {
+        if (input.hook_event_name === 'SessionStart') {
           // source should be one of the specific values
           const _source: 'startup' | 'resume' | 'clear' | 'compact' = input.source;
-          const _sessionId: string = input.sessionId;
+          const _sessionId: string = input.session_id;
 
           expect(_source).toBeDefined();
           expect(_sessionId).toBeDefined();
@@ -106,61 +106,61 @@ describe('HookInput discriminated union', () => {
   describe('individual input type fields', () => {
     it('PreToolUseInput has all required fields', () => {
       const input: PreToolUseInput = {
-        hookEventName: 'PreToolUse',
-        sessionId: 'sess-123',
-        transcriptPath: '/path/to/transcript',
+        hook_event_name: 'PreToolUse',
+        session_id: 'sess-123',
+        transcript_path: '/path/to/transcript',
         cwd: '/workspace',
-        toolName: 'Bash',
-        toolInput: { command: 'ls -la' },
-        toolUseId: 'tool-456'
+        tool_name: 'Bash',
+        tool_input: { command: 'ls -la' },
+        tool_use_id: 'tool-456'
       };
 
-      expect(input.hookEventName).toBe('PreToolUse');
-      expect(input.toolName).toBe('Bash');
-      expect(input.toolInput).toEqual({ command: 'ls -la' });
+      expect(input.hook_event_name).toBe('PreToolUse');
+      expect(input.tool_name).toBe('Bash');
+      expect(input.tool_input).toEqual({ command: 'ls -la' });
     });
 
-    it('PostToolUseInput has toolResponse field', () => {
+    it('PostToolUseInput has tool_response field', () => {
       const input: PostToolUseInput = {
-        hookEventName: 'PostToolUse',
-        sessionId: 'sess-123',
-        transcriptPath: '/path',
+        hook_event_name: 'PostToolUse',
+        session_id: 'sess-123',
+        transcript_path: '/path',
         cwd: '/workspace',
-        toolName: 'Read',
-        toolInput: { file_path: '/test.txt' },
-        toolResponse: 'file contents',
-        toolUseId: 'tool-789'
+        tool_name: 'Read',
+        tool_input: { file_path: '/test.txt' },
+        tool_response: 'file contents',
+        tool_use_id: 'tool-789'
       };
 
-      expect(input.toolResponse).toBe('file contents');
+      expect(input.tool_response).toBe('file contents');
     });
 
-    it('PostToolUseFailureInput has error and optional isInterrupt', () => {
+    it('PostToolUseFailureInput has error and optional is_interrupt', () => {
       const input: PostToolUseFailureInput = {
-        hookEventName: 'PostToolUseFailure',
-        sessionId: 'sess-123',
-        transcriptPath: '/path',
+        hook_event_name: 'PostToolUseFailure',
+        session_id: 'sess-123',
+        transcript_path: '/path',
         cwd: '/workspace',
-        toolName: 'Bash',
-        toolInput: { command: 'bad-cmd' },
-        toolUseId: 'tool-999',
+        tool_name: 'Bash',
+        tool_input: { command: 'bad-cmd' },
+        tool_use_id: 'tool-999',
         error: 'Command failed',
-        isInterrupt: true
+        is_interrupt: true
       };
 
       expect(input.error).toBe('Command failed');
-      expect(input.isInterrupt).toBe(true);
+      expect(input.is_interrupt).toBe(true);
     });
 
     it('NotificationInput has message and optional title', () => {
       const input: NotificationInput = {
-        hookEventName: 'Notification',
-        sessionId: 'sess-123',
-        transcriptPath: '/path',
+        hook_event_name: 'Notification',
+        session_id: 'sess-123',
+        transcript_path: '/path',
         cwd: '/workspace',
         message: 'Task completed',
         title: 'Success',
-        notificationType: 'info'
+        notification_type: 'info'
       };
 
       expect(input.message).toBe('Task completed');
@@ -169,9 +169,9 @@ describe('HookInput discriminated union', () => {
 
     it('UserPromptSubmitInput has prompt field', () => {
       const input: UserPromptSubmitInput = {
-        hookEventName: 'UserPromptSubmit',
-        sessionId: 'sess-123',
-        transcriptPath: '/path',
+        hook_event_name: 'UserPromptSubmit',
+        session_id: 'sess-123',
+        transcript_path: '/path',
         cwd: '/workspace',
         prompt: 'Write a function'
       };
@@ -182,30 +182,30 @@ describe('HookInput discriminated union', () => {
     it('SessionStartInput has source field with specific values', () => {
       const inputs: SessionStartInput[] = [
         {
-          hookEventName: 'SessionStart',
-          sessionId: 'sess-1',
-          transcriptPath: '/path',
+          hook_event_name: 'SessionStart',
+          session_id: 'sess-1',
+          transcript_path: '/path',
           cwd: '/workspace',
           source: 'startup'
         },
         {
-          hookEventName: 'SessionStart',
-          sessionId: 'sess-2',
-          transcriptPath: '/path',
+          hook_event_name: 'SessionStart',
+          session_id: 'sess-2',
+          transcript_path: '/path',
           cwd: '/workspace',
           source: 'resume'
         },
         {
-          hookEventName: 'SessionStart',
-          sessionId: 'sess-3',
-          transcriptPath: '/path',
+          hook_event_name: 'SessionStart',
+          session_id: 'sess-3',
+          transcript_path: '/path',
           cwd: '/workspace',
           source: 'clear'
         },
         {
-          hookEventName: 'SessionStart',
-          sessionId: 'sess-4',
-          transcriptPath: '/path',
+          hook_event_name: 'SessionStart',
+          session_id: 'sess-4',
+          transcript_path: '/path',
           cwd: '/workspace',
           source: 'compact'
         }
@@ -216,9 +216,9 @@ describe('HookInput discriminated union', () => {
 
     it('SessionEndInput has reason field', () => {
       const input: SessionEndInput = {
-        hookEventName: 'SessionEnd',
-        sessionId: 'sess-123',
-        transcriptPath: '/path',
+        hook_event_name: 'SessionEnd',
+        session_id: 'sess-123',
+        transcript_path: '/path',
         cwd: '/workspace',
         reason: 'other'
       };
@@ -226,75 +226,75 @@ describe('HookInput discriminated union', () => {
       expect(input.reason).toBe('other');
     });
 
-    it('StopInput has stopHookActive field', () => {
+    it('StopInput has stop_hook_active field', () => {
       const input: StopInput = {
-        hookEventName: 'Stop',
-        sessionId: 'sess-123',
-        transcriptPath: '/path',
+        hook_event_name: 'Stop',
+        session_id: 'sess-123',
+        transcript_path: '/path',
         cwd: '/workspace',
-        stopHookActive: true
+        stop_hook_active: true
       };
 
-      expect(input.stopHookActive).toBe(true);
+      expect(input.stop_hook_active).toBe(true);
     });
 
-    it('SubagentStartInput has agentId and agentType', () => {
+    it('SubagentStartInput has agent_id and agent_type', () => {
       const input: SubagentStartInput = {
-        hookEventName: 'SubagentStart',
-        sessionId: 'sess-123',
-        transcriptPath: '/path',
+        hook_event_name: 'SubagentStart',
+        session_id: 'sess-123',
+        transcript_path: '/path',
         cwd: '/workspace',
-        agentId: 'agent-001',
-        agentType: 'explore'
+        agent_id: 'agent-001',
+        agent_type: 'explore'
       };
 
-      expect(input.agentId).toBe('agent-001');
-      expect(input.agentType).toBe('explore');
+      expect(input.agent_id).toBe('agent-001');
+      expect(input.agent_type).toBe('explore');
     });
 
-    it('SubagentStopInput has agentTranscriptPath', () => {
+    it('SubagentStopInput has agent_transcript_path', () => {
       const input: SubagentStopInput = {
-        hookEventName: 'SubagentStop',
-        sessionId: 'sess-123',
-        transcriptPath: '/path',
+        hook_event_name: 'SubagentStop',
+        session_id: 'sess-123',
+        transcript_path: '/path',
         cwd: '/workspace',
-        stopHookActive: false,
-        agentId: 'agent-001',
-        agentType: 'explore',
-        agentTranscriptPath: '/path/to/agent/transcript'
+        stop_hook_active: false,
+        agent_id: 'agent-001',
+        agent_type: 'explore',
+        agent_transcript_path: '/path/to/agent/transcript'
       };
 
-      expect(input.agentTranscriptPath).toBe('/path/to/agent/transcript');
+      expect(input.agent_transcript_path).toBe('/path/to/agent/transcript');
     });
 
-    it('PreCompactInput has trigger and customInstructions', () => {
+    it('PreCompactInput has trigger and custom_instructions', () => {
       const input: PreCompactInput = {
-        hookEventName: 'PreCompact',
-        sessionId: 'sess-123',
-        transcriptPath: '/path',
+        hook_event_name: 'PreCompact',
+        session_id: 'sess-123',
+        transcript_path: '/path',
         cwd: '/workspace',
         trigger: 'manual',
-        customInstructions: 'Custom instructions here'
+        custom_instructions: 'Custom instructions here'
       };
 
       expect(input.trigger).toBe('manual');
-      expect(input.customInstructions).toBe('Custom instructions here');
+      expect(input.custom_instructions).toBe('Custom instructions here');
     });
 
-    it('PermissionRequestInput has toolName and permissionSuggestions', () => {
+    it('PermissionRequestInput has tool_name and permission_suggestions', () => {
       const input: PermissionRequestInput = {
-        hookEventName: 'PermissionRequest',
-        sessionId: 'sess-123',
-        transcriptPath: '/path',
+        hook_event_name: 'PermissionRequest',
+        session_id: 'sess-123',
+        transcript_path: '/path',
         cwd: '/workspace',
-        toolName: 'Bash',
-        toolInput: { command: 'rm file.txt' },
-        toolUseId: 'tool-1',
-        permissionSuggestions: []
+        tool_name: 'Bash',
+        tool_input: { command: 'rm file.txt' },
+        tool_use_id: 'tool-1',
+        permission_suggestions: []
       };
 
-      expect(input.toolName).toBe('Bash');
-      expect(input.permissionSuggestions).toEqual([]);
+      expect(input.tool_name).toBe('Bash');
+      expect(input.permission_suggestions).toEqual([]);
     });
   });
 
@@ -302,18 +302,18 @@ describe('HookInput discriminated union', () => {
     it('all inputs have base fields', () => {
       const inputs: HookInput[] = [
         {
-          hookEventName: 'PreToolUse',
-          sessionId: 'sess-1',
-          transcriptPath: '/path1',
+          hook_event_name: 'PreToolUse',
+          session_id: 'sess-1',
+          transcript_path: '/path1',
           cwd: '/cwd1',
-          toolName: 'Bash',
-          toolInput: {},
-          toolUseId: 'tool-1'
+          tool_name: 'Bash',
+          tool_input: {},
+          tool_use_id: 'tool-1'
         },
         {
-          hookEventName: 'SessionStart',
-          sessionId: 'sess-2',
-          transcriptPath: '/path2',
+          hook_event_name: 'SessionStart',
+          session_id: 'sess-2',
+          transcript_path: '/path2',
           cwd: '/cwd2',
           source: 'startup'
         }
@@ -321,55 +321,55 @@ describe('HookInput discriminated union', () => {
 
       for (const input of inputs) {
         // All inputs should have these base fields
-        expect(input.sessionId).toBeDefined();
-        expect(input.transcriptPath).toBeDefined();
+        expect(input.session_id).toBeDefined();
+        expect(input.transcript_path).toBeDefined();
         expect(input.cwd).toBeDefined();
       }
     });
 
-    it('permissionMode is optional on all inputs', () => {
+    it('permission_mode is optional on all inputs', () => {
       const inputWithMode: PreToolUseInput = {
-        hookEventName: 'PreToolUse',
-        sessionId: 'test',
-        transcriptPath: '/path',
+        hook_event_name: 'PreToolUse',
+        session_id: 'test',
+        transcript_path: '/path',
         cwd: '/cwd',
-        toolName: 'Bash',
-        toolInput: {},
-        toolUseId: 'tool-1',
-        permissionMode: 'bypassPermissions'
+        tool_name: 'Bash',
+        tool_input: {},
+        tool_use_id: 'tool-1',
+        permission_mode: 'bypassPermissions'
       };
 
       const inputWithoutMode: PreToolUseInput = {
-        hookEventName: 'PreToolUse',
-        sessionId: 'test',
-        transcriptPath: '/path',
+        hook_event_name: 'PreToolUse',
+        session_id: 'test',
+        transcript_path: '/path',
         cwd: '/cwd',
-        toolName: 'Bash',
-        toolInput: {},
-        toolUseId: 'tool-1'
+        tool_name: 'Bash',
+        tool_input: {},
+        tool_use_id: 'tool-1'
       };
 
-      expect(inputWithMode.permissionMode).toBe('bypassPermissions');
-      expect(inputWithoutMode.permissionMode).toBeUndefined();
+      expect(inputWithMode.permission_mode).toBe('bypassPermissions');
+      expect(inputWithoutMode.permission_mode).toBeUndefined();
     });
   });
 
   describe('type assignability', () => {
     it('specific input types are assignable to HookInput', () => {
       const preToolUse: PreToolUseInput = {
-        hookEventName: 'PreToolUse',
-        sessionId: 'test',
-        transcriptPath: '/path',
+        hook_event_name: 'PreToolUse',
+        session_id: 'test',
+        transcript_path: '/path',
         cwd: '/cwd',
-        toolName: 'Bash',
-        toolInput: {},
-        toolUseId: 'tool-1'
+        tool_name: 'Bash',
+        tool_input: {},
+        tool_use_id: 'tool-1'
       };
 
       const sessionStart: SessionStartInput = {
-        hookEventName: 'SessionStart',
-        sessionId: 'test',
-        transcriptPath: '/path',
+        hook_event_name: 'SessionStart',
+        session_id: 'test',
+        transcript_path: '/path',
         cwd: '/cwd',
         source: 'startup'
       };
@@ -383,104 +383,104 @@ describe('HookInput discriminated union', () => {
       // Create an array with one of each type to verify they all work
       const allInputs: HookInput[] = [
         {
-          hookEventName: 'PreToolUse',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'PreToolUse',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
-          toolName: 'T',
-          toolInput: {},
-          toolUseId: 'id'
+          tool_name: 'T',
+          tool_input: {},
+          tool_use_id: 'id'
         },
         {
-          hookEventName: 'PostToolUse',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'PostToolUse',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
-          toolName: 'T',
-          toolInput: {},
-          toolResponse: {},
-          toolUseId: 'id'
+          tool_name: 'T',
+          tool_input: {},
+          tool_response: {},
+          tool_use_id: 'id'
         },
         {
-          hookEventName: 'PostToolUseFailure',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'PostToolUseFailure',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
-          toolName: 'T',
-          toolInput: {},
-          toolUseId: 'id',
+          tool_name: 'T',
+          tool_input: {},
+          tool_use_id: 'id',
           error: 'err'
         },
         {
-          hookEventName: 'Notification',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'Notification',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
           message: 'm',
-          notificationType: 'info'
+          notification_type: 'info'
         },
         {
-          hookEventName: 'UserPromptSubmit',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'UserPromptSubmit',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
           prompt: 'p'
         },
         {
-          hookEventName: 'SessionStart',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'SessionStart',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
           source: 'startup'
         },
         {
-          hookEventName: 'SessionEnd',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'SessionEnd',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
           reason: 'other'
         },
         {
-          hookEventName: 'Stop',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'Stop',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
-          stopHookActive: false
+          stop_hook_active: false
         },
         {
-          hookEventName: 'SubagentStart',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'SubagentStart',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
-          agentId: 'a',
-          agentType: 't'
+          agent_id: 'a',
+          agent_type: 't'
         },
         {
-          hookEventName: 'SubagentStop',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'SubagentStop',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
-          stopHookActive: false,
-          agentId: 'a',
-          agentType: 't',
-          agentTranscriptPath: '/atp'
+          stop_hook_active: false,
+          agent_id: 'a',
+          agent_type: 't',
+          agent_transcript_path: '/atp'
         },
         {
-          hookEventName: 'PreCompact',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'PreCompact',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
           trigger: 'manual',
-          customInstructions: null
+          custom_instructions: null
         },
         {
-          hookEventName: 'PermissionRequest',
-          sessionId: 's',
-          transcriptPath: '/p',
+          hook_event_name: 'PermissionRequest',
+          session_id: 's',
+          transcript_path: '/p',
           cwd: '/c',
-          toolName: 'T',
-          toolInput: {},
-          toolUseId: 't'
+          tool_name: 'T',
+          tool_input: {},
+          tool_use_id: 't'
         }
       ];
 

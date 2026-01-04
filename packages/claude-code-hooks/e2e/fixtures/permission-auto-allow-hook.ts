@@ -8,7 +8,7 @@
 import { permissionRequestHook, permissionRequestOutput } from '../../src/index.js';
 
 export default permissionRequestHook({ matcher: 'Bash' }, (input, { logger }) => {
-  const command = input.toolInput as { command?: string };
+  const command = input.tool_input as { command?: string };
 
   // Only auto-allow echo commands for safety in E2E tests
   if (command.command?.startsWith('echo ')) {

@@ -8,9 +8,9 @@ import { subagentStopHook, subagentStopOutput } from '../../src/index.js';
 
 export default subagentStopHook({ matcher: 'explore' }, (input, { logger }) => {
   logger.info('Subagent stopping', {
-    agentId: input.agentId,
-    agentType: input.agentType,
-    agentTranscriptPath: input.agentTranscriptPath
+    agent_id: input.agent_id,
+    agent_type: input.agent_type,
+    agent_transcript_path: input.agent_transcript_path
   });
   return subagentStopOutput({
     decision: 'approve',

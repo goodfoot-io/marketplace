@@ -396,9 +396,10 @@ export type PreToolUseOptions = CommonOptions & {
  * });
  * ```
  */
-export const preToolUseOutput = createHookSpecificOutputBuilder<'PreToolUse', PreToolUseHookSpecificOutput>(
-  'PreToolUse'
-);
+export const preToolUseOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  'PreToolUse',
+  PreToolUseHookSpecificOutput
+>('PreToolUse');
 
 // ============================================================================
 // PostToolUse Output Builder
@@ -426,9 +427,10 @@ export type PostToolUseOptions = CommonOptions & {
  * });
  * ```
  */
-export const postToolUseOutput = createHookSpecificOutputBuilder<'PostToolUse', PostToolUseHookSpecificOutput>(
-  'PostToolUse'
-);
+export const postToolUseOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  'PostToolUse',
+  PostToolUseHookSpecificOutput
+>('PostToolUse');
 
 // ============================================================================
 // PostToolUseFailure Output Builder
@@ -455,7 +457,7 @@ export type PostToolUseFailureOptions = CommonOptions & {
  * });
  * ```
  */
-export const postToolUseFailureOutput = createHookSpecificOutputBuilder<
+export const postToolUseFailureOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
   'PostToolUseFailure',
   PostToolUseFailureHookSpecificOutput
 >('PostToolUseFailure');
@@ -485,7 +487,7 @@ export type UserPromptSubmitOptions = CommonOptions & {
  * });
  * ```
  */
-export const userPromptSubmitOutput = createHookSpecificOutputBuilder<
+export const userPromptSubmitOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
   'UserPromptSubmit',
   UserPromptSubmitHookSpecificOutput
 >('UserPromptSubmit');
@@ -515,9 +517,10 @@ export type SessionStartOptions = CommonOptions & {
  * });
  * ```
  */
-export const sessionStartOutput = createHookSpecificOutputBuilder<'SessionStart', SessionStartHookSpecificOutput>(
-  'SessionStart'
-);
+export const sessionStartOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  'SessionStart',
+  SessionStartHookSpecificOutput
+>('SessionStart');
 
 // ============================================================================
 // SessionEnd Output Builder
@@ -538,7 +541,7 @@ export type SessionEndOptions = CommonOptions;
  * sessionEndOutput({});
  * ```
  */
-export const sessionEndOutput = createSimpleOutputBuilder<'SessionEnd'>('SessionEnd');
+export const sessionEndOutput = /* @__PURE__ */ createSimpleOutputBuilder<'SessionEnd'>('SessionEnd');
 
 // ============================================================================
 // Stop Output Builder
@@ -570,7 +573,7 @@ export interface StopOptions extends CommonOptions {
  * });
  * ```
  */
-export const stopOutput = createDecisionOutputBuilder<'Stop'>('Stop');
+export const stopOutput = /* @__PURE__ */ createDecisionOutputBuilder<'Stop'>('Stop');
 
 // ============================================================================
 // SubagentStart Output Builder
@@ -597,9 +600,10 @@ export type SubagentStartOptions = CommonOptions & {
  * });
  * ```
  */
-export const subagentStartOutput = createHookSpecificOutputBuilder<'SubagentStart', SubagentStartHookSpecificOutput>(
-  'SubagentStart'
-);
+export const subagentStartOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  'SubagentStart',
+  SubagentStartHookSpecificOutput
+>('SubagentStart');
 
 // ============================================================================
 // SubagentStop Output Builder
@@ -628,7 +632,7 @@ export interface SubagentStopOptions extends CommonOptions {
  * });
  * ```
  */
-export const subagentStopOutput = createDecisionOutputBuilder<'SubagentStop'>('SubagentStop');
+export const subagentStopOutput = /* @__PURE__ */ createDecisionOutputBuilder<'SubagentStop'>('SubagentStop');
 
 // ============================================================================
 // Notification Output Builder
@@ -659,9 +663,10 @@ export type NotificationOptions = CommonOptions & {
  * notificationOutput({ suppressOutput: true });
  * ```
  */
-export const notificationOutput = createHookSpecificOutputBuilder<'Notification', NotificationHookSpecificOutput>(
-  'Notification'
-);
+export const notificationOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  'Notification',
+  NotificationHookSpecificOutput
+>('Notification');
 
 // ============================================================================
 // PreCompact Output Builder
@@ -684,7 +689,7 @@ export type PreCompactOptions = CommonOptions;
  * });
  * ```
  */
-export const preCompactOutput = createSimpleOutputBuilder<'PreCompact'>('PreCompact');
+export const preCompactOutput = /* @__PURE__ */ createSimpleOutputBuilder<'PreCompact'>('PreCompact');
 
 // ============================================================================
 // PermissionRequest Output Builder
@@ -736,7 +741,7 @@ export type PermissionRequestOptions = CommonOptions & {
  * permissionRequestOutput({});
  * ```
  */
-export const permissionRequestOutput = createHookSpecificOutputBuilder<
+export const permissionRequestOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
   'PermissionRequest',
   PermissionRequestHookSpecificOutput
 >('PermissionRequest');

@@ -12,10 +12,10 @@ describe('async handler support', () => {
   const mockContext = { logger: mockLogger };
 
   const baseInput = {
-    sessionId: 'test-session',
-    transcriptPath: '/tmp/transcript.jsonl',
+    session_id: 'test-session',
+    transcript_path: '/tmp/transcript.jsonl',
     cwd: '/tmp',
-    claudeCodeVersion: '1.0.0'
+    claude_code_version: '1.0.0'
   };
 
   it('supports sync handlers', async () => {
@@ -25,8 +25,8 @@ describe('async handler support', () => {
 
     const mockInput: StopInput = {
       ...baseInput,
-      hookEventName: 'Stop',
-      stopHookActive: false
+      hook_event_name: 'Stop',
+      stop_hook_active: false
     };
 
     const result = await hook(mockInput, mockContext);
@@ -42,8 +42,8 @@ describe('async handler support', () => {
 
     const mockInput: StopInput = {
       ...baseInput,
-      hookEventName: 'Stop',
-      stopHookActive: false
+      hook_event_name: 'Stop',
+      stop_hook_active: false
     };
 
     const result = await hook(mockInput, mockContext);
@@ -62,10 +62,10 @@ describe('async handler support', () => {
 
     const mockInput: TypedPreToolUseInput<'Bash'> = {
       ...baseInput,
-      hookEventName: 'PreToolUse',
-      toolName: 'Bash',
-      toolInput: { command: 'echo test' },
-      toolUseId: 'test-tool-use-id'
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Bash',
+      tool_input: { command: 'echo test' },
+      tool_use_id: 'test-tool-use-id'
     };
 
     const result = await hook(mockInput, mockContext);

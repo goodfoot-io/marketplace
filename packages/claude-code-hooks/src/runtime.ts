@@ -3,10 +3,9 @@
  *
  * Handles stdin/stdout/exit code semantics for compiled hook execution.
  * This module is the core orchestrator that:
- * - Reads JSON from stdin
- * - Transforms snake_case to camelCase
+ * - Reads JSON from stdin (wire format with snake_case properties)
  * - Invokes the hook handler
- * - Transforms output back and writes to stdout
+ * - Writes output to stdout
  * - Manages exit codes
  * @module
  * @example
@@ -26,134 +25,6 @@ import type { HookOutput, SpecificHookOutput, SyncHookJSONOutput } from './outpu
 import { persistEnvVar, persistEnvVars } from './env.js';
 import { logger } from './logger.js';
 import { EXIT_CODES } from './outputs.js';
-
-// ============================================================================
-// Key Transformation Utilities
-// ============================================================================
-
-/**
- * Checks if a string is in snake_case format.
- * @param str - The string to check
- * @returns True if the string contains underscores (snake_case indicator)
- */
-function isSnakeCase(str: string): boolean {
-  return str.includes('_');
-}
-
-/**
- * Converts a snake_case string to camelCase.
- * @param str - The snake_case string to convert
- * @returns The camelCase equivalent
- * @example
- * ```typescript
- * snakeToCamelCaseString('hello_world'); // 'helloWorld'
- * snakeToCamelCaseString('tool_use_id'); // 'toolUseId'
- * ```
- */
-function snakeToCamelCaseString(str: string): string {
-  return str.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
-}
-
-/**
- * Converts a camelCase string to snake_case.
- * @param str - The camelCase string to convert
- * @returns The snake_case equivalent
- * @example
- * ```typescript
- * camelToSnakeCaseString('helloWorld'); // 'hello_world'
- * camelToSnakeCaseString('toolUseId'); // 'tool_use_id'
- * ```
- */
-function camelToSnakeCaseString(str: string): string {
-  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-}
-
-/**
- * Deeply transforms object keys from snake_case to camelCase.
- *
- * This function recursively processes objects and arrays, converting all
- * snake_case keys to camelCase while preserving values. Primitive values
- * are returned unchanged.
- * @param obj - The object to transform
- * @returns A new object with camelCase keys
- * @example
- * ```typescript
- * const input = {
- *   session_id: '123',
- *   tool_name: 'Bash',
- *   tool_input: { file_path: '/test' }
- * };
- *
- * const output = snakeToCamelCase(input);
- * // {
- * //   sessionId: '123',
- * //   toolName: 'Bash',
- * //   toolInput: { filePath: '/test' }
- * // }
- * ```
- * @see https://code.claude.com/docs/en/hooks#hook-input-structure
- */
-export function snakeToCamelCase<T>(obj: T): T {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    const mapped: unknown[] = obj.map((item: unknown) => snakeToCamelCase(item));
-    return mapped as T;
-  }
-
-  if (typeof obj === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      const newKey = isSnakeCase(key) ? snakeToCamelCaseString(key) : key;
-      result[newKey] = snakeToCamelCase(value);
-    }
-    return result as T;
-  }
-
-  return obj;
-}
-
-/**
- * Deeply transforms object keys from camelCase to snake_case.
- *
- * This function recursively processes objects and arrays, converting all
- * camelCase keys to snake_case while preserving values. Primitive values
- * are returned unchanged.
- *
- * **Note:** Hook output uses camelCase and should NOT be converted to snake_case.
- * This utility is for other use cases requiring case transformation.
- * @param obj - The object to transform
- * @returns A new object with snake_case keys
- * @example
- * ```typescript
- * const input = { firstName: 'John', lastName: 'Doe' };
- * const result = camelToSnakeCase(input);
- * // { first_name: 'John', last_name: 'Doe' }
- * ```
- */
-export function camelToSnakeCase<T>(obj: T): T {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    const mapped: unknown[] = obj.map((item: unknown) => camelToSnakeCase(item));
-    return mapped as T;
-  }
-
-  if (typeof obj === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      const newKey = camelToSnakeCaseString(key);
-      result[newKey] = camelToSnakeCase(value);
-    }
-    return result as T;
-  }
-
-  return obj;
-}
 
 // ============================================================================
 // Stdin/Stdout Handling
@@ -185,17 +56,15 @@ async function readStdin(): Promise<string> {
 }
 
 /**
- * Parses stdin JSON and transforms keys to camelCase.
+ * Parses stdin JSON input.
  * @param stdinContent - Raw stdin content
- * @returns Parsed and transformed input
+ * @returns Parsed input (wire format with snake_case properties)
  * @throws Error if JSON is malformed
  */
 function parseStdinInput(stdinContent: string): HookInput {
-  // Parse JSON
+  // Parse JSON - input uses wire format (snake_case) directly
   const rawInput: unknown = JSON.parse(stdinContent);
-
-  // Transform snake_case to camelCase
-  return snakeToCamelCase(rawInput) as HookInput;
+  return rawInput as HookInput;
 }
 
 /**
@@ -285,14 +154,13 @@ export function convertToHookOutput(specificOutput: SpecificHookOutput): HookOut
  * runs as a CLI:
  *
  * 1. Reads all stdin
- * 2. Parses JSON
- * 3. Transforms snake_case input to camelCase
- * 4. Sets up logger context (hookType, input)
- * 5. Calls handler with input and context (logger)
- * 6. Handles any errors, logs them
- * 7. Writes JSON to stdout
- * 8. Closes logger
- * 9. Exits with appropriate code
+ * 2. Parses JSON (wire format with snake_case properties)
+ * 3. Sets up logger context (hookType, input)
+ * 4. Calls handler with input and context (logger)
+ * 5. Handles any errors, logs them
+ * 6. Writes JSON to stdout
+ * 7. Closes logger
+ * 8. Exits with appropriate code
  * @param hookFn - The hook function to execute (from hook factory)
  * @example
  * ```typescript

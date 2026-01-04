@@ -8,7 +8,7 @@
 import { postToolUseHook, postToolUseOutput } from '../../src/index.js';
 
 export default postToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
-  logger.info('PostToolUse hook triggered', { toolName: input.toolName });
+  logger.info('PostToolUse hook triggered', { tool_name: input.tool_name });
 
   return postToolUseOutput({
     hookSpecificOutput: { additionalContext: 'E2E_POST_TOOL_CONTEXT: Command completed successfully.' }

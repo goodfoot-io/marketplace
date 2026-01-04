@@ -67,10 +67,10 @@ The `logger` is injected into your hook context.
 ```typescript
 export default preToolUseHook({}, (input, { logger }) => {
   // INFO: Normal events
-  logger.info('Hook started', { tool: input.toolName });
+  logger.info('Hook started', { tool: input.tool_name });
 
   // WARN: Something fishy
-  logger.warn('Suspicious input detected', { input: input.toolInput });
+  logger.warn('Suspicious input detected', { input: input.tool_input });
 
   // ERROR: Something broke
   try {

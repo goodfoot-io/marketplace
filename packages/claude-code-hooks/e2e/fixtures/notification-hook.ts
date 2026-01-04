@@ -10,7 +10,7 @@ export default notificationHook({ matcher: 'idle_prompt' }, (input, { logger }) 
   logger.info('Notification received', {
     message: input.message,
     title: input.title,
-    notificationType: input.notificationType
+    notification_type: input.notification_type
   });
   return notificationOutput({
     systemMessage: 'E2E_NOTIFICATION: Notification received.'

@@ -3,7 +3,7 @@
  *
  * Tests:
  * - All 12 hook factories return properly typed functions
- * - HookFunction has correct metadata (hookEventName, matcher, timeout)
+ * - HookFunction has correct metadata (hook_event_name, matcher, timeout)
  * - Handler receives correct context (logger)
  */
 
@@ -56,150 +56,150 @@ import {
 // Helper to create minimal valid inputs for each hook type
 function createPreToolUseInput(): PreToolUseInput {
   return {
-    hookEventName: 'PreToolUse',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'PreToolUse',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
-    toolName: 'Bash',
-    toolInput: { command: 'ls' },
-    toolUseId: 'tu_123'
+    permission_mode: 'default',
+    tool_name: 'Bash',
+    tool_input: { command: 'ls' },
+    tool_use_id: 'tu_123'
   };
 }
 
 function createPostToolUseInput(): PostToolUseInput {
   return {
-    hookEventName: 'PostToolUse',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'PostToolUse',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
-    toolName: 'Bash',
-    toolInput: { command: 'ls' },
-    toolUseId: 'tu_123',
-    toolResponse: 'file1.txt\nfile2.txt'
+    permission_mode: 'default',
+    tool_name: 'Bash',
+    tool_input: { command: 'ls' },
+    tool_use_id: 'tu_123',
+    tool_response: 'file1.txt\nfile2.txt'
   };
 }
 
 function createPostToolUseFailureInput(): PostToolUseFailureInput {
   return {
-    hookEventName: 'PostToolUseFailure',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'PostToolUseFailure',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
-    toolName: 'Bash',
-    toolInput: { command: 'invalid' },
-    toolUseId: 'tu_123',
+    permission_mode: 'default',
+    tool_name: 'Bash',
+    tool_input: { command: 'invalid' },
+    tool_use_id: 'tu_123',
     error: 'Command not found',
-    isInterrupt: false
+    is_interrupt: false
   };
 }
 
 function createNotificationInput(): NotificationInput {
   return {
-    hookEventName: 'Notification',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'Notification',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
+    permission_mode: 'default',
     message: 'Task completed',
-    notificationType: 'info'
+    notification_type: 'info'
   };
 }
 
 function createUserPromptSubmitInput(): UserPromptSubmitInput {
   return {
-    hookEventName: 'UserPromptSubmit',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'UserPromptSubmit',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
+    permission_mode: 'default',
     prompt: 'Help me with this code'
   };
 }
 
 function createSessionStartInput(): SessionStartInput {
   return {
-    hookEventName: 'SessionStart',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'SessionStart',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
+    permission_mode: 'default',
     source: 'startup'
   };
 }
 
 function createSessionEndInput(): SessionEndInput {
   return {
-    hookEventName: 'SessionEnd',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'SessionEnd',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
+    permission_mode: 'default',
     reason: 'other'
   };
 }
 
 function createStopInput(): StopInput {
   return {
-    hookEventName: 'Stop',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'Stop',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
-    stopHookActive: true
+    permission_mode: 'default',
+    stop_hook_active: true
   };
 }
 
 function createSubagentStartInput(): SubagentStartInput {
   return {
-    hookEventName: 'SubagentStart',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'SubagentStart',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
-    agentId: 'agent_123',
-    agentType: 'explore'
+    permission_mode: 'default',
+    agent_id: 'agent_123',
+    agent_type: 'explore'
   };
 }
 
 function createSubagentStopInput(): SubagentStopInput {
   return {
-    hookEventName: 'SubagentStop',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'SubagentStop',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
-    stopHookActive: false,
-    agentId: 'agent_123',
-    agentType: 'explore',
-    agentTranscriptPath: '/path/to/agent/transcript'
+    permission_mode: 'default',
+    stop_hook_active: false,
+    agent_id: 'agent_123',
+    agent_type: 'explore',
+    agent_transcript_path: '/path/to/agent/transcript'
   };
 }
 
 function createPreCompactInput(): PreCompactInput {
   return {
-    hookEventName: 'PreCompact',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'PreCompact',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
+    permission_mode: 'default',
     trigger: 'auto',
-    customInstructions: null
+    custom_instructions: null
   };
 }
 
 function createPermissionRequestInput(): PermissionRequestInput {
   return {
-    hookEventName: 'PermissionRequest',
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    hook_event_name: 'PermissionRequest',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default',
-    toolName: 'Bash',
-    toolInput: { command: 'rm -rf /' },
-    toolUseId: 'tool_use_123'
+    permission_mode: 'default',
+    tool_name: 'Bash',
+    tool_input: { command: 'rm -rf /' },
+    tool_use_id: 'tool_use_123'
   };
 }
 
@@ -252,8 +252,8 @@ describe('Hook Factory Functions', () => {
       await hook(input, { logger: testLogger });
 
       expect(receivedInput).toBeDefined();
-      expect(receivedInput?.toolName).toBe('Bash');
-      expect(receivedInput?.hookEventName).toBe('PreToolUse');
+      expect(receivedInput?.tool_name).toBe('Bash');
+      expect(receivedInput?.hook_event_name).toBe('PreToolUse');
     });
 
     it('handler receives logger in context', async () => {
@@ -293,7 +293,7 @@ describe('Hook Factory Functions', () => {
       expect(hook.hookEventName).toBe('PostToolUse');
     });
 
-    it('handler receives PostToolUseInput with toolResponse', async () => {
+    it('handler receives PostToolUseInput with tool_response', async () => {
       let receivedInput: PostToolUseInput | undefined;
 
       const hook = postToolUseHook({}, (input) => {
@@ -303,7 +303,7 @@ describe('Hook Factory Functions', () => {
 
       await hook(createPostToolUseInput(), { logger: testLogger });
 
-      expect(receivedInput?.toolResponse).toBe('file1.txt\nfile2.txt');
+      expect(receivedInput?.tool_response).toBe('file1.txt\nfile2.txt');
     });
   });
 
@@ -313,7 +313,7 @@ describe('Hook Factory Functions', () => {
       expect(hook.hookEventName).toBe('PostToolUseFailure');
     });
 
-    it('handler receives error and isInterrupt fields', async () => {
+    it('handler receives error and is_interrupt fields', async () => {
       let receivedInput: PostToolUseFailureInput | undefined;
 
       const hook = postToolUseFailureHook({}, (input) => {
@@ -324,7 +324,7 @@ describe('Hook Factory Functions', () => {
       await hook(createPostToolUseFailureInput(), { logger: testLogger });
 
       expect(receivedInput?.error).toBe('Command not found');
-      expect(receivedInput?.isInterrupt).toBe(false);
+      expect(receivedInput?.is_interrupt).toBe(false);
     });
   });
 
@@ -345,7 +345,7 @@ describe('Hook Factory Functions', () => {
       await hook(createNotificationInput(), { logger: testLogger });
 
       expect(receivedInput?.message).toBe('Task completed');
-      expect(receivedInput?.notificationType).toBe('info');
+      expect(receivedInput?.notification_type).toBe('info');
     });
   });
 
@@ -425,7 +425,7 @@ describe('Hook Factory Functions', () => {
       expect(hook.hookEventName).toBe('Stop');
     });
 
-    it('handler receives stopHookActive field', async () => {
+    it('handler receives stop_hook_active field', async () => {
       let receivedInput: StopInput | undefined;
 
       const hook = stopHook({}, (input) => {
@@ -435,7 +435,7 @@ describe('Hook Factory Functions', () => {
 
       await hook(createStopInput(), { logger: testLogger });
 
-      expect(receivedInput?.stopHookActive).toBe(true);
+      expect(receivedInput?.stop_hook_active).toBe(true);
     });
 
     it('returns correct output for block decision', async () => {
@@ -454,7 +454,7 @@ describe('Hook Factory Functions', () => {
       expect(hook.hookEventName).toBe('SubagentStart');
     });
 
-    it('supports matcher for agentType', () => {
+    it('supports matcher for agent_type', () => {
       const hook = subagentStartHook({ matcher: 'explore' }, () => subagentStartOutput({}));
       expect(hook.matcher).toBe('explore');
     });
@@ -469,8 +469,8 @@ describe('Hook Factory Functions', () => {
 
       await hook(createSubagentStartInput(), { logger: testLogger });
 
-      expect(receivedInput?.agentId).toBe('agent_123');
-      expect(receivedInput?.agentType).toBe('explore');
+      expect(receivedInput?.agent_id).toBe('agent_123');
+      expect(receivedInput?.agent_type).toBe('explore');
     });
   });
 
@@ -490,7 +490,7 @@ describe('Hook Factory Functions', () => {
 
       await hook(createSubagentStopInput(), { logger: testLogger });
 
-      expect(receivedInput?.agentTranscriptPath).toBe('/path/to/agent/transcript');
+      expect(receivedInput?.agent_transcript_path).toBe('/path/to/agent/transcript');
     });
   });
 
@@ -505,7 +505,7 @@ describe('Hook Factory Functions', () => {
       expect(hook.matcher).toBe('manual');
     });
 
-    it('handler receives trigger and customInstructions', async () => {
+    it('handler receives trigger and custom_instructions', async () => {
       let receivedInput: PreCompactInput | undefined;
 
       const hook = preCompactHook({}, (input) => {
@@ -516,7 +516,7 @@ describe('Hook Factory Functions', () => {
       await hook(createPreCompactInput(), { logger: testLogger });
 
       expect(receivedInput?.trigger).toBe('auto');
-      expect(receivedInput?.customInstructions).toBeNull();
+      expect(receivedInput?.custom_instructions).toBeNull();
     });
   });
 
@@ -526,7 +526,7 @@ describe('Hook Factory Functions', () => {
       expect(hook.hookEventName).toBe('PermissionRequest');
     });
 
-    it('supports matcher for toolName', () => {
+    it('supports matcher for tool_name', () => {
       const hook = permissionRequestHook({ matcher: 'Bash' }, () => permissionRequestOutput({}));
       expect(hook.matcher).toBe('Bash');
     });
@@ -541,8 +541,8 @@ describe('Hook Factory Functions', () => {
 
       await hook(createPermissionRequestInput(), { logger: testLogger });
 
-      expect(receivedInput?.toolName).toBe('Bash');
-      expect(receivedInput?.toolInput).toEqual({ command: 'rm -rf /' });
+      expect(receivedInput?.tool_name).toBe('Bash');
+      expect(receivedInput?.tool_input).toEqual({ command: 'rm -rf /' });
     });
   });
 

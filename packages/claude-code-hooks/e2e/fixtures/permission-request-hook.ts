@@ -8,7 +8,7 @@ import { permissionRequestHook, permissionRequestOutput } from '../../src/index.
 
 export default permissionRequestHook({ matcher: 'Read' }, (input, { logger }) => {
   logger.info('Permission requested', {
-    toolName: input.toolName
+    tool_name: input.tool_name
   });
   return permissionRequestOutput({
     hookSpecificOutput: {

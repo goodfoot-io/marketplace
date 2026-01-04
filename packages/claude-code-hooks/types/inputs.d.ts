@@ -1,9 +1,10 @@
 /**
- * CamelCase input types for Claude Code hooks.
+ * Input types for Claude Code hooks using wire format (snake_case).
  *
- * These types transform the SDK's snake_case input fields to idiomatic TypeScript camelCase
- * while preserving full type safety. Each hook input type includes comprehensive JSDoc
- * documentation explaining when the hook fires and how to use it.
+ * These types match the JSON format that Claude Code sends via stdin. Property names
+ * use snake_case to match the wire protocol directly without transformation overhead.
+ * Each hook input type includes comprehensive JSDoc documentation explaining when
+ * the hook fires and how to use it.
  * @see https://code.claude.com/docs/en/hooks
  * @module
  */
@@ -47,9 +48,9 @@ export type SessionEndReason = 'clear' | 'logout' | 'prompt_input_exit' | 'other
  * ```typescript
  * // All hook inputs include these fields
  * const handleAnyHook = (input: BaseHookInput) => {
- *   console.log(`Session: ${input.sessionId}`);
+ *   console.log(`Session: ${input.session_id}`);
  *   console.log(`Working directory: ${input.cwd}`);
- *   console.log(`Transcript: ${input.transcriptPath}`);
+ *   console.log(`Transcript: ${input.transcript_path}`);
  * };
  * ```
  * @see https://code.claude.com/docs/en/hooks#hook-input-structure
@@ -59,12 +60,12 @@ export interface BaseHookInput {
    * Unique identifier for the current Claude Code session.
    * Persists across conversation turns within the same session.
    */
-  sessionId: string;
+  session_id: string;
   /**
    * Absolute path to the session transcript file.
    * Contains the full conversation history in JSONL format.
    */
-  transcriptPath: string;
+  transcript_path: string;
   /**
    * Current working directory for the Claude Code session.
    * All file operations are relative to this directory.
@@ -74,7 +75,7 @@ export interface BaseHookInput {
    * Current permission mode for tool execution.
    * May be undefined if using default mode.
    */
-  permissionMode?: PermissionMode;
+  permission_mode?: PermissionMode;
 }
 /**
  * Input for PreToolUse hooks.
@@ -84,12 +85,12 @@ export interface BaseHookInput {
  * - Allow, deny, or modify the tool execution
  * - Add custom permission logic
  *
- * This hook uses `toolName` for matcher matching.
+ * This hook uses `tool_name` for matcher matching.
  * @example
  * ```typescript
  * // Block dangerous Bash commands
  * preToolUseHook({ matcher: 'Bash' }, async (input: PreToolUseInput) => {
- *   const command = input.toolInput.command as string;
+ *   const command = input.tool_input.command as string;
  *   if (command.includes('rm -rf')) {
  *     return preToolUseOutput({
  *       deny: 'Destructive commands are not allowed'
@@ -102,22 +103,22 @@ export interface BaseHookInput {
  */
 export interface PreToolUseInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'PreToolUse';
+  hook_event_name: 'PreToolUse';
   /**
    * Name of the tool being invoked.
    * Examples: 'Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep'
    */
-  toolName: string;
+  tool_name: string;
   /**
    * Input parameters being passed to the tool.
    * Structure varies by tool type.
    */
-  toolInput: unknown;
+  tool_input: unknown;
   /**
    * Unique identifier for this specific tool invocation.
    * Use this to correlate with PostToolUse events.
    */
-  toolUseId: string;
+  tool_use_id: string;
 }
 /**
  * Input for PostToolUse hooks.
@@ -127,12 +128,12 @@ export interface PreToolUseInput extends BaseHookInput {
  * - Add additional context to the conversation
  * - Modify MCP tool output
  *
- * This hook uses `toolName` for matcher matching.
+ * This hook uses `tool_name` for matcher matching.
  * @example
  * ```typescript
  * // Add context after file reads
  * postToolUseHook({ matcher: 'Read' }, async (input: PostToolUseInput) => {
- *   const filePath = input.toolInput.file_path as string;
+ *   const filePath = input.tool_input.file_path as string;
  *   return postToolUseOutput({
  *     additionalContext: `File ${filePath} was read successfully`
  *   });
@@ -142,25 +143,25 @@ export interface PreToolUseInput extends BaseHookInput {
  */
 export interface PostToolUseInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'PostToolUse';
+  hook_event_name: 'PostToolUse';
   /**
    * Name of the tool that was invoked.
    */
-  toolName: string;
+  tool_name: string;
   /**
    * Input parameters that were passed to the tool.
    */
-  toolInput: unknown;
+  tool_input: unknown;
   /**
    * Response returned by the tool.
    * Structure varies by tool type.
    */
-  toolResponse: unknown;
+  tool_response: unknown;
   /**
    * Unique identifier for this tool invocation.
-   * Matches the toolUseId from the corresponding PreToolUse event.
+   * Matches the tool_use_id from the corresponding PreToolUse event.
    */
-  toolUseId: string;
+  tool_use_id: string;
 }
 /**
  * Input for PostToolUseFailure hooks.
@@ -170,12 +171,12 @@ export interface PostToolUseInput extends BaseHookInput {
  * - Add context about the failure
  * - Take corrective action
  *
- * This hook uses `toolName` for matcher matching.
+ * This hook uses `tool_name` for matcher matching.
  * @example
  * ```typescript
  * // Log tool failures
  * postToolUseFailureHook({ matcher: '.*' }, async (input: PostToolUseFailureInput) => {
- *   console.error(`Tool ${input.toolName} failed: ${input.error}`);
+ *   console.error(`Tool ${input.tool_name} failed: ${input.error}`);
  *   return postToolUseFailureOutput({
  *     additionalContext: 'Please try an alternative approach'
  *   });
@@ -185,19 +186,19 @@ export interface PostToolUseInput extends BaseHookInput {
  */
 export interface PostToolUseFailureInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'PostToolUseFailure';
+  hook_event_name: 'PostToolUseFailure';
   /**
    * Name of the tool that failed.
    */
-  toolName: string;
+  tool_name: string;
   /**
    * Input parameters that were passed to the tool.
    */
-  toolInput: unknown;
+  tool_input: unknown;
   /**
    * Unique identifier for this tool invocation.
    */
-  toolUseId: string;
+  tool_use_id: string;
   /**
    * Error message describing why the tool failed.
    */
@@ -205,7 +206,7 @@ export interface PostToolUseFailureInput extends BaseHookInput {
   /**
    * Whether this failure was caused by a user interrupt.
    */
-  isInterrupt?: boolean;
+  is_interrupt?: boolean;
 }
 /**
  * Input for Notification hooks.
@@ -215,7 +216,7 @@ export interface PostToolUseFailureInput extends BaseHookInput {
  * - Log important events
  * - Trigger custom alerting
  *
- * This hook uses `notificationType` for matcher matching.
+ * This hook uses `notification_type` for matcher matching.
  * @example
  * ```typescript
  * // Forward notifications to Slack
@@ -228,7 +229,7 @@ export interface PostToolUseFailureInput extends BaseHookInput {
  */
 export interface NotificationInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'Notification';
+  hook_event_name: 'Notification';
   /**
    * Main content of the notification.
    */
@@ -240,7 +241,7 @@ export interface NotificationInput extends BaseHookInput {
   /**
    * Type/category of the notification.
    */
-  notificationType: string;
+  notification_type: string;
 }
 /**
  * Input for UserPromptSubmit hooks.
@@ -264,7 +265,7 @@ export interface NotificationInput extends BaseHookInput {
  */
 export interface UserPromptSubmitInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'UserPromptSubmit';
+  hook_event_name: 'UserPromptSubmit';
   /**
    * The prompt text submitted by the user.
    */
@@ -295,7 +296,7 @@ export interface UserPromptSubmitInput extends BaseHookInput {
  */
 export interface SessionStartInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'SessionStart';
+  hook_event_name: 'SessionStart';
   /**
    * How the session was started.
    *
@@ -327,7 +328,7 @@ export interface SessionStartInput extends BaseHookInput {
  */
 export interface SessionEndInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'SessionEnd';
+  hook_event_name: 'SessionEnd';
   /**
    * The reason the session ended.
    *
@@ -365,12 +366,12 @@ export interface SessionEndInput extends BaseHookInput {
  */
 export interface StopInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'Stop';
+  hook_event_name: 'Stop';
   /**
    * Whether a stop hook is currently active.
    * Used to prevent recursive stop hook invocations.
    */
-  stopHookActive: boolean;
+  stop_hook_active: boolean;
 }
 /**
  * Input for SubagentStart hooks.
@@ -380,7 +381,7 @@ export interface StopInput extends BaseHookInput {
  * - Log subagent invocations
  * - Configure subagent behavior
  *
- * This hook uses `agentType` for matcher matching.
+ * This hook uses `agent_type` for matcher matching.
  * @example
  * ```typescript
  * // Add context for explore subagents
@@ -394,16 +395,16 @@ export interface StopInput extends BaseHookInput {
  */
 export interface SubagentStartInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'SubagentStart';
+  hook_event_name: 'SubagentStart';
   /**
    * Unique identifier for the subagent instance.
    */
-  agentId: string;
+  agent_id: string;
   /**
    * Type of subagent being started.
    * Examples: 'explore', 'codebase-analysis', custom agent types
    */
-  agentType: string;
+  agent_type: string;
 }
 /**
  * Input for SubagentStop hooks.
@@ -414,12 +415,12 @@ export interface SubagentStartInput extends BaseHookInput {
  * - Log subagent completion
  * - Block subagent from stopping
  *
- * This hook uses `agentType` for matcher matching.
+ * This hook uses `agent_type` for matcher matching.
  * @example
  * ```typescript
  * // Block explore subagent if task incomplete
  * subagentStopHook({ matcher: 'explore' }, async (input: SubagentStopInput) => {
- *   console.log(`Subagent ${input.agentId} (${input.agentType}) stopping`);
+ *   console.log(`Subagent ${input.agent_id} (${input.agent_type}) stopping`);
  *   return subagentStopOutput({
  *     decision: 'block',
  *     reason: 'Please verify all files were explored'
@@ -430,24 +431,24 @@ export interface SubagentStartInput extends BaseHookInput {
  */
 export interface SubagentStopInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'SubagentStop';
+  hook_event_name: 'SubagentStop';
   /**
    * Whether a stop hook is currently active.
    */
-  stopHookActive: boolean;
+  stop_hook_active: boolean;
   /**
    * Unique identifier for the subagent instance.
    */
-  agentId: string;
+  agent_id: string;
   /**
    * Type of subagent that is stopping.
    * Examples: 'explore', 'codebase-analysis', custom agent types
    */
-  agentType: string;
+  agent_type: string;
   /**
    * Path to the subagent's transcript file.
    */
-  agentTranscriptPath: string;
+  agent_transcript_path: string;
 }
 /**
  * Input for PreCompact hooks.
@@ -470,7 +471,7 @@ export interface SubagentStopInput extends BaseHookInput {
  */
 export interface PreCompactInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'PreCompact';
+  hook_event_name: 'PreCompact';
   /**
    * What triggered the compaction.
    *
@@ -482,7 +483,7 @@ export interface PreCompactInput extends BaseHookInput {
    * Custom instructions to include in the compacted context.
    * May be null if no custom instructions are set.
    */
-  customInstructions: string | null;
+  custom_instructions: string | null;
 }
 /**
  * Input for PermissionRequest hooks.
@@ -492,12 +493,12 @@ export interface PreCompactInput extends BaseHookInput {
  * - Implement custom permission logic
  * - Modify tool inputs before approval
  *
- * This hook uses `toolName` for matcher matching.
+ * This hook uses `tool_name` for matcher matching.
  * @example
  * ```typescript
  * // Auto-approve read operations in allowed directories
  * permissionRequestHook({ matcher: 'Read' }, async (input: PermissionRequestInput) => {
- *   const filePath = input.toolInput.file_path as string;
+ *   const filePath = input.tool_input.file_path as string;
  *   if (filePath.startsWith('/allowed/')) {
  *     return permissionRequestOutput({
  *       allow: true
@@ -510,24 +511,24 @@ export interface PreCompactInput extends BaseHookInput {
  */
 export interface PermissionRequestInput extends BaseHookInput {
   /** Discriminator for hook event type. */
-  hookEventName: 'PermissionRequest';
+  hook_event_name: 'PermissionRequest';
   /**
    * Name of the tool requesting permission.
    */
-  toolName: string;
+  tool_name: string;
   /**
    * Input parameters for the tool.
    */
-  toolInput: unknown;
+  tool_input: unknown;
   /**
    * Unique identifier for this specific tool invocation.
    */
-  toolUseId: string;
+  tool_use_id: string;
   /**
    * Suggested permission updates that would prevent future prompts.
    * Typically used for "always allow" functionality.
    */
-  permissionSuggestions?: PermissionUpdate[];
+  permission_suggestions?: PermissionUpdate[];
 }
 /**
  * Discriminated union of all hook input types.
@@ -538,10 +539,10 @@ export interface PermissionRequestInput extends BaseHookInput {
  * ```typescript
  * // Handle any hook type with type narrowing
  * function handleHook(input: HookInput) {
- *   switch (input.hookEventName) {
+ *   switch (input.hook_event_name) {
  *     case 'PreToolUse':
  *       // TypeScript knows input is PreToolUseInput here
- *       console.log(`Tool: ${input.toolName}`);
+ *       console.log(`Tool: ${input.tool_name}`);
  *       break;
  *     case 'SessionStart':
  *       // TypeScript knows input is SessionStartInput here
@@ -569,9 +570,9 @@ export type HookInput =
 /**
  * Hook event name literal union.
  *
- * All valid hook event names that can appear in the `hookEventName` field.
+ * All valid hook event names that can appear in the `hook_event_name` field.
  */
-export type HookEventName = HookInput['hookEventName'];
+export type HookEventName = HookInput['hook_event_name'];
 /**
  * All hook event names as a readonly array.
  *

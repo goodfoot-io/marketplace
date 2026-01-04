@@ -47,7 +47,7 @@ import type {
   FileModifyingToolName
 } from './tool-inputs.js';
 /**
- * Union of all hook input types that include toolInput.
+ * Union of all hook input types that include tool_input.
  */
 export type ToolUseInput = PreToolUseInput | PostToolUseInput | PostToolUseFailureInput | PermissionRequestInput;
 /**
@@ -59,17 +59,17 @@ export type ToolUseInput = PreToolUseInput | PostToolUseInput | PostToolUseFailu
  * @example
  * ```typescript
  * if (isWriteTool(input)) {
- *   // input.toolInput is now typed as WriteToolInput
- *   console.log(input.toolInput.file_path);
- *   console.log(input.toolInput.content);
+ *   // input.tool_input is now typed as WriteToolInput
+ *   console.log(input.tool_input.file_path);
+ *   console.log(input.tool_input.content);
  * }
  * ```
  */
 export declare function isWriteTool<T extends ToolUseInput>(
   input: T
 ): input is T & {
-  toolName: 'Write';
-  toolInput: WriteToolInput;
+  tool_name: 'Write';
+  tool_input: WriteToolInput;
 };
 /**
  * Type guard for Edit tool inputs.
@@ -80,16 +80,16 @@ export declare function isWriteTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isEditTool(input)) {
- *   console.log(input.toolInput.old_string);
- *   console.log(input.toolInput.new_string);
+ *   console.log(input.tool_input.old_string);
+ *   console.log(input.tool_input.new_string);
  * }
  * ```
  */
 export declare function isEditTool<T extends ToolUseInput>(
   input: T
 ): input is T & {
-  toolName: 'Edit';
-  toolInput: EditToolInput;
+  tool_name: 'Edit';
+  tool_input: EditToolInput;
 };
 /**
  * Type guard for MultiEdit tool inputs.
@@ -100,7 +100,7 @@ export declare function isEditTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isMultiEditTool(input)) {
- *   for (const edit of input.toolInput.edits) {
+ *   for (const edit of input.tool_input.edits) {
  *     console.log(`${edit.old_string} -> ${edit.new_string}`);
  *   }
  * }
@@ -109,8 +109,8 @@ export declare function isEditTool<T extends ToolUseInput>(
 export declare function isMultiEditTool<T extends ToolUseInput>(
   input: T
 ): input is T & {
-  toolName: 'MultiEdit';
-  toolInput: MultiEditToolInput;
+  tool_name: 'MultiEdit';
+  tool_input: MultiEditToolInput;
 };
 /**
  * Type guard for any file-modifying tool (Write, Edit, or MultiEdit).
@@ -128,8 +128,8 @@ export declare function isMultiEditTool<T extends ToolUseInput>(
 export declare function isFileModifyingTool<T extends ToolUseInput>(
   input: T
 ): input is T & {
-  toolName: FileModifyingToolName;
-  toolInput: FileModifyingToolInput;
+  tool_name: FileModifyingToolName;
+  tool_input: FileModifyingToolInput;
 };
 /**
  * Type guard for Read tool inputs.
@@ -140,16 +140,16 @@ export declare function isFileModifyingTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isReadTool(input)) {
- *   console.log(input.toolInput.file_path);
- *   console.log(input.toolInput.offset);
+ *   console.log(input.tool_input.file_path);
+ *   console.log(input.tool_input.offset);
  * }
  * ```
  */
 export declare function isReadTool<T extends ToolUseInput>(
   input: T
 ): input is T & {
-  toolName: 'Read';
-  toolInput: ReadToolInput;
+  tool_name: 'Read';
+  tool_input: ReadToolInput;
 };
 /**
  * Type guard for Bash tool inputs.
@@ -160,16 +160,16 @@ export declare function isReadTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isBashTool(input)) {
- *   console.log(input.toolInput.command);
- *   console.log(input.toolInput.timeout);
+ *   console.log(input.tool_input.command);
+ *   console.log(input.tool_input.timeout);
  * }
  * ```
  */
 export declare function isBashTool<T extends ToolUseInput>(
   input: T
 ): input is T & {
-  toolName: 'Bash';
-  toolInput: BashToolInput;
+  tool_name: 'Bash';
+  tool_input: BashToolInput;
 };
 /**
  * Type guard for Glob tool inputs.
@@ -180,16 +180,16 @@ export declare function isBashTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isGlobTool(input)) {
- *   console.log(input.toolInput.pattern);
- *   console.log(input.toolInput.path);
+ *   console.log(input.tool_input.pattern);
+ *   console.log(input.tool_input.path);
  * }
  * ```
  */
 export declare function isGlobTool<T extends ToolUseInput>(
   input: T
 ): input is T & {
-  toolName: 'Glob';
-  toolInput: GlobToolInput;
+  tool_name: 'Glob';
+  tool_input: GlobToolInput;
 };
 /**
  * Type guard for Grep tool inputs.
@@ -200,16 +200,16 @@ export declare function isGlobTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isGrepTool(input)) {
- *   console.log(input.toolInput.pattern);
- *   console.log(input.toolInput.glob);
+ *   console.log(input.tool_input.pattern);
+ *   console.log(input.tool_input.glob);
  * }
  * ```
  */
 export declare function isGrepTool<T extends ToolUseInput>(
   input: T
 ): input is T & {
-  toolName: 'Grep';
-  toolInput: GrepToolInput;
+  tool_name: 'Grep';
+  tool_input: GrepToolInput;
 };
 /**
  * Extracts the file path from a tool input.

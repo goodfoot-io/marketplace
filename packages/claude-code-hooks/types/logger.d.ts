@@ -48,7 +48,7 @@ export declare const LOG_LEVELS: readonly ['debug', 'info', 'warn', 'error'];
  *   level: 'warn',
  *   hookType: 'PreToolUse',
  *   message: 'Blocking dangerous command',
- *   input: { toolName: 'Bash', toolInput: { command: 'rm -rf /' } }
+ *   input: { tool_name: 'Bash', tool_input: { command: 'rm -rf /' } }
  * };
  * ```
  */

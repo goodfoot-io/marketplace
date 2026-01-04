@@ -10,8 +10,8 @@
  *
  * preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input) => {
  *   if (isWriteTool(input)) {
- *     // input.toolInput is now typed as WriteToolInput
- *     console.log(input.toolInput.file_path);
+ *     // input.tool_input is now typed as WriteToolInput
+ *     console.log(input.tool_input.file_path);
  *   }
  * });
  * ```

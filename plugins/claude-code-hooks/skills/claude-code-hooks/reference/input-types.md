@@ -12,10 +12,10 @@ Every hook input includes these base fields:
 
 ```typescript
 interface BaseHookInput {
-  sessionId: string;        // Unique session identifier
-  transcriptPath: string;   // Path to conversation transcript
-  cwd: string;              // Current working directory
-  permissionMode?: string;  // 'default' | 'acceptEdits' | 'bypassPermissions' | etc.
+  session_id: string;        // Unique session identifier
+  transcript_path: string;   // Path to conversation transcript
+  cwd: string;               // Current working directory
+  permission_mode?: string;  // 'default' | 'acceptEdits' | 'bypassPermissions' | etc.
 }
 ```
 
@@ -23,22 +23,22 @@ interface BaseHookInput {
 
 | Hook Type | Additional Fields |
 |-----------|-------------------|
-| PreToolUse | `toolName`, `toolInput`, `toolUseId` |
-| PostToolUse | `toolName`, `toolInput`, `toolResponse`, `toolUseId` |
-| PostToolUseFailure | `toolName`, `toolInput`, `toolUseId`, `error`, `isInterrupt?` |
+| PreToolUse | `tool_name`, `tool_input`, `tool_use_id` |
+| PostToolUse | `tool_name`, `tool_input`, `tool_response`, `tool_use_id` |
+| PostToolUseFailure | `tool_name`, `tool_input`, `tool_use_id`, `error`, `is_interrupt?` |
 | SessionStart | `source` ('startup' \| 'resume' \| 'clear' \| 'compact') |
 | SessionEnd | `reason` ('clear' \| 'logout' \| 'prompt_input_exit' \| 'other') |
-| Stop | `stopHookActive` |
-| SubagentStart | `agentId`, `agentType` |
-| SubagentStop | `stopHookActive`, `agentId`, `agentType`, `agentTranscriptPath` |
+| Stop | `stop_hook_active` |
+| SubagentStart | `agent_id`, `agent_type` |
+| SubagentStop | `stop_hook_active`, `agent_id`, `agent_type`, `agent_transcript_path` |
 | UserPromptSubmit | `prompt` |
-| Notification | `message`, `title?`, `notificationType` |
-| PreCompact | `trigger` ('manual' \| 'auto'), `customInstructions` |
-| PermissionRequest | `toolName`, `toolInput`, `toolUseId`, `permissionSuggestions?` |
+| Notification | `message`, `title?`, `notification_type` |
+| PreCompact | `trigger` ('manual' \| 'auto'), `custom_instructions` |
+| PermissionRequest | `tool_name`, `tool_input`, `tool_use_id`, `permission_suggestions?` |
 
 ## Tool Input Overview
 
-The `toolInput` field in `PreToolUseInput`, `PostToolUseInput`, `PostToolUseFailureInput`, and `PermissionRequestInput` is typed as `unknown` by default. This package provides:
+The `tool_input` field in `PreToolUseInput`, `PostToolUseInput`, `PostToolUseFailureInput`, and `PermissionRequestInput` is typed as `unknown` by default. This package provides:
 
 1. **Type definitions** for well-known tool inputs
 2. **Type guards** for safe type narrowing
@@ -139,16 +139,16 @@ import {
 
 export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input) => {
   if (isWriteTool(input)) {
-    // input.toolInput is typed as WriteToolInput
-    console.log(input.toolInput.file_path);
-    console.log(input.toolInput.content);
+    // input.tool_input is typed as WriteToolInput
+    console.log(input.tool_input.file_path);
+    console.log(input.tool_input.content);
   } else if (isEditTool(input)) {
-    // input.toolInput is typed as EditToolInput
-    console.log(input.toolInput.old_string);
-    console.log(input.toolInput.new_string);
+    // input.tool_input is typed as EditToolInput
+    console.log(input.tool_input.old_string);
+    console.log(input.tool_input.new_string);
   } else if (isMultiEditTool(input)) {
-    // input.toolInput is typed as MultiEditToolInput
-    for (const edit of input.toolInput.edits) {
+    // input.tool_input is typed as MultiEditToolInput
+    for (const edit of input.tool_input.edits) {
       console.log(edit.old_string, '->', edit.new_string);
     }
   }
@@ -163,7 +163,7 @@ Matches Write, Edit, or MultiEdit:
 
 ```typescript
 if (isFileModifyingTool(input)) {
-  // input.toolName is 'Write' | 'Edit' | 'MultiEdit'
+  // input.tool_name is 'Write' | 'Edit' | 'MultiEdit'
   // Use getFilePath() for the file path
   const filePath = getFilePath(input);
 }
@@ -248,15 +248,15 @@ const hasSensitive = !forEachContent(input, ({ newContent, oldContent, isWrite }
 
 ## Typed Factory Overloads
 
-When using a single known tool name as the matcher, `toolInput` is automatically typed:
+When using a single known tool name as the matcher, `tool_input` is automatically typed:
 
 ```typescript
 import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
 
-// toolInput is automatically typed as WriteToolInput!
+// tool_input is automatically typed as WriteToolInput!
 export default preToolUseHook({ matcher: 'Write' }, (input) => {
   // Full autocomplete and type checking:
-  const { file_path, content } = input.toolInput;
+  const { file_path, content } = input.tool_input;
 
   if (file_path.endsWith('.env')) {
     return preToolUseOutput({
@@ -280,7 +280,7 @@ Supported tools for automatic typing:
 - `Glob` - GlobToolInput
 - `Grep` - GrepToolInput
 
-**Note**: Multi-tool matchers like `'Write|Edit'` or regex patterns like `'.*'` use the non-typed overload where `toolInput` remains `unknown`. Use type guards in those cases.
+**Note**: Multi-tool matchers like `'Write|Edit'` or regex patterns like `'.*'` use the non-typed overload where `tool_input` remains `unknown`. Use type guards in those cases.
 
 ## Union Types
 

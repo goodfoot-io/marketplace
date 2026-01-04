@@ -7,7 +7,7 @@
 import { preToolUseHook, preToolUseOutput } from '../../src/index.js';
 
 export default preToolUseHook({ matcher: 'Write', timeout: 5000 }, (input, { logger }) => {
-  logger.info('Hook with timeout triggered', { toolName: input.toolName });
+  logger.info('Hook with timeout triggered', { tool_name: input.tool_name });
   return preToolUseOutput({
     hookSpecificOutput: { permissionDecision: 'allow' }
   });

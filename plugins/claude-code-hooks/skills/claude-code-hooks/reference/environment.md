@@ -60,8 +60,8 @@ Every hook receives a context object with useful metadata. Use the `logger` to i
 export default preToolUseHook({}, (input, { logger }) => {
   logger.info('Hook Context', {
     cwd: input.cwd,
-    sessionId: input.sessionId,
-    permissionMode: input.permissionMode
+    session_id: input.session_id,
+    permission_mode: input.permission_mode
   });
 
   return preToolUseOutput({});

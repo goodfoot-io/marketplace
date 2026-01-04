@@ -7,7 +7,7 @@
 import { preToolUseHook, preToolUseOutput } from '../../src/index.js';
 
 export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
-  const command = (input.toolInput as { command?: string }).command ?? '';
+  const command = (input.tool_input as { command?: string }).command ?? '';
   logger.info('Denying Bash command', { command });
 
   return preToolUseOutput({

@@ -8,7 +8,7 @@ import { sessionEndHook, sessionEndOutput } from '../../src/index.js';
 
 export default sessionEndHook({ matcher: 'logout' }, (input, { logger }) => {
   logger.info('Session ending', {
-    sessionId: input.sessionId,
+    session_id: input.session_id,
     reason: input.reason
   });
   return sessionEndOutput({

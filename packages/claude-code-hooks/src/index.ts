@@ -134,13 +134,10 @@ export {
   permissionRequestHook
 } from './hooks.js';
 
-// Runtime exports - execute function and key transformation utilities
+// Runtime exports - execute function
 export {
   // Main execute function for compiled hooks
-  execute,
-  // Key transformation utilities (exported for testing)
-  snakeToCamelCase,
-  camelToSnakeCase
+  execute
 } from './runtime.js';
 
 // Environment variable utilities

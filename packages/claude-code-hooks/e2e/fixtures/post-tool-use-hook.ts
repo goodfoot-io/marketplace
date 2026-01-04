@@ -8,7 +8,7 @@ import { postToolUseHook, postToolUseOutput } from '../../src/index.js';
 
 export default postToolUseHook({ matcher: 'Read' }, (input, { logger }) => {
   logger.info('Tool completed', {
-    toolName: input.toolName
+    tool_name: input.tool_name
   });
   return postToolUseOutput({
     hookSpecificOutput: { additionalContext: 'Build test: Read completed' }

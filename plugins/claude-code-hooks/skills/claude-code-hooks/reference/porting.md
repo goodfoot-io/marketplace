@@ -10,10 +10,10 @@ Do not try to "wrap" your bash scripts. Port the logic.
 
 | Feature | Bash | TypeScript (via @goodfoot/claude-code-hooks) |
 | :--- | :--- | :--- |
-| **Input** | `cat` + `jq` | `input` argument (typed, camelCased) |
+| **Input** | `cat` + `jq` | `input` argument (typed, snake_case wire format) |
 | **Logging** | `echo >&2` | `logger.info()` |
 | **Output** | `echo '{"..."}'` | `return builder({})` |
-| **Logic** | `if [[ ... ]]` | `if (input.toolName === '...')` |
+| **Logic** | `if [[ ... ]]` | `if (input.tool_name === '...')` |
 
 ## 2. Side-by-Side Example
 
@@ -37,7 +37,7 @@ echo '{"hookSpecificOutput":{"permissionDecision":"allow"}}'
 import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
 
 export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
-  const cmd = (input.toolInput as { command?: string })?.command ?? '';
+  const cmd = (input.tool_input as { command?: string })?.command ?? '';
 
   if (cmd.includes('rm -rf /')) {
     logger.warn('Blocked dangerous command', { cmd });
@@ -59,7 +59,7 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 
 ### 3.1 Casing
 *   **Bash:** Receives `tool_name` (snake_case).
-*   **TypeScript:** Receives `toolName` (camelCase).
+*   **TypeScript:** Also receives `tool_name` (snake_case) - same wire format!
 
 ### 3.2 Output
 *   **Bash:** You must manually ensure valid JSON.
@@ -91,12 +91,12 @@ describe('MyHook', () => {
 
   it('allows safe commands', async () => {
     const input = {
-      hookEventName: 'PreToolUse' as const,
-      toolName: 'Bash',
-      toolInput: { command: 'echo hello' },
-      toolUseId: 'test-123',
-      sessionId: 'session-1',
-      transcriptPath: '/tmp/transcript.jsonl',
+      hook_event_name: 'PreToolUse' as const,
+      tool_name: 'Bash',
+      tool_input: { command: 'echo hello' },
+      tool_use_id: 'test-123',
+      session_id: 'session-1',
+      transcript_path: '/tmp/transcript.jsonl',
       cwd: '/workspace',
     };
 
@@ -108,12 +108,12 @@ describe('MyHook', () => {
 
   it('blocks dangerous commands', async () => {
     const input = {
-      hookEventName: 'PreToolUse' as const,
-      toolName: 'Bash',
-      toolInput: { command: 'rm -rf /' },
-      toolUseId: 'test-456',
-      sessionId: 'session-1',
-      transcriptPath: '/tmp/transcript.jsonl',
+      hook_event_name: 'PreToolUse' as const,
+      tool_name: 'Bash',
+      tool_input: { command: 'rm -rf /' },
+      tool_use_id: 'test-456',
+      session_id: 'session-1',
+      transcript_path: '/tmp/transcript.jsonl',
       cwd: '/workspace',
     };
 

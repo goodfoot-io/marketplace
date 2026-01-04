@@ -62,7 +62,7 @@ export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const satisfies 
  *   level: 'warn',
  *   hookType: 'PreToolUse',
  *   message: 'Blocking dangerous command',
- *   input: { toolName: 'Bash', toolInput: { command: 'rm -rf /' } }
+ *   input: { tool_name: 'Bash', tool_input: { command: 'rm -rf /' } }
  * };
  * ```
  */

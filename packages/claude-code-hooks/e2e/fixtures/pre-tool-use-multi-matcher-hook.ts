@@ -8,10 +8,10 @@
 import { preToolUseHook, preToolUseOutput } from '../../src/index.js';
 
 export default preToolUseHook({ matcher: 'Read|Glob|Grep' }, (input, { logger }) => {
-  logger.info('Multi-matcher hook triggered', { toolName: input.toolName });
+  logger.info('Multi-matcher hook triggered', { tool_name: input.tool_name });
 
   return preToolUseOutput({
-    systemMessage: `E2E_MULTI_MATCHER: Tool ${input.toolName} matched by Read|Glob|Grep pattern.`,
+    systemMessage: `E2E_MULTI_MATCHER: Tool ${input.tool_name} matched by Read|Glob|Grep pattern.`,
     hookSpecificOutput: { permissionDecision: 'allow' }
   });
 });

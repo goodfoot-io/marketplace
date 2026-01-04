@@ -62,16 +62,16 @@ import type { ToolInputMap, KnownToolName } from './tool-inputs.js';
  *
  * | Hook Type | Matcher Matches Against | Example Values |
  * |-----------|------------------------|----------------|
- * | PreToolUse | `toolName` | `'Bash'`, `'Bash\|Read'`, `'.*'` |
- * | PostToolUse | `toolName` | `'Bash'`, `'Skill'`, `'Write\|Edit'` |
- * | PostToolUseFailure | `toolName` | `'Bash'` |
- * | PermissionRequest | `toolName` | `'Bash'`, `'Read'` |
+ * | PreToolUse | `tool_name` | `'Bash'`, `'Bash\|Read'`, `'.*'` |
+ * | PostToolUse | `tool_name` | `'Bash'`, `'Skill'`, `'Write\|Edit'` |
+ * | PostToolUseFailure | `tool_name` | `'Bash'` |
+ * | PermissionRequest | `tool_name` | `'Bash'`, `'Read'` |
  * | SessionStart | `source` | `'startup'`, `'resume'`, `'clear'`, `'compact'` |
  * | SessionEnd | `reason` | Exit reason string |
  * | Stop | N/A (no matcher) | Fires on all stop events |
- * | SubagentStart | `agentType` | Subagent type |
- * | SubagentStop | `agentType` | Subagent type |
- * | Notification | `notificationType` | Notification type |
+ * | SubagentStart | `agent_type` | Subagent type |
+ * | SubagentStop | `agent_type` | Subagent type |
+ * | Notification | `notification_type` | Notification type |
  * | UserPromptSubmit | N/A (no matcher) | Fires on all prompt submissions |
  * | PreCompact | `trigger` | `'manual'`, `'auto'` |
  * @example
@@ -146,10 +146,10 @@ export interface HookConfig {
  * @template T - The known tool name
  * @example
  * ```typescript
- * // toolInput is automatically typed as WriteToolInput
+ * // tool_input is automatically typed as WriteToolInput
  * preToolUseHook({ matcher: 'Write' }, (input) => {
- *   console.log(input.toolInput.file_path); // Typed!
- *   console.log(input.toolInput.content);   // Typed!
+ *   console.log(input.tool_input.file_path); // Typed!
+ *   console.log(input.tool_input.content);   // Typed!
  * });
  * ```
  */
@@ -165,42 +165,42 @@ export interface TypedHookConfig<T extends KnownToolName> {
   timeout?: number;
 }
 /**
- * PreToolUseInput with typed toolInput for a specific tool.
+ * PreToolUseInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
-export type TypedPreToolUseInput<T extends KnownToolName> = Omit<PreToolUseInput, 'toolName' | 'toolInput'> & {
-  toolName: T;
-  toolInput: ToolInputMap[T];
+export type TypedPreToolUseInput<T extends KnownToolName> = Omit<PreToolUseInput, 'tool_name' | 'tool_input'> & {
+  tool_name: T;
+  tool_input: ToolInputMap[T];
 };
 /**
- * PostToolUseInput with typed toolInput for a specific tool.
+ * PostToolUseInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
-export type TypedPostToolUseInput<T extends KnownToolName> = Omit<PostToolUseInput, 'toolName' | 'toolInput'> & {
-  toolName: T;
-  toolInput: ToolInputMap[T];
+export type TypedPostToolUseInput<T extends KnownToolName> = Omit<PostToolUseInput, 'tool_name' | 'tool_input'> & {
+  tool_name: T;
+  tool_input: ToolInputMap[T];
 };
 /**
- * PostToolUseFailureInput with typed toolInput for a specific tool.
+ * PostToolUseFailureInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
 export type TypedPostToolUseFailureInput<T extends KnownToolName> = Omit<
   PostToolUseFailureInput,
-  'toolName' | 'toolInput'
+  'tool_name' | 'tool_input'
 > & {
-  toolName: T;
-  toolInput: ToolInputMap[T];
+  tool_name: T;
+  tool_input: ToolInputMap[T];
 };
 /**
- * PermissionRequestInput with typed toolInput for a specific tool.
+ * PermissionRequestInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
 export type TypedPermissionRequestInput<T extends KnownToolName> = Omit<
   PermissionRequestInput,
-  'toolName' | 'toolInput'
+  'tool_name' | 'tool_input'
 > & {
-  toolName: T;
-  toolInput: ToolInputMap[T];
+  tool_name: T;
+  tool_input: ToolInputMap[T];
 };
 /**
  * Context provided to hook handlers.
@@ -210,7 +210,7 @@ export type TypedPermissionRequestInput<T extends KnownToolName> = Omit<
  * @example
  * ```typescript
  * export default preToolUseHook({}, async (input, { logger }) => {
- *   logger.info('Processing tool', { toolName: input.toolName });
+ *   logger.info('Processing tool', { toolName: input.tool_name });
  *   return preToolUseOutput({ allow: true });
  * });
  * ```
@@ -341,7 +341,7 @@ export interface HookFunction<TInput, TOutput extends SpecificHookOutput, TConte
  * - Allow, deny, or modify the tool execution
  * - Add custom permission logic
  *
- * **Matcher**: Matches against `toolName` (e.g., 'Bash', 'Read', 'Write')
+ * **Matcher**: Matches against `tool_name` (e.g., 'Bash', 'Read', 'Write')
  *
  * **Typed Overload**: When the matcher is a single known tool name (Write, Edit,
  * MultiEdit, Read, Bash, Glob, Grep), the handler receives automatically typed
@@ -353,11 +353,11 @@ export interface HookFunction<TInput, TOutput extends SpecificHookOutput, TConte
  * ```typescript
  * import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
  *
- * // Typed overload: toolInput is automatically typed as BashToolInput
+ * // Typed overload: tool_input is automatically typed as BashToolInput
  * export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => {
- *   // input.toolInput.command is typed as string - no cast needed!
- *   if (input.toolInput.command.includes('rm -rf')) {
- *     logger.warn('Blocking destructive command', { command: input.toolInput.command });
+ *   // input.tool_input.command is typed as string - no cast needed!
+ *   if (input.tool_input.command.includes('rm -rf')) {
+ *     logger.warn('Blocking destructive command', { command: input.tool_input.command });
  *     return preToolUseOutput({
  *       hookSpecificOutput: {
  *         permissionDecision: 'deny',
@@ -373,9 +373,9 @@ export interface HookFunction<TInput, TOutput extends SpecificHookOutput, TConte
  * ```
  * @example
  * ```typescript
- * // Typed overload: toolInput is automatically typed as WriteToolInput
+ * // Typed overload: tool_input is automatically typed as WriteToolInput
  * export default preToolUseHook({ matcher: 'Write' }, (input) => {
- *   const { file_path, content } = input.toolInput; // Full autocomplete!
+ *   const { file_path, content } = input.tool_input; // Full autocomplete!
  *   // ...
  * });
  * ```
@@ -397,7 +397,7 @@ export declare function preToolUseHook(
  * - Add additional context to the conversation
  * - Modify MCP tool output
  *
- * **Matcher**: Matches against `toolName`
+ * **Matcher**: Matches against `tool_name`
  *
  * **Typed Overload**: When the matcher is a single known tool name, the handler
  * receives automatically typed `toolInput` based on the tool type.
@@ -408,14 +408,14 @@ export declare function preToolUseHook(
  * ```typescript
  * import { postToolUseHook, postToolUseOutput } from '@goodfoot/claude-code-hooks';
  *
- * // Typed overload: toolInput is automatically typed as ReadToolInput
+ * // Typed overload: tool_input is automatically typed as ReadToolInput
  * export default postToolUseHook({ matcher: 'Read' }, async (input, { logger }) => {
- *   // input.toolInput.file_path is typed as string - no cast needed!
- *   logger.info('File read completed', { filePath: input.toolInput.file_path });
+ *   // input.tool_input.file_path is typed as string - no cast needed!
+ *   logger.info('File read completed', { filePath: input.tool_input.file_path });
  *
  *   return postToolUseOutput({
  *     hookSpecificOutput: {
- *       additionalContext: `File ${input.toolInput.file_path} was read successfully`
+ *       additionalContext: `File ${input.tool_input.file_path} was read successfully`
  *     }
  *   });
  * });
@@ -438,7 +438,7 @@ export declare function postToolUseHook(
  * - Add context about the failure
  * - Take corrective action
  *
- * **Matcher**: Matches against `toolName`
+ * **Matcher**: Matches against `tool_name`
  *
  * **Typed Overload**: When the matcher is a single known tool name, the handler
  * receives automatically typed `toolInput` based on the tool type.
@@ -451,9 +451,9 @@ export declare function postToolUseHook(
  *
  * // Log tool failures and suggest alternatives
  * export default postToolUseFailureHook({ matcher: 'Bash' }, async (input, { logger }) => {
- *   // input.toolInput.command is typed as string
+ *   // input.tool_input.command is typed as string
  *   logger.error('Bash command failed', {
- *     command: input.toolInput.command,
+ *     command: input.tool_input.command,
  *     error: input.error
  *   });
  *
@@ -482,7 +482,7 @@ export declare function postToolUseFailureHook(
  * - Log important events
  * - Trigger custom alerting
  *
- * **Matcher**: Matches against `notificationType`
+ * **Matcher**: Matches against `notification_type`
  * @param config - Hook configuration with optional matcher and timeout
  * @param handler - The handler function to execute
  * @returns A hook function that can be exported as the default export
@@ -493,7 +493,7 @@ export declare function postToolUseFailureHook(
  * // Forward notifications to Slack
  * export default notificationHook({}, async (input, { logger }) => {
  *   logger.info('Notification received', {
- *     type: input.notificationType,
+ *     type: input.notification_type,
  *     title: input.title
  *   });
  *
@@ -565,7 +565,7 @@ export declare function userPromptSubmitHook(
  * // Persist environment variables for the session
  * export default sessionStartHook({ matcher: 'startup' }, async (input, { logger, persistEnvVar }) => {
  *   logger.info('New session started', {
- *     sessionId: input.sessionId,
+ *     sessionId: input.session_id,
  *     cwd: input.cwd
  *   });
  *
@@ -614,11 +614,11 @@ export declare function sessionStartHook(
  * // Log session end and clean up
  * export default sessionEndHook({}, async (input, { logger }) => {
  *   logger.info('Session ended', {
- *     sessionId: input.sessionId,
+ *     sessionId: input.session_id,
  *     reason: input.reason
  *   });
  *
- *   await cleanupSessionResources(input.sessionId);
+ *   await cleanupSessionResources(input.session_id);
  *
  *   return sessionEndOutput({});
  * });
@@ -679,7 +679,7 @@ export declare function stopHook(
  * - Log subagent invocations
  * - Configure subagent behavior
  *
- * **Matcher**: Matches against `agentType` (e.g., 'explore', 'codebase-analysis')
+ * **Matcher**: Matches against `agent_type` (e.g., 'explore', 'codebase-analysis')
  * @param config - Hook configuration with optional matcher and timeout
  * @param handler - The handler function to execute
  * @returns A hook function that can be exported as the default export
@@ -690,8 +690,8 @@ export declare function stopHook(
  * // Add context for explore subagents
  * export default subagentStartHook({ matcher: 'explore' }, async (input, { logger }) => {
  *   logger.info('Explore subagent starting', {
- *     agentId: input.agentId,
- *     agentType: input.agentType
+ *     agentId: input.agent_id,
+ *     agentType: input.agent_type
  *   });
  *
  *   return subagentStartOutput({
@@ -714,7 +714,7 @@ export declare function subagentStartHook(
  * - Clean up subagent resources
  * - Log subagent completion
  *
- * **Matcher**: Matches against `agentType` (e.g., 'explore', 'codebase-analysis')
+ * **Matcher**: Matches against `agent_type` (e.g., 'explore', 'codebase-analysis')
  * @param config - Hook configuration with optional matcher and timeout
  * @param handler - The handler function to execute
  * @returns A hook function that can be exported as the default export
@@ -725,8 +725,8 @@ export declare function subagentStartHook(
  * // Block explore subagents if task incomplete
  * export default subagentStopHook({ matcher: 'explore' }, async (input, { logger }) => {
  *   logger.info('Subagent stopping', {
- *     agentId: input.agentId,
- *     agentType: input.agentType
+ *     agentId: input.agent_id,
+ *     agentType: input.agent_type
  *   });
  *
  *   // Block if transcript shows incomplete work
@@ -762,7 +762,7 @@ export declare function subagentStopHook(
  * export default preCompactHook({}, async (input, { logger }) => {
  *   logger.info('Context compaction triggered', {
  *     trigger: input.trigger,
- *     hasCustomInstructions: input.customInstructions !== null
+ *     hasCustomInstructions: input.custom_instructions !== null
  *   });
  *
  *   return preCompactOutput({
@@ -793,7 +793,7 @@ export declare function preCompactHook(
  * - Implement custom permission logic
  * - Modify tool inputs before approval
  *
- * **Matcher**: Matches against `toolName`
+ * **Matcher**: Matches against `tool_name`
  *
  * **Typed Overload**: When the matcher is a single known tool name, the handler
  * receives automatically typed `toolInput` based on the tool type.
@@ -804,11 +804,11 @@ export declare function preCompactHook(
  * ```typescript
  * import { permissionRequestHook, permissionRequestOutput } from '@goodfoot/claude-code-hooks';
  *
- * // Typed overload: toolInput is automatically typed as ReadToolInput
+ * // Typed overload: tool_input is automatically typed as ReadToolInput
  * export default permissionRequestHook({ matcher: 'Read' }, async (input, { logger }) => {
- *   // input.toolInput.file_path is typed as string - no cast needed!
- *   if (input.toolInput.file_path.startsWith('/allowed/')) {
- *     logger.info('Auto-approving read in allowed directory', { filePath: input.toolInput.file_path });
+ *   // input.tool_input.file_path is typed as string - no cast needed!
+ *   if (input.tool_input.file_path.startsWith('/allowed/')) {
+ *     logger.info('Auto-approving read in allowed directory', { filePath: input.tool_input.file_path });
  *     return permissionRequestOutput({
  *       hookSpecificOutput: { decision: { behavior: 'allow' } }
  *     });
@@ -820,11 +820,11 @@ export declare function preCompactHook(
  * ```
  * @example
  * ```typescript
- * // Typed overload: toolInput is automatically typed as BashToolInput
+ * // Typed overload: tool_input is automatically typed as BashToolInput
  * export default permissionRequestHook({ matcher: 'Bash' }, async (input, { logger }) => {
- *   // input.toolInput.command is typed as string - no cast needed!
- *   if (input.toolInput.command.includes('sudo')) {
- *     logger.warn('Denying sudo command', { command: input.toolInput.command });
+ *   // input.tool_input.command is typed as string - no cast needed!
+ *   if (input.tool_input.command.includes('sudo')) {
+ *     logger.warn('Denying sudo command', { command: input.tool_input.command });
  *     return permissionRequestOutput({
  *       hookSpecificOutput: {
  *         decision: {

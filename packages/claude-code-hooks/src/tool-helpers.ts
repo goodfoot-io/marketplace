@@ -53,7 +53,7 @@ import type {
 // ============================================================================
 
 /**
- * Union of all hook input types that include toolInput.
+ * Union of all hook input types that include tool_input.
  */
 export type ToolUseInput = PreToolUseInput | PostToolUseInput | PostToolUseFailureInput | PermissionRequestInput;
 
@@ -70,16 +70,16 @@ export type ToolUseInput = PreToolUseInput | PostToolUseInput | PostToolUseFailu
  * @example
  * ```typescript
  * if (isWriteTool(input)) {
- *   // input.toolInput is now typed as WriteToolInput
- *   console.log(input.toolInput.file_path);
- *   console.log(input.toolInput.content);
+ *   // input.tool_input is now typed as WriteToolInput
+ *   console.log(input.tool_input.file_path);
+ *   console.log(input.tool_input.content);
  * }
  * ```
  */
 export function isWriteTool<T extends ToolUseInput>(
   input: T
-): input is T & { toolName: 'Write'; toolInput: WriteToolInput } {
-  return input.toolName === 'Write';
+): input is T & { tool_name: 'Write'; tool_input: WriteToolInput } {
+  return input.tool_name === 'Write';
 }
 
 /**
@@ -91,15 +91,15 @@ export function isWriteTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isEditTool(input)) {
- *   console.log(input.toolInput.old_string);
- *   console.log(input.toolInput.new_string);
+ *   console.log(input.tool_input.old_string);
+ *   console.log(input.tool_input.new_string);
  * }
  * ```
  */
 export function isEditTool<T extends ToolUseInput>(
   input: T
-): input is T & { toolName: 'Edit'; toolInput: EditToolInput } {
-  return input.toolName === 'Edit';
+): input is T & { tool_name: 'Edit'; tool_input: EditToolInput } {
+  return input.tool_name === 'Edit';
 }
 
 /**
@@ -111,7 +111,7 @@ export function isEditTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isMultiEditTool(input)) {
- *   for (const edit of input.toolInput.edits) {
+ *   for (const edit of input.tool_input.edits) {
  *     console.log(`${edit.old_string} -> ${edit.new_string}`);
  *   }
  * }
@@ -119,8 +119,8 @@ export function isEditTool<T extends ToolUseInput>(
  */
 export function isMultiEditTool<T extends ToolUseInput>(
   input: T
-): input is T & { toolName: 'MultiEdit'; toolInput: MultiEditToolInput } {
-  return input.toolName === 'MultiEdit';
+): input is T & { tool_name: 'MultiEdit'; tool_input: MultiEditToolInput } {
+  return input.tool_name === 'MultiEdit';
 }
 
 /**
@@ -138,8 +138,8 @@ export function isMultiEditTool<T extends ToolUseInput>(
  */
 export function isFileModifyingTool<T extends ToolUseInput>(
   input: T
-): input is T & { toolName: FileModifyingToolName; toolInput: FileModifyingToolInput } {
-  return input.toolName === 'Write' || input.toolName === 'Edit' || input.toolName === 'MultiEdit';
+): input is T & { tool_name: FileModifyingToolName; tool_input: FileModifyingToolInput } {
+  return input.tool_name === 'Write' || input.tool_name === 'Edit' || input.tool_name === 'MultiEdit';
 }
 
 /**
@@ -151,15 +151,15 @@ export function isFileModifyingTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isReadTool(input)) {
- *   console.log(input.toolInput.file_path);
- *   console.log(input.toolInput.offset);
+ *   console.log(input.tool_input.file_path);
+ *   console.log(input.tool_input.offset);
  * }
  * ```
  */
 export function isReadTool<T extends ToolUseInput>(
   input: T
-): input is T & { toolName: 'Read'; toolInput: ReadToolInput } {
-  return input.toolName === 'Read';
+): input is T & { tool_name: 'Read'; tool_input: ReadToolInput } {
+  return input.tool_name === 'Read';
 }
 
 /**
@@ -171,15 +171,15 @@ export function isReadTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isBashTool(input)) {
- *   console.log(input.toolInput.command);
- *   console.log(input.toolInput.timeout);
+ *   console.log(input.tool_input.command);
+ *   console.log(input.tool_input.timeout);
  * }
  * ```
  */
 export function isBashTool<T extends ToolUseInput>(
   input: T
-): input is T & { toolName: 'Bash'; toolInput: BashToolInput } {
-  return input.toolName === 'Bash';
+): input is T & { tool_name: 'Bash'; tool_input: BashToolInput } {
+  return input.tool_name === 'Bash';
 }
 
 /**
@@ -191,15 +191,15 @@ export function isBashTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isGlobTool(input)) {
- *   console.log(input.toolInput.pattern);
- *   console.log(input.toolInput.path);
+ *   console.log(input.tool_input.pattern);
+ *   console.log(input.tool_input.path);
  * }
  * ```
  */
 export function isGlobTool<T extends ToolUseInput>(
   input: T
-): input is T & { toolName: 'Glob'; toolInput: GlobToolInput } {
-  return input.toolName === 'Glob';
+): input is T & { tool_name: 'Glob'; tool_input: GlobToolInput } {
+  return input.tool_name === 'Glob';
 }
 
 /**
@@ -211,15 +211,15 @@ export function isGlobTool<T extends ToolUseInput>(
  * @example
  * ```typescript
  * if (isGrepTool(input)) {
- *   console.log(input.toolInput.pattern);
- *   console.log(input.toolInput.glob);
+ *   console.log(input.tool_input.pattern);
+ *   console.log(input.tool_input.glob);
  * }
  * ```
  */
 export function isGrepTool<T extends ToolUseInput>(
   input: T
-): input is T & { toolName: 'Grep'; toolInput: GrepToolInput } {
-  return input.toolName === 'Grep';
+): input is T & { tool_name: 'Grep'; tool_input: GrepToolInput } {
+  return input.tool_name === 'Grep';
 }
 
 // ============================================================================
@@ -242,7 +242,7 @@ export function isGrepTool<T extends ToolUseInput>(
  * ```
  */
 export function getFilePath(input: ToolUseInput): string | null {
-  const toolInput = input.toolInput as { file_path?: string } | null | undefined;
+  const toolInput = input.tool_input as { file_path?: string } | null | undefined;
   if (toolInput && typeof toolInput === 'object' && 'file_path' in toolInput) {
     const filePath = toolInput.file_path;
     return typeof filePath === 'string' ? filePath : null;
@@ -339,7 +339,7 @@ export function checkContentForPattern(input: PreToolUseInput, pattern: RegExp):
   const globalPattern = pattern.global ? pattern : new RegExp(pattern.source, pattern.flags + 'g');
 
   if (isWriteTool(input)) {
-    const matches = [...input.toolInput.content.matchAll(globalPattern)].map((m) => m[0]);
+    const matches = [...input.tool_input.content.matchAll(globalPattern)].map((m) => m[0]);
     const uniqueMatches = [...new Set(matches)];
     return {
       found: uniqueMatches.length > 0,
@@ -349,8 +349,8 @@ export function checkContentForPattern(input: PreToolUseInput, pattern: RegExp):
   }
 
   if (isEditTool(input)) {
-    const newMatches = [...input.toolInput.new_string.matchAll(globalPattern)].map((m) => m[0]);
-    const oldMatches = [...input.toolInput.old_string.matchAll(globalPattern)].map((m) => m[0]);
+    const newMatches = [...input.tool_input.new_string.matchAll(globalPattern)].map((m) => m[0]);
+    const oldMatches = [...input.tool_input.old_string.matchAll(globalPattern)].map((m) => m[0]);
     const uniqueNewMatches = [...new Set(newMatches)];
     const uniqueOldMatches = new Set(oldMatches);
 
@@ -370,8 +370,8 @@ export function checkContentForPattern(input: PreToolUseInput, pattern: RegExp):
     let anyFound = false;
     let anyAddition = false;
 
-    for (let i = 0; i < input.toolInput.edits.length; i++) {
-      const edit = input.toolInput.edits[i];
+    for (let i = 0; i < input.tool_input.edits.length; i++) {
+      const edit = input.tool_input.edits[i];
       const newMatches = [...edit.new_string.matchAll(globalPattern)].map((m) => m[0]);
       const oldMatches = [...edit.old_string.matchAll(globalPattern)].map((m) => m[0]);
       const uniqueNewMatches = [...new Set(newMatches)];
@@ -440,7 +440,7 @@ export interface ContentContext {
 export function forEachContent(input: PreToolUseInput, callback: (ctx: ContentContext) => boolean): boolean {
   if (isWriteTool(input)) {
     return callback({
-      newContent: input.toolInput.content,
+      newContent: input.tool_input.content,
       oldContent: null,
       index: 0,
       isWrite: true
@@ -449,16 +449,16 @@ export function forEachContent(input: PreToolUseInput, callback: (ctx: ContentCo
 
   if (isEditTool(input)) {
     return callback({
-      newContent: input.toolInput.new_string,
-      oldContent: input.toolInput.old_string,
+      newContent: input.tool_input.new_string,
+      oldContent: input.tool_input.old_string,
       index: 0,
       isWrite: false
     });
   }
 
   if (isMultiEditTool(input)) {
-    for (let i = 0; i < input.toolInput.edits.length; i++) {
-      const edit = input.toolInput.edits[i];
+    for (let i = 0; i < input.tool_input.edits.length; i++) {
+      const edit = input.tool_input.edits[i];
       const shouldContinue = callback({
         newContent: edit.new_string,
         oldContent: edit.old_string,

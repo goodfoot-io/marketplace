@@ -30,82 +30,82 @@ import {
 } from '../src/tool-helpers.js';
 
 // Helper to create minimal valid inputs
-function createBaseInput(): Omit<PreToolUseInput, 'hookEventName' | 'toolName' | 'toolInput' | 'toolUseId'> {
+function createBaseInput(): Omit<PreToolUseInput, 'hook_event_name' | 'tool_name' | 'tool_input' | 'tool_use_id'> {
   return {
-    sessionId: 'test-session',
-    transcriptPath: '/path/to/transcript',
+    session_id: 'test-session',
+    transcript_path: '/path/to/transcript',
     cwd: '/workspace',
-    permissionMode: 'default'
+    permission_mode: 'default'
   };
 }
 
 function createWriteInput(content = 'const x = 1;'): PreToolUseInput {
   return {
     ...createBaseInput(),
-    hookEventName: 'PreToolUse',
-    toolName: 'Write',
-    toolInput: { file_path: '/workspace/src/index.ts', content },
-    toolUseId: 'tu_123'
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Write',
+    tool_input: { file_path: '/workspace/src/index.ts', content },
+    tool_use_id: 'tu_123'
   };
 }
 
 function createEditInput(oldString = 'const x = 1;', newString = 'const x = 2;'): PreToolUseInput {
   return {
     ...createBaseInput(),
-    hookEventName: 'PreToolUse',
-    toolName: 'Edit',
-    toolInput: { file_path: '/workspace/src/index.ts', old_string: oldString, new_string: newString },
-    toolUseId: 'tu_123'
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Edit',
+    tool_input: { file_path: '/workspace/src/index.ts', old_string: oldString, new_string: newString },
+    tool_use_id: 'tu_123'
   };
 }
 
 function createMultiEditInput(edits = [{ old_string: 'const x = 1;', new_string: 'const x = 2;' }]): PreToolUseInput {
   return {
     ...createBaseInput(),
-    hookEventName: 'PreToolUse',
-    toolName: 'MultiEdit',
-    toolInput: { file_path: '/workspace/src/index.ts', edits },
-    toolUseId: 'tu_123'
+    hook_event_name: 'PreToolUse',
+    tool_name: 'MultiEdit',
+    tool_input: { file_path: '/workspace/src/index.ts', edits },
+    tool_use_id: 'tu_123'
   };
 }
 
 function createReadInput(): PreToolUseInput {
   return {
     ...createBaseInput(),
-    hookEventName: 'PreToolUse',
-    toolName: 'Read',
-    toolInput: { file_path: '/workspace/src/index.ts', offset: 0, limit: 100 },
-    toolUseId: 'tu_123'
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Read',
+    tool_input: { file_path: '/workspace/src/index.ts', offset: 0, limit: 100 },
+    tool_use_id: 'tu_123'
   };
 }
 
 function createBashInput(): PreToolUseInput {
   return {
     ...createBaseInput(),
-    hookEventName: 'PreToolUse',
-    toolName: 'Bash',
-    toolInput: { command: 'npm install', timeout: 60000 },
-    toolUseId: 'tu_123'
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Bash',
+    tool_input: { command: 'npm install', timeout: 60000 },
+    tool_use_id: 'tu_123'
   };
 }
 
 function createGlobInput(): PreToolUseInput {
   return {
     ...createBaseInput(),
-    hookEventName: 'PreToolUse',
-    toolName: 'Glob',
-    toolInput: { pattern: '**/*.ts', path: '/workspace' },
-    toolUseId: 'tu_123'
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Glob',
+    tool_input: { pattern: '**/*.ts', path: '/workspace' },
+    tool_use_id: 'tu_123'
   };
 }
 
 function createGrepInput(): PreToolUseInput {
   return {
     ...createBaseInput(),
-    hookEventName: 'PreToolUse',
-    toolName: 'Grep',
-    toolInput: { pattern: 'function\\s+\\w+', glob: '*.ts' },
-    toolUseId: 'tu_123'
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Grep',
+    tool_input: { pattern: 'function\\s+\\w+', glob: '*.ts' },
+    tool_use_id: 'tu_123'
   };
 }
 
@@ -125,8 +125,8 @@ describe('Type Guards', () => {
       const input = createWriteInput();
       if (isWriteTool(input)) {
         // TypeScript should allow these accesses
-        expect(input.toolInput.file_path).toBe('/workspace/src/index.ts');
-        expect(input.toolInput.content).toBe('const x = 1;');
+        expect(input.tool_input.file_path).toBe('/workspace/src/index.ts');
+        expect(input.tool_input.content).toBe('const x = 1;');
       }
     });
   });
@@ -145,8 +145,8 @@ describe('Type Guards', () => {
     it('narrows type correctly', () => {
       const input = createEditInput();
       if (isEditTool(input)) {
-        expect(input.toolInput.old_string).toBe('const x = 1;');
-        expect(input.toolInput.new_string).toBe('const x = 2;');
+        expect(input.tool_input.old_string).toBe('const x = 1;');
+        expect(input.tool_input.new_string).toBe('const x = 2;');
       }
     });
   });
@@ -165,8 +165,8 @@ describe('Type Guards', () => {
     it('narrows type correctly', () => {
       const input = createMultiEditInput();
       if (isMultiEditTool(input)) {
-        expect(input.toolInput.edits).toHaveLength(1);
-        expect(input.toolInput.edits[0].old_string).toBe('const x = 1;');
+        expect(input.tool_input.edits).toHaveLength(1);
+        expect(input.tool_input.edits[0].old_string).toBe('const x = 1;');
       }
     });
   });
@@ -196,8 +196,8 @@ describe('Type Guards', () => {
     it('narrows type correctly', () => {
       const input = createReadInput();
       if (isReadTool(input)) {
-        expect(input.toolInput.file_path).toBe('/workspace/src/index.ts');
-        expect(input.toolInput.offset).toBe(0);
+        expect(input.tool_input.file_path).toBe('/workspace/src/index.ts');
+        expect(input.tool_input.offset).toBe(0);
       }
     });
   });
@@ -214,8 +214,8 @@ describe('Type Guards', () => {
     it('narrows type correctly', () => {
       const input = createBashInput();
       if (isBashTool(input)) {
-        expect(input.toolInput.command).toBe('npm install');
-        expect(input.toolInput.timeout).toBe(60000);
+        expect(input.tool_input.command).toBe('npm install');
+        expect(input.tool_input.timeout).toBe(60000);
       }
     });
   });
@@ -232,7 +232,7 @@ describe('Type Guards', () => {
     it('narrows type correctly', () => {
       const input = createGlobInput();
       if (isGlobTool(input)) {
-        expect(input.toolInput.pattern).toBe('**/*.ts');
+        expect(input.tool_input.pattern).toBe('**/*.ts');
       }
     });
   });
@@ -249,7 +249,7 @@ describe('Type Guards', () => {
     it('narrows type correctly', () => {
       const input = createGrepInput();
       if (isGrepTool(input)) {
-        expect(input.toolInput.pattern).toBe('function\\s+\\w+');
+        expect(input.tool_input.pattern).toBe('function\\s+\\w+');
       }
     });
   });
@@ -258,11 +258,11 @@ describe('Type Guards', () => {
     it('works with PostToolUseInput', () => {
       const input: PostToolUseInput = {
         ...createBaseInput(),
-        hookEventName: 'PostToolUse',
-        toolName: 'Write',
-        toolInput: { file_path: '/test.ts', content: 'test' },
-        toolUseId: 'tu_123',
-        toolResponse: 'File written successfully'
+        hook_event_name: 'PostToolUse',
+        tool_name: 'Write',
+        tool_input: { file_path: '/test.ts', content: 'test' },
+        tool_use_id: 'tu_123',
+        tool_response: 'File written successfully'
       };
       expect(isWriteTool(input)).toBe(true);
     });
@@ -298,21 +298,21 @@ describe('File Path Utilities', () => {
     it('returns null if file_path is not a string', () => {
       const input: PreToolUseInput = {
         ...createBaseInput(),
-        hookEventName: 'PreToolUse',
-        toolName: 'Write',
-        toolInput: { file_path: 123, content: 'test' }, // Invalid type
-        toolUseId: 'tu_123'
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Write',
+        tool_input: { file_path: 123, content: 'test' }, // Invalid type
+        tool_use_id: 'tu_123'
       };
       expect(getFilePath(input)).toBeNull();
     });
 
-    it('returns null if toolInput is null', () => {
+    it('returns null if tool_input is null', () => {
       const input: PreToolUseInput = {
         ...createBaseInput(),
-        hookEventName: 'PreToolUse',
-        toolName: 'CustomTool',
-        toolInput: null,
-        toolUseId: 'tu_123'
+        hook_event_name: 'PreToolUse',
+        tool_name: 'CustomTool',
+        tool_input: null,
+        tool_use_id: 'tu_123'
       };
       expect(getFilePath(input)).toBeNull();
     });

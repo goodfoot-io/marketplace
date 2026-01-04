@@ -35,10 +35,10 @@ describe('hook factory type enforcement', () => {
     it('enforces PreToolUseInput type in handler', () => {
       const hook = preToolUseHook({}, (input, { logger }) => {
         // TypeScript knows these properties exist
-        const toolName: string = input.toolName;
-        const toolInput: unknown = input.toolInput;
-        const toolUseId: string = input.toolUseId;
-        const hookEventName: 'PreToolUse' = input.hookEventName;
+        const toolName: string = input.tool_name;
+        const toolInput: unknown = input.tool_input;
+        const toolUseId: string = input.tool_use_id;
+        const hookEventName: 'PreToolUse' = input.hook_event_name;
 
         expect(toolName).toBeDefined();
         expect(toolInput).toBeDefined();
@@ -81,10 +81,10 @@ describe('hook factory type enforcement', () => {
   describe('postToolUseHook', () => {
     it('enforces PostToolUseInput type in handler', () => {
       const hook = postToolUseHook({}, (input) => {
-        // TypeScript knows toolResponse exists on PostToolUseInput
-        const toolResponse: unknown = input.toolResponse;
-        const toolName: string = input.toolName;
-        const hookEventName: 'PostToolUse' = input.hookEventName;
+        // TypeScript knows tool_response exists on PostToolUseInput
+        const toolResponse: unknown = input.tool_response;
+        const toolName: string = input.tool_name;
+        const hookEventName: 'PostToolUse' = input.hook_event_name;
 
         expect(toolResponse).toBeDefined();
         expect(toolName).toBeDefined();
@@ -102,7 +102,7 @@ describe('hook factory type enforcement', () => {
       const hook = sessionStartHook({}, (input) => {
         // TypeScript knows source exists on SessionStartInput
         const source: 'startup' | 'resume' | 'clear' | 'compact' = input.source;
-        const hookEventName: 'SessionStart' = input.hookEventName;
+        const hookEventName: 'SessionStart' = input.hook_event_name;
 
         expect(source).toBeDefined();
         expect(hookEventName).toBe('SessionStart');
@@ -125,9 +125,9 @@ describe('hook factory type enforcement', () => {
   describe('stopHook', () => {
     it('enforces StopInput type in handler', () => {
       const hook = stopHook({}, (input) => {
-        // TypeScript knows stopHookActive exists on StopInput
-        const stopHookActive: boolean = input.stopHookActive;
-        const hookEventName: 'Stop' = input.hookEventName;
+        // TypeScript knows stop_hook_active exists on StopInput
+        const stopHookActive: boolean = input.stop_hook_active;
+        const hookEventName: 'Stop' = input.hook_event_name;
 
         expect(typeof stopHookActive).toBe('boolean');
         expect(hookEventName).toBe('Stop');
@@ -156,9 +156,9 @@ describe('hook factory type enforcement', () => {
     it('enforces PermissionRequestInput type in handler', () => {
       const hook = permissionRequestHook({}, (input) => {
         // TypeScript knows these fields exist
-        const toolName: string = input.toolName;
-        const toolInput: unknown = input.toolInput;
-        const hookEventName: 'PermissionRequest' = input.hookEventName;
+        const toolName: string = input.tool_name;
+        const toolInput: unknown = input.tool_input;
+        const hookEventName: 'PermissionRequest' = input.hook_event_name;
 
         expect(toolName).toBeDefined();
         expect(toolInput).toBeDefined();
@@ -197,7 +197,7 @@ describe('HookFunction type properties', () => {
   it('is callable with input and context', async () => {
     const hook = preToolUseHook({}, (input) => {
       // Conditional logic that always returns valid output
-      if (input.toolName === 'Read') {
+      if (input.tool_name === 'Read') {
         return preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
       }
       return preToolUseOutput({
@@ -206,13 +206,13 @@ describe('HookFunction type properties', () => {
     });
 
     const mockInput: PreToolUseInput = {
-      hookEventName: 'PreToolUse',
-      sessionId: 'test',
-      transcriptPath: '/path',
+      hook_event_name: 'PreToolUse',
+      session_id: 'test',
+      transcript_path: '/path',
       cwd: '/cwd',
-      toolName: 'Read',
-      toolInput: {},
-      toolUseId: 'tool-1'
+      tool_name: 'Read',
+      tool_input: {},
+      tool_use_id: 'tool-1'
     };
 
     // Import and use the actual Logger class
@@ -274,7 +274,7 @@ describe('HookConfig type', () => {
 describe('HookHandler type', () => {
   it('is a function taking input and context', () => {
     const handler: HookHandler<PreToolUseInput, PreToolUseOutput> = (input, context) => {
-      expect(input.toolName).toBeDefined();
+      expect(input.tool_name).toBeDefined();
       expect(context.logger).toBeDefined();
       return preToolUseOutput({});
     };
@@ -285,7 +285,7 @@ describe('HookHandler type', () => {
   it('can be synchronous', () => {
     const syncHandler: HookHandler<PreToolUseInput, PreToolUseOutput> = (input) => {
       // Conditional logic that always returns valid output
-      if (input.toolName === 'Read') {
+      if (input.tool_name === 'Read') {
         return preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
       }
       return preToolUseOutput({
@@ -300,7 +300,7 @@ describe('HookHandler type', () => {
     const asyncHandler: HookHandler<PreToolUseInput, PreToolUseOutput> = async (input) => {
       await Promise.resolve();
       // Conditional logic that always returns valid output
-      if (input.toolName === 'Read') {
+      if (input.tool_name === 'Read') {
         return preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
       }
       return preToolUseOutput({

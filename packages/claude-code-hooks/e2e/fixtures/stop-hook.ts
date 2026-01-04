@@ -7,7 +7,7 @@
 import { stopHook, stopOutput } from '../../src/index.js';
 
 export default stopHook({}, (input, { logger }) => {
-  logger.info('Stop requested', { stopHookActive: input.stopHookActive });
+  logger.info('Stop requested', { stop_hook_active: input.stop_hook_active });
   return stopOutput({
     decision: 'approve',
     reason: 'Build test: Approved stop'
