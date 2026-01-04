@@ -35,7 +35,17 @@
  * @module
  */
 import type { PreToolUseInput, PostToolUseInput, PostToolUseFailureInput, PermissionRequestInput } from './inputs.js';
-import type { WriteToolInput, EditToolInput, MultiEditToolInput, ReadToolInput, BashToolInput, GlobToolInput, GrepToolInput, FileModifyingToolInput, FileModifyingToolName } from './tool-inputs.js';
+import type {
+  WriteToolInput,
+  EditToolInput,
+  MultiEditToolInput,
+  ReadToolInput,
+  BashToolInput,
+  GlobToolInput,
+  GrepToolInput,
+  FileModifyingToolInput,
+  FileModifyingToolName
+} from './tool-inputs.js';
 /**
  * Union of all hook input types that include toolInput.
  */
@@ -55,9 +65,11 @@ export type ToolUseInput = PreToolUseInput | PostToolUseInput | PostToolUseFailu
  * }
  * ```
  */
-export declare function isWriteTool<T extends ToolUseInput>(input: T): input is T & {
-    toolName: 'Write';
-    toolInput: WriteToolInput;
+export declare function isWriteTool<T extends ToolUseInput>(
+  input: T
+): input is T & {
+  toolName: 'Write';
+  toolInput: WriteToolInput;
 };
 /**
  * Type guard for Edit tool inputs.
@@ -73,9 +85,11 @@ export declare function isWriteTool<T extends ToolUseInput>(input: T): input is 
  * }
  * ```
  */
-export declare function isEditTool<T extends ToolUseInput>(input: T): input is T & {
-    toolName: 'Edit';
-    toolInput: EditToolInput;
+export declare function isEditTool<T extends ToolUseInput>(
+  input: T
+): input is T & {
+  toolName: 'Edit';
+  toolInput: EditToolInput;
 };
 /**
  * Type guard for MultiEdit tool inputs.
@@ -92,9 +106,11 @@ export declare function isEditTool<T extends ToolUseInput>(input: T): input is T
  * }
  * ```
  */
-export declare function isMultiEditTool<T extends ToolUseInput>(input: T): input is T & {
-    toolName: 'MultiEdit';
-    toolInput: MultiEditToolInput;
+export declare function isMultiEditTool<T extends ToolUseInput>(
+  input: T
+): input is T & {
+  toolName: 'MultiEdit';
+  toolInput: MultiEditToolInput;
 };
 /**
  * Type guard for any file-modifying tool (Write, Edit, or MultiEdit).
@@ -109,9 +125,11 @@ export declare function isMultiEditTool<T extends ToolUseInput>(input: T): input
  * }
  * ```
  */
-export declare function isFileModifyingTool<T extends ToolUseInput>(input: T): input is T & {
-    toolName: FileModifyingToolName;
-    toolInput: FileModifyingToolInput;
+export declare function isFileModifyingTool<T extends ToolUseInput>(
+  input: T
+): input is T & {
+  toolName: FileModifyingToolName;
+  toolInput: FileModifyingToolInput;
 };
 /**
  * Type guard for Read tool inputs.
@@ -127,9 +145,11 @@ export declare function isFileModifyingTool<T extends ToolUseInput>(input: T): i
  * }
  * ```
  */
-export declare function isReadTool<T extends ToolUseInput>(input: T): input is T & {
-    toolName: 'Read';
-    toolInput: ReadToolInput;
+export declare function isReadTool<T extends ToolUseInput>(
+  input: T
+): input is T & {
+  toolName: 'Read';
+  toolInput: ReadToolInput;
 };
 /**
  * Type guard for Bash tool inputs.
@@ -145,9 +165,11 @@ export declare function isReadTool<T extends ToolUseInput>(input: T): input is T
  * }
  * ```
  */
-export declare function isBashTool<T extends ToolUseInput>(input: T): input is T & {
-    toolName: 'Bash';
-    toolInput: BashToolInput;
+export declare function isBashTool<T extends ToolUseInput>(
+  input: T
+): input is T & {
+  toolName: 'Bash';
+  toolInput: BashToolInput;
 };
 /**
  * Type guard for Glob tool inputs.
@@ -163,9 +185,11 @@ export declare function isBashTool<T extends ToolUseInput>(input: T): input is T
  * }
  * ```
  */
-export declare function isGlobTool<T extends ToolUseInput>(input: T): input is T & {
-    toolName: 'Glob';
-    toolInput: GlobToolInput;
+export declare function isGlobTool<T extends ToolUseInput>(
+  input: T
+): input is T & {
+  toolName: 'Glob';
+  toolInput: GlobToolInput;
 };
 /**
  * Type guard for Grep tool inputs.
@@ -181,9 +205,11 @@ export declare function isGlobTool<T extends ToolUseInput>(input: T): input is T
  * }
  * ```
  */
-export declare function isGrepTool<T extends ToolUseInput>(input: T): input is T & {
-    toolName: 'Grep';
-    toolInput: GrepToolInput;
+export declare function isGrepTool<T extends ToolUseInput>(
+  input: T
+): input is T & {
+  toolName: 'Grep';
+  toolInput: GrepToolInput;
 };
 /**
  * Extracts the file path from a tool input.
@@ -233,23 +259,23 @@ export declare function isTsFile(filePath: string): boolean;
  * Result of checking content for a pattern.
  */
 export interface PatternCheckResult {
-    /** True if the pattern was found in any content. */
+  /** True if the pattern was found in any content. */
+  found: boolean;
+  /** True if the pattern is being added (not present in old content, present in new). */
+  isAddition: boolean;
+  /** All matches found across all content (deduplicated). */
+  matches: string[];
+  /** Per-edit details for MultiEdit operations. */
+  details?: Array<{
+    /** Index of the edit (for MultiEdit) or 0 for Write/Edit. */
+    index: number;
+    /** True if found in this edit. */
     found: boolean;
-    /** True if the pattern is being added (not present in old content, present in new). */
+    /** True if this edit adds the pattern. */
     isAddition: boolean;
-    /** All matches found across all content (deduplicated). */
+    /** Matches in this edit. */
     matches: string[];
-    /** Per-edit details for MultiEdit operations. */
-    details?: Array<{
-        /** Index of the edit (for MultiEdit) or 0 for Write/Edit. */
-        index: number;
-        /** True if found in this edit. */
-        found: boolean;
-        /** True if this edit adds the pattern. */
-        isAddition: boolean;
-        /** Matches in this edit. */
-        matches: string[];
-    }>;
+  }>;
 }
 /**
  * Checks if a pattern exists in the content being written or edited.
@@ -279,14 +305,14 @@ export declare function checkContentForPattern(input: PreToolUseInput, pattern: 
  * Context passed to the forEachContent callback.
  */
 export interface ContentContext {
-    /** The new content being written or replacing old content. */
-    newContent: string;
-    /** The old content being replaced (null for Write). */
-    oldContent: string | null;
-    /** Index of the edit (0 for Write/Edit, index for MultiEdit). */
-    index: number;
-    /** True if this is a Write operation (not Edit/MultiEdit). */
-    isWrite: boolean;
+  /** The new content being written or replacing old content. */
+  newContent: string;
+  /** The old content being replaced (null for Write). */
+  oldContent: string | null;
+  /** Index of the edit (0 for Write/Edit, index for MultiEdit). */
+  index: number;
+  /** True if this is a Write operation (not Edit/MultiEdit). */
+  isWrite: boolean;
 }
 /**
  * Iterates over content in Write/Edit/MultiEdit operations.
