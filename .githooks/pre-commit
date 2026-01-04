@@ -133,10 +133,10 @@ if [ "$PLUGINS_BUMPED" -eq 1 ]; then
     fi
 fi
 
-# Validation: Ensure marketplace.json plugin versions match their plugin.json versions
-# This runs on every commit as a safety check
+# Auto-sync: Ensure marketplace.json plugin versions match their plugin.json versions
+# This runs on every commit and automatically fixes any mismatches
 MARKETPLACE_JSON=".claude-plugin/marketplace.json"
-VALIDATION_FAILED=0
+VERSIONS_SYNCED=0
 
 if [ -f "$MARKETPLACE_JSON" ] && command -v jq &> /dev/null; then
     # Get list of all plugins from marketplace.json
@@ -149,21 +149,21 @@ if [ -f "$MARKETPLACE_JSON" ] && command -v jq &> /dev/null; then
             MARKETPLACE_VERSION=$(jq -r --arg name "$PLUGIN_NAME" '.plugins[] | select(.name == $name) | .version // empty' "$MARKETPLACE_JSON")
             PLUGIN_VERSION=$(jq -r '.version' "$PLUGIN_JSON")
 
-            # Only validate if marketplace has a version field for this plugin
+            # Auto-sync if marketplace version differs from plugin.json version
             if [ -n "$MARKETPLACE_VERSION" ] && [ "$MARKETPLACE_VERSION" != "$PLUGIN_VERSION" ]; then
-                echo "ERROR: Version mismatch for ${PLUGIN_NAME} plugin:"
-                echo "  marketplace.json: $MARKETPLACE_VERSION"
-                echo "  plugin.json: $PLUGIN_VERSION"
-                VALIDATION_FAILED=1
+                jq --arg name "$PLUGIN_NAME" --arg version "$PLUGIN_VERSION" \
+                    '(.plugins[] | select(.name == $name)).version = $version' \
+                    "$MARKETPLACE_JSON" > "${MARKETPLACE_JSON}.tmp" && \
+                    mv "${MARKETPLACE_JSON}.tmp" "$MARKETPLACE_JSON"
+                echo "Auto-synced ${PLUGIN_NAME} version in marketplace.json: ${MARKETPLACE_VERSION} -> ${PLUGIN_VERSION}"
+                VERSIONS_SYNCED=1
             fi
         fi
     done
 
-    if [ "$VALIDATION_FAILED" -eq 1 ]; then
-        echo ""
-        echo "Commit blocked: Plugin versions in marketplace.json must match their plugin.json versions."
-        echo "Please ensure versions are synchronized before committing."
-        exit 1
+    # Stage marketplace.json if any versions were synced
+    if [ "$VERSIONS_SYNCED" -eq 1 ]; then
+        git add "$MARKETPLACE_JSON"
     fi
 fi
 
