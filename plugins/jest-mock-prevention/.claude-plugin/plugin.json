@@ -1,9 +1,0 @@
-{
-  "name": "jest-mock-prevention",
-  "description": "Jest mocking prevention hook for Write/Edit operations. Enforces integration-first testing with real implementations instead of mocks.",
-  "version": "0.1.2",
-  "author": {
-    "name": "Goodfoot",
-    "email": "contact@goodfoot.io"
-  }
-}
