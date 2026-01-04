@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/build/typescript-check.e906e360.mjs",
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/typescript-check.66f49153.mjs",
             "timeout": 60000
           }
         ],
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/build/eslint-typescript-bypass.b9b68021.mjs",
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/eslint-typescript-bypass.74b58bc1.mjs",
             "timeout": 10000
           }
         ],
@@ -27,9 +27,9 @@
   },
   "__generated": {
     "files": [
-      "typescript-check.e906e360.mjs",
-      "eslint-typescript-bypass.b9b68021.mjs"
+      "typescript-check.66f49153.mjs",
+      "eslint-typescript-bypass.74b58bc1.mjs"
     ],
-    "timestamp": "2026-01-04T21:34:57.485Z"
+    "timestamp": "2026-01-04T22:45:44.514Z"
   }
 }
