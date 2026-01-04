@@ -6,49 +6,44 @@ A Claude Code plugin that enforces TypeScript and ESLint quality standards throu
 
 This plugin provides two hooks that run automatically during Write/Edit/MultiEdit operations:
 
-1. **ESLint/TypeScript Bypass Prevention** (PreToolUse)
+1. **ESLint/TypeScript/Biome Bypass Prevention** (PreToolUse)
 2. **TypeScript/ESLint Validation** (PostToolUse)
 
 ## Features
 
-### 1. ESLint/TypeScript Bypass Prevention
+### 1. ESLint/TypeScript/Biome Bypass Prevention
 
-**Prevents the following patterns:**
+**Prevents the following patterns from being added:**
 - ESLint disable comments (`// eslint-disable`, `/* eslint-disable */`)
 - TypeScript suppression comments (`@ts-ignore`, `@ts-expect-error`, `@ts-nocheck`)
 - TypeScript `as any` type casting
+- Biome suppress comments (`biome-ignore`, `biome-ignore-all`, etc.)
 
 **Why?** Forces proper type-safe code and encourages fixing underlying issues rather than bypassing rules.
 
 **When it runs:** Before Write/Edit/MultiEdit operations on JavaScript/TypeScript files
 
-**Exit behavior:**
+**Behavior:**
+- Only flags patterns being **added** (not existing patterns)
 - Denies the operation if bypass patterns are detected
 - Provides detailed guidance on fixing the underlying issue
 
 ### 2. TypeScript/ESLint Validation
 
 **Validates:**
-- TypeScript type checking using `tsc`
+- TypeScript type checking using `tsc --noEmit`
 - ESLint rules using `yarn eslint:files`
 - Type errors in dependent files that import the edited file
 
 **Features:**
-- Automatically finds the appropriate `tsconfig.json`
+- Runs project-wide TypeScript type checking
 - Checks up to 5 dependent files for type errors
 - Provides detailed error output in YAML format including:
   - Error location (file, line, column)
   - Error message and code
   - Code context around the error
-  - Function signatures for type mismatch errors
-  - External errors in dependent files
 
-**When it runs:** After successful Write/Edit/MultiEdit operations on TypeScript files
-
-**Exit behavior:**
-- Exits with code 2 if errors are found (blocks the operation)
-- Provides detailed YAML output to help fix errors
-- Silent success when no errors are detected
+**When it runs:** After Write/Edit/MultiEdit operations on TypeScript files
 
 ## Installation
 
@@ -69,28 +64,12 @@ This plugin provides two hooks that run automatically during Write/Edit/MultiEdi
 
 2. Reload Claude Code or restart the session
 
-### From Git Repository
-
-```json
-{
-  "plugins": [
-    {
-      "source": "git::https://github.com/your-org/typescript-hooks.git",
-      "enabled": true
-    }
-  ]
-}
-```
-
 ## Configuration
 
 ### Hook Timeouts
 
-The plugin uses the following timeouts:
-- PreToolUse hooks: 10 seconds each
-- PostToolUse hooks: 30 seconds
-
-These can be adjusted in `hooks/hooks.json` if needed.
+- PreToolUse (bypass prevention): 10 seconds
+- PostToolUse (TypeScript/ESLint): 60 seconds
 
 ### Debug Mode
 
@@ -100,92 +79,89 @@ Set the `DEBUG` environment variable to see detailed execution logs:
 DEBUG=1 claude
 ```
 
-## Hook Details
-
-### File Patterns
-
-- **ESLint/TypeScript Bypass Prevention**: `*.js`, `*.jsx`, `*.ts`, `*.tsx`, `*.mjs`, `*.cjs`, `*.mts`, `*.cts`
-- **TypeScript Validation**: `*.ts`, `*.tsx`
-
-### Dependencies
-
-The hooks require the following tools to be available:
-- `jq` - JSON processing (for PreToolUse hooks)
-- `tsx` - TypeScript execution (for PostToolUse hook)
-- `npx` - Node package execution
-- `yarn` - Package manager
-- `rg` (ripgrep) - Fast file searching
-
 ## Development
 
 ### Project Structure
 
+The hooks are implemented in TypeScript using the `@goodfoot/claude-code-hooks` SDK:
+
 ```
-typescript-hooks/
-├── plugin.json           # Plugin manifest
-├── README.md            # This file
-└── hooks/
-    ├── hooks.json       # Hook configuration
-    ├── eslint-typescript-bypass    # PreToolUse hook
-    └── typescript-check            # PostToolUse hook
+packages/typescript-hooks/           # Source package
+├── src/
+│   ├── eslint-typescript-bypass.ts  # PreToolUse hook
+│   └── typescript-check.ts          # PostToolUse hook
+├── test/
+│   └── *.test.ts                    # Unit tests
+└── package.json
+
+plugins/typescript-hooks/            # Plugin directory
+├── .claude-plugin/
+│   └── plugin.json                  # Plugin manifest
+├── hooks/
+│   ├── hooks.json                   # Generated hook configuration
+│   └── build/                       # Compiled hooks (.mjs files)
+└── README.md
 ```
 
-### Customizing Hooks
+### Building Hooks
 
-To modify hook behavior:
-
-1. Edit the hook scripts in `hooks/`
-2. Update patterns in the `check_for_*_patterns()` functions
-3. Adjust guidance messages as needed
-
-### Testing Hooks
-
-You can test hooks manually by piping JSON to them:
+From the workspace root:
 
 ```bash
-echo '{"tool_name":"Write","tool_input":{"file_path":"test.ts","content":"const x: any = 1;"}}' | \
-  ./hooks/eslint-typescript-bypass
+cd packages/typescript-hooks
+yarn install
+yarn build
 ```
+
+This compiles the hooks and outputs to `plugins/typescript-hooks/hooks/hooks.json`.
+
+### Running Tests
+
+```bash
+cd packages/typescript-hooks
+yarn test
+```
+
+### Modifying Hooks
+
+1. Edit the TypeScript source files in `packages/typescript-hooks/src/`
+2. Run `yarn build` to recompile
+3. The updated hooks are automatically output to the plugin directory
+
+## File Pattern Support
+
+- **ESLint/TypeScript/Biome Bypass Prevention**: `*.js`, `*.jsx`, `*.ts`, `*.tsx`, `*.mjs`, `*.cjs`, `*.mts`, `*.cts`
+- **TypeScript Validation**: `*.ts`, `*.tsx`, `*.mts`, `*.cts`
+
+## Dependencies
+
+The hooks require:
+- Node.js >= 20.11.0
+- `npx` - Node package execution
+- `yarn` - Package manager (for ESLint)
+- `rg` (ripgrep) - Fast file searching
 
 ## Troubleshooting
 
 ### Hooks Not Running
 
 1. Verify plugin is enabled in `.claude/settings.json`
-2. Check that hook scripts are executable: `ls -la hooks/`
+2. Ensure hooks are built: `cd packages/typescript-hooks && yarn build`
 3. Enable DEBUG mode to see execution logs
 
 ### False Positives
 
 If a hook incorrectly blocks valid code:
 
-1. Review the pattern matching in the hook script
-2. Consider adding exceptions for specific cases
+1. Review the pattern matching in the hook source
+2. Run tests to verify behavior: `yarn test`
 3. File an issue with the code sample
-
-### Performance Issues
-
-If PostToolUse hook is too slow:
-
-1. Increase timeout in `hooks.json`
-2. Reduce the number of dependent files checked (edit `findDependentFiles()`)
-3. Disable dependent file checking for faster feedback
 
 ## License
 
 MIT
 
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Test your changes thoroughly
-2. Update documentation as needed
-3. Follow the existing code style
-4. Add examples for new patterns
-
 ## Resources
 
-- [Claude Code Hooks Documentation](https://docs.claude.com/en/docs/claude-code/hooks.md)
-- [Claude Code Hooks Guide](https://docs.claude.com/en/docs/claude-code/hooks-guide.md)
-- [Plugin Development Reference](https://docs.claude.com/en/docs/claude-code/plugins-reference.md)
+- [Claude Code Hooks Documentation](https://code.claude.com/docs/en/hooks)
+- [@goodfoot/claude-code-hooks SDK](https://www.npmjs.com/package/@goodfoot/claude-code-hooks)
