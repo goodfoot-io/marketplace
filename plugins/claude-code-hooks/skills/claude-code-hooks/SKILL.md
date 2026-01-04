@@ -114,6 +114,12 @@ npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,Subage
 
 **Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`
 
+**Monorepo?** Use `-o` to output directly to a plugin directory:
+```bash
+npx @goodfoot/claude-code-hooks --scaffold ./packages/my-hooks --hooks PreToolUse,PostToolUse -o ../../plugins/my-plugin/hooks/hooks.json
+```
+See [Installation: Scaffolding for Monorepos](reference/installation.md#11-scaffolding-for-monorepos).
+
 ## 4. Output Capabilities by Hook Type
 
 Different hooks have different capabilities. This table clarifies what each hook type can do:

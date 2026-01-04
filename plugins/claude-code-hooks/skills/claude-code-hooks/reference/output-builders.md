@@ -1,12 +1,10 @@
-# Output Builders & Types
-
 <instructions>
 
-## 1. Intent-Based Examples
+## Intent-Based Examples
 
 Instead of just listing types, here is how to accomplish specific goals using the output builders.
 
-### Goal: Auto-Approve Specific Safe Commands (PermissionRequest)
+### Auto-Approve Specific Safe Commands (PermissionRequest)
 
 Use `permissionRequestHook` to bypass the "Allow?" prompt for known safe operations.
 
@@ -19,7 +17,7 @@ export default permissionRequestHook({ matcher: 'Bash' }, (input, { logger }) =>
   // Only auto-allow echo commands
   if (command.command?.startsWith('echo ')) {
     logger.info('Auto-allowing echo command', { command: command.command });
-    
+
     return permissionRequestOutput({
       systemMessage: 'Auto-approved echo command.',
       hookSpecificOutput: {
@@ -33,7 +31,7 @@ export default permissionRequestHook({ matcher: 'Bash' }, (input, { logger }) =>
 });
 ```
 
-### Goal: Inject Project Context (UserPromptSubmit)
+### Inject Project Context (UserPromptSubmit)
 
 Use `userPromptSubmitHook` to remind Claude of project details whenever the user types.
 
@@ -53,7 +51,7 @@ export default userPromptSubmitHook({}, (input, { logger }) => {
 });
 ```
 
-### Goal: Block Stop on Condition (Stop)
+### Block Stop on Condition (Stop)
 
 Use `stopHook` to prevent Claude from exiting if criteria aren't met.
 
@@ -70,12 +68,12 @@ export default stopHook({}, (_input, { logger }) => {
       reason: 'Cannot stop - pending operations must complete first.'
     });
   }
-  
+
   return stopOutput({ decision: 'approve' });
 });
 ```
 
-### Goal: Add Context After Tool Execution (PostToolUse)
+### Add Context After Tool Execution (PostToolUse)
 
 Use `postToolUseHook` to analyze the result of a tool and add helpful notes.
 
@@ -91,7 +89,7 @@ export default postToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 });
 ```
 
-### Goal: Deny Specific Tools (PreToolUse)
+### Deny Specific Tools (PreToolUse)
 
 Use `preToolUseHook` to enforce security policies.
 
@@ -118,7 +116,7 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 });
 ```
 
-### Goal: Inspect Write/Edit/MultiEdit Content (PreToolUse)
+### Inspect Write/Edit/MultiEdit Content (PreToolUse)
 
 Use `checkContentForPattern` to detect patterns being added to files:
 
@@ -148,7 +146,7 @@ export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { log
 });
 ```
 
-### Goal: Signal Errors Without Blocking (PostToolUse)
+### Signal Errors Without Blocking (PostToolUse)
 
 Use `postToolUseHook` with `systemMessage` to inform Claude about issues without blocking:
 
@@ -172,7 +170,7 @@ export default postToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 });
 ```
 
-### Goal: Run Validation and Report Errors (PostToolUse)
+### Run Validation and Report Errors (PostToolUse)
 
 Use `postToolUseHook` to run external validation tools (tsc, eslint, etc.) and return structured feedback:
 
@@ -207,17 +205,17 @@ export default postToolUseHook({ matcher: 'Write|Edit|MultiEdit', timeout: 60000
 ```
 
 **Key Points:**
-- PostToolUse hooks **cannot block** - the tool already ran
+- PostToolUse hooks **cannot block** — the tool already ran
 - Use `additionalContext` to inform Claude about issues
 - Use `timeout` in hook config for long-running checks (60000ms = 1 minute)
 - Set subprocess `timeout` slightly lower than hook timeout
 - Return empty `postToolUseOutput({})` for silent success
 
-## 2. Async & Filesystem Operations
+## Async and Filesystem Operations
 
 Hooks support `async/await` out of the box. This is critical for checking file state or reading configs.
 
-### Goal: Read Config File Async (SessionStart)
+### Read Config File Async (SessionStart)
 
 ```typescript
 import { sessionStartHook, sessionStartOutput } from '@goodfoot/claude-code-hooks';
@@ -228,12 +226,12 @@ export default sessionStartHook({ matcher: 'startup' }, async (input, { logger }
   try {
     const configPath = join(input.cwd, 'CONTRIBUTING.md');
     const content = await readFile(configPath, 'utf-8');
-    
+
     logger.info('Injecting CONTRIBUTING.md', { path: configPath });
-    
+
     return sessionStartOutput({
       hookSpecificOutput: {
-        additionalContext: `Project Guidelines:\n${content.slice(0, 1000)}...` 
+        additionalContext: `Project Guidelines:\n${content.slice(0, 1000)}...`
       }
     });
   } catch (error) {
@@ -243,7 +241,7 @@ export default sessionStartHook({ matcher: 'startup' }, async (input, { logger }
 });
 ```
 
-### Goal: Check File Existence Before Command (PreToolUse)
+### Check File Existence Before Command (PreToolUse)
 
 ```typescript
 import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
@@ -273,26 +271,27 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 });
 ```
 
-## 3. All 12 Hook Types Reference
+## All 12 Hook Types Reference
 
 | Hook Type | Factory | Builder | Input Key |
-| :--- | :--- | :--- | :--- |
-| **PreToolUse** | `preToolUseHook` | `preToolUseOutput` | `tool_name` |
-| **PostToolUse** | `postToolUseHook` | `postToolUseOutput` | `tool_name` |
-| **PostToolUseFailure** | `postToolUseFailureHook` | `postToolUseFailureOutput` | `tool_name` |
-| **SessionStart** | `sessionStartHook` | `sessionStartOutput` | `source` |
-| **SessionEnd** | `sessionEndHook` | `sessionEndOutput` | `reason` |
-| **Stop** | `stopHook` | `stopOutput` | N/A |
-| **UserPromptSubmit** | `userPromptSubmitHook` | `userPromptSubmitOutput` | N/A |
-| **Notification** | `notificationHook` | `notificationOutput` | `notification_type` |
-| **SubagentStart** | `subagentStartHook` | `subagentStartOutput` | `agent_type` |
-| **SubagentStop** | `subagentStopHook` | `subagentStopOutput` | `agent_type` |
-| **PreCompact** | `preCompactHook` | `preCompactOutput` | `trigger` |
-| **PermissionRequest** | `permissionRequestHook` | `permissionRequestOutput` | `tool_name` |
+|-----------|---------|---------|-----------|
+| PreToolUse | `preToolUseHook` | `preToolUseOutput` | `tool_name` |
+| PostToolUse | `postToolUseHook` | `postToolUseOutput` | `tool_name` |
+| PostToolUseFailure | `postToolUseFailureHook` | `postToolUseFailureOutput` | `tool_name` |
+| SessionStart | `sessionStartHook` | `sessionStartOutput` | `source` |
+| SessionEnd | `sessionEndHook` | `sessionEndOutput` | `reason` |
+| Stop | `stopHook` | `stopOutput` | N/A |
+| UserPromptSubmit | `userPromptSubmitHook` | `userPromptSubmitOutput` | N/A |
+| Notification | `notificationHook` | `notificationOutput` | `notification_type` |
+| SubagentStart | `subagentStartHook` | `subagentStartOutput` | `agent_type` |
+| SubagentStop | `subagentStopHook` | `subagentStopOutput` | `agent_type` |
+| PreCompact | `preCompactHook` | `preCompactOutput` | `trigger` |
+| PermissionRequest | `permissionRequestHook` | `permissionRequestOutput` | `tool_name` |
 
-## 4. Builder Options Cheat Sheet
+## Builder Options Cheat Sheet
 
 ### preToolUseOutput
+
 ```typescript
 {
   hookSpecificOutput: {
@@ -304,6 +303,7 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 ```
 
 ### stopOutput / subagentStopOutput
+
 ```typescript
 {
   decision: 'approve' | 'block',
@@ -312,6 +312,7 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 ```
 
 ### permissionRequestOutput
+
 ```typescript
 {
   hookSpecificOutput: {
@@ -326,6 +327,7 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 ```
 
 ### postToolUseOutput / postToolUseFailureOutput
+
 ```typescript
 {
   hookSpecificOutput: {
@@ -357,6 +359,6 @@ These options are available on ALL output builders:
 | Provide feedback after tool | PostToolUse | `additionalContext` and/or `systemMessage` |
 | Critical error (any hook) | Any | `stopReason` (last resort) |
 
-**Important**: PostToolUse hooks **cannot block execution** - the tool has already run. Use `additionalContext` and `systemMessage` to inform Claude of issues.
+**Important**: PostToolUse hooks **cannot block execution** — the tool has already run. Use `additionalContext` and `systemMessage` to inform Claude of issues.
 
 </instructions>

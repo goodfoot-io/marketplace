@@ -1,5 +1,3 @@
-# Tool Input Types
-
 <instructions>
 
 This document describes the typed tool input structures available in `@goodfoot/claude-code-hooks`.
@@ -48,6 +46,7 @@ The `tool_input` field in `PreToolUseInput`, `PostToolUseInput`, `PostToolUseFai
 ### File Operation Tools
 
 #### WriteToolInput
+
 ```typescript
 interface WriteToolInput {
   file_path: string;  // Absolute path to the file
@@ -56,6 +55,7 @@ interface WriteToolInput {
 ```
 
 #### EditToolInput
+
 ```typescript
 interface EditToolInput {
   file_path: string;      // Absolute path to the file
@@ -66,6 +66,7 @@ interface EditToolInput {
 ```
 
 #### MultiEditToolInput
+
 ```typescript
 interface MultiEditEntry {
   old_string: string;
@@ -79,6 +80,7 @@ interface MultiEditToolInput {
 ```
 
 #### ReadToolInput
+
 ```typescript
 interface ReadToolInput {
   file_path: string;  // Absolute path to the file
@@ -90,6 +92,7 @@ interface ReadToolInput {
 ### Command Tools
 
 #### BashToolInput
+
 ```typescript
 interface BashToolInput {
   command: string;       // Command to execute
@@ -101,6 +104,7 @@ interface BashToolInput {
 ### Search Tools
 
 #### GlobToolInput
+
 ```typescript
 interface GlobToolInput {
   pattern: string;  // Glob pattern (e.g., "**/*.ts")
@@ -109,6 +113,7 @@ interface GlobToolInput {
 ```
 
 #### GrepToolInput
+
 ```typescript
 interface GrepToolInput {
   pattern: string;  // Regex pattern
@@ -214,6 +219,7 @@ if (result?.isAddition) {
 ```
 
 Returns:
+
 ```typescript
 interface PatternCheckResult {
   found: boolean;       // Pattern found in any content
@@ -313,13 +319,13 @@ export default preToolUseHook({ matcher: 'Write' }, (input) => {
 ```
 
 Supported tools for automatic typing:
-- `Write` - WriteToolInput
-- `Edit` - EditToolInput
-- `MultiEdit` - MultiEditToolInput
-- `Read` - ReadToolInput
-- `Bash` - BashToolInput
-- `Glob` - GlobToolInput
-- `Grep` - GrepToolInput
+- `Write` — WriteToolInput
+- `Edit` — EditToolInput
+- `MultiEdit` — MultiEditToolInput
+- `Read` — ReadToolInput
+- `Bash` — BashToolInput
+- `Glob` — GlobToolInput
+- `Grep` — GrepToolInput
 
 **Note**: Multi-tool matchers like `'Write|Edit'` or regex patterns like `'.*'` use the non-typed overload where `tool_input` remains `unknown`. Use type guards in those cases.
 

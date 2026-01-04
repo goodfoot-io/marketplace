@@ -1,8 +1,6 @@
-# Installation & Setup
-
 <instructions>
 
-## 1. Quick Start: Scaffolding (Recommended)
+## Quick Start: Scaffolding (Recommended)
 
 The easiest way to start is to scaffold a complete project with TypeScript, testing, and build scripts configured.
 
@@ -12,30 +10,56 @@ npx @goodfoot/claude-code-hooks --scaffold ./my-hooks --hooks Stop,SessionStart 
 ```
 
 **What happens next:**
-1.  `cd my-hooks`
-2.  `npm install`
-3.  `npm run build` (Compiles hooks to `dist/hooks.json`)
-4.  `npm test` (Runs generated tests)
+1. `cd my-hooks`
+2. `npm install`
+3. `npm run build` (Compiles hooks to the `-o` path)
+4. `npm test` (Runs generated tests)
 
 **Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`
 
-## 2. Manual Setup (Alternative)
+### Scaffolding for Monorepos
+
+Scaffolding works for monorepos — use `-o` to output directly to a plugin directory:
+
+```bash
+# Scaffold into packages/, output hooks.json to plugins/
+npx @goodfoot/claude-code-hooks --scaffold ./packages/my-hooks \
+  --hooks PreToolUse,PostToolUse \
+  -o ../../plugins/my-plugin/hooks/hooks.json
+```
+
+This generates the build script:
+```json
+"build": "npx -y @goodfoot/claude-code-hooks -i \"src/**/*.ts\" -o \"../../plugins/my-plugin/hooks/hooks.json\""
+```
+
+**One manual adjustment:** If `@goodfoot/claude-code-hooks` is a workspace package, change the dependency:
+```diff
+- "@goodfoot/claude-code-hooks": "^1.0.0"
++ "@goodfoot/claude-code-hooks": "workspace:*"
+```
+
+## Manual Setup (Alternative)
 
 If you prefer to integrate into an existing project:
 
-### 2.1 Prerequisites
+### Prerequisites
+
 - Node.js v20+
 - Package manager: npm, yarn, pnpm, or bun
 - TypeScript project
 
-### 2.2 Install Dependencies
+### Install Dependencies
+
 ```bash
 yarn add @goodfoot/claude-code-hooks
 yarn add -D tsx typescript
 ```
 
-### 2.3 Project Structure
+### Project Structure
+
 We recommend this layout:
+
 ```
 project/
 ├── hooks/
@@ -45,41 +69,49 @@ project/
 │   └── build/               # Compiled output
 ```
 
-### 2.4 The Build System
+### The Build System
+
 Hooks **must be compiled**. Run the build CLI:
+
 ```bash
 npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
 ```
 
-## 3. Configuration
+## Configuration
 
 After building (Scaffolded or Manual), tell Claude where to find the manifest.
 
 **Option A: Standalone Project**
+
 Add absolute path to `~/.claude/config.json`:
+
 ```json
 { "hooks": "/absolute/path/to/your/project/dist/hooks.json" }
 ```
 
 **Option B: Claude Code Plugin**
+
 Plugins auto-load `hooks.json` from the plugin root.
+
 ```bash
 # Build to plugin root
 npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hooks.json"
 ```
 
-## 4. Verification
+## Verification
 
 Test the compiled hook by piping JSON:
+
 ```bash
 echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' | node dist/build/allow-read.*.mjs
 ```
 
-## 5. Monorepo Integration
+## Monorepo Integration
 
 For monorepo workspaces where hooks are in a separate package:
 
 ### Package Structure
+
 ```
 packages/
 ├── my-hooks/                    # Hook source package
@@ -98,6 +130,7 @@ plugins/
 ```
 
 ### package.json
+
 ```json
 {
   "name": "@myorg/hooks",
@@ -122,6 +155,7 @@ plugins/
 The `-o` path is relative to the package directory. Use `../../` to output to a sibling plugin directory.
 
 **Verify the output path:**
+
 ```bash
 cd packages/my-hooks
 npm run build

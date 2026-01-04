@@ -1,21 +1,20 @@
-# Porting Bash Hooks to TypeScript
-
 <instructions>
 
-## 1. The Migration Strategy
+## Migration Strategy
 
 Do not try to "wrap" your bash scripts. Port the logic.
 
 | Feature | Bash | TypeScript (via @goodfoot/claude-code-hooks) |
-| :--- | :--- | :--- |
-| **Input** | `cat` + `jq` | `input` argument (typed, snake_case wire format) |
-| **Logging** | `echo >&2` | `logger.info()` |
-| **Output** | `echo '{"..."}'` | `return builder({})` |
-| **Logic** | `if [[ ... ]]` | `if (input.tool_name === '...')` |
+|---------|------|----------------------------------------------|
+| Input | `cat` + `jq` | `input` argument (typed, snake_case wire format) |
+| Logging | `echo >&2` | `logger.info()` |
+| Output | `echo '{"..."}'` | `return builder({})` |
+| Logic | `if [[ ... ]]` | `if (input.tool_name === '...')` |
 
-## 2. Side-by-Side Example
+## Side-by-Side Example
 
 ### Before: Bash Hook
+
 ```bash
 #!/bin/bash
 INPUT=$(cat)
@@ -31,6 +30,7 @@ echo '{"hookSpecificOutput":{"permissionDecision":"allow"}}'
 ```
 
 ### After: TypeScript Hook
+
 ```typescript
 import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
 
@@ -53,21 +53,24 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 });
 ```
 
-## 3. Key Differences
+## Key Differences
 
-### 3.1 Casing
-*   **Bash:** Receives `tool_name` (snake_case).
-*   **TypeScript:** Also receives `tool_name` (snake_case) - same wire format!
+### Casing
 
-### 3.2 Output
-*   **Bash:** You must manually ensure valid JSON.
-*   **TypeScript:** The builder guarantees valid JSON.
+- **Bash:** Receives `tool_name` (snake_case).
+- **TypeScript:** Also receives `tool_name` (snake_case) — same wire format!
 
-### 3.3 Error Handling
-*   **Bash:** `exit 1` might be ignored or treated as a silent error.
-*   **TypeScript:** Throwing an error (or exit code 2) explicitly blocks Claude.
+### Output
 
-## 4. Testing Your Port
+- **Bash:** You must manually ensure valid JSON.
+- **TypeScript:** The builder guarantees valid JSON.
+
+### Error Handling
+
+- **Bash:** `exit 1` might be ignored or treated as a silent error.
+- **TypeScript:** Throwing an error (or exit code 2) explicitly blocks Claude.
+
+## Testing Your Port
 
 ### Unit Testing with Vitest
 
@@ -132,7 +135,7 @@ echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command"
   | node dist/build/my-hook.*.mjs
 ```
 
-## 5. Executing External Commands
+## Executing External Commands
 
 Many hooks need to run external tools (tsc, eslint, etc.). Use `execSync`:
 
@@ -202,7 +205,7 @@ function runCommand(cmd: string, cwd: string, timeoutMs: number): { ok: boolean;
 - Use `encoding: 'utf-8'` to get string output
 - Set `timeout` on both hook config and execSync (hook timeout should be higher)
 - Pass `env: { ...process.env }` to inherit environment variables
-- `execSync` throws on non-zero exit - always use try/catch
+- `execSync` throws on non-zero exit — always use try/catch
 - Access stderr via `(error as ExecError).stderr`
 - Return empty `postToolUseOutput({})` for silent success
 

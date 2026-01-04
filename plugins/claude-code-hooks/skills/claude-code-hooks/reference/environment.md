@@ -1,8 +1,6 @@
-# Environment & Context
-
 <instructions>
 
-## 1. Getting the Project Directory
+## Getting the Project Directory
 
 ```typescript
 import { getProjectDir } from '@goodfoot/claude-code-hooks';
@@ -17,7 +15,7 @@ Returns the absolute path to the project root (where `.claude/` directory is loc
 - Reading project-specific rules or templates
 - Resolving relative paths in tool inputs
 
-## 2. Persisting Environment Variables
+## Persisting Environment Variables
 
 **Restriction:** You can ONLY persist environment variables during **SessionStart**.
 
@@ -34,7 +32,7 @@ export default sessionStartHook({ matcher: 'startup' }, (input, { logger, persis
 });
 ```
 
-**Using `persistEnvVars` to set multiple variables at once:**
+### Using `persistEnvVars` for Multiple Variables
 
 ```typescript
 export default sessionStartHook({ matcher: 'startup' }, (input, { logger, persistEnvVars }) => {
@@ -50,7 +48,7 @@ export default sessionStartHook({ matcher: 'startup' }, (input, { logger, persis
 
 *Note: `persistEnvVar` and `persistEnvVars` are only available in SessionStart hooks.*
 
-## 3. Hook Context
+## Hook Context
 
 Every hook receives a context object with useful metadata. Use the `logger` to inspect these values safely.
 
@@ -66,7 +64,7 @@ export default preToolUseHook({}, (input, { logger }) => {
 });
 ```
 
-## 4. Other Helpers
+## Other Helpers
 
 ### `isRemoteEnvironment()`
 
