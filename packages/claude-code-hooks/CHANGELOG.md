@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.1
+- Minor improvements and bug fixes
+
 ## 1.0.0
 - Initial release of the Claude Code hooks SDK with type-safe hook handlers for all 12 hook events
 - Added scaffold command (`--scaffold`) to generate new hook projects with TypeScript configuration
