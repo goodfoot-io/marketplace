@@ -100,7 +100,7 @@ export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { log
 
 ## 3. The Golden Path: Scaffolding a New Project
 
-The fastest way to start is using the scaffold command. This generates a complete TypeScript project with tests, linting, and build scripts.
+**Use the scaffold command when setting up new packages.** This generates a complete TypeScript project with tests, linting, and build scripts.
 
 **Scaffold Command:**
 ```bash
