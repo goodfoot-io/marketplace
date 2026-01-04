@@ -1,6 +1,16 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## 1.0.0
+- Initial release of the Claude Code hooks SDK with type-safe hook handlers for all 12 hook events
+- Added scaffold command (`--scaffold`) to generate new hook projects with TypeScript configuration
+- Added typed tool inputs with type guards (isWriteTool, isEditTool, isBashTool, etc.) for safe type narrowing
+- Added utility helpers for common patterns: getFilePath, isJsTsFile, checkContentForPattern
+- Added typed factory function overloads that automatically narrow toolInput type based on matcher
+- Added output builders for constructing hook responses with proper typing
+- Added Logger API with event subscriptions and file output configuration
+- Added automatic hook context detection for agent and plugin directory structures
+- Added environment variable persistence via persistEnvVar for SessionStart hooks
+- Added comprehensive TypeScript type definitions for IDE autocompletion
 
 ## [1.0.0] - 2025-01-03
 
