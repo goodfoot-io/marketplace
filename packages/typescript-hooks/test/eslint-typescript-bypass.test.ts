@@ -4,18 +4,10 @@
 
 import { describe, expect, it } from 'vitest';
 import hook from '../src/eslint-typescript-bypass.js';
-import type { PreToolUseInput } from '@goodfoot/claude-code-hooks';
+import { Logger, type PreToolUseInput } from '@goodfoot/claude-code-hooks';
 
-// Mock logger that captures calls
-function createMockLogger() {
-  return {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {},
-    logError: () => {}
-  };
-}
+// Logger is silent by default (no stdout/stderr output)
+const logger = new Logger();
 
 // Build pattern strings dynamically to avoid self-matching
 const ESLINT = 'eslint';
@@ -57,7 +49,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('allow');
     });
@@ -73,7 +65,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('deny');
     });
@@ -89,7 +81,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('deny');
     });
@@ -105,7 +97,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('deny');
     });
@@ -121,7 +113,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('deny');
     });
@@ -137,7 +129,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('deny');
     });
@@ -156,7 +148,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('allow');
     });
@@ -173,7 +165,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('allow');
     });
@@ -190,7 +182,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('deny');
     });
@@ -207,7 +199,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('allow');
     });
@@ -225,7 +217,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('allow');
     });
@@ -241,7 +233,7 @@ describe('ESLint/TypeScript/Biome Bypass Prevention Hook', () => {
         }
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('allow');
     });

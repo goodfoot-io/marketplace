@@ -40,6 +40,7 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
   if (cmd.includes('rm -rf /')) {
     logger.warn('Blocked dangerous command', { cmd });
     return preToolUseOutput({
+      systemMessage: 'Safety: Dangerous root deletion blocked.',
       hookSpecificOutput: {
         permissionDecision: 'deny',
         permissionDecisionReason: 'Blocked'
@@ -48,6 +49,7 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
   }
 
   return preToolUseOutput({
+    systemMessage: 'Command passed safety check.',
     hookSpecificOutput: { permissionDecision: 'allow' }
   });
 });
@@ -156,7 +158,9 @@ export default postToolUseHook({ matcher: 'Write|Edit', timeout: 60000 }, (input
       stdio: ['pipe', 'pipe', 'pipe']  // Capture stdout and stderr
     });
 
-    return postToolUseOutput({});  // Success - no output needed
+    return postToolUseOutput({
+      systemMessage: 'TypeScript validation passed.'
+    });
   } catch (error) {
     // execSync throws on non-zero exit
     const stderr = (error as { stderr?: Buffer | string }).stderr?.toString() ?? '';
@@ -207,6 +211,6 @@ function runCommand(cmd: string, cwd: string, timeoutMs: number): { ok: boolean;
 - Pass `env: { ...process.env }` to inherit environment variables
 - `execSync` throws on non-zero exit — always use try/catch
 - Access stderr via `(error as ExecError).stderr`
-- Return empty `postToolUseOutput({})` for silent success
+- Use `systemMessage` to provide user-visible feedback for both success and error cases
 
 </instructions>

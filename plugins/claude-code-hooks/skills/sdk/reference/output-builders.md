@@ -40,6 +40,7 @@ import { userPromptSubmitHook, userPromptSubmitOutput } from '@goodfoot/claude-c
 
 export default userPromptSubmitHook({}, (input, { logger }) => {
   return userPromptSubmitOutput({
+    systemMessage: 'Project context injected for this prompt.',
     hookSpecificOutput: {
       additionalContext: JSON.stringify({
         projectName: 'acme-app',
@@ -65,11 +66,15 @@ export default stopHook({}, (_input, { logger }) => {
     logger.info('Blocking stop');
     return stopOutput({
       decision: 'block',
-      reason: 'Cannot stop - pending operations must complete first.'
+      reason: 'Cannot stop - pending operations must complete first.',
+      systemMessage: 'Stop blocked: pending operations in progress.'
     });
   }
 
-  return stopOutput({ decision: 'approve' });
+  return stopOutput({
+    decision: 'approve',
+    systemMessage: 'Session stopping normally.'
+  });
 });
 ```
 
@@ -82,6 +87,7 @@ import { postToolUseHook, postToolUseOutput } from '@goodfoot/claude-code-hooks'
 
 export default postToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
   return postToolUseOutput({
+    systemMessage: 'Bash command executed and validated.',
     hookSpecificOutput: {
       additionalContext: 'Command completed successfully. You may proceed.'
     }
@@ -105,6 +111,7 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
   if (command.startsWith('curl')) {
     logger.info('Denying curl command', { command });
     return preToolUseOutput({
+      systemMessage: 'Security policy: curl commands are blocked.',
       hookSpecificOutput: {
         permissionDecision: 'deny',
         permissionDecisionReason: 'Network requests via curl are disabled.'
@@ -112,7 +119,9 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
     });
   }
 
-  return preToolUseOutput({});
+  return preToolUseOutput({
+    systemMessage: 'Command allowed by security policy.'
+  });
 });
 ```
 
@@ -135,6 +144,7 @@ export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { log
   if (result?.isAddition) {
     logger.warn('Blocking console.log addition', { matches: result.matches });
     return preToolUseOutput({
+      systemMessage: 'Code quality: console.log statements are not allowed.',
       hookSpecificOutput: {
         permissionDecision: 'deny',
         permissionDecisionReason: `Cannot add console.log: ${result.matches.join(', ')}`
@@ -142,7 +152,9 @@ export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { log
     });
   }
 
-  return preToolUseOutput({});
+  return preToolUseOutput({
+    systemMessage: 'File modification validated.'
+  });
 });
 ```
 
@@ -189,13 +201,16 @@ export default postToolUseHook({ matcher: 'Write|Edit|MultiEdit', timeout: 60000
       timeout: 30000,
       env: { ...process.env }
     });
-    return postToolUseOutput({});  // Success - no output needed
+    return postToolUseOutput({
+      systemMessage: 'TypeScript validation passed.'
+    });
   } catch (error) {
     const stderr = (error as { stderr?: string }).stderr ?? '';
     logger.warn('TypeScript errors detected', { file: filePath });
 
     // Return errors as structured context - Claude will see this
     return postToolUseOutput({
+      systemMessage: 'TypeScript errors detected. Please fix before proceeding.',
       hookSpecificOutput: {
         additionalContext: `TypeScript errors:\n${stderr}`
       }
@@ -230,13 +245,16 @@ export default sessionStartHook({ matcher: 'startup' }, async (input, { logger }
     logger.info('Injecting CONTRIBUTING.md', { path: configPath });
 
     return sessionStartOutput({
+      systemMessage: 'Project contributing guidelines loaded.',
       hookSpecificOutput: {
         additionalContext: `Project Guidelines:\n${content.slice(0, 1000)}...`
       }
     });
   } catch (error) {
     logger.debug('No CONTRIBUTING.md found', { error: String(error) });
-    return sessionStartOutput({});
+    return sessionStartOutput({
+      systemMessage: 'Session started (no contributing guidelines found).'
+    });
   }
 });
 ```
@@ -259,6 +277,7 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
     } catch {
       logger.warn('Blocked publish: missing .npmrc');
       return preToolUseOutput({
+        systemMessage: 'Publish blocked: .npmrc configuration file is required.',
         hookSpecificOutput: {
           permissionDecision: 'deny',
           permissionDecisionReason: 'Safety Check: .npmrc is missing. Cannot publish.'
@@ -267,7 +286,9 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
     }
   }
 
-  return preToolUseOutput({});
+  return preToolUseOutput({
+    systemMessage: 'Command pre-check passed.'
+  });
 });
 ```
 

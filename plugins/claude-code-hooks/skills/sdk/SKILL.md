@@ -49,7 +49,9 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
     logger.warn('Blocked dangerous root deletion', { command });
 
     // 7. Return structured output using the builder.
+    // 8. systemMessage is shown to the user in the UI.
     return preToolUseOutput({
+      systemMessage: 'Safety: Dangerous root deletion command blocked.',
       hookSpecificOutput: {
         permissionDecision: 'deny',
         permissionDecisionReason: 'Safety Policy: Root deletion is forbidden.'
@@ -57,8 +59,10 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
     });
   }
 
-  // 8. Default: Allow execution.
-  return preToolUseOutput({});
+  // 9. Default: Allow execution with a status message.
+  return preToolUseOutput({
+    systemMessage: 'Command validated by safety policy.'
+  });
 });
 ```
 
@@ -80,6 +84,7 @@ export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { log
   const result = checkContentForPattern(input, /console\.log/g);
   if (result?.isAddition) {
     return preToolUseOutput({
+      systemMessage: 'Code quality: console.log statements are not permitted.',
       hookSpecificOutput: {
         permissionDecision: 'deny',
         permissionDecisionReason: `Cannot add console.log: ${result.matches.join(', ')}`
@@ -87,7 +92,9 @@ export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { log
     });
   }
 
-  return preToolUseOutput({});
+  return preToolUseOutput({
+    systemMessage: 'File modification approved.'
+  });
 });
 ```
 
@@ -163,13 +170,16 @@ export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { log
 
   if (violations.length > 0) {
     return preToolUseOutput({
+      systemMessage: `Code quality: ${violations.length} bypass pattern(s) blocked.`,
       hookSpecificOutput: {
         permissionDecision: 'deny',
         permissionDecisionReason: `Cannot add: ${violations.join(', ')}`
       }
     });
   }
-  return preToolUseOutput({});
+  return preToolUseOutput({
+    systemMessage: 'File passed code quality checks.'
+  });
 });
 ```
 
@@ -186,10 +196,13 @@ export default postToolUseHook({ matcher: 'Write|Edit|MultiEdit', timeout: 60000
 
   try {
     execSync('tsc --noEmit', { cwd: input.cwd, encoding: 'utf-8', timeout: 30000 });
-    return postToolUseOutput({});  // Silent success
+    return postToolUseOutput({
+      systemMessage: 'TypeScript validation passed.'
+    });
   } catch (error) {
     const stderr = (error as { stderr?: string }).stderr ?? '';
     return postToolUseOutput({
+      systemMessage: 'TypeScript errors found. Please fix before proceeding.',
       hookSpecificOutput: { additionalContext: `TypeScript errors:\n${stderr}` }
     });
   }

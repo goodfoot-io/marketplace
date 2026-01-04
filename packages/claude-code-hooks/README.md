@@ -28,11 +28,14 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 
   if (command.trim() === 'ls') {
     return preToolUseOutput({
+      systemMessage: 'Auto-approved: ls command is safe.',
       hookSpecificOutput: { permissionDecision: 'allow' }
     });
   }
 
-  return preToolUseOutput({}); // Pass through
+  return preToolUseOutput({
+    systemMessage: 'Command passed through for review.'
+  });
 });
 ```
 
@@ -180,9 +183,9 @@ Don't construct raw JSON. Use the builders to ensure wire-format compatibility.
 
 ### The Logger
 
-Logs are written to a file, not the console.
+The Logger is **silent by default** — no output to stdout, stderr, or files unless explicitly configured. This design ensures hooks never corrupt the JSON protocol.
 
-**Enable logging:**
+**Enable file logging:**
 
 ```bash
 # Option A: Environment Variable
@@ -197,6 +200,31 @@ npx -y @goodfoot/claude-code-hooks ... --log /tmp/claude-hooks.log
 ```bash
 tail -f /tmp/claude-hooks.log | jq
 ```
+
+**Programmatic usage:**
+
+The `Logger` class can be instantiated directly for testing or advanced use cases:
+
+```typescript
+import { Logger } from '@goodfoot/claude-code-hooks';
+
+// Silent by default — perfect for unit tests
+const logger = new Logger();
+
+// With file output
+const fileLogger = new Logger({ logFilePath: '/tmp/my-hooks.log' });
+
+// Subscribe to events programmatically
+const unsubscribe = logger.on('error', (event) => {
+  sendToMonitoring(event);
+});
+
+// Clean up when done
+unsubscribe();
+fileLogger.close();
+```
+
+See the skill documentation for event subscription, log levels, and debugging tips.
 
 ---
 

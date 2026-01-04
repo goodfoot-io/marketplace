@@ -30,6 +30,14 @@ import { scaffoldProject } from './scaffold.js';
 // ============================================================================
 
 /**
+ * Hook context determines how paths are resolved in hooks.json.
+ *
+ * - `plugin`: Uses `${CLAUDE_PLUGIN_ROOT:-./}` for plugin hooks
+ * - `agent`: Uses `"$CLAUDE_PROJECT_DIR"` for agent hooks (.claude/hooks/)
+ */
+type HookContext = 'plugin' | 'agent';
+
+/**
  * Command-line arguments parsed from process.argv.
  */
 interface CliArgs {
@@ -706,13 +714,70 @@ function groupHooksByEventAndMatcher(
 }
 
 /**
+ * Auto-detects the hook context based on directory structure.
+ *
+ * Detection logic:
+ * - If output path contains `.claude/` directory segment → agent context
+ * - If `.claude-plugin/` directory exists relative to output → plugin context
+ * - Default: plugin context
+ * @param outputPath - Absolute path to the hooks.json output file
+ * @returns Detected hook context ('plugin' or 'agent')
+ */
+function detectHookContext(outputPath: string): HookContext {
+  // Normalize path separators for cross-platform compatibility
+  const normalizedPath = outputPath.replace(/\\/g, '/');
+
+  // Check if the output path is within a .claude/ directory (agent hooks)
+  // This matches paths like: /project/.claude/hooks/hooks.json
+  if (normalizedPath.includes('/.claude/')) {
+    return 'agent';
+  }
+
+  // Check if a .claude-plugin/ directory exists relative to the output
+  // Walk up from the output directory to find .claude-plugin/
+  let currentDir = path.dirname(outputPath);
+  const root = path.parse(currentDir).root;
+
+  while (currentDir !== root) {
+    const pluginDir = path.join(currentDir, '.claude-plugin');
+    if (fs.existsSync(pluginDir) && fs.statSync(pluginDir).isDirectory()) {
+      return 'plugin';
+    }
+    currentDir = path.dirname(currentDir);
+  }
+
+  // Default to plugin context
+  return 'plugin';
+}
+
+/**
+ * Generates a command path based on the hook context.
+ *
+ * - `plugin`: Uses `${CLAUDE_PLUGIN_ROOT:-./}/build/filename` for plugin hooks
+ * - `agent`: Uses `"$CLAUDE_PROJECT_DIR"/build/filename` for agent hooks (.claude/hooks/)
+ * @param filename - The compiled hook filename
+ * @param context - Hook context ('plugin' or 'agent')
+ * @returns The command path string
+ */
+function generateCommandPath(filename: string, context: HookContext): string {
+  if (context === 'agent') {
+    // Agent hooks use $CLAUDE_PROJECT_DIR with shell-style quoting
+    // The build directory is relative to where hooks.json is placed
+    return `"$CLAUDE_PROJECT_DIR"/build/${filename}`;
+  }
+  // Plugin hooks use ${CLAUDE_PLUGIN_ROOT:-./} with fallback
+  return `\${CLAUDE_PLUGIN_ROOT:-./}/build/${filename}`;
+}
+
+/**
  * Generates the hooks.json content in Claude Code's expected format.
  *
  * Format: { hooks: { EventType: [ { matcher?, hooks: [...] } ] } }
  * @param compiledHooks - Array of compiled hooks
+ * @param context - Hook context ('plugin' or 'agent') for path resolution
  * @returns The hooks.json structure
  */
-function generateHooksJson(compiledHooks: CompiledHook[]): HooksJson {
+function generateHooksJson(compiledHooks: CompiledHook[], context: HookContext): HooksJson {
   const groups = groupHooksByEventAndMatcher(compiledHooks);
   const hooks: Partial<Record<HookEventName, MatcherEntry[]>> = {};
 
@@ -723,7 +788,7 @@ function generateHooksJson(compiledHooks: CompiledHook[]): HooksJson {
       const entry: MatcherEntry = {
         hooks: hookList.map((hook) => ({
           type: 'command' as const,
-          command: `\${CLAUDE_PLUGIN_ROOT:-./}/build/${hook.outputFilename}`,
+          command: generateCommandPath(hook.outputFilename, context),
           ...(hook.metadata.timeout !== undefined ? { timeout: hook.metadata.timeout } : {})
         }))
       };
@@ -993,8 +1058,12 @@ async function main(): Promise<void> {
       process.exit(1);
     }
 
+    // Auto-detect hook context based on output path
+    const hookContext = detectHookContext(outputPath);
+    log('info', `Detected hook context: ${hookContext}`);
+
     // Generate hooks.json for newly compiled hooks
-    const newHooksJson = generateHooksJson(compiledHooks);
+    const newHooksJson = generateHooksJson(compiledHooks, hookContext);
 
     // Merge with preserved hooks
     const finalHooksJson = mergeHooksJson(newHooksJson, preservedHooks);
@@ -1058,6 +1127,8 @@ export {
   discoverHookFiles,
   compileHook,
   generateContentHash,
+  detectHookContext,
+  generateCommandPath,
   generateHooksJson,
   groupHooksByEventAndMatcher,
   readExistingHooksJson,

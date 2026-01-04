@@ -7,18 +7,10 @@
 
 import { describe, expect, it } from 'vitest';
 import hook from '../src/typescript-check.js';
-import type { PostToolUseInput } from '@goodfoot/claude-code-hooks';
+import { Logger, type PostToolUseInput } from '@goodfoot/claude-code-hooks';
 
-// Mock logger that captures calls
-function createMockLogger() {
-  return {
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    debug: () => {},
-    logError: () => {}
-  };
-}
+// Logger is silent by default (no stdout/stderr output)
+const logger = new Logger();
 
 describe('TypeScript/ESLint Validation Hook', () => {
   it('exports a valid hook function', () => {
@@ -51,7 +43,7 @@ describe('TypeScript/ESLint Validation Hook', () => {
         tool_result: 'File written successfully'
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       // Should return empty output for non-TS files
       expect(result.stdout.hookSpecificOutput).toBeUndefined();
@@ -69,7 +61,7 @@ describe('TypeScript/ESLint Validation Hook', () => {
         tool_result: 'File written successfully'
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput).toBeUndefined();
     });
@@ -86,7 +78,7 @@ describe('TypeScript/ESLint Validation Hook', () => {
         tool_result: 'File written successfully'
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput).toBeUndefined();
     });
@@ -104,7 +96,7 @@ describe('TypeScript/ESLint Validation Hook', () => {
         tool_result: 'File written successfully'
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       expect(result.stdout.hookSpecificOutput).toBeUndefined();
     });
@@ -121,7 +113,7 @@ describe('TypeScript/ESLint Validation Hook', () => {
         tool_result: 'File written successfully'
       };
 
-      const result = await hook(mockInput, { logger: createMockLogger() });
+      const result = await hook(mockInput, { logger });
 
       // Should return empty output since file doesn't exist
       expect(result.stdout.hookSpecificOutput).toBeUndefined();
@@ -146,7 +138,7 @@ describe('TypeScript/ESLint Validation Hook', () => {
 
         // The hook should attempt to process this file
         // (though it may fail due to missing package.json)
-        const result = await hook(mockInput, { logger: createMockLogger() });
+        const result = await hook(mockInput, { logger });
 
         // Either returns context about missing package.json or processes the file
         expect(result).toBeDefined();

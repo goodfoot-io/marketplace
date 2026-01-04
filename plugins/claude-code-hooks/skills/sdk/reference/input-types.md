@@ -210,6 +210,7 @@ const result = checkContentForPattern(input, /console\.log/g);
 if (result?.isAddition) {
   // Pattern is being added (not already present in old content)
   return preToolUseOutput({
+    systemMessage: 'Code quality: console.log detected and blocked.',
     hookSpecificOutput: {
       permissionDecision: 'deny',
       permissionDecisionReason: `Cannot add: ${result.matches.join(', ')}`
@@ -266,6 +267,7 @@ export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { log
 
   if (violations.length > 0) {
     return preToolUseOutput({
+      systemMessage: `Code quality: ${violations.length} bypass pattern(s) detected.`,
       hookSpecificOutput: {
         permissionDecision: 'deny',
         permissionDecisionReason: `Cannot add: ${violations.join(', ')}`
@@ -273,7 +275,9 @@ export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { log
     });
   }
 
-  return preToolUseOutput({});
+  return preToolUseOutput({
+    systemMessage: 'File passed code quality checks.'
+  });
 });
 ```
 
@@ -307,6 +311,7 @@ export default preToolUseHook({ matcher: 'Write' }, (input) => {
 
   if (file_path.endsWith('.env')) {
     return preToolUseOutput({
+      systemMessage: 'Security: .env files are protected.',
       hookSpecificOutput: {
         permissionDecision: 'deny',
         permissionDecisionReason: 'Cannot write to .env files'
@@ -314,7 +319,9 @@ export default preToolUseHook({ matcher: 'Write' }, (input) => {
     });
   }
 
-  return preToolUseOutput({});
+  return preToolUseOutput({
+    systemMessage: 'File write approved.'
+  });
 });
 ```
 

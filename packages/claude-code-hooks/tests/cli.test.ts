@@ -13,7 +13,14 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { parseArgs, validateArgs, analyzeHookFile, HOOK_FACTORY_TO_EVENT } from '../src/cli.js';
+import {
+  parseArgs,
+  validateArgs,
+  analyzeHookFile,
+  detectHookContext,
+  generateCommandPath,
+  HOOK_FACTORY_TO_EVENT
+} from '../src/cli.js';
 
 describe('HOOK_FACTORY_TO_EVENT', () => {
   it('maps all 12 hook factory names to event names', () => {
@@ -581,5 +588,100 @@ describe('analyzeHookFile', () => {
 
     expect(metadata?.hookEventName).toBe('PreToolUse');
     expect(metadata?.matcher).toBe('Bash|Read|Write');
+  });
+});
+
+describe('detectHookContext', () => {
+  let tempDir: string;
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'context-detect-'));
+  });
+
+  afterEach(() => {
+    // Clean up temp directory recursively
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('returns "agent" for paths within .claude/ directory', () => {
+    const claudeDir = path.join(tempDir, '.claude', 'hooks');
+    fs.mkdirSync(claudeDir, { recursive: true });
+    const outputPath = path.join(claudeDir, 'hooks.json');
+
+    const context = detectHookContext(outputPath);
+
+    expect(context).toBe('agent');
+  });
+
+  it('returns "plugin" when .claude-plugin/ directory exists', () => {
+    // Create a plugin structure
+    const pluginDir = path.join(tempDir, '.claude-plugin');
+    const hooksDir = path.join(tempDir, 'hooks');
+    fs.mkdirSync(pluginDir, { recursive: true });
+    fs.mkdirSync(hooksDir, { recursive: true });
+    const outputPath = path.join(hooksDir, 'hooks.json');
+
+    const context = detectHookContext(outputPath);
+
+    expect(context).toBe('plugin');
+  });
+
+  it('returns "plugin" when .claude-plugin/ exists in parent directory', () => {
+    // Create nested structure with .claude-plugin in parent
+    const pluginDir = path.join(tempDir, '.claude-plugin');
+    const nestedDir = path.join(tempDir, 'src', 'hooks', 'output');
+    fs.mkdirSync(pluginDir, { recursive: true });
+    fs.mkdirSync(nestedDir, { recursive: true });
+    const outputPath = path.join(nestedDir, 'hooks.json');
+
+    const context = detectHookContext(outputPath);
+
+    expect(context).toBe('plugin');
+  });
+
+  it('returns "plugin" as default when no indicators present', () => {
+    const outputDir = path.join(tempDir, 'build');
+    fs.mkdirSync(outputDir, { recursive: true });
+    const outputPath = path.join(outputDir, 'hooks.json');
+
+    const context = detectHookContext(outputPath);
+
+    expect(context).toBe('plugin');
+  });
+
+  it('prioritizes .claude/ path over .claude-plugin/ directory', () => {
+    // Edge case: both indicators present (unusual but possible)
+    const pluginDir = path.join(tempDir, '.claude-plugin');
+    const claudeHooksDir = path.join(tempDir, '.claude', 'hooks');
+    fs.mkdirSync(pluginDir, { recursive: true });
+    fs.mkdirSync(claudeHooksDir, { recursive: true });
+    const outputPath = path.join(claudeHooksDir, 'hooks.json');
+
+    const context = detectHookContext(outputPath);
+
+    // .claude/ in path takes priority
+    expect(context).toBe('agent');
+  });
+});
+
+describe('generateCommandPath', () => {
+  it('generates plugin-style path for plugin context', () => {
+    const result = generateCommandPath('my-hook.abc123.mjs', 'plugin');
+
+    expect(result).toBe('${CLAUDE_PLUGIN_ROOT:-./}/build/my-hook.abc123.mjs');
+  });
+
+  it('generates agent-style path for agent context', () => {
+    const result = generateCommandPath('my-hook.abc123.mjs', 'agent');
+
+    expect(result).toBe('"$CLAUDE_PROJECT_DIR"/build/my-hook.abc123.mjs');
+  });
+
+  it('handles filenames with special characters', () => {
+    const pluginResult = generateCommandPath('pre-tool-use.12345678.mjs', 'plugin');
+    const agentResult = generateCommandPath('pre-tool-use.12345678.mjs', 'agent');
+
+    expect(pluginResult).toBe('${CLAUDE_PLUGIN_ROOT:-./}/build/pre-tool-use.12345678.mjs');
+    expect(agentResult).toBe('"$CLAUDE_PROJECT_DIR"/build/pre-tool-use.12345678.mjs');
   });
 });

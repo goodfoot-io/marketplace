@@ -8,8 +8,9 @@ import { describe, it, expect } from 'vitest';
 import { stopHook, stopOutput, preToolUseHook, preToolUseOutput, Logger } from '../src/index.js';
 
 describe('async handler support', () => {
-  const mockLogger = new Logger();
-  const mockContext = { logger: mockLogger };
+  // Logger is silent by default (no stdout/stderr output) — no mocking needed
+  const logger = new Logger();
+  const context = { logger };
 
   const baseInput = {
     session_id: 'test-session',
@@ -29,7 +30,7 @@ describe('async handler support', () => {
       stop_hook_active: false
     };
 
-    const result = await hook(mockInput, mockContext);
+    const result = await hook(mockInput, context);
     expect(result._type).toBe('Stop');
     expect(result.stdout.decision).toBe('approve');
   });
@@ -46,7 +47,7 @@ describe('async handler support', () => {
       stop_hook_active: false
     };
 
-    const result = await hook(mockInput, mockContext);
+    const result = await hook(mockInput, context);
     expect(result._type).toBe('Stop');
     expect(result.stdout.decision).toBe('block');
     expect(result.stdout.reason).toBe('async reason');
@@ -68,7 +69,7 @@ describe('async handler support', () => {
       tool_use_id: 'test-tool-use-id'
     };
 
-    const result = await hook(mockInput, mockContext);
+    const result = await hook(mockInput, context);
     expect(result._type).toBe('PreToolUse');
     expect(result.stdout.hookSpecificOutput?.hookEventName).toBe('PreToolUse');
   });

@@ -17,67 +17,74 @@
 import type { HookEventName } from './inputs.js';
 import { HOOK_FACTORY_TO_EVENT } from './constants.js';
 /**
+ * Hook context determines how paths are resolved in hooks.json.
+ *
+ * - `plugin`: Uses `${CLAUDE_PLUGIN_ROOT:-./}` for plugin hooks
+ * - `agent`: Uses `"$CLAUDE_PROJECT_DIR"` for agent hooks (.claude/hooks/)
+ */
+type HookContext = 'plugin' | 'agent';
+/**
  * Command-line arguments parsed from process.argv.
  */
 interface CliArgs {
-  /** Glob pattern for hook source files. */
-  input: string;
-  /** Path for hooks.json output file. */
-  output: string;
-  /** Optional log file path. */
-  log?: string;
-  /** Show help. */
-  help: boolean;
-  /** Show version. */
-  version: boolean;
-  /** Directory path for scaffolding a new hook project. */
-  scaffold?: string;
-  /** Comma-separated list of hook types to generate when scaffolding. */
-  hooks?: string;
+    /** Glob pattern for hook source files. */
+    input: string;
+    /** Path for hooks.json output file. */
+    output: string;
+    /** Optional log file path. */
+    log?: string;
+    /** Show help. */
+    help: boolean;
+    /** Show version. */
+    version: boolean;
+    /** Directory path for scaffolding a new hook project. */
+    scaffold?: string;
+    /** Comma-separated list of hook types to generate when scaffolding. */
+    hooks?: string;
 }
 /**
  * Metadata extracted from a hook file via TypeScript AST analysis.
  */
 interface HookMetadata {
-  /** The hook event type (PreToolUse, SessionStart, etc.). */
-  hookEventName: HookEventName;
-  /** Optional matcher pattern from hook config. */
-  matcher?: string;
-  /** Optional timeout in milliseconds from hook config. */
-  timeout?: number;
+    /** The hook event type (PreToolUse, SessionStart, etc.). */
+    hookEventName: HookEventName;
+    /** Optional matcher pattern from hook config. */
+    matcher?: string;
+    /** Optional timeout in milliseconds from hook config. */
+    timeout?: number;
 }
 /**
  * A compiled hook with its metadata and output path.
  */
 interface CompiledHook {
-  /** Original source file path. */
-  sourcePath: string;
-  /** Compiled output file path. */
-  outputPath: string;
-  /** Output filename (e.g., "my-hook.abc123de.mjs"). */
-  outputFilename: string;
-  /** Extracted hook metadata. */
-  metadata: HookMetadata;
+    /** Original source file path. */
+    sourcePath: string;
+    /** Compiled output file path. */
+    outputPath: string;
+    /** Output filename (e.g., "my-hook.abc123de.mjs"). */
+    outputFilename: string;
+    /** Extracted hook metadata. */
+    metadata: HookMetadata;
 }
 /**
  * Individual hook configuration within a matcher group.
  */
 interface HookConfig {
-  /** Hook type - always "command" for compiled hooks. */
-  type: 'command';
-  /** Absolute path to compiled hook executable. */
-  command: string;
-  /** Optional timeout in seconds. */
-  timeout?: number;
+    /** Hook type - always "command" for compiled hooks. */
+    type: 'command';
+    /** Absolute path to compiled hook executable. */
+    command: string;
+    /** Optional timeout in seconds. */
+    timeout?: number;
 }
 /**
  * Matcher group entry within an event type.
  */
 interface MatcherEntry {
-  /** Matcher pattern (tool name, regex, etc.). Optional for some event types. */
-  matcher?: string;
-  /** Array of hook configurations in this matcher group. */
-  hooks: HookConfig[];
+    /** Matcher pattern (tool name, regex, etc.). Optional for some event types. */
+    matcher?: string;
+    /** Array of hook configurations in this matcher group. */
+    hooks: HookConfig[];
 }
 /**
  * The complete hooks.json structure expected by Claude Code.
@@ -85,15 +92,15 @@ interface MatcherEntry {
  * Format: { hooks: { EventType: [ { matcher?, hooks: [...] } ] } }
  */
 interface HooksJson {
-  /** Object keyed by event type (PreToolUse, SessionStart, etc.). */
-  hooks: Partial<Record<HookEventName, MatcherEntry[]>>;
-  /** Generated file tracking metadata. */
-  __generated: {
-    /** Array of generated filenames. */
-    files: string[];
-    /** ISO timestamp of generation. */
-    timestamp: string;
-  };
+    /** Object keyed by event type (PreToolUse, SessionStart, etc.). */
+    hooks: Partial<Record<HookEventName, MatcherEntry[]>>;
+    /** Generated file tracking metadata. */
+    __generated: {
+        /** Array of generated filenames. */
+        files: string[];
+        /** ISO timestamp of generation. */
+        timestamp: string;
+    };
 }
 /**
  * Parses command-line arguments.
@@ -135,12 +142,12 @@ declare function discoverHookFiles(pattern: string, cwd: string): Promise<string
  * Options for compiling a hook.
  */
 interface CompileHookOptions {
-  /** Absolute path to source file. */
-  sourcePath: string;
-  /** Directory for compiled output. */
-  outputDir: string;
-  /** Optional log file path to inject into compiled hook. */
-  logFilePath?: string;
+    /** Absolute path to source file. */
+    sourcePath: string;
+    /** Directory for compiled output. */
+    outputDir: string;
+    /** Optional log file path to inject into compiled hook. */
+    logFilePath?: string;
 }
 /**
  * Compiles a TypeScript hook file to a self-contained ESM executable.
@@ -162,17 +169,37 @@ declare function generateContentHash(content: string): string;
  * @param compiledHooks - Array of compiled hooks
  * @returns Nested map: EventType -> Matcher -> Hooks
  */
-declare function groupHooksByEventAndMatcher(
-  compiledHooks: CompiledHook[]
-): Map<HookEventName, Map<string | undefined, CompiledHook[]>>;
+declare function groupHooksByEventAndMatcher(compiledHooks: CompiledHook[]): Map<HookEventName, Map<string | undefined, CompiledHook[]>>;
+/**
+ * Auto-detects the hook context based on directory structure.
+ *
+ * Detection logic:
+ * - If output path contains `.claude/` directory segment → agent context
+ * - If `.claude-plugin/` directory exists relative to output → plugin context
+ * - Default: plugin context
+ * @param outputPath - Absolute path to the hooks.json output file
+ * @returns Detected hook context ('plugin' or 'agent')
+ */
+declare function detectHookContext(outputPath: string): HookContext;
+/**
+ * Generates a command path based on the hook context.
+ *
+ * - `plugin`: Uses `${CLAUDE_PLUGIN_ROOT:-./}/build/filename` for plugin hooks
+ * - `agent`: Uses `"$CLAUDE_PROJECT_DIR"/build/filename` for agent hooks (.claude/hooks/)
+ * @param filename - The compiled hook filename
+ * @param context - Hook context ('plugin' or 'agent')
+ * @returns The command path string
+ */
+declare function generateCommandPath(filename: string, context: HookContext): string;
 /**
  * Generates the hooks.json content in Claude Code's expected format.
  *
  * Format: { hooks: { EventType: [ { matcher?, hooks: [...] } ] } }
  * @param compiledHooks - Array of compiled hooks
+ * @param context - Hook context ('plugin' or 'agent') for path resolution
  * @returns The hooks.json structure
  */
-declare function generateHooksJson(compiledHooks: CompiledHook[]): HooksJson;
+declare function generateHooksJson(compiledHooks: CompiledHook[], context: HookContext): HooksJson;
 /**
  * Reads an existing hooks.json file if it exists.
  * @param outputPath - Path to the hooks.json file
@@ -200,23 +227,6 @@ declare function extractPreservedHooks(existingHooksJson: HooksJson): Partial<Re
  * @param preservedHooks - Hooks to preserve from the existing hooks.json
  * @returns Merged HooksJson
  */
-declare function mergeHooksJson(
-  newHooksJson: HooksJson,
-  preservedHooks: Partial<Record<HookEventName, MatcherEntry[]>>
-): HooksJson;
-export {
-  parseArgs,
-  validateArgs,
-  analyzeHookFile,
-  discoverHookFiles,
-  compileHook,
-  generateContentHash,
-  generateHooksJson,
-  groupHooksByEventAndMatcher,
-  readExistingHooksJson,
-  removeOldGeneratedFiles,
-  extractPreservedHooks,
-  mergeHooksJson,
-  HOOK_FACTORY_TO_EVENT
-};
+declare function mergeHooksJson(newHooksJson: HooksJson, preservedHooks: Partial<Record<HookEventName, MatcherEntry[]>>): HooksJson;
+export { parseArgs, validateArgs, analyzeHookFile, discoverHookFiles, compileHook, generateContentHash, detectHookContext, generateCommandPath, generateHooksJson, groupHooksByEventAndMatcher, readExistingHooksJson, removeOldGeneratedFiles, extractPreservedHooks, mergeHooksJson, HOOK_FACTORY_TO_EVENT };
 export type { CliArgs, HookMetadata, CompiledHook, HookConfig, MatcherEntry, HooksJson };

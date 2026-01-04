@@ -309,20 +309,56 @@ function generateHookTemplate(eventName: HookEventName): string {
   const outputName = EVENT_TO_OUTPUT_FUNCTION[eventName];
 
   // Generate appropriate return statement based on hook type
+  // All hooks include systemMessage to demonstrate the pattern
   let returnStatement: string;
   switch (eventName) {
     case 'Stop':
     case 'SubagentStop':
-      returnStatement = `return ${outputName}({ decision: "approve" });`;
+      returnStatement = `return ${outputName}({
+    decision: "approve",
+    systemMessage: "${eventName} hook executed successfully.",
+  });`;
       break;
     case 'PreToolUse':
       returnStatement = `return ${outputName}({
+    systemMessage: "Tool execution allowed by ${eventName} hook.",
     hookSpecificOutput: { permissionDecision: "allow" },
   });`;
       break;
+    case 'PostToolUse':
+    case 'PostToolUseFailure':
+      returnStatement = `return ${outputName}({
+    systemMessage: "${eventName} hook processed the result.",
+    hookSpecificOutput: { additionalContext: "Hook completed successfully." },
+  });`;
+      break;
+    case 'SessionStart':
+      returnStatement = `return ${outputName}({
+    systemMessage: "Session initialized by ${eventName} hook.",
+    hookSpecificOutput: { additionalContext: "Environment ready." },
+  });`;
+      break;
+    case 'UserPromptSubmit':
+      returnStatement = `return ${outputName}({
+    systemMessage: "User prompt received.",
+    hookSpecificOutput: { additionalContext: "Prompt processed by hook." },
+  });`;
+      break;
+    case 'PreCompact':
+      returnStatement = `return ${outputName}({
+    systemMessage: "Remember: Context is being compacted.",
+  });`;
+      break;
+    case 'PermissionRequest':
+      returnStatement = `return ${outputName}({
+    systemMessage: "Permission request processed.",
+  });`;
+      break;
     default:
-      // All other hooks use empty output (pass-through)
-      returnStatement = `return ${outputName}({});`;
+      // SessionEnd, Notification, SubagentStart use simple output with systemMessage
+      returnStatement = `return ${outputName}({
+    systemMessage: "${eventName} hook executed.",
+  });`;
   }
 
   // SessionStart hooks get extended context with persistEnvVar
@@ -348,27 +384,32 @@ export default ${factoryName}({}, (input, ${contextDestructure}) => {
  *
  * Uses double quotes, alphabetical import order (describe, expect, it),
  * and trailing commas to match biome's formatting preferences.
+ * Uses the real Logger class (silent by default) instead of mocks.
  * @param eventName - Hook event name (e.g., 'Stop')
  * @param hookFilename - Kebab-case filename of the hook (e.g., 'stop')
  * @returns TypeScript content for the test file
  */
 function generateTestFile(eventName: HookEventName, hookFilename: string): string {
   // SessionStart hooks need extended context with persistEnvVar
-  const mockContextCode =
+  const contextCode =
     eventName === 'SessionStart'
       ? `{
-      logger: mockLogger,
+      logger,
       persistEnvVar: () => {},
       persistEnvVars: () => {},
     }`
-      : '{ logger: mockLogger }';
+      : '{ logger }';
 
   return `/**
  * Tests for the ${eventName} hook.
  */
 
 import { describe, expect, it } from "vitest";
+import { Logger } from "@goodfoot/claude-code-hooks";
 import hook from "../src/${hookFilename}.js";
+
+// Logger is silent by default (no stdout/stderr output) — no mocking needed
+const logger = new Logger();
 
 describe("${eventName} Hook", () => {
   it("exports a valid hook function", () => {
@@ -381,18 +422,10 @@ describe("${eventName} Hook", () => {
   });
 
   it("returns a valid output shape", async () => {
-    // Create minimal mock input and logger
     const mockInput = {} as Parameters<typeof hook>[0];
-    const mockLogger = {
-      info: () => {},
-      warn: () => {},
-      error: () => {},
-      debug: () => {},
-      logError: () => {},
-    };
-    const mockContext = ${mockContextCode};
+    const context = ${contextCode};
 
-    const result = await hook(mockInput, mockContext);
+    const result = await hook(mockInput, context);
 
     // Verify output has expected structure
     expect(result).toBeDefined();
