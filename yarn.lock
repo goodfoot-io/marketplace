@@ -10085,18 +10085,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jest-mock-prevention-hooks@workspace:packages/jest-mock-prevention":
-  version: 0.0.0-use.local
-  resolution: "jest-mock-prevention-hooks@workspace:packages/jest-mock-prevention"
-  dependencies:
-    "@biomejs/biome": "npm:^1.9.0"
-    "@goodfoot/claude-code-hooks": "workspace:*"
-    "@types/node": "npm:^20.0.0"
-    typescript: "npm:^5.6.0"
-    vitest: "npm:^2.0.0"
-  languageName: unknown
-  linkType: soft
-
 "jest-mock@npm:30.2.0":
   version: 30.2.0
   resolution: "jest-mock@npm:30.2.0"
