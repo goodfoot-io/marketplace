@@ -6,7 +6,7 @@ This package is not just a library; it is a **build system** and a **runtime wra
 
 ## Skills
 
-Load the "claude-code-hooks:sdk" skill to enable Claude to use this package. 
+Load the "claude-code-hooks:sdk" skill to enable Claude to use this package.
 
 Run:
 
