@@ -608,9 +608,10 @@ describe('detectHookContext', () => {
     fs.mkdirSync(claudeDir, { recursive: true });
     const outputPath = path.join(claudeDir, 'hooks.json');
 
-    const context = detectHookContext(outputPath);
+    const result = detectHookContext(outputPath);
 
-    expect(context).toBe('agent');
+    expect(result.context).toBe('agent');
+    expect(result.rootDir).toBe(tempDir);
   });
 
   it('returns "plugin" when .claude-plugin/ directory exists', () => {
@@ -621,9 +622,10 @@ describe('detectHookContext', () => {
     fs.mkdirSync(hooksDir, { recursive: true });
     const outputPath = path.join(hooksDir, 'hooks.json');
 
-    const context = detectHookContext(outputPath);
+    const result = detectHookContext(outputPath);
 
-    expect(context).toBe('plugin');
+    expect(result.context).toBe('plugin');
+    expect(result.rootDir).toBe(tempDir);
   });
 
   it('returns "plugin" when .claude-plugin/ exists in parent directory', () => {
@@ -634,9 +636,10 @@ describe('detectHookContext', () => {
     fs.mkdirSync(nestedDir, { recursive: true });
     const outputPath = path.join(nestedDir, 'hooks.json');
 
-    const context = detectHookContext(outputPath);
+    const result = detectHookContext(outputPath);
 
-    expect(context).toBe('plugin');
+    expect(result.context).toBe('plugin');
+    expect(result.rootDir).toBe(tempDir);
   });
 
   it('returns "plugin" as default when no indicators present', () => {
@@ -644,9 +647,11 @@ describe('detectHookContext', () => {
     fs.mkdirSync(outputDir, { recursive: true });
     const outputPath = path.join(outputDir, 'hooks.json');
 
-    const context = detectHookContext(outputPath);
+    const result = detectHookContext(outputPath);
 
-    expect(context).toBe('plugin');
+    expect(result.context).toBe('plugin');
+    // When no indicators, rootDir is the output directory's parent
+    expect(result.rootDir).toBe(outputDir);
   });
 
   it('prioritizes .claude/ path over .claude-plugin/ directory', () => {
@@ -657,31 +662,49 @@ describe('detectHookContext', () => {
     fs.mkdirSync(claudeHooksDir, { recursive: true });
     const outputPath = path.join(claudeHooksDir, 'hooks.json');
 
-    const context = detectHookContext(outputPath);
+    const result = detectHookContext(outputPath);
 
     // .claude/ in path takes priority
-    expect(context).toBe('agent');
+    expect(result.context).toBe('agent');
+    expect(result.rootDir).toBe(tempDir);
   });
 });
 
 describe('generateCommandPath', () => {
   it('generates plugin-style path for plugin context', () => {
-    const result = generateCommandPath('my-hook.abc123.mjs', 'plugin');
+    const contextInfo = { context: 'plugin' as const, rootDir: '/workspace/plugins/my-plugin' };
+    const buildDir = '/workspace/plugins/my-plugin/hooks/build';
+    const result = generateCommandPath('my-hook.abc123.mjs', buildDir, contextInfo);
 
-    expect(result).toBe('${CLAUDE_PLUGIN_ROOT:-./}/build/my-hook.abc123.mjs');
+    expect(result).toBe('$CLAUDE_PLUGIN_ROOT/hooks/build/my-hook.abc123.mjs');
   });
 
   it('generates agent-style path for agent context', () => {
-    const result = generateCommandPath('my-hook.abc123.mjs', 'agent');
+    const contextInfo = { context: 'agent' as const, rootDir: '/workspace/my-project' };
+    const buildDir = '/workspace/my-project/.claude/hooks/build';
+    const result = generateCommandPath('my-hook.abc123.mjs', buildDir, contextInfo);
 
-    expect(result).toBe('"$CLAUDE_PROJECT_DIR"/build/my-hook.abc123.mjs');
+    expect(result).toBe('"$CLAUDE_PROJECT_DIR"/.claude/hooks/build/my-hook.abc123.mjs');
   });
 
   it('handles filenames with special characters', () => {
-    const pluginResult = generateCommandPath('pre-tool-use.12345678.mjs', 'plugin');
-    const agentResult = generateCommandPath('pre-tool-use.12345678.mjs', 'agent');
+    const pluginContext = { context: 'plugin' as const, rootDir: '/workspace/plugins/test' };
+    const pluginBuildDir = '/workspace/plugins/test/hooks/build';
+    const pluginResult = generateCommandPath('pre-tool-use.12345678.mjs', pluginBuildDir, pluginContext);
 
-    expect(pluginResult).toBe('${CLAUDE_PLUGIN_ROOT:-./}/build/pre-tool-use.12345678.mjs');
-    expect(agentResult).toBe('"$CLAUDE_PROJECT_DIR"/build/pre-tool-use.12345678.mjs');
+    const agentContext = { context: 'agent' as const, rootDir: '/workspace/project' };
+    const agentBuildDir = '/workspace/project/.claude/hooks/build';
+    const agentResult = generateCommandPath('pre-tool-use.12345678.mjs', agentBuildDir, agentContext);
+
+    expect(pluginResult).toBe('$CLAUDE_PLUGIN_ROOT/hooks/build/pre-tool-use.12345678.mjs');
+    expect(agentResult).toBe('"$CLAUDE_PROJECT_DIR"/.claude/hooks/build/pre-tool-use.12345678.mjs');
+  });
+
+  it('handles build directory directly under root', () => {
+    const contextInfo = { context: 'plugin' as const, rootDir: '/workspace/plugins/simple' };
+    const buildDir = '/workspace/plugins/simple/build';
+    const result = generateCommandPath('hook.mjs', buildDir, contextInfo);
+
+    expect(result).toBe('$CLAUDE_PLUGIN_ROOT/build/hook.mjs');
   });
 });

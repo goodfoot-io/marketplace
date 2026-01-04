@@ -171,35 +171,49 @@ declare function generateContentHash(content: string): string;
  */
 declare function groupHooksByEventAndMatcher(compiledHooks: CompiledHook[]): Map<HookEventName, Map<string | undefined, CompiledHook[]>>;
 /**
- * Auto-detects the hook context based on directory structure.
+ * Result of detecting the hook context, including the root directory.
+ */
+interface HookContextInfo {
+    /** Hook context type. */
+    context: HookContext;
+    /** Absolute path to the root directory (plugin root or project root). */
+    rootDir: string;
+}
+/**
+ * Auto-detects the hook context and root directory based on directory structure.
  *
  * Detection logic:
- * - If output path contains `.claude/` directory segment → agent context
- * - If `.claude-plugin/` directory exists relative to output → plugin context
- * - Default: plugin context
+ * - If output path contains `.claude/` directory segment → agent context, root is parent of .claude/
+ * - If `.claude-plugin/` directory exists relative to output → plugin context, root is that directory
+ * - Default: plugin context with build directory's parent as root
  * @param outputPath - Absolute path to the hooks.json output file
- * @returns Detected hook context ('plugin' or 'agent')
+ * @returns Detected hook context and root directory
  */
-declare function detectHookContext(outputPath: string): HookContext;
+declare function detectHookContext(outputPath: string): HookContextInfo;
 /**
  * Generates a command path based on the hook context.
  *
- * - `plugin`: Uses `${CLAUDE_PLUGIN_ROOT:-./}/build/filename` for plugin hooks
- * - `agent`: Uses `"$CLAUDE_PROJECT_DIR"/build/filename` for agent hooks (.claude/hooks/)
+ * Calculates the relative path from the root directory to the build directory
+ * and uses the appropriate environment variable.
+ *
+ * - `plugin`: Uses `$CLAUDE_PLUGIN_ROOT/<relative-path>/filename`
+ * - `agent`: Uses `"$CLAUDE_PROJECT_DIR"/<relative-path>/filename`
  * @param filename - The compiled hook filename
- * @param context - Hook context ('plugin' or 'agent')
+ * @param buildDir - Absolute path to the build directory
+ * @param contextInfo - Hook context info including root directory
  * @returns The command path string
  */
-declare function generateCommandPath(filename: string, context: HookContext): string;
+declare function generateCommandPath(filename: string, buildDir: string, contextInfo: HookContextInfo): string;
 /**
  * Generates the hooks.json content in Claude Code's expected format.
  *
  * Format: { hooks: { EventType: [ { matcher?, hooks: [...] } ] } }
  * @param compiledHooks - Array of compiled hooks
- * @param context - Hook context ('plugin' or 'agent') for path resolution
+ * @param buildDir - Absolute path to the build directory
+ * @param contextInfo - Hook context info for path resolution
  * @returns The hooks.json structure
  */
-declare function generateHooksJson(compiledHooks: CompiledHook[], context: HookContext): HooksJson;
+declare function generateHooksJson(compiledHooks: CompiledHook[], buildDir: string, contextInfo: HookContextInfo): HooksJson;
 /**
  * Reads an existing hooks.json file if it exists.
  * @param outputPath - Path to the hooks.json file

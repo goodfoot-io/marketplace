@@ -714,23 +714,37 @@ function groupHooksByEventAndMatcher(
 }
 
 /**
- * Auto-detects the hook context based on directory structure.
+ * Result of detecting the hook context, including the root directory.
+ */
+interface HookContextInfo {
+  /** Hook context type. */
+  context: HookContext;
+  /** Absolute path to the root directory (plugin root or project root). */
+  rootDir: string;
+}
+
+/**
+ * Auto-detects the hook context and root directory based on directory structure.
  *
  * Detection logic:
- * - If output path contains `.claude/` directory segment → agent context
- * - If `.claude-plugin/` directory exists relative to output → plugin context
- * - Default: plugin context
+ * - If output path contains `.claude/` directory segment → agent context, root is parent of .claude/
+ * - If `.claude-plugin/` directory exists relative to output → plugin context, root is that directory
+ * - Default: plugin context with build directory's parent as root
  * @param outputPath - Absolute path to the hooks.json output file
- * @returns Detected hook context ('plugin' or 'agent')
+ * @returns Detected hook context and root directory
  */
-function detectHookContext(outputPath: string): HookContext {
+function detectHookContext(outputPath: string): HookContextInfo {
   // Normalize path separators for cross-platform compatibility
   const normalizedPath = outputPath.replace(/\\/g, '/');
 
   // Check if the output path is within a .claude/ directory (agent hooks)
   // This matches paths like: /project/.claude/hooks/hooks.json
-  if (normalizedPath.includes('/.claude/')) {
-    return 'agent';
+  const claudeMatch = normalizedPath.match(/^(.+)\/\.claude\//);
+  if (claudeMatch !== null) {
+    return {
+      context: 'agent',
+      rootDir: claudeMatch[1]
+    };
   }
 
   // Check if a .claude-plugin/ directory exists relative to the output
@@ -741,32 +755,46 @@ function detectHookContext(outputPath: string): HookContext {
   while (currentDir !== root) {
     const pluginDir = path.join(currentDir, '.claude-plugin');
     if (fs.existsSync(pluginDir) && fs.statSync(pluginDir).isDirectory()) {
-      return 'plugin';
+      return {
+        context: 'plugin',
+        rootDir: currentDir
+      };
     }
     currentDir = path.dirname(currentDir);
   }
 
-  // Default to plugin context
-  return 'plugin';
+  // Default to plugin context with output directory as root
+  return {
+    context: 'plugin',
+    rootDir: path.dirname(outputPath)
+  };
 }
 
 /**
  * Generates a command path based on the hook context.
  *
- * - `plugin`: Uses `${CLAUDE_PLUGIN_ROOT:-./}/build/filename` for plugin hooks
- * - `agent`: Uses `"$CLAUDE_PROJECT_DIR"/build/filename` for agent hooks (.claude/hooks/)
+ * Calculates the relative path from the root directory to the build directory
+ * and uses the appropriate environment variable.
+ *
+ * - `plugin`: Uses `$CLAUDE_PLUGIN_ROOT/<relative-path>/filename`
+ * - `agent`: Uses `"$CLAUDE_PROJECT_DIR"/<relative-path>/filename`
  * @param filename - The compiled hook filename
- * @param context - Hook context ('plugin' or 'agent')
+ * @param buildDir - Absolute path to the build directory
+ * @param contextInfo - Hook context info including root directory
  * @returns The command path string
  */
-function generateCommandPath(filename: string, context: HookContext): string {
-  if (context === 'agent') {
+function generateCommandPath(filename: string, buildDir: string, contextInfo: HookContextInfo): string {
+  // Calculate relative path from root to build directory
+  const relativeBuildPath = path.relative(contextInfo.rootDir, buildDir);
+  // Normalize to forward slashes for cross-platform compatibility
+  const normalizedRelativePath = relativeBuildPath.replace(/\\/g, '/');
+
+  if (contextInfo.context === 'agent') {
     // Agent hooks use $CLAUDE_PROJECT_DIR with shell-style quoting
-    // The build directory is relative to where hooks.json is placed
-    return `"$CLAUDE_PROJECT_DIR"/build/${filename}`;
+    return `"$CLAUDE_PROJECT_DIR"/${normalizedRelativePath}/${filename}`;
   }
-  // Plugin hooks use ${CLAUDE_PLUGIN_ROOT:-./} with fallback
-  return `\${CLAUDE_PLUGIN_ROOT:-./}/build/${filename}`;
+  // Plugin hooks use $CLAUDE_PLUGIN_ROOT
+  return `$CLAUDE_PLUGIN_ROOT/${normalizedRelativePath}/${filename}`;
 }
 
 /**
@@ -774,10 +802,11 @@ function generateCommandPath(filename: string, context: HookContext): string {
  *
  * Format: { hooks: { EventType: [ { matcher?, hooks: [...] } ] } }
  * @param compiledHooks - Array of compiled hooks
- * @param context - Hook context ('plugin' or 'agent') for path resolution
+ * @param buildDir - Absolute path to the build directory
+ * @param contextInfo - Hook context info for path resolution
  * @returns The hooks.json structure
  */
-function generateHooksJson(compiledHooks: CompiledHook[], context: HookContext): HooksJson {
+function generateHooksJson(compiledHooks: CompiledHook[], buildDir: string, contextInfo: HookContextInfo): HooksJson {
   const groups = groupHooksByEventAndMatcher(compiledHooks);
   const hooks: Partial<Record<HookEventName, MatcherEntry[]>> = {};
 
@@ -788,7 +817,7 @@ function generateHooksJson(compiledHooks: CompiledHook[], context: HookContext):
       const entry: MatcherEntry = {
         hooks: hookList.map((hook) => ({
           type: 'command' as const,
-          command: generateCommandPath(hook.outputFilename, context),
+          command: generateCommandPath(hook.outputFilename, buildDir, contextInfo),
           ...(hook.metadata.timeout !== undefined ? { timeout: hook.metadata.timeout } : {})
         }))
       };
@@ -1060,10 +1089,10 @@ async function main(): Promise<void> {
 
     // Auto-detect hook context based on output path
     const hookContext = detectHookContext(outputPath);
-    log('info', `Detected hook context: ${hookContext}`);
+    log('info', `Detected hook context: ${hookContext.context}`, { rootDir: hookContext.rootDir });
 
     // Generate hooks.json for newly compiled hooks
-    const newHooksJson = generateHooksJson(compiledHooks, hookContext);
+    const newHooksJson = generateHooksJson(compiledHooks, buildDir, hookContext);
 
     // Merge with preserved hooks
     const finalHooksJson = mergeHooksJson(newHooksJson, preservedHooks);
