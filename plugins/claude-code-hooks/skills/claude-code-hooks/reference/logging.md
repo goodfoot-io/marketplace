@@ -39,6 +39,27 @@ tail -f /tmp/claude-hooks.log | jq
 
 *Tip: Use `jq` to make the JSON lines readable.*
 
+### Log Output Format
+
+Each log entry is a JSON line:
+
+```json
+{"level":"info","message":"Hook started","context":{"tool":"Bash"},"timestamp":"2024-01-15T10:30:00.000Z","hookType":"PreToolUse"}
+```
+
+Use `jq` filters to find specific logs:
+
+```bash
+# Show only warnings and errors
+tail -f /tmp/claude-hooks.log | jq 'select(.level == "warn" or .level == "error")'
+
+# Filter by hook type
+tail -f /tmp/claude-hooks.log | jq 'select(.hookType == "PostToolUse")'
+
+# Search for specific message content
+tail -f /tmp/claude-hooks.log | jq 'select(.message | contains("blocked"))'
+```
+
 ## 4. Using the Logger
 
 The `logger` is injected into your hook context.

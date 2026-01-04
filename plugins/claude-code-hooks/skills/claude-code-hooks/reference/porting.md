@@ -71,14 +71,107 @@ export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
 
 ## 4. Testing Your Port
 
-Use the same JSON payload to test both:
+### Unit Testing with Vitest
+
+The scaffolded project includes Vitest. Here's how to test your hooks:
+
+```typescript
+// test/my-hook.test.ts
+import { describe, it, expect, vi } from 'vitest';
+import hook from '../src/my-hook.js';
+
+describe('MyHook', () => {
+  const mockLogger = {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    logError: vi.fn(),
+  };
+
+  it('allows safe commands', async () => {
+    const input = {
+      hookEventName: 'PreToolUse' as const,
+      toolName: 'Bash',
+      toolInput: { command: 'echo hello' },
+      toolUseId: 'test-123',
+      sessionId: 'session-1',
+      transcriptPath: '/tmp/transcript.jsonl',
+      cwd: '/workspace',
+    };
+
+    const result = await hook(input, { logger: mockLogger });
+
+    expect(result._type).toBe('PreToolUse');
+    expect(result.stdout.hookSpecificOutput?.permissionDecision).toBeUndefined();
+  });
+
+  it('blocks dangerous commands', async () => {
+    const input = {
+      hookEventName: 'PreToolUse' as const,
+      toolName: 'Bash',
+      toolInput: { command: 'rm -rf /' },
+      toolUseId: 'test-456',
+      sessionId: 'session-1',
+      transcriptPath: '/tmp/transcript.jsonl',
+      cwd: '/workspace',
+    };
+
+    const result = await hook(input, { logger: mockLogger });
+
+    expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe('deny');
+  });
+});
+```
+
+### Manual Integration Testing
+
+Test the compiled hook with real JSON:
 
 ```bash
-# Test Bash
-echo '{"tool_name":"Bash"}' | ./hooks/old-hook.sh
-
-# Test Compiled TS
-echo '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' | node dist/new-hook.*.mjs
+# After running: npm run build
+echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"},"session_id":"test","cwd":"/tmp","transcript_path":"/tmp/t.jsonl","tool_use_id":"123"}' \
+  | node dist/build/my-hook.*.mjs
 ```
+
+## 5. Executing External Commands
+
+Many hooks need to run external tools (tsc, eslint, etc.). Use `execSync`:
+
+```typescript
+import { execSync } from 'child_process';
+import { postToolUseHook, postToolUseOutput } from '@goodfoot/claude-code-hooks';
+
+export default postToolUseHook({ matcher: 'Write|Edit' }, (input, { logger }) => {
+  try {
+    // Run tsc and capture output
+    execSync('tsc --noEmit', {
+      cwd: input.cwd,
+      encoding: 'utf-8',
+      timeout: 30000,
+      stdio: ['pipe', 'pipe', 'pipe']  // Capture stdout and stderr
+    });
+
+    return postToolUseOutput({ continue: true });
+  } catch (error) {
+    // execSync throws on non-zero exit
+    const stderr = (error as { stderr?: Buffer | string }).stderr?.toString() ?? '';
+    logger.warn('TypeScript errors', { stderr });
+
+    return postToolUseOutput({
+      systemMessage: 'TypeScript errors detected',
+      hookSpecificOutput: {
+        additionalContext: `TypeScript errors:\n${stderr}`
+      }
+    });
+  }
+});
+```
+
+**Key points:**
+- Use `encoding: 'utf-8'` to get string output
+- Set `timeout` to prevent hanging
+- `execSync` throws on non-zero exit - use try/catch
+- Access stderr via `(error as { stderr?: ... }).stderr`
 
 </instructions>

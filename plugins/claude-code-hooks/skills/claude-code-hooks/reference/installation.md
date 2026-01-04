@@ -77,4 +77,58 @@ Test the compiled hook by piping JSON:
 echo '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' | node dist/build/allow-read.*.mjs
 ```
 
+## 5. Monorepo Integration
+
+For monorepo workspaces where hooks are in a separate package:
+
+### Package Structure
+```
+packages/
+├── my-hooks/                    # Hook source package
+│   ├── src/
+│   │   ├── pre-tool-hook.ts
+│   │   └── post-tool-hook.ts
+│   ├── test/
+│   │   └── pre-tool-hook.test.ts
+│   ├── package.json
+│   └── tsconfig.json
+└── ...
+plugins/
+└── my-plugin/
+    └── hooks/
+        └── hooks.json           # Build output target
+```
+
+### package.json
+```json
+{
+  "name": "@myorg/hooks",
+  "type": "module",
+  "scripts": {
+    "build": "npx -y @goodfoot/claude-code-hooks -i \"src/**/*.ts\" -o \"../../plugins/my-plugin/hooks/hooks.json\"",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@goodfoot/claude-code-hooks": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}
+```
+
+### Build Output
+
+The `-o` path is relative to the package directory. Use `../../` to output to a sibling plugin directory.
+
+**Verify the output path:**
+```bash
+cd packages/my-hooks
+npm run build
+# Check: plugins/my-plugin/hooks/hooks.json should exist
+cat ../../plugins/my-plugin/hooks/hooks.json | jq .
+```
+
 </instructions>

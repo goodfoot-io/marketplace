@@ -286,13 +286,36 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 }
 ```
 
-### Common Options (All Builders)
+### postToolUseOutput / postToolUseFailureOutput
 ```typescript
 {
-  stopReason: string,   // Force block with exit code 2
-  systemMessage: string, // Inject instruction
-  continue: boolean      // Continue despite errors
+  hookSpecificOutput: {
+    additionalContext: string  // Added to Claude's context
+  }
 }
 ```
+
+### Common Options (All Builders)
+
+These options are available on ALL output builders:
+
+| Option | Type | Effect |
+|--------|------|--------|
+| `systemMessage` | string | Message injected into Claude's context. Use for instructions or warnings. |
+| `continue` | boolean | If `true`, Claude continues even if the hook signals issues. |
+| `stopReason` | string | **Causes exit code 2** and blocks Claude. Use sparingly. |
+| `suppressOutput` | boolean | If `true`, hook output is hidden from the user. |
+
+**When to use which mechanism:**
+
+| Goal | Hook Type | Use This |
+|------|-----------|----------|
+| Block Claude from stopping | Stop, SubagentStop | `decision: 'block'` with `reason` |
+| Deny a tool execution | PreToolUse | `permissionDecision: 'deny'` with `permissionDecisionReason` |
+| Deny permission request | PermissionRequest | `decision: { behavior: 'deny' }` |
+| Provide feedback after tool | PostToolUse | `additionalContext` and/or `systemMessage` |
+| Critical error (any hook) | Any | `stopReason` (last resort) |
+
+**Important**: PostToolUse hooks **cannot block execution** - the tool has already run. Use `additionalContext` and `systemMessage` to inform Claude of issues.
 
 </instructions>

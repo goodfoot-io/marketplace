@@ -112,7 +112,25 @@ npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,Subage
 
 **Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`
 
-## 4. Agent Protocol: The "Forensic" Method
+## 4. Output Capabilities by Hook Type
+
+Different hooks have different capabilities. This table clarifies what each hook type can do:
+
+| Hook Type | Can Block? | Can Deny? | Can Add Context? | Has Decision Field? |
+|-----------|------------|-----------|------------------|---------------------|
+| PreToolUse | No | Yes (`permissionDecision: 'deny'`) | No | No |
+| PostToolUse | No | No | Yes (`additionalContext`) | No |
+| PostToolUseFailure | No | No | Yes (`additionalContext`) | No |
+| Stop | Yes | N/A | No | Yes (`decision: 'block'`) |
+| SubagentStop | Yes | N/A | No | Yes (`decision: 'block'`) |
+| PermissionRequest | No | Yes (`decision.behavior: 'deny'`) | No | Yes |
+| UserPromptSubmit | No | No | Yes (`additionalContext`) | No |
+| SessionStart | No | No | Yes (`additionalContext`) | No |
+| SubagentStart | No | No | Yes (`additionalContext`) | No |
+
+**Key distinction**: Only `Stop` and `SubagentStop` hooks can use `decision: 'block'`. Other hooks signal issues through `additionalContext`, `systemMessage`, or `permissionDecision`.
+
+## 5. Agent Protocol: The "Forensic" Method
 
 When helping a user with hooks, you **MUST** follow this protocol:
 
@@ -121,37 +139,17 @@ When helping a user with hooks, you **MUST** follow this protocol:
 3.  **Ban `console.log` & `console.error`:** Aggressively correct any code using `console.log` or `console.error` to use `context.logger`. Stdio is reserved for the protocol; direct writes cause silent failures or UI corruption.
 4.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`.
 
-## 5. Quick Check: Environment & Health
+## 6. Pre-Flight Checklist
 
-Run this to verify the user's setup:
+Before debugging hook issues, verify:
 
-```! 
-# === Hook System Health Check ===
-if [ ! -f "package.json" ]; then
-  echo "❌ No package.json found. Run 'npm init -y' first."
-else
-  # Check for package
-  if ! npm list @goodfoot/claude-code-hooks >/dev/null 2>&1; then
-    echo "❌ @goodfoot/claude-code-hooks is missing."
-    echo "   Run: npm install @goodfoot/claude-code-hooks tsx typescript"
-  else
-    echo "✅ Package installed."
-  fi
+- [ ] `@goodfoot/claude-code-hooks` is in `package.json` dependencies
+- [ ] Build script exists in `package.json` (e.g., `"build": "claude-code-hooks -i ..."`)
+- [ ] Hooks rebuilt after last code change (`npm run build`)
+- [ ] No `console.log` or `console.error` in hook code (use `logger` instead)
+- [ ] Hook files use `export default hookFactory(...)` pattern
 
-  # Check for build script
-  if ! grep -q "claude-code-hooks" package.json; then
-    echo "⚠️ No build script detected in package.json."
-    echo "   Recommended: Add '\"build:hooks\": \"claude-code-hooks -i \\\"hooks/*.ts\\\" -o \\\"dist/hooks.json\\\"\"'"
-  fi
-fi
-
-# Check for TypeScript
-if ! command -v tsc >/dev/null 2>&1; then
-  echo "⚠️ TypeScript (tsc) not in PATH."
-fi
-```
-
-## 6. Configuration by Setup Type
+## 7. Configuration by Setup Type
 
 **Standalone Project:**
 Add the absolute path to your `~/.claude/config.json`:
@@ -163,7 +161,7 @@ Add the absolute path to your `~/.claude/config.json`:
 The `hooks.json` is auto-detected if placed in the plugin root.
 Build command: `npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hooks.json"`
 
-## 7. Reference Links
+## 8. Reference Links
 
 *   **[Installation & Setup](reference/installation.md)**: Setup guide (Scaffolding vs Manual).
 *   **[All 12 Hook Types](reference/output-builders.md)**: Factories, builders, and inputs.

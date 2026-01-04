@@ -4,25 +4,20 @@
 
 <instructions>
 
-## 1. Accessing the Environment
-
-Hooks run in a constrained environment. Use these helpers to orient yourself.
+## 1. Getting the Project Directory
 
 ```typescript
-import { 
-  getProjectDir, 
-  isRemoteEnvironment, 
-  CLAUDE_ENV_VARS 
-} from '@goodfoot/claude-code-hooks';
+import { getProjectDir } from '@goodfoot/claude-code-hooks';
+
+const projectDir = getProjectDir();  // Returns absolute path or null
 ```
 
-### `getProjectDir()`
-Returns the absolute path to the project root.
-*   **Use case:** Finding `.claude/config.json` or reading project-specific rules.
+Returns the absolute path to the project root (where `.claude/` directory is located).
 
-### `isRemoteEnvironment()`
-Returns `true` if running in a web/remote container.
-*   **Use case:** Disabling GUI tools or network-heavy operations.
+**Use cases:**
+- Finding `.claude/config.json` or `.claude/settings.json`
+- Reading project-specific rules or templates
+- Resolving relative paths in tool inputs
 
 ## 2. Persisting Environment Variables
 
@@ -68,9 +63,34 @@ export default preToolUseHook({}, (input, { logger }) => {
     sessionId: input.sessionId,
     permissionMode: input.permissionMode
   });
-  
+
   return preToolUseOutput({});
 });
+```
+
+## 4. Other Helpers
+
+### `isRemoteEnvironment()`
+
+Returns `true` if running in a web/remote container (rare use case).
+
+```typescript
+import { isRemoteEnvironment } from '@goodfoot/claude-code-hooks';
+
+if (isRemoteEnvironment()) {
+  // Skip operations that require local GUI or network access
+}
+```
+
+### `CLAUDE_ENV_VARS`
+
+Constants for Claude Code environment variable names:
+
+```typescript
+import { CLAUDE_ENV_VARS } from '@goodfoot/claude-code-hooks';
+
+// CLAUDE_ENV_VARS.PROJECT_DIR - Project directory env var name
+// CLAUDE_ENV_VARS.ENV_FILE - Environment file path env var name
 ```
 
 </instructions>

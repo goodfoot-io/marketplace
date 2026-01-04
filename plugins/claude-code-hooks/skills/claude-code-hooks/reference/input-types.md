@@ -1,8 +1,42 @@
 # Tool Input Types
 
+> [Back to SKILL.md](../SKILL.md) | [Output Builders](output-builders.md) | [Logging](logging.md)
+
+<instructions>
+
 This document describes the typed tool input structures available in `@goodfoot/claude-code-hooks`.
 
-## Overview
+## Common Hook Input Fields
+
+Every hook input includes these base fields:
+
+```typescript
+interface BaseHookInput {
+  sessionId: string;        // Unique session identifier
+  transcriptPath: string;   // Path to conversation transcript
+  cwd: string;              // Current working directory
+  permissionMode?: string;  // 'default' | 'acceptEdits' | 'bypassPermissions' | etc.
+}
+```
+
+### Hook-Specific Input Fields
+
+| Hook Type | Additional Fields |
+|-----------|-------------------|
+| PreToolUse | `toolName`, `toolInput`, `toolUseId` |
+| PostToolUse | `toolName`, `toolInput`, `toolResponse`, `toolUseId` |
+| PostToolUseFailure | `toolName`, `toolInput`, `toolUseId`, `error`, `isInterrupt?` |
+| SessionStart | `source` ('startup' \| 'resume' \| 'clear' \| 'compact') |
+| SessionEnd | `reason` ('clear' \| 'logout' \| 'prompt_input_exit' \| 'other') |
+| Stop | `stopHookActive` |
+| SubagentStart | `agentId`, `agentType` |
+| SubagentStop | `stopHookActive`, `agentId`, `agentType`, `agentTranscriptPath` |
+| UserPromptSubmit | `prompt` |
+| Notification | `message`, `title?`, `notificationType` |
+| PreCompact | `trigger` ('manual' \| 'auto'), `customInstructions` |
+| PermissionRequest | `toolName`, `toolInput`, `toolUseId`, `permissionSuggestions?` |
+
+## Tool Input Overview
 
 The `toolInput` field in `PreToolUseInput`, `PostToolUseInput`, `PostToolUseFailureInput`, and `PermissionRequestInput` is typed as `unknown` by default. This package provides:
 
@@ -271,3 +305,5 @@ interface ToolInputMap {
   Grep: GrepToolInput;
 }
 ```
+
+</instructions>
