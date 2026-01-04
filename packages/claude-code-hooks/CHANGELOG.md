@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+- Improved README documentation with clearer formatting and command examples
+- Reduced package bundle size through optimized type definitions
+
 ## 1.0.1
 - Minor improvements and bug fixes
 
