@@ -76,6 +76,21 @@ for file in $STAGED_FILES; do
 
         echo "Bumped ${PLUGIN_NAME} version: ${CURRENT_VERSION} -> ${NEW_VERSION}"
 
+        # Also update the plugin version in marketplace.json
+        MARKETPLACE_JSON=".claude-plugin/marketplace.json"
+        if [ -f "$MARKETPLACE_JSON" ]; then
+            # Use jq to update the specific plugin's version in the plugins array
+            if command -v jq &> /dev/null; then
+                jq --arg name "$PLUGIN_NAME" --arg version "$NEW_VERSION" \
+                    '(.plugins[] | select(.name == $name)).version = $version' \
+                    "$MARKETPLACE_JSON" > "${MARKETPLACE_JSON}.tmp" && \
+                    mv "${MARKETPLACE_JSON}.tmp" "$MARKETPLACE_JSON"
+                echo "Synced ${PLUGIN_NAME} version in marketplace.json: ${NEW_VERSION}"
+            else
+                echo "Warning: jq not found, marketplace.json plugin version not synced"
+            fi
+        fi
+
         PROCESSED_PLUGINS[$PLUGIN_NAME]=1
         PLUGINS_BUMPED=1
     fi
@@ -115,6 +130,40 @@ if [ "$PLUGINS_BUMPED" -eq 1 ]; then
         fi
     else
         echo "Warning: $MARKETPLACE_JSON not found, skipping marketplace bump"
+    fi
+fi
+
+# Validation: Ensure marketplace.json plugin versions match their plugin.json versions
+# This runs on every commit as a safety check
+MARKETPLACE_JSON=".claude-plugin/marketplace.json"
+VALIDATION_FAILED=0
+
+if [ -f "$MARKETPLACE_JSON" ] && command -v jq &> /dev/null; then
+    # Get list of all plugins from marketplace.json
+    PLUGIN_NAMES=$(jq -r '.plugins[].name' "$MARKETPLACE_JSON" 2>/dev/null || true)
+
+    for PLUGIN_NAME in $PLUGIN_NAMES; do
+        PLUGIN_JSON="plugins/${PLUGIN_NAME}/.claude-plugin/plugin.json"
+
+        if [ -f "$PLUGIN_JSON" ]; then
+            MARKETPLACE_VERSION=$(jq -r --arg name "$PLUGIN_NAME" '.plugins[] | select(.name == $name) | .version // empty' "$MARKETPLACE_JSON")
+            PLUGIN_VERSION=$(jq -r '.version' "$PLUGIN_JSON")
+
+            # Only validate if marketplace has a version field for this plugin
+            if [ -n "$MARKETPLACE_VERSION" ] && [ "$MARKETPLACE_VERSION" != "$PLUGIN_VERSION" ]; then
+                echo "ERROR: Version mismatch for ${PLUGIN_NAME} plugin:"
+                echo "  marketplace.json: $MARKETPLACE_VERSION"
+                echo "  plugin.json: $PLUGIN_VERSION"
+                VALIDATION_FAILED=1
+            fi
+        fi
+    done
+
+    if [ "$VALIDATION_FAILED" -eq 1 ]; then
+        echo ""
+        echo "Commit blocked: Plugin versions in marketplace.json must match their plugin.json versions."
+        echo "Please ensure versions are synchronized before committing."
+        exit 1
     fi
 fi
 

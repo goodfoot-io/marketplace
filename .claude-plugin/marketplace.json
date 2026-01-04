@@ -19,6 +19,7 @@
   "plugins": [
     {
       "name": "project",
+      "version": "1.0.2",
       "source": "./plugins/project",
       "tags": [
         "project-management",
@@ -29,6 +30,7 @@
     },
     {
       "name": "browser",
+      "version": "1.0.0",
       "source": "./plugins/browser",
       "tags": [
         "browser",
@@ -40,6 +42,7 @@
     },
     {
       "name": "vscode",
+      "version": "1.0.3",
       "source": "./plugins/vscode",
       "tags": [
         "vscode",
@@ -51,6 +54,7 @@
     },
     {
       "name": "goodfoot",
+      "version": "1.0.7",
       "source": "./plugins/goodfoot",
       "tags": [
         "testing",
@@ -64,6 +68,7 @@
     },
     {
       "name": "typescript-hooks",
+      "version": "0.1.4",
       "source": "./plugins/typescript-hooks",
       "tags": [
         "typescript",
@@ -76,6 +81,7 @@
     },
     {
       "name": "jest-mock-prevention",
+      "version": "0.1.1",
       "source": "./plugins/jest-mock-prevention",
       "tags": [
         "jest",
@@ -89,6 +95,7 @@
     },
     {
       "name": "typescript-claude-code-for-web-setup",
+      "version": "0.1.0",
       "source": "./plugins/typescript-claude-code-for-web-setup",
       "tags": [
         "setup",
@@ -105,6 +112,7 @@
     },
     {
       "name": "linear",
+      "version": "1.0.0",
       "source": "./plugins/linear",
       "tags": [
         "linear",
@@ -116,6 +124,7 @@
     },
     {
       "name": "gmail",
+      "version": "1.0.0",
       "source": "./plugins/gmail",
       "tags": [
         "gmail",
@@ -127,6 +136,7 @@
     },
     {
       "name": "github",
+      "version": "1.0.0",
       "source": "./plugins/github",
       "tags": [
         "github",

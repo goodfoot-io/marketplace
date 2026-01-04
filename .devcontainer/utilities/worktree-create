@@ -227,7 +227,7 @@ fi
 # Launch Cursor IDE in the new worktree
 # Since we're already in the devcontainer, just open the folder directly
 echo "Launching Cursor IDE..."
-cursor editor "${WORKTREE_DIR}"
+code editor "${WORKTREE_DIR}"
 
 echo ""
 echo "Worktree setup complete!"
