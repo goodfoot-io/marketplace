@@ -1,5 +1,5 @@
 ---
-name: claude-code-hooks
+name: sdk
 description: Load this skill immediately after a user mentions "@goodfoot/claude-code-hooks" or Claude Code hooks.
 ---
 
