@@ -404,8 +404,8 @@ function generateTestFile(eventName: HookEventName, hookFilename: string): strin
  * Tests for the ${eventName} hook.
  */
 
-import { describe, expect, it } from "vitest";
 import { Logger } from "@goodfoot/claude-code-hooks";
+import { describe, expect, it } from "vitest";
 import hook from "../src/${hookFilename}.js";
 
 // Logger is silent by default (no stdout/stderr output) — no mocking needed

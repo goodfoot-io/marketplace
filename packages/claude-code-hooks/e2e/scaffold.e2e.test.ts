@@ -187,7 +187,7 @@ describe('E2E: Scaffold Command', () => {
       // Test files use double quotes and alphabetical import order to match biome formatting
       const testContent = fs.readFileSync(path.join(testDir, 'test', 'notification.test.ts'), 'utf-8');
 
-      expect(testContent).toContain('import { describe, expect, it } from "vitest"');
+      expect(testContent).toContain('import { Logger } from "@goodfoot/claude-code-hooks"');
       expect(testContent).toContain('import hook from "../src/notification.js"');
       expect(testContent).toContain('describe("Notification Hook"');
       expect(testContent).toContain('hookEventName');
