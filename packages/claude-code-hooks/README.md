@@ -1,6 +1,6 @@
 # @goodfoot/claude-code-hooks
 
-> **Build Claude Code hooks in TypeScript.**
+**Build Claude Code hooks in TypeScript.**
 
 This package is not just a library; it is a **build system** and a **runtime wrapper**. You write TypeScript, this package compiles it into self-contained executables, and _those_ are what Claude runs.
 
@@ -10,11 +10,12 @@ Load the "claude-code-hooks:sdk" skill to enable Claude to use this package.
 
 Run:
 
-```bash
-claude plugin marketplace add goodfoot-io/marketplace && claude plugin install claude-code-hooks@goodfoot"
+`claude plugin marketplace add goodfoot-io/marketplace && claude plugin install claude-code-hooks@goodfoot"`
 
-claude -p "Load the 'claude-code-hooks:sdk' skill then scaffold a new hook package in ./packages/hooks that outputs to '.claude/hooks/hooks.json' and contains an example SessionStart hook."
-```
+then: 
+
+`claude -p "Load the 'claude-code-hooks:sdk' skill then scaffold a new hook package in ./packages/hooks that outputs to '.claude/hooks/hooks.json' and contains an example SessionStart hook."`
+
 
 ## ⚡ Quick Start
 

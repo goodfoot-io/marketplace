@@ -21,37 +21,9 @@
  * ```
  * @see https://code.claude.com/docs/en/hooks
  */
-import type {
-  PreToolUseInput,
-  PostToolUseInput,
-  PostToolUseFailureInput,
-  NotificationInput,
-  UserPromptSubmitInput,
-  SessionStartInput,
-  SessionEndInput,
-  StopInput,
-  SubagentStartInput,
-  SubagentStopInput,
-  PreCompactInput,
-  PermissionRequestInput,
-  HookEventName
-} from './inputs.js';
+import type { PreToolUseInput, PostToolUseInput, PostToolUseFailureInput, NotificationInput, UserPromptSubmitInput, SessionStartInput, SessionEndInput, StopInput, SubagentStartInput, SubagentStopInput, PreCompactInput, PermissionRequestInput, HookEventName } from './inputs.js';
 import type { Logger } from './logger.js';
-import type {
-  SpecificHookOutput,
-  PreToolUseOutput,
-  PostToolUseOutput,
-  PostToolUseFailureOutput,
-  NotificationOutput,
-  UserPromptSubmitOutput,
-  SessionStartOutput,
-  SessionEndOutput,
-  StopOutput,
-  SubagentStartOutput,
-  SubagentStopOutput,
-  PreCompactOutput,
-  PermissionRequestOutput
-} from './outputs.js';
+import type { SpecificHookOutput, PreToolUseOutput, PostToolUseOutput, PostToolUseFailureOutput, NotificationOutput, UserPromptSubmitOutput, SessionStartOutput, SessionEndOutput, StopOutput, SubagentStartOutput, SubagentStopOutput, PreCompactOutput, PermissionRequestOutput } from './outputs.js';
 import type { ToolInputMap, KnownToolName } from './tool-inputs.js';
 /**
  * Configuration options for hook factories.
@@ -90,53 +62,53 @@ import type { ToolInputMap, KnownToolName } from './tool-inputs.js';
  * ```
  */
 export interface HookConfig {
-  /**
-   * Regular expression pattern for matching hook events.
-   *
-   * What the pattern matches against depends on the hook type:
-   * - Tool hooks (PreToolUse, PostToolUse, etc.): matches `tool_name`
-   * - SessionStart: matches `source`
-   * - SessionEnd: matches `reason`
-   * - SubagentStart/Stop: matches `agent_type`
-   * - Notification: matches `notification_type`
-   * - PreCompact: matches `trigger`
-   * - Stop, UserPromptSubmit: no matcher (fires on all events)
-   *
-   * If not provided, the hook fires for all events of its type.
-   * @example
-   * ```typescript
-   * // Match Bash tool
-   * { matcher: 'Bash' }
-   *
-   * // Match multiple tools with alternation
-   * { matcher: 'Bash|Read|Write' }
-   *
-   * // Match all with regex
-   * { matcher: '.*' }
-   *
-   * // Match startup sessions
-   * { matcher: 'startup' }
-   * ```
-   */
-  matcher?: string;
-  /**
-   * Handler execution timeout in milliseconds.
-   *
-   * If the handler does not complete within this time, it will be
-   * terminated and an error will be logged. This prevents hooks from
-   * blocking Claude Code indefinitely.
-   *
-   * If not provided, uses the default timeout from the runtime.
-   * @example
-   * ```typescript
-   * // 5 second timeout
-   * { timeout: 5000 }
-   *
-   * // 30 second timeout for long operations
-   * { timeout: 30000 }
-   * ```
-   */
-  timeout?: number;
+    /**
+     * Regular expression pattern for matching hook events.
+     *
+     * What the pattern matches against depends on the hook type:
+     * - Tool hooks (PreToolUse, PostToolUse, etc.): matches `tool_name`
+     * - SessionStart: matches `source`
+     * - SessionEnd: matches `reason`
+     * - SubagentStart/Stop: matches `agent_type`
+     * - Notification: matches `notification_type`
+     * - PreCompact: matches `trigger`
+     * - Stop, UserPromptSubmit: no matcher (fires on all events)
+     *
+     * If not provided, the hook fires for all events of its type.
+     * @example
+     * ```typescript
+     * // Match Bash tool
+     * { matcher: 'Bash' }
+     *
+     * // Match multiple tools with alternation
+     * { matcher: 'Bash|Read|Write' }
+     *
+     * // Match all with regex
+     * { matcher: '.*' }
+     *
+     * // Match startup sessions
+     * { matcher: 'startup' }
+     * ```
+     */
+    matcher?: string;
+    /**
+     * Handler execution timeout in milliseconds.
+     *
+     * If the handler does not complete within this time, it will be
+     * terminated and an error will be logged. This prevents hooks from
+     * blocking Claude Code indefinitely.
+     *
+     * If not provided, uses the default timeout from the runtime.
+     * @example
+     * ```typescript
+     * // 5 second timeout
+     * { timeout: 5000 }
+     *
+     * // 30 second timeout for long operations
+     * { timeout: 30000 }
+     * ```
+     */
+    timeout?: number;
 }
 /**
  * Configuration for hooks with a known single-tool matcher.
@@ -154,53 +126,47 @@ export interface HookConfig {
  * ```
  */
 export interface TypedHookConfig<T extends KnownToolName> {
-  /**
-   * The single tool name to match.
-   * When this is a known tool name, toolInput will be automatically typed.
-   */
-  matcher: T;
-  /**
-   * Handler execution timeout in milliseconds.
-   */
-  timeout?: number;
+    /**
+     * The single tool name to match.
+     * When this is a known tool name, toolInput will be automatically typed.
+     */
+    matcher: T;
+    /**
+     * Handler execution timeout in milliseconds.
+     */
+    timeout?: number;
 }
 /**
  * PreToolUseInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
 export type TypedPreToolUseInput<T extends KnownToolName> = Omit<PreToolUseInput, 'tool_name' | 'tool_input'> & {
-  tool_name: T;
-  tool_input: ToolInputMap[T];
+    tool_name: T;
+    tool_input: ToolInputMap[T];
 };
 /**
  * PostToolUseInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
 export type TypedPostToolUseInput<T extends KnownToolName> = Omit<PostToolUseInput, 'tool_name' | 'tool_input'> & {
-  tool_name: T;
-  tool_input: ToolInputMap[T];
+    tool_name: T;
+    tool_input: ToolInputMap[T];
 };
 /**
  * PostToolUseFailureInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
-export type TypedPostToolUseFailureInput<T extends KnownToolName> = Omit<
-  PostToolUseFailureInput,
-  'tool_name' | 'tool_input'
-> & {
-  tool_name: T;
-  tool_input: ToolInputMap[T];
+export type TypedPostToolUseFailureInput<T extends KnownToolName> = Omit<PostToolUseFailureInput, 'tool_name' | 'tool_input'> & {
+    tool_name: T;
+    tool_input: ToolInputMap[T];
 };
 /**
  * PermissionRequestInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
-export type TypedPermissionRequestInput<T extends KnownToolName> = Omit<
-  PermissionRequestInput,
-  'tool_name' | 'tool_input'
-> & {
-  tool_name: T;
-  tool_input: ToolInputMap[T];
+export type TypedPermissionRequestInput<T extends KnownToolName> = Omit<PermissionRequestInput, 'tool_name' | 'tool_input'> & {
+    tool_name: T;
+    tool_input: ToolInputMap[T];
 };
 /**
  * Context provided to hook handlers.
@@ -216,30 +182,30 @@ export type TypedPermissionRequestInput<T extends KnownToolName> = Omit<
  * ```
  */
 export interface HookContext {
-  /**
-   * Logger instance for structured logging.
-   *
-   * The logger is pre-configured with the hook context (hookType, input)
-   * so log events are automatically enriched. Use this instead of
-   * console.log/error to ensure logs go to file, not stdout/stderr
-   * which would interfere with the hook protocol.
-   * @example
-   * ```typescript
-   * // Simple message
-   * logger.info('Processing request');
-   *
-   * // With context
-   * logger.warn('Rate limit approaching', { current: 95, max: 100 });
-   *
-   * // Error logging
-   * try {
-   *   await riskyOperation();
-   * } catch (err) {
-   *   logger.logError(err, 'Operation failed');
-   * }
-   * ```
-   */
-  logger: Logger;
+    /**
+     * Logger instance for structured logging.
+     *
+     * The logger is pre-configured with the hook context (hookType, input)
+     * so log events are automatically enriched. Use this instead of
+     * console.log/error to ensure logs go to file, not stdout/stderr
+     * which would interfere with the hook protocol.
+     * @example
+     * ```typescript
+     * // Simple message
+     * logger.info('Processing request');
+     *
+     * // With context
+     * logger.warn('Rate limit approaching', { current: 95, max: 100 });
+     *
+     * // Error logging
+     * try {
+     *   await riskyOperation();
+     * } catch (err) {
+     *   logger.logError(err, 'Operation failed');
+     * }
+     * ```
+     */
+    logger: Logger;
 }
 /**
  * Extended context for SessionStart hooks.
@@ -258,37 +224,37 @@ export interface HookContext {
  * ```
  */
 export interface SessionStartContext extends HookContext {
-  /**
-   * Persists an environment variable for use in subsequent bash commands.
-   *
-   * This function writes a shell export statement to the `CLAUDE_ENV_FILE`,
-   * which Claude Code sources before running bash commands. This allows
-   * SessionStart hooks to configure the environment for the entire session.
-   * @param name - The environment variable name
-   * @param value - The environment variable value (will be shell-escaped)
-   * @example
-   * ```typescript
-   * persistEnvVar('NODE_ENV', 'production');
-   * persistEnvVar('API_KEY', 'secret-key');
-   * ```
-   */
-  persistEnvVar: (name: string, value: string) => void;
-  /**
-   * Persists multiple environment variables at once.
-   *
-   * This is a convenience wrapper around `persistEnvVar` for setting
-   * multiple variables in a single call.
-   * @param vars - Object mapping variable names to values
-   * @example
-   * ```typescript
-   * persistEnvVars({
-   *   NODE_ENV: 'production',
-   *   API_KEY: 'secret',
-   *   DEBUG: 'false'
-   * });
-   * ```
-   */
-  persistEnvVars: (vars: Record<string, string>) => void;
+    /**
+     * Persists an environment variable for use in subsequent bash commands.
+     *
+     * This function writes a shell export statement to the `CLAUDE_ENV_FILE`,
+     * which Claude Code sources before running bash commands. This allows
+     * SessionStart hooks to configure the environment for the entire session.
+     * @param name - The environment variable name
+     * @param value - The environment variable value (will be shell-escaped)
+     * @example
+     * ```typescript
+     * persistEnvVar('NODE_ENV', 'production');
+     * persistEnvVar('API_KEY', 'secret-key');
+     * ```
+     */
+    persistEnvVar: (name: string, value: string) => void;
+    /**
+     * Persists multiple environment variables at once.
+     *
+     * This is a convenience wrapper around `persistEnvVar` for setting
+     * multiple variables in a single call.
+     * @param vars - Object mapping variable names to values
+     * @example
+     * ```typescript
+     * persistEnvVars({
+     *   NODE_ENV: 'production',
+     *   API_KEY: 'secret',
+     *   DEBUG: 'false'
+     * });
+     * ```
+     */
+    persistEnvVars: (vars: Record<string, string>) => void;
 }
 /**
  * Handler function for a specific hook type.
@@ -299,10 +265,7 @@ export interface SessionStartContext extends HookContext {
  * @template TOutput - The specific output type for this hook
  * @template TContext - The context type (defaults to HookContext)
  */
-export type HookHandler<TInput, TOutput extends SpecificHookOutput, TContext extends HookContext = HookContext> = (
-  input: TInput,
-  context: TContext
-) => TOutput | Promise<TOutput>;
+export type HookHandler<TInput, TOutput extends SpecificHookOutput, TContext extends HookContext = HookContext> = (input: TInput, context: TContext) => TOutput | Promise<TOutput>;
 /**
  * The result of a hook factory - a function that wraps the handler.
  *
@@ -313,25 +276,25 @@ export type HookHandler<TInput, TOutput extends SpecificHookOutput, TContext ext
  * @template TContext - The context type (defaults to HookContext)
  */
 export interface HookFunction<TInput, TOutput extends SpecificHookOutput, TContext extends HookContext = HookContext> {
-  /**
-   * Execute the hook handler with the given input and context.
-   * @param input - The hook input data
-   * @param context - The hook execution context
-   * @returns The hook output (specific type, converted to HookOutput by runtime)
-   */
-  (input: TInput, context: TContext): Promise<TOutput>;
-  /**
-   * The hook event name this handler is for.
-   */
-  hookEventName: HookEventName;
-  /**
-   * The matcher pattern, if configured.
-   */
-  matcher?: string;
-  /**
-   * The timeout in milliseconds, if configured.
-   */
-  timeout?: number;
+    /**
+     * Execute the hook handler with the given input and context.
+     * @param input - The hook input data
+     * @param context - The hook execution context
+     * @returns The hook output (specific type, converted to HookOutput by runtime)
+     */
+    (input: TInput, context: TContext): Promise<TOutput>;
+    /**
+     * The hook event name this handler is for.
+     */
+    hookEventName: HookEventName;
+    /**
+     * The matcher pattern, if configured.
+     */
+    matcher?: string;
+    /**
+     * The timeout in milliseconds, if configured.
+     */
+    timeout?: number;
 }
 /**
  * Creates a PreToolUse hook handler.
@@ -381,14 +344,8 @@ export interface HookFunction<TInput, TOutput extends SpecificHookOutput, TConte
  * ```
  * @see https://code.claude.com/docs/en/hooks#pretooluse
  */
-export declare function preToolUseHook<T extends KnownToolName>(
-  config: TypedHookConfig<T>,
-  handler: HookHandler<TypedPreToolUseInput<T>, PreToolUseOutput>
-): HookFunction<TypedPreToolUseInput<T>, PreToolUseOutput>;
-export declare function preToolUseHook(
-  config: HookConfig,
-  handler: HookHandler<PreToolUseInput, PreToolUseOutput>
-): HookFunction<PreToolUseInput, PreToolUseOutput>;
+export declare function preToolUseHook<T extends KnownToolName>(config: TypedHookConfig<T>, handler: HookHandler<TypedPreToolUseInput<T>, PreToolUseOutput>): HookFunction<TypedPreToolUseInput<T>, PreToolUseOutput>;
+export declare function preToolUseHook(config: HookConfig, handler: HookHandler<PreToolUseInput, PreToolUseOutput>): HookFunction<PreToolUseInput, PreToolUseOutput>;
 /**
  * Creates a PostToolUse hook handler.
  *
@@ -422,14 +379,8 @@ export declare function preToolUseHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#posttooluse
  */
-export declare function postToolUseHook<T extends KnownToolName>(
-  config: TypedHookConfig<T>,
-  handler: HookHandler<TypedPostToolUseInput<T>, PostToolUseOutput>
-): HookFunction<TypedPostToolUseInput<T>, PostToolUseOutput>;
-export declare function postToolUseHook(
-  config: HookConfig,
-  handler: HookHandler<PostToolUseInput, PostToolUseOutput>
-): HookFunction<PostToolUseInput, PostToolUseOutput>;
+export declare function postToolUseHook<T extends KnownToolName>(config: TypedHookConfig<T>, handler: HookHandler<TypedPostToolUseInput<T>, PostToolUseOutput>): HookFunction<TypedPostToolUseInput<T>, PostToolUseOutput>;
+export declare function postToolUseHook(config: HookConfig, handler: HookHandler<PostToolUseInput, PostToolUseOutput>): HookFunction<PostToolUseInput, PostToolUseOutput>;
 /**
  * Creates a PostToolUseFailure hook handler.
  *
@@ -466,14 +417,8 @@ export declare function postToolUseHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#posttoolusefailure
  */
-export declare function postToolUseFailureHook<T extends KnownToolName>(
-  config: TypedHookConfig<T>,
-  handler: HookHandler<TypedPostToolUseFailureInput<T>, PostToolUseFailureOutput>
-): HookFunction<TypedPostToolUseFailureInput<T>, PostToolUseFailureOutput>;
-export declare function postToolUseFailureHook(
-  config: HookConfig,
-  handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>
-): HookFunction<PostToolUseFailureInput, PostToolUseFailureOutput>;
+export declare function postToolUseFailureHook<T extends KnownToolName>(config: TypedHookConfig<T>, handler: HookHandler<TypedPostToolUseFailureInput<T>, PostToolUseFailureOutput>): HookFunction<TypedPostToolUseFailureInput<T>, PostToolUseFailureOutput>;
+export declare function postToolUseFailureHook(config: HookConfig, handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>): HookFunction<PostToolUseFailureInput, PostToolUseFailureOutput>;
 /**
  * Creates a Notification hook handler.
  *
@@ -504,10 +449,7 @@ export declare function postToolUseFailureHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#notification
  */
-export declare function notificationHook(
-  config: HookConfig,
-  handler: HookHandler<NotificationInput, NotificationOutput>
-): HookFunction<NotificationInput, NotificationOutput>;
+export declare function notificationHook(config: HookConfig, handler: HookHandler<NotificationInput, NotificationOutput>): HookFunction<NotificationInput, NotificationOutput>;
 /**
  * Creates a UserPromptSubmit hook handler.
  *
@@ -537,10 +479,7 @@ export declare function notificationHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#userpromptsubmit
  */
-export declare function userPromptSubmitHook(
-  config: HookConfig,
-  handler: HookHandler<UserPromptSubmitInput, UserPromptSubmitOutput>
-): HookFunction<UserPromptSubmitInput, UserPromptSubmitOutput>;
+export declare function userPromptSubmitHook(config: HookConfig, handler: HookHandler<UserPromptSubmitInput, UserPromptSubmitOutput>): HookFunction<UserPromptSubmitInput, UserPromptSubmitOutput>;
 /**
  * Creates a SessionStart hook handler.
  *
@@ -591,10 +530,7 @@ export declare function userPromptSubmitHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#sessionstart
  */
-export declare function sessionStartHook(
-  config: HookConfig,
-  handler: HookHandler<SessionStartInput, SessionStartOutput, SessionStartContext>
-): HookFunction<SessionStartInput, SessionStartOutput, SessionStartContext>;
+export declare function sessionStartHook(config: HookConfig, handler: HookHandler<SessionStartInput, SessionStartOutput, SessionStartContext>): HookFunction<SessionStartInput, SessionStartOutput, SessionStartContext>;
 /**
  * Creates a SessionEnd hook handler.
  *
@@ -625,10 +561,7 @@ export declare function sessionStartHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#sessionend
  */
-export declare function sessionEndHook(
-  config: HookConfig,
-  handler: HookHandler<SessionEndInput, SessionEndOutput>
-): HookFunction<SessionEndInput, SessionEndOutput>;
+export declare function sessionEndHook(config: HookConfig, handler: HookHandler<SessionEndInput, SessionEndOutput>): HookFunction<SessionEndInput, SessionEndOutput>;
 /**
  * Creates a Stop hook handler.
  *
@@ -667,10 +600,7 @@ export declare function sessionEndHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#stop
  */
-export declare function stopHook(
-  config: HookConfig,
-  handler: HookHandler<StopInput, StopOutput>
-): HookFunction<StopInput, StopOutput>;
+export declare function stopHook(config: HookConfig, handler: HookHandler<StopInput, StopOutput>): HookFunction<StopInput, StopOutput>;
 /**
  * Creates a SubagentStart hook handler.
  *
@@ -701,10 +631,7 @@ export declare function stopHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#subagentstart
  */
-export declare function subagentStartHook(
-  config: HookConfig,
-  handler: HookHandler<SubagentStartInput, SubagentStartOutput>
-): HookFunction<SubagentStartInput, SubagentStartOutput>;
+export declare function subagentStartHook(config: HookConfig, handler: HookHandler<SubagentStartInput, SubagentStartOutput>): HookFunction<SubagentStartInput, SubagentStartOutput>;
 /**
  * Creates a SubagentStop hook handler.
  *
@@ -738,10 +665,7 @@ export declare function subagentStartHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#subagentstop
  */
-export declare function subagentStopHook(
-  config: HookConfig,
-  handler: HookHandler<SubagentStopInput, SubagentStopOutput>
-): HookFunction<SubagentStopInput, SubagentStopOutput>;
+export declare function subagentStopHook(config: HookConfig, handler: HookHandler<SubagentStopInput, SubagentStopOutput>): HookFunction<SubagentStopInput, SubagentStopOutput>;
 /**
  * Creates a PreCompact hook handler.
  *
@@ -780,10 +704,7 @@ export declare function subagentStopHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#precompact
  */
-export declare function preCompactHook(
-  config: HookConfig,
-  handler: HookHandler<PreCompactInput, PreCompactOutput>
-): HookFunction<PreCompactInput, PreCompactOutput>;
+export declare function preCompactHook(config: HookConfig, handler: HookHandler<PreCompactInput, PreCompactOutput>): HookFunction<PreCompactInput, PreCompactOutput>;
 /**
  * Creates a PermissionRequest hook handler.
  *
@@ -841,11 +762,5 @@ export declare function preCompactHook(
  * ```
  * @see https://code.claude.com/docs/en/hooks#permissionrequest
  */
-export declare function permissionRequestHook<T extends KnownToolName>(
-  config: TypedHookConfig<T>,
-  handler: HookHandler<TypedPermissionRequestInput<T>, PermissionRequestOutput>
-): HookFunction<TypedPermissionRequestInput<T>, PermissionRequestOutput>;
-export declare function permissionRequestHook(
-  config: HookConfig,
-  handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>
-): HookFunction<PermissionRequestInput, PermissionRequestOutput>;
+export declare function permissionRequestHook<T extends KnownToolName>(config: TypedHookConfig<T>, handler: HookHandler<TypedPermissionRequestInput<T>, PermissionRequestOutput>): HookFunction<TypedPermissionRequestInput<T>, PermissionRequestOutput>;
+export declare function permissionRequestHook(config: HookConfig, handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>): HookFunction<PermissionRequestInput, PermissionRequestOutput>;
