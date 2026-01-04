@@ -3,6 +3,8 @@ name: claude-code-hooks
 description: Load this skill immediately after a user mentions "@goodfoot/claude-code-hooks" or Claude Code hooks.
 ---
 
+**Ask the `claude-code-guide` subagent about the hooks for your task or review the authoritative documentation at `https://code.claude.com/docs/en/hooks.md` before using `@goodfoot/claude-code-hooks`.** 
+
 <instructions>
 
 ## 1. The Build Process (First & Foremost)

@@ -1,7 +1,5 @@
 # Environment & Context
 
-> [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Output Builders](output-builders.md)
-
 <instructions>
 
 ## 1. Getting the Project Directory

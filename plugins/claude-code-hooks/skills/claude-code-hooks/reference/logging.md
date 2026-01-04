@@ -1,7 +1,5 @@
 # Logging & Debugging
 
-> [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Output Builders](output-builders.md)
-
 <instructions>
 
 ## 1. The Cardinal Sin

@@ -1,7 +1,5 @@
 # Installation & Setup
 
-> [Back to SKILL.md](../SKILL.md) | [Porting](porting.md) | [Output Builders](output-builders.md) | [Logging](logging.md) | [Environment](environment.md)
-
 <instructions>
 
 ## 1. Quick Start: Scaffolding (Recommended)

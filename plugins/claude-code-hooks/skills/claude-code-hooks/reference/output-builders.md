@@ -1,7 +1,5 @@
 # Output Builders & Types
 
-> [Back to SKILL.md](../SKILL.md) | [Installation](installation.md) | [Porting](porting.md) | [Logging](logging.md)
-
 <instructions>
 
 ## 1. Intent-Based Examples

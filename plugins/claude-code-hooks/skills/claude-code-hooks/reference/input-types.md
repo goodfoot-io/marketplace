@@ -1,7 +1,5 @@
 # Tool Input Types
 
-> [Back to SKILL.md](../SKILL.md) | [Output Builders](output-builders.md) | [Logging](logging.md)
-
 <instructions>
 
 This document describes the typed tool input structures available in `@goodfoot/claude-code-hooks`.
