@@ -6,7 +6,7 @@
 
 A library is lyrics without the tune. Here's the README. Here's an example. Now figure out how it's supposed to sound.
 
-The [`goodfoot-io/marketplace`](https://github.com/goodfoot-io/marketplace) ships the []`claude-code-hooks:sdk`](https://github.com/goodfoot-io/marketplace/blob/main/plugins/claude-code-hooks/skills/sdk/SKILL.md) tune. Install the plugin and Claude becomes a colleague who's already made every mistake, who knows which error message means what, who can look at a codebase and immediately spot what's missing.
+The [`goodfoot-io/marketplace`](https://github.com/goodfoot-io/marketplace) ships the [`claude-code-hooks:sdk` tune](https://github.com/goodfoot-io/marketplace/blob/main/plugins/claude-code-hooks/skills/sdk/SKILL.md). Install the plugin and Claude becomes a colleague who's already made every mistake, who knows which error message means what, who can look at a codebase and immediately spot what's missing.
 
 We're not just shipping software anymore. We're boxing up customer service and shipping that too.
 
@@ -14,7 +14,7 @@ Think about what happens when a developer adopts a new library. They skim the RE
 
 A skill absorbs all of this. Packaged into a file. Deployed to every user at once.
 
-The `claude-code-hooks:sdk` skill exists because writing hooks by hand produces the same problems every time. Exit codes one integer apart meaning completely different things. Stdout being both essential and forbidden. The most common debugging technique in JavaScript (that would be `console.log`) being the one thing guaranteed to corrupt the JSON protocol. The `export default` that the CLI requires, the compiler ignores, and the error message won't mention.
+The [`claude-code-hooks:sdk`](https://github.com/goodfoot-io/marketplace/blob/main/plugins/claude-code-hooks/skills/sdk/SKILL.md) skill exists because writing hooks by hand produces the same problems every time. Exit codes one integer apart meaning completely different things. Stdout being both essential and forbidden. The most common debugging technique in JavaScript (that would be `console.log`) being the one thing guaranteed to corrupt the JSON protocol. The `export default` that the CLI requires, the compiler ignores, and the error message won't mention.
 
 The skill encodes what most of us would learn after the third frustrated GitHub issue: which hook types can allow versus deny versus block (three different things), why rebuilding after every edit matters, why the logger exists and `console.log` doesn't.
 
