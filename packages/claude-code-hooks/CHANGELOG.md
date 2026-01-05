@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.5
+- Improved build process to be deterministic and concurrent-safe, enabling better caching and parallel builds of the same source files
+
 ## 1.0.4
 - Updated documentation examples to use structured logging API with `logger.info()` and `logger.debug()` calls
 - Added plugin uninstall example to README
