@@ -1,7 +1,13 @@
 {
   "name": "@goodfoot/claude-code-hooks",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Type-safe Claude Code hooks library with camelCase types and output builders",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/claude-code-hooks",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodfoot-io/marketplace.git",
+    "directory": "packages/claude-code-hooks"
+  },
   "type": "module",
   "sideEffects": false,
   "engines": {
