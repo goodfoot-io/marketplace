@@ -533,7 +533,7 @@ interface CompileHookOptions {
  * @returns Compiled output content as a string
  */
 async function compileHook(options: CompileHookOptions): Promise<string> {
-  const { sourcePath, outputDir, logFilePath } = options;
+  const { sourcePath, logFilePath } = options;
 
   // Create a temporary wrapper file that imports the hook and executes it
   // Use system temp directory with deterministic name based on all inputs that affect output
@@ -547,66 +547,62 @@ async function compileHook(options: CompileHookOptions): Promise<string> {
   // Get the path to the runtime module (relative to this CLI)
   const runtimePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), './runtime.js');
 
-  try {
-    // Ensure temp directory exists (don't delete - concurrent builds may be using it)
-    fs.mkdirSync(tempDir, { recursive: true });
+  // Ensure temp directory exists (don't delete - concurrent builds may be using it)
+  fs.mkdirSync(tempDir, { recursive: true });
 
-    // Build log file injection code if specified
-    const logFileInjection =
-      logFilePath !== undefined
-        ? `process.env['CLAUDE_CODE_HOOKS_CLI_LOG_FILE'] = ${JSON.stringify(logFilePath)};\n`
-        : '';
+  // Build log file injection code if specified
+  const logFileInjection =
+    logFilePath !== undefined
+      ? `process.env['CLAUDE_CODE_HOOKS_CLI_LOG_FILE'] = ${JSON.stringify(logFilePath)};\n`
+      : '';
 
-    // Create wrapper that imports the hook and calls execute
-    const wrapperContent = `${logFileInjection}
+  // Create wrapper that imports the hook and calls execute
+  const wrapperContent = `${logFileInjection}
 import hook from '${sourcePath.replace(/\\/g, '/')}';
 import { execute } from '${runtimePath.replace(/\\/g, '/')}';
 
 execute(hook);
 `;
-    fs.writeFileSync(wrapperPath, wrapperContent, 'utf-8');
+  fs.writeFileSync(wrapperPath, wrapperContent, 'utf-8');
 
-    await esbuild.build({
-      entryPoints: [wrapperPath],
-      outfile: tempOutput,
-      format: 'esm',
-      platform: 'node',
-      target: 'node20',
-      bundle: true,
-      sourcemap: 'inline',
-      minify: false,
-      // Keep node built-ins external
-      external: [
-        'node:*',
-        'http',
-        'https',
-        'url',
-        'stream',
-        'zlib',
-        'events',
-        'buffer',
-        'util',
-        'path',
-        'fs',
-        'os',
-        'crypto',
-        'child_process',
-        'perf_hooks',
-        'async_hooks',
-        'diagnostics_channel'
-      ],
-      // Ensure we get clean ESM output
-      mainFields: ['module', 'main'],
-      conditions: ['import', 'node']
-    });
+  await esbuild.build({
+    entryPoints: [wrapperPath],
+    outfile: tempOutput,
+    format: 'esm',
+    platform: 'node',
+    target: 'node20',
+    bundle: true,
+    sourcemap: 'inline',
+    minify: false,
+    // Keep node built-ins external
+    external: [
+      'node:*',
+      'http',
+      'https',
+      'url',
+      'stream',
+      'zlib',
+      'events',
+      'buffer',
+      'util',
+      'path',
+      'fs',
+      'os',
+      'crypto',
+      'child_process',
+      'perf_hooks',
+      'async_hooks',
+      'diagnostics_channel'
+    ],
+    // Ensure we get clean ESM output
+    mainFields: ['module', 'main'],
+    conditions: ['import', 'node']
+  });
 
-    // Read and return the compiled content
-    // Don't delete temp directory - allows concurrent builds of same source
-    // and the OS will clean up /tmp periodically
-    return fs.readFileSync(tempOutput, 'utf-8');
-  } catch (error) {
-    throw error;
-  }
+  // Read and return the compiled content
+  // Don't delete temp directory - allows concurrent builds of same source
+  // and the OS will clean up /tmp periodically
+  return fs.readFileSync(tempOutput, 'utf-8');
 }
 
 /**
