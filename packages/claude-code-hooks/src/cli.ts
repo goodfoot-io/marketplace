@@ -18,6 +18,7 @@
 import type { HookEventName } from './inputs.js';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import * as esbuild from 'esbuild';
 import { glob } from 'glob';
@@ -535,7 +536,11 @@ async function compileHook(options: CompileHookOptions): Promise<string> {
   const { sourcePath, outputDir, logFilePath } = options;
 
   // Create a temporary wrapper file that imports the hook and executes it
-  const tempDir = path.join(outputDir, '_temp_' + Date.now().toString());
+  // Use system temp directory with deterministic name based on all inputs that affect output
+  // This ensures the same inputs always produce the same temp path, making builds deterministic
+  const hashInputs = [sourcePath, logFilePath ?? ''].join(':');
+  const buildHash = crypto.createHash('sha256').update(hashInputs).digest('hex').substring(0, 16);
+  const tempDir = path.join(os.tmpdir(), 'claude-code-hooks-build', buildHash);
   const wrapperPath = path.join(tempDir, 'wrapper.ts');
   const tempOutput = path.join(tempDir, 'output.mjs');
 
@@ -543,7 +548,7 @@ async function compileHook(options: CompileHookOptions): Promise<string> {
   const runtimePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), './runtime.js');
 
   try {
-    // Ensure temp directory exists
+    // Ensure temp directory exists (don't delete - concurrent builds may be using it)
     fs.mkdirSync(tempDir, { recursive: true });
 
     // Build log file injection code if specified
@@ -595,18 +600,11 @@ execute(hook);
       conditions: ['import', 'node']
     });
 
-    // Read the compiled content
-    const content = fs.readFileSync(tempOutput, 'utf-8');
-
-    // Clean up temp directory
-    fs.rmSync(tempDir, { recursive: true });
-
-    return content;
+    // Read and return the compiled content
+    // Don't delete temp directory - allows concurrent builds of same source
+    // and the OS will clean up /tmp periodically
+    return fs.readFileSync(tempOutput, 'utf-8');
   } catch (error) {
-    // Clean up temp directory on error
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true });
-    }
     throw error;
   }
 }

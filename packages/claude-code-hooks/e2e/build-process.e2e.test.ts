@@ -7,6 +7,7 @@
 
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -136,6 +137,11 @@ describe('E2E: Build Process', () => {
 
   afterAll(() => {
     cleanBuildTestOutput();
+    // Clean up temp build directories created during tests
+    const tempBuildDir = path.join(os.tmpdir(), 'claude-code-hooks-build');
+    if (fs.existsSync(tempBuildDir)) {
+      fs.rmSync(tempBuildDir, { recursive: true });
+    }
   });
 
   describe('Single Hook Compilation', () => {
