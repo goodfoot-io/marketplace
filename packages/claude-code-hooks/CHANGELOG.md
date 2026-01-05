@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.6
+- Minor improvements and bug fixes
+
 ## 1.0.5
 
 - Improved build process to be deterministic and concurrent-safe, enabling better caching and parallel builds of the same source files
