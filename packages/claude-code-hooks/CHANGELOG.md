@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.7
+- Improved timestamp preservation when regenerating hooks.json to prevent unnecessary metadata updates
+- Standardized TypeScript definition file formatting for consistency
+
 ## 1.0.6
 
 - Minor improvements and bug fixes
