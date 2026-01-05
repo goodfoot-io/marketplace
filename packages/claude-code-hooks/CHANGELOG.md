@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4
+- Updated documentation examples to use structured logging API with `logger.info()` and `logger.debug()` calls
+- Added plugin uninstall example to README
+- Simplified CLI scaffold command syntax by removing `-p` flag requirement
+
 ## 1.0.3
 - Changed compiled hooks output directory from `build/` to `bin/` for consistency with standard binary conventions
 - Standardized TypeScript type declaration formatting for improved IDE readability
