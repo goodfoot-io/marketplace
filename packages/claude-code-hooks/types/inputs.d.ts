@@ -56,26 +56,26 @@ export type SessionEndReason = 'clear' | 'logout' | 'prompt_input_exit' | 'other
  * @see https://code.claude.com/docs/en/hooks#hook-input-structure
  */
 export interface BaseHookInput {
-    /**
-     * Unique identifier for the current Claude Code session.
-     * Persists across conversation turns within the same session.
-     */
-    session_id: string;
-    /**
-     * Absolute path to the session transcript file.
-     * Contains the full conversation history in JSONL format.
-     */
-    transcript_path: string;
-    /**
-     * Current working directory for the Claude Code session.
-     * All file operations are relative to this directory.
-     */
-    cwd: string;
-    /**
-     * Current permission mode for tool execution.
-     * May be undefined if using default mode.
-     */
-    permission_mode?: PermissionMode;
+  /**
+   * Unique identifier for the current Claude Code session.
+   * Persists across conversation turns within the same session.
+   */
+  session_id: string;
+  /**
+   * Absolute path to the session transcript file.
+   * Contains the full conversation history in JSONL format.
+   */
+  transcript_path: string;
+  /**
+   * Current working directory for the Claude Code session.
+   * All file operations are relative to this directory.
+   */
+  cwd: string;
+  /**
+   * Current permission mode for tool execution.
+   * May be undefined if using default mode.
+   */
+  permission_mode?: PermissionMode;
 }
 /**
  * Input for PreToolUse hooks.
@@ -102,23 +102,23 @@ export interface BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#pretooluse
  */
 export interface PreToolUseInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'PreToolUse';
-    /**
-     * Name of the tool being invoked.
-     * Examples: 'Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep'
-     */
-    tool_name: string;
-    /**
-     * Input parameters being passed to the tool.
-     * Structure varies by tool type.
-     */
-    tool_input: unknown;
-    /**
-     * Unique identifier for this specific tool invocation.
-     * Use this to correlate with PostToolUse events.
-     */
-    tool_use_id: string;
+  /** Discriminator for hook event type. */
+  hook_event_name: 'PreToolUse';
+  /**
+   * Name of the tool being invoked.
+   * Examples: 'Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep'
+   */
+  tool_name: string;
+  /**
+   * Input parameters being passed to the tool.
+   * Structure varies by tool type.
+   */
+  tool_input: unknown;
+  /**
+   * Unique identifier for this specific tool invocation.
+   * Use this to correlate with PostToolUse events.
+   */
+  tool_use_id: string;
 }
 /**
  * Input for PostToolUse hooks.
@@ -142,26 +142,26 @@ export interface PreToolUseInput extends BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#posttooluse
  */
 export interface PostToolUseInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'PostToolUse';
-    /**
-     * Name of the tool that was invoked.
-     */
-    tool_name: string;
-    /**
-     * Input parameters that were passed to the tool.
-     */
-    tool_input: unknown;
-    /**
-     * Response returned by the tool.
-     * Structure varies by tool type.
-     */
-    tool_response: unknown;
-    /**
-     * Unique identifier for this tool invocation.
-     * Matches the tool_use_id from the corresponding PreToolUse event.
-     */
-    tool_use_id: string;
+  /** Discriminator for hook event type. */
+  hook_event_name: 'PostToolUse';
+  /**
+   * Name of the tool that was invoked.
+   */
+  tool_name: string;
+  /**
+   * Input parameters that were passed to the tool.
+   */
+  tool_input: unknown;
+  /**
+   * Response returned by the tool.
+   * Structure varies by tool type.
+   */
+  tool_response: unknown;
+  /**
+   * Unique identifier for this tool invocation.
+   * Matches the tool_use_id from the corresponding PreToolUse event.
+   */
+  tool_use_id: string;
 }
 /**
  * Input for PostToolUseFailure hooks.
@@ -185,28 +185,28 @@ export interface PostToolUseInput extends BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#posttoolusefailure
  */
 export interface PostToolUseFailureInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'PostToolUseFailure';
-    /**
-     * Name of the tool that failed.
-     */
-    tool_name: string;
-    /**
-     * Input parameters that were passed to the tool.
-     */
-    tool_input: unknown;
-    /**
-     * Unique identifier for this tool invocation.
-     */
-    tool_use_id: string;
-    /**
-     * Error message describing why the tool failed.
-     */
-    error: string;
-    /**
-     * Whether this failure was caused by a user interrupt.
-     */
-    is_interrupt?: boolean;
+  /** Discriminator for hook event type. */
+  hook_event_name: 'PostToolUseFailure';
+  /**
+   * Name of the tool that failed.
+   */
+  tool_name: string;
+  /**
+   * Input parameters that were passed to the tool.
+   */
+  tool_input: unknown;
+  /**
+   * Unique identifier for this tool invocation.
+   */
+  tool_use_id: string;
+  /**
+   * Error message describing why the tool failed.
+   */
+  error: string;
+  /**
+   * Whether this failure was caused by a user interrupt.
+   */
+  is_interrupt?: boolean;
 }
 /**
  * Input for Notification hooks.
@@ -228,20 +228,20 @@ export interface PostToolUseFailureInput extends BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#notification
  */
 export interface NotificationInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'Notification';
-    /**
-     * Main content of the notification.
-     */
-    message: string;
-    /**
-     * Optional title for the notification.
-     */
-    title?: string;
-    /**
-     * Type/category of the notification.
-     */
-    notification_type: string;
+  /** Discriminator for hook event type. */
+  hook_event_name: 'Notification';
+  /**
+   * Main content of the notification.
+   */
+  message: string;
+  /**
+   * Optional title for the notification.
+   */
+  title?: string;
+  /**
+   * Type/category of the notification.
+   */
+  notification_type: string;
 }
 /**
  * Input for UserPromptSubmit hooks.
@@ -264,12 +264,12 @@ export interface NotificationInput extends BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#userpromptsubmit
  */
 export interface UserPromptSubmitInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'UserPromptSubmit';
-    /**
-     * The prompt text submitted by the user.
-     */
-    prompt: string;
+  /** Discriminator for hook event type. */
+  hook_event_name: 'UserPromptSubmit';
+  /**
+   * The prompt text submitted by the user.
+   */
+  prompt: string;
 }
 /**
  * Input for SessionStart hooks.
@@ -295,17 +295,17 @@ export interface UserPromptSubmitInput extends BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#sessionstart
  */
 export interface SessionStartInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'SessionStart';
-    /**
-     * How the session was started.
-     *
-     * - `'startup'` - New session started from scratch
-     * - `'resume'` - Resuming a previous session
-     * - `'clear'` - Session cleared and restarted
-     * - `'compact'` - Session restarted after context compaction
-     */
-    source: SessionStartSource;
+  /** Discriminator for hook event type. */
+  hook_event_name: 'SessionStart';
+  /**
+   * How the session was started.
+   *
+   * - `'startup'` - New session started from scratch
+   * - `'resume'` - Resuming a previous session
+   * - `'clear'` - Session cleared and restarted
+   * - `'compact'` - Session restarted after context compaction
+   */
+  source: SessionStartSource;
 }
 /**
  * Input for SessionEnd hooks.
@@ -327,17 +327,17 @@ export interface SessionStartInput extends BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#sessionend
  */
 export interface SessionEndInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'SessionEnd';
-    /**
-     * The reason the session ended.
-     *
-     * - `'clear'` - Session cleared by user
-     * - `'logout'` - User logged out
-     * - `'prompt_input_exit'` - User exited at prompt input
-     * - `'other'` - Other reasons
-     */
-    reason: SessionEndReason;
+  /** Discriminator for hook event type. */
+  hook_event_name: 'SessionEnd';
+  /**
+   * The reason the session ended.
+   *
+   * - `'clear'` - Session cleared by user
+   * - `'logout'` - User logged out
+   * - `'prompt_input_exit'` - User exited at prompt input
+   * - `'other'` - Other reasons
+   */
+  reason: SessionEndReason;
 }
 /**
  * Input for Stop hooks.
@@ -365,13 +365,13 @@ export interface SessionEndInput extends BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#stop
  */
 export interface StopInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'Stop';
-    /**
-     * Whether a stop hook is currently active.
-     * Used to prevent recursive stop hook invocations.
-     */
-    stop_hook_active: boolean;
+  /** Discriminator for hook event type. */
+  hook_event_name: 'Stop';
+  /**
+   * Whether a stop hook is currently active.
+   * Used to prevent recursive stop hook invocations.
+   */
+  stop_hook_active: boolean;
 }
 /**
  * Input for SubagentStart hooks.
@@ -394,17 +394,17 @@ export interface StopInput extends BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#subagentstart
  */
 export interface SubagentStartInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'SubagentStart';
-    /**
-     * Unique identifier for the subagent instance.
-     */
-    agent_id: string;
-    /**
-     * Type of subagent being started.
-     * Examples: 'explore', 'codebase-analysis', custom agent types
-     */
-    agent_type: string;
+  /** Discriminator for hook event type. */
+  hook_event_name: 'SubagentStart';
+  /**
+   * Unique identifier for the subagent instance.
+   */
+  agent_id: string;
+  /**
+   * Type of subagent being started.
+   * Examples: 'explore', 'codebase-analysis', custom agent types
+   */
+  agent_type: string;
 }
 /**
  * Input for SubagentStop hooks.
@@ -430,25 +430,25 @@ export interface SubagentStartInput extends BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#subagentstop
  */
 export interface SubagentStopInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'SubagentStop';
-    /**
-     * Whether a stop hook is currently active.
-     */
-    stop_hook_active: boolean;
-    /**
-     * Unique identifier for the subagent instance.
-     */
-    agent_id: string;
-    /**
-     * Type of subagent that is stopping.
-     * Examples: 'explore', 'codebase-analysis', custom agent types
-     */
-    agent_type: string;
-    /**
-     * Path to the subagent's transcript file.
-     */
-    agent_transcript_path: string;
+  /** Discriminator for hook event type. */
+  hook_event_name: 'SubagentStop';
+  /**
+   * Whether a stop hook is currently active.
+   */
+  stop_hook_active: boolean;
+  /**
+   * Unique identifier for the subagent instance.
+   */
+  agent_id: string;
+  /**
+   * Type of subagent that is stopping.
+   * Examples: 'explore', 'codebase-analysis', custom agent types
+   */
+  agent_type: string;
+  /**
+   * Path to the subagent's transcript file.
+   */
+  agent_transcript_path: string;
 }
 /**
  * Input for PreCompact hooks.
@@ -470,20 +470,20 @@ export interface SubagentStopInput extends BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#precompact
  */
 export interface PreCompactInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'PreCompact';
-    /**
-     * What triggered the compaction.
-     *
-     * - `'manual'` - User explicitly requested compaction
-     * - `'auto'` - Automatic compaction due to context length
-     */
-    trigger: PreCompactTrigger;
-    /**
-     * Custom instructions to include in the compacted context.
-     * May be null if no custom instructions are set.
-     */
-    custom_instructions: string | null;
+  /** Discriminator for hook event type. */
+  hook_event_name: 'PreCompact';
+  /**
+   * What triggered the compaction.
+   *
+   * - `'manual'` - User explicitly requested compaction
+   * - `'auto'` - Automatic compaction due to context length
+   */
+  trigger: PreCompactTrigger;
+  /**
+   * Custom instructions to include in the compacted context.
+   * May be null if no custom instructions are set.
+   */
+  custom_instructions: string | null;
 }
 /**
  * Input for PermissionRequest hooks.
@@ -510,25 +510,25 @@ export interface PreCompactInput extends BaseHookInput {
  * @see https://code.claude.com/docs/en/hooks#permissionrequest
  */
 export interface PermissionRequestInput extends BaseHookInput {
-    /** Discriminator for hook event type. */
-    hook_event_name: 'PermissionRequest';
-    /**
-     * Name of the tool requesting permission.
-     */
-    tool_name: string;
-    /**
-     * Input parameters for the tool.
-     */
-    tool_input: unknown;
-    /**
-     * Unique identifier for this specific tool invocation.
-     */
-    tool_use_id: string;
-    /**
-     * Suggested permission updates that would prevent future prompts.
-     * Typically used for "always allow" functionality.
-     */
-    permission_suggestions?: PermissionUpdate[];
+  /** Discriminator for hook event type. */
+  hook_event_name: 'PermissionRequest';
+  /**
+   * Name of the tool requesting permission.
+   */
+  tool_name: string;
+  /**
+   * Input parameters for the tool.
+   */
+  tool_input: unknown;
+  /**
+   * Unique identifier for this specific tool invocation.
+   */
+  tool_use_id: string;
+  /**
+   * Suggested permission updates that would prevent future prompts.
+   * Typically used for "always allow" functionality.
+   */
+  permission_suggestions?: PermissionUpdate[];
 }
 /**
  * Discriminated union of all hook input types.
@@ -554,7 +554,19 @@ export interface PermissionRequestInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks
  */
-export type HookInput = PreToolUseInput | PostToolUseInput | PostToolUseFailureInput | NotificationInput | UserPromptSubmitInput | SessionStartInput | SessionEndInput | StopInput | SubagentStartInput | SubagentStopInput | PreCompactInput | PermissionRequestInput;
+export type HookInput =
+  | PreToolUseInput
+  | PostToolUseInput
+  | PostToolUseFailureInput
+  | NotificationInput
+  | UserPromptSubmitInput
+  | SessionStartInput
+  | SessionEndInput
+  | StopInput
+  | SubagentStartInput
+  | SubagentStopInput
+  | PreCompactInput
+  | PermissionRequestInput;
 /**
  * Hook event name literal union.
  *
@@ -572,5 +584,18 @@ export type HookEventName = HookInput['hook_event_name'];
  * }
  * ```
  */
-export declare const HOOK_EVENT_NAMES: readonly ["PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "UserPromptSubmit", "SessionStart", "SessionEnd", "Stop", "SubagentStart", "SubagentStop", "PreCompact", "PermissionRequest"];
+export declare const HOOK_EVENT_NAMES: readonly [
+  'PreToolUse',
+  'PostToolUse',
+  'PostToolUseFailure',
+  'Notification',
+  'UserPromptSubmit',
+  'SessionStart',
+  'SessionEnd',
+  'Stop',
+  'SubagentStart',
+  'SubagentStop',
+  'PreCompact',
+  'PermissionRequest'
+];
 export type { PermissionUpdate };

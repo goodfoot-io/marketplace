@@ -1118,6 +1118,19 @@ async function main(): Promise<void> {
     const executable = args.executable !== undefined && args.executable !== '' ? args.executable : 'node';
     const newHooksJson = generateHooksJson(compiledHooks, buildDir, hookContext, executable);
 
+    // Preserve timestamp if generated files haven't changed
+    if (existingHooksJson !== undefined) {
+      const existingFiles = [...(existingHooksJson.__generated?.files ?? [])].sort();
+      const newFiles = [...newHooksJson.__generated.files].sort();
+      const filesUnchanged =
+        existingFiles.length === newFiles.length && existingFiles.every((f, i) => f === newFiles[i]);
+
+      if (filesUnchanged && existingHooksJson.__generated?.timestamp) {
+        newHooksJson.__generated.timestamp = existingHooksJson.__generated.timestamp;
+        log('info', 'Files unchanged, preserving existing timestamp');
+      }
+    }
+
     // Merge with preserved hooks
     const finalHooksJson = mergeHooksJson(newHooksJson, preservedHooks);
     writeHooksJson(finalHooksJson, outputPath);

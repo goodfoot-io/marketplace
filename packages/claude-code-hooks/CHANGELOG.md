@@ -1,6 +1,7 @@
 # Changelog
 
 ## 1.0.6
+
 - Minor improvements and bug fixes
 
 ## 1.0.5
