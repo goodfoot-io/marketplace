@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.8
+- Added repository metadata to package.json (homepage, git repository URL)
+
 ## 1.0.7
 - Improved timestamp preservation when regenerating hooks.json to prevent unnecessary metadata updates
 - Standardized TypeScript definition file formatting for consistency
