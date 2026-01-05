@@ -14,7 +14,11 @@ Run:
 
 then:
 
-`claude -p "Load the 'claude-code-hooks:sdk' skill then scaffold a new hook package in ./packages/hooks that outputs to '.claude/hooks/hooks.json' and contains an example SessionStart hook."`
+`claude "Load the 'claude-code-hooks:sdk' skill then scaffold a new hook package in ./packages/hooks that outputs to '.claude/hooks/hooks.json' and contains an example SessionStart hook."`
+
+later:
+
+`claude plugin uninstall claude-code-hooks@goodfoot`
 
 ## ⚡ Quick Start
 
@@ -177,9 +181,9 @@ Input properties use the wire format (snake_case) directly for consistency.
 ```typescript
 // Claude sends: { "file_path": "src/main.ts", "tool_name": "Read" }
 // You receive:
-export default preToolUseHook({}, async (input) => {
-  console.log(input.tool_name); // "Read"
-  console.log(input.tool_input.file_path); // "src/main.ts" (when typed)
+export default preToolUseHook({}, async (input, { logger }) => {
+  logger.info('Tool received', { tool: input.tool_name }); // "Read"
+  logger.debug('Tool input', { input: input.tool_input }); // { file_path: "src/main.ts" }
 });
 ```
 

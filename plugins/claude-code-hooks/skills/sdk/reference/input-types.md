@@ -140,19 +140,23 @@ import {
   isGrepTool
 } from '@goodfoot/claude-code-hooks';
 
-export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input) => {
+export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { logger }) => {
   if (isWriteTool(input)) {
     // input.tool_input is typed as WriteToolInput
-    console.log(input.tool_input.file_path);
-    console.log(input.tool_input.content);
+    logger.info('Write operation', {
+      file: input.tool_input.file_path,
+      contentLength: input.tool_input.content.length
+    });
   } else if (isEditTool(input)) {
     // input.tool_input is typed as EditToolInput
-    console.log(input.tool_input.old_string);
-    console.log(input.tool_input.new_string);
+    logger.info('Edit operation', {
+      old: input.tool_input.old_string,
+      new: input.tool_input.new_string
+    });
   } else if (isMultiEditTool(input)) {
     // input.tool_input is typed as MultiEditToolInput
     for (const edit of input.tool_input.edits) {
-      console.log(edit.old_string, '->', edit.new_string);
+      logger.debug('MultiEdit entry', { old: edit.old_string, new: edit.new_string });
     }
   }
 

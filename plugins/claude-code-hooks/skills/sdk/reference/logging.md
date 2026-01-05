@@ -176,12 +176,14 @@ import { Logger, type LogEvent } from '@goodfoot/claude-code-hooks';
 
 const logger = new Logger();
 
-// Subscribe to error events
+// Subscribe to error events for external monitoring
 const unsubscribe = logger.on('error', (event: LogEvent) => {
-  console.error(`[${event.hookType}] ${event.message}`);
-  if (event.error) {
-    console.error(event.error.stack);
-  }
+  // Forward to your monitoring service (e.g., Sentry, Datadog, etc.)
+  sendToMonitoring({
+    hookType: event.hookType,
+    message: event.message,
+    stack: event.error?.stack
+  });
 });
 
 // Subscribe to multiple levels
