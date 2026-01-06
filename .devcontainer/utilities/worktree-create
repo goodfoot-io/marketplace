@@ -1,7 +1,10 @@
 #!/usr/bin/env zsh
 
 # Create a new git worktree with a new branch and launch Cursor with Claude Code
-# Usage: ./create-worktree.sh <project-name>
+# Usage: ./worktree-create <project-name>
+#
+# This script composes instant-worktree (fast worktree + symlinks) with additional
+# development setup (git config, MCP servers, VSCode configuration, IDE launch).
 
 set -e
 
@@ -31,25 +34,14 @@ if git worktree list | grep -q "${WORKTREE_DIR}"; then
 elif [[ -d "${WORKTREE_DIR}" ]]; then
     echo "Directory '${WORKTREE_DIR}' exists but is not a valid worktree. Removing it..."
     rm -rf "${WORKTREE_DIR}"
-    echo "Creating worktree for branch '${BRANCH_NAME}'..."
-    
-    # Create the worktree with a new branch
-    if ! git worktree add -b "${BRANCH_NAME}" "${WORKTREE_DIR}"; then
-        echo "Error: Failed to create worktree"
-        exit 1
-    fi
-    
-    echo "Worktree created at: ${WORKTREE_DIR}"
+
+    # Use instant-worktree for fast creation with symlinks
+    echo "Creating worktree using instant-worktree..."
+    /workspace/.devcontainer/utilities/instant-worktree "${BRANCH_NAME}"
 else
-    echo "Creating worktree for branch '${BRANCH_NAME}'..."
-    
-    # Create the worktree with a new branch
-    if ! git worktree add -b "${BRANCH_NAME}" "${WORKTREE_DIR}"; then
-        echo "Error: Failed to create worktree"
-        exit 1
-    fi
-    
-    echo "Worktree created at: ${WORKTREE_DIR}"
+    # Use instant-worktree for fast creation with symlinks
+    echo "Creating worktree using instant-worktree..."
+    /workspace/.devcontainer/utilities/instant-worktree "${BRANCH_NAME}"
 fi
 
 # Verify the worktree was created successfully before continuing
@@ -92,17 +84,12 @@ for setting in core.autocrlf core.ignorecase pull.rebase; do
     fi
 done
 
-# Enable corepack for yarn
-echo "Enabling corepack..."
-CI=1 corepack enable
-
-# Run yarn install in the new worktree
-echo "Installing dependencies..."
-yarn install
+# Configure hooks path to use repository hooks
+git config core.hooksPath .githooks
+echo "  Configured: core.hooksPath = .githooks"
 
 # Copy MCP servers from main workspace to the worktree
 echo "Copying MCP servers..."
-# Use hardcoded /workspace as main workspace since we're already in the worktree directory
 MAIN_WORKSPACE="/workspace"
 cd "$MAIN_WORKSPACE"
 if /workspace/.devcontainer/utilities/claude-copy-mcp-servers "${WORKTREE_DIR}"; then
@@ -112,34 +99,8 @@ else
 fi
 cd "${WORKTREE_DIR}"
 
-# Link the projects directory from the root repository
-echo "Linking projects directory..."
-if [[ -d "/workspace/projects" ]]; then
-    ln -s "/workspace/projects" "${WORKTREE_DIR}/projects"
-    echo "  Linked: projects directory"
-fi
-
-# Link the reports directory from the root repository
-echo "Linking reports directory..."
-if [[ -d "/workspace/reports" ]]; then
-    ln -s "/workspace/reports" "${WORKTREE_DIR}/reports"
-    echo "  Linked: reports directory"
-fi
-
-
-# Copy all .env and .env.test files maintaining directory structure
-echo "Copying environment files..."
-cd /workspace
-find . -path "./.worktrees" -prune -o -path "./.git" -prune -o -type f \( -name ".env" -o -name ".env.test" \) -print | while read -r env_file; do
-    # Create the directory structure in the worktree
-    dir_path=$(dirname "$env_file")
-    mkdir -p "${WORKTREE_DIR}/${dir_path}"
-    
-    # Copy the file
-    cp "$env_file" "${WORKTREE_DIR}/${env_file}"
-    echo "  Copied: $env_file"
-done
-cd "${WORKTREE_DIR}"
+# Update Claude plugins
+claude plugin marketplace update
 
 # Create a .vscode directory with workspace settings
 mkdir -p "${WORKTREE_DIR}/.vscode"
@@ -154,15 +115,15 @@ else
     echo "/project:begin" > "${COMMAND_FILE}"
 fi
 
-# Create tasks.json to run Claude Code on startup
-cat > "${WORKTREE_DIR}/.vscode/tasks.json" << EOF
+# Create tasks.json with Claude Code launcher
+cat > "${WORKTREE_DIR}/.vscode/tasks.json" << 'EOF'
 {
   "version": "2.0.0",
   "tasks": [
     {
       "label": "Launch Claude Code",
       "type": "shell",
-      "command": "while true; do claude \"\$(cat .claude-next-command)\"; echo \"Claude exited. Restarting...\"; done",
+      "command": "while true; do claude \"$(cat .claude-next-command)\"; echo \"Claude exited. Restarting...\"; done",
       "presentation": {
         "echo": true,
         "reveal": "always",
@@ -181,12 +142,14 @@ cat > "${WORKTREE_DIR}/.vscode/tasks.json" << EOF
 }
 EOF
 
-# Create settings.json - copy from parent workspace if exists, otherwise create minimal
+# Copy VSCode configuration files from parent workspace
+echo "Copying VSCode configuration..."
+
+# Copy settings.json - required for worktrees
 if [[ -f "/workspace/.vscode/settings.json" ]]; then
-    echo "Copying VSCode settings from parent workspace..."
     cp "/workspace/.vscode/settings.json" "${WORKTREE_DIR}/.vscode/settings.json"
 
-    # Ensure required settings are present using node to merge JSON
+    # Ensure required worktree settings are present using node to merge JSON
     node -e "
 const fs = require('fs');
 const settingsPath = '${WORKTREE_DIR}/.vscode/settings.json';
@@ -198,9 +161,9 @@ settings['terminal.integrated.defaultLocation'] = 'editor';
 
 fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
 "
-    echo "  VSCode settings copied and merged"
+    echo "  Copied and merged: settings.json"
 else
-    echo "Creating default VSCode settings..."
+    echo "  Creating default settings.json..."
     cat > "${WORKTREE_DIR}/.vscode/settings.json" << EOF
 {
   "task.allowAutomaticTasks": "on",
@@ -215,6 +178,12 @@ else
   }
 }
 EOF
+fi
+
+# Copy launch.json for debugging
+if [[ -f "/workspace/.vscode/launch.json" ]]; then
+    cp "/workspace/.vscode/launch.json" "${WORKTREE_DIR}/.vscode/launch.json"
+    echo "  Copied: launch.json"
 fi
 
 # Launch Cursor IDE in the new worktree

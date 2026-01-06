@@ -1,0 +1,246 @@
+#!/usr/bin/env bash
+# rebase-branch - Analyze, generate script, and execute rebase in one step
+# Automatically handles checkpoint commits, task consolidation, and empty commits
+#
+# Usage: rebase-branch <base-branch> [--dry-run]
+#
+# This script cleans up commits (drops checkpoints, consolidates tasks) WITHOUT
+# integrating changes from the base branch. It rebases onto the merge-base point,
+# preserving your branch's divergence from the base.
+
+set -e
+
+BASE_BRANCH=""
+DRY_RUN=""
+
+# Get the actual git directory (handles worktrees correctly)
+get_git_dir() {
+    git rev-parse --git-dir
+}
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dry-run)
+            DRY_RUN="true"
+            shift
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            BASE_BRANCH="$1"
+            shift
+            ;;
+    esac
+done
+
+# Require BASE_BRANCH parameter
+if [[ -z "$BASE_BRANCH" ]]; then
+    echo "Error: BASE_BRANCH parameter is required" >&2
+    echo "Usage: rebase-branch <base-branch> [--dry-run]" >&2
+    exit 1
+fi
+
+CURRENT_BRANCH=$(git branch --show-current)
+
+# Verify base branch exists
+if ! git rev-parse --verify "$BASE_BRANCH" &>/dev/null; then
+    echo "Error: Base branch '$BASE_BRANCH' does not exist" >&2
+    exit 1
+fi
+
+# Check for uncommitted changes
+if [[ -n $(git status --porcelain) ]]; then
+    echo "Error: Uncommitted changes detected" >&2
+    git status --short
+    exit 1
+fi
+
+# Calculate the merge-base (where this branch diverged from base)
+MERGE_BASE=$(git merge-base HEAD "$BASE_BRANCH")
+
+echo "=== Rebase Branch ==="
+echo "Branch: $CURRENT_BRANCH"
+echo "Base: $BASE_BRANCH"
+echo "Merge-base: $MERGE_BASE (rebase target)"
+echo ""
+
+# ============================================================
+# STEP 1: Analyze branch
+# ============================================================
+echo "=== Step 1: Analyzing Branch ==="
+
+BEFORE_COMMITS=$(git log --oneline "$BASE_BRANCH..HEAD")
+BEFORE_COUNT=$(git rev-list --count "$BASE_BRANCH..HEAD")
+
+echo "Total commits: $BEFORE_COUNT"
+
+# Detect patterns
+CHECKPOINT_COUNT=$(git log --oneline "$BASE_BRANCH..HEAD" --grep="^checkpoint:" 2>/dev/null | wc -l | tr -d ' ')
+TASK_COUNT=$(git log --oneline "$BASE_BRANCH..HEAD" --grep="^completed:" 2>/dev/null | wc -l | tr -d ' ')
+MERGE_COUNT=$(git log --oneline --merges "$BASE_BRANCH..HEAD" 2>/dev/null | wc -l | tr -d ' ')
+
+# Count empty commits
+EMPTY_COUNT=0
+while IFS= read -r line; do
+    hash=$(echo "$line" | cut -d' ' -f1)
+    file_count=$(git show --stat --oneline "$hash" 2>/dev/null | tail -n 1 | grep -oE '[0-9]+ file' | grep -oE '[0-9]+' || echo "0")
+    if [[ "$file_count" == "0" ]]; then
+        EMPTY_COUNT=$((EMPTY_COUNT + 1))
+    fi
+done < <(git log --oneline "$BASE_BRANCH..HEAD")
+
+echo "Patterns detected:"
+echo "  - Checkpoint commits: $CHECKPOINT_COUNT"
+echo "  - Task/iteration commits: $TASK_COUNT"
+echo "  - Merge commits: $MERGE_COUNT"
+echo "  - Empty commits: $EMPTY_COUNT"
+echo ""
+
+# ============================================================
+# STEP 2: Generate rebase script
+# ============================================================
+echo "=== Step 2: Generating Rebase Script ==="
+
+SCRIPT_FILE="/tmp/rebase-script-$$.sh"
+
+# Build awk rules based on detected patterns
+AWK_RULES=""
+
+if [[ $CHECKPOINT_COUNT -gt 0 ]]; then
+    AWK_RULES+='
+# Drop all checkpoint commits
+/checkpoint:/ { next }'
+fi
+
+if [[ $EMPTY_COUNT -gt 0 ]]; then
+    AWK_RULES+='
+
+# Drop empty commits
+/ # empty$/ { next }'
+fi
+
+if [[ $TASK_COUNT -gt 1 ]]; then
+    AWK_RULES+='
+
+# Consolidate completed: Task X commits - keep first, fixup rest
+/completed: Task [0-9]/ {
+    if (task_found == 0) {
+        task_found = 1
+        print $0
+    } else {
+        sub(/^pick/, "fixup")
+        print $0
+    }
+    next
+}'
+fi
+
+# Generate the script
+cat > "$SCRIPT_FILE" << SCRIPT_EOF
+#!/bin/bash
+# Auto-generated rebase script for: $CURRENT_BRANCH -> $BASE_BRANCH
+# Generated: $(date -Iseconds)
+
+TODO="\$1"
+
+awk '
+BEGIN { task_found = 0 }
+$AWK_RULES
+
+# Keep everything else
+{ print \$0 }
+' "\$TODO" > "\$TODO.tmp" && mv "\$TODO.tmp" "\$TODO"
+SCRIPT_EOF
+
+chmod +x "$SCRIPT_FILE"
+
+echo "Script generated: $SCRIPT_FILE"
+echo ""
+
+# Show script in dry-run mode
+if [[ -n "$DRY_RUN" ]]; then
+    echo "=== Generated Script ==="
+    cat "$SCRIPT_FILE"
+    echo ""
+    echo "=== Rebase Todo Preview ==="
+    GIT_SEQUENCE_EDITOR="cat" git rebase -i "$MERGE_BASE" --keep-empty 2>/dev/null || echo "(preview unavailable)"
+    echo ""
+    echo "[DRY RUN] Would execute: GIT_SEQUENCE_EDITOR=$SCRIPT_FILE git rebase -i $MERGE_BASE"
+    rm -f "$SCRIPT_FILE"
+    exit 0
+fi
+
+# ============================================================
+# STEP 3: Execute rebase
+# ============================================================
+echo "=== Step 3: Executing Rebase ==="
+
+# Get the correct git directory (handles worktrees)
+GIT_DIR=$(get_git_dir)
+
+GIT_SEQUENCE_EDITOR="$SCRIPT_FILE" \
+GIT_MERGE_AUTOEDIT=no \
+GIT_EDITOR=true \
+EDITOR=true \
+git rebase -i "$MERGE_BASE" 2>&1 || true
+
+# Handle empty commits (skip them automatically)
+# Use correct git directory path for rebase state detection
+MAX_SKIPS=50
+SKIP_COUNT=0
+REBASE_FAILED=""
+
+while [[ -d "$GIT_DIR/rebase-merge" ]] && [[ $SKIP_COUNT -lt $MAX_SKIPS ]]; do
+    # Check for actual conflicts
+    if [[ -n $(git diff --name-only --diff-filter=U 2>/dev/null) ]]; then
+        echo "❌ Conflict detected during rebase"
+        REBASE_FAILED="true"
+        break
+    fi
+
+    # Empty commit - skip it
+    echo "Skipping empty commit..."
+    git rebase --skip 2>&1 || true
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+done
+
+# Check final state - rebase failed only if still in progress (use correct git dir)
+if [[ -d "$GIT_DIR/rebase-merge" ]] || [[ -d "$GIT_DIR/rebase-apply" ]]; then
+    REBASE_FAILED="true"
+fi
+
+# Clean up script
+rm -f "$SCRIPT_FILE"
+
+# ============================================================
+# STEP 4: Handle result
+# ============================================================
+if [[ -n "$REBASE_FAILED" ]]; then
+    echo ""
+    echo "❌ Rebase failed"
+
+    # Abort any in-progress rebase (use correct git dir for worktrees)
+    if [[ -d "$GIT_DIR/rebase-merge" ]] || [[ -d "$GIT_DIR/rebase-apply" ]]; then
+        git rebase --abort 2>/dev/null || true
+    fi
+
+    exit 1
+fi
+
+# Success
+AFTER_COUNT=$(git rev-list --count "$BASE_BRANCH..HEAD")
+
+echo ""
+echo "=== Rebase Complete ==="
+echo "✅ Success"
+echo "   Commits before: $BEFORE_COUNT"
+echo "   Commits after:  $AFTER_COUNT"
+echo "   Reduced by:     $((BEFORE_COUNT - AFTER_COUNT))"
+echo ""
+
+# Show new history
+echo "=== New Commit History ==="
+git --no-pager log --oneline "$BASE_BRANCH..HEAD"
