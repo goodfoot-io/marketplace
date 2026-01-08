@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.9
+- Updated scaffolded project dependencies to latest versions (Biome 2.x, TypeScript 5.9, Vitest 4.x, Node types 22)
+- Migrated scaffold Biome configuration to v2 format with new organizeImports and file includes patterns
+
 ## 1.0.8
 
 - Added repository metadata to package.json (homepage, git repository URL)
