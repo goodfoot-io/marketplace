@@ -1,5 +1,6 @@
 ---
 description: Refactor code with checkpoints
+disable-model-invocation: true
 ---
 
 <user-message>

@@ -1,5 +1,6 @@
 ---
 description: Implement an existing plan with automatic validation
+disable-model-invocation: true
 ---
 
 <user-message>

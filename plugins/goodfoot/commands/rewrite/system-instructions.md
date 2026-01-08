@@ -1,5 +1,6 @@
 ---
 description: Rewrite as Claude 4 Opus–style system instructions
+disable-model-invocation: true
 ---
 
 <user>
@@ -52,6 +53,7 @@ Follow each rule below without exception. If any rule conflicts with an explicit
 - **Agent instructions**: Instruct use of available tools ("Examine the directory structure using LS")
 - **System instructions**: Declare capabilities ("You have access to filesystem analysis tools")
 
+disable-model-invocation: true
 ---
 
 ### Claude 4 Capabilities Note

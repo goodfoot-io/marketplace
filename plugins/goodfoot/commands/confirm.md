@@ -1,5 +1,6 @@
 ---
 description: Restate and confirm user requests before acting
+disable-model-invocation: true
 ---
 
 <user-message>

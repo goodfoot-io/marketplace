@@ -1,6 +1,7 @@
 ---
 description: Reproduce a bug with a minimal test, then resolve it with test-first verification
 allowed-tools: *
+disable-model-invocation: true
 ---
 
 <user-message>

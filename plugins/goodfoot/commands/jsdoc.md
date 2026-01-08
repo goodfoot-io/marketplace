@@ -1,6 +1,7 @@
 ---
 description: Add or update world-class JSDoc documentation to TypeScript files
 argument-hint: <file-or-directory-path> [additional-paths...]
+disable-model-invocation: true
 ---
 
 <user-message>

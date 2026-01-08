@@ -1,6 +1,7 @@
 ---
 description: Evaluate architecture by comparing user-facing promises against technical implementation
 argument-hint: <focus-area> <user-docs> <technical-docs>
+disable-model-invocation: true
 ---
 
 <user-message>

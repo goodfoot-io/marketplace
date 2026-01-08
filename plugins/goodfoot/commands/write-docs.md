@@ -1,6 +1,7 @@
 ---
 description: Write technical documentation
 argument-hint: <subject>
+disable-model-invocation: true
 ---
 
 <Claude>

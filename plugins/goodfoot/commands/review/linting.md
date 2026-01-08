@@ -1,5 +1,6 @@
 ---
 description: Run linting and analyze issues with grouped categorization
+disable-model-invocation: true
 ---
 
 <task>

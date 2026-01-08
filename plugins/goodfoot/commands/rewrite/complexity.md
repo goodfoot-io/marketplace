@@ -1,5 +1,6 @@
 ---
 description: Resolve negative complexity drivers in documents
+disable-model-invocation: true
 ---
 
 Perform a negative complexity driver analysis then create a new version of the document(s) to address the identified issues.

@@ -1,5 +1,6 @@
 ---
 description: Plan and implement development tasks with automatic validation
+disable-model-invocation: true
 ---
 
 ```!

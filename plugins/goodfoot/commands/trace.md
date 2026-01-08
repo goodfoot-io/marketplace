@@ -1,6 +1,7 @@
 ---
 description: Trace code paths from UI interaction to side effects
 argument-hint: <action-or-function> [perspectives: type,state,message,effect]
+disable-model-invocation: true
 ---
 
 # Code Path Tracing
@@ -15,6 +16,7 @@ Code behavior emerges from the interaction of many components. A button click ma
 
 **The principle**: Follow the data, not the abstractions. Types tell you what *can* happen; traces tell you what *does* happen. When tracing, prioritize concrete file paths and line numbers over conceptual descriptions.
 
+disable-model-invocation: true
 ---
 
 ## Phase 0: Classify Target Type
@@ -37,6 +39,7 @@ Before tracing, identify which category the target falls into. This determines w
 - Events: Use fan-out diagram instead of linear diagram
 - Commands: Document implicit registration patterns
 
+disable-model-invocation: true
 ---
 
 ## Phase 0.5: Disambiguate Target (When Multiple Matches Exist)
@@ -87,6 +90,7 @@ If multiple implementations exist (e.g., wrapper + core), show how they relate:
 └───────────────────────────────────┘
 ```
 
+disable-model-invocation: true
 ---
 
 ## Phase 1: Identify Entry Point
@@ -128,6 +132,7 @@ When a method (e.g., `updateIssue`) is called from webview handlers, API routes,
 
 **Output**: File path, line number, and the exact code that initiates the trace.
 
+disable-model-invocation: true
 ---
 
 ## Phase 2: Trace Forward
@@ -188,6 +193,7 @@ Flag these critical points inline in steps:
 | **State mutation** | Persistent state changes | `this.issues = newIssues` |
 | **Side effect** | External systems affected | File write, API call, UI update |
 
+disable-model-invocation: true
 ---
 
 ## Phase 2.5: Trace Response (For Bidirectional Patterns)
@@ -220,6 +226,7 @@ Webview                               Extension
    │  [state update / effect]             │
 ```
 
+disable-model-invocation: true
 ---
 
 ## Phase 3: Analyze Perspectives
@@ -336,6 +343,7 @@ For each `useEffect`:
 - **Effect**: What side effect occurs
 - **Cleanup**: What happens on unmount/re-run
 
+disable-model-invocation: true
 ---
 
 ## Phase 4: Generate Trace Diagram
@@ -490,6 +498,7 @@ For components with significant props drilling:
                                     └───────────────┘
 ```
 
+disable-model-invocation: true
 ---
 
 ## Phase 5: Identify Trace Concerns
@@ -542,6 +551,7 @@ Use this checklist to systematically discover issues:
 - [ ] useEffect missing cleanup?
 - [ ] Derived state not memoized?
 
+disable-model-invocation: true
 ---
 
 ## Execution Strategy
@@ -573,6 +583,7 @@ grep -r "methodName(" --include="*.ts" -A 2
 
 For cross-boundary traces, launch parallel subagents for each side.
 
+disable-model-invocation: true
 ---
 
 ## Output Format
@@ -587,6 +598,7 @@ Present the trace as:
 6. **Diagram** — Visual flow representation (linear, fan-out, convergence, state machine, or pure)
 7. **Concerns** — Issues discovered via checklist
 
+disable-model-invocation: true
 ---
 
 ## Example Invocations

@@ -1,5 +1,6 @@
 ---
 description: Simplified orchestration focused on coordination over complex validation
+disable-model-invocation: true
 ---
 
 <user-message>

@@ -1,5 +1,6 @@
 ---
 description: Run tasks in parallel
+disable-model-invocation: true
 ---
 
 <user-message>

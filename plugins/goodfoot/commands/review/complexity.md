@@ -1,5 +1,6 @@
 ---
 description: Identify negative complexity drivers in documents
+disable-model-invocation: true
 ---
 
 <negative-complexity-drivers>

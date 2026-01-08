@@ -1,5 +1,6 @@
 ---
 description: Create project plans with automated quality assessment
+disable-model-invocation: true
 ---
 
 ```!

@@ -1,5 +1,6 @@
 ---
 description: Test all project plugin binaries
+disable-model-invocation: true
 ---
 
 This command tests all project plugin binaries to verify they work correctly.

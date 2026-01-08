@@ -1,6 +1,7 @@
 ---
 description: Resolve test failures and type errors identified by review
 allowed-tools: Bash, Task, Read, Write, Edit, MultiEdit, Grep, Glob, LS, WebFetch, WebSearch, TodoWrite
+disable-model-invocation: true
 ---
 
 Invoke the review agent to analyze test failures and type errors, then resolve the issues found.

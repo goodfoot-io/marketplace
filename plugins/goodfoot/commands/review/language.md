@@ -1,5 +1,6 @@
 ---
 description: Review and improve natural language clarity in documentation and prompts
+disable-model-invocation: true
 ---
 
 <role>

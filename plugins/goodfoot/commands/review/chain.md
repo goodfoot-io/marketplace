@@ -1,5 +1,6 @@
 ---
 description: Analyze component chains using extract-inputs-and-outputs command to identify integration incompatibilities
+disable-model-invocation: true
 ---
 
 Systematically analyze interconnected components to map their inputs and outputs, then compare these to identify format mismatches that cause integration failures.

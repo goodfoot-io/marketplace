@@ -1,5 +1,6 @@
 ---
 description: Create an implementation plan for a development task
+disable-model-invocation: true
 ---
 
 ```!

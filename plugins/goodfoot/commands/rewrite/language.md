@@ -1,5 +1,6 @@
 ---
 description: Resolve language issues in documents
+disable-model-invocation: true
 ---
 
 Perform a language analysis, then create a new version of the document(s) to address the identified issues.

@@ -1,6 +1,7 @@
 ---
 description: Map the instructions in a document
 argument-hint: <document-path>
+disable-model-invocation: true
 ---
 
 <user-message>
