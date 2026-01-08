@@ -5,6 +5,7 @@
 node_modules/
 dist/
 build/
+types/
 coverage/
 .next/
 .cache/

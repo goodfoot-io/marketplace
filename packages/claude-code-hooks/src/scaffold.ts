@@ -149,13 +149,13 @@ function generatePackageJson(projectName: string, outputPath: string): string {
       typecheck: 'tsc --noEmit'
     },
     dependencies: {
-      '@goodfoot/claude-code-hooks': '^1.0.0'
+      '@goodfoot/claude-code-hooks': '^1.0.9'
     },
     devDependencies: {
-      '@biomejs/biome': '^1.9.0',
-      '@types/node': '^20.0.0',
-      typescript: '^5.6.0',
-      vitest: '^2.0.0'
+      '@biomejs/biome': '2.3.11',
+      '@types/node': '^22.0.0',
+      typescript: '^5.9.3',
+      vitest: '^4.0.16'
     },
     engines: {
       node: '>=20.11.0'
@@ -193,18 +193,14 @@ function generateTsConfig(): string {
 /**
  * Generates biome.json content for the scaffolded project.
  *
- * The ignore array is formatted on one line to match biome's own formatting preferences.
- * This avoids lint errors when running `biome check` on the generated project.
+ * Uses Biome v2 configuration format with:
+ * - assist.actions.source.organizeImports for import organization
+ * - files.includes for specifying which files to process
  * @returns JSON string for biome.json
  */
 function generateBiomeConfig(): string {
-  // Generate JSON manually to ensure ignore array is on one line
-  // (biome's formatter expects this format)
   return `{
-  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
-  "organizeImports": {
-    "enabled": true
-  },
+  "$schema": "https://biomejs.dev/schemas/2.3.11/schema.json",
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -217,8 +213,15 @@ function generateBiomeConfig(): string {
       "recommended": true
     }
   },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
   "files": {
-    "ignore": ["node_modules", "dist", "bin", "*.json"]
+    "includes": ["src/**/*.ts", "test/**/*.ts", "*.ts"]
   }
 }
 `;
