@@ -1,7 +1,8 @@
 ---
 description: Write technical documentation
 argument-hint: <subject>
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 <Claude>

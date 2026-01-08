@@ -1,6 +1,7 @@
 ---
 description: Plan and implement development tasks with automatic validation
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 ```!

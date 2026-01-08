@@ -1,7 +1,8 @@
 ---
 description: Find and fix swallowed errors in a file or codebase section
 argument-hint: [file-or-directory]
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 ## Philosophy: The Cost of Silent Failures
@@ -10,7 +11,8 @@ Swallowed errors are technical debt that compounds with interest. When code catc
 
 **The principle**: Errors should propagate by default. Catching should be exceptional, specific, and almost always logged. If you find yourself writing `catch {}` or `catch { return defaultValue }`, stop and ask: "What failure am I hiding, and from whom?"
 
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 ## Finding Swallowed Errors
@@ -56,7 +58,8 @@ Structure the analysis as:
    - Does this affect only this operation or downstream operations?
    - Is the failure transient (retry might help) or permanent (will never succeed)?
 
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 ## Resolution Pattern
@@ -154,7 +157,8 @@ async function writeConfig(): Promise<void> {
 }
 ```
 
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 ## Avoiding Test Noise with EventEmitter Warnings
@@ -235,7 +239,8 @@ Suppressing without assertion reintroduces the same problem as swallowed errors:
 - **Intentional**: The pattern documents that silent handling is deliberate
 - **Regressions caught**: New unexpected warnings cause test failures
 
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 ## Finding Tests That Protect Swallowed Errors
@@ -262,7 +267,8 @@ Tests can codify bad behavior. Search test files related to "$ARGUMENTS" for tes
    - That logging occurs when the condition is hit
    - That the behavior is intentional, not accidental
 
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 ## Summary

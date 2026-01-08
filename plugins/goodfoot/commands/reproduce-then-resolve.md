@@ -1,7 +1,8 @@
 ---
 description: Reproduce a bug with a minimal test, then resolve it with test-first verification
 allowed-tools: *
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 <user-message>

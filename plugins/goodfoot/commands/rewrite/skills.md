@@ -1,6 +1,7 @@
 ---
 description: Rewrite skills for maximum coherence and efficacy
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 Rewrite specified skills to maximize coherence, efficacy, and Claude's autonomous discovery. Preserve all substantive elements while restructuring for optimal model performance and progressive disclosure.
@@ -752,7 +753,8 @@ Create [OUTPUT_SKILL_DIR] following the versioning pattern:
 ---
 name: data-processor
 description: Helps with data processing tasks
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 Process data files. Read files and extract information. Can handle various formats.
@@ -767,7 +769,8 @@ Use scripts in scripts/ directory.
 name: processing-data-files
 description: Process CSV, JSON, and XML data files. Extract, transform, validate, and aggregate data. Use when working with data files or when the user needs data analysis, format conversion, or validation.
 allowed-tools: "Read,Write,Bash(python {baseDir}/scripts/*:*)"
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 # Processing Data Files
@@ -816,7 +819,8 @@ Extract data from a CSV file:
 - Specified supported formats and workflows
 - Maintained all script references from original
 
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 ## Example 2: Router-Style Skill with Poor Navigation
@@ -827,7 +831,8 @@ disable-model-invocation: true
 ---
 name: document-tools
 description: Document processing
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 This skill handles documents. See other files for details.
@@ -854,7 +859,8 @@ Note: This skill uses `operations/` subdirectory for supporting files (other ski
 name: processing-documents
 description: Process PDFs, Word documents, and Excel spreadsheets. Extract text, edit content, create reports, merge files, analyze data. Use when working with document files or when the user mentions PDFs, Word, Excel, or spreadsheets.
 allowed-tools: "Read,Write,Bash(python {baseDir}/scripts/*:*)"
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 # Processing Documents
@@ -914,7 +920,8 @@ Comprehensive document processing for PDFs (extract, merge, split), Word documen
 
 **Note on subdirectory naming**: This example uses `operations/` as the subdirectory name. Other common patterns include `formats/` (for format-specific content), `instructions/` (for technique-specific guidance), `reference/` (for detailed specifications), or any other semantic name that fits the skill's organization.
 
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 ## Example 3: Overly Verbose Single-File Skill
@@ -925,7 +932,8 @@ disable-model-invocation: true
 ---
 name: api-validator
 description: Validates APIs
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 # API Validation Tool
@@ -945,7 +953,8 @@ This tool is designed to help you validate your APIs. It can check various thing
 name: validating-apis
 description: Validate REST APIs, GraphQL endpoints, and WebSocket connections. Check response codes, schema compliance, authentication, rate limits, and error handling. Use when the user needs API testing, contract validation, or integration verification.
 allowed-tools: "Read,Bash(curl:*),Bash(python {baseDir}/scripts/*:*)"
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 # Validating APIs

@@ -1,7 +1,8 @@
 ---
 description: Run tests and analyze failures with streamlined reproduction testing
 allowed-tools: Bash, Task, Read, Write, MultiEdit, Grep, Glob, LS, WebFetch, WebSearch
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 Analyze test failures and type errors to create comprehensive failure reports with minimal reproduction tests.

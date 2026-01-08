@@ -1,6 +1,7 @@
 ---
 description: Analyze producer and consumer components for integration incompatibilities
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 Analyze producer and consumer components to identify genuine integration incompatibilities that would prevent successful consumption or processing, while recognizing Claude Code design patterns. Ultrathink.

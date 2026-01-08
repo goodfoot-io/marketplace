@@ -1,6 +1,7 @@
 ---
 description: Update Task() prompts to use correct point of view from sub-agent perspective
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 Update Task() tool prompt instructions to properly reflect that the orchestrating agent is "the user" from the sub-agents' perspective.

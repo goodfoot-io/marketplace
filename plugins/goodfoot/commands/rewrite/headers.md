@@ -1,6 +1,7 @@
 ---
 description: Optimize document headers for clarity and consistency
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 Review and optimize headers in documents to improve structure, clarity, and consistency. Update numbering, semantics, and header levels. Preserve header text unless changes improve clarity or correct style mismatches.

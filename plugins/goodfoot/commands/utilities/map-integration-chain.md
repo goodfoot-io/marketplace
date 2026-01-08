@@ -1,7 +1,8 @@
 ---
 description: Map integration chain from entry point by tracing invocations
 allowed-tools: LS, Read
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 Map the integration chain for the file specified in: $ARGUMENTS

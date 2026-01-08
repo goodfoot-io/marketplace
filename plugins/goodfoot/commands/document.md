@@ -1,7 +1,8 @@
 ---
 description: Generate minimal project state documentation focusing on non-extractable architectural knowledge
 allowed-tools: [Read, Grep, Glob, Task]
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 <user-message>

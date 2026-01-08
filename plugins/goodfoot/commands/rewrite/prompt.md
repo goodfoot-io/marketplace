@@ -1,6 +1,7 @@
 ---
 description: Transform documents into Claude 4 Opus user prompts
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 Transform specified documents into Claude 4 Opus user prompts. Preserve all substantive elements while restructuring for optimal model performance.
@@ -43,7 +44,8 @@ Generate markdown with YAML frontmatter:
 ---
 description: [brief description]
 allowed-tools: [optional tool list if needed]
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 <user-message>

@@ -1,6 +1,7 @@
 ---
 description: Enable skill reload after the next context compaction
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 ```!

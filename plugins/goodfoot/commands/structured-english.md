@@ -1,6 +1,7 @@
 ---
 description: Converts into structured English
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 <structured-english>
@@ -157,7 +158,8 @@ EXIT
 
 Convert the following into structured English:
 
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 $ARGUMENTS

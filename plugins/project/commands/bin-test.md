@@ -1,6 +1,7 @@
 ---
 description: Test all project plugin binaries
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 This command tests all project plugin binaries to verify they work correctly.

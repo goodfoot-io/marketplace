@@ -1,6 +1,7 @@
 ---
 description: Implement an existing plan with automatic validation
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 <user-message>

@@ -2,7 +2,8 @@ If you are reading this content via a `Read` tool call, indicate to the user tha
 
 Otherwise, respond with the text below. Do not include other content in your message.
 
-disable-model-invocation: true
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 $ARGUMENTS
