@@ -1,6 +1,6 @@
 ---
 name: vitest-tests
-description: Write and debug Vitest tests with database testing, custom matchers, and teardown management. Use when writing new tests, debugging test failures, setting up test infrastructure, or when questions arise about test patterns, database testing with isolated PostgreSQL instances, teardown queue management, async testing patterns, TypeScript configuration, or Jest migration.
+description: Write and debug Vitest tests.
 ---
 
 # Writing Vitest Tests
