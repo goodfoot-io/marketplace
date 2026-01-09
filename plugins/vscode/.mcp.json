@@ -4,7 +4,9 @@
       "command": "npx",
       "args": [
         "-y",
-        "@vscode-mcp/vscode-mcp-server@latest"
+        "@vscode-mcp/vscode-mcp-server@latest",
+        "--enable-tools",
+        "execute_command,list_workspaces,open_files"
       ],
       "env": {
         "MAX_MCP_OUTPUT_TOKENS": "100000"

@@ -1,7 +1,6 @@
 {
   "env": {
-    "MAX_MCP_OUTPUT_TOKENS": "100000",
-    "ENABLE_LSP_TOOL": "1"
+    "MAX_MCP_OUTPUT_TOKENS": "100000"
   },
   "permissions": {
     "allow": [],
