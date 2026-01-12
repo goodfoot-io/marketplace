@@ -6,7 +6,7 @@
         "-y",
         "@vscode-mcp/vscode-mcp-server@latest",
         "--enable-tools",
-        "execute_command,list_workspaces,open_files"
+        "execute_command,list_workspaces,open_files,get_diagnostics,get_symbol_lsp_info"
       ],
       "env": {
         "MAX_MCP_OUTPUT_TOKENS": "100000"

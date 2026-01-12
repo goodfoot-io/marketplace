@@ -1,7 +1,7 @@
 {
   "name": "vscode",
   "description": "VSCode integration with LSP tools and codebase exploration MCP servers for enhanced development workflows",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "author": {
     "name": "Goodfoot",
     "email": "contact@goodfoot.io"
