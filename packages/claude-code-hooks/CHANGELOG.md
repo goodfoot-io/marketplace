@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.10
+- Improved scaffolded TypeScript configuration to include test files in type checking
+
 ## 1.0.9
 - Updated scaffolded project dependencies to latest versions (Biome 2.x, TypeScript 5.9, Vitest 4.x, Node types 22)
 - Migrated scaffold Biome configuration to v2 format with new organizeImports and file includes patterns
