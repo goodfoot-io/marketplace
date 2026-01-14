@@ -180,11 +180,10 @@ function generateTsConfig(): string {
       skipLibCheck: true,
       declaration: true,
       declarationMap: true,
-      outDir: './dist',
-      rootDir: './src'
+      outDir: './dist'
     },
-    include: ['src/**/*.ts'],
-    exclude: ['node_modules', 'dist', 'test']
+    include: ['src/**/*.ts', 'test/**/*.ts'],
+    exclude: ['node_modules', 'dist']
   };
 
   return JSON.stringify(tsconfig, null, 2) + '\n';
