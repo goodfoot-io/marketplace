@@ -1,8 +1,6 @@
 ---
 description: Reproduce a bug with a minimal test, then resolve it with test-first verification
 allowed-tools: *
-disable-model-invocation: "true"
-hide-from-slash-command-tool: "true"
 ---
 
 <user-message>
@@ -19,6 +17,9 @@ Variables set during execution:
 - [TEST_FAILURE_OUTPUT] = Captured test failure
 - [TEST_PASS_ANALYSIS] = Why test passed when it should fail (retry context)
 - [RESOLVER_REASONING] = Explanation of fix approach
+- [DATA_FLOW_SOURCE] = Where the bad data originates (file:line or component)
+- [DATA_FLOW_SYMPTOM] = Where the bad data causes the bug (file:line or component)
+- [DATA_FLOW_PATH] = Chain from source to symptom
 </input-format>
 
 <instructions>
@@ -175,7 +176,24 @@ EOF
 
 Initialize: [RESOLVE_ATTEMPT] = 0, [TEST_IS_MODIFIED] = false
 
-### Step 4.1: Launch Bug Resolution Subagent
+### Step 4.1: Trace Data Flow
+
+Before proposing a fix, map how bad data flows from origin to symptom:
+
+1. **Find [DATA_FLOW_SYMPTOM]** — Where in code does the bug manifest? (from [TEST_FAILURE_OUTPUT])
+2. **Find [DATA_FLOW_SOURCE]** — Trace backward: what data/state causes it? Where is that set?
+3. **Map [DATA_FLOW_PATH]** — Document the chain: `[DATA_FLOW_SOURCE] → [...] → [DATA_FLOW_SYMPTOM]`
+
+**Verification rule:** Any fix must modify [DATA_FLOW_PATH] such that correct data flows from source to symptom.
+
+- If fix adds new read → verify something writes the data
+- If fix adds new write → verify something reads the data
+- If fix adds new parameter → verify callers pass it
+- If fix adds new branch → verify production code triggers it
+
+Fixes that fail this check create "dead code" — new capabilities that are never exercised.
+
+### Step 4.2: Launch Bug Resolution Subagent
 
 Increment [RESOLVE_ATTEMPT] (max 2)
 
@@ -200,8 +218,16 @@ The test has already been corrected. DO NOT modify the test file.
 Fix only the source code.
 [End if]
 
+## Data Flow
+Source: [DATA_FLOW_SOURCE]
+Symptom: [DATA_FLOW_SYMPTOM]
+Path: [DATA_FLOW_PATH]
+
 ## Requirements
 - Fix the source code to make the test pass
+- Fix must modify the data flow path so correct data reaches the symptom
+- If adding new parameter: confirm callers will pass it
+- If adding new read: confirm something writes the data
 - Do not break existing functionality
 
 ## If Test Needs Correction
@@ -224,7 +250,7 @@ The orchestrator will verify the modified test still fails, then re-run resoluti
 
 Capture [RESOLVER_REASONING] from response.
 
-### Step 4.2: Detect File Changes
+### Step 4.3: Detect File Changes
 
 Verify actual changes via git (trust git over subagent reports):
 
@@ -240,14 +266,14 @@ TEST_WAS_MODIFIED=$?
 SOURCE_CHANGES=$(echo "$CHANGES" | grep -v "[TEST_FILE_PATH]")
 ```
 
-### Step 4.3: Handle Resolver Response
+### Step 4.4: Handle Resolver Response
 
 **If BLOCKED or CANNOT_COMPLETE:**
 - Present reasoning to user
 - Ask: "Restart with guidance" / "Manual intervention" / "Abort"
 
 **If SUCCESS (and TEST_WAS_MODIFIED = 0):**
-- Proceed to Step 4.4
+- Proceed to Step 4.5
 
 **If TEST_MODIFIED (or TEST_WAS_MODIFIED = 1 detected by git):**
 - If resolver also changed source files, revert source changes (keep only test):
@@ -256,9 +282,9 @@ SOURCE_CHANGES=$(echo "$CHANGES" | grep -v "[TEST_FILE_PATH]")
     git checkout reproduce-resolve/test-ready -- $SOURCE_CHANGES
   fi
   ```
-- Proceed to Step 4.5
+- Proceed to Step 4.6
 
-### Step 4.4: Validate Fix
+### Step 4.5: Validate Fix
 
 ```bash
 yarn test "[TEST_FILE_PATH]" 2>&1
@@ -268,10 +294,10 @@ TEST_EXIT_CODE=$?
 **If test passes:** Proceed to Phase 5
 
 **If test fails:**
-- **If [RESOLVE_ATTEMPT] < 2:** Include failure output in context, return to Step 4.1
+- **If [RESOLVE_ATTEMPT] < 2:** Include failure output in context, return to Step 4.2
 - **If [RESOLVE_ATTEMPT] >= 2:** Ask user: "Retry with guidance" / "Manual intervention" / "Abort"
 
-### Step 4.5: Validate Test Correction
+### Step 4.6: Validate Test Correction
 
 The resolver modified the test. Verify the modified test still fails (still reproduces the bug):
 
@@ -301,7 +327,7 @@ EOF
   ```
 - Capture new [TEST_FAILURE_OUTPUT] from the run
 - Set [TEST_IS_MODIFIED] = true
-- Return to Step 4.1 (resolver will now fix source only)
+- Return to Step 4.2 (resolver will now fix source only)
 
 **If test PASSES (invalid modification):**
 - The test change made it pass without any source fix—this is not valid
@@ -309,7 +335,7 @@ EOF
   ```bash
   git checkout reproduce-resolve/test-ready -- "[TEST_FILE_PATH]"
   ```
-- **If [RESOLVE_ATTEMPT] < 2:** Return to Step 4.1 with note about invalid test change
+- **If [RESOLVE_ATTEMPT] < 2:** Return to Step 4.2 with note about invalid test change
 - **If [RESOLVE_ATTEMPT] >= 2:** Ask user for guidance
 
 ## Phase 5: Validate Full Suite
