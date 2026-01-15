@@ -13,6 +13,7 @@ Extract from `<user-message>` or recent conversation:
 - [SCOPE_HINT] = Files, packages, or areas involved (optional)
 
 Variables set during execution:
+- [CHECKPOINT_SLUG] = URL-safe slug derived from bug description (e.g., "null-user-crash")
 - [TEST_FILE_PATH] = Path to reproduction test
 - [TEST_FAILURE_OUTPUT] = Captured test failure
 - [TEST_PASS_ANALYSIS] = Why test passed when it should fail (retry context)
@@ -45,9 +46,19 @@ Variables set during execution:
 
    **If clean:** Continue.
 
-3. Create baseline tag:
+3. Generate [CHECKPOINT_SLUG] from [BUG_DESCRIPTION]:
+   - Extract 2-4 key words that identify the bug
+   - Convert to lowercase, replace spaces with hyphens
+   - Remove special characters, keep only `[a-z0-9-]`
+   - Truncate to 30 characters max
+   - Examples:
+     - "User crashes when name is null" → `null-user-crash`
+     - "API returns 500 on empty array" → `api-500-empty-array`
+     - "Button doesn't respond after logout" → `button-unresponsive-logout`
+
+4. Create baseline tag:
    ```bash
-   git tag -f reproduce-resolve/baseline HEAD
+   git tag -f rr/[CHECKPOINT_SLUG]/baseline HEAD
    ```
 
 ## Phase 3: Create Reproduction Test
@@ -122,7 +133,7 @@ if [ ! -f "[TEST_FILE_PATH]" ]; then
 fi
 
 # Check for unexpected modifications to existing files
-MODIFIED=$(git diff reproduce-resolve/baseline --name-only --diff-filter=M)
+MODIFIED=$(git diff rr/[CHECKPOINT_SLUG]/baseline --name-only --diff-filter=M)
 if [ -n "$MODIFIED" ]; then
   # Report unexpected changes to user, ask if expected
 fi
@@ -152,7 +163,7 @@ regression guard against reintroduction of the bug.
 Test output: [BRIEF_FAILURE_SUMMARY]
 EOF
 )"
-  git tag -f reproduce-resolve/test-ready HEAD
+  git tag -f rr/[CHECKPOINT_SLUG]/reproduction HEAD
   ```
 - Proceed to Phase 4
 
@@ -161,7 +172,7 @@ EOF
 - Capture analysis as [TEST_PASS_ANALYSIS]
 - Revert to baseline:
   ```bash
-  git checkout reproduce-resolve/baseline -- .
+  git checkout rr/[CHECKPOINT_SLUG]/baseline -- .
   git clean -fd
   ```
 - **If [REPRODUCTION_ATTEMPT] < 2:** Return to Step 3.1 with [TEST_PASS_ANALYSIS] as context
@@ -255,11 +266,11 @@ Capture [RESOLVER_REASONING] from response.
 Verify actual changes via git (trust git over subagent reports):
 
 ```bash
-# What changed since test-ready checkpoint?
-CHANGES=$(git diff reproduce-resolve/test-ready --name-only)
+# What changed since reproduction checkpoint?
+CHANGES=$(git diff rr/[CHECKPOINT_SLUG]/reproduction --name-only)
 
 # Was test file modified? (0=unchanged, 1=modified)
-git diff --quiet reproduce-resolve/test-ready -- "[TEST_FILE_PATH]"
+git diff --quiet rr/[CHECKPOINT_SLUG]/reproduction -- "[TEST_FILE_PATH]"
 TEST_WAS_MODIFIED=$?
 
 # Source files changed (excluding test)
@@ -279,7 +290,7 @@ SOURCE_CHANGES=$(echo "$CHANGES" | grep -v "[TEST_FILE_PATH]")
 - If resolver also changed source files, revert source changes (keep only test):
   ```bash
   if [ -n "$SOURCE_CHANGES" ]; then
-    git checkout reproduce-resolve/test-ready -- $SOURCE_CHANGES
+    git checkout rr/[CHECKPOINT_SLUG]/reproduction -- $SOURCE_CHANGES
   fi
   ```
 - Proceed to Step 4.6
@@ -323,7 +334,7 @@ still failing against the current code.
 Reason for correction: [RESOLVER_REASONING]
 EOF
 )"
-  git tag -f reproduce-resolve/test-ready HEAD
+  git tag -f rr/[CHECKPOINT_SLUG]/reproduction HEAD
   ```
 - Capture new [TEST_FAILURE_OUTPUT] from the run
 - Set [TEST_IS_MODIFIED] = true
@@ -333,7 +344,7 @@ EOF
 - The test change made it pass without any source fix—this is not valid
 - Revert test changes:
   ```bash
-  git checkout reproduce-resolve/test-ready -- "[TEST_FILE_PATH]"
+  git checkout rr/[CHECKPOINT_SLUG]/reproduction -- "[TEST_FILE_PATH]"
   ```
 - **If [RESOLVE_ATTEMPT] < 2:** Return to Step 4.2 with note about invalid test change
 - **If [RESOLVE_ATTEMPT] >= 2:** Ask user for guidance
@@ -353,14 +364,14 @@ FULL_EXIT_CODE=$?
 - Report which tests fail
 - Ask user:
   - "Investigate" → Launch subagent to analyze regressions
-  - "Revert, try again" → Reset source to test-ready, return to Phase 4
+  - "Revert, try again" → Reset source to reproduction checkpoint, return to Phase 4
   - "Accept regressions" → Continue to Phase 6 with warning
 
 ## Phase 6: Generate Report
 
 Gather changes:
 ```bash
-git diff reproduce-resolve/baseline --stat
+git diff rr/[CHECKPOINT_SLUG]/baseline --stat
 ```
 
 Generate report:
@@ -383,12 +394,12 @@ Generate report:
 - Full test suite: [✅ All pass | ⚠️ Regressions accepted]
 
 ### Checkpoints
-- reproduce-resolve/baseline - before changes
-- reproduce-resolve/test-ready - test verified failing
+- rr/[CHECKPOINT_SLUG]/baseline - before changes
+- rr/[CHECKPOINT_SLUG]/reproduction - test verified failing
 ```
 
 **Optional cleanup:**
 ```bash
-git tag -d reproduce-resolve/baseline reproduce-resolve/test-ready
+git tag -d rr/[CHECKPOINT_SLUG]/baseline rr/[CHECKPOINT_SLUG]/reproduction
 ```
 </instructions>
