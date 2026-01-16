@@ -181,7 +181,96 @@ You should write the plan using this template:
 </invoke>
 ```
 
-## Step 5: Present to User
+## Step 5: Review and Refine
+
+You should launch a Plan subagent to critically evaluate the plan. The subagent has no conversation context—construct the prompt from your exploration findings and the plan you just wrote.
+
+**What the reviewer needs:**
+
+| Element | Why | Source |
+|---------|-----|--------|
+| Plan path and goal | Understand what's being evaluated | [PROJECT_DIR]/plan.md, [REQUEST] |
+| Reference files | Compare approach against existing patterns | Files discovered in Step 1 |
+| Specific questions | Focus evaluation on plan's actual structure | Task groups and dependencies from the plan |
+| Domain concerns | Identify gaps specific to this problem | Technical considerations from exploration |
+
+**Constructing the prompt:**
+
+1. State what the plan does (one sentence from [REQUEST])
+2. List the reference files from exploration with brief descriptions of why each matters
+3. Ask pointed questions about the plan's actual task structure—name the task groups, question specific dependencies
+4. List technical concerns relevant to this domain (not generic concerns)
+5. Request feedback with file paths and line numbers
+
+```xml
+<invoke name="Task">
+<parameter name="description">Review [PROJECT_NAME] plan</parameter>
+<parameter name="subagent_type">Plan</parameter>
+<parameter name="prompt"><task>
+Critically evaluate the implementation plan at [FULL_PLAN_PATH]. This plan aims to [GOAL_FROM_REQUEST].
+
+[EVALUATION_CRITERIA_DERIVED_FROM_EXPLORATION_AND_PLAN]
+
+Provide specific, actionable feedback with references to file paths and line numbers. If you identify gaps, propose concrete additions.
+</task>
+
+<instructions>
+Critically evaluate this plan. If small adjustments suffice, propose them; if larger changes better serve the goals, don't hesitate to suggest them.
+
+Conclude with:
+
+## Assessment
+[MAJOR_CHANGES | MINOR_CHANGES | READY]
+
+## Recommendations
+[Specific improvements, if any]
+</instructions></parameter>
+</invoke>
+```
+
+**Example evaluation criteria** (for a drag-drop parity plan):
+
+```
+1. **Pattern Alignment**: Does the proposed controller pattern match the reference implementation?
+   - /workspace/packages/extension/src/providers/TreeDragAndDropController.ts (compare-branch implementation)
+   - /workspace/packages/extension/src/views/attributionTree/dragDrop.ts (current stub)
+
+2. **Task Dependencies**: The plan has 6 task groups. Verify:
+   - Does Group 2 (Provider Integration) truly depend on Group 1 (Utility Enhancements)?
+   - Can Tasks 7-9 run in parallel?
+
+3. **Validation Coverage**: Are these validation rules complete?
+   - no deleted files, no conflicts, no self-reference, no cyclic, no same-parent, name conflicts
+   - Cross-reference: /workspace/packages/tree/src/dragDrop/validation.ts
+
+4. **Domain Concerns**: Does the plan address:
+   - MIME type compatibility between views
+   - Mode switching race conditions
+   - WorkspaceEdit undo/redo interactions
+```
+
+The criteria above are specific to that plan—yours should be specific to the plan you wrote.
+
+**Interpreting the assessment:**
+
+| Assessment | Action |
+|------------|--------|
+| READY | Proceed to Step 6 |
+| MINOR_CHANGES | Incorporate suggestions, proceed to Step 6 |
+| MAJOR_CHANGES | Revise plan, repeat Step 5 |
+
+**Revision cycle:**
+
+If the assessment is MAJOR_CHANGES:
+1. Read the current plan
+2. Apply the recommended changes
+3. Write the revised plan to `[PROJECT_DIR]/plan.md`
+4. Launch the Plan subagent again with the same prompt structure
+5. Repeat until assessment is READY or MINOR_CHANGES
+
+Do not iterate more than 3 times. If still receiving MAJOR_CHANGES after 3 cycles, proceed to Step 6 and note unresolved concerns in the summary.
+
+## Step 6: Present to User
 
 You should open the plan for user review:
 
@@ -203,6 +292,7 @@ Plan location: `[PROJECT_DIR]/plan.md`
 - Problem: [one sentence]
 - Tasks: [N] tasks ([N] parallel, [N] sequential)
 - Files affected: [N]
+- Review cycles: [N] ([final assessment])
 
 ### Next Steps
 To implement this plan, run:
