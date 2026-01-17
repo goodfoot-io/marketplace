@@ -2,8 +2,8 @@
  * Shared utilities for E2E tests.
  */
 
-import { execSync } from 'node:child_process';
-import * as fs from 'node:fs';
+import { execSync } from "node:child_process";
+import * as fs from "node:fs";
 
 /**
  * Represents a compiled hook entry in hooks.json.
@@ -56,7 +56,7 @@ export interface HooksJson {
  * ```
  */
 export function readHooksJson(hooksJsonPath: string): HooksJson {
-  return JSON.parse(fs.readFileSync(hooksJsonPath, 'utf-8')) as HooksJson;
+  return JSON.parse(fs.readFileSync(hooksJsonPath, "utf-8")) as HooksJson;
 }
 
 /**
@@ -71,7 +71,7 @@ export function readHooksJson(hooksJsonPath: string): HooksJson {
  */
 export function isClaudeBinaryAvailable(): boolean {
   try {
-    execSync('which claude', { stdio: 'ignore' });
+    execSync("which claude", { stdio: "ignore" });
     return true;
   } catch {
     return false;
@@ -120,35 +120,35 @@ export function runClaude(options: RunClaudeOptions): RunClaudeResult {
 
   // Build args: flags first, then prompt, then --plugin-dir and --tools
   // The prompt must come BEFORE --tools and --plugin-dir due to CLI arg parsing
-  const args: string[] = ['--print', '--model', 'haiku', '--no-session-persistence', '--dangerously-skip-permissions'];
+  const args: string[] = ["--print", "--model", "haiku", "--no-session-persistence", "--dangerously-skip-permissions"];
 
   // Add prompt before --plugin-dir and --tools
   args.push(prompt);
 
   if (pluginDir) {
-    args.push('--plugin-dir', pluginDir);
+    args.push("--plugin-dir", pluginDir);
   }
 
   if (tools && tools.length > 0) {
-    args.push('--tools', tools.join(','));
+    args.push("--tools", tools.join(","));
   }
 
-  const cmd = `claude ${args.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(' ')}`;
+  const cmd = `claude ${args.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" ")}`;
   try {
     const stdout = execSync(cmd, {
-      encoding: 'utf-8',
+      encoding: "utf-8",
       timeout,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ["pipe", "pipe", "pipe"],
     });
-    return { stdout, stderr: '' };
+    return { stdout, stderr: "" };
   } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'stdout' in error && 'stderr' in error) {
+    if (error && typeof error === "object" && "stdout" in error && "stderr" in error) {
       const execError = error as { stdout: Buffer | string | null; stderr: Buffer | string | null };
       const stdout = execError.stdout;
       const stderr = execError.stderr;
       return {
-        stdout: typeof stdout === 'string' ? stdout : (stdout?.toString() ?? ''),
-        stderr: typeof stderr === 'string' ? stderr : (stderr?.toString() ?? '')
+        stdout: typeof stdout === "string" ? stdout : (stdout?.toString() ?? ""),
+        stderr: typeof stderr === "string" ? stderr : (stderr?.toString() ?? ""),
       };
     }
     throw error;

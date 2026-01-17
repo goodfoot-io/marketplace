@@ -33,7 +33,7 @@
  * @see https://code.claude.com/docs/en/hooks#hook-execution-details
  */
 
-import * as fs from 'node:fs';
+import * as fs from "node:fs";
 
 /**
  * Claude Code environment variable names.
@@ -45,20 +45,20 @@ export const CLAUDE_ENV_VARS = {
    * Absolute path to the project root directory where Claude Code was started.
    * Available in all hooks.
    */
-  PROJECT_DIR: 'CLAUDE_PROJECT_DIR',
+  PROJECT_DIR: "CLAUDE_PROJECT_DIR",
 
   /**
    * Path to a file where SessionStart hooks can persist environment variables.
    * Variables written to this file will be available in all subsequent bash commands.
    * Only available in SessionStart hooks.
    */
-  ENV_FILE: 'CLAUDE_ENV_FILE',
+  ENV_FILE: "CLAUDE_ENV_FILE",
 
   /**
    * Set to "true" when running in a remote (web) environment.
    * Not set or empty when running in local CLI environment.
    */
-  REMOTE: 'CLAUDE_CODE_REMOTE'
+  REMOTE: "CLAUDE_CODE_REMOTE",
 } as const;
 
 /**
@@ -115,7 +115,7 @@ export function getEnvFilePath(): string | undefined {
  * ```
  */
 export function isRemoteEnvironment(): boolean {
-  return process.env[CLAUDE_ENV_VARS.REMOTE] === 'true';
+  return process.env[CLAUDE_ENV_VARS.REMOTE] === "true";
 }
 
 /**
@@ -149,7 +149,7 @@ export function persistEnvVar(name: string, value: string): void {
   const envFile = getEnvFilePath();
   if (envFile === undefined) {
     throw new Error(
-      'persistEnvVar can only be used in SessionStart hooks. ' + 'CLAUDE_ENV_FILE environment variable is not set.'
+      "persistEnvVar can only be used in SessionStart hooks. " + "CLAUDE_ENV_FILE environment variable is not set.",
     );
   }
 
@@ -158,7 +158,7 @@ export function persistEnvVar(name: string, value: string): void {
 
   // Write the export statement
   const exportStatement = `export ${name}=${escapedValue}\n`;
-  fs.appendFileSync(envFile, exportStatement, 'utf-8');
+  fs.appendFileSync(envFile, exportStatement, "utf-8");
 }
 
 /**

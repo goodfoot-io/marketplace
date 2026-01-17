@@ -19,12 +19,12 @@
  * @see https://code.claude.com/docs/en/hooks
  */
 
-import type { HookContext, HookFunction, SessionStartContext } from './hooks.js';
-import type { HookInput } from './inputs.js';
-import type { HookOutput, SpecificHookOutput, SyncHookJSONOutput } from './outputs.js';
-import { persistEnvVar, persistEnvVars } from './env.js';
-import { logger } from './logger.js';
-import { EXIT_CODES } from './outputs.js';
+import { persistEnvVar, persistEnvVars } from "./env.js";
+import type { HookContext, HookFunction, SessionStartContext } from "./hooks.js";
+import { logger } from "./logger.js";
+import type { HookOutput, SpecificHookOutput, SyncHookJSONOutput } from "./outputs.js";
+import { EXIT_CODES } from "./outputs.js";
+import type { HookInput } from "./types.js";
 
 // ============================================================================
 // Stdin/Stdout Handling
@@ -39,17 +39,17 @@ async function readStdin(): Promise<string> {
     const chunks: string[] = [];
 
     // Set encoding first to ensure data events receive strings
-    process.stdin.setEncoding('utf-8');
+    process.stdin.setEncoding("utf-8");
 
-    process.stdin.on('data', (chunk: string) => {
+    process.stdin.on("data", (chunk: string) => {
       chunks.push(chunk);
     });
 
-    process.stdin.on('end', () => {
-      resolve(chunks.join(''));
+    process.stdin.on("end", () => {
+      resolve(chunks.join(""));
     });
 
-    process.stdin.on('error', (error) => {
+    process.stdin.on("error", (error) => {
       reject(error);
     });
   });
@@ -178,7 +178,7 @@ export function convertToHookOutput(specificOutput: SpecificHookOutput): HookOut
  * @see https://code.claude.com/docs/en/hooks
  */
 export async function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(
-  hookFn: HookFunction<TInput, TOutput>
+  hookFn: HookFunction<TInput, TOutput>,
 ): Promise<void> {
   let output: HookOutput | undefined;
 
@@ -186,14 +186,14 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
     // Check for log file configuration conflicts
     // CLAUDE_CODE_HOOKS_CLI_LOG_FILE is injected by the CLI --log parameter
     // CLAUDE_CODE_HOOKS_LOG_FILE is the user's environment variable
-    const cliLogFile = process.env['CLAUDE_CODE_HOOKS_CLI_LOG_FILE'];
-    const envLogFile = process.env['CLAUDE_CODE_HOOKS_LOG_FILE'];
+    const cliLogFile = process.env.CLAUDE_CODE_HOOKS_CLI_LOG_FILE;
+    const envLogFile = process.env.CLAUDE_CODE_HOOKS_LOG_FILE;
 
     if (cliLogFile !== undefined && envLogFile !== undefined && cliLogFile !== envLogFile) {
       // Write error to stderr and exit with error code
       process.stderr.write(
         `Log file configuration conflict: CLI --log="${cliLogFile}" vs CLAUDE_CODE_HOOKS_LOG_FILE="${envLogFile}". ` +
-          'Use only one method to configure hook logging.\n'
+          "Use only one method to configure hook logging.\n",
       );
       process.exit(EXIT_CODES.ERROR);
     }
@@ -208,7 +208,7 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
     try {
       stdinContent = await readStdin();
     } catch (error) {
-      logger.logError(error, 'Failed to read stdin');
+      logger.logError(error, "Failed to read stdin");
       output = createMalformedInputOutput(error);
       return;
     }
@@ -218,7 +218,7 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
     try {
       input = parseStdinInput(stdinContent) as TInput;
     } catch (error) {
-      logger.logError(error, 'Failed to parse stdin JSON');
+      logger.logError(error, "Failed to parse stdin JSON");
       output = createMalformedInputOutput(error);
       return;
     }
@@ -229,7 +229,7 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
 
     // Build context - SessionStart hooks get extended context with persistEnvVar
     const context: HookContext | SessionStartContext =
-      hookEventName === 'SessionStart' ? { logger, persistEnvVar, persistEnvVars } : { logger };
+      hookEventName === "SessionStart" ? { logger, persistEnvVar, persistEnvVars } : { logger };
 
     // Execute handler
     try {

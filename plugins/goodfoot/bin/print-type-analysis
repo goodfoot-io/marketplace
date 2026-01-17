@@ -1,2 +1,2 @@
 #!/bin/bash
-exec tsx "$(dirname "$0")/print-type-analysis.ts" "$@"
+exec node "$(dirname "$0")/print-type-analysis.mjs" "$@"

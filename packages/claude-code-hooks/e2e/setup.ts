@@ -4,10 +4,10 @@
  * Provides utilities to build hook fixtures using the CLI before tests run.
  */
 
-import { execSync } from 'node:child_process';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { execSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,17 +15,17 @@ const __dirname = path.dirname(__filename);
 /**
  * The directory containing test hook fixtures.
  */
-export const FIXTURES_DIR = path.join(__dirname, 'fixtures');
+export const FIXTURES_DIR = path.join(__dirname, "fixtures");
 
 /**
  * The output directory for compiled hooks.
  */
-export const DIST_DIR = path.join(__dirname, 'dist');
+export const DIST_DIR = path.join(__dirname, "dist");
 
 /**
  * The path to the generated hooks.json file.
  */
-export const HOOKS_JSON_PATH = path.join(DIST_DIR, 'hooks.json');
+export const HOOKS_JSON_PATH = path.join(DIST_DIR, "hooks.json");
 
 /**
  * Gets the path to hooks.json within a plugin directory.
@@ -38,13 +38,13 @@ export const HOOKS_JSON_PATH = path.join(DIST_DIR, 'hooks.json');
  * ```
  */
 export function getHooksJsonPath(pluginDir: string): string {
-  return path.join(pluginDir, 'hooks', 'hooks.json');
+  return path.join(pluginDir, "hooks", "hooks.json");
 }
 
 /**
  * Path to the CLI script.
  */
-const CLI_PATH = path.join(__dirname, '..', 'src', 'cli.ts');
+const CLI_PATH = path.join(__dirname, "..", "src", "cli.ts");
 
 /**
  * Generates a unique suffix for output directories.
@@ -85,13 +85,13 @@ interface HooksJsonStructure {
  */
 export function buildSingleHook(fixtureFile: string): string {
   const hookPath = path.join(FIXTURES_DIR, fixtureFile);
-  const baseName = path.basename(fixtureFile, '.ts');
+  const baseName = path.basename(fixtureFile, ".ts");
   const pluginDir = path.join(DIST_DIR, `${baseName}-${uniqueSuffix()}`);
 
   // Create plugin directory structure
-  const claudePluginDir = path.join(pluginDir, '.claude-plugin');
-  const hooksDir = path.join(pluginDir, 'hooks');
-  const binDir = path.join(hooksDir, 'bin');
+  const claudePluginDir = path.join(pluginDir, ".claude-plugin");
+  const hooksDir = path.join(pluginDir, "hooks");
+  const binDir = path.join(hooksDir, "bin");
 
   fs.mkdirSync(claudePluginDir, { recursive: true });
   fs.mkdirSync(binDir, { recursive: true });
@@ -99,27 +99,27 @@ export function buildSingleHook(fixtureFile: string): string {
   // Create plugin.json
   const pluginJson = {
     name: `test-${baseName}`,
-    version: '1.0.0',
-    description: `Test plugin for ${baseName}`
+    version: "1.0.0",
+    description: `Test plugin for ${baseName}`,
   };
-  fs.writeFileSync(path.join(claudePluginDir, 'plugin.json'), JSON.stringify(pluginJson, null, 2));
+  fs.writeFileSync(path.join(claudePluginDir, "plugin.json"), JSON.stringify(pluginJson, null, 2));
 
   // Build the hook - CLI outputs to buildDir, hooks.json to hooksDir
-  const tempHooksJsonPath = path.join(hooksDir, 'hooks.json');
+  const tempHooksJsonPath = path.join(hooksDir, "hooks.json");
   execSync(`npx tsx ${CLI_PATH} -i "${hookPath}" -o "${tempHooksJsonPath}"`, {
     cwd: path.dirname(CLI_PATH),
-    encoding: 'utf-8',
-    stdio: 'pipe'
+    encoding: "utf-8",
+    stdio: "pipe",
   });
 
   // Move .mjs files from hooksDir to binDir
-  const mjsFiles = fs.readdirSync(hooksDir).filter((f) => f.endsWith('.mjs'));
+  const mjsFiles = fs.readdirSync(hooksDir).filter((f) => f.endsWith(".mjs"));
   for (const mjsFile of mjsFiles) {
     fs.renameSync(path.join(hooksDir, mjsFile), path.join(binDir, mjsFile));
   }
 
   // Post-process hooks.json to use node $CLAUDE_PLUGIN_ROOT paths
-  const hooksJson = JSON.parse(fs.readFileSync(tempHooksJsonPath, 'utf-8')) as HooksJsonStructure;
+  const hooksJson = JSON.parse(fs.readFileSync(tempHooksJsonPath, "utf-8")) as HooksJsonStructure;
 
   for (const eventType of Object.keys(hooksJson.hooks)) {
     for (const matcherEntry of hooksJson.hooks[eventType]) {
@@ -154,8 +154,8 @@ export function buildAllHooks(): string {
   // Build hooks using tsx to run the CLI
   execSync(`npx tsx ${CLI_PATH} -i "${FIXTURES_DIR}/*.ts" -o "${HOOKS_JSON_PATH}"`, {
     cwd: path.dirname(CLI_PATH),
-    encoding: 'utf-8',
-    stdio: 'pipe'
+    encoding: "utf-8",
+    stdio: "pipe",
   });
 
   return DIST_DIR;
@@ -200,13 +200,13 @@ export function cleanOutputDir(outputDir: string): void {
  * // pluginDir: '/path/to/e2e/dist/env-test-1234567890-abc123'
  * ```
  */
-export function buildMultipleHooks(fixtureFiles: string[], pluginName = 'multi-hook'): string {
+export function buildMultipleHooks(fixtureFiles: string[], pluginName = "multi-hook"): string {
   const pluginDir = path.join(DIST_DIR, `${pluginName}-${uniqueSuffix()}`);
 
   // Create plugin directory structure
-  const claudePluginDir = path.join(pluginDir, '.claude-plugin');
-  const hooksDir = path.join(pluginDir, 'hooks');
-  const binDir = path.join(hooksDir, 'bin');
+  const claudePluginDir = path.join(pluginDir, ".claude-plugin");
+  const hooksDir = path.join(pluginDir, "hooks");
+  const binDir = path.join(hooksDir, "bin");
 
   fs.mkdirSync(claudePluginDir, { recursive: true });
   fs.mkdirSync(binDir, { recursive: true });
@@ -214,30 +214,30 @@ export function buildMultipleHooks(fixtureFiles: string[], pluginName = 'multi-h
   // Create plugin.json
   const pluginJson = {
     name: `test-${pluginName}`,
-    version: '1.0.0',
-    description: `Test plugin for ${pluginName}`
+    version: "1.0.0",
+    description: `Test plugin for ${pluginName}`,
   };
-  fs.writeFileSync(path.join(claudePluginDir, 'plugin.json'), JSON.stringify(pluginJson, null, 2));
+  fs.writeFileSync(path.join(claudePluginDir, "plugin.json"), JSON.stringify(pluginJson, null, 2));
 
   // Build all hooks together using brace expansion glob pattern
   // The glob package supports patterns like "{file1,file2}.ts"
-  const tempHooksJsonPath = path.join(hooksDir, 'hooks.json');
-  const basenames = fixtureFiles.map((f) => path.basename(f, '.ts'));
-  const inputGlob = path.join(FIXTURES_DIR, `{${basenames.join(',')}}.ts`);
+  const tempHooksJsonPath = path.join(hooksDir, "hooks.json");
+  const basenames = fixtureFiles.map((f) => path.basename(f, ".ts"));
+  const inputGlob = path.join(FIXTURES_DIR, `{${basenames.join(",")}}.ts`);
   execSync(`npx tsx ${CLI_PATH} -i "${inputGlob}" -o "${tempHooksJsonPath}"`, {
     cwd: path.dirname(CLI_PATH),
-    encoding: 'utf-8',
-    stdio: 'pipe'
+    encoding: "utf-8",
+    stdio: "pipe",
   });
 
   // Move .mjs files from hooksDir to binDir
-  const mjsFiles = fs.readdirSync(hooksDir).filter((f) => f.endsWith('.mjs'));
+  const mjsFiles = fs.readdirSync(hooksDir).filter((f) => f.endsWith(".mjs"));
   for (const mjsFile of mjsFiles) {
     fs.renameSync(path.join(hooksDir, mjsFile), path.join(binDir, mjsFile));
   }
 
   // Post-process hooks.json to use node $CLAUDE_PLUGIN_ROOT paths
-  const hooksJson = JSON.parse(fs.readFileSync(tempHooksJsonPath, 'utf-8')) as HooksJsonStructure;
+  const hooksJson = JSON.parse(fs.readFileSync(tempHooksJsonPath, "utf-8")) as HooksJsonStructure;
 
   for (const eventType of Object.keys(hooksJson.hooks)) {
     for (const matcherEntry of hooksJson.hooks[eventType]) {
@@ -294,7 +294,7 @@ export interface RetryConfig {
  */
 export const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxRetries: 3,
-  baseDelayMs: 2000
+  baseDelayMs: 2000,
 };
 
 /**
@@ -321,13 +321,13 @@ export async function runWithRetry<T>(fn: () => Promise<T>, config: RetryConfig 
 
       // Don't sleep on the last attempt
       if (attempt < config.maxRetries - 1) {
-        const delayMs = config.baseDelayMs * Math.pow(2, attempt);
+        const delayMs = config.baseDelayMs * 2 ** attempt;
         await sleep(delayMs);
       }
     }
   }
 
-  throw lastError ?? new Error('All retries failed');
+  throw lastError ?? new Error("All retries failed");
 }
 
 /**

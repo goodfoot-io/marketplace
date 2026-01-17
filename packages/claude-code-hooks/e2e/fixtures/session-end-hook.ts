@@ -4,14 +4,14 @@
  * Used to verify SessionEnd hooks are built correctly.
  */
 
-import { sessionEndHook, sessionEndOutput } from '../../src/index.js';
+import { sessionEndHook, sessionEndOutput } from "../../src/index.js";
 
-export default sessionEndHook({ matcher: 'logout' }, (input, { logger }) => {
-  logger.info('Session ending', {
+export default sessionEndHook({ matcher: "logout" }, (input, { logger }) => {
+  logger.info("Session ending", {
     session_id: input.session_id,
-    reason: input.reason
+    reason: input.reason,
   });
   return sessionEndOutput({
-    systemMessage: 'E2E_SESSION_END: Session ended.'
+    systemMessage: "E2E_SESSION_END: Session ended.",
   });
 });

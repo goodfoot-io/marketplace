@@ -7,27 +7,27 @@
  * - Suggest alternatives
  */
 
-import * as fs from 'node:fs';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
-import { CLAUDE_AVAILABLE, runClaude, readHooksJson } from './test-utils.js';
+import * as fs from "node:fs";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from "./setup.js";
+import { CLAUDE_AVAILABLE, readHooksJson, runClaude } from "./test-utils.js";
 
-describe('E2E: PostToolUseFailure Hooks', () => {
+describe("E2E: PostToolUseFailure Hooks", () => {
   let pluginDir: string;
 
   beforeAll(() => {
-    pluginDir = buildSingleHook('post-tool-use-failure-hook.ts');
+    pluginDir = buildSingleHook("post-tool-use-failure-hook.ts");
   });
 
   afterAll(() => {
     cleanOutputDir(pluginDir);
   });
 
-  it.skipIf(!CLAUDE_AVAILABLE)('injects context after tool failure', () => {
+  it.skipIf(!CLAUDE_AVAILABLE)("injects context after tool failure", () => {
     const result = runClaude({
-      prompt: 'Run this bash command that will fail: exit 1',
+      prompt: "Run this bash command that will fail: exit 1",
       pluginDir,
-      tools: ['Bash']
+      tools: ["Bash"],
     });
 
     const combinedOutput = result.stdout + result.stderr;
@@ -36,7 +36,7 @@ describe('E2E: PostToolUseFailure Hooks', () => {
     expect(combinedOutput).toMatch(/E2E_FAILURE_CONTEXT|exit|failed|error/i);
   });
 
-  it('generates valid hooks.json with PostToolUseFailure event', () => {
+  it("generates valid hooks.json with PostToolUseFailure event", () => {
     const hooksJsonPath = getHooksJsonPath(pluginDir);
     expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
@@ -44,7 +44,7 @@ describe('E2E: PostToolUseFailure Hooks', () => {
     expect(hooksJson.hooks.PostToolUseFailure).toBeDefined();
     expect(Array.isArray(hooksJson.hooks.PostToolUseFailure)).toBe(true);
 
-    const matcherEntry = hooksJson.hooks.PostToolUseFailure?.find((entry) => entry.matcher === '.*');
+    const matcherEntry = hooksJson.hooks.PostToolUseFailure?.find((entry) => entry.matcher === ".*");
     expect(matcherEntry).toBeDefined();
     expect(matcherEntry?.hooks.length).toBeGreaterThan(0);
   });

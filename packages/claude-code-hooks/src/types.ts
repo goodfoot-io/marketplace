@@ -1,21 +1,89 @@
 /**
- * Input types for Claude Code hooks using wire format (snake_case).
+ * Type definitions for Claude Code hooks.
  *
- * These types match the JSON format that Claude Code sends via stdin. Property names
- * use snake_case to match the wire protocol directly without transformation overhead.
- * Each hook input type includes comprehensive JSDoc documentation explaining when
- * the hook fires and how to use it.
+ * This module provides:
+ * - Hook input types (wire format with snake_case)
+ * - Tool input types for type guards
+ * - SDK type re-exports for extension and reference
  * @see https://code.claude.com/docs/en/hooks
  * @module
  */
 
-import type { PermissionUpdate } from '@anthropic-ai/claude-agent-sdk/entrypoints/agentSdkTypes.js';
+// ============================================================================
+// SDK Type Re-exports
+// ============================================================================
+
+/**
+ * Re-exports types from @anthropic-ai/claude-agent-sdk with "SDK" prefix.
+ * These are used as base types for extension, ensuring synchronization with the SDK.
+ */
+export type {
+  BaseHookInput as SDKBaseHookInput,
+  HookEvent as SDKHookEvent,
+  HookInput as SDKHookInput,
+  NotificationHookInput as SDKNotificationHookInput,
+  PermissionMode as SDKPermissionMode,
+  PermissionRequestHookInput as SDKPermissionRequestHookInput,
+  PermissionUpdate as SDKPermissionUpdate,
+  PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput,
+  PostToolUseHookInput as SDKPostToolUseHookInput,
+  PreCompactHookInput as SDKPreCompactHookInput,
+  PreToolUseHookInput as SDKPreToolUseHookInput,
+  SessionEndHookInput as SDKSessionEndHookInput,
+  SessionStartHookInput as SDKSessionStartHookInput,
+  StopHookInput as SDKStopHookInput,
+  SubagentStartHookInput as SDKSubagentStartHookInput,
+  SubagentStopHookInput as SDKSubagentStopHookInput,
+  UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
+} from "@anthropic-ai/claude-agent-sdk/entrypoints/agentSdkTypes.js";
+
+import type {
+  BaseHookInput as SDKBaseHookInput,
+  NotificationHookInput as SDKNotificationHookInput,
+  PermissionMode as SDKPermissionMode,
+  PermissionRequestHookInput as SDKPermissionRequestHookInput,
+  PermissionUpdate as SDKPermissionUpdate,
+  PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput,
+  PostToolUseHookInput as SDKPostToolUseHookInput,
+  PreCompactHookInput as SDKPreCompactHookInput,
+  PreToolUseHookInput as SDKPreToolUseHookInput,
+  SessionEndHookInput as SDKSessionEndHookInput,
+  SessionStartHookInput as SDKSessionStartHookInput,
+  StopHookInput as SDKStopHookInput,
+  SubagentStartHookInput as SDKSubagentStartHookInput,
+  SubagentStopHookInput as SDKSubagentStopHookInput,
+  UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
+} from "@anthropic-ai/claude-agent-sdk/entrypoints/agentSdkTypes.js";
+
+// Import tool input types from SDK's sdk-tools declaration file.
+// Note: This is a types-only file with no JS runtime, so we use `import type`.
+import type {
+  AgentInput,
+  AskUserQuestionInput,
+  BashInput,
+  ExitPlanModeInput,
+  FileEditInput,
+  FileReadInput,
+  FileWriteInput,
+  GlobInput,
+  GrepInput,
+  KillShellInput,
+  NotebookEditInput,
+  TaskOutputInput,
+  TodoWriteInput,
+  WebFetchInput,
+  WebSearchInput,
+} from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
+
+// ============================================================================
+// Hook Input Types
+// ============================================================================
 
 /**
  * Permission mode for controlling how tool executions are handled.
  * @see https://code.claude.com/docs/en/hooks#permission-modes
  */
-export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'delegate' | 'dontAsk';
+export type PermissionMode = SDKPermissionMode;
 
 /**
  * Source that triggered a session start event.
@@ -24,16 +92,18 @@ export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | '
  * - `'resume'` - Resuming a previous session
  * - `'clear'` - Session cleared and restarted
  * - `'compact'` - Session restarted after context compaction
+ * @deprecated Matches SDK inline literal. Kept for backward compatibility.
  */
-export type SessionStartSource = 'startup' | 'resume' | 'clear' | 'compact';
+export type SessionStartSource = "startup" | "resume" | "clear" | "compact";
 
 /**
  * Trigger type for pre-compact events.
  *
  * - `'manual'` - User explicitly requested compaction
  * - `'auto'` - Automatic compaction due to context length
+ * @deprecated Matches SDK inline literal. Kept for backward compatibility.
  */
-export type PreCompactTrigger = 'manual' | 'auto';
+export type PreCompactTrigger = "manual" | "auto";
 
 /**
  * Reason for session end events.
@@ -42,8 +112,10 @@ export type PreCompactTrigger = 'manual' | 'auto';
  * - `'logout'` - User logged out
  * - `'prompt_input_exit'` - User exited at prompt input
  * - `'other'` - Other reasons
+ *
+ * Note: SDK's ExitReason resolves to string. This type provides concrete literals for better DX.
  */
-export type SessionEndReason = 'clear' | 'logout' | 'prompt_input_exit' | 'other';
+export type SessionEndReason = "clear" | "logout" | "prompt_input_exit" | "other";
 
 /**
  * Common fields present in all hook inputs.
@@ -61,27 +133,10 @@ export type SessionEndReason = 'clear' | 'logout' | 'prompt_input_exit' | 'other
  * ```
  * @see https://code.claude.com/docs/en/hooks#hook-input-structure
  */
-export interface BaseHookInput {
-  /**
-   * Unique identifier for the current Claude Code session.
-   * Persists across conversation turns within the same session.
-   */
-  session_id: string;
-
-  /**
-   * Absolute path to the session transcript file.
-   * Contains the full conversation history in JSONL format.
-   */
-  transcript_path: string;
-
-  /**
-   * Current working directory for the Claude Code session.
-   * All file operations are relative to this directory.
-   */
-  cwd: string;
-
+export interface BaseHookInput extends SDKBaseHookInput {
   /**
    * Current permission mode for tool execution.
+   * Overrides SDK's string type with stricter literal union.
    * May be undefined if using default mode.
    */
   permission_mode?: PermissionMode;
@@ -111,28 +166,7 @@ export interface BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#pretooluse
  */
-export interface PreToolUseInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'PreToolUse';
-
-  /**
-   * Name of the tool being invoked.
-   * Examples: 'Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep'
-   */
-  tool_name: string;
-
-  /**
-   * Input parameters being passed to the tool.
-   * Structure varies by tool type.
-   */
-  tool_input: unknown;
-
-  /**
-   * Unique identifier for this specific tool invocation.
-   * Use this to correlate with PostToolUse events.
-   */
-  tool_use_id: string;
-}
+export type PreToolUseInput = SDKPreToolUseHookInput;
 
 /**
  * Input for PostToolUse hooks.
@@ -155,32 +189,7 @@ export interface PreToolUseInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#posttooluse
  */
-export interface PostToolUseInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'PostToolUse';
-
-  /**
-   * Name of the tool that was invoked.
-   */
-  tool_name: string;
-
-  /**
-   * Input parameters that were passed to the tool.
-   */
-  tool_input: unknown;
-
-  /**
-   * Response returned by the tool.
-   * Structure varies by tool type.
-   */
-  tool_response: unknown;
-
-  /**
-   * Unique identifier for this tool invocation.
-   * Matches the tool_use_id from the corresponding PreToolUse event.
-   */
-  tool_use_id: string;
-}
+export type PostToolUseInput = SDKPostToolUseHookInput;
 
 /**
  * Input for PostToolUseFailure hooks.
@@ -203,35 +212,7 @@ export interface PostToolUseInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#posttoolusefailure
  */
-export interface PostToolUseFailureInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'PostToolUseFailure';
-
-  /**
-   * Name of the tool that failed.
-   */
-  tool_name: string;
-
-  /**
-   * Input parameters that were passed to the tool.
-   */
-  tool_input: unknown;
-
-  /**
-   * Unique identifier for this tool invocation.
-   */
-  tool_use_id: string;
-
-  /**
-   * Error message describing why the tool failed.
-   */
-  error: string;
-
-  /**
-   * Whether this failure was caused by a user interrupt.
-   */
-  is_interrupt?: boolean;
-}
+export type PostToolUseFailureInput = SDKPostToolUseFailureHookInput;
 
 /**
  * Input for Notification hooks.
@@ -252,25 +233,7 @@ export interface PostToolUseFailureInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#notification
  */
-export interface NotificationInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'Notification';
-
-  /**
-   * Main content of the notification.
-   */
-  message: string;
-
-  /**
-   * Optional title for the notification.
-   */
-  title?: string;
-
-  /**
-   * Type/category of the notification.
-   */
-  notification_type: string;
-}
+export type NotificationInput = SDKNotificationHookInput;
 
 /**
  * Input for UserPromptSubmit hooks.
@@ -292,15 +255,7 @@ export interface NotificationInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#userpromptsubmit
  */
-export interface UserPromptSubmitInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'UserPromptSubmit';
-
-  /**
-   * The prompt text submitted by the user.
-   */
-  prompt: string;
-}
+export type UserPromptSubmitInput = SDKUserPromptSubmitHookInput;
 
 /**
  * Input for SessionStart hooks.
@@ -325,20 +280,7 @@ export interface UserPromptSubmitInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#sessionstart
  */
-export interface SessionStartInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'SessionStart';
-
-  /**
-   * How the session was started.
-   *
-   * - `'startup'` - New session started from scratch
-   * - `'resume'` - Resuming a previous session
-   * - `'clear'` - Session cleared and restarted
-   * - `'compact'` - Session restarted after context compaction
-   */
-  source: SessionStartSource;
-}
+export type SessionStartInput = SDKSessionStartHookInput;
 
 /**
  * Input for SessionEnd hooks.
@@ -359,10 +301,7 @@ export interface SessionStartInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#sessionend
  */
-export interface SessionEndInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'SessionEnd';
-
+export interface SessionEndInput extends Omit<SDKSessionEndHookInput, "reason"> {
   /**
    * The reason the session ended.
    *
@@ -399,16 +338,7 @@ export interface SessionEndInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#stop
  */
-export interface StopInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'Stop';
-
-  /**
-   * Whether a stop hook is currently active.
-   * Used to prevent recursive stop hook invocations.
-   */
-  stop_hook_active: boolean;
-}
+export type StopInput = SDKStopHookInput;
 
 /**
  * Input for SubagentStart hooks.
@@ -430,21 +360,7 @@ export interface StopInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#subagentstart
  */
-export interface SubagentStartInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'SubagentStart';
-
-  /**
-   * Unique identifier for the subagent instance.
-   */
-  agent_id: string;
-
-  /**
-   * Type of subagent being started.
-   * Examples: 'explore', 'codebase-analysis', custom agent types
-   */
-  agent_type: string;
-}
+export type SubagentStartInput = SDKSubagentStartHookInput;
 
 /**
  * Input for SubagentStop hooks.
@@ -469,30 +385,12 @@ export interface SubagentStartInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#subagentstop
  */
-export interface SubagentStopInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'SubagentStop';
-
-  /**
-   * Whether a stop hook is currently active.
-   */
-  stop_hook_active: boolean;
-
-  /**
-   * Unique identifier for the subagent instance.
-   */
-  agent_id: string;
-
+export interface SubagentStopInput extends SDKSubagentStopHookInput {
   /**
    * Type of subagent that is stopping.
    * Examples: 'explore', 'codebase-analysis', custom agent types
    */
   agent_type: string;
-
-  /**
-   * Path to the subagent's transcript file.
-   */
-  agent_transcript_path: string;
 }
 
 /**
@@ -514,24 +412,7 @@ export interface SubagentStopInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#precompact
  */
-export interface PreCompactInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'PreCompact';
-
-  /**
-   * What triggered the compaction.
-   *
-   * - `'manual'` - User explicitly requested compaction
-   * - `'auto'` - Automatic compaction due to context length
-   */
-  trigger: PreCompactTrigger;
-
-  /**
-   * Custom instructions to include in the compacted context.
-   * May be null if no custom instructions are set.
-   */
-  custom_instructions: string | null;
-}
+export type PreCompactInput = SDKPreCompactHookInput;
 
 /**
  * Input for PermissionRequest hooks.
@@ -557,30 +438,11 @@ export interface PreCompactInput extends BaseHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks#permissionrequest
  */
-export interface PermissionRequestInput extends BaseHookInput {
-  /** Discriminator for hook event type. */
-  hook_event_name: 'PermissionRequest';
-
-  /**
-   * Name of the tool requesting permission.
-   */
-  tool_name: string;
-
-  /**
-   * Input parameters for the tool.
-   */
-  tool_input: unknown;
-
+export interface PermissionRequestInput extends SDKPermissionRequestHookInput {
   /**
    * Unique identifier for this specific tool invocation.
    */
   tool_use_id: string;
-
-  /**
-   * Suggested permission updates that would prevent future prompts.
-   * Typically used for "always allow" functionality.
-   */
-  permission_suggestions?: PermissionUpdate[];
 }
 
 /**
@@ -626,7 +488,7 @@ export type HookInput =
  *
  * All valid hook event names that can appear in the `hook_event_name` field.
  */
-export type HookEventName = HookInput['hook_event_name'];
+export type HookEventName = HookInput["hook_event_name"];
 
 /**
  * All hook event names as a readonly array.
@@ -640,19 +502,150 @@ export type HookEventName = HookInput['hook_event_name'];
  * ```
  */
 export const HOOK_EVENT_NAMES = [
-  'PreToolUse',
-  'PostToolUse',
-  'PostToolUseFailure',
-  'Notification',
-  'UserPromptSubmit',
-  'SessionStart',
-  'SessionEnd',
-  'Stop',
-  'SubagentStart',
-  'SubagentStop',
-  'PreCompact',
-  'PermissionRequest'
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure",
+  "Notification",
+  "UserPromptSubmit",
+  "SessionStart",
+  "SessionEnd",
+  "Stop",
+  "SubagentStart",
+  "SubagentStop",
+  "PreCompact",
+  "PermissionRequest",
 ] as const satisfies readonly HookEventName[];
 
 // Re-export PermissionUpdate from SDK for convenience
-export type { PermissionUpdate };
+export type { SDKPermissionUpdate as PermissionUpdate };
+
+// ============================================================================
+// Tool Input Types
+// ============================================================================
+
+/**
+ * Re-export all tool input types from the official Claude Agent SDK.
+ * Uses `export type *` because sdk-tools.d.ts has no JavaScript runtime counterpart.
+ * @see {@link https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk | @anthropic-ai/claude-agent-sdk}
+ */
+export type * from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
+
+/**
+ * A single edit entry within a MultiEdit operation.
+ */
+export interface MultiEditEntry {
+  /** The text to search for. */
+  old_string: string;
+  /** The text to replace old_string with. */
+  new_string: string;
+}
+
+/**
+ * Input structure for the MultiEdit tool.
+ *
+ * The MultiEdit tool performs multiple search-and-replace operations on a single file.
+ * All edits are applied atomically.
+ * @example
+ * ```typescript
+ * // Example tool input
+ * {
+ *   file_path: '/workspace/src/index.ts',
+ *   edits: [
+ *     { old_string: 'const x = 1;', new_string: 'const x = 2;' },
+ *     { old_string: 'const y = 1;', new_string: 'const y = 2;' }
+ *   ]
+ * }
+ * ```
+ */
+export interface MultiEditToolInput {
+  /** Absolute path to the file to edit. */
+  file_path: string;
+  /** Array of edit operations to apply. */
+  edits: MultiEditEntry[];
+}
+
+/**
+ * Union of all file-modifying tool inputs.
+ *
+ * Use this type when you need to handle Write, Edit, or MultiEdit generically.
+ */
+export type FileModifyingToolInput = FileWriteInput | FileEditInput | MultiEditToolInput;
+
+/**
+ * Tool names for file-modifying tools.
+ *
+ * Use this type when you need to reference the tool name in type guards.
+ */
+export type FileModifyingToolName = "Write" | "Edit" | "MultiEdit";
+
+/**
+ * Union of all known tool inputs.
+ *
+ * This includes all tool inputs that have well-defined type structures.
+ */
+export type KnownToolInput =
+  | FileWriteInput
+  | FileEditInput
+  | MultiEditToolInput
+  | FileReadInput
+  | BashInput
+  | GlobInput
+  | GrepInput
+  | AgentInput
+  | TaskOutputInput
+  | ExitPlanModeInput
+  | KillShellInput
+  | NotebookEditInput
+  | TodoWriteInput
+  | WebFetchInput
+  | WebSearchInput
+  | AskUserQuestionInput;
+
+/**
+ * Tool names for all known tools with typed inputs.
+ */
+export type KnownToolName =
+  | "Write"
+  | "Edit"
+  | "MultiEdit"
+  | "Read"
+  | "Bash"
+  | "Glob"
+  | "Grep"
+  | "Task"
+  | "TaskOutput"
+  | "ExitPlanMode"
+  | "KillShell"
+  | "NotebookEdit"
+  | "TodoWrite"
+  | "WebFetch"
+  | "WebSearch"
+  | "AskUserQuestion";
+
+/**
+ * Type mapping from tool name to tool input type.
+ *
+ * Used by typed factory overloads to provide automatic typing.
+ * @example
+ * ```typescript
+ * type WriteInput = ToolInputMap['Write']; // FileWriteInput
+ * ```
+ */
+export interface ToolInputMap {
+  Write: FileWriteInput;
+  Edit: FileEditInput;
+  MultiEdit: MultiEditToolInput;
+  Read: FileReadInput;
+  Bash: BashInput;
+  Glob: GlobInput;
+  Grep: GrepInput;
+  Task: AgentInput;
+  TaskOutput: TaskOutputInput;
+  ExitPlanMode: ExitPlanModeInput;
+  KillShell: KillShellInput;
+  NotebookEdit: NotebookEditInput;
+  TodoWrite: TodoWriteInput;
+  WebFetch: WebFetchInput;
+  WebSearch: WebSearchInput;
+  AskUserQuestion: AskUserQuestionInput;
+}

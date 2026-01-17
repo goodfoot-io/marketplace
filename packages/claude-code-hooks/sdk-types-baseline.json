@@ -1,0 +1,562 @@
+{
+  "version": "1.0",
+  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.1.76",
+  "extractedAt": "2026-01-16T21:00:14.618Z",
+  "types": {
+    "BaseHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "PreToolUseHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'PreToolUse'",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "tool_input",
+          "type": "unknown",
+          "optional": false
+        },
+        {
+          "name": "tool_name",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "tool_use_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "PostToolUseHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'PostToolUse'",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "tool_input",
+          "type": "unknown",
+          "optional": false
+        },
+        {
+          "name": "tool_name",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "tool_response",
+          "type": "unknown",
+          "optional": false
+        },
+        {
+          "name": "tool_use_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "PostToolUseFailureHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'PostToolUseFailure'",
+          "optional": false
+        },
+        {
+          "name": "is_interrupt",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "tool_input",
+          "type": "unknown",
+          "optional": false
+        },
+        {
+          "name": "tool_name",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "tool_use_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "NotificationHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'Notification'",
+          "optional": false
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "notification_type",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "UserPromptSubmitHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'UserPromptSubmit'",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "prompt",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "SessionStartHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'SessionStart'",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "source",
+          "type": "'startup' | 'resume' | 'clear' | 'compact'",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "SessionEndHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'SessionEnd'",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "reason",
+          "type": "ExitReason",
+          "optional": false
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "StopHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'Stop'",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "stop_hook_active",
+          "type": "boolean",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "SubagentStartHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'SubagentStart'",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "SubagentStopHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "agent_transcript_path",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'SubagentStop'",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "stop_hook_active",
+          "type": "boolean",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "PreCompactHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "custom_instructions",
+          "type": "string | null",
+          "optional": false
+        },
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'PreCompact'",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "trigger",
+          "type": "'manual' | 'auto'",
+          "optional": false
+        }
+      ]
+    },
+    "PermissionRequestHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'PermissionRequest'",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "permission_suggestions",
+          "type": "PermissionUpdate[]",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "tool_input",
+          "type": "unknown",
+          "optional": false
+        },
+        {
+          "name": "tool_name",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
+    "HookInput": {
+      "kind": "union",
+      "unionMembers": [
+        "PreToolUseHookInput",
+        "PostToolUseHookInput",
+        "PostToolUseFailureHookInput",
+        "NotificationHookInput",
+        "UserPromptSubmitHookInput",
+        "SessionStartHookInput",
+        "SessionEndHookInput",
+        "StopHookInput",
+        "SubagentStartHookInput",
+        "SubagentStopHookInput",
+        "PreCompactHookInput",
+        "PermissionRequestHookInput"
+      ]
+    },
+    "PermissionMode": {
+      "kind": "literal",
+      "literalType": "\"default\" | \"acceptEdits\" | \"bypassPermissions\" | \"plan\" | \"delegate\" | \"dontAsk\""
+    },
+    "HookEvent": {
+      "kind": "literal",
+      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PermissionRequest\""
+    }
+  }
+}

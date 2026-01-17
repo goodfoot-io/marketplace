@@ -1,0 +1,23 @@
+{
+  "name": "goodfoot-hooks",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "claude-code-hooks -i \"src/**/*.ts\" -o \"../../plugins/goodfoot/hooks/hooks.json\"",
+    "test": "vitest run",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@goodfoot/claude-code-hooks": "workspace:*"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.11",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  }
+}

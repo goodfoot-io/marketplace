@@ -5,12 +5,12 @@
  * into the conversation after a tool completes.
  */
 
-import { postToolUseHook, postToolUseOutput } from '../../src/index.js';
+import { postToolUseHook, postToolUseOutput } from "../../src/index.js";
 
-export default postToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
-  logger.info('PostToolUse hook triggered', { tool_name: input.tool_name });
+export default postToolUseHook({ matcher: "Bash" }, (input, { logger }) => {
+  logger.info("PostToolUse hook triggered", { tool_name: input.tool_name });
 
   return postToolUseOutput({
-    hookSpecificOutput: { additionalContext: 'E2E_POST_TOOL_CONTEXT: Command completed successfully.' }
+    hookSpecificOutput: { additionalContext: "E2E_POST_TOOL_CONTEXT: Command completed successfully." },
   });
 });

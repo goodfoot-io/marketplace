@@ -5,23 +5,23 @@
  * tool executions without user interaction.
  */
 
-import { permissionRequestHook, permissionRequestOutput } from '../../src/index.js';
+import { permissionRequestHook, permissionRequestOutput } from "../../src/index.js";
 
-export default permissionRequestHook({ matcher: 'Bash' }, (input, { logger }) => {
+export default permissionRequestHook({ matcher: "Bash" }, (input, { logger }) => {
   const command = input.tool_input as { command?: string };
 
   // Only auto-allow echo commands for safety in E2E tests
-  if (command.command?.startsWith('echo ')) {
-    logger.info('Auto-allowing echo command', { command: command.command });
+  if (command.command?.startsWith("echo ")) {
+    logger.info("Auto-allowing echo command", { command: command.command });
     return permissionRequestOutput({
-      systemMessage: 'E2E_PERMISSION: Echo command auto-approved.',
+      systemMessage: "E2E_PERMISSION: Echo command auto-approved.",
       hookSpecificOutput: {
-        decision: { behavior: 'allow' }
-      }
+        decision: { behavior: "allow" },
+      },
     });
   }
 
   // Fall through to normal permission prompt for other commands
-  logger.info('Falling through to normal permission', { command: command.command });
+  logger.info("Falling through to normal permission", { command: command.command });
   return permissionRequestOutput({});
 });

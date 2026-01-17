@@ -5,13 +5,13 @@
  * and that the reason is communicated back.
  */
 
-import { stopHook, stopOutput } from '../../src/index.js';
+import { stopHook, stopOutput } from "../../src/index.js";
 
 export default stopHook({}, (_input, { logger }) => {
-  logger.info('Blocking stop');
+  logger.info("Blocking stop");
 
   return stopOutput({
-    decision: 'block',
-    reason: 'E2E_TEST_BLOCK_REASON: Cannot stop - pending test operations'
+    decision: "block",
+    reason: "E2E_TEST_BLOCK_REASON: Cannot stop - pending test operations",
   });
 });

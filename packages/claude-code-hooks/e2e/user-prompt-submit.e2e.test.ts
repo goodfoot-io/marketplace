@@ -7,34 +7,34 @@
  * - Add system messages
  */
 
-import * as fs from 'node:fs';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
-import { CLAUDE_AVAILABLE, runClaude, readHooksJson } from './test-utils.js';
+import * as fs from "node:fs";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from "./setup.js";
+import { CLAUDE_AVAILABLE, readHooksJson, runClaude } from "./test-utils.js";
 
-describe('E2E: UserPromptSubmit Hooks', () => {
-  describe('Context injection', () => {
+describe("E2E: UserPromptSubmit Hooks", () => {
+  describe("Context injection", () => {
     let pluginDir: string;
 
     beforeAll(() => {
-      pluginDir = buildSingleHook('user-prompt-submit-hook.ts');
+      pluginDir = buildSingleHook("user-prompt-submit-hook.ts");
     });
 
     afterAll(() => {
       cleanOutputDir(pluginDir);
     });
 
-    it.skipIf(!CLAUDE_AVAILABLE)('injects context on prompt submission that Claude sees', () => {
+    it.skipIf(!CLAUDE_AVAILABLE)("injects context on prompt submission that Claude sees", () => {
       const result = runClaude({
-        prompt: 'What is the projectName from the JSON context? Just say the name.',
+        prompt: "What is the projectName from the JSON context? Just say the name.",
         pluginDir,
-        tools: []
+        tools: [],
       });
 
-      expect(result.stdout.toLowerCase()).toContain('acme');
+      expect(result.stdout.toLowerCase()).toContain("acme");
     });
 
-    it('generates hooks.json with UserPromptSubmit event (no matcher supported)', () => {
+    it("generates hooks.json with UserPromptSubmit event (no matcher supported)", () => {
       const hooksJsonPath = getHooksJsonPath(pluginDir);
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 

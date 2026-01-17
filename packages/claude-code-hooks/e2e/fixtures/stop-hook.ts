@@ -4,12 +4,12 @@
  * Used to verify Stop hooks are built correctly.
  */
 
-import { stopHook, stopOutput } from '../../src/index.js';
+import { stopHook, stopOutput } from "../../src/index.js";
 
 export default stopHook({}, (input, { logger }) => {
-  logger.info('Stop requested', { stop_hook_active: input.stop_hook_active });
+  logger.info("Stop requested", { stop_hook_active: input.stop_hook_active });
   return stopOutput({
-    decision: 'approve',
-    reason: 'Build test: Approved stop'
+    decision: "approve",
+    reason: "Build test: Approved stop",
   });
 });

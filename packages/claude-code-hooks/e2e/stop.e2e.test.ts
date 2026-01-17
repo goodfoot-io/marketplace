@@ -7,30 +7,30 @@
  * - Inject final context
  */
 
-import * as fs from 'node:fs';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
-import { readHooksJson } from './test-utils.js';
+import * as fs from "node:fs";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from "./setup.js";
+import { readHooksJson } from "./test-utils.js";
 
-describe('E2E: Stop Hooks', () => {
-  describe('Block with reason', () => {
+describe("E2E: Stop Hooks", () => {
+  describe("Block with reason", () => {
     let pluginDir: string;
 
     beforeAll(() => {
-      pluginDir = buildSingleHook('stop-block-hook.ts');
+      pluginDir = buildSingleHook("stop-block-hook.ts");
     });
 
     afterAll(() => {
       cleanOutputDir(pluginDir);
     });
 
-    it('generates valid hooks.json for stop hook', () => {
+    it("generates valid hooks.json for stop hook", () => {
       const hooksJsonPath = getHooksJsonPath(pluginDir);
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
       const hooksJson = readHooksJson(hooksJsonPath);
       expect(hooksJson.hooks).toBeDefined();
-      expect(typeof hooksJson.hooks).toBe('object');
+      expect(typeof hooksJson.hooks).toBe("object");
 
       // New format: hooks.Stop is an array of matcher entries
       expect(hooksJson.hooks.Stop).toBeDefined();
@@ -42,14 +42,14 @@ describe('E2E: Stop Hooks', () => {
       expect(stopEntry?.hooks.length).toBeGreaterThan(0);
 
       const compiledHook = stopEntry?.hooks[0];
-      expect(compiledHook?.type).toBe('command');
+      expect(compiledHook?.type).toBe("command");
       expect(compiledHook?.command).toBeDefined();
       expect(compiledHook?.command).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\//);
 
       // Resolve the template path and verify file exists
-      const pathPart = compiledHook?.command?.replace(/^node /, '');
-      const resolvedPath = pathPart?.replace('$CLAUDE_PLUGIN_ROOT', pluginDir);
-      expect(fs.existsSync(resolvedPath ?? '')).toBe(true);
+      const pathPart = compiledHook?.command?.replace(/^node /, "");
+      const resolvedPath = pathPart?.replace("$CLAUDE_PLUGIN_ROOT", pluginDir);
+      expect(fs.existsSync(resolvedPath ?? "")).toBe(true);
     });
   });
 });

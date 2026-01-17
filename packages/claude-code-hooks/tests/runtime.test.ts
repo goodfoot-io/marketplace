@@ -4,19 +4,19 @@
  * Tests wire format output conversion for hook outputs.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from "vitest";
 import {
-  preToolUseOutput,
-  postToolUseOutput,
-  userPromptSubmitOutput,
+  notificationOutput,
   permissionRequestOutput,
-  stopOutput,
+  postToolUseOutput,
+  preToolUseOutput,
   sessionStartOutput,
-  notificationOutput
-} from '../src/outputs.js';
-import { convertToHookOutput } from '../src/runtime.js';
+  stopOutput,
+  userPromptSubmitOutput,
+} from "../src/outputs.js";
+import { convertToHookOutput } from "../src/runtime.js";
 
-describe('convertToHookOutput', () => {
+describe("convertToHookOutput", () => {
   /**
    * Helper to safely access hookSpecificOutput as a record.
    * @param result - The output from convertToHookOutput
@@ -26,69 +26,69 @@ describe('convertToHookOutput', () => {
     return result.stdout.hookSpecificOutput as unknown as Record<string, unknown>;
   }
 
-  describe('PreToolUse wire format', () => {
-    it('passes through hookSpecificOutput with permissionDecision', () => {
+  describe("PreToolUse wire format", () => {
+    it("passes through hookSpecificOutput with permissionDecision", () => {
       const specificOutput = preToolUseOutput({
         hookSpecificOutput: {
-          permissionDecision: 'deny',
-          permissionDecisionReason: 'Dangerous command'
-        }
+          permissionDecision: "deny",
+          permissionDecisionReason: "Dangerous command",
+        },
       });
 
       const result = convertToHookOutput(specificOutput);
       const hookSpecific = getHookSpecific(result);
 
       expect(result.stdout.hookSpecificOutput).toBeDefined();
-      expect(hookSpecific.hookEventName).toBe('PreToolUse');
-      expect(hookSpecific.permissionDecision).toBe('deny');
-      expect(hookSpecific.permissionDecisionReason).toBe('Dangerous command');
+      expect(hookSpecific.hookEventName).toBe("PreToolUse");
+      expect(hookSpecific.permissionDecision).toBe("deny");
+      expect(hookSpecific.permissionDecisionReason).toBe("Dangerous command");
     });
 
-    it('includes updatedInput in hookSpecificOutput', () => {
+    it("includes updatedInput in hookSpecificOutput", () => {
       const specificOutput = preToolUseOutput({
         hookSpecificOutput: {
-          permissionDecision: 'allow',
-          updatedInput: { command: 'ls -la' }
-        }
+          permissionDecision: "allow",
+          updatedInput: { command: "ls -la" },
+        },
       });
 
       const result = convertToHookOutput(specificOutput);
       const hookSpecific = getHookSpecific(result);
 
-      expect(hookSpecific.updatedInput).toEqual({ command: 'ls -la' });
+      expect(hookSpecific.updatedInput).toEqual({ command: "ls -la" });
     });
   });
 
-  describe('PostToolUse wire format', () => {
-    it('passes through stopReason in stdout', () => {
+  describe("PostToolUse wire format", () => {
+    it("passes through stopReason in stdout", () => {
       const specificOutput = postToolUseOutput({
-        stopReason: 'Output contains sensitive data'
+        stopReason: "Output contains sensitive data",
       });
 
       const result = convertToHookOutput(specificOutput);
 
-      expect(result.stdout.stopReason).toBe('Output contains sensitive data');
+      expect(result.stdout.stopReason).toBe("Output contains sensitive data");
     });
 
-    it('passes through additionalContext in hookSpecificOutput', () => {
+    it("passes through additionalContext in hookSpecificOutput", () => {
       const specificOutput = postToolUseOutput({
         hookSpecificOutput: {
-          additionalContext: 'File was modified'
-        }
+          additionalContext: "File was modified",
+        },
       });
 
       const result = convertToHookOutput(specificOutput);
       const hookSpecific = getHookSpecific(result);
 
       expect(result.stdout.hookSpecificOutput).toBeDefined();
-      expect(hookSpecific.additionalContext).toBe('File was modified');
+      expect(hookSpecific.additionalContext).toBe("File was modified");
     });
 
-    it('includes updatedMCPToolOutput in hookSpecificOutput', () => {
+    it("includes updatedMCPToolOutput in hookSpecificOutput", () => {
       const specificOutput = postToolUseOutput({
         hookSpecificOutput: {
-          updatedMCPToolOutput: { sanitized: true }
-        }
+          updatedMCPToolOutput: { sanitized: true },
+        },
       });
 
       const result = convertToHookOutput(specificOutput);
@@ -98,137 +98,137 @@ describe('convertToHookOutput', () => {
     });
   });
 
-  describe('UserPromptSubmit wire format', () => {
-    it('passes through stopReason for blocking', () => {
+  describe("UserPromptSubmit wire format", () => {
+    it("passes through stopReason for blocking", () => {
       const specificOutput = userPromptSubmitOutput({
-        stopReason: 'Prompt validation failed'
+        stopReason: "Prompt validation failed",
       });
 
       const result = convertToHookOutput(specificOutput);
 
-      expect(result.stdout.stopReason).toBe('Prompt validation failed');
+      expect(result.stdout.stopReason).toBe("Prompt validation failed");
     });
 
-    it('passes through additionalContext in hookSpecificOutput', () => {
+    it("passes through additionalContext in hookSpecificOutput", () => {
       const specificOutput = userPromptSubmitOutput({
         hookSpecificOutput: {
-          additionalContext: 'User is admin'
-        }
+          additionalContext: "User is admin",
+        },
       });
 
       const result = convertToHookOutput(specificOutput);
       const hookSpecific = getHookSpecific(result);
 
-      expect(hookSpecific.additionalContext).toBe('User is admin');
+      expect(hookSpecific.additionalContext).toBe("User is admin");
     });
   });
 
-  describe('PermissionRequest wire format', () => {
-    it('passes through decision in hookSpecificOutput', () => {
+  describe("PermissionRequest wire format", () => {
+    it("passes through decision in hookSpecificOutput", () => {
       const specificOutput = permissionRequestOutput({
         hookSpecificOutput: {
           decision: {
-            behavior: 'allow',
-            updatedInput: { file_path: '/safe/path' }
-          }
-        }
+            behavior: "allow",
+            updatedInput: { file_path: "/safe/path" },
+          },
+        },
       });
 
       const result = convertToHookOutput(specificOutput);
       const hookSpecific = getHookSpecific(result);
 
       expect(result.stdout.hookSpecificOutput).toBeDefined();
-      expect(hookSpecific.hookEventName).toBe('PermissionRequest');
+      expect(hookSpecific.hookEventName).toBe("PermissionRequest");
       expect(hookSpecific.decision).toEqual({
-        behavior: 'allow',
-        updatedInput: { file_path: '/safe/path' }
+        behavior: "allow",
+        updatedInput: { file_path: "/safe/path" },
       });
     });
 
-    it('handles deny decision with message and interrupt', () => {
+    it("handles deny decision with message and interrupt", () => {
       const specificOutput = permissionRequestOutput({
         hookSpecificOutput: {
           decision: {
-            behavior: 'deny',
-            message: 'Not allowed',
-            interrupt: true
-          }
-        }
+            behavior: "deny",
+            message: "Not allowed",
+            interrupt: true,
+          },
+        },
       });
 
       const result = convertToHookOutput(specificOutput);
       const hookSpecific = getHookSpecific(result);
 
       expect(hookSpecific.decision).toEqual({
-        behavior: 'deny',
-        message: 'Not allowed',
-        interrupt: true
+        behavior: "deny",
+        message: "Not allowed",
+        interrupt: true,
       });
     });
   });
 
-  describe('Stop wire format', () => {
-    it('keeps decision at top level for Stop hooks', () => {
+  describe("Stop wire format", () => {
+    it("keeps decision at top level for Stop hooks", () => {
       const specificOutput = stopOutput({
-        decision: 'block',
-        reason: 'Uncommitted changes'
+        decision: "block",
+        reason: "Uncommitted changes",
       });
 
       const result = convertToHookOutput(specificOutput);
 
-      expect(result.stdout.decision).toBe('block');
-      expect(result.stdout.reason).toBe('Uncommitted changes');
+      expect(result.stdout.decision).toBe("block");
+      expect(result.stdout.reason).toBe("Uncommitted changes");
     });
 
-    it('handles approve decision', () => {
+    it("handles approve decision", () => {
       const specificOutput = stopOutput({
-        decision: 'approve'
+        decision: "approve",
       });
 
       const result = convertToHookOutput(specificOutput);
 
-      expect(result.stdout.decision).toBe('approve');
+      expect(result.stdout.decision).toBe("approve");
     });
   });
 
-  describe('SessionStart wire format', () => {
-    it('passes through additionalContext in hookSpecificOutput', () => {
+  describe("SessionStart wire format", () => {
+    it("passes through additionalContext in hookSpecificOutput", () => {
       const specificOutput = sessionStartOutput({
         hookSpecificOutput: {
-          additionalContext: 'Project: my-app'
-        }
+          additionalContext: "Project: my-app",
+        },
       });
 
       const result = convertToHookOutput(specificOutput);
       const hookSpecific = getHookSpecific(result);
 
-      expect(hookSpecific.additionalContext).toBe('Project: my-app');
+      expect(hookSpecific.additionalContext).toBe("Project: my-app");
     });
   });
 
-  describe('common fields', () => {
-    it('preserves continue, suppressOutput, systemMessage', () => {
+  describe("common fields", () => {
+    it("preserves continue, suppressOutput, systemMessage", () => {
       const specificOutput = sessionStartOutput({
         continue: true,
         suppressOutput: true,
-        systemMessage: 'Welcome'
+        systemMessage: "Welcome",
       });
 
       const result = convertToHookOutput(specificOutput);
 
       expect(result.stdout.continue).toBe(true);
       expect(result.stdout.suppressOutput).toBe(true);
-      expect(result.stdout.systemMessage).toBe('Welcome');
+      expect(result.stdout.systemMessage).toBe("Welcome");
     });
 
-    it('passes through stopReason in stdout', () => {
+    it("passes through stopReason in stdout", () => {
       const specificOutput = notificationOutput({
-        stopReason: 'Notification blocked'
+        stopReason: "Notification blocked",
       });
 
       const result = convertToHookOutput(specificOutput);
 
-      expect(result.stdout.stopReason).toBe('Notification blocked');
+      expect(result.stdout.stopReason).toBe("Notification blocked");
     });
   });
 });

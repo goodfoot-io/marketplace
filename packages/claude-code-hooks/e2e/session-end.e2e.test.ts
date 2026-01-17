@@ -10,23 +10,23 @@
  * lifecycle is different from interactive mode.
  */
 
-import * as fs from 'node:fs';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
-import { readHooksJson } from './test-utils.js';
+import * as fs from "node:fs";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from "./setup.js";
+import { readHooksJson } from "./test-utils.js";
 
-describe('E2E: SessionEnd Hooks', () => {
+describe("E2E: SessionEnd Hooks", () => {
   let pluginDir: string;
 
   beforeAll(() => {
-    pluginDir = buildSingleHook('session-end-hook.ts');
+    pluginDir = buildSingleHook("session-end-hook.ts");
   });
 
   afterAll(() => {
     cleanOutputDir(pluginDir);
   });
 
-  it('generates valid hooks.json with SessionEnd event', () => {
+  it("generates valid hooks.json with SessionEnd event", () => {
     const hooksJsonPath = getHooksJsonPath(pluginDir);
     expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
@@ -37,6 +37,6 @@ describe('E2E: SessionEnd Hooks', () => {
 
     const entry = hooksJson.hooks.SessionEnd?.[0];
     expect(entry?.hooks.length).toBeGreaterThan(0);
-    expect(entry?.hooks[0].command).toContain('.mjs');
+    expect(entry?.hooks[0].command).toContain(".mjs");
   });
 });

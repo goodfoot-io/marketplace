@@ -11,185 +11,181 @@
 // - Output builders (preToolUseOutput, sessionStartOutput, etc.)
 // - Logger and types
 
-// Input types - Wire format (snake_case) matching the Claude Code protocol
-export type {
-  // Base type
-  BaseHookInput,
-  // Individual hook input types
-  PreToolUseInput,
-  PostToolUseInput,
-  PostToolUseFailureInput,
-  NotificationInput,
-  UserPromptSubmitInput,
-  SessionStartInput,
-  SessionEndInput,
-  StopInput,
-  SubagentStartInput,
-  SubagentStopInput,
-  PreCompactInput,
-  PermissionRequestInput,
-  // Discriminated union
-  HookInput,
-  // Supporting types
-  HookEventName,
-  PermissionMode,
-  SessionStartSource,
-  SessionEndReason,
-  PreCompactTrigger,
-  PermissionUpdate
-} from './inputs.js';
-
-// Hook event names constant
-export { HOOK_EVENT_NAMES } from './inputs.js';
-
-// Output types and builders
-export type {
-  // Core output types
-  HookOutput,
-  SyncHookJSONOutput,
-  ExitCode,
-  // Hook-specific output types
-  HookSpecificOutput,
-  PreToolUseHookSpecificOutput,
-  PostToolUseHookSpecificOutput,
-  PostToolUseFailureHookSpecificOutput,
-  UserPromptSubmitHookSpecificOutput,
-  SessionStartHookSpecificOutput,
-  SubagentStartHookSpecificOutput,
-  PermissionRequestHookSpecificOutput,
-  PermissionRequestDecision,
-  PermissionRequestAllowDecision,
-  PermissionRequestDenyDecision,
-  // Options types for output builders
-  CommonOptions,
-  /** @deprecated Use CommonOptions instead */
-  BaseOptions,
-  PreToolUseOptions,
-  PostToolUseOptions,
-  PostToolUseFailureOptions,
-  UserPromptSubmitOptions,
-  SessionStartOptions,
-  SessionEndOptions,
-  StopOptions,
-  SubagentStartOptions,
-  SubagentStopOptions,
-  NotificationOptions,
-  PreCompactOptions,
-  PermissionRequestOptions
-} from './outputs.js';
-
-// Output builder functions
-export {
-  // Exit codes
-  EXIT_CODES,
-  // All 12 output builder functions
-  preToolUseOutput,
-  postToolUseOutput,
-  postToolUseFailureOutput,
-  userPromptSubmitOutput,
-  sessionStartOutput,
-  sessionEndOutput,
-  stopOutput,
-  subagentStartOutput,
-  subagentStopOutput,
-  notificationOutput,
-  preCompactOutput,
-  permissionRequestOutput
-} from './outputs.js';
-
-// Logger types
-export type { LogLevel, LogEvent, LogEventError, LogEventHandler, Unsubscribe, LoggerConfig } from './logger.js';
-
-// Logger exports
-export { LOG_LEVELS, Logger, logger } from './logger.js';
-
-// Hook factory types
-export type {
-  HookConfig,
-  HookContext,
-  HookHandler,
-  HookFunction,
-  SessionStartContext,
-  // Typed hook config and input types for single-tool matchers
-  TypedHookConfig,
-  TypedPreToolUseInput,
-  TypedPostToolUseInput,
-  TypedPostToolUseFailureInput,
-  TypedPermissionRequestInput
-} from './hooks.js';
-
-// Hook factory functions - all 12 hook types
-export {
-  preToolUseHook,
-  postToolUseHook,
-  postToolUseFailureHook,
-  notificationHook,
-  userPromptSubmitHook,
-  sessionStartHook,
-  sessionEndHook,
-  stopHook,
-  subagentStartHook,
-  subagentStopHook,
-  preCompactHook,
-  permissionRequestHook
-} from './hooks.js';
-
-// Runtime exports - execute function
-export {
-  // Main execute function for compiled hooks
-  execute
-} from './runtime.js';
-
+// Re-export all SDK tool input types (via types.ts)
+// Uses `export type *` because sdk-tools.d.ts has no JavaScript runtime counterpart.
+export type * from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
 // Environment variable utilities
 export {
   // Environment variable name constants
   CLAUDE_ENV_VARS,
+  getEnvFilePath,
   // Getters
   getProjectDir,
-  getEnvFilePath,
-  isRemoteEnvironment
-} from './env.js';
-
-// Tool input types - Well-known tool input structures
+  isRemoteEnvironment,
+} from "./env.js";
+// Hook factory types
 export type {
-  // File operation tools
-  WriteToolInput,
-  EditToolInput,
-  MultiEditEntry,
-  MultiEditToolInput,
-  ReadToolInput,
-  // Command tools
-  BashToolInput,
-  // Search tools
-  GlobToolInput,
-  GrepToolInput,
-  // Union types
-  FileModifyingToolInput,
-  FileModifyingToolName,
-  KnownToolInput,
-  KnownToolName,
-  ToolInputMap
-} from './tool-inputs.js';
+  HookConfig,
+  HookContext,
+  HookFunction,
+  HookHandler,
+  SessionStartContext,
+  // Typed hook config and input types for single-tool matchers
+  TypedHookConfig,
+  TypedPermissionRequestInput,
+  TypedPostToolUseFailureInput,
+  TypedPostToolUseInput,
+  TypedPreToolUseInput,
+} from "./hooks.js";
+// Hook factory functions - all 12 hook types
+export {
+  notificationHook,
+  permissionRequestHook,
+  postToolUseFailureHook,
+  postToolUseHook,
+  preCompactHook,
+  preToolUseHook,
+  sessionEndHook,
+  sessionStartHook,
+  stopHook,
+  subagentStartHook,
+  subagentStopHook,
+  userPromptSubmitHook,
+} from "./hooks.js";
 
+// Logger types
+export type { LogEvent, LogEventError, LogEventHandler, LoggerConfig, LogLevel, Unsubscribe } from "./logger.js";
+
+// Logger exports
+export { LOG_LEVELS, Logger, logger } from "./logger.js";
+// Output types and builders
+export type {
+  /** @deprecated Use CommonOptions instead */
+  BaseOptions,
+  // Options types for output builders
+  CommonOptions,
+  ExitCode,
+  // Core output types
+  HookOutput,
+  // Hook-specific output types
+  HookSpecificOutput,
+  NotificationOptions,
+  PermissionRequestAllowDecision,
+  PermissionRequestDecision,
+  PermissionRequestDenyDecision,
+  PermissionRequestHookSpecificOutput,
+  PermissionRequestOptions,
+  PostToolUseFailureHookSpecificOutput,
+  PostToolUseFailureOptions,
+  PostToolUseHookSpecificOutput,
+  PostToolUseOptions,
+  PreCompactOptions,
+  PreToolUseHookSpecificOutput,
+  PreToolUseOptions,
+  SessionEndOptions,
+  SessionStartHookSpecificOutput,
+  SessionStartOptions,
+  StopOptions,
+  SubagentStartHookSpecificOutput,
+  SubagentStartOptions,
+  SubagentStopOptions,
+  SyncHookJSONOutput,
+  UserPromptSubmitHookSpecificOutput,
+  UserPromptSubmitOptions,
+} from "./outputs.js";
+// Output builder functions
+export {
+  // Exit codes
+  EXIT_CODES,
+  notificationOutput,
+  permissionRequestOutput,
+  postToolUseFailureOutput,
+  postToolUseOutput,
+  preCompactOutput,
+  // All 12 output builder functions
+  preToolUseOutput,
+  sessionEndOutput,
+  sessionStartOutput,
+  stopOutput,
+  subagentStartOutput,
+  subagentStopOutput,
+  userPromptSubmitOutput,
+} from "./outputs.js";
+
+// Runtime exports - execute function
+export {
+  // Main execute function for compiled hooks
+  execute,
+} from "./runtime.js";
 // Tool helper types
-export type { ToolUseInput, PatternCheckResult, ContentContext } from './tool-helpers.js';
-
+export type { ContentContext, PatternCheckResult, ToolUseInput } from "./tool-helpers.js";
 // Tool helper functions - Type guards and utilities
 export {
-  // Type guards
-  isWriteTool,
-  isEditTool,
-  isMultiEditTool,
-  isFileModifyingTool,
-  isReadTool,
-  isBashTool,
-  isGlobTool,
-  isGrepTool,
-  // File path utilities
-  getFilePath,
-  isJsTsFile,
-  isTsFile,
   // Content inspection
   checkContentForPattern,
-  forEachContent
-} from './tool-helpers.js';
+  forEachContent,
+  // File path utilities
+  getFilePath,
+  // Type guards - User interaction
+  isAskUserQuestionTool,
+  // Type guards - Commands
+  isBashTool,
+  isEditTool,
+  isExitPlanModeTool,
+  isFileModifyingTool,
+  // Type guards - Search
+  isGlobTool,
+  isGrepTool,
+  isJsTsFile,
+  isKillShellTool,
+  isMultiEditTool,
+  isNotebookEditTool,
+  isReadTool,
+  isTaskOutputTool,
+  // Type guards - Agents
+  isTaskTool,
+  isTodoWriteTool,
+  isTsFile,
+  // Type guards - Web
+  isWebFetchTool,
+  isWebSearchTool,
+  // Type guards - File operations
+  isWriteTool,
+} from "./tool-helpers.js";
+// Input types - Wire format (snake_case) matching the Claude Code protocol
+export type {
+  // Base type
+  BaseHookInput,
+  FileModifyingToolInput,
+  FileModifyingToolName,
+  // Supporting types
+  HookEventName,
+  // Discriminated union
+  HookInput,
+  KnownToolInput,
+  KnownToolName,
+  // Tool input types
+  MultiEditEntry,
+  MultiEditToolInput,
+  NotificationInput,
+  PermissionMode,
+  PermissionRequestInput,
+  PermissionUpdate,
+  PostToolUseFailureInput,
+  PostToolUseInput,
+  PreCompactInput,
+  PreCompactTrigger,
+  // Individual hook input types
+  PreToolUseInput,
+  SessionEndInput,
+  SessionEndReason,
+  SessionStartInput,
+  SessionStartSource,
+  StopInput,
+  SubagentStartInput,
+  SubagentStopInput,
+  ToolInputMap,
+  UserPromptSubmitInput,
+} from "./types.js";
+// Hook event names constant
+export { HOOK_EVENT_NAMES } from "./types.js";

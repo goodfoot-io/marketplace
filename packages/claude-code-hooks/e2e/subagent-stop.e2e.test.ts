@@ -9,29 +9,29 @@
  * Note: SubagentStop hooks only fire when Claude's Task tool completes.
  */
 
-import * as fs from 'node:fs';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
-import { CLAUDE_AVAILABLE, runClaude, readHooksJson } from './test-utils.js';
+import * as fs from "node:fs";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from "./setup.js";
+import { CLAUDE_AVAILABLE, readHooksJson, runClaude } from "./test-utils.js";
 
-describe('E2E: SubagentStop Hooks', () => {
+describe("E2E: SubagentStop Hooks", () => {
   let pluginDir: string;
 
   beforeAll(() => {
-    pluginDir = buildSingleHook('subagent-stop-hook.ts');
+    pluginDir = buildSingleHook("subagent-stop-hook.ts");
   });
 
   afterAll(() => {
     cleanOutputDir(pluginDir);
   });
 
-  it.skipIf(!CLAUDE_AVAILABLE)('fires when Task tool completes', () => {
+  it.skipIf(!CLAUDE_AVAILABLE)("fires when Task tool completes", () => {
     // Use haiku model for subagent and a trivial task to minimize API latency
     const result = runClaude({
       prompt:
         'Use the Task tool with subagent_type "general-purpose", model "haiku", and prompt "Reply with exactly: done". Do not do anything else.',
       pluginDir,
-      tools: ['Task']
+      tools: ["Task"],
     });
 
     const combinedOutput = result.stdout + result.stderr;
@@ -39,7 +39,7 @@ describe('E2E: SubagentStop Hooks', () => {
     expect(combinedOutput.length).toBeGreaterThan(0);
   });
 
-  it('generates valid hooks.json with SubagentStop event', () => {
+  it("generates valid hooks.json with SubagentStop event", () => {
     const hooksJsonPath = getHooksJsonPath(pluginDir);
     expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
@@ -50,6 +50,6 @@ describe('E2E: SubagentStop Hooks', () => {
 
     const entry = hooksJson.hooks.SubagentStop?.[0];
     expect(entry?.hooks.length).toBeGreaterThan(0);
-    expect(entry?.hooks[0].command).toContain('.mjs');
+    expect(entry?.hooks[0].command).toContain(".mjs");
   });
 });

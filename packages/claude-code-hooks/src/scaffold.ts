@@ -15,10 +15,10 @@
  * ```
  */
 
-import type { HookEventName } from './inputs.js';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { HOOK_FACTORY_TO_EVENT } from './constants.js';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { HOOK_FACTORY_TO_EVENT } from "./constants.js";
+import type { HookEventName } from "./types.js";
 
 // ============================================================================
 // Types
@@ -50,32 +50,32 @@ const VALID_HOOK_EVENT_NAMES: Set<HookEventName> = new Set(Object.values(HOOK_FA
  * Built once at module load to avoid recreation on each validation call.
  */
 const CASE_INSENSITIVE_EVENT_LOOKUP: Map<string, HookEventName> = new Map(
-  Array.from(VALID_HOOK_EVENT_NAMES).map((name) => [name.toLowerCase(), name])
+  Array.from(VALID_HOOK_EVENT_NAMES).map((name) => [name.toLowerCase(), name]),
 );
 
 /**
  * Mapping from hook event name to factory function name.
  */
 const EVENT_TO_HOOK_FACTORY: Record<HookEventName, string> = Object.fromEntries(
-  Object.entries(HOOK_FACTORY_TO_EVENT).map(([factory, event]) => [event, factory])
+  Object.entries(HOOK_FACTORY_TO_EVENT).map(([factory, event]) => [event, factory]),
 ) as Record<HookEventName, string>;
 
 /**
  * Mapping from hook event name to output function name.
  */
 const EVENT_TO_OUTPUT_FUNCTION: Record<HookEventName, string> = {
-  PreToolUse: 'preToolUseOutput',
-  PostToolUse: 'postToolUseOutput',
-  PostToolUseFailure: 'postToolUseFailureOutput',
-  Notification: 'notificationOutput',
-  UserPromptSubmit: 'userPromptSubmitOutput',
-  SessionStart: 'sessionStartOutput',
-  SessionEnd: 'sessionEndOutput',
-  Stop: 'stopOutput',
-  SubagentStart: 'subagentStartOutput',
-  SubagentStop: 'subagentStopOutput',
-  PreCompact: 'preCompactOutput',
-  PermissionRequest: 'permissionRequestOutput'
+  PreToolUse: "preToolUseOutput",
+  PostToolUse: "postToolUseOutput",
+  PostToolUseFailure: "postToolUseFailureOutput",
+  Notification: "notificationOutput",
+  UserPromptSubmit: "userPromptSubmitOutput",
+  SessionStart: "sessionStartOutput",
+  SessionEnd: "sessionEndOutput",
+  Stop: "stopOutput",
+  SubagentStart: "subagentStartOutput",
+  SubagentStop: "subagentStopOutput",
+  PreCompact: "preCompactOutput",
+  PermissionRequest: "permissionRequestOutput",
 };
 
 // ============================================================================
@@ -90,7 +90,7 @@ const EVENT_TO_OUTPUT_FUNCTION: Record<HookEventName, string> = {
  * @returns Object with normalized hook names or error message
  */
 function validateHookNames(
-  hookNames: string[]
+  hookNames: string[],
 ): { valid: true; normalized: HookEventName[] } | { valid: false; error: string } {
   const normalized: HookEventName[] = [];
   const invalid: string[] = [];
@@ -105,10 +105,10 @@ function validateHookNames(
   }
 
   if (invalid.length > 0) {
-    const validNames = Array.from(VALID_HOOK_EVENT_NAMES).sort().join(', ');
+    const validNames = Array.from(VALID_HOOK_EVENT_NAMES).sort().join(", ");
     return {
       valid: false,
-      error: `Invalid hook name(s): ${invalid.join(', ')}\nValid hook names: ${validNames}`
+      error: `Invalid hook name(s): ${invalid.join(", ")}\nValid hook names: ${validNames}`,
     };
   }
 
@@ -126,8 +126,8 @@ function validateHookNames(
  */
 function toKebabCase(eventName: string): string {
   return eventName
-    .replace(/([a-z])([A-Z])/g, '$1-$2')
-    .replace(/([A-Z])([A-Z][a-z])/g, '$1-$2')
+    .replace(/([a-z])([A-Z])/g, "$1-$2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
     .toLowerCase();
 }
 
@@ -140,29 +140,29 @@ function toKebabCase(eventName: string): string {
 function generatePackageJson(projectName: string, outputPath: string): string {
   const packageJson = {
     name: projectName,
-    version: '1.0.0',
-    type: 'module',
+    version: "1.0.0",
+    type: "module",
     scripts: {
       build: `claude-code-hooks -i "src/**/*.ts" -o "${outputPath}"`,
-      test: 'vitest run',
-      lint: 'biome check .',
-      typecheck: 'tsc --noEmit'
+      test: "vitest run",
+      lint: "biome check .",
+      typecheck: "tsc --noEmit",
     },
     dependencies: {
-      '@goodfoot/claude-code-hooks': '^1.0.9'
+      "@goodfoot/claude-code-hooks": "^1.0.9",
     },
     devDependencies: {
-      '@biomejs/biome': '2.3.11',
-      '@types/node': '^22.0.0',
-      typescript: '^5.9.3',
-      vitest: '^4.0.16'
+      "@biomejs/biome": "2.3.11",
+      "@types/node": "^22.0.0",
+      typescript: "^5.9.3",
+      vitest: "^4.0.16",
     },
     engines: {
-      node: '>=20.11.0'
-    }
+      node: ">=20.11.0",
+    },
   };
 
-  return JSON.stringify(packageJson, null, 2) + '\n';
+  return `${JSON.stringify(packageJson, null, 2)}\n`;
 }
 
 /**
@@ -172,21 +172,21 @@ function generatePackageJson(projectName: string, outputPath: string): string {
 function generateTsConfig(): string {
   const tsconfig = {
     compilerOptions: {
-      target: 'ES2022',
-      module: 'NodeNext',
-      moduleResolution: 'NodeNext',
+      target: "ES2022",
+      module: "NodeNext",
+      moduleResolution: "NodeNext",
       strict: true,
       esModuleInterop: true,
       skipLibCheck: true,
       declaration: true,
       declarationMap: true,
-      outDir: './dist'
+      outDir: "./dist",
     },
-    include: ['src/**/*.ts', 'test/**/*.ts'],
-    exclude: ['node_modules', 'dist']
+    include: ["src/**/*.ts", "test/**/*.ts"],
+    exclude: ["node_modules", "dist"],
   };
 
-  return JSON.stringify(tsconfig, null, 2) + '\n';
+  return `${JSON.stringify(tsconfig, null, 2)}\n`;
 }
 
 /**
@@ -249,7 +249,7 @@ export default defineConfig({
  * @returns Markdown content for CLAUDE.md
  */
 function generateClaudeMd(): string {
-  return 'Load the `claude-code-hooks:claude-code-hooks` skill immediately if it is available.\n';
+  return "Load the `claude-code-hooks:claude-code-hooks` skill immediately if it is available.\n";
 }
 
 /**
@@ -290,7 +290,7 @@ Thumbs.db
  * @returns Markdown content for README.md
  */
 function generateReadme(projectName: string, hooks: HookEventName[]): string {
-  const hookList = hooks.map((h) => `\`${h}\``).join(', ');
+  const hookList = hooks.map((h) => `\`${h}\``).join(", ");
   return `# ${projectName}
 
 This project contains [Claude Code hooks](https://docs.anthropic.com/en/docs/claude-code/hooks) built with the \`@goodfoot/claude-code-hooks\` library. Hooks let you extend Claude Code's behavior by running custom code at specific points during a session—before or after tool execution, when Claude starts or stops, and more. This project includes hooks for: ${hookList}.
@@ -314,44 +314,44 @@ function generateHookTemplate(eventName: HookEventName): string {
   // All hooks include systemMessage to demonstrate the pattern
   let returnStatement: string;
   switch (eventName) {
-    case 'Stop':
-    case 'SubagentStop':
+    case "Stop":
+    case "SubagentStop":
       returnStatement = `return ${outputName}({
     decision: "approve",
     systemMessage: "${eventName} hook executed successfully.",
   });`;
       break;
-    case 'PreToolUse':
+    case "PreToolUse":
       returnStatement = `return ${outputName}({
     systemMessage: "Tool execution allowed by ${eventName} hook.",
     hookSpecificOutput: { permissionDecision: "allow" },
   });`;
       break;
-    case 'PostToolUse':
-    case 'PostToolUseFailure':
+    case "PostToolUse":
+    case "PostToolUseFailure":
       returnStatement = `return ${outputName}({
     systemMessage: "${eventName} hook processed the result.",
     hookSpecificOutput: { additionalContext: "Hook completed successfully." },
   });`;
       break;
-    case 'SessionStart':
+    case "SessionStart":
       returnStatement = `return ${outputName}({
     systemMessage: "Session initialized by ${eventName} hook.",
     hookSpecificOutput: { additionalContext: "Environment ready." },
   });`;
       break;
-    case 'UserPromptSubmit':
+    case "UserPromptSubmit":
       returnStatement = `return ${outputName}({
     systemMessage: "User prompt received.",
     hookSpecificOutput: { additionalContext: "Prompt processed by hook." },
   });`;
       break;
-    case 'PreCompact':
+    case "PreCompact":
       returnStatement = `return ${outputName}({
     systemMessage: "Remember: Context is being compacted.",
   });`;
       break;
-    case 'PermissionRequest':
+    case "PermissionRequest":
       returnStatement = `return ${outputName}({
     systemMessage: "Permission request processed.",
   });`;
@@ -364,7 +364,7 @@ function generateHookTemplate(eventName: HookEventName): string {
   }
 
   // SessionStart hooks get extended context with persistEnvVar
-  const contextDestructure = eventName === 'SessionStart' ? '{ logger, persistEnvVar }' : '{ logger }';
+  const contextDestructure = eventName === "SessionStart" ? "{ logger, persistEnvVar }" : "{ logger }";
 
   return `/**
  * ${eventName} hook implementation.
@@ -394,13 +394,13 @@ export default ${factoryName}({}, (input, ${contextDestructure}) => {
 function generateTestFile(eventName: HookEventName, hookFilename: string): string {
   // SessionStart hooks need extended context with persistEnvVar
   const contextCode =
-    eventName === 'SessionStart'
+    eventName === "SessionStart"
       ? `{
       logger,
       persistEnvVar: () => {},
       persistEnvVars: () => {},
     }`
-      : '{ logger }';
+      : "{ logger }";
 
   return `/**
  * Tests for the ${eventName} hook.
@@ -483,8 +483,8 @@ export function scaffoldProject(options: ScaffoldOptions): void {
   const normalizedHooks = validation.normalized;
 
   // Create directory structure
-  const srcDir = path.join(absoluteDir, 'src');
-  const testDir = path.join(absoluteDir, 'test');
+  const srcDir = path.join(absoluteDir, "src");
+  const testDir = path.join(absoluteDir, "test");
 
   fs.mkdirSync(absoluteDir, { recursive: true });
   fs.mkdirSync(srcDir, { recursive: true });
@@ -494,13 +494,13 @@ export function scaffoldProject(options: ScaffoldOptions): void {
   const projectName = path.basename(absoluteDir);
 
   // Generate configuration files
-  fs.writeFileSync(path.join(absoluteDir, 'package.json'), generatePackageJson(projectName, outputPath));
-  fs.writeFileSync(path.join(absoluteDir, 'tsconfig.json'), generateTsConfig());
-  fs.writeFileSync(path.join(absoluteDir, 'biome.json'), generateBiomeConfig());
-  fs.writeFileSync(path.join(absoluteDir, 'vitest.config.ts'), generateVitestConfig());
-  fs.writeFileSync(path.join(absoluteDir, 'CLAUDE.md'), generateClaudeMd());
-  fs.writeFileSync(path.join(absoluteDir, '.gitignore'), generateGitignore());
-  fs.writeFileSync(path.join(absoluteDir, 'README.md'), generateReadme(projectName, normalizedHooks));
+  fs.writeFileSync(path.join(absoluteDir, "package.json"), generatePackageJson(projectName, outputPath));
+  fs.writeFileSync(path.join(absoluteDir, "tsconfig.json"), generateTsConfig());
+  fs.writeFileSync(path.join(absoluteDir, "biome.json"), generateBiomeConfig());
+  fs.writeFileSync(path.join(absoluteDir, "vitest.config.ts"), generateVitestConfig());
+  fs.writeFileSync(path.join(absoluteDir, "CLAUDE.md"), generateClaudeMd());
+  fs.writeFileSync(path.join(absoluteDir, ".gitignore"), generateGitignore());
+  fs.writeFileSync(path.join(absoluteDir, "README.md"), generateReadme(projectName, normalizedHooks));
 
   // Generate hook files and tests
   for (const eventName of normalizedHooks) {
@@ -517,11 +517,11 @@ export function scaffoldProject(options: ScaffoldOptions): void {
 
   // Output success message
   process.stdout.write(`Created hook project at ${absoluteDir}\n`);
-  process.stdout.write('\nNext steps:\n');
+  process.stdout.write("\nNext steps:\n");
   process.stdout.write(`  cd ${directory}\n`);
-  process.stdout.write('  npm install\n');
-  process.stdout.write('  npm run build\n');
-  process.stdout.write('\nGenerated hooks:\n');
+  process.stdout.write("  npm install\n");
+  process.stdout.write("  npm run build\n");
+  process.stdout.write("\nGenerated hooks:\n");
   for (const eventName of normalizedHooks) {
     const kebabName = toKebabCase(eventName);
     process.stdout.write(`  - src/${kebabName}.ts\n`);

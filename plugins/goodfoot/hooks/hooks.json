@@ -2,24 +2,24 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Skill",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/skill-tracker"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-tracker.600d0181.mjs"
           }
-        ]
+        ],
+        "matcher": "Skill"
       }
     ],
     "SessionStart": [
       {
-        "matcher": "compact",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/skill-reloader"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-reloader.c511d585.mjs"
           }
-        ]
+        ],
+        "matcher": "compact"
       }
     ],
     "SessionEnd": [
@@ -27,10 +27,29 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/skill-cleanup"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-cleanup.f24e6f09.mjs"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/pre-compact.6abb607a.mjs"
           }
         ]
       }
     ]
+  },
+  "__generated": {
+    "files": [
+      "skill-tracker.600d0181.mjs",
+      "skill-reloader.c511d585.mjs",
+      "skill-cleanup.f24e6f09.mjs",
+      "pre-compact.6abb607a.mjs"
+    ],
+    "timestamp": "2026-01-16T21:08:40.222Z"
   }
 }

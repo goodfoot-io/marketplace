@@ -22,38 +22,39 @@
  * @see https://code.claude.com/docs/en/hooks
  */
 
+import type { Logger } from "./logger.js";
 import type {
-  PreToolUseInput,
-  PostToolUseInput,
-  PostToolUseFailureInput,
-  NotificationInput,
-  UserPromptSubmitInput,
-  SessionStartInput,
-  SessionEndInput,
-  StopInput,
-  SubagentStartInput,
-  SubagentStopInput,
-  PreCompactInput,
-  PermissionRequestInput,
-  HookEventName
-} from './inputs.js';
-import type { Logger } from './logger.js';
-import type {
-  SpecificHookOutput,
-  PreToolUseOutput,
-  PostToolUseOutput,
-  PostToolUseFailureOutput,
   NotificationOutput,
-  UserPromptSubmitOutput,
-  SessionStartOutput,
+  PermissionRequestOutput,
+  PostToolUseFailureOutput,
+  PostToolUseOutput,
+  PreCompactOutput,
+  PreToolUseOutput,
   SessionEndOutput,
+  SessionStartOutput,
+  SpecificHookOutput,
   StopOutput,
   SubagentStartOutput,
   SubagentStopOutput,
-  PreCompactOutput,
-  PermissionRequestOutput
-} from './outputs.js';
-import type { ToolInputMap, KnownToolName } from './tool-inputs.js';
+  UserPromptSubmitOutput,
+} from "./outputs.js";
+import type {
+  HookEventName,
+  KnownToolName,
+  NotificationInput,
+  PermissionRequestInput,
+  PostToolUseFailureInput,
+  PostToolUseInput,
+  PreCompactInput,
+  PreToolUseInput,
+  SessionEndInput,
+  SessionStartInput,
+  StopInput,
+  SubagentStartInput,
+  SubagentStopInput,
+  ToolInputMap,
+  UserPromptSubmitInput,
+} from "./types.js";
 
 // ============================================================================
 // Configuration Types
@@ -158,7 +159,7 @@ export interface HookConfig {
  * @template T - The known tool name
  * @example
  * ```typescript
- * // tool_input is automatically typed as WriteToolInput
+ * // tool_input is automatically typed as FileWriteInput
  * preToolUseHook({ matcher: 'Write' }, (input) => {
  *   console.log(input.tool_input.file_path); // Typed!
  *   console.log(input.tool_input.content);   // Typed!
@@ -181,7 +182,7 @@ export interface TypedHookConfig<T extends KnownToolName> {
  * PreToolUseInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
-export type TypedPreToolUseInput<T extends KnownToolName> = Omit<PreToolUseInput, 'tool_name' | 'tool_input'> & {
+export type TypedPreToolUseInput<T extends KnownToolName> = Omit<PreToolUseInput, "tool_name" | "tool_input"> & {
   tool_name: T;
   tool_input: ToolInputMap[T];
 };
@@ -190,7 +191,7 @@ export type TypedPreToolUseInput<T extends KnownToolName> = Omit<PreToolUseInput
  * PostToolUseInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
-export type TypedPostToolUseInput<T extends KnownToolName> = Omit<PostToolUseInput, 'tool_name' | 'tool_input'> & {
+export type TypedPostToolUseInput<T extends KnownToolName> = Omit<PostToolUseInput, "tool_name" | "tool_input"> & {
   tool_name: T;
   tool_input: ToolInputMap[T];
 };
@@ -201,7 +202,7 @@ export type TypedPostToolUseInput<T extends KnownToolName> = Omit<PostToolUseInp
  */
 export type TypedPostToolUseFailureInput<T extends KnownToolName> = Omit<
   PostToolUseFailureInput,
-  'tool_name' | 'tool_input'
+  "tool_name" | "tool_input"
 > & {
   tool_name: T;
   tool_input: ToolInputMap[T];
@@ -213,7 +214,7 @@ export type TypedPostToolUseFailureInput<T extends KnownToolName> = Omit<
  */
 export type TypedPermissionRequestInput<T extends KnownToolName> = Omit<
   PermissionRequestInput,
-  'tool_name' | 'tool_input'
+  "tool_name" | "tool_input"
 > & {
   tool_name: T;
   tool_input: ToolInputMap[T];
@@ -325,7 +326,7 @@ export interface SessionStartContext extends HookContext {
  */
 export type HookHandler<TInput, TOutput extends SpecificHookOutput, TContext extends HookContext = HookContext> = (
   input: TInput,
-  context: TContext
+  context: TContext,
 ) => TOutput | Promise<TOutput>;
 
 /**
@@ -380,7 +381,7 @@ export interface HookFunction<TInput, TOutput extends SpecificHookOutput, TConte
 function createHookFunction<TInput, TOutput extends SpecificHookOutput, TContext extends HookContext = HookContext>(
   hookEventName: HookEventName,
   config: HookConfig,
-  handler: HookHandler<TInput, TOutput, TContext>
+  handler: HookHandler<TInput, TOutput, TContext>,
 ): HookFunction<TInput, TOutput, TContext> {
   const hookFn = async (input: TInput, context: TContext): Promise<TOutput> => {
     // Delegate error handling to the runtime - just execute the handler
@@ -420,7 +421,7 @@ function createHookFunction<TInput, TOutput extends SpecificHookOutput, TContext
  * ```typescript
  * import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
  *
- * // Typed overload: tool_input is automatically typed as BashToolInput
+ * // Typed overload: tool_input is automatically typed as BashInput
  * export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => {
  *   // input.tool_input.command is typed as string - no cast needed!
  *   if (input.tool_input.command.includes('rm -rf')) {
@@ -440,7 +441,7 @@ function createHookFunction<TInput, TOutput extends SpecificHookOutput, TContext
  * ```
  * @example
  * ```typescript
- * // Typed overload: tool_input is automatically typed as WriteToolInput
+ * // Typed overload: tool_input is automatically typed as FileWriteInput
  * export default preToolUseHook({ matcher: 'Write' }, (input) => {
  *   const { file_path, content } = input.tool_input; // Full autocomplete!
  *   // ...
@@ -450,18 +451,18 @@ function createHookFunction<TInput, TOutput extends SpecificHookOutput, TContext
  */
 export function preToolUseHook<T extends KnownToolName>(
   config: TypedHookConfig<T>,
-  handler: HookHandler<TypedPreToolUseInput<T>, PreToolUseOutput>
+  handler: HookHandler<TypedPreToolUseInput<T>, PreToolUseOutput>,
 ): HookFunction<TypedPreToolUseInput<T>, PreToolUseOutput>;
 export function preToolUseHook(
   config: HookConfig,
-  handler: HookHandler<PreToolUseInput, PreToolUseOutput>
+  handler: HookHandler<PreToolUseInput, PreToolUseOutput>,
 ): HookFunction<PreToolUseInput, PreToolUseOutput>;
 /** @inheritdoc */
 export function preToolUseHook(
   config: HookConfig,
-  handler: HookHandler<PreToolUseInput, PreToolUseOutput>
+  handler: HookHandler<PreToolUseInput, PreToolUseOutput>,
 ): HookFunction<PreToolUseInput, PreToolUseOutput> {
-  return createHookFunction('PreToolUse', config, handler);
+  return createHookFunction("PreToolUse", config, handler);
 }
 
 // ============================================================================
@@ -487,7 +488,7 @@ export function preToolUseHook(
  * ```typescript
  * import { postToolUseHook, postToolUseOutput } from '@goodfoot/claude-code-hooks';
  *
- * // Typed overload: tool_input is automatically typed as ReadToolInput
+ * // Typed overload: tool_input is automatically typed as FileReadInput
  * export default postToolUseHook({ matcher: 'Read' }, async (input, { logger }) => {
  *   // input.tool_input.file_path is typed as string - no cast needed!
  *   logger.info('File read completed', { filePath: input.tool_input.file_path });
@@ -503,18 +504,18 @@ export function preToolUseHook(
  */
 export function postToolUseHook<T extends KnownToolName>(
   config: TypedHookConfig<T>,
-  handler: HookHandler<TypedPostToolUseInput<T>, PostToolUseOutput>
+  handler: HookHandler<TypedPostToolUseInput<T>, PostToolUseOutput>,
 ): HookFunction<TypedPostToolUseInput<T>, PostToolUseOutput>;
 export function postToolUseHook(
   config: HookConfig,
-  handler: HookHandler<PostToolUseInput, PostToolUseOutput>
+  handler: HookHandler<PostToolUseInput, PostToolUseOutput>,
 ): HookFunction<PostToolUseInput, PostToolUseOutput>;
 /** @inheritdoc */
 export function postToolUseHook(
   config: HookConfig,
-  handler: HookHandler<PostToolUseInput, PostToolUseOutput>
+  handler: HookHandler<PostToolUseInput, PostToolUseOutput>,
 ): HookFunction<PostToolUseInput, PostToolUseOutput> {
-  return createHookFunction('PostToolUse', config, handler);
+  return createHookFunction("PostToolUse", config, handler);
 }
 
 // ============================================================================
@@ -559,18 +560,18 @@ export function postToolUseHook(
  */
 export function postToolUseFailureHook<T extends KnownToolName>(
   config: TypedHookConfig<T>,
-  handler: HookHandler<TypedPostToolUseFailureInput<T>, PostToolUseFailureOutput>
+  handler: HookHandler<TypedPostToolUseFailureInput<T>, PostToolUseFailureOutput>,
 ): HookFunction<TypedPostToolUseFailureInput<T>, PostToolUseFailureOutput>;
 export function postToolUseFailureHook(
   config: HookConfig,
-  handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>
+  handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>,
 ): HookFunction<PostToolUseFailureInput, PostToolUseFailureOutput>;
 /** @inheritdoc */
 export function postToolUseFailureHook(
   config: HookConfig,
-  handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>
+  handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>,
 ): HookFunction<PostToolUseFailureInput, PostToolUseFailureOutput> {
-  return createHookFunction('PostToolUseFailure', config, handler);
+  return createHookFunction("PostToolUseFailure", config, handler);
 }
 
 // ============================================================================
@@ -609,9 +610,9 @@ export function postToolUseFailureHook(
  */
 export function notificationHook(
   config: HookConfig,
-  handler: HookHandler<NotificationInput, NotificationOutput>
+  handler: HookHandler<NotificationInput, NotificationOutput>,
 ): HookFunction<NotificationInput, NotificationOutput> {
-  return createHookFunction('Notification', config, handler);
+  return createHookFunction("Notification", config, handler);
 }
 
 // ============================================================================
@@ -649,9 +650,9 @@ export function notificationHook(
  */
 export function userPromptSubmitHook(
   config: HookConfig,
-  handler: HookHandler<UserPromptSubmitInput, UserPromptSubmitOutput>
+  handler: HookHandler<UserPromptSubmitInput, UserPromptSubmitOutput>,
 ): HookFunction<UserPromptSubmitInput, UserPromptSubmitOutput> {
-  return createHookFunction('UserPromptSubmit', config, handler);
+  return createHookFunction("UserPromptSubmit", config, handler);
 }
 
 // ============================================================================
@@ -710,9 +711,9 @@ export function userPromptSubmitHook(
  */
 export function sessionStartHook(
   config: HookConfig,
-  handler: HookHandler<SessionStartInput, SessionStartOutput, SessionStartContext>
+  handler: HookHandler<SessionStartInput, SessionStartOutput, SessionStartContext>,
 ): HookFunction<SessionStartInput, SessionStartOutput, SessionStartContext> {
-  return createHookFunction('SessionStart', config, handler);
+  return createHookFunction("SessionStart", config, handler);
 }
 
 // ============================================================================
@@ -751,9 +752,9 @@ export function sessionStartHook(
  */
 export function sessionEndHook(
   config: HookConfig,
-  handler: HookHandler<SessionEndInput, SessionEndOutput>
+  handler: HookHandler<SessionEndInput, SessionEndOutput>,
 ): HookFunction<SessionEndInput, SessionEndOutput> {
-  return createHookFunction('SessionEnd', config, handler);
+  return createHookFunction("SessionEnd", config, handler);
 }
 
 // ============================================================================
@@ -800,9 +801,9 @@ export function sessionEndHook(
  */
 export function stopHook(
   config: HookConfig,
-  handler: HookHandler<StopInput, StopOutput>
+  handler: HookHandler<StopInput, StopOutput>,
 ): HookFunction<StopInput, StopOutput> {
-  return createHookFunction('Stop', config, handler);
+  return createHookFunction("Stop", config, handler);
 }
 
 // ============================================================================
@@ -841,9 +842,9 @@ export function stopHook(
  */
 export function subagentStartHook(
   config: HookConfig,
-  handler: HookHandler<SubagentStartInput, SubagentStartOutput>
+  handler: HookHandler<SubagentStartInput, SubagentStartOutput>,
 ): HookFunction<SubagentStartInput, SubagentStartOutput> {
-  return createHookFunction('SubagentStart', config, handler);
+  return createHookFunction("SubagentStart", config, handler);
 }
 
 // ============================================================================
@@ -885,9 +886,9 @@ export function subagentStartHook(
  */
 export function subagentStopHook(
   config: HookConfig,
-  handler: HookHandler<SubagentStopInput, SubagentStopOutput>
+  handler: HookHandler<SubagentStopInput, SubagentStopOutput>,
 ): HookFunction<SubagentStopInput, SubagentStopOutput> {
-  return createHookFunction('SubagentStop', config, handler);
+  return createHookFunction("SubagentStop", config, handler);
 }
 
 // ============================================================================
@@ -934,9 +935,9 @@ export function subagentStopHook(
  */
 export function preCompactHook(
   config: HookConfig,
-  handler: HookHandler<PreCompactInput, PreCompactOutput>
+  handler: HookHandler<PreCompactInput, PreCompactOutput>,
 ): HookFunction<PreCompactInput, PreCompactOutput> {
-  return createHookFunction('PreCompact', config, handler);
+  return createHookFunction("PreCompact", config, handler);
 }
 
 // ============================================================================
@@ -963,7 +964,7 @@ export function preCompactHook(
  * ```typescript
  * import { permissionRequestHook, permissionRequestOutput } from '@goodfoot/claude-code-hooks';
  *
- * // Typed overload: tool_input is automatically typed as ReadToolInput
+ * // Typed overload: tool_input is automatically typed as FileReadInput
  * export default permissionRequestHook({ matcher: 'Read' }, async (input, { logger }) => {
  *   // input.tool_input.file_path is typed as string - no cast needed!
  *   if (input.tool_input.file_path.startsWith('/allowed/')) {
@@ -979,7 +980,7 @@ export function preCompactHook(
  * ```
  * @example
  * ```typescript
- * // Typed overload: tool_input is automatically typed as BashToolInput
+ * // Typed overload: tool_input is automatically typed as BashInput
  * export default permissionRequestHook({ matcher: 'Bash' }, async (input, { logger }) => {
  *   // input.tool_input.command is typed as string - no cast needed!
  *   if (input.tool_input.command.includes('sudo')) {
@@ -1002,16 +1003,16 @@ export function preCompactHook(
  */
 export function permissionRequestHook<T extends KnownToolName>(
   config: TypedHookConfig<T>,
-  handler: HookHandler<TypedPermissionRequestInput<T>, PermissionRequestOutput>
+  handler: HookHandler<TypedPermissionRequestInput<T>, PermissionRequestOutput>,
 ): HookFunction<TypedPermissionRequestInput<T>, PermissionRequestOutput>;
 export function permissionRequestHook(
   config: HookConfig,
-  handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>
+  handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>,
 ): HookFunction<PermissionRequestInput, PermissionRequestOutput>;
 /** @inheritdoc */
 export function permissionRequestHook(
   config: HookConfig,
-  handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>
+  handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>,
 ): HookFunction<PermissionRequestInput, PermissionRequestOutput> {
-  return createHookFunction('PermissionRequest', config, handler);
+  return createHookFunction("PermissionRequest", config, handler);
 }

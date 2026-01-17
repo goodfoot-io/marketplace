@@ -4,33 +4,33 @@
  * These tests verify the generated hooks.json format and metadata.
  */
 
-import * as fs from 'node:fs';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from './setup.js';
-import { readHooksJson } from './test-utils.js';
+import * as fs from "node:fs";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from "./setup.js";
+import { readHooksJson } from "./test-utils.js";
 
-describe('E2E: hooks.json Structure Validation', () => {
+describe("E2E: hooks.json Structure Validation", () => {
   let pluginDir: string;
 
   beforeAll(() => {
-    pluginDir = buildSingleHook('deny-bash-hook.ts');
+    pluginDir = buildSingleHook("deny-bash-hook.ts");
   });
 
   afterAll(() => {
     cleanOutputDir(pluginDir);
   });
 
-  it('includes __generated metadata with files and timestamp', () => {
+  it("includes __generated metadata with files and timestamp", () => {
     const hooksJsonPath = getHooksJsonPath(pluginDir);
     const hooksJson = readHooksJson(hooksJsonPath);
 
     expect(hooksJson.__generated).toBeDefined();
     expect(Array.isArray(hooksJson.__generated.files)).toBe(true);
     expect(hooksJson.__generated.files.length).toBeGreaterThan(0);
-    expect(typeof hooksJson.__generated.timestamp).toBe('string');
+    expect(typeof hooksJson.__generated.timestamp).toBe("string");
   });
 
-  it('compiled hook files are executable', () => {
+  it("compiled hook files are executable", () => {
     const hooksJsonPath = getHooksJsonPath(pluginDir);
     const hooksJson = readHooksJson(hooksJsonPath);
 
@@ -40,11 +40,11 @@ describe('E2E: hooks.json Structure Validation', () => {
     // Verify the command uses node $CLAUDE_PLUGIN_ROOT template
     expect(hookCommand).toBeDefined();
     expect(hookCommand).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\//);
-    expect(hookCommand?.endsWith('.mjs')).toBe(true);
+    expect(hookCommand?.endsWith(".mjs")).toBe(true);
 
     // Resolve the actual file path and verify it exists (strip 'node ' prefix first)
-    const pathPart = hookCommand?.replace(/^node /, '');
-    const resolvedPath = pathPart?.replace('$CLAUDE_PLUGIN_ROOT', pluginDir);
-    expect(fs.existsSync(resolvedPath ?? '')).toBe(true);
+    const pathPart = hookCommand?.replace(/^node /, "");
+    const resolvedPath = pathPart?.replace("$CLAUDE_PLUGIN_ROOT", pluginDir);
+    expect(fs.existsSync(resolvedPath ?? "")).toBe(true);
   });
 });

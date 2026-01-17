@@ -5,12 +5,12 @@
  * and can inject system messages that persist after compaction.
  */
 
-import { preCompactHook, preCompactOutput } from '../../src/index.js';
+import { preCompactHook, preCompactOutput } from "../../src/index.js";
 
 export default preCompactHook({}, (input, { logger }) => {
-  logger.info('PreCompact hook triggered', { trigger: input.trigger });
+  logger.info("PreCompact hook triggered", { trigger: input.trigger });
 
   return preCompactOutput({
-    systemMessage: 'E2E_PRECOMPACT: Important context preserved through compaction.'
+    systemMessage: "E2E_PRECOMPACT: Important context preserved through compaction.",
   });
 });

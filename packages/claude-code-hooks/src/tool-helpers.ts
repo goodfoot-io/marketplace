@@ -18,7 +18,7 @@
  *   const filePath = getFilePath(input);
  *   if (!filePath || !isTsFile(filePath)) return preToolUseOutput({});
  *
- *   const result = checkContentForPattern(input, /@ts-ignore/g);
+ *   const result = checkContentForPattern(input, /@ts-expect-error/g);
  *   if (result?.isAddition) {
  *     return preToolUseOutput({
  *       hookSpecificOutput: {
@@ -35,18 +35,30 @@
  * @module
  */
 
-import type { PreToolUseInput, PostToolUseInput, PostToolUseFailureInput, PermissionRequestInput } from './inputs.js';
 import type {
-  WriteToolInput,
-  EditToolInput,
-  MultiEditToolInput,
-  ReadToolInput,
-  BashToolInput,
-  GlobToolInput,
-  GrepToolInput,
+  AgentInput,
+  AskUserQuestionInput,
+  BashInput,
+  ExitPlanModeInput,
+  FileEditInput,
   FileModifyingToolInput,
-  FileModifyingToolName
-} from './tool-inputs.js';
+  FileModifyingToolName,
+  FileReadInput,
+  FileWriteInput,
+  GlobInput,
+  GrepInput,
+  KillShellInput,
+  MultiEditToolInput,
+  NotebookEditInput,
+  PermissionRequestInput,
+  PostToolUseFailureInput,
+  PostToolUseInput,
+  PreToolUseInput,
+  TaskOutputInput,
+  TodoWriteInput,
+  WebFetchInput,
+  WebSearchInput,
+} from "./types.js";
 
 // ============================================================================
 // Tool Use Input Types (union for type guards)
@@ -77,9 +89,9 @@ export type ToolUseInput = PreToolUseInput | PostToolUseInput | PostToolUseFailu
  * ```
  */
 export function isWriteTool<T extends ToolUseInput>(
-  input: T
-): input is T & { tool_name: 'Write'; tool_input: WriteToolInput } {
-  return input.tool_name === 'Write';
+  input: T,
+): input is T & { tool_name: "Write"; tool_input: FileWriteInput } {
+  return input.tool_name === "Write";
 }
 
 /**
@@ -97,9 +109,9 @@ export function isWriteTool<T extends ToolUseInput>(
  * ```
  */
 export function isEditTool<T extends ToolUseInput>(
-  input: T
-): input is T & { tool_name: 'Edit'; tool_input: EditToolInput } {
-  return input.tool_name === 'Edit';
+  input: T,
+): input is T & { tool_name: "Edit"; tool_input: FileEditInput } {
+  return input.tool_name === "Edit";
 }
 
 /**
@@ -118,9 +130,9 @@ export function isEditTool<T extends ToolUseInput>(
  * ```
  */
 export function isMultiEditTool<T extends ToolUseInput>(
-  input: T
-): input is T & { tool_name: 'MultiEdit'; tool_input: MultiEditToolInput } {
-  return input.tool_name === 'MultiEdit';
+  input: T,
+): input is T & { tool_name: "MultiEdit"; tool_input: MultiEditToolInput } {
+  return input.tool_name === "MultiEdit";
 }
 
 /**
@@ -137,9 +149,9 @@ export function isMultiEditTool<T extends ToolUseInput>(
  * ```
  */
 export function isFileModifyingTool<T extends ToolUseInput>(
-  input: T
+  input: T,
 ): input is T & { tool_name: FileModifyingToolName; tool_input: FileModifyingToolInput } {
-  return input.tool_name === 'Write' || input.tool_name === 'Edit' || input.tool_name === 'MultiEdit';
+  return input.tool_name === "Write" || input.tool_name === "Edit" || input.tool_name === "MultiEdit";
 }
 
 /**
@@ -157,9 +169,9 @@ export function isFileModifyingTool<T extends ToolUseInput>(
  * ```
  */
 export function isReadTool<T extends ToolUseInput>(
-  input: T
-): input is T & { tool_name: 'Read'; tool_input: ReadToolInput } {
-  return input.tool_name === 'Read';
+  input: T,
+): input is T & { tool_name: "Read"; tool_input: FileReadInput } {
+  return input.tool_name === "Read";
 }
 
 /**
@@ -177,9 +189,9 @@ export function isReadTool<T extends ToolUseInput>(
  * ```
  */
 export function isBashTool<T extends ToolUseInput>(
-  input: T
-): input is T & { tool_name: 'Bash'; tool_input: BashToolInput } {
-  return input.tool_name === 'Bash';
+  input: T,
+): input is T & { tool_name: "Bash"; tool_input: BashInput } {
+  return input.tool_name === "Bash";
 }
 
 /**
@@ -197,9 +209,9 @@ export function isBashTool<T extends ToolUseInput>(
  * ```
  */
 export function isGlobTool<T extends ToolUseInput>(
-  input: T
-): input is T & { tool_name: 'Glob'; tool_input: GlobToolInput } {
-  return input.tool_name === 'Glob';
+  input: T,
+): input is T & { tool_name: "Glob"; tool_input: GlobInput } {
+  return input.tool_name === "Glob";
 }
 
 /**
@@ -217,9 +229,183 @@ export function isGlobTool<T extends ToolUseInput>(
  * ```
  */
 export function isGrepTool<T extends ToolUseInput>(
-  input: T
-): input is T & { tool_name: 'Grep'; tool_input: GrepToolInput } {
-  return input.tool_name === 'Grep';
+  input: T,
+): input is T & { tool_name: "Grep"; tool_input: GrepInput } {
+  return input.tool_name === "Grep";
+}
+
+/**
+ * Type guard for Task tool inputs.
+ *
+ * Narrows the input type to include a typed AgentInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a Task tool
+ * @example
+ * ```typescript
+ * if (isTaskTool(input)) {
+ *   console.log(input.tool_input.prompt);
+ *   console.log(input.tool_input.subagent_type);
+ * }
+ * ```
+ */
+export function isTaskTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "Task"; tool_input: AgentInput } {
+  return input.tool_name === "Task";
+}
+
+/**
+ * Type guard for TaskOutput tool inputs.
+ *
+ * Narrows the input type to include a typed TaskOutputInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a TaskOutput tool
+ * @example
+ * ```typescript
+ * if (isTaskOutputTool(input)) {
+ *   console.log(input.tool_input.task_id);
+ * }
+ * ```
+ */
+export function isTaskOutputTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "TaskOutput"; tool_input: TaskOutputInput } {
+  return input.tool_name === "TaskOutput";
+}
+
+/**
+ * Type guard for ExitPlanMode tool inputs.
+ *
+ * Narrows the input type to include a typed ExitPlanModeInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for an ExitPlanMode tool
+ * @example
+ * ```typescript
+ * if (isExitPlanModeTool(input)) {
+ *   console.log(input.tool_input.allowedPrompts);
+ * }
+ * ```
+ */
+export function isExitPlanModeTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "ExitPlanMode"; tool_input: ExitPlanModeInput } {
+  return input.tool_name === "ExitPlanMode";
+}
+
+/**
+ * Type guard for KillShell tool inputs.
+ *
+ * Narrows the input type to include a typed KillShellInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a KillShell tool
+ * @example
+ * ```typescript
+ * if (isKillShellTool(input)) {
+ *   console.log(input.tool_input.shell_id);
+ * }
+ * ```
+ */
+export function isKillShellTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "KillShell"; tool_input: KillShellInput } {
+  return input.tool_name === "KillShell";
+}
+
+/**
+ * Type guard for NotebookEdit tool inputs.
+ *
+ * Narrows the input type to include a typed NotebookEditInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a NotebookEdit tool
+ * @example
+ * ```typescript
+ * if (isNotebookEditTool(input)) {
+ *   console.log(input.tool_input.notebook_path);
+ *   console.log(input.tool_input.new_source);
+ * }
+ * ```
+ */
+export function isNotebookEditTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "NotebookEdit"; tool_input: NotebookEditInput } {
+  return input.tool_name === "NotebookEdit";
+}
+
+/**
+ * Type guard for TodoWrite tool inputs.
+ *
+ * Narrows the input type to include a typed TodoWriteInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a TodoWrite tool
+ * @example
+ * ```typescript
+ * if (isTodoWriteTool(input)) {
+ *   console.log(input.tool_input.todos);
+ * }
+ * ```
+ */
+export function isTodoWriteTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "TodoWrite"; tool_input: TodoWriteInput } {
+  return input.tool_name === "TodoWrite";
+}
+
+/**
+ * Type guard for WebFetch tool inputs.
+ *
+ * Narrows the input type to include a typed WebFetchInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a WebFetch tool
+ * @example
+ * ```typescript
+ * if (isWebFetchTool(input)) {
+ *   console.log(input.tool_input.url);
+ *   console.log(input.tool_input.prompt);
+ * }
+ * ```
+ */
+export function isWebFetchTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "WebFetch"; tool_input: WebFetchInput } {
+  return input.tool_name === "WebFetch";
+}
+
+/**
+ * Type guard for WebSearch tool inputs.
+ *
+ * Narrows the input type to include a typed WebSearchInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a WebSearch tool
+ * @example
+ * ```typescript
+ * if (isWebSearchTool(input)) {
+ *   console.log(input.tool_input.query);
+ * }
+ * ```
+ */
+export function isWebSearchTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "WebSearch"; tool_input: WebSearchInput } {
+  return input.tool_name === "WebSearch";
+}
+
+/**
+ * Type guard for AskUserQuestion tool inputs.
+ *
+ * Narrows the input type to include a typed AskUserQuestionInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for an AskUserQuestion tool
+ * @example
+ * ```typescript
+ * if (isAskUserQuestionTool(input)) {
+ *   console.log(input.tool_input.questions);
+ * }
+ * ```
+ */
+export function isAskUserQuestionTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "AskUserQuestion"; tool_input: AskUserQuestionInput } {
+  return input.tool_name === "AskUserQuestion";
 }
 
 // ============================================================================
@@ -243,9 +429,9 @@ export function isGrepTool<T extends ToolUseInput>(
  */
 export function getFilePath(input: ToolUseInput): string | null {
   const toolInput = input.tool_input as { file_path?: string } | null | undefined;
-  if (toolInput && typeof toolInput === 'object' && 'file_path' in toolInput) {
+  if (toolInput && typeof toolInput === "object" && "file_path" in toolInput) {
     const filePath = toolInput.file_path;
-    return typeof filePath === 'string' ? filePath : null;
+    return typeof filePath === "string" ? filePath : null;
   }
   return null;
 }
@@ -322,8 +508,8 @@ export interface PatternCheckResult {
  * @returns Result object, or null if not a file-modifying tool
  * @example
  * ```typescript
- * // Block @ts-ignore being added
- * const result = checkContentForPattern(input, /@ts-ignore/g);
+ * // Block @ts-expect-error being added
+ * const result = checkContentForPattern(input, /@ts-expect-error/g);
  * if (result?.isAddition) {
  *   return preToolUseOutput({
  *     hookSpecificOutput: {
@@ -336,7 +522,7 @@ export interface PatternCheckResult {
  */
 export function checkContentForPattern(input: PreToolUseInput, pattern: RegExp): PatternCheckResult | null {
   // Ensure pattern has global flag for matchAll
-  const globalPattern = pattern.global ? pattern : new RegExp(pattern.source, pattern.flags + 'g');
+  const globalPattern = pattern.global ? pattern : new RegExp(pattern.source, `${pattern.flags}g`);
 
   if (isWriteTool(input)) {
     const matches = [...input.tool_input.content.matchAll(globalPattern)].map((m) => m[0]);
@@ -344,7 +530,7 @@ export function checkContentForPattern(input: PreToolUseInput, pattern: RegExp):
     return {
       found: uniqueMatches.length > 0,
       isAddition: uniqueMatches.length > 0, // For Write, any match is an addition
-      matches: uniqueMatches
+      matches: uniqueMatches,
     };
   }
 
@@ -360,12 +546,12 @@ export function checkContentForPattern(input: PreToolUseInput, pattern: RegExp):
     return {
       found: uniqueNewMatches.length > 0,
       isAddition: additions.length > 0,
-      matches: uniqueNewMatches
+      matches: uniqueNewMatches,
     };
   }
 
   if (isMultiEditTool(input)) {
-    const details: PatternCheckResult['details'] = [];
+    const details: PatternCheckResult["details"] = [];
     const allMatches = new Set<string>();
     let anyFound = false;
     let anyAddition = false;
@@ -383,13 +569,15 @@ export function checkContentForPattern(input: PreToolUseInput, pattern: RegExp):
 
       if (found) anyFound = true;
       if (isAddition) anyAddition = true;
-      uniqueNewMatches.forEach((m) => allMatches.add(m));
+      for (const m of uniqueNewMatches) {
+        allMatches.add(m);
+      }
 
       details.push({
         index: i,
         found,
         isAddition,
-        matches: uniqueNewMatches
+        matches: uniqueNewMatches,
       });
     }
 
@@ -397,7 +585,7 @@ export function checkContentForPattern(input: PreToolUseInput, pattern: RegExp):
       found: anyFound,
       isAddition: anyAddition,
       matches: [...allMatches],
-      details
+      details,
     };
   }
 
@@ -443,7 +631,7 @@ export function forEachContent(input: PreToolUseInput, callback: (ctx: ContentCo
       newContent: input.tool_input.content,
       oldContent: null,
       index: 0,
-      isWrite: true
+      isWrite: true,
     });
   }
 
@@ -452,7 +640,7 @@ export function forEachContent(input: PreToolUseInput, callback: (ctx: ContentCo
       newContent: input.tool_input.new_string,
       oldContent: input.tool_input.old_string,
       index: 0,
-      isWrite: false
+      isWrite: false,
     });
   }
 
@@ -463,7 +651,7 @@ export function forEachContent(input: PreToolUseInput, callback: (ctx: ContentCo
         newContent: edit.new_string,
         oldContent: edit.old_string,
         index: i,
-        isWrite: false
+        isWrite: false,
       });
       if (!shouldContinue) return false;
     }

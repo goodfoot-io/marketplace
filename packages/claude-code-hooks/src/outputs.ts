@@ -9,9 +9,15 @@
  */
 
 import type {
-  PermissionUpdate,
-  SyncHookJSONOutput as SDKSyncHookJSONOutput
-} from '@anthropic-ai/claude-agent-sdk/entrypoints/agentSdkTypes.js';
+  PermissionRequestHookSpecificOutput as SDKPermissionRequestHookSpecificOutput,
+  PostToolUseFailureHookSpecificOutput as SDKPostToolUseFailureHookSpecificOutput,
+  PostToolUseHookSpecificOutput as SDKPostToolUseHookSpecificOutput,
+  PreToolUseHookSpecificOutput as SDKPreToolUseHookSpecificOutput,
+  SessionStartHookSpecificOutput as SDKSessionStartHookSpecificOutput,
+  SubagentStartHookSpecificOutput as SDKSubagentStartHookSpecificOutput,
+  SyncHookJSONOutput as SDKSyncHookJSONOutput,
+  UserPromptSubmitHookSpecificOutput as SDKUserPromptSubmitHookSpecificOutput,
+} from "@anthropic-ai/claude-agent-sdk/sdk.js";
 
 // ============================================================================
 // Exit Code Constants
@@ -32,7 +38,7 @@ export const EXIT_CODES = {
   /** Non-blocking error occurred (e.g., invalid input). stderr shown to user only. */
   ERROR: 1,
   /** Handler threw exception OR blocking action requested. stderr shown to Claude. */
-  BLOCK: 2
+  BLOCK: 2,
 } as const;
 
 /**
@@ -41,115 +47,105 @@ export const EXIT_CODES = {
 export type ExitCode = (typeof EXIT_CODES)[keyof typeof EXIT_CODES];
 
 // ============================================================================
-// Re-export SDK type for reference
+// Re-export SDK types
 // ============================================================================
 
 /**
- * Re-export the SDK's SyncHookJSONOutput type for reference.
- * Our types are derived from this to ensure wire format compatibility.
+ * Re-export the SDK's SyncHookJSONOutput type.
  */
 export type { SDKSyncHookJSONOutput };
 
+/**
+ * Re-export SDK hook-specific output types (includes hookEventName discriminator).
+ */
+export type {
+  SDKPreToolUseHookSpecificOutput,
+  SDKPostToolUseHookSpecificOutput,
+  SDKPostToolUseFailureHookSpecificOutput,
+  SDKUserPromptSubmitHookSpecificOutput,
+  SDKSessionStartHookSpecificOutput,
+  SDKSubagentStartHookSpecificOutput,
+  SDKPermissionRequestHookSpecificOutput,
+};
+
 // ============================================================================
-// Hook-Specific Output Types (from SDK)
+// Hook-Specific Output Field Types (for builder options)
+// These omit hookEventName which is added automatically by builders.
 // ============================================================================
 
 /**
  * PreToolUse hook-specific output fields.
- * Omits `hookEventName` which is added automatically.
+ * Omits `hookEventName` which is added automatically by the builder.
  */
-export interface PreToolUseHookSpecificOutput {
-  /** Permission decision: 'allow', 'deny', or 'ask' */
-  permissionDecision?: 'allow' | 'deny' | 'ask';
-  /** Reason for the permission decision. */
-  permissionDecisionReason?: string;
-  /** Modified tool input to use instead of original. */
-  updatedInput?: Record<string, unknown>;
-}
+export type PreToolUseHookSpecificOutput = Omit<SDKPreToolUseHookSpecificOutput, "hookEventName">;
 
 /**
  * PostToolUse hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
  */
-export interface PostToolUseHookSpecificOutput {
-  /** Additional context to add to the transcript. */
-  additionalContext?: string;
-  /** Updated MCP tool output to replace the original. */
-  updatedMCPToolOutput?: unknown;
-}
+export type PostToolUseHookSpecificOutput = Omit<SDKPostToolUseHookSpecificOutput, "hookEventName">;
 
 /**
  * PostToolUseFailure hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
  */
-export interface PostToolUseFailureHookSpecificOutput {
-  /** Additional context to add after the failure. */
-  additionalContext?: string;
-}
+export type PostToolUseFailureHookSpecificOutput = Omit<SDKPostToolUseFailureHookSpecificOutput, "hookEventName">;
 
 /**
  * UserPromptSubmit hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
  */
-export interface UserPromptSubmitHookSpecificOutput {
-  /** Additional context to inject into the conversation. */
-  additionalContext?: string;
-}
+export type UserPromptSubmitHookSpecificOutput = Omit<SDKUserPromptSubmitHookSpecificOutput, "hookEventName">;
 
 /**
  * SessionStart hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
  */
-export interface SessionStartHookSpecificOutput {
-  /** Additional context to inject at session start. */
-  additionalContext?: string;
-}
+export type SessionStartHookSpecificOutput = Omit<SDKSessionStartHookSpecificOutput, "hookEventName">;
 
 /**
  * SubagentStart hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
  */
-export interface SubagentStartHookSpecificOutput {
-  /** Additional context to inject for the subagent. */
-  additionalContext?: string;
-}
+export type SubagentStartHookSpecificOutput = Omit<SDKSubagentStartHookSpecificOutput, "hookEventName">;
+
+/**
+ * PermissionRequest hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
+ */
+export type PermissionRequestHookSpecificOutput = Omit<SDKPermissionRequestHookSpecificOutput, "hookEventName">;
+
+/**
+ * Allow decision for permission requests.
+ * Derived from SDK's PermissionRequestHookSpecificOutput.
+ */
+export type PermissionRequestAllowDecision = Extract<
+  SDKPermissionRequestHookSpecificOutput["decision"],
+  { behavior: "allow" }
+>;
+
+/**
+ * Deny decision for permission requests.
+ * Derived from SDK's PermissionRequestHookSpecificOutput.
+ */
+export type PermissionRequestDenyDecision = Extract<
+  SDKPermissionRequestHookSpecificOutput["decision"],
+  { behavior: "deny" }
+>;
+
+/**
+ * Permission request decision - either allow or deny.
+ * Derived from SDK's PermissionRequestHookSpecificOutput.
+ */
+export type PermissionRequestDecision = SDKPermissionRequestHookSpecificOutput["decision"];
 
 /**
  * Notification hook-specific output fields.
+ * Note: Not in SDK, defined here for completeness.
  */
 export interface NotificationHookSpecificOutput {
   /** Additional context to add about the notification. */
   additionalContext?: string;
-}
-
-/**
- * Allow decision for permission requests.
- */
-export interface PermissionRequestAllowDecision {
-  behavior: 'allow';
-  /** Updated tool input to use. */
-  updatedInput?: Record<string, unknown>;
-  /** Permission updates to apply. */
-  updatedPermissions?: PermissionUpdate[];
-}
-
-/**
- * Deny decision for permission requests.
- */
-export interface PermissionRequestDenyDecision {
-  behavior: 'deny';
-  /** Message explaining the denial. */
-  message?: string;
-  /** Whether to interrupt the current operation. */
-  interrupt?: boolean;
-}
-
-/**
- * Permission request decision - either allow or deny.
- */
-export type PermissionRequestDecision = PermissionRequestAllowDecision | PermissionRequestDenyDecision;
-
-/**
- * PermissionRequest hook-specific output fields.
- */
-export interface PermissionRequestHookSpecificOutput {
-  /** Permission decision details. */
-  decision: PermissionRequestDecision;
 }
 
 // ============================================================================
@@ -160,18 +156,18 @@ export interface PermissionRequestHookSpecificOutput {
  * Full hook-specific output with hookEventName discriminator.
  */
 export type HookSpecificOutput =
-  | ({ hookEventName: 'PreToolUse' } & PreToolUseHookSpecificOutput)
-  | ({ hookEventName: 'PostToolUse' } & PostToolUseHookSpecificOutput)
-  | ({ hookEventName: 'PostToolUseFailure' } & PostToolUseFailureHookSpecificOutput)
-  | ({ hookEventName: 'UserPromptSubmit' } & UserPromptSubmitHookSpecificOutput)
-  | ({ hookEventName: 'SessionStart' } & SessionStartHookSpecificOutput)
-  | ({ hookEventName: 'SubagentStart' } & SubagentStartHookSpecificOutput)
-  | ({ hookEventName: 'Notification' } & NotificationHookSpecificOutput)
-  | ({ hookEventName: 'PermissionRequest' } & PermissionRequestHookSpecificOutput);
+  | SDKPreToolUseHookSpecificOutput
+  | SDKPostToolUseHookSpecificOutput
+  | SDKPostToolUseFailureHookSpecificOutput
+  | SDKUserPromptSubmitHookSpecificOutput
+  | SDKSessionStartHookSpecificOutput
+  | SDKSubagentStartHookSpecificOutput
+  | SDKPermissionRequestHookSpecificOutput
+  | ({ hookEventName: "Notification" } & NotificationHookSpecificOutput);
 
 /**
  * The JSON output format expected by Claude Code (sync hooks only).
- * Matches the SDK's SyncHookJSONOutput type.
+ * Extends SDK's SyncHookJSONOutput to include Notification hook support.
  */
 export interface SyncHookJSONOutput {
   /** If true, continue processing even after errors. */
@@ -181,7 +177,7 @@ export interface SyncHookJSONOutput {
   /** Reason for stopping the session (when blocking). */
   stopReason?: string;
   /** Decision for Stop/SubagentStop hooks: 'approve' allows stop, 'block' prevents it. */
-  decision?: 'approve' | 'block';
+  decision?: "approve" | "block";
   /** System message to inject into Claude's context. */
   systemMessage?: string;
   /** Reason shown to Claude when blocking. */
@@ -233,51 +229,51 @@ interface BaseSpecificOutput<T extends string> {
 /**
  *
  */
-export type PreToolUseOutput = BaseSpecificOutput<'PreToolUse'>;
+export type PreToolUseOutput = BaseSpecificOutput<"PreToolUse">;
 /**
  *
  */
-export type PostToolUseOutput = BaseSpecificOutput<'PostToolUse'>;
+export type PostToolUseOutput = BaseSpecificOutput<"PostToolUse">;
 /**
  *
  */
-export type PostToolUseFailureOutput = BaseSpecificOutput<'PostToolUseFailure'>;
+export type PostToolUseFailureOutput = BaseSpecificOutput<"PostToolUseFailure">;
 /**
  *
  */
-export type NotificationOutput = BaseSpecificOutput<'Notification'>;
+export type NotificationOutput = BaseSpecificOutput<"Notification">;
 /**
  *
  */
-export type UserPromptSubmitOutput = BaseSpecificOutput<'UserPromptSubmit'>;
+export type UserPromptSubmitOutput = BaseSpecificOutput<"UserPromptSubmit">;
 /**
  *
  */
-export type SessionStartOutput = BaseSpecificOutput<'SessionStart'>;
+export type SessionStartOutput = BaseSpecificOutput<"SessionStart">;
 /**
  *
  */
-export type SessionEndOutput = BaseSpecificOutput<'SessionEnd'>;
+export type SessionEndOutput = BaseSpecificOutput<"SessionEnd">;
 /**
  *
  */
-export type StopOutput = BaseSpecificOutput<'Stop'>;
+export type StopOutput = BaseSpecificOutput<"Stop">;
 /**
  *
  */
-export type SubagentStartOutput = BaseSpecificOutput<'SubagentStart'>;
+export type SubagentStartOutput = BaseSpecificOutput<"SubagentStart">;
 /**
  *
  */
-export type SubagentStopOutput = BaseSpecificOutput<'SubagentStop'>;
+export type SubagentStopOutput = BaseSpecificOutput<"SubagentStop">;
 /**
  *
  */
-export type PreCompactOutput = BaseSpecificOutput<'PreCompact'>;
+export type PreCompactOutput = BaseSpecificOutput<"PreCompact">;
 /**
  *
  */
-export type PermissionRequestOutput = BaseSpecificOutput<'PermissionRequest'>;
+export type PermissionRequestOutput = BaseSpecificOutput<"PermissionRequest">;
 
 /**
  * Union of all specific output types.
@@ -308,7 +304,7 @@ export type SpecificHookOutput =
  */
 function createHookSpecificOutputBuilder<T extends string, THookSpecific>(hookType: T) {
   return (
-    options: CommonOptions & { hookSpecificOutput?: THookSpecific } = {}
+    options: CommonOptions & { hookSpecificOutput?: THookSpecific } = {},
   ): { readonly _type: T; stdout: SyncHookJSONOutput } => {
     const { hookSpecificOutput, ...rest } = options;
     const stdout: SyncHookJSONOutput =
@@ -328,7 +324,7 @@ function createHookSpecificOutputBuilder<T extends string, THookSpecific>(hookTy
 function createSimpleOutputBuilder<T extends string>(hookType: T) {
   return (options: CommonOptions = {}): { readonly _type: T; stdout: SyncHookJSONOutput } => ({
     _type: hookType,
-    stdout: options
+    stdout: options,
   });
 }
 
@@ -337,7 +333,7 @@ function createSimpleOutputBuilder<T extends string>(hookType: T) {
  */
 interface DecisionOptions extends CommonOptions {
   /** Decision: 'approve' allows the action, 'block' prevents it. */
-  decision?: 'approve' | 'block';
+  decision?: "approve" | "block";
   /** Reason for the decision (shown to Claude when blocking). */
   reason?: string;
 }
@@ -351,7 +347,7 @@ interface DecisionOptions extends CommonOptions {
 function createDecisionOutputBuilder<T extends string>(hookType: T) {
   return (options: DecisionOptions = {}): { readonly _type: T; stdout: SyncHookJSONOutput } => ({
     _type: hookType,
-    stdout: options
+    stdout: options,
   });
 }
 
@@ -397,9 +393,9 @@ export type PreToolUseOptions = CommonOptions & {
  * ```
  */
 export const preToolUseOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
-  'PreToolUse',
+  "PreToolUse",
   PreToolUseHookSpecificOutput
->('PreToolUse');
+>("PreToolUse");
 
 // ============================================================================
 // PostToolUse Output Builder
@@ -428,9 +424,9 @@ export type PostToolUseOptions = CommonOptions & {
  * ```
  */
 export const postToolUseOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
-  'PostToolUse',
+  "PostToolUse",
   PostToolUseHookSpecificOutput
->('PostToolUse');
+>("PostToolUse");
 
 // ============================================================================
 // PostToolUseFailure Output Builder
@@ -458,9 +454,9 @@ export type PostToolUseFailureOptions = CommonOptions & {
  * ```
  */
 export const postToolUseFailureOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
-  'PostToolUseFailure',
+  "PostToolUseFailure",
   PostToolUseFailureHookSpecificOutput
->('PostToolUseFailure');
+>("PostToolUseFailure");
 
 // ============================================================================
 // UserPromptSubmit Output Builder
@@ -488,9 +484,9 @@ export type UserPromptSubmitOptions = CommonOptions & {
  * ```
  */
 export const userPromptSubmitOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
-  'UserPromptSubmit',
+  "UserPromptSubmit",
   UserPromptSubmitHookSpecificOutput
->('UserPromptSubmit');
+>("UserPromptSubmit");
 
 // ============================================================================
 // SessionStart Output Builder
@@ -518,9 +514,9 @@ export type SessionStartOptions = CommonOptions & {
  * ```
  */
 export const sessionStartOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
-  'SessionStart',
+  "SessionStart",
   SessionStartHookSpecificOutput
->('SessionStart');
+>("SessionStart");
 
 // ============================================================================
 // SessionEnd Output Builder
@@ -541,7 +537,7 @@ export type SessionEndOptions = CommonOptions;
  * sessionEndOutput({});
  * ```
  */
-export const sessionEndOutput = /* @__PURE__ */ createSimpleOutputBuilder<'SessionEnd'>('SessionEnd');
+export const sessionEndOutput = /* @__PURE__ */ createSimpleOutputBuilder<"SessionEnd">("SessionEnd");
 
 // ============================================================================
 // Stop Output Builder
@@ -552,7 +548,7 @@ export const sessionEndOutput = /* @__PURE__ */ createSimpleOutputBuilder<'Sessi
  */
 export interface StopOptions extends CommonOptions {
   /** Decision: 'approve' allows stop, 'block' prevents it. */
-  decision?: 'approve' | 'block';
+  decision?: "approve" | "block";
   /** Reason for the decision (shown to Claude when blocking). */
   reason?: string;
 }
@@ -573,7 +569,7 @@ export interface StopOptions extends CommonOptions {
  * });
  * ```
  */
-export const stopOutput = /* @__PURE__ */ createDecisionOutputBuilder<'Stop'>('Stop');
+export const stopOutput = /* @__PURE__ */ createDecisionOutputBuilder<"Stop">("Stop");
 
 // ============================================================================
 // SubagentStart Output Builder
@@ -601,9 +597,9 @@ export type SubagentStartOptions = CommonOptions & {
  * ```
  */
 export const subagentStartOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
-  'SubagentStart',
+  "SubagentStart",
   SubagentStartHookSpecificOutput
->('SubagentStart');
+>("SubagentStart");
 
 // ============================================================================
 // SubagentStop Output Builder
@@ -614,7 +610,7 @@ export const subagentStartOutput = /* @__PURE__ */ createHookSpecificOutputBuild
  */
 export interface SubagentStopOptions extends CommonOptions {
   /** Decision: 'approve' allows stop, 'block' prevents it. */
-  decision?: 'approve' | 'block';
+  decision?: "approve" | "block";
   /** Reason for the decision (shown to subagent when blocking). */
   reason?: string;
 }
@@ -632,7 +628,7 @@ export interface SubagentStopOptions extends CommonOptions {
  * });
  * ```
  */
-export const subagentStopOutput = /* @__PURE__ */ createDecisionOutputBuilder<'SubagentStop'>('SubagentStop');
+export const subagentStopOutput = /* @__PURE__ */ createDecisionOutputBuilder<"SubagentStop">("SubagentStop");
 
 // ============================================================================
 // Notification Output Builder
@@ -664,9 +660,9 @@ export type NotificationOptions = CommonOptions & {
  * ```
  */
 export const notificationOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
-  'Notification',
+  "Notification",
   NotificationHookSpecificOutput
->('Notification');
+>("Notification");
 
 // ============================================================================
 // PreCompact Output Builder
@@ -689,7 +685,7 @@ export type PreCompactOptions = CommonOptions;
  * });
  * ```
  */
-export const preCompactOutput = /* @__PURE__ */ createSimpleOutputBuilder<'PreCompact'>('PreCompact');
+export const preCompactOutput = /* @__PURE__ */ createSimpleOutputBuilder<"PreCompact">("PreCompact");
 
 // ============================================================================
 // PermissionRequest Output Builder
@@ -742,9 +738,9 @@ export type PermissionRequestOptions = CommonOptions & {
  * ```
  */
 export const permissionRequestOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
-  'PermissionRequest',
+  "PermissionRequest",
   PermissionRequestHookSpecificOutput
->('PermissionRequest');
+>("PermissionRequest");
 
 // ============================================================================
 // Legacy type aliases for backwards compatibility

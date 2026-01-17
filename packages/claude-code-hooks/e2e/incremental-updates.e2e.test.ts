@@ -7,11 +7,11 @@
  * - Writes hooks.json atomically
  */
 
-import { spawnSync } from 'node:child_process';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { spawnSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,17 +19,17 @@ const __dirname = path.dirname(__filename);
 /**
  * Path to the CLI script.
  */
-const CLI_PATH = path.join(__dirname, '..', 'src', 'cli.ts');
+const CLI_PATH = path.join(__dirname, "..", "src", "cli.ts");
 
 /**
  * Directory containing build test fixtures.
  */
-const BUILD_TEST_FIXTURES = path.join(__dirname, 'fixtures');
+const BUILD_TEST_FIXTURES = path.join(__dirname, "fixtures");
 
 /**
  * Output directory for incremental update test results.
  */
-const TEST_OUTPUT = path.join(__dirname, 'dist', 'incremental-test');
+const TEST_OUTPUT = path.join(__dirname, "dist", "incremental-test");
 
 /**
  * Represents a matcher entry in hooks.json.
@@ -61,16 +61,16 @@ interface HooksJson {
  * @returns Object with success status and captured stdout/stderr
  */
 function runCli(inputPattern: string, outputPath: string): { success: boolean; stdout: string; stderr: string } {
-  const result = spawnSync('npx', ['tsx', CLI_PATH, '-i', inputPattern, '-o', outputPath], {
+  const result = spawnSync("npx", ["tsx", CLI_PATH, "-i", inputPattern, "-o", outputPath], {
     cwd: path.dirname(CLI_PATH),
-    encoding: 'utf-8',
-    stdio: 'pipe'
+    encoding: "utf-8",
+    stdio: "pipe",
   });
 
   return {
     success: result.status === 0,
-    stdout: result.stdout ?? '',
-    stderr: result.stderr ?? ''
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
   };
 }
 
@@ -80,7 +80,7 @@ function runCli(inputPattern: string, outputPath: string): { success: boolean; s
  * @returns Parsed HooksJson object
  */
 function readHooksJson(hooksJsonPath: string): HooksJson {
-  return JSON.parse(fs.readFileSync(hooksJsonPath, 'utf-8')) as HooksJson;
+  return JSON.parse(fs.readFileSync(hooksJsonPath, "utf-8")) as HooksJson;
 }
 
 /**
@@ -103,16 +103,16 @@ function createPluginStructure(testName: string): {
   outputPath: string;
 } {
   const pluginDir = path.join(TEST_OUTPUT, testName);
-  const hooksDir = path.join(pluginDir, 'hooks');
-  const outputPath = path.join(hooksDir, 'hooks.json');
+  const hooksDir = path.join(pluginDir, "hooks");
+  const outputPath = path.join(hooksDir, "hooks.json");
 
-  fs.mkdirSync(path.join(pluginDir, '.claude-plugin'), { recursive: true });
+  fs.mkdirSync(path.join(pluginDir, ".claude-plugin"), { recursive: true });
   fs.mkdirSync(hooksDir, { recursive: true });
 
   return { pluginDir, hooksDir, outputPath };
 }
 
-describe('E2E: Incremental Updates', () => {
+describe("E2E: Incremental Updates", () => {
   beforeAll(() => {
     cleanTestOutput();
     fs.mkdirSync(TEST_OUTPUT, { recursive: true });
@@ -122,44 +122,44 @@ describe('E2E: Incremental Updates', () => {
     cleanTestOutput();
   });
 
-  describe('Preserving External Hooks', () => {
-    it('preserves hooks from other sources when rebuilding', () => {
-      const { outputPath } = createPluginStructure('preserve-external');
+  describe("Preserving External Hooks", () => {
+    it("preserves hooks from other sources when rebuilding", () => {
+      const { outputPath } = createPluginStructure("preserve-external");
 
       // First, create an initial hooks.json with an external hook
       const externalHooksJson: HooksJson = {
         hooks: {
           PreToolUse: [
             {
-              matcher: 'ExternalTool',
+              matcher: "ExternalTool",
               hooks: [
                 {
-                  type: 'command',
-                  command: '/usr/local/bin/external-hook.sh'
-                }
-              ]
-            }
+                  type: "command",
+                  command: "/usr/local/bin/external-hook.sh",
+                },
+              ],
+            },
           ],
           SessionStart: [
             {
               hooks: [
                 {
-                  type: 'command',
-                  command: '/path/to/another-external-hook'
-                }
-              ]
-            }
-          ]
-        }
+                  type: "command",
+                  command: "/path/to/another-external-hook",
+                },
+              ],
+            },
+          ],
+        },
       };
       fs.writeFileSync(outputPath, JSON.stringify(externalHooksJson, null, 2));
 
       // Now build our hooks on top
-      const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
       const result = runCli(inputPath, outputPath);
 
       expect(result.success).toBe(true);
-      expect(result.stdout).toContain('Preserved 2 hooks from other sources');
+      expect(result.stdout).toContain("Preserved 2 hooks from other sources");
 
       const hooksJson = readHooksJson(outputPath);
 
@@ -168,19 +168,19 @@ describe('E2E: Incremental Updates', () => {
       expect(hooksJson.hooks.PreToolUse.length).toBeGreaterThanOrEqual(2);
 
       // Find the external hook
-      const externalEntry = hooksJson.hooks.PreToolUse.find((e) => e.matcher === 'ExternalTool');
+      const externalEntry = hooksJson.hooks.PreToolUse.find((e) => e.matcher === "ExternalTool");
       expect(externalEntry).toBeDefined();
-      expect(externalEntry?.hooks[0].command).toBe('/usr/local/bin/external-hook.sh');
+      expect(externalEntry?.hooks[0].command).toBe("/usr/local/bin/external-hook.sh");
 
       // Find the generated hook
-      const generatedEntry = hooksJson.hooks.PreToolUse.find((e) => e.matcher === 'Write');
+      const generatedEntry = hooksJson.hooks.PreToolUse.find((e) => e.matcher === "Write");
       expect(generatedEntry).toBeDefined();
       expect(generatedEntry?.hooks[0].command).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\/hooks\/bin\//);
 
       // SessionStart external hook should also be preserved
       expect(hooksJson.hooks.SessionStart).toBeDefined();
       const externalSessionHook = hooksJson.hooks.SessionStart.find((e) =>
-        e.hooks.some((h) => h.command === '/path/to/another-external-hook')
+        e.hooks.some((h) => h.command === "/path/to/another-external-hook"),
       );
       expect(externalSessionHook).toBeDefined();
 
@@ -189,29 +189,29 @@ describe('E2E: Incremental Updates', () => {
       expect(hooksJson.__generated?.files.length).toBeGreaterThan(0);
     });
 
-    it('handles mixed external and generated hooks in the same matcher group', () => {
-      const { outputPath } = createPluginStructure('mixed-hooks');
+    it("handles mixed external and generated hooks in the same matcher group", () => {
+      const { outputPath } = createPluginStructure("mixed-hooks");
 
       // Create hooks.json with an external hook using the same matcher as our generated hook
       const mixedHooksJson: HooksJson = {
         hooks: {
           PreToolUse: [
             {
-              matcher: 'Write', // Same matcher as hook-with-timeout.ts
+              matcher: "Write", // Same matcher as hook-with-timeout.ts
               hooks: [
                 {
-                  type: 'command',
-                  command: '/external/write-validator.sh'
-                }
-              ]
-            }
-          ]
-        }
+                  type: "command",
+                  command: "/external/write-validator.sh",
+                },
+              ],
+            },
+          ],
+        },
       };
       fs.writeFileSync(outputPath, JSON.stringify(mixedHooksJson, null, 2));
 
       // Build our hook
-      const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
       const result = runCli(inputPath, outputPath);
 
       expect(result.success).toBe(true);
@@ -223,25 +223,25 @@ describe('E2E: Incremental Updates', () => {
 
       // Find external hook entry (preserved)
       const externalEntry = hooksJson.hooks.PreToolUse.find(
-        (e) => e.matcher === 'Write' && e.hooks.some((h) => h.command === '/external/write-validator.sh')
+        (e) => e.matcher === "Write" && e.hooks.some((h) => h.command === "/external/write-validator.sh"),
       );
       expect(externalEntry).toBeDefined();
 
       // Find generated hook entry
       const generatedEntry = hooksJson.hooks.PreToolUse.find(
-        (e) => e.matcher === 'Write' && e.hooks.some((h) => h.command.includes('$CLAUDE_PLUGIN_ROOT'))
+        (e) => e.matcher === "Write" && e.hooks.some((h) => h.command.includes("$CLAUDE_PLUGIN_ROOT")),
       );
       expect(generatedEntry).toBeDefined();
     });
   });
 
-  describe('Removing Old Generated Files', () => {
-    it('removes old generated .mjs files when rebuilding', () => {
-      const { hooksDir, outputPath } = createPluginStructure('remove-old-files');
-      const buildDir = path.join(hooksDir, 'bin');
+  describe("Removing Old Generated Files", () => {
+    it("removes old generated .mjs files when rebuilding", () => {
+      const { hooksDir, outputPath } = createPluginStructure("remove-old-files");
+      const buildDir = path.join(hooksDir, "bin");
 
       // First build
-      const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
       let result = runCli(inputPath, outputPath);
       expect(result.success).toBe(true);
 
@@ -255,7 +255,7 @@ describe('E2E: Incremental Updates', () => {
 
       // Modify the source slightly to get a different hash (simulate code change)
       // We'll use a different fixture file for the second build
-      const inputPath2 = path.join(BUILD_TEST_FIXTURES, 'notification-hook.ts');
+      const inputPath2 = path.join(BUILD_TEST_FIXTURES, "notification-hook.ts");
       result = runCli(inputPath2, outputPath);
       expect(result.success).toBe(true);
 
@@ -272,43 +272,43 @@ describe('E2E: Incremental Updates', () => {
       expect(fs.existsSync(secondBuildFilePath)).toBe(true);
     });
 
-    it('does not remove files not tracked in __generated', () => {
-      const { pluginDir, outputPath } = createPluginStructure('preserve-untracked');
+    it("does not remove files not tracked in __generated", () => {
+      const { pluginDir, outputPath } = createPluginStructure("preserve-untracked");
 
       // Create an untracked file in the plugin directory
-      const untrackedFile = path.join(pluginDir, 'untracked-file.txt');
-      fs.writeFileSync(untrackedFile, 'This should not be deleted');
+      const untrackedFile = path.join(pluginDir, "untracked-file.txt");
+      fs.writeFileSync(untrackedFile, "This should not be deleted");
 
       // Create initial hooks.json without __generated
       const initialHooksJson: HooksJson = {
         hooks: {
           PreToolUse: [
             {
-              matcher: 'External',
-              hooks: [{ type: 'command', command: '/external/hook' }]
-            }
-          ]
-        }
+              matcher: "External",
+              hooks: [{ type: "command", command: "/external/hook" }],
+            },
+          ],
+        },
       };
       fs.writeFileSync(outputPath, JSON.stringify(initialHooksJson, null, 2));
 
       // Build hooks
-      const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
       const result = runCli(inputPath, outputPath);
       expect(result.success).toBe(true);
 
       // Untracked file should still exist
       expect(fs.existsSync(untrackedFile)).toBe(true);
-      expect(fs.readFileSync(untrackedFile, 'utf-8')).toBe('This should not be deleted');
+      expect(fs.readFileSync(untrackedFile, "utf-8")).toBe("This should not be deleted");
     });
   });
 
-  describe('Rebuilding Generated Hooks', () => {
-    it('replaces old generated hooks with new ones on rebuild', () => {
-      const { outputPath } = createPluginStructure('replace-generated');
+  describe("Rebuilding Generated Hooks", () => {
+    it("replaces old generated hooks with new ones on rebuild", () => {
+      const { outputPath } = createPluginStructure("replace-generated");
 
       // First build with one hook
-      const inputPath1 = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
+      const inputPath1 = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
       let result = runCli(inputPath1, outputPath);
       expect(result.success).toBe(true);
 
@@ -317,7 +317,7 @@ describe('E2E: Incremental Updates', () => {
       expect(hooksJson.hooks.Notification).toBeUndefined();
 
       // Second build with a different hook
-      const inputPath2 = path.join(BUILD_TEST_FIXTURES, 'notification-hook.ts');
+      const inputPath2 = path.join(BUILD_TEST_FIXTURES, "notification-hook.ts");
       result = runCli(inputPath2, outputPath);
       expect(result.success).toBe(true);
 
@@ -330,12 +330,12 @@ describe('E2E: Incremental Updates', () => {
       expect(hooksJson.hooks.Notification).toBeDefined();
     });
 
-    it('updates __generated metadata on each rebuild', () => {
-      const { hooksDir, outputPath } = createPluginStructure('update-generated-meta');
-      const buildDir = path.join(hooksDir, 'bin');
+    it("updates __generated metadata on each rebuild", () => {
+      const { hooksDir, outputPath } = createPluginStructure("update-generated-meta");
+      const buildDir = path.join(hooksDir, "bin");
 
       // First build
-      const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
       let result = runCli(inputPath, outputPath);
       expect(result.success).toBe(true);
 
@@ -363,53 +363,53 @@ describe('E2E: Incremental Updates', () => {
       expect(secondFiles[0]).toMatch(/^hook-with-timeout\.[a-f0-9]+\.mjs$/);
 
       // Only the new file should exist on disk in the build directory (old one removed)
-      const filesOnDisk = fs.readdirSync(buildDir).filter((f) => f.endsWith('.mjs'));
+      const filesOnDisk = fs.readdirSync(buildDir).filter((f) => f.endsWith(".mjs"));
       expect(filesOnDisk.length).toBe(1);
       expect(filesOnDisk[0]).toBe(secondFiles[0]);
     });
   });
 
-  describe('Atomic Writes', () => {
-    it('does not leave partial hooks.json on error', () => {
-      const { pluginDir, outputPath } = createPluginStructure('atomic-write');
+  describe("Atomic Writes", () => {
+    it("does not leave partial hooks.json on error", () => {
+      const { pluginDir, outputPath } = createPluginStructure("atomic-write");
 
       // Create initial valid hooks.json
       const initialHooksJson: HooksJson = {
         hooks: {
           PreToolUse: [
             {
-              matcher: 'External',
-              hooks: [{ type: 'command', command: '/external/hook' }]
-            }
-          ]
-        }
+              matcher: "External",
+              hooks: [{ type: "command", command: "/external/hook" }],
+            },
+          ],
+        },
       };
       fs.writeFileSync(outputPath, JSON.stringify(initialHooksJson, null, 2));
-      const initialContent = fs.readFileSync(outputPath, 'utf-8');
+      const initialContent = fs.readFileSync(outputPath, "utf-8");
 
       // Try to build with a non-existent input file (should fail)
-      const result = runCli('/non/existent/path/*.ts', outputPath);
+      const result = runCli("/non/existent/path/*.ts", outputPath);
       expect(result.success).toBe(false);
 
       // hooks.json should remain unchanged
-      const afterContent = fs.readFileSync(outputPath, 'utf-8');
+      const afterContent = fs.readFileSync(outputPath, "utf-8");
       expect(afterContent).toBe(initialContent);
 
       // No temp files should be left behind
       const files = fs.readdirSync(pluginDir);
-      const tempFiles = files.filter((f) => f.includes('.tmp.'));
+      const tempFiles = files.filter((f) => f.includes(".tmp."));
       expect(tempFiles).toHaveLength(0);
     });
   });
 
-  describe('Edge Cases', () => {
-    it('handles empty existing hooks.json gracefully', () => {
-      const { outputPath } = createPluginStructure('empty-existing');
+  describe("Edge Cases", () => {
+    it("handles empty existing hooks.json gracefully", () => {
+      const { outputPath } = createPluginStructure("empty-existing");
 
       // Create empty hooks.json
       fs.writeFileSync(outputPath, JSON.stringify({ hooks: {} }, null, 2));
 
-      const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
       const result = runCli(inputPath, outputPath);
 
       expect(result.success).toBe(true);
@@ -418,13 +418,13 @@ describe('E2E: Incremental Updates', () => {
       expect(hooksJson.hooks.PreToolUse).toBeDefined();
     });
 
-    it('handles malformed existing hooks.json by overwriting', () => {
-      const { outputPath } = createPluginStructure('malformed-existing');
+    it("handles malformed existing hooks.json by overwriting", () => {
+      const { outputPath } = createPluginStructure("malformed-existing");
 
       // Create malformed hooks.json
-      fs.writeFileSync(outputPath, '{ invalid json }');
+      fs.writeFileSync(outputPath, "{ invalid json }");
 
-      const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
       const result = runCli(inputPath, outputPath);
 
       expect(result.success).toBe(true);
@@ -433,23 +433,23 @@ describe('E2E: Incremental Updates', () => {
       expect(hooksJson.hooks.PreToolUse).toBeDefined();
     });
 
-    it('handles hooks.json without __generated field', () => {
-      const { outputPath } = createPluginStructure('no-generated-field');
+    it("handles hooks.json without __generated field", () => {
+      const { outputPath } = createPluginStructure("no-generated-field");
 
       // Create hooks.json without __generated
       const legacyHooksJson: HooksJson = {
         hooks: {
           PreToolUse: [
             {
-              matcher: 'Legacy',
-              hooks: [{ type: 'command', command: '/legacy/hook' }]
-            }
-          ]
-        }
+              matcher: "Legacy",
+              hooks: [{ type: "command", command: "/legacy/hook" }],
+            },
+          ],
+        },
       };
       fs.writeFileSync(outputPath, JSON.stringify(legacyHooksJson, null, 2));
 
-      const inputPath = path.join(BUILD_TEST_FIXTURES, 'hook-with-timeout.ts');
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
       const result = runCli(inputPath, outputPath);
 
       expect(result.success).toBe(true);
@@ -457,11 +457,11 @@ describe('E2E: Incremental Updates', () => {
       const hooksJson = readHooksJson(outputPath);
 
       // Legacy hook should be preserved (no __generated means nothing to remove)
-      const legacyEntry = hooksJson.hooks.PreToolUse?.find((e) => e.matcher === 'Legacy');
+      const legacyEntry = hooksJson.hooks.PreToolUse?.find((e) => e.matcher === "Legacy");
       expect(legacyEntry).toBeDefined();
 
       // New hook should be added
-      const newEntry = hooksJson.hooks.PreToolUse?.find((e) => e.matcher === 'Write');
+      const newEntry = hooksJson.hooks.PreToolUse?.find((e) => e.matcher === "Write");
       expect(newEntry).toBeDefined();
 
       // __generated should now exist
