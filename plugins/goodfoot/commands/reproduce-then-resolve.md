@@ -134,10 +134,18 @@ fi
 
 # Check for unexpected modifications to existing files
 MODIFIED=$(git diff rr/[CHECKPOINT_SLUG]/baseline --name-only --diff-filter=M)
-if [ -n "$MODIFIED" ]; then
-  # Report unexpected changes to user, ask if expected
-fi
+```
 
+**If unexpected modifications exist:** Report them to user and ask how to proceed:
+- "Keep" → Continue with modifications in place
+- "Stash" → `git stash push -m "pre-reproduction-test" -- $MODIFIED`
+- "Discard" → `git checkout rr/[CHECKPOINT_SLUG]/baseline -- $MODIFIED`
+
+Do not discard without explicit user consent.
+
+**Then continue:**
+
+```bash
 # Stage and run test
 git add "[TEST_FILE_PATH]"
 yarn test "[TEST_FILE_PATH]" 2>&1
