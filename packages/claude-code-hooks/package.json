@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/claude-code-hooks",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Type-safe Claude Code hooks library with camelCase types and output builders",
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/claude-code-hooks",
   "repository": {
@@ -20,8 +20,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc --build tsconfig.build.json",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
+    "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests ./e2e ./scripts",
     "test": "vitest run",
     "test:types": "vitest run --typecheck",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
