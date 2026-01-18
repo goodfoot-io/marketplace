@@ -18,12 +18,12 @@
  * Options for scaffolding a new hook project.
  */
 export interface ScaffoldOptions {
-  /** Directory path where the project will be created. */
-  directory: string;
-  /** Array of hook event names to generate (e.g., ['Stop', 'SubagentStop']). */
-  hooks: string[];
-  /** Relative path for hooks.json output in the build script. */
-  outputPath: string;
+    /** Directory path where the project will be created. */
+    directory: string;
+    /** Array of hook event names to generate (e.g., ['Stop', 'SubagentStop']). */
+    hooks: string[];
+    /** Relative path for hooks.json output in the build script. */
+    outputPath: string;
 }
 /**
  * Scaffolds a new Claude Code hook project.

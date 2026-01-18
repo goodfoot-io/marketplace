@@ -18,9 +18,9 @@
  * ```
  * @see https://code.claude.com/docs/en/hooks
  */
-import type { HookFunction } from './hooks.js';
-import type { HookInput } from './inputs.js';
-import type { HookOutput, SpecificHookOutput } from './outputs.js';
+import type { HookFunction } from "./hooks.js";
+import type { HookOutput, SpecificHookOutput } from "./outputs.js";
+import type { HookInput } from "./types.js";
 /**
  * Converts a SpecificHookOutput to HookOutput for wire format.
  *
@@ -70,6 +70,4 @@ export declare function convertToHookOutput(specificOutput: SpecificHookOutput):
  * ```
  * @see https://code.claude.com/docs/en/hooks
  */
-export declare function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(
-  hookFn: HookFunction<TInput, TOutput>
-): Promise<void>;
+export declare function execute<TInput extends HookInput, TOutput extends SpecificHookOutput>(hookFn: HookFunction<TInput, TOutput>): Promise<void>;
