@@ -43,21 +43,23 @@ The `tool_input` field in `PreToolUseInput`, `PostToolUseInput`, `PostToolUseFai
 
 ## Tool Input Interfaces
 
+Types are sourced from `@anthropic-ai/claude-agent-sdk` and re-exported for convenience.
+
 ### File Operation Tools
 
-#### WriteToolInput
+#### FileWriteInput (Write)
 
 ```typescript
-interface WriteToolInput {
+interface FileWriteInput {
   file_path: string;  // Absolute path to the file
   content: string;    // Content to write
 }
 ```
 
-#### EditToolInput
+#### FileEditInput (Edit)
 
 ```typescript
-interface EditToolInput {
+interface FileEditInput {
   file_path: string;      // Absolute path to the file
   old_string: string;     // Text to search for
   new_string: string;     // Replacement text
@@ -65,7 +67,7 @@ interface EditToolInput {
 }
 ```
 
-#### MultiEditToolInput
+#### MultiEditToolInput (MultiEdit)
 
 ```typescript
 interface MultiEditEntry {
@@ -79,52 +81,158 @@ interface MultiEditToolInput {
 }
 ```
 
-#### ReadToolInput
+#### FileReadInput (Read)
 
 ```typescript
-interface ReadToolInput {
+interface FileReadInput {
   file_path: string;  // Absolute path to the file
   offset?: number;    // Line offset to start from
   limit?: number;     // Max lines to read
 }
 ```
 
-### Command Tools
-
-#### BashToolInput
+#### NotebookEditInput (NotebookEdit)
 
 ```typescript
-interface BashToolInput {
+interface NotebookEditInput {
+  notebook_path: string;  // Path to the Jupyter notebook
+  cell_number?: number;   // Cell to edit (0-indexed)
+  new_source?: string;    // New cell source code
+  cell_type?: string;     // 'code' or 'markdown'
+}
+```
+
+### Command Tools
+
+#### BashInput (Bash)
+
+```typescript
+interface BashInput {
   command: string;       // Command to execute
   timeout?: number;      // Timeout in milliseconds
   description?: string;  // Description of the command
 }
 ```
 
-### Search Tools
-
-#### GlobToolInput
+#### KillShellInput (KillShell)
 
 ```typescript
-interface GlobToolInput {
+interface KillShellInput {
+  shell_id: string;  // ID of the background shell to kill
+}
+```
+
+### Search Tools
+
+#### GlobInput (Glob)
+
+```typescript
+interface GlobInput {
   pattern: string;  // Glob pattern (e.g., "**/*.ts")
   path?: string;    // Directory to search in
 }
 ```
 
-#### GrepToolInput
+#### GrepInput (Grep)
 
 ```typescript
-interface GrepToolInput {
+interface GrepInput {
   pattern: string;  // Regex pattern
   path?: string;    // Directory to search in
   glob?: string;    // File pattern filter
 }
 ```
 
+### Agent & Task Tools
+
+#### AgentInput (Task)
+
+```typescript
+interface AgentInput {
+  prompt: string;           // Task prompt for the subagent
+  subagent_type: string;    // Type of subagent to spawn
+  description?: string;     // Short description of the task
+  run_in_background?: boolean;
+}
+```
+
+#### TaskOutputInput (TaskOutput)
+
+```typescript
+interface TaskOutputInput {
+  task_id: string;    // ID of the task to get output from
+  block?: boolean;    // Whether to wait for completion
+  timeout?: number;   // Max wait time in ms
+}
+```
+
+#### ExitPlanModeInput (ExitPlanMode)
+
+```typescript
+interface ExitPlanModeInput {
+  allowedPrompts?: Array<{
+    tool: string;
+    prompt: string;
+  }>;
+}
+```
+
+#### TodoWriteInput (TodoWrite)
+
+```typescript
+interface TodoWriteInput {
+  todos: Array<{
+    content: string;
+    status: 'pending' | 'in_progress' | 'completed';
+    activeForm: string;
+  }>;
+}
+```
+
+### Web Tools
+
+#### WebFetchInput (WebFetch)
+
+```typescript
+interface WebFetchInput {
+  url: string;     // URL to fetch
+  prompt: string;  // Prompt to process the fetched content
+}
+```
+
+#### WebSearchInput (WebSearch)
+
+```typescript
+interface WebSearchInput {
+  query: string;              // Search query
+  allowed_domains?: string[]; // Only include these domains
+  blocked_domains?: string[]; // Exclude these domains
+}
+```
+
+### User Interaction Tools
+
+#### AskUserQuestionInput (AskUserQuestion)
+
+```typescript
+interface AskUserQuestionInput {
+  questions: Array<{
+    question: string;
+    header: string;
+    options: Array<{
+      label: string;
+      description: string;
+    }>;
+    multiSelect?: boolean;
+  }>;
+}
+```
+
 ## Type Guards
 
 Use type guards to safely narrow the type of `tool_input`:
+
+### File Operation Type Guards
 
 ```typescript
 import {
@@ -135,9 +243,7 @@ import {
   isMultiEditTool,
   isFileModifyingTool,
   isReadTool,
-  isBashTool,
-  isGlobTool,
-  isGrepTool
+  isNotebookEditTool
 } from '@goodfoot/claude-code-hooks';
 
 export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { logger }) => {
@@ -173,6 +279,83 @@ if (isFileModifyingTool(input)) {
   // input.tool_name is 'Write' | 'Edit' | 'MultiEdit'
   // Use getFilePath() for the file path
   const filePath = getFilePath(input);
+}
+```
+
+### Command & Search Type Guards
+
+```typescript
+import {
+  isBashTool,
+  isGlobTool,
+  isGrepTool,
+  isKillShellTool
+} from '@goodfoot/claude-code-hooks';
+
+if (isBashTool(input)) {
+  // input.tool_input.command is typed as string
+  console.log(input.tool_input.command);
+}
+
+if (isKillShellTool(input)) {
+  // input.tool_input.shell_id is typed as string
+  console.log(input.tool_input.shell_id);
+}
+```
+
+### Agent & Task Type Guards
+
+```typescript
+import {
+  isTaskTool,
+  isTaskOutputTool,
+  isExitPlanModeTool,
+  isTodoWriteTool
+} from '@goodfoot/claude-code-hooks';
+
+if (isTaskTool(input)) {
+  // input.tool_input has typed fields:
+  console.log(input.tool_input.prompt);
+  console.log(input.tool_input.subagent_type);
+}
+
+if (isTodoWriteTool(input)) {
+  // input.tool_input.todos is typed as an array
+  console.log(input.tool_input.todos);
+}
+```
+
+### Web & User Interaction Type Guards
+
+```typescript
+import {
+  isWebFetchTool,
+  isWebSearchTool,
+  isAskUserQuestionTool
+} from '@goodfoot/claude-code-hooks';
+
+if (isWebFetchTool(input)) {
+  console.log(input.tool_input.url);
+  console.log(input.tool_input.prompt);
+}
+
+if (isWebSearchTool(input)) {
+  console.log(input.tool_input.query);
+}
+
+if (isAskUserQuestionTool(input)) {
+  console.log(input.tool_input.questions);
+}
+```
+
+### Notebook Type Guards
+
+```typescript
+import { isNotebookEditTool } from '@goodfoot/claude-code-hooks';
+
+if (isNotebookEditTool(input)) {
+  console.log(input.tool_input.notebook_path);
+  console.log(input.tool_input.new_source);
 }
 ```
 
@@ -330,13 +513,22 @@ export default preToolUseHook({ matcher: 'Write' }, (input) => {
 ```
 
 Supported tools for automatic typing:
-- `Write` — WriteToolInput
-- `Edit` — EditToolInput
+- `Write` — FileWriteInput
+- `Edit` — FileEditInput
 - `MultiEdit` — MultiEditToolInput
-- `Read` — ReadToolInput
-- `Bash` — BashToolInput
-- `Glob` — GlobToolInput
-- `Grep` — GrepToolInput
+- `Read` — FileReadInput
+- `Bash` — BashInput
+- `Glob` — GlobInput
+- `Grep` — GrepInput
+- `Task` — AgentInput
+- `TaskOutput` — TaskOutputInput
+- `ExitPlanMode` — ExitPlanModeInput
+- `KillShell` — KillShellInput
+- `NotebookEdit` — NotebookEditInput
+- `TodoWrite` — TodoWriteInput
+- `WebFetch` — WebFetchInput
+- `WebSearch` — WebSearchInput
+- `AskUserQuestion` — AskUserQuestionInput
 
 **Note**: Multi-tool matchers like `'Write|Edit'` or regex patterns like `'.*'` use the non-typed overload where `tool_input` remains `unknown`. Use type guards in those cases.
 
@@ -356,24 +548,48 @@ Supported tools for automatic typing:
 
 ```typescript
 // All file-modifying tools
-type FileModifyingToolInput = WriteToolInput | EditToolInput | MultiEditToolInput;
+type FileModifyingToolInput = FileWriteInput | FileEditInput | MultiEditToolInput;
 type FileModifyingToolName = 'Write' | 'Edit' | 'MultiEdit';
 
-// All known tools
-type KnownToolInput = WriteToolInput | EditToolInput | MultiEditToolInput
-  | ReadToolInput | BashToolInput | GlobToolInput | GrepToolInput;
-type KnownToolName = 'Write' | 'Edit' | 'MultiEdit' | 'Read' | 'Bash' | 'Glob' | 'Grep';
+// All known tools (expanded in v1.0.11)
+type KnownToolName =
+  | 'Write' | 'Edit' | 'MultiEdit' | 'Read' | 'NotebookEdit'  // File operations
+  | 'Bash' | 'KillShell'                                        // Commands
+  | 'Glob' | 'Grep'                                             // Search
+  | 'Task' | 'TaskOutput' | 'ExitPlanMode' | 'TodoWrite'       // Agents & tasks
+  | 'WebFetch' | 'WebSearch'                                    // Web
+  | 'AskUserQuestion';                                          // User interaction
 
-// Type mapping
+// Type mapping (use with TypedPreToolUseInput, TypedPostToolUseInput, etc.)
 interface ToolInputMap {
-  Write: WriteToolInput;
-  Edit: EditToolInput;
+  Write: FileWriteInput;
+  Edit: FileEditInput;
   MultiEdit: MultiEditToolInput;
-  Read: ReadToolInput;
-  Bash: BashToolInput;
-  Glob: GlobToolInput;
-  Grep: GrepToolInput;
+  Read: FileReadInput;
+  Bash: BashInput;
+  Glob: GlobInput;
+  Grep: GrepInput;
+  Task: AgentInput;
+  TaskOutput: TaskOutputInput;
+  ExitPlanMode: ExitPlanModeInput;
+  KillShell: KillShellInput;
+  NotebookEdit: NotebookEditInput;
+  TodoWrite: TodoWriteInput;
+  WebFetch: WebFetchInput;
+  WebSearch: WebSearchInput;
+  AskUserQuestion: AskUserQuestionInput;
 }
 ```
+
+## SDK Type Re-exports
+
+The package re-exports all tool input types from `@anthropic-ai/claude-agent-sdk/sdk-tools.js`:
+
+```typescript
+// These types are available directly from @goodfoot/claude-code-hooks
+export type * from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
+```
+
+This provides access to the authoritative type definitions for all Claude Code tool inputs.
 
 </instructions>
