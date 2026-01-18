@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.11
+- Minor improvements and bug fixes
+
 ## 1.0.10
 
 - Improved scaffolded TypeScript configuration to include test files in type checking
