@@ -427,17 +427,23 @@ Based on agent status:
 
 Re-run the validation commands (typecheck, test, lint) to ensure refactoring didn't introduce regressions.
 
-- **All validations pass** → Proceed to Step 9
-- **Validation fails** → Revert only plan-owned files to pre-refactor state:
-  ```bash
-  # Identify files changed by refactoring that are in [PLAN_FILES]
-  REFACTOR_CHANGES=$(git diff implement/[PROJECT_NAME]/pre-refactor --name-only)
-  PLAN_CHANGES=$(comm -12 <(echo "$REFACTOR_CHANGES" | sort) <(echo "[PLAN_FILES]" | sort))
+**If validation passes:** Commit refactoring changes and proceed to Step 9:
+```bash
+git add -A
+git commit -m "refactor: simplify implementation
 
-  # Revert only those files
-  git checkout implement/[PROJECT_NAME]/pre-refactor -- $PLAN_CHANGES
-  ```
-  Then proceed to Step 9.
+Project: [PROJECT_NAME]"
+```
+
+**If validation fails:** Revert only plan-owned files to pre-refactor state, then proceed to Step 9:
+```bash
+# Identify files changed by refactoring that are in [PLAN_FILES]
+REFACTOR_CHANGES=$(git diff implement/[PROJECT_NAME]/pre-refactor --name-only)
+PLAN_CHANGES=$(comm -12 <(echo "$REFACTOR_CHANGES" | sort) <(echo "[PLAN_FILES]" | sort))
+
+# Revert only those files
+git checkout implement/[PROJECT_NAME]/pre-refactor -- $PLAN_CHANGES
+```
 
 ## Step 9: Evaluate Quality
 
@@ -495,8 +501,16 @@ Based on evaluation status:
 1. Review recommendations
 2. Dispatch fix/improvement tasks to subagents
 3. Re-run validation (typecheck, test, lint)
-4. Re-run Step 9 (Evaluate Quality)
-5. If evaluation cycles exceed 2, proceed to Step 10 with current state
+4. Commit changes:
+   ```bash
+   git add -A
+   git commit -m "fix: address evaluation feedback
+
+   Project: [PROJECT_NAME]
+   Cycle: [N]"
+   ```
+5. Re-run Step 9 (Evaluate Quality)
+6. If evaluation cycles exceed 2, proceed to Step 10 with current state
 
 Note: Subsequent cycles skip Steps 7-8 (Refactor and Post-Refactor Validation) since refactoring already occurred.
 
@@ -526,7 +540,16 @@ Status: [STATUS]
 [If issues: list with file:line references]
 ```
 
-## Step 11: Move Project to Ready for Review
+## Step 11: Final Commit and Move Project
+
+Commit any remaining uncommitted changes:
+
+```bash
+git add -A
+git diff --cached --quiet || git commit -m "feat: implement [PROJECT_NAME]
+
+[BRIEF_SUMMARY_OF_IMPLEMENTATION]"
+```
 
 **Only if status is PRODUCTION_READY**, move the project:
 
