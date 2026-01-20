@@ -12,7 +12,7 @@ mkdir -p projects/new projects/pending projects/active projects/ready-for-review
 $ARGUMENTS
 </user-message>
 
-Create a structured project plan for the user's request, then assess its quality. If issues exist, revise the plan. Ultrathink. 
+Create a structured project plan for the user's request, then assess its quality. If issues exist, revise the plan.
 
 Review the plan skill immediately to access plan structure and requirements: @!`echo "${CLAUDE_PLUGIN_ROOT}"`/skills/plan/SKILL.md
 

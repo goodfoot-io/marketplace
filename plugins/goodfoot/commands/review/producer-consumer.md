@@ -4,7 +4,7 @@ disable-model-invocation: "true"
 hide-from-slash-command-tool: "true"
 ---
 
-Analyze producer and consumer components to identify genuine integration incompatibilities that would prevent successful consumption or processing, while recognizing Claude Code design patterns. Ultrathink.
+Analyze producer and consumer components to identify genuine integration incompatibilities that would prevent successful consumption or processing, while recognizing Claude Code design patterns.
 
 <user-message>
 $ARGUMENTS
