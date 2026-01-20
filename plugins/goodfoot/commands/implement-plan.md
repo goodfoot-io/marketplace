@@ -214,13 +214,28 @@ Do not modify files outside this list.
 </invoke>
 ```
 
-**Sequential Route** - Dispatch one phase, run validation gate, then dispatch next:
+**Sequential Route** - Each phase must pass validation before the next begins:
 
-1. Dispatch first phase tasks
-2. Wait for completion
-3. Run validation gate (Step 6)
-4. If validation passes, dispatch next phase
-5. Repeat until all phases complete
+```
+┌─────────────────────────────────────────────────────┐
+│  For each phase:                                    │
+│                                                     │
+│    Dispatch phase tasks                             │
+│            ↓                                        │
+│    Wait for completion                              │
+│            ↓                                        │
+│    Run validation (typecheck, test, lint)           │
+│            ↓                                        │
+│    ┌───────┴───────┐                                │
+│    │               │                                │
+│  Pass            Fail → Fix errors, re-validate     │
+│    │                                                │
+│    ↓                                                │
+│  Next phase (or Step 6 if final phase)              │
+└─────────────────────────────────────────────────────┘
+```
+
+Do not dispatch the next phase until the current phase passes validation.
 
 **Coherent Route** - Single agent handles all related tasks:
 
