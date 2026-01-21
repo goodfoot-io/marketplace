@@ -190,15 +190,16 @@ You should launch a Plan subagent to critically evaluate the plan. The subagent 
 | Element | Why | Source |
 |---------|-----|--------|
 | Plan path and goal | Understand what's being evaluated | [PROJECT_DIR]/plan.md, [REQUEST] |
+| User requirements | Constraints that cannot be removed or simplified | [REQUEST], [REQUIREMENTS] |
 | Reference files | Compare approach against existing patterns | Files discovered in Step 1 |
 | Specific questions | Focus evaluation on plan's actual structure | Task groups and dependencies from the plan |
 | Domain concerns | Identify gaps specific to this problem | Technical considerations from exploration |
 
 **Constructing the prompt:**
 
-1. State what the plan does (one sentence from [REQUEST])
+1. State the goal and list user requirements as fixed constraints (from [REQUEST] and [REQUIREMENTS])
 2. List the reference files from exploration with brief descriptions of why each matters
-3. Ask pointed questions about the plan's actual task structure—name the task groups, question specific dependencies
+3. Ask pointed questions about the plan's design decisions—task grouping, dependencies, implementation approach
 4. List technical concerns relevant to this domain (not generic concerns)
 5. Request feedback with file paths and line numbers
 
@@ -215,7 +216,7 @@ Provide specific, actionable feedback with references to file paths and line num
 </task>
 
 <instructions>
-Critically evaluate this plan. If small adjustments suffice, propose them; if larger changes better serve the goals, don't hesitate to suggest them.
+Evaluate design decisions in this plan—task grouping, dependencies, implementation approach. User requirements are fixed constraints; do not recommend removing or simplifying them.
 
 Conclude with:
 
@@ -256,8 +257,8 @@ The criteria above are specific to that plan—yours should be specific to the p
 | Assessment | Action |
 |------------|--------|
 | READY | Proceed to Step 6 |
-| MINOR_CHANGES | Apply changes to plan, proceed to Step 6 |
-| MAJOR_CHANGES | Apply changes to plan, repeat evaluation |
+| MINOR_CHANGES | Apply changes that don't conflict with user requirements, proceed to Step 6 |
+| MAJOR_CHANGES | Apply changes that don't conflict with user requirements, repeat evaluation |
 
 **Revision cycle:**
 
