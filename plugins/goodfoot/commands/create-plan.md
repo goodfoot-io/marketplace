@@ -256,14 +256,14 @@ The criteria above are specific to that plan—yours should be specific to the p
 | Assessment | Action |
 |------------|--------|
 | READY | Proceed to Step 6 |
-| MINOR_CHANGES | Incorporate suggestions, proceed to Step 6 |
-| MAJOR_CHANGES | Revise plan, repeat Step 5 |
+| MINOR_CHANGES | Apply changes to plan, proceed to Step 6 |
+| MAJOR_CHANGES | Apply changes to plan, repeat evaluation |
 
 **Revision cycle:**
 
-If the assessment is MAJOR_CHANGES:
+After any major changes—whether from evaluation recommendations or user feedback—re-run the Plan subagent evaluation:
 1. Read the current plan
-2. Apply the recommended changes
+2. Apply changes (from evaluation or user)
 3. Write the revised plan to `[PROJECT_DIR]/plan.md`
 4. Launch the Plan subagent again with the same prompt structure
 5. Repeat until assessment is READY or MINOR_CHANGES
