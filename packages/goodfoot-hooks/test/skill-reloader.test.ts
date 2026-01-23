@@ -10,8 +10,8 @@ import {
   type SessionStartInput,
 } from "@goodfoot/claude-code-hooks";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import hook, { enableSkillReload } from "../src/skill-reloader.js";
-import { getReloadFlagPath, getSkillsFilePath } from "../src/skill-tracker.js";
+import hook from "../src/skill-reloader.js";
+import { getSkillsFilePath } from "../src/skill-tracker.js";
 
 const logger = new Logger();
 
@@ -24,31 +24,18 @@ const mockContext: SessionStartContext = {
 describe("Skill Reloader Hook", () => {
   const testSessionId = "test-session-456";
   const skillsFile = getSkillsFilePath(testSessionId);
-  const enablementFlag = getReloadFlagPath(testSessionId);
 
   beforeEach(() => {
-    // Clean up before each test
     try {
       unlinkSync(skillsFile);
-    } catch {
-      // File may not exist
-    }
-    try {
-      unlinkSync(enablementFlag);
     } catch {
       // File may not exist
     }
   });
 
   afterEach(() => {
-    // Clean up after each test
     try {
       unlinkSync(skillsFile);
-    } catch {
-      // File may not exist
-    }
-    try {
-      unlinkSync(enablementFlag);
     } catch {
       // File may not exist
     }
@@ -67,9 +54,7 @@ describe("Skill Reloader Hook", () => {
     expect(hook.matcher).toBe("compact");
   });
 
-  it("does nothing when enablement flag is not set", async () => {
-    writeFileSync(skillsFile, "skill-a\nskill-b\n", "utf-8");
-
+  it("does nothing when no skills file exists", async () => {
     const mockInput: SessionStartInput = {
       hook_event_name: "SessionStart",
       session_id: testSessionId,
@@ -84,9 +69,8 @@ describe("Skill Reloader Hook", () => {
     expect(result.stdout.hookSpecificOutput).toBeUndefined();
   });
 
-  it("outputs reload instructions when enabled with skills", async () => {
+  it("outputs reload instructions when skills file exists", async () => {
     writeFileSync(skillsFile, "skill-a\nskill-b\n", "utf-8");
-    enableSkillReload(testSessionId);
 
     const mockInput: SessionStartInput = {
       hook_event_name: "SessionStart",
@@ -107,7 +91,6 @@ describe("Skill Reloader Hook", () => {
 
   it("deduplicates skills in output", async () => {
     writeFileSync(skillsFile, "skill-a\nskill-a\nskill-b\nskill-b\n", "utf-8");
-    enableSkillReload(testSessionId);
 
     const mockInput: SessionStartInput = {
       hook_event_name: "SessionStart",
@@ -127,11 +110,9 @@ describe("Skill Reloader Hook", () => {
     expect(countB).toBe(1);
   });
 
-  it("deletes enablement flag after running (one-shot)", async () => {
+  it("deletes skills file after running (one-shot)", async () => {
     writeFileSync(skillsFile, "skill-a\n", "utf-8");
-    enableSkillReload(testSessionId);
-
-    expect(existsSync(enablementFlag)).toBe(true);
+    expect(existsSync(skillsFile)).toBe(true);
 
     const mockInput: SessionStartInput = {
       hook_event_name: "SessionStart",
@@ -143,12 +124,11 @@ describe("Skill Reloader Hook", () => {
 
     await hook(mockInput, mockContext);
 
-    expect(existsSync(enablementFlag)).toBe(false);
+    expect(existsSync(skillsFile)).toBe(false);
   });
 
   it("formats single skill correctly", async () => {
     writeFileSync(skillsFile, "only-skill\n", "utf-8");
-    enableSkillReload(testSessionId);
 
     const mockInput: SessionStartInput = {
       hook_event_name: "SessionStart",
@@ -166,7 +146,6 @@ describe("Skill Reloader Hook", () => {
 
   it("formats two skills correctly", async () => {
     writeFileSync(skillsFile, "skill-a\nskill-b\n", "utf-8");
-    enableSkillReload(testSessionId);
 
     const mockInput: SessionStartInput = {
       hook_event_name: "SessionStart",
@@ -183,7 +162,6 @@ describe("Skill Reloader Hook", () => {
 
   it("formats three or more skills correctly", async () => {
     writeFileSync(skillsFile, "skill-a\nskill-b\nskill-c\n", "utf-8");
-    enableSkillReload(testSessionId);
 
     const mockInput: SessionStartInput = {
       hook_event_name: "SessionStart",

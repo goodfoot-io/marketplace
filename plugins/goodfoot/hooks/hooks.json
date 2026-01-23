@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-tracker.8a082c4d.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-tracker.fcc507de.mjs"
           }
         ],
         "matcher": "Skill"
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-reloader.18d1a8ec.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-reloader.8fb4ea33.mjs"
           },
           {
             "type": "command",
@@ -31,17 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-cleanup.a38778eb.mjs"
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/pre-compact.515913c6.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-cleanup.e832d8c0.mjs"
           }
         ]
       }
@@ -49,12 +39,11 @@
   },
   "__generated": {
     "files": [
-      "skill-tracker.8a082c4d.mjs",
-      "skill-reloader.18d1a8ec.mjs",
-      "skill-cleanup.a38778eb.mjs",
-      "pre-compact.515913c6.mjs",
+      "skill-tracker.fcc507de.mjs",
+      "skill-reloader.8fb4ea33.mjs",
+      "skill-cleanup.e832d8c0.mjs",
       "implement-plan-reloader.8f116856.mjs"
     ],
-    "timestamp": "2026-01-23T01:39:58.698Z"
+    "timestamp": "2026-01-23T01:49:14.396Z"
   }
 }

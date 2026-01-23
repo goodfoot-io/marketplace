@@ -32,13 +32,6 @@ export function getSkillsFilePath(sessionId: string): string {
   return `/tmp/claude_skills_${sessionId}.txt`;
 }
 
-/**
- * Returns the path to the reload enablement flag file for a session.
- */
-export function getReloadFlagPath(sessionId: string): string {
-  return `/tmp/claude_skills_reload_${sessionId}.enabled`;
-}
-
 export default postToolUseHook({ matcher: "Skill" }, (input, { logger }) => {
   const toolInput = input.tool_input;
 

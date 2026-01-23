@@ -4,14 +4,12 @@
  * When a session starts due to compaction, this hook reads the tracked skills
  * and outputs instructions to reload them, preserving skill context across compaction.
  *
- * Implements one-shot behavior by deleting the enablement flag after running.
- *
  * @see https://code.claude.com/docs/en/hooks#sessionstart
  */
 
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { sessionStartHook, sessionStartOutput } from "@goodfoot/claude-code-hooks";
-import { getReloadFlagPath, getSkillsFilePath } from "./skill-tracker.js";
+import { getSkillsFilePath } from "./skill-tracker.js";
 
 /**
  * Formats a list of skills for human-readable output.
@@ -30,23 +28,11 @@ function formatSkillList(skills: string[]): string {
 }
 
 export default sessionStartHook({ matcher: "compact" }, (input, { logger }) => {
-  const enablementFlag = getReloadFlagPath(input.session_id);
   const skillsFile = getSkillsFilePath(input.session_id);
 
-  // Check if enablement flag exists (set by PreCompact hook if implemented, or manually)
-  if (!existsSync(enablementFlag)) {
-    logger.debug("Skill reload not enabled for this session");
-    return sessionStartOutput({});
-  }
-
-  // Check if skills file exists and has content
+  // Check if skills file exists
   if (!existsSync(skillsFile)) {
     logger.debug("No skills file found");
-    try {
-      unlinkSync(enablementFlag);
-    } catch {
-      // Ignore cleanup errors
-    }
     return sessionStartOutput({});
   }
 
@@ -55,11 +41,6 @@ export default sessionStartHook({ matcher: "compact" }, (input, { logger }) => {
     content = readFileSync(skillsFile, "utf-8");
   } catch (error) {
     logger.warn("Failed to read skills file", { error: String(error) });
-    try {
-      unlinkSync(enablementFlag);
-    } catch {
-      // Ignore cleanup errors
-    }
     return sessionStartOutput({});
   }
 
@@ -68,17 +49,12 @@ export default sessionStartHook({ matcher: "compact" }, (input, { logger }) => {
 
   if (skills.length === 0) {
     logger.debug("No skills to reload");
-    try {
-      unlinkSync(enablementFlag);
-    } catch {
-      // Ignore cleanup errors
-    }
     return sessionStartOutput({});
   }
 
-  // Delete the enablement flag (one-shot behavior)
+  // Clean up the skills file after reading (one-shot behavior)
   try {
-    unlinkSync(enablementFlag);
+    unlinkSync(skillsFile);
   } catch {
     // Ignore cleanup errors
   }
@@ -93,12 +69,3 @@ export default sessionStartHook({ matcher: "compact" }, (input, { logger }) => {
     },
   });
 });
-
-/**
- * Enables skill reload for the next compaction.
- * Call this from a PreCompact hook to enable the reload mechanism.
- */
-export function enableSkillReload(sessionId: string): void {
-  const enablementFlag = getReloadFlagPath(sessionId);
-  writeFileSync(enablementFlag, "1", "utf-8");
-}

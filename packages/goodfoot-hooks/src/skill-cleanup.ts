@@ -9,35 +9,17 @@
 
 import { unlinkSync } from "node:fs";
 import { sessionEndHook, sessionEndOutput } from "@goodfoot/claude-code-hooks";
-import { getReloadFlagPath, getSkillsFilePath } from "./skill-tracker.js";
+import { getSkillsFilePath } from "./skill-tracker.js";
 
 export default sessionEndHook({}, (input, { logger }) => {
   const skillsFile = getSkillsFilePath(input.session_id);
-  const enablementFlag = getReloadFlagPath(input.session_id);
-
-  let cleanedFiles = 0;
 
   try {
     unlinkSync(skillsFile);
-    cleanedFiles++;
-    logger.debug("Deleted skills file", { file: skillsFile });
+    logger.info("Session cleanup completed", { file: skillsFile });
   } catch {
     // File may not exist, which is fine
   }
 
-  try {
-    unlinkSync(enablementFlag);
-    cleanedFiles++;
-    logger.debug("Deleted enablement flag", { file: enablementFlag });
-  } catch {
-    // File may not exist, which is fine
-  }
-
-  if (cleanedFiles > 0) {
-    logger.info("Session cleanup completed", { cleanedFiles });
-  }
-
-  return sessionEndOutput({
-    systemMessage: "Session cleanup: Skill tracking files removed",
-  });
+  return sessionEndOutput({});
 });
