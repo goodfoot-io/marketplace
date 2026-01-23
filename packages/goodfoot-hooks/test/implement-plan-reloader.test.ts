@@ -20,27 +20,37 @@ const mockContext: SessionStartContext = {
   persistEnvVars: () => {},
 };
 
+const testSessionId = "test-session-789";
+
+function createMockInput(): SessionStartInput {
+  return {
+    hook_event_name: "SessionStart",
+    session_id: testSessionId,
+    transcript_path: "/tmp/transcript.jsonl",
+    cwd: "/workspace",
+    source: "compact",
+  };
+}
+
+function getAdditionalContext(
+  hookOutput: { hookEventName: string } & SessionStartHookSpecificOutput,
+): string | undefined {
+  return hookOutput.additionalContext;
+}
+
 describe("Implement-Plan Reloader Hook", () => {
-  const testSessionId = "test-session-789";
   const enablementFlag = getImplementPlanReloadFlagPath(testSessionId);
 
-  beforeEach(() => {
-    // Clean up before each test
+  function cleanupFlag(): void {
     try {
       unlinkSync(enablementFlag);
     } catch {
       // File may not exist
     }
-  });
+  }
 
-  afterEach(() => {
-    // Clean up after each test
-    try {
-      unlinkSync(enablementFlag);
-    } catch {
-      // File may not exist
-    }
-  });
+  beforeEach(cleanupFlag);
+  afterEach(cleanupFlag);
 
   it("exports a valid hook function", () => {
     expect(hook).toBeDefined();
@@ -56,15 +66,7 @@ describe("Implement-Plan Reloader Hook", () => {
   });
 
   it("does nothing when enablement flag is not set", async () => {
-    const mockInput: SessionStartInput = {
-      hook_event_name: "SessionStart",
-      session_id: testSessionId,
-      transcript_path: "/tmp/transcript.jsonl",
-      cwd: "/workspace",
-      source: "compact",
-    };
-
-    const result = await hook(mockInput, mockContext);
+    const result = await hook(createMockInput(), mockContext);
 
     expect(result.stdout.systemMessage).toBeUndefined();
     expect(result.stdout.hookSpecificOutput).toBeUndefined();
@@ -73,37 +75,18 @@ describe("Implement-Plan Reloader Hook", () => {
   it("outputs instructions when flag is set", async () => {
     enableImplementPlanReload(testSessionId);
 
-    const mockInput: SessionStartInput = {
-      hook_event_name: "SessionStart",
-      session_id: testSessionId,
-      transcript_path: "/tmp/transcript.jsonl",
-      cwd: "/workspace",
-      source: "compact",
-    };
-
-    const result = await hook(mockInput, mockContext);
+    const result = await hook(createMockInput(), mockContext);
 
     expect(result.stdout.systemMessage).toContain("Implement-plan reloader");
-    const hookOutput = result.stdout.hookSpecificOutput as
-      | ({ hookEventName: string } & SessionStartHookSpecificOutput)
-      | undefined;
-    expect(hookOutput?.additionalContext).toBeDefined();
+    const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
+    expect(getAdditionalContext(hookOutput)).toBeDefined();
   });
 
   it("clears flag after running (one-shot)", async () => {
     enableImplementPlanReload(testSessionId);
-
     expect(existsSync(enablementFlag)).toBe(true);
 
-    const mockInput: SessionStartInput = {
-      hook_event_name: "SessionStart",
-      session_id: testSessionId,
-      transcript_path: "/tmp/transcript.jsonl",
-      cwd: "/workspace",
-      source: "compact",
-    };
-
-    await hook(mockInput, mockContext);
+    await hook(createMockInput(), mockContext);
 
     expect(existsSync(enablementFlag)).toBe(false);
   });
@@ -111,59 +94,30 @@ describe("Implement-Plan Reloader Hook", () => {
   it("output contains operational-guidelines section", async () => {
     enableImplementPlanReload(testSessionId);
 
-    const mockInput: SessionStartInput = {
-      hook_event_name: "SessionStart",
-      session_id: testSessionId,
-      transcript_path: "/tmp/transcript.jsonl",
-      cwd: "/workspace",
-      source: "compact",
-    };
+    const result = await hook(createMockInput(), mockContext);
 
-    const result = await hook(mockInput, mockContext);
-
-    const hookOutput = result.stdout.hookSpecificOutput as
-      | ({ hookEventName: string } & SessionStartHookSpecificOutput)
-      | undefined;
-    expect(hookOutput?.additionalContext).toContain("<operational-guidelines>");
-    expect(hookOutput?.additionalContext).toContain("</operational-guidelines>");
+    const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
+    const content = getAdditionalContext(hookOutput) ?? "";
+    expect(content).toContain("<operational-guidelines>");
+    expect(content).toContain("</operational-guidelines>");
   });
 
   it("output contains Step 2 (Locate and Read Plan)", async () => {
     enableImplementPlanReload(testSessionId);
 
-    const mockInput: SessionStartInput = {
-      hook_event_name: "SessionStart",
-      session_id: testSessionId,
-      transcript_path: "/tmp/transcript.jsonl",
-      cwd: "/workspace",
-      source: "compact",
-    };
+    const result = await hook(createMockInput(), mockContext);
 
-    const result = await hook(mockInput, mockContext);
-
-    const hookOutput = result.stdout.hookSpecificOutput as
-      | ({ hookEventName: string } & SessionStartHookSpecificOutput)
-      | undefined;
-    expect(hookOutput?.additionalContext).toContain("## Step 2: Locate and Read Plan");
+    const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
+    expect(getAdditionalContext(hookOutput)).toContain("## Step 2: Locate and Read Plan");
   });
 
   it("output contains Steps 4-11", async () => {
     enableImplementPlanReload(testSessionId);
 
-    const mockInput: SessionStartInput = {
-      hook_event_name: "SessionStart",
-      session_id: testSessionId,
-      transcript_path: "/tmp/transcript.jsonl",
-      cwd: "/workspace",
-      source: "compact",
-    };
+    const result = await hook(createMockInput(), mockContext);
 
-    const result = await hook(mockInput, mockContext);
-
-    const hookOutput = result.stdout.hookSpecificOutput as
-      | ({ hookEventName: string } & SessionStartHookSpecificOutput)
-      | undefined;
-    const content = hookOutput?.additionalContext ?? "";
+    const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
+    const content = getAdditionalContext(hookOutput) ?? "";
 
     expect(content).toContain("## Step 4: Assess Coherence");
     expect(content).toContain("## Step 5: Select Model and Dispatch Tasks");
@@ -178,38 +132,18 @@ describe("Implement-Plan Reloader Hook", () => {
   it("output excludes Step 1 (Establish Baseline)", async () => {
     enableImplementPlanReload(testSessionId);
 
-    const mockInput: SessionStartInput = {
-      hook_event_name: "SessionStart",
-      session_id: testSessionId,
-      transcript_path: "/tmp/transcript.jsonl",
-      cwd: "/workspace",
-      source: "compact",
-    };
+    const result = await hook(createMockInput(), mockContext);
 
-    const result = await hook(mockInput, mockContext);
-
-    const hookOutput = result.stdout.hookSpecificOutput as
-      | ({ hookEventName: string } & SessionStartHookSpecificOutput)
-      | undefined;
-    expect(hookOutput?.additionalContext).not.toContain("## Step 1:");
+    const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
+    expect(getAdditionalContext(hookOutput)).not.toContain("## Step 1:");
   });
 
   it("output excludes Step 3 (Move Project to Active)", async () => {
     enableImplementPlanReload(testSessionId);
 
-    const mockInput: SessionStartInput = {
-      hook_event_name: "SessionStart",
-      session_id: testSessionId,
-      transcript_path: "/tmp/transcript.jsonl",
-      cwd: "/workspace",
-      source: "compact",
-    };
+    const result = await hook(createMockInput(), mockContext);
 
-    const result = await hook(mockInput, mockContext);
-
-    const hookOutput = result.stdout.hookSpecificOutput as
-      | ({ hookEventName: string } & SessionStartHookSpecificOutput)
-      | undefined;
-    expect(hookOutput?.additionalContext).not.toContain("## Step 3:");
+    const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
+    expect(getAdditionalContext(hookOutput)).not.toContain("## Step 3:");
   });
 });
