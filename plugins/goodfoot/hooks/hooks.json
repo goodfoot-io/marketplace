@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-tracker.600d0181.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-tracker.8a082c4d.mjs"
           }
         ],
         "matcher": "Skill"
@@ -16,7 +16,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-reloader.c511d585.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-reloader.18d1a8ec.mjs"
+          },
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/implement-plan-reloader.1617ad63.mjs"
           }
         ],
         "matcher": "compact"
@@ -27,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-cleanup.f24e6f09.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-cleanup.a38778eb.mjs"
           }
         ]
       }
@@ -37,7 +41,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/pre-compact.6abb607a.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/pre-compact.515913c6.mjs"
+          },
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/implement-plan-pre-compact.54265592.mjs"
           }
         ]
       }
@@ -45,11 +53,13 @@
   },
   "__generated": {
     "files": [
-      "skill-tracker.600d0181.mjs",
-      "skill-reloader.c511d585.mjs",
-      "skill-cleanup.f24e6f09.mjs",
-      "pre-compact.6abb607a.mjs"
+      "skill-tracker.8a082c4d.mjs",
+      "skill-reloader.18d1a8ec.mjs",
+      "skill-cleanup.a38778eb.mjs",
+      "pre-compact.515913c6.mjs",
+      "implement-plan-reloader.1617ad63.mjs",
+      "implement-plan-pre-compact.54265592.mjs"
     ],
-    "timestamp": "2026-01-16T21:08:40.222Z"
+    "timestamp": "2026-01-23T01:18:07.828Z"
   }
 }
