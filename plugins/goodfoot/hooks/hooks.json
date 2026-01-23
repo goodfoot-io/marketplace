@@ -20,7 +20,7 @@
           },
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/implement-plan-reloader.1617ad63.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/implement-plan-reloader.8f116856.mjs"
           }
         ],
         "matcher": "compact"
@@ -42,10 +42,6 @@
           {
             "type": "command",
             "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/pre-compact.515913c6.mjs"
-          },
-          {
-            "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/implement-plan-pre-compact.54265592.mjs"
           }
         ]
       }
@@ -57,9 +53,8 @@
       "skill-reloader.18d1a8ec.mjs",
       "skill-cleanup.a38778eb.mjs",
       "pre-compact.515913c6.mjs",
-      "implement-plan-reloader.1617ad63.mjs",
-      "implement-plan-pre-compact.54265592.mjs"
+      "implement-plan-reloader.8f116856.mjs"
     ],
-    "timestamp": "2026-01-23T01:18:07.828Z"
+    "timestamp": "2026-01-23T01:39:58.698Z"
   }
 }

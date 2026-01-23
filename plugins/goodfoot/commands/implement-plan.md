@@ -4,6 +4,30 @@ disable-model-invocation: "true"
 hide-from-slash-command-tool: "true"
 ---
 
+```!
+# Enable implement-plan reload after compaction by setting a flag keyed by Claude PID
+find_claude_pid() {
+  local current_pid=$$
+  local max_depth=10
+  local depth=0
+
+  while [[ $depth -lt $max_depth && $current_pid -gt 1 ]]; do
+    if ps -p $current_pid -o comm= 2>/dev/null | grep -q "^claude$"; then
+      echo $current_pid
+      return 0
+    fi
+    current_pid=$(ps -p $current_pid -o ppid= 2>/dev/null | tr -d ' ')
+    ((depth++))
+  done
+  return 1
+}
+
+CLAUDE_PID=$(find_claude_pid)
+if [[ -n "$CLAUDE_PID" ]]; then
+  echo "1" > "/tmp/claude_implement_plan_reload_${CLAUDE_PID}.enabled"
+fi
+```
+
 <user-message>
 $ARGUMENTS
 </user-message>
