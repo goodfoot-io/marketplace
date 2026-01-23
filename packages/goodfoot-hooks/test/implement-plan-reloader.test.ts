@@ -10,10 +10,7 @@ import {
   type SessionStartInput,
 } from "@goodfoot/claude-code-hooks";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import hook, {
-  enableImplementPlanReload,
-  getImplementPlanReloadFlagPath,
-} from "../src/implement-plan-reloader.js";
+import hook, { enableImplementPlanReload, getImplementPlanReloadFlagPath } from "../src/implement-plan-reloader.js";
 
 const logger = new Logger();
 
