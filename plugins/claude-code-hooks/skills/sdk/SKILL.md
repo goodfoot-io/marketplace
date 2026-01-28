@@ -119,7 +119,7 @@ npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,Subage
 3.  `npm run build` (Compiles hooks to the specified output path)
 4.  `npm test` (Runs the generated tests)
 
-**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`, `Setup`
 
 **Monorepo?** Use `-o` to output directly to a plugin directory:
 ```bash
@@ -257,7 +257,7 @@ For hooks in a separate package that output to a plugin directory, see [Monorepo
 ## 9. Reference Links
 
 *   **[Installation & Setup](reference/installation.md)**: Setup guide (Scaffolding vs Manual).
-*   **[All 12 Hook Types](reference/output-builders.md)**: Factories, builders, and inputs.
+*   **[All 13 Hook Types](reference/output-builders.md)**: Factories, builders, and inputs.
 *   **[Tool Input Types](reference/input-types.md)**: Type guards, helpers, and typed overloads.
 *   **[Porting from Bash](reference/porting.md)**: Migration guide.
 *   **[Logging & Debugging](reference/logging.md)**: How to see what's happening.

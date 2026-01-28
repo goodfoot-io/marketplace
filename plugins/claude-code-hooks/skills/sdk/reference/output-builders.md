@@ -292,7 +292,7 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 });
 ```
 
-## All 12 Hook Types Reference
+## All 13 Hook Types Reference
 
 | Hook Type | Factory | Builder | Input Key |
 |-----------|---------|---------|-----------|
@@ -308,6 +308,7 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 | SubagentStop | `subagentStopHook` | `subagentStopOutput` | `agent_type` |
 | PreCompact | `preCompactHook` | `preCompactOutput` | `trigger` |
 | PermissionRequest | `permissionRequestHook` | `permissionRequestOutput` | `tool_name` |
+| Setup | `setupHook` | `setupOutput` | `trigger` |
 
 ## Builder Options Cheat Sheet
 

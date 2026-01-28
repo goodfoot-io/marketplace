@@ -15,7 +15,7 @@ npx @goodfoot/claude-code-hooks --scaffold ./my-hooks --hooks Stop,SessionStart 
 3. `npm run build` (Compiles hooks to the `-o` path)
 4. `npm test` (Runs generated tests)
 
-**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`, `Setup`
 
 ### Scaffolding for Monorepos
 
