@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.14
+- Updated GitHub Actions workflow to use npm trusted publishing with OIDC authentication
+- Added provenance attestation for improved supply chain security
+
 ## 1.0.13
 - Minor improvements and bug fixes
 
