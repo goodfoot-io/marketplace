@@ -27,7 +27,9 @@
     "release": "bash ../../scripts/release-package.sh claude-code-hooks",
     "release:dry-run": "bash ../../scripts/release-package.sh claude-code-hooks --dry-run",
     "snapshot:sdk-types": "tsx scripts/snapshot-sdk-types.ts",
-    "upgrade:deps": "./scripts/upgrade-deps.sh"
+    "upgrade:deps": "./scripts/upgrade-deps.sh",
+    "update:docs": "./scripts/update-docs.sh",
+    "update:docs:dry-run": "./scripts/update-docs.sh --dry-run"
   },
   "exports": {
     ".": {
