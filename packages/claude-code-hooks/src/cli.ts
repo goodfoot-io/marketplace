@@ -537,9 +537,9 @@ async function compileHook(options: CompileHookOptions): Promise<string> {
   const { sourcePath, logFilePath } = options;
 
   // Create a temporary wrapper file that imports the hook and executes it
-  // Use system temp directory with deterministic name based on all inputs that affect output
-  // This ensures the same inputs always produce the same temp path, making builds deterministic
-  const hashInputs = [sourcePath, logFilePath ?? ""].join(":");
+  // Use system temp directory with deterministic name based on hook basename (not full path)
+  // This ensures builds are reproducible across different environments/machines
+  const hashInputs = [path.basename(sourcePath), logFilePath ? "log" : ""].join(":");
   const buildHash = crypto.createHash("sha256").update(hashInputs).digest("hex").substring(0, 16);
   const tempDir = path.join(os.tmpdir(), "claude-code-hooks-build", buildHash);
   const wrapperPath = path.join(tempDir, "wrapper.ts");
