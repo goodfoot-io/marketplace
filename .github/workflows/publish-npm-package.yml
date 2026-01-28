@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Extract package name and version from tag
         id: extract
@@ -118,10 +118,23 @@ jobs:
           exit 1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20.x'
+          node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify npm version for OIDC support
+        run: |
+          echo "Node.js version: $(node -v)"
+          echo "npm version: $(npm -v)"
+          NPM_MAJOR=$(npm -v | cut -d. -f1)
+          NPM_MINOR=$(npm -v | cut -d. -f2)
+          if [ "$NPM_MAJOR" -lt 11 ] || ([ "$NPM_MAJOR" -eq 11 ] && [ "$NPM_MINOR" -lt 5 ]); then
+            echo "❌ npm 11.5+ is required for OIDC trusted publishing"
+            echo "Current: $(npm -v)"
+            exit 1
+          fi
+          echo "✅ npm version $(npm -v) supports OIDC trusted publishing"
 
       - name: Enable Corepack
         run: corepack enable
