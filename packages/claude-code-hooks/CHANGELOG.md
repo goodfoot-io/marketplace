@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.17
+- Fixed build output to be reproducible across different environments and machines
+
 ## 1.0.16
 - Added documentation update script (`yarn update:docs`) for automated doc maintenance
 - Enhanced dependency upgrade script to auto-detect and implement new SDK functionality
