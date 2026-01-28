@@ -185,9 +185,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@anthropic-ai/claude-agent-sdk@npm:^0.2.17":
-  version: 0.2.18
-  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.2.18"
+"@anthropic-ai/claude-agent-sdk@npm:^0.2.22":
+  version: 0.2.22
+  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.2.22"
   dependencies:
     "@img/sharp-darwin-arm64": "npm:^0.33.5"
     "@img/sharp-darwin-x64": "npm:^0.33.5"
@@ -216,13 +216,13 @@ __metadata:
       optional: true
     "@img/sharp-win32-x64":
       optional: true
-  checksum: 10c0/4833f4f513f7e2424936c463d610743252255f4b2a4659fee169e10c72fd439a125a7ec57ebbd1eb485b11f4726d54f0ce83e8278bb28044baf741783c4f4392
+  checksum: 10c0/24b45c7d256c8ee33b394dc108816f4c1e3a471a4b220fcacfa4f875df9318c5ec69fbf5391d7e836cfc3e4fb5df0a037a4e679087423e48e7423240c65bbaf0
   languageName: node
   linkType: hard
 
-"@anthropic-ai/claude-code@npm:^2.1.17":
-  version: 2.1.18
-  resolution: "@anthropic-ai/claude-code@npm:2.1.18"
+"@anthropic-ai/claude-code@npm:^2.1.22":
+  version: 2.1.22
+  resolution: "@anthropic-ai/claude-code@npm:2.1.22"
   dependencies:
     "@img/sharp-darwin-arm64": "npm:^0.33.5"
     "@img/sharp-darwin-x64": "npm:^0.33.5"
@@ -251,23 +251,7 @@ __metadata:
       optional: true
   bin:
     claude: cli.js
-  checksum: 10c0/8490c9bcea0eeb7c79824dd68b3ea4f28da352277f5f45411a8b441cc18d56ff9c1ebf2658327e26028011ea1e62af82811215245fa42404e37990e603a25023
-  languageName: node
-  linkType: hard
-
-"@anthropic-ai/sdk@npm:^0.68.0":
-  version: 0.68.0
-  resolution: "@anthropic-ai/sdk@npm:0.68.0"
-  dependencies:
-    json-schema-to-ts: "npm:^3.1.1"
-  peerDependencies:
-    zod: ^3.25.0 || ^4.0.0
-  peerDependenciesMeta:
-    zod:
-      optional: true
-  bin:
-    anthropic-ai-sdk: bin/cli
-  checksum: 10c0/01b60122877471db814e14ef5c613b7e7968dfec2bb30cb8b87cdc120af6af83b4a75e2bf6121f8d556f61714d192314ad1fa579ee9e6b750bc8058ce1fdc941
+  checksum: 10c0/f6218bd1cb0a3e4cd1bd195a99aad65801c1c37be1ef2772f1862c5f1d34af40ad09fc198dc2569e4fed98a9b19511881896fa0b766c1b30b009c9066cbf926a
   languageName: node
   linkType: hard
 
@@ -626,7 +610,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/runtime@npm:^7.18.3, @babel/runtime@npm:^7.5.5":
+"@babel/runtime@npm:^7.5.5":
   version: 7.28.4
   resolution: "@babel/runtime@npm:7.28.4"
   checksum: 10c0/792ce7af9750fb9b93879cc9d1db175701c4689da890e6ced242ea0207c9da411ccf16dc04e689cc01158b28d7898c40d75598f4559109f761c12ce01e959bf7
@@ -718,18 +702,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/biome@npm:2.3.12":
-  version: 2.3.12
-  resolution: "@biomejs/biome@npm:2.3.12"
+"@biomejs/biome@npm:2.3.13":
+  version: 2.3.13
+  resolution: "@biomejs/biome@npm:2.3.13"
   dependencies:
-    "@biomejs/cli-darwin-arm64": "npm:2.3.12"
-    "@biomejs/cli-darwin-x64": "npm:2.3.12"
-    "@biomejs/cli-linux-arm64": "npm:2.3.12"
-    "@biomejs/cli-linux-arm64-musl": "npm:2.3.12"
-    "@biomejs/cli-linux-x64": "npm:2.3.12"
-    "@biomejs/cli-linux-x64-musl": "npm:2.3.12"
-    "@biomejs/cli-win32-arm64": "npm:2.3.12"
-    "@biomejs/cli-win32-x64": "npm:2.3.12"
+    "@biomejs/cli-darwin-arm64": "npm:2.3.13"
+    "@biomejs/cli-darwin-x64": "npm:2.3.13"
+    "@biomejs/cli-linux-arm64": "npm:2.3.13"
+    "@biomejs/cli-linux-arm64-musl": "npm:2.3.13"
+    "@biomejs/cli-linux-x64": "npm:2.3.13"
+    "@biomejs/cli-linux-x64-musl": "npm:2.3.13"
+    "@biomejs/cli-win32-arm64": "npm:2.3.13"
+    "@biomejs/cli-win32-x64": "npm:2.3.13"
   dependenciesMeta:
     "@biomejs/cli-darwin-arm64":
       optional: true
@@ -749,7 +733,7 @@ __metadata:
       optional: true
   bin:
     biome: bin/biome
-  checksum: 10c0/8def8c21ec08cf3739b2f07b0ad2e8234f1673fd0af5abe6d2663944487ac8a8af427c1386cbeff97b2206e237e413c36f1c8003a4f2add83eba10c78a6986d8
+  checksum: 10c0/920c44c755ab8efa2114b441baf74b8f5fae8e6ad98a301ce02228f546d20ef6ab7c33b990b0a4acd1ffc8f5985ae839cf1fec59a6f169732a0f86c14308728b
   languageName: node
   linkType: hard
 
@@ -802,9 +786,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-darwin-arm64@npm:2.3.12":
-  version: 2.3.12
-  resolution: "@biomejs/cli-darwin-arm64@npm:2.3.12"
+"@biomejs/cli-darwin-arm64@npm:2.3.13":
+  version: 2.3.13
+  resolution: "@biomejs/cli-darwin-arm64@npm:2.3.13"
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
@@ -823,9 +807,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-darwin-x64@npm:2.3.12":
-  version: 2.3.12
-  resolution: "@biomejs/cli-darwin-x64@npm:2.3.12"
+"@biomejs/cli-darwin-x64@npm:2.3.13":
+  version: 2.3.13
+  resolution: "@biomejs/cli-darwin-x64@npm:2.3.13"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
@@ -844,9 +828,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-linux-arm64-musl@npm:2.3.12":
-  version: 2.3.12
-  resolution: "@biomejs/cli-linux-arm64-musl@npm:2.3.12"
+"@biomejs/cli-linux-arm64-musl@npm:2.3.13":
+  version: 2.3.13
+  resolution: "@biomejs/cli-linux-arm64-musl@npm:2.3.13"
   conditions: os=linux & cpu=arm64 & libc=musl
   languageName: node
   linkType: hard
@@ -865,9 +849,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-linux-arm64@npm:2.3.12":
-  version: 2.3.12
-  resolution: "@biomejs/cli-linux-arm64@npm:2.3.12"
+"@biomejs/cli-linux-arm64@npm:2.3.13":
+  version: 2.3.13
+  resolution: "@biomejs/cli-linux-arm64@npm:2.3.13"
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
@@ -886,9 +870,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-linux-x64-musl@npm:2.3.12":
-  version: 2.3.12
-  resolution: "@biomejs/cli-linux-x64-musl@npm:2.3.12"
+"@biomejs/cli-linux-x64-musl@npm:2.3.13":
+  version: 2.3.13
+  resolution: "@biomejs/cli-linux-x64-musl@npm:2.3.13"
   conditions: os=linux & cpu=x64 & libc=musl
   languageName: node
   linkType: hard
@@ -907,9 +891,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-linux-x64@npm:2.3.12":
-  version: 2.3.12
-  resolution: "@biomejs/cli-linux-x64@npm:2.3.12"
+"@biomejs/cli-linux-x64@npm:2.3.13":
+  version: 2.3.13
+  resolution: "@biomejs/cli-linux-x64@npm:2.3.13"
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
@@ -928,9 +912,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-win32-arm64@npm:2.3.12":
-  version: 2.3.12
-  resolution: "@biomejs/cli-win32-arm64@npm:2.3.12"
+"@biomejs/cli-win32-arm64@npm:2.3.13":
+  version: 2.3.13
+  resolution: "@biomejs/cli-win32-arm64@npm:2.3.13"
   conditions: os=win32 & cpu=arm64
   languageName: node
   linkType: hard
@@ -949,9 +933,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-win32-x64@npm:2.3.12":
-  version: 2.3.12
-  resolution: "@biomejs/cli-win32-x64@npm:2.3.12"
+"@biomejs/cli-win32-x64@npm:2.3.13":
+  version: 2.3.13
+  resolution: "@biomejs/cli-win32-x64@npm:2.3.13"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
@@ -2062,8 +2046,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/claude-code-hooks@workspace:packages/claude-code-hooks"
   dependencies:
-    "@anthropic-ai/claude-agent-sdk": "npm:^0.2.17"
-    "@biomejs/biome": "npm:2.3.12"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.2.22"
+    "@biomejs/biome": "npm:2.3.13"
     "@types/node": "npm:^24"
     esbuild: "npm:^0.24.0"
     glob: "npm:^11.0.0"
@@ -2142,9 +2126,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/marketplace@workspace:."
   dependencies:
-    "@anthropic-ai/claude-agent-sdk": "npm:^0.2.17"
-    "@anthropic-ai/claude-code": "npm:^2.1.17"
-    "@anthropic-ai/sdk": "npm:^0.68.0"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.2.22"
+    "@anthropic-ai/claude-code": "npm:^2.1.22"
     "@changesets/get-dependents-graph": "npm:^2.1.3"
     "@eslint/js": "npm:^9.36.0"
     "@linear/sdk": "npm:^65.0.0"
@@ -10755,16 +10738,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"json-schema-to-ts@npm:^3.1.1":
-  version: 3.1.1
-  resolution: "json-schema-to-ts@npm:3.1.1"
-  dependencies:
-    "@babel/runtime": "npm:^7.18.3"
-    ts-algebra: "npm:^2.0.0"
-  checksum: 10c0/609bae04aa5e860a11b6d30ccf41445fae1c7f66fb600c1d170257cf33aa468aa9d03aa046428c3688aff0ff450c2b0c76584b66fa4a5d0da8e33799e4c439a6
-  languageName: node
-  linkType: hard
-
 "json-schema-traverse@npm:^0.4.1":
   version: 0.4.1
   resolution: "json-schema-traverse@npm:0.4.1"
@@ -13804,13 +13777,6 @@ __metadata:
   version: 1.1.0
   resolution: "treeify@npm:1.1.0"
   checksum: 10c0/2f0dea9e89328b8a42296a3963d341ab19897a05b723d6b0bced6b28701a340d2a7b03241aef807844198e46009aaf3755139274eb082cfce6fdc1935cbd69dd
-  languageName: node
-  linkType: hard
-
-"ts-algebra@npm:^2.0.0":
-  version: 2.0.0
-  resolution: "ts-algebra@npm:2.0.0"
-  checksum: 10c0/4ae93bec1bada635bba425854eec323dad50b6ffe86bc04ad2d7f9ce3fb129d673dcf483e19a6e70d07a3a9083e6a0a7f4e004bb8d2164cddc60cc9540ba187f
   languageName: node
   linkType: hard
 

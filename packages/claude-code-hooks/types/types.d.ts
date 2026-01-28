@@ -12,9 +12,9 @@
  * Re-exports types from @anthropic-ai/claude-agent-sdk with "SDK" prefix.
  * These are used as base types for extension, ensuring synchronization with the SDK.
  */
-export type { BaseHookInput as SDKBaseHookInput, HookEvent as SDKHookEvent, HookInput as SDKHookInput, NotificationHookInput as SDKNotificationHookInput, PermissionMode as SDKPermissionMode, PermissionRequestHookInput as SDKPermissionRequestHookInput, PermissionUpdate as SDKPermissionUpdate, PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput, PostToolUseHookInput as SDKPostToolUseHookInput, PreCompactHookInput as SDKPreCompactHookInput, PreToolUseHookInput as SDKPreToolUseHookInput, SessionEndHookInput as SDKSessionEndHookInput, SessionStartHookInput as SDKSessionStartHookInput, StopHookInput as SDKStopHookInput, SubagentStartHookInput as SDKSubagentStartHookInput, SubagentStopHookInput as SDKSubagentStopHookInput, UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput, } from "@anthropic-ai/claude-agent-sdk/entrypoints/agentSdkTypes.js";
-import type { BaseHookInput as SDKBaseHookInput, NotificationHookInput as SDKNotificationHookInput, PermissionMode as SDKPermissionMode, PermissionRequestHookInput as SDKPermissionRequestHookInput, PermissionUpdate as SDKPermissionUpdate, PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput, PostToolUseHookInput as SDKPostToolUseHookInput, PreCompactHookInput as SDKPreCompactHookInput, PreToolUseHookInput as SDKPreToolUseHookInput, SessionEndHookInput as SDKSessionEndHookInput, SessionStartHookInput as SDKSessionStartHookInput, StopHookInput as SDKStopHookInput, SubagentStartHookInput as SDKSubagentStartHookInput, SubagentStopHookInput as SDKSubagentStopHookInput, UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput } from "@anthropic-ai/claude-agent-sdk/entrypoints/agentSdkTypes.js";
-import type { AgentInput, AskUserQuestionInput, BashInput, ExitPlanModeInput, FileEditInput, FileReadInput, FileWriteInput, GlobInput, GrepInput, KillShellInput, NotebookEditInput, TaskOutputInput, TodoWriteInput, WebFetchInput, WebSearchInput } from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
+export type { BaseHookInput as SDKBaseHookInput, HookEvent as SDKHookEvent, HookInput as SDKHookInput, NotificationHookInput as SDKNotificationHookInput, PermissionMode as SDKPermissionMode, PermissionRequestHookInput as SDKPermissionRequestHookInput, PermissionUpdate as SDKPermissionUpdate, PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput, PostToolUseHookInput as SDKPostToolUseHookInput, PreCompactHookInput as SDKPreCompactHookInput, PreToolUseHookInput as SDKPreToolUseHookInput, SessionEndHookInput as SDKSessionEndHookInput, SessionStartHookInput as SDKSessionStartHookInput, StopHookInput as SDKStopHookInput, SubagentStartHookInput as SDKSubagentStartHookInput, SubagentStopHookInput as SDKSubagentStopHookInput, UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput, } from "@anthropic-ai/claude-agent-sdk";
+import type { BaseHookInput as SDKBaseHookInput, NotificationHookInput as SDKNotificationHookInput, PermissionMode as SDKPermissionMode, PermissionRequestHookInput as SDKPermissionRequestHookInput, PermissionUpdate as SDKPermissionUpdate, PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput, PostToolUseHookInput as SDKPostToolUseHookInput, PreCompactHookInput as SDKPreCompactHookInput, PreToolUseHookInput as SDKPreToolUseHookInput, SessionEndHookInput as SDKSessionEndHookInput, SessionStartHookInput as SDKSessionStartHookInput, StopHookInput as SDKStopHookInput, SubagentStartHookInput as SDKSubagentStartHookInput, SubagentStopHookInput as SDKSubagentStopHookInput, UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput } from "@anthropic-ai/claude-agent-sdk";
+import type { AgentInput, AskUserQuestionInput, BashInput, ExitPlanModeInput, FileEditInput, FileReadInput, FileWriteInput, GlobInput, GrepInput, TaskStopInput as KillShellInput, NotebookEditInput, TaskOutputInput, TodoWriteInput, WebFetchInput, WebSearchInput } from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
 /**
  * Permission mode for controlling how tool executions are handled.
  * @see https://code.claude.com/docs/en/hooks#permission-modes
@@ -414,6 +414,11 @@ export type { SDKPermissionUpdate as PermissionUpdate };
  * @see {@link https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk | @anthropic-ai/claude-agent-sdk}
  */
 export type * from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
+/**
+ * Backward compatibility alias for TaskStopInput (renamed in SDK 0.2.x).
+ * @deprecated Use TaskStopInput instead
+ */
+export type { KillShellInput };
 /**
  * A single edit entry within a MultiEdit operation.
  */

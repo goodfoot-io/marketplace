@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.1.76",
-  "extractedAt": "2026-01-16T21:00:14.618Z",
+  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.22",
+  "extractedAt": "2026-01-28T14:45:08.788Z",
   "types": {
     "BaseHookInput": {
       "kind": "type-alias",
@@ -262,6 +262,11 @@
       "kind": "type-alias",
       "properties": [
         {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
+        {
           "name": "cwd",
           "type": "string",
           "optional": false
@@ -270,6 +275,11 @@
           "name": "hook_event_name",
           "type": "'SessionStart'",
           "optional": false
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "optional": true
         },
         {
           "name": "permission_mode",
@@ -547,7 +557,8 @@
         "SubagentStartHookInput",
         "SubagentStopHookInput",
         "PreCompactHookInput",
-        "PermissionRequestHookInput"
+        "PermissionRequestHookInput",
+        "SetupHookInput"
       ]
     },
     "PermissionMode": {
@@ -556,7 +567,7 @@
     },
     "HookEvent": {
       "kind": "literal",
-      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PermissionRequest\""
+      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PermissionRequest\" | \"Setup\""
     }
   }
 }

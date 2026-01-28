@@ -23,7 +23,7 @@ const baselinePath = path.join(packageRoot, "sdk-types-baseline.json");
  * Find the SDK types file, checking both package-local and workspace-hoisted locations.
  */
 function findSdkTypesPath(): string {
-  const sdkRelativePath = "@anthropic-ai/claude-agent-sdk/entrypoints/agentSdkTypes.d.ts";
+  const sdkRelativePath = "@anthropic-ai/claude-agent-sdk/sdk.d.ts";
   const candidates = [
     path.resolve(packageRoot, "node_modules", sdkRelativePath),
     path.resolve(workspaceRoot, "node_modules", sdkRelativePath),

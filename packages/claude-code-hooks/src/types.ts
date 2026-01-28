@@ -35,7 +35,7 @@ export type {
   SubagentStartHookInput as SDKSubagentStartHookInput,
   SubagentStopHookInput as SDKSubagentStopHookInput,
   UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
-} from "@anthropic-ai/claude-agent-sdk/entrypoints/agentSdkTypes.js";
+} from "@anthropic-ai/claude-agent-sdk";
 
 import type {
   BaseHookInput as SDKBaseHookInput,
@@ -53,7 +53,7 @@ import type {
   SubagentStartHookInput as SDKSubagentStartHookInput,
   SubagentStopHookInput as SDKSubagentStopHookInput,
   UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
-} from "@anthropic-ai/claude-agent-sdk/entrypoints/agentSdkTypes.js";
+} from "@anthropic-ai/claude-agent-sdk";
 
 // Import tool input types from SDK's sdk-tools declaration file.
 // Note: This is a types-only file with no JS runtime, so we use `import type`.
@@ -67,7 +67,7 @@ import type {
   FileWriteInput,
   GlobInput,
   GrepInput,
-  KillShellInput,
+  TaskStopInput as KillShellInput,
   NotebookEditInput,
   TaskOutputInput,
   TodoWriteInput,
@@ -529,6 +529,12 @@ export type { SDKPermissionUpdate as PermissionUpdate };
  * @see {@link https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk | @anthropic-ai/claude-agent-sdk}
  */
 export type * from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
+
+/**
+ * Backward compatibility alias for TaskStopInput (renamed in SDK 0.2.x).
+ * @deprecated Use TaskStopInput instead
+ */
+export type { KillShellInput };
 
 /**
  * A single edit entry within a MultiEdit operation.

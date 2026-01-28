@@ -18,7 +18,6 @@
   "private": true,
   "packageManager": "yarn@4.12.0",
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.68.0",
     "@changesets/get-dependents-graph": "^2.1.3",
     "@eslint/js": "^9.36.0",
     "@types/js-yaml": "^4.0.9",
@@ -39,8 +38,8 @@
     "ws": "^8.18.3"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.17",
-    "@anthropic-ai/claude-code": "^2.1.17",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.22",
+    "@anthropic-ai/claude-code": "^2.1.22",
     "@linear/sdk": "^65.0.0",
     "dependency-tree": "^11.2.0",
     "glob-gitignore": "^1.0.15",

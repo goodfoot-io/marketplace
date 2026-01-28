@@ -922,6 +922,7 @@ function extractPreservedHooks(existingHooksJson: HooksJson): Partial<Record<Hoo
   const preserved: Partial<Record<HookEventName, MatcherEntry[]>> = {};
 
   for (const [eventType, entries] of Object.entries(existingHooksJson.hooks)) {
+    if (!entries) continue;
     const preservedEntries: MatcherEntry[] = [];
 
     for (const entry of entries) {
@@ -1097,7 +1098,7 @@ async function main(): Promise<void> {
       removeOldGeneratedFiles(existingHooksJson, buildDir);
 
       const preservedCount = Object.values(preservedHooks).reduce(
-        (sum, entries) => sum + entries.reduce((s, e) => s + e.hooks.length, 0),
+        (sum, entries) => sum + (entries?.reduce((s, e) => s + e.hooks.length, 0) ?? 0),
         0,
       );
       log("info", `Preserved ${preservedCount} hooks from other sources`);
@@ -1145,7 +1146,7 @@ async function main(): Promise<void> {
     process.stdout.write(`Compiled ${compiledHooks.length} hooks to ${buildDir}\n`);
     if (Object.keys(preservedHooks).length > 0) {
       const preservedCount = Object.values(preservedHooks).reduce(
-        (sum, entries) => sum + entries.reduce((s, e) => s + e.hooks.length, 0),
+        (sum, entries) => sum + (entries?.reduce((s, e) => s + e.hooks.length, 0) ?? 0),
         0,
       );
       process.stdout.write(`Preserved ${preservedCount} hooks from other sources\n`);
