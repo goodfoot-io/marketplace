@@ -69,8 +69,9 @@ git push origin streamable-http-mcp-server-daemon-v0.1.0
    - Runs linting
 
 5. **NPM Publishing**
-   - Publishes to NPM registry with `--access public`
-   - Requires `NPM_TOKEN` secret
+   - Publishes to NPM registry with `--access public --provenance`
+   - Uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers) with OIDC authentication (no NPM_TOKEN required)
+   - Includes [provenance attestation](https://docs.npmjs.com/generating-provenance-statements) for supply chain security
 
 6. **GitHub Release Creation**
    - Creates GitHub release with tag
@@ -85,14 +86,18 @@ git push origin streamable-http-mcp-server-daemon-v0.1.0
 
 ### Prerequisites
 
-#### Repository Secrets
+#### NPM Trusted Publishing Setup
 
-You must configure the following secret in your GitHub repository:
+This workflow uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers) with OIDC authentication. **No NPM_TOKEN required!**
 
-- **`NPM_TOKEN`**: NPM authentication token with publish access
-  1. Generate token at https://www.npmjs.com/settings/tokens
-  2. Choose "Automation" token type
-  3. Add to GitHub: Settings → Secrets and variables → Actions → New repository secret
+To enable trusted publishing for a package:
+1. Go to your package on npmjs.com
+2. Navigate to Settings → Publishing access
+3. Add a new trusted publisher with:
+   - Provider: GitHub Actions
+   - Repository: `owner/repo`
+   - Workflow: `publish-npm-package.yml`
+   - Environment: (leave empty)
 
 #### Package Requirements
 
@@ -183,17 +188,30 @@ npm ERR! code ENEEDAUTH
 npm ERR! need auth This command requires you to be logged in.
 ```
 
-**Solution:** Ensure `NPM_TOKEN` secret is configured correctly in GitHub repository settings.
+**Solution:** Ensure trusted publishing is configured correctly:
+1. Verify the package has a trusted publisher configured on npmjs.com
+2. Check that the repository name matches exactly (owner/repo)
+3. Verify the workflow filename matches (`publish-npm-package.yml`)
+
+#### Provenance Attestation Error
+
+```
+npm ERR! 403 Forbidden - You don't have permission to publish with provenance
+```
+
+**Solution:** Ensure the workflow has `id-token: write` permission and trusted publishing is enabled for the package on npmjs.com.
 
 ### Workflow Output
 
 The workflow generates a summary showing:
 
 - ✅/❌ Validation results (typecheck, tests, lint)
-- ✅/❌ Publishing status
+- ✅/❌ Publishing status with provenance attestation
 - 📦 NPM package URL
 - 🔗 GitHub release URL
 - Installation instructions
+
+All published packages include [provenance attestation](https://docs.npmjs.com/generating-provenance-statements), which cryptographically links the published package to its source code and build environment.
 
 ### Example Output
 

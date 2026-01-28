@@ -18,6 +18,10 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Required permissions for npm trusted publishing (OIDC)
+    permissions:
+      id-token: write   # Required to mint OIDC token for npm provenance
+      contents: write   # Required for creating GitHub releases
 
     steps:
       - name: Checkout repository
@@ -183,8 +187,9 @@ jobs:
         working-directory: packages/${{ steps.extract.outputs.package }}
         run: |
           echo "Publishing ${{ steps.metadata.outputs.npm_name }}@${{ steps.extract.outputs.version }} to NPM..."
-          npm publish --access public
-          echo "✅ Published to NPM successfully"
+          # Uses OIDC trusted publishing - no NPM_TOKEN required
+          npm publish --access public --provenance
+          echo "✅ Published to NPM successfully with provenance attestation"
 
       - name: Generate release notes
         id: notes

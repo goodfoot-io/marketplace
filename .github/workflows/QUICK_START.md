@@ -2,10 +2,7 @@
 
 ## Prerequisites
 
-1. Add `NPM_TOKEN` secret to repository:
-   - Go to: Settings → Secrets and variables → Actions
-   - Create new secret: `NPM_TOKEN`
-   - Value: NPM automation token from https://www.npmjs.com/settings/tokens
+**No NPM token required!** This repository uses [npm trusted publishing](https://docs.npmjs.com/trusted-publishers) with OIDC authentication. Packages are published automatically with provenance attestation.
 
 ## Publishing a Package (Tag Method)
 
@@ -68,6 +65,10 @@ npm install @goodfoot/YOUR-PACKAGE@X.Y.Z
 # or
 yarn add @goodfoot/YOUR-PACKAGE@X.Y.Z
 ```
+
+## Provenance
+
+All packages published from this repository include [provenance attestation](https://docs.npmjs.com/generating-provenance-statements), which cryptographically links the published package to its source code and build environment.
 
 ## Troubleshooting
 
