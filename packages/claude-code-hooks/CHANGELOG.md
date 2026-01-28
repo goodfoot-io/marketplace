@@ -1,7 +1,8 @@
 # Changelog
 
-## 1.0.14
-- Added provenance attestation for improved supply chain security
+## 1.0.15
+- Upgraded GitHub Actions workflow to use latest action versions (checkout@v6, setup-node@v6)
+- Upgraded to Node.js 24.x for npm 11.5+ OIDC trusted publishing support
 
 ## 1.0.14
 - Updated GitHub Actions workflow to use npm trusted publishing with OIDC authentication
