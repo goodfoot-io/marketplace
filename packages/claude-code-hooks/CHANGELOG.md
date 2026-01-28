@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.13
+- Minor improvements and bug fixes
+
 ## 1.0.12
 - Added Setup hook support for handling initialization and maintenance events
 - Updated to Claude Agent SDK 0.2.22 with new `agent_type` and `model` parameters for subagent hooks
