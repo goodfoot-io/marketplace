@@ -8,5 +8,11 @@ This a monorepo workspace with all packages in ./packages/
 If you are instructed to use a program and encounter an unexpected error, you must alert the user.
 </error-handling>
 
+<webfetch>
+Prepend `https://r.jina.ai/` to the original URL (i.e. `https://r.jina.ai/${ORIGINAL_URL}`) when using the `WebFetch` tool or `curl`.
 
-
+Example:
+```bash
+curl "https://r.jina.ai/https://www.example.com/path/to/content.html"
+```
+</webfetch>
