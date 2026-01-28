@@ -4,6 +4,8 @@ description: Trace code execution paths from UI interactions to side effects. Us
 color: cyan
 model: haiku
 tools: Read, Grep, Glob, Bash
+skills:
+  - goodfoot:typescript-tracing
 ---
 
 You trace execution paths through the codebase. Follow data from entry point to terminal effect, documenting types, boundaries, state changes, and side effects along the way.
@@ -72,29 +74,16 @@ Execute these steps in order:
 
 ## Step 1: Locate Entry Point
 
-```bash
-# For message types - find where message is CONSTRUCTED (not where type is defined)
-grep -r "type.*targetName" --include="*.ts" --include="*.tsx" -l
+Use the appropriate tool based on target type:
 
-# For commands - check registration
-grep -r "registerCommand.*commandName" --include="*.ts" -l
-
-# For events - find producer
-grep -r "\.fire\(" --include="*.ts" -B2 | grep -i "targetName"
-
-# For functions/methods - find definition
-grep -r "targetName\s*(" --include="*.ts" -l
-```
-
-**For TypeScript files**, use dependency utilities to understand module relationships:
-
-```bash
-# Find what a file imports (dependencies) - useful for forward tracing
-print-dependencies path/to/file.ts
-
-# Find what imports a file (dependents/callers) - useful for finding entry points
-print-inverse-dependencies path/to/file.ts
-```
+| Target | Tool |
+|--------|------|
+| Function/method callers | `print-call-sites functionName path/to/file.ts` |
+| Method callers | `print-call-sites methodName path/to/file.ts --class ClassName` |
+| Files importing a module | `print-inverse-dependencies path/to/file.ts` |
+| Message types | `grep -r "type.*targetName" --include="*.ts"` |
+| Commands | `grep -r "registerCommand.*commandName" --include="*.ts"` |
+| Events | `grep -r "\.fire\(" --include="*.ts" -B2` |
 
 Record: `file.ts:line` and the initiating code snippet.
 
@@ -111,7 +100,7 @@ Follow execution from entry to effect. For each significant step:
 **Next:** What gets called
 ```
 
-**For TypeScript traces**, use `print-dependencies` on each file to discover the next modules in the chain.
+Use `print-dependencies` to discover what modules each file imports.
 
 **Stop at:** VS Code APIs, Node/Browser APIs, external libraries, event emissions, persistence.
 

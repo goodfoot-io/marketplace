@@ -22,7 +22,8 @@ for (const arg of process.argv.slice(2)) {
 const entryPoints = [
   { in: 'src/dependencies.ts', out: 'print-dependencies' },
   { in: 'src/inverse-dependencies.ts', out: 'print-inverse-dependencies' },
-  { in: 'src/type-analysis.ts', out: 'print-type-analysis' }
+  { in: 'src/type-analysis.ts', out: 'print-type-analysis' },
+  { in: 'src/call-sites.ts', out: 'print-call-sites' }
 ];
 
 // Optional template engines from consolidate (via @vue/compiler-sfc)
