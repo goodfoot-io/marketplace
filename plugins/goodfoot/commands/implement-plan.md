@@ -219,6 +219,9 @@ Do not modify files outside this list.
 ## Patterns to Follow
 [Code snippets showing conventions - from exploration or file reads]
 
+## Implementation Approach
+For new functions or methods, load the `goodfoot:tdd-implementation` skill and follow its instructions.
+
 ## Guidelines
 - Only make requested changes
 - Don't add unrequested features or abstractions
@@ -287,6 +290,9 @@ This task owns: [all files for this coherent group]
 
 ## Requirements
 [Combined requirements from all tasks]
+
+## Implementation Approach
+For new functions or methods, load the `goodfoot:tdd-implementation` skill and follow its instructions.
 
 ## Guidelines
 - Complete tasks in dependency order
