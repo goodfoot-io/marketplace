@@ -199,3 +199,70 @@ if [[ "$BIOME_CHANGED" == "true" || "$SDK_CHANGED" == "true" ]]; then
 else
   echo "All packages were already at latest versions."
 fi
+
+# If SDK was upgraded, invoke Claude to detect and implement new functionality
+if [[ "$SDK_CHANGED" == "true" ]]; then
+  echo ""
+  echo "=== Analyzing SDK Changes with Claude ==="
+  echo "Invoking Claude to detect new hooks, tool types, or functionality..."
+  echo ""
+
+  WORKSPACE_ROOT="$(cd "$PACKAGE_DIR/../.." && pwd)"
+  cd "$WORKSPACE_ROOT"
+
+  CLAUDE_PROMPT="The @anthropic-ai/claude-agent-sdk package has been upgraded from version $CURRENT_SDK_CLEAN to $LATEST_SDK in the @goodfoot/claude-code-hooks package.
+
+**Your Task:** Analyze the SDK changes and update the claude-code-hooks package to support any new functionality.
+
+**SDK Type Definitions Location:**
+- node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts
+
+**Package Source Files:**
+- packages/claude-code-hooks/src/types.ts - Type definitions (hook inputs, tool types)
+- packages/claude-code-hooks/src/hooks.ts - Hook factory functions
+- packages/claude-code-hooks/src/outputs.ts - Output builder functions
+- packages/claude-code-hooks/src/constants.ts - Hook name mappings
+- packages/claude-code-hooks/src/scaffold.ts - Project scaffolding
+- packages/claude-code-hooks/src/index.ts - Public exports
+
+**Instructions:**
+1. Read the SDK type definitions to identify:
+   - New hook event types (e.g., new *HookInput types)
+   - New tool input types (e.g., new *Input types for tools)
+   - Changed or renamed types
+   - New fields on existing types
+
+2. Compare with the current package types in src/types.ts to find gaps
+
+3. For any new hook types found:
+   - Add the input type to src/types.ts
+   - Add the output type and builder to src/outputs.ts
+   - Add the hook factory to src/hooks.ts
+   - Add the mapping to src/constants.ts
+   - Update src/scaffold.ts if needed
+   - Export from src/index.ts
+
+4. For any new tool types found:
+   - Add imports and re-exports in src/types.ts
+   - Add type guards if appropriate
+
+5. Update tests if you add new functionality:
+   - tests/types/inputs.test.ts
+   - tests/hooks.test.ts
+
+6. Run validation after changes:
+   - yarn typecheck
+   - yarn test
+
+If no new functionality needs to be added, explain what you found and confirm the package is up to date.
+
+Start by reading the SDK type definitions."
+
+  claude -p "$CLAUDE_PROMPT"
+
+  echo ""
+  echo "=== Claude Analysis Complete ==="
+  echo "Review any changes made and run validation:"
+  echo "  cd packages/claude-code-hooks"
+  echo "  yarn typecheck && yarn test"
+fi
