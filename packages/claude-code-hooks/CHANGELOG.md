@@ -1,7 +1,9 @@
 # Changelog
 
-## 1.0.15
-- Minor improvements and bug fixes
+## 1.0.16
+- Added documentation update script (`yarn update:docs`) for automated doc maintenance
+- Enhanced dependency upgrade script to auto-detect and implement new SDK functionality
+- Updated documentation to include Setup hook (13 hook types total)
 
 ## 1.0.15
 - Upgraded GitHub Actions workflow to use latest action versions (checkout@v6, setup-node@v6)
