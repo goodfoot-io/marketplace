@@ -181,8 +181,6 @@ jobs:
       - name: Publish to NPM
         id: publish
         working-directory: packages/${{ steps.extract.outputs.package }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "Publishing ${{ steps.metadata.outputs.npm_name }}@${{ steps.extract.outputs.version }} to NPM..."
           npm publish --access public
