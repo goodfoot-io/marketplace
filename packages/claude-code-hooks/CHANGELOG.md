@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.0.15
+- Minor improvements and bug fixes
+
+## 1.0.15
 - Upgraded GitHub Actions workflow to use latest action versions (checkout@v6, setup-node@v6)
 - Upgraded to Node.js 24.x for npm 11.5+ OIDC trusted publishing support
 
