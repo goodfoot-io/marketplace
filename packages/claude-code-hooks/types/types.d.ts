@@ -12,8 +12,8 @@
  * Re-exports types from @anthropic-ai/claude-agent-sdk with "SDK" prefix.
  * These are used as base types for extension, ensuring synchronization with the SDK.
  */
-export type { BaseHookInput as SDKBaseHookInput, HookEvent as SDKHookEvent, HookInput as SDKHookInput, NotificationHookInput as SDKNotificationHookInput, PermissionMode as SDKPermissionMode, PermissionRequestHookInput as SDKPermissionRequestHookInput, PermissionUpdate as SDKPermissionUpdate, PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput, PostToolUseHookInput as SDKPostToolUseHookInput, PreCompactHookInput as SDKPreCompactHookInput, PreToolUseHookInput as SDKPreToolUseHookInput, SessionEndHookInput as SDKSessionEndHookInput, SessionStartHookInput as SDKSessionStartHookInput, StopHookInput as SDKStopHookInput, SubagentStartHookInput as SDKSubagentStartHookInput, SubagentStopHookInput as SDKSubagentStopHookInput, UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput, } from "@anthropic-ai/claude-agent-sdk";
-import type { BaseHookInput as SDKBaseHookInput, NotificationHookInput as SDKNotificationHookInput, PermissionMode as SDKPermissionMode, PermissionRequestHookInput as SDKPermissionRequestHookInput, PermissionUpdate as SDKPermissionUpdate, PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput, PostToolUseHookInput as SDKPostToolUseHookInput, PreCompactHookInput as SDKPreCompactHookInput, PreToolUseHookInput as SDKPreToolUseHookInput, SessionEndHookInput as SDKSessionEndHookInput, SessionStartHookInput as SDKSessionStartHookInput, StopHookInput as SDKStopHookInput, SubagentStartHookInput as SDKSubagentStartHookInput, SubagentStopHookInput as SDKSubagentStopHookInput, UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput } from "@anthropic-ai/claude-agent-sdk";
+export type { BaseHookInput as SDKBaseHookInput, HookEvent as SDKHookEvent, HookInput as SDKHookInput, NotificationHookInput as SDKNotificationHookInput, PermissionMode as SDKPermissionMode, PermissionRequestHookInput as SDKPermissionRequestHookInput, PermissionUpdate as SDKPermissionUpdate, PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput, PostToolUseHookInput as SDKPostToolUseHookInput, PreCompactHookInput as SDKPreCompactHookInput, PreToolUseHookInput as SDKPreToolUseHookInput, SessionEndHookInput as SDKSessionEndHookInput, SessionStartHookInput as SDKSessionStartHookInput, SetupHookInput as SDKSetupHookInput, StopHookInput as SDKStopHookInput, SubagentStartHookInput as SDKSubagentStartHookInput, SubagentStopHookInput as SDKSubagentStopHookInput, UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput, } from "@anthropic-ai/claude-agent-sdk";
+import type { BaseHookInput as SDKBaseHookInput, NotificationHookInput as SDKNotificationHookInput, PermissionMode as SDKPermissionMode, PermissionRequestHookInput as SDKPermissionRequestHookInput, PermissionUpdate as SDKPermissionUpdate, PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput, PostToolUseHookInput as SDKPostToolUseHookInput, PreCompactHookInput as SDKPreCompactHookInput, PreToolUseHookInput as SDKPreToolUseHookInput, SessionEndHookInput as SDKSessionEndHookInput, SessionStartHookInput as SDKSessionStartHookInput, SetupHookInput as SDKSetupHookInput, StopHookInput as SDKStopHookInput, SubagentStartHookInput as SDKSubagentStartHookInput, SubagentStopHookInput as SDKSubagentStopHookInput, UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentInput, AskUserQuestionInput, BashInput, ExitPlanModeInput, FileEditInput, FileReadInput, FileWriteInput, GlobInput, GrepInput, TaskStopInput as KillShellInput, NotebookEditInput, TaskOutputInput, TodoWriteInput, WebFetchInput, WebSearchInput } from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
 /**
  * Permission mode for controlling how tool executions are handled.
@@ -365,6 +365,39 @@ export interface PermissionRequestInput extends SDKPermissionRequestHookInput {
     tool_use_id: string;
 }
 /**
+ * Trigger type for Setup hooks.
+ */
+export type SetupTrigger = "init" | "maintenance";
+/**
+ * Input for Setup hooks.
+ *
+ * Fires during initialization or maintenance, allowing you to:
+ * - Configure initial session state
+ * - Perform setup tasks before the session starts
+ * - Add context for maintenance operations
+ *
+ * This hook uses `trigger` for matcher matching.
+ * @example
+ * ```typescript
+ * // Log setup events
+ * setupHook({}, async (input: SetupInput) => {
+ *   console.log(`Setup triggered by: ${input.trigger}`);
+ *   return setupOutput({});
+ * });
+ *
+ * // Only handle init triggers
+ * setupHook({ matcher: 'init' }, async (input: SetupInput) => {
+ *   return setupOutput({
+ *     hookSpecificOutput: {
+ *       additionalContext: 'Initial setup complete'
+ *     }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#setup
+ */
+export type SetupInput = SDKSetupHookInput;
+/**
  * Discriminated union of all hook input types.
  *
  * Use this type when handling multiple hook types in a single handler
@@ -388,7 +421,7 @@ export interface PermissionRequestInput extends SDKPermissionRequestHookInput {
  * ```
  * @see https://code.claude.com/docs/en/hooks
  */
-export type HookInput = PreToolUseInput | PostToolUseInput | PostToolUseFailureInput | NotificationInput | UserPromptSubmitInput | SessionStartInput | SessionEndInput | StopInput | SubagentStartInput | SubagentStopInput | PreCompactInput | PermissionRequestInput;
+export type HookInput = PreToolUseInput | PostToolUseInput | PostToolUseFailureInput | NotificationInput | UserPromptSubmitInput | SessionStartInput | SessionEndInput | StopInput | SubagentStartInput | SubagentStopInput | PreCompactInput | PermissionRequestInput | SetupInput;
 /**
  * Hook event name literal union.
  *
@@ -406,7 +439,7 @@ export type HookEventName = HookInput["hook_event_name"];
  * }
  * ```
  */
-export declare const HOOK_EVENT_NAMES: readonly ["PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "UserPromptSubmit", "SessionStart", "SessionEnd", "Stop", "SubagentStart", "SubagentStop", "PreCompact", "PermissionRequest"];
+export declare const HOOK_EVENT_NAMES: readonly ["PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "UserPromptSubmit", "SessionStart", "SessionEnd", "Stop", "SubagentStart", "SubagentStop", "PreCompact", "PermissionRequest", "Setup"];
 export type { SDKPermissionUpdate as PermissionUpdate };
 /**
  * Re-export all tool input types from the official Claude Agent SDK.

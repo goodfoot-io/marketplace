@@ -866,7 +866,7 @@ describe("E2E: Build Process", () => {
   });
 
   describe("Hook Type Coverage", () => {
-    it("supports all 12 hook types", () => {
+    it("supports all 13 hook types", () => {
       // This test verifies the CLI can handle all hook factory types
       const supportedTypes = [
         "PreToolUse",
@@ -881,6 +881,7 @@ describe("E2E: Build Process", () => {
         "SubagentStop",
         "PreCompact",
         "PermissionRequest",
+        "Setup",
       ];
 
       // Build the test fixtures

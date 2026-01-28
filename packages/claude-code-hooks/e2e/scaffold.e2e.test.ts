@@ -207,7 +207,7 @@ describe("E2E: Scaffold Command", () => {
       );
     });
 
-    it("supports all 12 hook types", () => {
+    it("supports all 13 hook types", () => {
       const testDir = getTestDir("all-hooks");
       const allHooks = [
         "PreToolUse",
@@ -222,6 +222,7 @@ describe("E2E: Scaffold Command", () => {
         "SubagentStop",
         "PreCompact",
         "PermissionRequest",
+        "Setup",
       ];
 
       const result = runScaffoldCli(["--scaffold", testDir, "--hooks", allHooks.join(","), "-o", "dist/hooks.json"]);

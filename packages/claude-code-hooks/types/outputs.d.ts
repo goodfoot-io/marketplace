@@ -7,7 +7,7 @@
  * @see https://code.claude.com/docs/en/hooks
  * @module
  */
-import type { PermissionRequestHookSpecificOutput as SDKPermissionRequestHookSpecificOutput, PostToolUseFailureHookSpecificOutput as SDKPostToolUseFailureHookSpecificOutput, PostToolUseHookSpecificOutput as SDKPostToolUseHookSpecificOutput, PreToolUseHookSpecificOutput as SDKPreToolUseHookSpecificOutput, SessionStartHookSpecificOutput as SDKSessionStartHookSpecificOutput, SubagentStartHookSpecificOutput as SDKSubagentStartHookSpecificOutput, SyncHookJSONOutput as SDKSyncHookJSONOutput, UserPromptSubmitHookSpecificOutput as SDKUserPromptSubmitHookSpecificOutput } from "@anthropic-ai/claude-agent-sdk/sdk.js";
+import type { PermissionRequestHookSpecificOutput as SDKPermissionRequestHookSpecificOutput, PostToolUseFailureHookSpecificOutput as SDKPostToolUseFailureHookSpecificOutput, PostToolUseHookSpecificOutput as SDKPostToolUseHookSpecificOutput, PreToolUseHookSpecificOutput as SDKPreToolUseHookSpecificOutput, SessionStartHookSpecificOutput as SDKSessionStartHookSpecificOutput, SetupHookSpecificOutput as SDKSetupHookSpecificOutput, SubagentStartHookSpecificOutput as SDKSubagentStartHookSpecificOutput, SyncHookJSONOutput as SDKSyncHookJSONOutput, UserPromptSubmitHookSpecificOutput as SDKUserPromptSubmitHookSpecificOutput } from "@anthropic-ai/claude-agent-sdk/sdk.js";
 /**
  * Exit codes used by Claude Code hooks.
  *
@@ -36,7 +36,7 @@ export type { SDKSyncHookJSONOutput };
 /**
  * Re-export SDK hook-specific output types (includes hookEventName discriminator).
  */
-export type { SDKPreToolUseHookSpecificOutput, SDKPostToolUseHookSpecificOutput, SDKPostToolUseFailureHookSpecificOutput, SDKUserPromptSubmitHookSpecificOutput, SDKSessionStartHookSpecificOutput, SDKSubagentStartHookSpecificOutput, SDKPermissionRequestHookSpecificOutput, };
+export type { SDKPreToolUseHookSpecificOutput, SDKPostToolUseHookSpecificOutput, SDKPostToolUseFailureHookSpecificOutput, SDKUserPromptSubmitHookSpecificOutput, SDKSessionStartHookSpecificOutput, SDKSetupHookSpecificOutput, SDKSubagentStartHookSpecificOutput, SDKPermissionRequestHookSpecificOutput, };
 /**
  * PreToolUse hook-specific output fields.
  * Omits `hookEventName` which is added automatically by the builder.
@@ -73,6 +73,11 @@ export type SubagentStartHookSpecificOutput = Omit<SDKSubagentStartHookSpecificO
  */
 export type PermissionRequestHookSpecificOutput = Omit<SDKPermissionRequestHookSpecificOutput, "hookEventName">;
 /**
+ * Setup hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
+ */
+export type SetupHookSpecificOutput = Omit<SDKSetupHookSpecificOutput, "hookEventName">;
+/**
  * Allow decision for permission requests.
  * Derived from SDK's PermissionRequestHookSpecificOutput.
  */
@@ -102,7 +107,7 @@ export interface NotificationHookSpecificOutput {
 /**
  * Full hook-specific output with hookEventName discriminator.
  */
-export type HookSpecificOutput = SDKPreToolUseHookSpecificOutput | SDKPostToolUseHookSpecificOutput | SDKPostToolUseFailureHookSpecificOutput | SDKUserPromptSubmitHookSpecificOutput | SDKSessionStartHookSpecificOutput | SDKSubagentStartHookSpecificOutput | SDKPermissionRequestHookSpecificOutput | ({
+export type HookSpecificOutput = SDKPreToolUseHookSpecificOutput | SDKPostToolUseHookSpecificOutput | SDKPostToolUseFailureHookSpecificOutput | SDKUserPromptSubmitHookSpecificOutput | SDKSessionStartHookSpecificOutput | SDKSetupHookSpecificOutput | SDKSubagentStartHookSpecificOutput | SDKPermissionRequestHookSpecificOutput | ({
     hookEventName: "Notification";
 } & NotificationHookSpecificOutput);
 /**
@@ -203,9 +208,13 @@ export type PreCompactOutput = BaseSpecificOutput<"PreCompact">;
  */
 export type PermissionRequestOutput = BaseSpecificOutput<"PermissionRequest">;
 /**
+ *
+ */
+export type SetupOutput = BaseSpecificOutput<"Setup">;
+/**
  * Union of all specific output types.
  */
-export type SpecificHookOutput = PreToolUseOutput | PostToolUseOutput | PostToolUseFailureOutput | NotificationOutput | UserPromptSubmitOutput | SessionStartOutput | SessionEndOutput | StopOutput | SubagentStartOutput | SubagentStopOutput | PreCompactOutput | PermissionRequestOutput;
+export type SpecificHookOutput = PreToolUseOutput | PostToolUseOutput | PostToolUseFailureOutput | NotificationOutput | UserPromptSubmitOutput | SessionStartOutput | SessionEndOutput | StopOutput | SubagentStartOutput | SubagentStopOutput | PreCompactOutput | PermissionRequestOutput | SetupOutput;
 /**
  * Options for decision-based hooks (Stop, SubagentStop).
  */
@@ -560,6 +569,36 @@ export declare const permissionRequestOutput: (options?: CommonOptions & {
     hookSpecificOutput?: PermissionRequestHookSpecificOutput | undefined;
 }) => {
     readonly _type: "PermissionRequest";
+    stdout: SyncHookJSONOutput;
+};
+/**
+ * Options for the Setup output builder.
+ */
+export type SetupOptions = CommonOptions & {
+    /** Hook-specific output matching the wire format. */
+    hookSpecificOutput?: SetupHookSpecificOutput;
+};
+/**
+ * Creates an output for Setup hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A SetupOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * // Add context during setup
+ * setupOutput({
+ *   hookSpecificOutput: {
+ *     additionalContext: 'Project initialized with custom settings'
+ *   }
+ * });
+ *
+ * // Simple passthrough
+ * setupOutput({});
+ * ```
+ */
+export declare const setupOutput: (options?: CommonOptions & {
+    hookSpecificOutput?: SetupHookSpecificOutput | undefined;
+}) => {
+    readonly _type: "Setup";
     stdout: SyncHookJSONOutput;
 };
 /**

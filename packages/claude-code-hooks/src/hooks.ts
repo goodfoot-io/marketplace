@@ -32,6 +32,7 @@ import type {
   PreToolUseOutput,
   SessionEndOutput,
   SessionStartOutput,
+  SetupOutput,
   SpecificHookOutput,
   StopOutput,
   SubagentStartOutput,
@@ -49,6 +50,7 @@ import type {
   PreToolUseInput,
   SessionEndInput,
   SessionStartInput,
+  SetupInput,
   StopInput,
   SubagentStartInput,
   SubagentStopInput,
@@ -1015,4 +1017,49 @@ export function permissionRequestHook(
   handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>,
 ): HookFunction<PermissionRequestInput, PermissionRequestOutput> {
   return createHookFunction("PermissionRequest", config, handler);
+}
+
+// ============================================================================
+// Setup Hook Factory
+// ============================================================================
+
+/**
+ * Creates a Setup hook handler.
+ *
+ * Setup hooks fire during initialization or maintenance, allowing you to:
+ * - Configure initial session state
+ * - Perform setup tasks before the session starts
+ * - Add context for maintenance operations
+ *
+ * **Matcher**: Matches against `trigger` ('init' or 'maintenance')
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { setupHook, setupOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * // Handle all setup events
+ * export default setupHook({}, async (input, { logger }) => {
+ *   logger.info('Setup triggered', { trigger: input.trigger });
+ *   return setupOutput({});
+ * });
+ *
+ * // Only handle initialization
+ * export default setupHook({ matcher: 'init' }, async (input, { logger }) => {
+ *   logger.info('Initializing session');
+ *   return setupOutput({
+ *     hookSpecificOutput: {
+ *       additionalContext: 'Session initialized with custom configuration'
+ *     }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#setup
+ */
+export function setupHook(
+  config: HookConfig,
+  handler: HookHandler<SetupInput, SetupOutput>,
+): HookFunction<SetupInput, SetupOutput> {
+  return createHookFunction("Setup", config, handler);
 }

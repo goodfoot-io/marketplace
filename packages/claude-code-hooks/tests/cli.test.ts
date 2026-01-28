@@ -23,8 +23,8 @@ import {
 } from "../src/cli.js";
 
 describe("HOOK_FACTORY_TO_EVENT", () => {
-  it("maps all 12 hook factory names to event names", () => {
-    expect(Object.keys(HOOK_FACTORY_TO_EVENT)).toHaveLength(12);
+  it("maps all 13 hook factory names to event names", () => {
+    expect(Object.keys(HOOK_FACTORY_TO_EVENT)).toHaveLength(13);
   });
 
   it("maps preToolUseHook to PreToolUse", () => {
@@ -73,6 +73,10 @@ describe("HOOK_FACTORY_TO_EVENT", () => {
 
   it("maps permissionRequestHook to PermissionRequest", () => {
     expect(HOOK_FACTORY_TO_EVENT.permissionRequestHook).toBe("PermissionRequest");
+  });
+
+  it("maps setupHook to Setup", () => {
+    expect(HOOK_FACTORY_TO_EVENT.setupHook).toBe("Setup");
   });
 });
 

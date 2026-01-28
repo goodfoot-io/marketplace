@@ -22,8 +22,8 @@
  * @see https://code.claude.com/docs/en/hooks
  */
 import type { Logger } from "./logger.js";
-import type { NotificationOutput, PermissionRequestOutput, PostToolUseFailureOutput, PostToolUseOutput, PreCompactOutput, PreToolUseOutput, SessionEndOutput, SessionStartOutput, SpecificHookOutput, StopOutput, SubagentStartOutput, SubagentStopOutput, UserPromptSubmitOutput } from "./outputs.js";
-import type { HookEventName, KnownToolName, NotificationInput, PermissionRequestInput, PostToolUseFailureInput, PostToolUseInput, PreCompactInput, PreToolUseInput, SessionEndInput, SessionStartInput, StopInput, SubagentStartInput, SubagentStopInput, ToolInputMap, UserPromptSubmitInput } from "./types.js";
+import type { NotificationOutput, PermissionRequestOutput, PostToolUseFailureOutput, PostToolUseOutput, PreCompactOutput, PreToolUseOutput, SessionEndOutput, SessionStartOutput, SetupOutput, SpecificHookOutput, StopOutput, SubagentStartOutput, SubagentStopOutput, UserPromptSubmitOutput } from "./outputs.js";
+import type { HookEventName, KnownToolName, NotificationInput, PermissionRequestInput, PostToolUseFailureInput, PostToolUseInput, PreCompactInput, PreToolUseInput, SessionEndInput, SessionStartInput, SetupInput, StopInput, SubagentStartInput, SubagentStopInput, ToolInputMap, UserPromptSubmitInput } from "./types.js";
 /**
  * Configuration options for hook factories.
  *
@@ -763,3 +763,38 @@ export declare function preCompactHook(config: HookConfig, handler: HookHandler<
  */
 export declare function permissionRequestHook<T extends KnownToolName>(config: TypedHookConfig<T>, handler: HookHandler<TypedPermissionRequestInput<T>, PermissionRequestOutput>): HookFunction<TypedPermissionRequestInput<T>, PermissionRequestOutput>;
 export declare function permissionRequestHook(config: HookConfig, handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>): HookFunction<PermissionRequestInput, PermissionRequestOutput>;
+/**
+ * Creates a Setup hook handler.
+ *
+ * Setup hooks fire during initialization or maintenance, allowing you to:
+ * - Configure initial session state
+ * - Perform setup tasks before the session starts
+ * - Add context for maintenance operations
+ *
+ * **Matcher**: Matches against `trigger` ('init' or 'maintenance')
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { setupHook, setupOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * // Handle all setup events
+ * export default setupHook({}, async (input, { logger }) => {
+ *   logger.info('Setup triggered', { trigger: input.trigger });
+ *   return setupOutput({});
+ * });
+ *
+ * // Only handle initialization
+ * export default setupHook({ matcher: 'init' }, async (input, { logger }) => {
+ *   logger.info('Initializing session');
+ *   return setupOutput({
+ *     hookSpecificOutput: {
+ *       additionalContext: 'Session initialized with custom configuration'
+ *     }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#setup
+ */
+export declare function setupHook(config: HookConfig, handler: HookHandler<SetupInput, SetupOutput>): HookFunction<SetupInput, SetupOutput>;

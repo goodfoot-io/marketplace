@@ -31,6 +31,7 @@ export type {
   PreToolUseHookInput as SDKPreToolUseHookInput,
   SessionEndHookInput as SDKSessionEndHookInput,
   SessionStartHookInput as SDKSessionStartHookInput,
+  SetupHookInput as SDKSetupHookInput,
   StopHookInput as SDKStopHookInput,
   SubagentStartHookInput as SDKSubagentStartHookInput,
   SubagentStopHookInput as SDKSubagentStopHookInput,
@@ -49,6 +50,7 @@ import type {
   PreToolUseHookInput as SDKPreToolUseHookInput,
   SessionEndHookInput as SDKSessionEndHookInput,
   SessionStartHookInput as SDKSessionStartHookInput,
+  SetupHookInput as SDKSetupHookInput,
   StopHookInput as SDKStopHookInput,
   SubagentStartHookInput as SDKSubagentStartHookInput,
   SubagentStopHookInput as SDKSubagentStopHookInput,
@@ -446,6 +448,41 @@ export interface PermissionRequestInput extends SDKPermissionRequestHookInput {
 }
 
 /**
+ * Trigger type for Setup hooks.
+ */
+export type SetupTrigger = "init" | "maintenance";
+
+/**
+ * Input for Setup hooks.
+ *
+ * Fires during initialization or maintenance, allowing you to:
+ * - Configure initial session state
+ * - Perform setup tasks before the session starts
+ * - Add context for maintenance operations
+ *
+ * This hook uses `trigger` for matcher matching.
+ * @example
+ * ```typescript
+ * // Log setup events
+ * setupHook({}, async (input: SetupInput) => {
+ *   console.log(`Setup triggered by: ${input.trigger}`);
+ *   return setupOutput({});
+ * });
+ *
+ * // Only handle init triggers
+ * setupHook({ matcher: 'init' }, async (input: SetupInput) => {
+ *   return setupOutput({
+ *     hookSpecificOutput: {
+ *       additionalContext: 'Initial setup complete'
+ *     }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#setup
+ */
+export type SetupInput = SDKSetupHookInput;
+
+/**
  * Discriminated union of all hook input types.
  *
  * Use this type when handling multiple hook types in a single handler
@@ -481,7 +518,8 @@ export type HookInput =
   | SubagentStartInput
   | SubagentStopInput
   | PreCompactInput
-  | PermissionRequestInput;
+  | PermissionRequestInput
+  | SetupInput;
 
 /**
  * Hook event name literal union.
@@ -514,6 +552,7 @@ export const HOOK_EVENT_NAMES = [
   "SubagentStop",
   "PreCompact",
   "PermissionRequest",
+  "Setup",
 ] as const satisfies readonly HookEventName[];
 
 // Re-export PermissionUpdate from SDK for convenience

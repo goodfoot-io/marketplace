@@ -37,7 +37,7 @@ export type {
   TypedPostToolUseInput,
   TypedPreToolUseInput,
 } from "./hooks.js";
-// Hook factory functions - all 12 hook types
+// Hook factory functions - all 13 hook types
 export {
   notificationHook,
   permissionRequestHook,
@@ -47,6 +47,7 @@ export {
   preToolUseHook,
   sessionEndHook,
   sessionStartHook,
+  setupHook,
   stopHook,
   subagentStartHook,
   subagentStopHook,
@@ -85,6 +86,8 @@ export type {
   SessionEndOptions,
   SessionStartHookSpecificOutput,
   SessionStartOptions,
+  SetupHookSpecificOutput,
+  SetupOptions,
   StopOptions,
   SubagentStartHookSpecificOutput,
   SubagentStartOptions,
@@ -102,10 +105,11 @@ export {
   postToolUseFailureOutput,
   postToolUseOutput,
   preCompactOutput,
-  // All 12 output builder functions
+  // All 13 output builder functions
   preToolUseOutput,
   sessionEndOutput,
   sessionStartOutput,
+  setupOutput,
   stopOutput,
   subagentStartOutput,
   subagentStopOutput,
@@ -181,6 +185,8 @@ export type {
   SessionEndReason,
   SessionStartInput,
   SessionStartSource,
+  SetupInput,
+  SetupTrigger,
   StopInput,
   SubagentStartInput,
   SubagentStopInput,

@@ -76,6 +76,7 @@ const EVENT_TO_OUTPUT_FUNCTION: Record<HookEventName, string> = {
   SubagentStop: "subagentStopOutput",
   PreCompact: "preCompactOutput",
   PermissionRequest: "permissionRequestOutput",
+  Setup: "setupOutput",
 };
 
 // ============================================================================

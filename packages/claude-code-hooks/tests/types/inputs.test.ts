@@ -56,6 +56,8 @@ describe("HookInput discriminated union", () => {
             return input.trigger;
           case "PermissionRequest":
             return input.tool_name;
+          case "Setup":
+            return input.trigger;
           default: {
             // Exhaustiveness check
             const _exhaustive: never = input;
@@ -379,7 +381,7 @@ describe("HookInput discriminated union", () => {
       expect(inputs.length).toBe(2);
     });
 
-    it("HookInput union includes all 12 hook types", () => {
+    it("HookInput union includes all 13 hook types", () => {
       // Create an array with one of each type to verify they all work
       const allInputs: HookInput[] = [
         {
@@ -482,9 +484,16 @@ describe("HookInput discriminated union", () => {
           tool_input: {},
           tool_use_id: "t",
         },
+        {
+          hook_event_name: "Setup",
+          session_id: "s",
+          transcript_path: "/p",
+          cwd: "/c",
+          trigger: "init",
+        },
       ];
 
-      expect(allInputs.length).toBe(12);
+      expect(allInputs.length).toBe(13);
     });
   });
 });

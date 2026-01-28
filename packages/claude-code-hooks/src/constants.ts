@@ -21,4 +21,5 @@ export const HOOK_FACTORY_TO_EVENT: Record<string, HookEventName> = {
   subagentStopHook: "SubagentStop",
   preCompactHook: "PreCompact",
   permissionRequestHook: "PermissionRequest",
+  setupHook: "Setup",
 };

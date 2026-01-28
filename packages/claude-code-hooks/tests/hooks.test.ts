@@ -2,7 +2,7 @@
  * Unit tests for hook factory functions.
  *
  * Tests:
- * - All 12 hook factories return properly typed functions
+ * - All 13 hook factories return properly typed functions
  * - HookFunction has correct metadata (hook_event_name, matcher, timeout)
  * - Handler receives correct context (logger)
  */

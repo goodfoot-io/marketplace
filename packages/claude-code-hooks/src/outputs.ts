@@ -14,6 +14,7 @@ import type {
   PostToolUseHookSpecificOutput as SDKPostToolUseHookSpecificOutput,
   PreToolUseHookSpecificOutput as SDKPreToolUseHookSpecificOutput,
   SessionStartHookSpecificOutput as SDKSessionStartHookSpecificOutput,
+  SetupHookSpecificOutput as SDKSetupHookSpecificOutput,
   SubagentStartHookSpecificOutput as SDKSubagentStartHookSpecificOutput,
   SyncHookJSONOutput as SDKSyncHookJSONOutput,
   UserPromptSubmitHookSpecificOutput as SDKUserPromptSubmitHookSpecificOutput,
@@ -64,6 +65,7 @@ export type {
   SDKPostToolUseFailureHookSpecificOutput,
   SDKUserPromptSubmitHookSpecificOutput,
   SDKSessionStartHookSpecificOutput,
+  SDKSetupHookSpecificOutput,
   SDKSubagentStartHookSpecificOutput,
   SDKPermissionRequestHookSpecificOutput,
 };
@@ -116,6 +118,12 @@ export type SubagentStartHookSpecificOutput = Omit<SDKSubagentStartHookSpecificO
 export type PermissionRequestHookSpecificOutput = Omit<SDKPermissionRequestHookSpecificOutput, "hookEventName">;
 
 /**
+ * Setup hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
+ */
+export type SetupHookSpecificOutput = Omit<SDKSetupHookSpecificOutput, "hookEventName">;
+
+/**
  * Allow decision for permission requests.
  * Derived from SDK's PermissionRequestHookSpecificOutput.
  */
@@ -161,6 +169,7 @@ export type HookSpecificOutput =
   | SDKPostToolUseFailureHookSpecificOutput
   | SDKUserPromptSubmitHookSpecificOutput
   | SDKSessionStartHookSpecificOutput
+  | SDKSetupHookSpecificOutput
   | SDKSubagentStartHookSpecificOutput
   | SDKPermissionRequestHookSpecificOutput
   | ({ hookEventName: "Notification" } & NotificationHookSpecificOutput);
@@ -274,6 +283,10 @@ export type PreCompactOutput = BaseSpecificOutput<"PreCompact">;
  *
  */
 export type PermissionRequestOutput = BaseSpecificOutput<"PermissionRequest">;
+/**
+ *
+ */
+export type SetupOutput = BaseSpecificOutput<"Setup">;
 
 /**
  * Union of all specific output types.
@@ -290,7 +303,8 @@ export type SpecificHookOutput =
   | SubagentStartOutput
   | SubagentStopOutput
   | PreCompactOutput
-  | PermissionRequestOutput;
+  | PermissionRequestOutput
+  | SetupOutput;
 
 // ============================================================================
 // Output Builder Factories
@@ -741,6 +755,37 @@ export const permissionRequestOutput = /* @__PURE__ */ createHookSpecificOutputB
   "PermissionRequest",
   PermissionRequestHookSpecificOutput
 >("PermissionRequest");
+
+// ============================================================================
+// Setup Output Builder
+// ============================================================================
+
+/**
+ * Options for the Setup output builder.
+ */
+export type SetupOptions = CommonOptions & {
+  /** Hook-specific output matching the wire format. */
+  hookSpecificOutput?: SetupHookSpecificOutput;
+};
+
+/**
+ * Creates an output for Setup hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A SetupOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * // Add context during setup
+ * setupOutput({
+ *   hookSpecificOutput: {
+ *     additionalContext: 'Project initialized with custom settings'
+ *   }
+ * });
+ *
+ * // Simple passthrough
+ * setupOutput({});
+ * ```
+ */
+export const setupOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<"Setup", SetupHookSpecificOutput>("Setup");
 
 // ============================================================================
 // Legacy type aliases for backwards compatibility
