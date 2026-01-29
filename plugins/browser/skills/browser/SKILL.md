@@ -23,13 +23,13 @@ fi
 # 1. Container detection
 CONTAINER_TYPE="" BROWSER_HOST="127.0.0.1"
 if [ -f /.dockerenv ] || grep -sq "docker\|containerd" /proc/1/cgroup 2>/dev/null; then
-  HOST_IP=$(getent hosts host.docker.internal 2>/dev/null | awk '{print $1}')
+  HOST_IP=$(getent hosts host.docker.internal 2>/dev/null | cut -d' ' -f1)
   [ -n "$HOST_IP" ] && CONTAINER_TYPE="Docker" && BROWSER_HOST="$HOST_IP"
 elif [ -f /run/.containerenv ]; then
-  HOST_IP=$(getent hosts host.containers.internal 2>/dev/null | awk '{print $1}')
+  HOST_IP=$(getent hosts host.containers.internal 2>/dev/null | cut -d' ' -f1)
   [ -n "$HOST_IP" ] && CONTAINER_TYPE="Podman" && BROWSER_HOST="$HOST_IP"
 elif grep -sq "microsoft\|WSL" /proc/version 2>/dev/null; then
-  HOST_IP=$(ip route show default 2>/dev/null | awk '{print $3}')
+  HOST_IP=$(ip route show default 2>/dev/null | cut -d' ' -f3)
   [ -n "$HOST_IP" ] && CONTAINER_TYPE="WSL" && BROWSER_HOST="$HOST_IP"
 fi
 [ -n "$CONTAINER_TYPE" ] && echo "📦 $CONTAINER_TYPE detected - Host: $BROWSER_HOST"
