@@ -332,12 +332,15 @@ MODIFIED=$(git diff implement/[PROJECT_NAME]/baseline --name-only)
 UNEXPECTED=$(comm -23 <(echo "$MODIFIED" | sort) <(echo "[PLAN_FILES]" | sort))
 ```
 
-**If unexpected modifications exist:** Report them to user and ask how to proceed:
-- "Keep" → Continue with modifications in place
-- "Stash" → `git stash push -m "unexpected-changes" -- $UNEXPECTED`
-- "Discard" → `git checkout implement/[PROJECT_NAME]/baseline -- $UNEXPECTED`
+**If unexpected modifications exist:**
 
-Do not discard without explicit user consent.
+- **Formatting-only** (use `git diff --ignore-all-space --ignore-blank-lines` to check): Auto-keep, note to user
+- **Substantive changes**: Ask user how to proceed:
+  - "Keep" → Continue with modifications in place
+  - "Stash" → `git stash push -m "unexpected-changes" -- $UNEXPECTED`
+  - "Discard" → `git checkout implement/[PROJECT_NAME]/baseline -- $UNEXPECTED`
+
+Do not discard substantive changes without explicit user consent.
 
 **Requirement:** ALL validation commands must pass before proceeding.
 

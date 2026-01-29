@@ -31,7 +31,7 @@
     "goodfoot@goodfoot": true,
     "browser@goodfoot": false,
     "gmail@goodfoot": false,
-    "github@goodfoot": false,
+    "github@goodfoot": true,
     "claude-code-hooks@goodfoot": true,
     "code-simplifier@claude-plugins-official": true
   },
