@@ -1,4 +1,5 @@
 ---
+name: parallel
 description: Run tasks in parallel
 disable-model-invocation: "true"
 hide-from-slash-command-tool: "true"

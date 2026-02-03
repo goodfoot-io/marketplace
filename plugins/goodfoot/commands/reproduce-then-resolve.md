@@ -1,4 +1,5 @@
 ---
+name: reproduce-then-resolve
 description: Reproduce a bug with a minimal test, then resolve it with test-first verification
 allowed-tools: *
 ---

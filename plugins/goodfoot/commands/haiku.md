@@ -1,4 +1,5 @@
 ---
+name: haiku
 description: Use the Haiku model
 model: haiku
 disable-model-invocation: "true"

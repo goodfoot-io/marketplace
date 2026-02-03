@@ -1,4 +1,5 @@
 ---
+name: best-person
 description: Describe the ideal person to work on a task or project
 argument-hint: <task-or-project-description>
 disable-model-invocation: "true"

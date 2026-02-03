@@ -1,4 +1,5 @@
 ---
+name: prove-it
 description: Launch subagents to evaluate a plan
 disable-model-invocation: "true"
 hide-from-slash-command-tool: "true"

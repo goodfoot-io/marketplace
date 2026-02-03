@@ -1,4 +1,5 @@
 ---
+name: implement-plan
 description: Implement an existing plan with automatic validation
 disable-model-invocation: "true"
 hide-from-slash-command-tool: "true"
