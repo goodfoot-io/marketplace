@@ -23,6 +23,7 @@ TypeScript projects already have explicit types. JSDoc should add **intent, beha
 - **Consistency with existing style**: Matches the formatting conventions already established in the codebase (multi-line descriptions, bullet lists where helpful).
 - **Future-proof hints**: Notes invariants and assumptions that must hold if the code evolves.
 - **LLM-friendly structure**: Uses short, self-contained paragraphs written in clear International Business English. Avoids prescriptive headers (e.g., "Why:", "Constraint:") in favor of natural prose that states context, purpose, and caveats directly.
+- **Self-demonstrating humor**: Uses self-demonstrating humor as described in the `<humor>` section.
 
 ## Would not have (low-signal or risky properties)
 
