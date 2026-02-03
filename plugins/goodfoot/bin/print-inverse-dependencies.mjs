@@ -21359,7 +21359,7 @@ var require_typescript = __commonJS({
         isExclusivelyTypeOnlyImportOrExport: () => isExclusivelyTypeOnlyImportOrExport,
         isExpandoPropertyDeclaration: () => isExpandoPropertyDeclaration,
         isExportAssignment: () => isExportAssignment,
-        isExportDeclaration: () => isExportDeclaration,
+        isExportDeclaration: () => isExportDeclaration2,
         isExportModifier: () => isExportModifier,
         isExportName: () => isExportName,
         isExportNamespaceAsDefaultDeclaration: () => isExportNamespaceAsDefaultDeclaration,
@@ -36356,7 +36356,7 @@ ${lanes.join("\n")}
         return false;
       }
       function isScopeMarker(node) {
-        return isExportAssignment(node) || isExportDeclaration(node);
+        return isExportAssignment(node) || isExportDeclaration2(node);
       }
       function hasScopeMarker(statements) {
         return some(statements, isScopeMarker);
@@ -37144,7 +37144,7 @@ ${lanes.join("\n")}
         return !!findAncestor(node, isJSDocTypeExpression);
       }
       function isExportNamespaceAsDefaultDeclaration(node) {
-        return !!(isExportDeclaration(node) && node.exportClause && isNamespaceExport(node.exportClause) && moduleExportNameIsDefault(node.exportClause.name));
+        return !!(isExportDeclaration2(node) && node.exportClause && isNamespaceExport(node.exportClause) && moduleExportNameIsDefault(node.exportClause.name));
       }
       function moduleExportNameTextUnescaped(node) {
         return node.kind === 11 ? node.text : unescapeLeadingUnderscores(node.escapedText);
@@ -37973,7 +37973,7 @@ ${lanes.join("\n")}
         return isAnyImportOrReExport(node) || isModuleDeclaration(node) || isImportTypeNode(node) || isImportCall(node);
       }
       function isAnyImportOrReExport(node) {
-        return isAnyImportSyntax(node) || isExportDeclaration(node);
+        return isAnyImportSyntax(node) || isExportDeclaration2(node);
       }
       function getEnclosingContainer(node) {
         return findAncestor(node.parent, (n) => !!(getContainerFlags(n) & 1));
@@ -50549,7 +50549,7 @@ ${lanes.join("\n")}
           } else {
             modifierArray = modifiers;
           }
-          return isTypeParameterDeclaration(node) ? updateTypeParameterDeclaration(node, modifierArray, node.name, node.constraint, node.default) : isParameter(node) ? updateParameterDeclaration(node, modifierArray, node.dotDotDotToken, node.name, node.questionToken, node.type, node.initializer) : isConstructorTypeNode(node) ? updateConstructorTypeNode1(node, modifierArray, node.typeParameters, node.parameters, node.type) : isPropertySignature(node) ? updatePropertySignature(node, modifierArray, node.name, node.questionToken, node.type) : isPropertyDeclaration(node) ? updatePropertyDeclaration2(node, modifierArray, node.name, node.questionToken ?? node.exclamationToken, node.type, node.initializer) : isMethodSignature(node) ? updateMethodSignature(node, modifierArray, node.name, node.questionToken, node.typeParameters, node.parameters, node.type) : isMethodDeclaration(node) ? updateMethodDeclaration(node, modifierArray, node.asteriskToken, node.name, node.questionToken, node.typeParameters, node.parameters, node.type, node.body) : isConstructorDeclaration(node) ? updateConstructorDeclaration(node, modifierArray, node.parameters, node.body) : isGetAccessorDeclaration(node) ? updateGetAccessorDeclaration(node, modifierArray, node.name, node.parameters, node.type, node.body) : isSetAccessorDeclaration(node) ? updateSetAccessorDeclaration(node, modifierArray, node.name, node.parameters, node.body) : isIndexSignatureDeclaration(node) ? updateIndexSignature(node, modifierArray, node.parameters, node.type) : isFunctionExpression(node) ? updateFunctionExpression(node, modifierArray, node.asteriskToken, node.name, node.typeParameters, node.parameters, node.type, node.body) : isArrowFunction(node) ? updateArrowFunction(node, modifierArray, node.typeParameters, node.parameters, node.type, node.equalsGreaterThanToken, node.body) : isClassExpression(node) ? updateClassExpression(node, modifierArray, node.name, node.typeParameters, node.heritageClauses, node.members) : isVariableStatement(node) ? updateVariableStatement(node, modifierArray, node.declarationList) : isFunctionDeclaration(node) ? updateFunctionDeclaration(node, modifierArray, node.asteriskToken, node.name, node.typeParameters, node.parameters, node.type, node.body) : isClassDeclaration(node) ? updateClassDeclaration(node, modifierArray, node.name, node.typeParameters, node.heritageClauses, node.members) : isInterfaceDeclaration(node) ? updateInterfaceDeclaration(node, modifierArray, node.name, node.typeParameters, node.heritageClauses, node.members) : isTypeAliasDeclaration(node) ? updateTypeAliasDeclaration(node, modifierArray, node.name, node.typeParameters, node.type) : isEnumDeclaration(node) ? updateEnumDeclaration(node, modifierArray, node.name, node.members) : isModuleDeclaration(node) ? updateModuleDeclaration(node, modifierArray, node.name, node.body) : isImportEqualsDeclaration(node) ? updateImportEqualsDeclaration(node, modifierArray, node.isTypeOnly, node.name, node.moduleReference) : isImportDeclaration2(node) ? updateImportDeclaration(node, modifierArray, node.importClause, node.moduleSpecifier, node.attributes) : isExportAssignment(node) ? updateExportAssignment(node, modifierArray, node.expression) : isExportDeclaration(node) ? updateExportDeclaration(node, modifierArray, node.isTypeOnly, node.exportClause, node.moduleSpecifier, node.attributes) : Debug.assertNever(node);
+          return isTypeParameterDeclaration(node) ? updateTypeParameterDeclaration(node, modifierArray, node.name, node.constraint, node.default) : isParameter(node) ? updateParameterDeclaration(node, modifierArray, node.dotDotDotToken, node.name, node.questionToken, node.type, node.initializer) : isConstructorTypeNode(node) ? updateConstructorTypeNode1(node, modifierArray, node.typeParameters, node.parameters, node.type) : isPropertySignature(node) ? updatePropertySignature(node, modifierArray, node.name, node.questionToken, node.type) : isPropertyDeclaration(node) ? updatePropertyDeclaration2(node, modifierArray, node.name, node.questionToken ?? node.exclamationToken, node.type, node.initializer) : isMethodSignature(node) ? updateMethodSignature(node, modifierArray, node.name, node.questionToken, node.typeParameters, node.parameters, node.type) : isMethodDeclaration(node) ? updateMethodDeclaration(node, modifierArray, node.asteriskToken, node.name, node.questionToken, node.typeParameters, node.parameters, node.type, node.body) : isConstructorDeclaration(node) ? updateConstructorDeclaration(node, modifierArray, node.parameters, node.body) : isGetAccessorDeclaration(node) ? updateGetAccessorDeclaration(node, modifierArray, node.name, node.parameters, node.type, node.body) : isSetAccessorDeclaration(node) ? updateSetAccessorDeclaration(node, modifierArray, node.name, node.parameters, node.body) : isIndexSignatureDeclaration(node) ? updateIndexSignature(node, modifierArray, node.parameters, node.type) : isFunctionExpression(node) ? updateFunctionExpression(node, modifierArray, node.asteriskToken, node.name, node.typeParameters, node.parameters, node.type, node.body) : isArrowFunction(node) ? updateArrowFunction(node, modifierArray, node.typeParameters, node.parameters, node.type, node.equalsGreaterThanToken, node.body) : isClassExpression(node) ? updateClassExpression(node, modifierArray, node.name, node.typeParameters, node.heritageClauses, node.members) : isVariableStatement(node) ? updateVariableStatement(node, modifierArray, node.declarationList) : isFunctionDeclaration(node) ? updateFunctionDeclaration(node, modifierArray, node.asteriskToken, node.name, node.typeParameters, node.parameters, node.type, node.body) : isClassDeclaration(node) ? updateClassDeclaration(node, modifierArray, node.name, node.typeParameters, node.heritageClauses, node.members) : isInterfaceDeclaration(node) ? updateInterfaceDeclaration(node, modifierArray, node.name, node.typeParameters, node.heritageClauses, node.members) : isTypeAliasDeclaration(node) ? updateTypeAliasDeclaration(node, modifierArray, node.name, node.typeParameters, node.type) : isEnumDeclaration(node) ? updateEnumDeclaration(node, modifierArray, node.name, node.members) : isModuleDeclaration(node) ? updateModuleDeclaration(node, modifierArray, node.name, node.body) : isImportEqualsDeclaration(node) ? updateImportEqualsDeclaration(node, modifierArray, node.isTypeOnly, node.name, node.moduleReference) : isImportDeclaration2(node) ? updateImportDeclaration(node, modifierArray, node.importClause, node.moduleSpecifier, node.attributes) : isExportAssignment(node) ? updateExportAssignment(node, modifierArray, node.expression) : isExportDeclaration2(node) ? updateExportDeclaration(node, modifierArray, node.isTypeOnly, node.exportClause, node.moduleSpecifier, node.attributes) : Debug.assertNever(node);
         }
         function replaceDecoratorsAndModifiers(node, modifierArray) {
           return isParameter(node) ? updateParameterDeclaration(node, modifierArray, node.dotDotDotToken, node.name, node.questionToken, node.type, node.initializer) : isPropertyDeclaration(node) ? updatePropertyDeclaration2(node, modifierArray, node.name, node.questionToken ?? node.exclamationToken, node.type, node.initializer) : isMethodDeclaration(node) ? updateMethodDeclaration(node, modifierArray, node.asteriskToken, node.name, node.questionToken, node.typeParameters, node.parameters, node.type, node.body) : isGetAccessorDeclaration(node) ? updateGetAccessorDeclaration(node, modifierArray, node.name, node.parameters, node.type, node.body) : isSetAccessorDeclaration(node) ? updateSetAccessorDeclaration(node, modifierArray, node.name, node.parameters, node.body) : isClassExpression(node) ? updateClassExpression(node, modifierArray, node.name, node.typeParameters, node.heritageClauses, node.members) : isClassDeclaration(node) ? updateClassDeclaration(node, modifierArray, node.name, node.typeParameters, node.heritageClauses, node.members) : Debug.assertNever(node);
@@ -52691,7 +52691,7 @@ ${lanes.join("\n")}
       function isExportAssignment(node) {
         return node.kind === 278;
       }
-      function isExportDeclaration(node) {
+      function isExportDeclaration2(node) {
         return node.kind === 279;
       }
       function isNamedExports(node) {
@@ -54077,7 +54077,7 @@ ${lanes.join("\n")}
           node,
           95
           /* ExportKeyword */
-        ) || isImportEqualsDeclaration(node) && isExternalModuleReference(node.moduleReference) || isImportDeclaration2(node) || isExportAssignment(node) || isExportDeclaration(node) ? node : void 0;
+        ) || isImportEqualsDeclaration(node) && isExternalModuleReference(node.moduleReference) || isImportDeclaration2(node) || isExportAssignment(node) || isExportDeclaration2(node) ? node : void 0;
       }
       function getImportMetaIfNecessary(sourceFile) {
         return sourceFile.flags & 8388608 ? walkTreeForImportMeta(sourceFile) : void 0;
@@ -71758,7 +71758,7 @@ ${lanes.join("\n")}
         }
         function hasExportDeclarations(node) {
           const body = isSourceFile(node) ? node : tryCast(node.body, isModuleBlock);
-          return !!body && body.statements.some((s) => isExportDeclaration(s) || isExportAssignment(s));
+          return !!body && body.statements.some((s) => isExportDeclaration2(s) || isExportAssignment(s));
         }
         function setExportContextFlag(node) {
           if (node.flags & 33554432 && !hasExportDeclarations(node)) {
@@ -77340,7 +77340,7 @@ ${lanes.join("\n")}
               const defaultExport = (_c = exportStar.declarations) == null ? void 0 : _c.find(
                 (decl) => {
                   var _a2, _b2;
-                  return !!(isExportDeclaration(decl) && decl.moduleSpecifier && ((_b2 = (_a2 = resolveExternalModuleName(decl, decl.moduleSpecifier)) == null ? void 0 : _a2.exports) == null ? void 0 : _b2.has(
+                  return !!(isExportDeclaration2(decl) && decl.moduleSpecifier && ((_b2 = (_a2 = resolveExternalModuleName(decl, decl.moduleSpecifier)) == null ? void 0 : _a2.exports) == null ? void 0 : _b2.has(
                     "default"
                     /* Default */
                   )));
@@ -77733,7 +77733,7 @@ ${lanes.join("\n")}
         }
         function getSymbolFlags(symbol, excludeTypeOnlyMeanings, excludeLocalMeanings) {
           const typeOnlyDeclaration = excludeTypeOnlyMeanings && getTypeOnlyAliasDeclaration(symbol);
-          const typeOnlyDeclarationIsExportStar = typeOnlyDeclaration && isExportDeclaration(typeOnlyDeclaration);
+          const typeOnlyDeclarationIsExportStar = typeOnlyDeclaration && isExportDeclaration2(typeOnlyDeclaration);
           const typeOnlyResolution = typeOnlyDeclaration && (typeOnlyDeclarationIsExportStar ? resolveExternalModuleName(
             typeOnlyDeclaration.moduleSpecifier,
             typeOnlyDeclaration.moduleSpecifier,
@@ -78095,7 +78095,7 @@ ${lanes.join("\n")}
             location.initializer,
             /*requireStringLiteralLikeArgument*/
             true
-          ) ? location.initializer.arguments[0] : void 0) || ((_c = findAncestor(location, isImportCall)) == null ? void 0 : _c.arguments[0]) || ((_d = findAncestor(location, or(isImportDeclaration2, isJSDocImportTag, isExportDeclaration))) == null ? void 0 : _d.moduleSpecifier) || ((_e = findAncestor(location, isExternalModuleImportEqualsDeclaration)) == null ? void 0 : _e.moduleReference.expression);
+          ) ? location.initializer.arguments[0] : void 0) || ((_c = findAncestor(location, isImportCall)) == null ? void 0 : _c.arguments[0]) || ((_d = findAncestor(location, or(isImportDeclaration2, isJSDocImportTag, isExportDeclaration2))) == null ? void 0 : _d.moduleSpecifier) || ((_e = findAncestor(location, isExternalModuleImportEqualsDeclaration)) == null ? void 0 : _e.moduleReference.expression);
           const mode = contextSpecifier && isStringLiteralLike(contextSpecifier) ? host.getModeForUsageLocation(currentSourceFile, contextSpecifier) : host.getDefaultResolutionModeForFile(currentSourceFile);
           const moduleResolutionKind = getEmitModuleResolutionKind(compilerOptions);
           const resolvedModule = (_f = host.getResolvedModule(currentSourceFile, moduleReference, mode)) == null ? void 0 : _f.resolvedModule;
@@ -78106,7 +78106,7 @@ ${lanes.join("\n")}
               error2(errorNode, resolutionDiagnostic, moduleReference, resolvedModule.resolvedFileName);
             }
             if (resolvedModule.resolvedUsingTsExtension && isDeclarationFileName(moduleReference)) {
-              const importOrExport = ((_g = findAncestor(location, isImportDeclaration2)) == null ? void 0 : _g.importClause) || findAncestor(location, or(isImportEqualsDeclaration, isExportDeclaration));
+              const importOrExport = ((_g = findAncestor(location, isImportDeclaration2)) == null ? void 0 : _g.importClause) || findAncestor(location, or(isImportEqualsDeclaration, isExportDeclaration2));
               if (errorNode && importOrExport && !importOrExport.isTypeOnly || findAncestor(location, isImportCall)) {
                 error2(
                   errorNode,
@@ -78115,7 +78115,7 @@ ${lanes.join("\n")}
                 );
               }
             } else if (resolvedModule.resolvedUsingTsExtension && !shouldAllowImportingTsExtension(compilerOptions, currentSourceFile.fileName)) {
-              const importOrExport = ((_h = findAncestor(location, isImportDeclaration2)) == null ? void 0 : _h.importClause) || findAncestor(location, or(isImportEqualsDeclaration, isExportDeclaration));
+              const importOrExport = ((_h = findAncestor(location, isImportDeclaration2)) == null ? void 0 : _h.importClause) || findAncestor(location, or(isImportEqualsDeclaration, isExportDeclaration2));
               if (errorNode && !((importOrExport == null ? void 0 : importOrExport.isTypeOnly) || findAncestor(location, isImportTypeNode))) {
                 const tsExtension = Debug.checkDefined(tryExtractTSExtension(moduleReference));
                 error2(errorNode, Diagnostics.An_import_path_can_only_end_with_a_0_extension_when_allowImportingTsExtensions_is_enabled, tsExtension);
@@ -78165,7 +78165,7 @@ ${lanes.join("\n")}
               }
               if (errorNode && (moduleKind === 100 || moduleKind === 101)) {
                 const isSyncImport = currentSourceFile.impliedNodeFormat === 1 && !findAncestor(location, isImportCall) || !!findAncestor(location, isImportEqualsDeclaration);
-                const overrideHost = findAncestor(location, (l) => isImportTypeNode(l) || isExportDeclaration(l) || isImportDeclaration2(l) || isJSDocImportTag(l));
+                const overrideHost = findAncestor(location, (l) => isImportTypeNode(l) || isExportDeclaration2(l) || isImportDeclaration2(l) || isJSDocImportTag(l));
                 if (isSyncImport && sourceFile.impliedNodeFormat === 99 && !hasResolutionModeOverride(overrideHost)) {
                   if (findAncestor(location, isImportEqualsDeclaration)) {
                     error2(errorNode, Diagnostics.Module_0_cannot_be_imported_using_this_construct_The_specifier_only_resolves_to_an_ES_module_which_cannot_be_imported_with_require_Use_an_ECMAScript_import_instead, moduleReference);
@@ -82798,7 +82798,7 @@ ${lanes.join("\n")}
                     s,
                     32
                     /* Export */
-                  ) || isExportAssignment(s) || isExportDeclaration(s));
+                  ) || isExportAssignment(s) || isExportDeclaration2(s));
                   forEach(body.statements, (s) => {
                     addResult(
                       s,
@@ -82812,9 +82812,9 @@ ${lanes.join("\n")}
               return statements;
             }
             function mergeExportDeclarations(statements) {
-              const exports2 = filter2(statements, (d) => isExportDeclaration(d) && !d.moduleSpecifier && !!d.exportClause && isNamedExports(d.exportClause));
+              const exports2 = filter2(statements, (d) => isExportDeclaration2(d) && !d.moduleSpecifier && !!d.exportClause && isNamedExports(d.exportClause));
               if (length(exports2) > 1) {
-                const nonExports = filter2(statements, (d) => !isExportDeclaration(d) || !!d.moduleSpecifier || !d.exportClause);
+                const nonExports = filter2(statements, (d) => !isExportDeclaration2(d) || !!d.moduleSpecifier || !d.exportClause);
                 statements = [
                   ...nonExports,
                   factory.createExportDeclaration(
@@ -82828,7 +82828,7 @@ ${lanes.join("\n")}
                   )
                 ];
               }
-              const reexports = filter2(statements, (d) => isExportDeclaration(d) && !!d.moduleSpecifier && !!d.exportClause && isNamedExports(d.exportClause));
+              const reexports = filter2(statements, (d) => isExportDeclaration2(d) && !!d.moduleSpecifier && !!d.exportClause && isNamedExports(d.exportClause));
               if (length(reexports) > 1) {
                 const groups = group(reexports, (decl) => isStringLiteral2(decl.moduleSpecifier) ? ">" + decl.moduleSpecifier.text : ">");
                 if (groups.length !== reexports.length) {
@@ -82852,7 +82852,7 @@ ${lanes.join("\n")}
               return statements;
             }
             function inlineExportModifiers(statements) {
-              const index = findIndex(statements, (d) => isExportDeclaration(d) && !d.moduleSpecifier && !d.attributes && !!d.exportClause && isNamedExports(d.exportClause));
+              const index = findIndex(statements, (d) => isExportDeclaration2(d) && !d.moduleSpecifier && !d.attributes && !!d.exportClause && isNamedExports(d.exportClause));
               if (index >= 0) {
                 const exportDecl = statements[index];
                 const replacements = mapDefined(exportDecl.exportClause.elements, (e) => {
@@ -83166,7 +83166,7 @@ ${lanes.join("\n")}
               if (some(symbol.declarations, isPartOfParameterDeclaration)) return;
               Debug.assertIsDefined(deferredPrivatesStack[deferredPrivatesStack.length - 1]);
               getUnusedName(unescapeLeadingUnderscores(symbol.escapedName), symbol);
-              const isExternalImportAlias = !!(symbol.flags & 2097152) && !some(symbol.declarations, (d) => !!findAncestor(d, isExportDeclaration) || isNamespaceExport(d) || isImportEqualsDeclaration(d) && !isExternalModuleReference(d.moduleReference));
+              const isExternalImportAlias = !!(symbol.flags & 2097152) && !some(symbol.declarations, (d) => !!findAncestor(d, isExportDeclaration2) || isNamespaceExport(d) || isImportEqualsDeclaration(d) && !isExternalModuleReference(d.moduleReference));
               deferredPrivatesStack[isExternalImportAlias ? 0 : deferredPrivatesStack.length - 1].set(getSymbolId(symbol), symbol);
             }
             function isExportingScope(enclosingDeclaration2) {
@@ -102370,7 +102370,7 @@ ${lanes.join("\n")}
               return false;
             }
             const greatGrandparent = (_a = parent2.parent) == null ? void 0 : _a.parent;
-            if (greatGrandparent && isExportDeclaration(greatGrandparent) && greatGrandparent.isTypeOnly) {
+            if (greatGrandparent && isExportDeclaration2(greatGrandparent) && greatGrandparent.isTypeOnly) {
               return false;
             }
           }
@@ -125819,7 +125819,7 @@ ${lanes.join("\n")}
               }
               break;
             case 279:
-              Debug.assertNode(parsed, isExportDeclaration);
+              Debug.assertNode(parsed, isExportDeclaration2);
               if (node.exportClause !== parsed.exportClause) {
                 return true;
               }
@@ -143405,7 +143405,7 @@ ${lanes.join("\n")}
           return { aliasedModuleNames, unaliasedModuleNames, importAliasNames };
         }
         function getAMDImportExpressionForImport(node) {
-          if (isImportEqualsDeclaration(node) || isExportDeclaration(node) || !getExternalModuleNameLiteral(factory2, node, currentSourceFile, host, resolver, compilerOptions)) {
+          if (isImportEqualsDeclaration(node) || isExportDeclaration2(node) || !getExternalModuleNameLiteral(factory2, node, currentSourceFile, host, resolver, compilerOptions)) {
             return void 0;
           }
           const name = getLocalNameForExternalImport(factory2, node, currentSourceFile);
@@ -149025,7 +149025,7 @@ ${lanes.join("\n")}
           return !!stripInternal && !!node && isInternalDeclaration(node, currentSourceFile);
         }
         function isScopeMarker2(node) {
-          return isExportAssignment(node) || isExportDeclaration(node);
+          return isExportAssignment(node) || isExportDeclaration2(node);
         }
         function hasScopeMarker2(statements) {
           return some(statements, isScopeMarker2);
@@ -155877,7 +155877,7 @@ ${lanes.join("\n")}
       }
       function isExclusivelyTypeOnlyImportOrExport(decl) {
         var _a;
-        if (isExportDeclaration(decl)) {
+        if (isExportDeclaration2(decl)) {
           return decl.isTypeOnly;
         }
         if ((_a = decl.importClause) == null ? void 0 : _a.isTypeOnly) {
@@ -155889,7 +155889,7 @@ ${lanes.join("\n")}
         return getModeForUsageLocationWorker(file, usage, compilerOptions);
       }
       function getModeForUsageLocationWorker(file, usage, compilerOptions) {
-        if (isImportDeclaration2(usage.parent) || isExportDeclaration(usage.parent) || isJSDocImportTag(usage.parent)) {
+        if (isImportDeclaration2(usage.parent) || isExportDeclaration2(usage.parent) || isJSDocImportTag(usage.parent)) {
           const isTypeOnly = isExclusivelyTypeOnlyImportOrExport(usage.parent);
           if (isTypeOnly) {
             const override = getResolutionModeOverride(usage.parent.attributes);
@@ -169789,7 +169789,7 @@ ${lanes.join("\n")}
               return location;
             }
           }
-          if (isExportDeclaration(parent2) && parent2.isTypeOnly) {
+          if (isExportDeclaration2(parent2) && parent2.isTypeOnly) {
             const location = getAdjustedLocationForExportDeclaration(parent2, forRename);
             if (location) {
               return location;
@@ -169800,7 +169800,7 @@ ${lanes.join("\n")}
           if (isImportSpecifier(parent2) && parent2.propertyName || isExportSpecifier(parent2) && parent2.propertyName || isNamespaceImport(parent2) || isNamespaceExport(parent2)) {
             return parent2.name;
           }
-          if (isExportDeclaration(parent2) && parent2.exportClause && isNamespaceExport(parent2.exportClause)) {
+          if (isExportDeclaration2(parent2) && parent2.exportClause && isNamespaceExport(parent2.exportClause)) {
             return parent2.exportClause.name;
           }
         }
@@ -169811,7 +169811,7 @@ ${lanes.join("\n")}
           }
         }
         if (node.kind === 95) {
-          if (isExportDeclaration(parent2)) {
+          if (isExportDeclaration2(parent2)) {
             const location = getAdjustedLocationForExportDeclaration(parent2, forRename);
             if (location) {
               return location;
@@ -169824,7 +169824,7 @@ ${lanes.join("\n")}
         if (node.kind === 149 && isExternalModuleReference(parent2)) {
           return parent2.expression;
         }
-        if (node.kind === 161 && (isImportDeclaration2(parent2) || isExportDeclaration(parent2)) && parent2.moduleSpecifier) {
+        if (node.kind === 161 && (isImportDeclaration2(parent2) || isExportDeclaration2(parent2)) && parent2.moduleSpecifier) {
           return parent2.moduleSpecifier;
         }
         if ((node.kind === 96 || node.kind === 119) && isHeritageClause(parent2) && parent2.token === node.kind) {
@@ -178082,7 +178082,7 @@ interface Symbol {
               forEachTopLevelDeclaration(node, (declaration) => {
                 var _a2;
                 const targetDeclarations = canHaveSymbol(declaration) ? (_a2 = targetExports.get(declaration.symbol.escapedName)) == null ? void 0 : _a2.declarations : void 0;
-                const exportDeclaration = firstDefined(targetDeclarations, (d) => isExportDeclaration(d) ? d : isExportSpecifier(d) ? tryCast(d.parent.parent, isExportDeclaration) : void 0);
+                const exportDeclaration = firstDefined(targetDeclarations, (d) => isExportDeclaration2(d) ? d : isExportSpecifier(d) ? tryCast(d.parent.parent, isExportDeclaration2) : void 0);
                 if (exportDeclaration && exportDeclaration.moduleSpecifier) {
                   targetToSourceExports.set(exportDeclaration, (targetToSourceExports.get(exportDeclaration) || /* @__PURE__ */ new Set()).add(declaration));
                 }
@@ -178104,7 +178104,7 @@ interface Symbol {
             }
           }
         }
-        const lastReExport = findLast(targetFile.statements, (n) => isExportDeclaration(n) && !!n.moduleSpecifier && !removedExports.has(n));
+        const lastReExport = findLast(targetFile.statements, (n) => isExportDeclaration2(n) && !!n.moduleSpecifier && !removedExports.has(n));
         if (lastReExport) {
           changes.insertNodesBefore(
             targetFile,
@@ -190786,7 +190786,7 @@ ${newComment.split("\n").map((c) => ` * ${c}`).join("\n")}
         }
       }
       function tryGetExportDeclaration(sourceFile, isTypeOnly) {
-        const predicate = (node) => isExportDeclaration(node) && (isTypeOnly && node.isTypeOnly || !node.isTypeOnly);
+        const predicate = (node) => isExportDeclaration2(node) && (isTypeOnly && node.isTypeOnly || !node.isTypeOnly);
         return findLast(sourceFile.statements, predicate);
       }
       function updateExport(changes, program, sourceFile, node, names) {
@@ -201286,7 +201286,7 @@ ${newComment.split("\n").map((c) => ` * ${c}`).join("\n")}
           const parent2 = contextToken.parent;
           const tokenLine = file.getLineAndCharacterOfPosition(contextToken.end).line;
           const currentLine = file.getLineAndCharacterOfPosition(position).line;
-          if ((isImportDeclaration2(parent2) || isExportDeclaration(parent2) && parent2.moduleSpecifier) && contextToken === parent2.moduleSpecifier && tokenLine === currentLine) {
+          if ((isImportDeclaration2(parent2) || isExportDeclaration2(parent2) && parent2.moduleSpecifier) && contextToken === parent2.moduleSpecifier && tokenLine === currentLine) {
             entries.push({
               name: tokenToString(
                 132
@@ -201543,7 +201543,7 @@ ${newComment.split("\n").map((c) => ` * ${c}`).join("\n")}
             }
             return void 0;
           }
-          if (isExportDeclaration(parent2) && contextToken.kind === 42 || isNamedExports(parent2) && contextToken.kind === 20) {
+          if (isExportDeclaration2(parent2) && contextToken.kind === 42 || isNamedExports(parent2) && contextToken.kind === 20) {
             isKeywordOnlyCompletion = true;
             keywordCompletion = 161;
             return void 0;
@@ -203118,7 +203118,7 @@ ${newComment.split("\n").map((c) => ` * ${c}`).join("\n")}
       function findNamespaceReExports(sourceFileLike, name, checker) {
         const namespaceImportSymbol = checker.getSymbolAtLocation(name);
         return !!forEachPossibleImportOrExportStatement(sourceFileLike, (statement) => {
-          if (!isExportDeclaration(statement)) return;
+          if (!isExportDeclaration2(statement)) return;
           const { exportClause, moduleSpecifier } = statement;
           return !moduleSpecifier && exportClause && isNamedExports(exportClause) && exportClause.elements.some((element) => checker.getExportSpecifierLocalTargetSymbol(element) === namespaceImportSymbol);
         });
@@ -207452,7 +207452,7 @@ ${content}
           const ambientModuleImportGroupDecls = groupByNewlineContiguous(sourceFile, ambientModule.body.statements.filter(isImportDeclaration2));
           ambientModuleImportGroupDecls.forEach((importGroupDecl) => organizeImportsWorker(importGroupDecl, comparer));
           if (mode !== "RemoveUnused") {
-            const ambientModuleExportDecls = ambientModule.body.statements.filter(isExportDeclaration);
+            const ambientModuleExportDecls = ambientModule.body.statements.filter(isExportDeclaration2);
             organizeExportsWorker(ambientModuleExportDecls, comparer.namedImportComparer);
           }
         }
@@ -207569,7 +207569,7 @@ ${content}
         let i = 0;
         let groupIndex = 0;
         while (i < len) {
-          if (isExportDeclaration(statements[i])) {
+          if (isExportDeclaration2(statements[i])) {
             if (topLevelExportGroups[groupIndex] === void 0) {
               topLevelExportGroups[groupIndex] = [];
             }
@@ -207578,7 +207578,7 @@ ${content}
               topLevelExportGroups[groupIndex].push(exportDecl);
               i++;
             } else {
-              while (i < len && isExportDeclaration(statements[i])) {
+              while (i < len && isExportDeclaration2(statements[i])) {
                 topLevelExportGroups[groupIndex].push(statements[i++]);
               }
               groupIndex++;
@@ -217132,7 +217132,7 @@ ${options.prefix}` : "\n" : options.prefix
         isExclusivelyTypeOnlyImportOrExport: () => isExclusivelyTypeOnlyImportOrExport,
         isExpandoPropertyDeclaration: () => isExpandoPropertyDeclaration,
         isExportAssignment: () => isExportAssignment,
-        isExportDeclaration: () => isExportDeclaration,
+        isExportDeclaration: () => isExportDeclaration2,
         isExportModifier: () => isExportModifier,
         isExportName: () => isExportName,
         isExportNamespaceAsDefaultDeclaration: () => isExportNamespaceAsDefaultDeclaration,
@@ -231209,6 +231209,8 @@ var init_InverseDependencyFinder = __esm({
         const referencedFiles = [];
         function visit(node) {
           if (ts.isImportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+            referencedFiles.push(node.moduleSpecifier.text);
+          } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
             referencedFiles.push(node.moduleSpecifier.text);
           } else if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "require") {
             const arg = node.arguments[0];

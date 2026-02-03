@@ -237,4 +237,22 @@ describe("DependencyFinder - static fixtures", () => {
       warnSpy.mockRestore();
     }
   });
+
+  test("finds dependencies through re-exports (barrel files)", async () => {
+    // app.ts imports from utils/index.ts (barrel file)
+    // utils/index.ts re-exports from helpers.ts and formatter.ts
+    // So app.ts should transitively depend on helpers.ts and formatter.ts
+    const finder = new DependencyFinder({ targetGlobs: ["src/app.ts"] });
+    const dependencies = await finder.execute();
+
+    // Should include the file itself
+    expect(dependencies).toContain("src/app.ts");
+
+    // Should include the barrel file (direct import)
+    expect(dependencies).toContain("src/utils/index.ts");
+
+    // Should include files re-exported through the barrel (transitive through re-export)
+    expect(dependencies).toContain("src/utils/helpers.ts");
+    expect(dependencies).toContain("src/utils/formatter.ts");
+  });
 });
