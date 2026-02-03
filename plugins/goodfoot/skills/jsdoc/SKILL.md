@@ -26,7 +26,7 @@ TypeScript projects already have explicit types. JSDoc should add **intent, beha
 
 ## Would not have (low-signal or risky properties)
 
-- **Type restatements**: Repeating TypeScript types in prose or using JSDoc type tags in `.ts` files where types are already explicit.
+- **Type restatements**: Repeating TypeScript types in prose (e.g., "@param options - The options object" when the type is already `Options`). Keep `@param`, `@returns`, and `@throws` tags—just make the descriptions add meaning beyond the type.
 - **Obvious narration**: Comments that paraphrase the code or parameter name without additional insight.
 - **Incorrect authority**: Claims that are not enforced by code (e.g., "never throws" when it can, or "always" without guardrails).
 - **Redundant verbosity**: Long descriptions that could be expressed more directly, or boilerplate that hides the key idea.
@@ -37,10 +37,29 @@ TypeScript projects already have explicit types. JSDoc should add **intent, beha
 
 ## Tag usage cues (not rules)
 
+### IntelliSense tags (always include)
+
+These tags power IDE hover tooltips, autocomplete, and signature help. Always include them for public APIs, constructors, and functions with non-trivial signatures:
+
+- **`@param`**: Include for every parameter. Describe the parameter's purpose, valid ranges, or constraints—not just its type. Even a brief phrase like "Git executor for running commands" helps users understand intent at a glance.
+- **`@returns`**: Include when the function returns a value. Describe what the return value represents, especially for edge cases (e.g., "Returns null if the ref cannot be resolved").
+- **`@throws`**: Include when the function can throw. Describe the conditions that cause the error.
+- **`@template`**: Include for generic functions and types. Describe what the type parameter represents (e.g., `@template T - The entity type to be cached`).
+
+### Cross-reference tags (use to aid navigation)
+
+These tags create clickable links in the IDE, helping users discover related code:
+
+- **`@see`**: Link to related functions, types, or external documentation. Use when another symbol provides context or an alternative approach.
+- **`{@link Symbol}`**: Inline reference within descriptions. Creates a clickable link to another symbol (e.g., "Similar to {@link parseRef} but handles symbolic refs").
+
+The goal is not to eliminate these tags but to make each description meaningful rather than redundant with the type signature.
+
+### Structural tags (use when appropriate)
+
 - Use `@module` at the top of files that define a cohesive domain concept.
 - Use `@example` when parsing or formatting behavior could be misread, or when a type is complex.
 - Use `@deprecated` on exports that are retained for compatibility.
-- Use `@returns` only when the return value needs interpretation beyond the type (e.g., "empty string means not found").
 - Prefer short description + bullets for concepts with multiple facets.
 
 ## Why this matters (evidence and research)
