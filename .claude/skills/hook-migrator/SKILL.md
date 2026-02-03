@@ -21,6 +21,28 @@ const { data: fork } = await octokit.rest.repos.createFork({ owner, repo });
 git clone https://github.com/${yourUsername}/${repo}.git /home/node/hook-repos/${repo}
 ```
 
+**Multiple hook projects:** If `reports/hook-repositories.typescript.csv` exists, read it to find all internal paths for each repository. The CSV has columns: `repo`, `internal_path`, and other metadata.
+
+```bash
+# Parse CSV for all internal paths in a repository
+internal_paths=$(grep "^${repo}," reports/hook-repositories.typescript.csv | cut -d',' -f2)
+
+# Process each internal path
+for internal_path in $internal_paths; do
+  # internal_path is relative to repo root (e.g., "packages/hooks", "plugins/claude-hooks")
+  hook_dir="/home/node/hook-repos/${repo}/${internal_path}"
+
+  # Run analysis and conversion for this hook project
+  # ... steps 2-7 below apply to each internal_path
+done
+```
+
+When a repository has multiple internal paths, **process all of them** before moving to the next repository. Each internal path is treated as a separate hook project with its own:
+- `hooks.json` configuration
+- `hooks/src/` TypeScript sources
+- `package.json` build script
+- Status reporting entry
+
 ### 2. Analyze Candidacy
 
 Find all hooks.json files and assess conversion feasibility. See [references/candidate-analysis.md](references/candidate-analysis.md).
@@ -31,10 +53,24 @@ Find all hooks.json files and assess conversion feasibility. See [references/can
 - Logic translatable to TypeScript
 - Existing test suite
 
-**Present findings to user if concerns exist.** Ask whether to proceed with:
-- Full conversion
-- Partial conversion (document what can't be converted)
-- Abort
+**Status reporting:** For hook projects assessed as "concerning" or "poor candidate", append the result to `reports/hook-repositories-status.csv` with columns:
+- `repo` - Repository name
+- `directory` - Full path to hook project directory
+- `internal_path` - Relative path within repo (empty if root-level)
+- `status` - One of: `good`, `concerning`, `poor_candidate`
+
+```bash
+# Create CSV if it doesn't exist
+mkdir -p reports
+if [ ! -f reports/hook-repositories-status.csv ]; then
+  echo "repo,directory,internal_path,status" > reports/hook-repositories-status.csv
+fi
+
+# Append result (internal_path may be empty for root-level hooks)
+echo "${repo},${directory},${internal_path},${status}" >> reports/hook-repositories-status.csv
+```
+
+**Skip concerning/poor candidates** and continue to the next repository. Only proceed with conversion for "good" candidates.
 
 ### 3. Load SDK Skill
 
@@ -113,9 +149,7 @@ git commit -m "Migrate hooks to @goodfoot/claude-code-hooks SDK
 
 - Convert bash/command hooks to TypeScript
 - Add build:hooks script
-- Add hook tests
-
-Generated with Claude Code"
+- Add hook tests"
 git push origin main
 ```
 

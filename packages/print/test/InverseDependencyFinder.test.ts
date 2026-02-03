@@ -123,4 +123,63 @@ describe("InverseDependencyFinder", () => {
       }
     });
   });
+
+  describe("re-export tracing", () => {
+    it("should find importers through re-exports (barrel files)", async () => {
+      // helpers.ts is re-exported through utils/index.ts
+      // app.ts imports from utils/index.ts (the barrel)
+      // So app.ts should be found as an importer of helpers.ts
+      const finder = new InverseDependencyFinder({
+        targetGlobs: ["src/utils/helpers.ts"],
+        projectPath: "tsconfig.json",
+      });
+
+      const result = await finder.execute();
+
+      // Direct importers (should already work)
+      expect(result).toContain("src/utils/formatter.ts");
+      expect(result).toContain("src/components/Button.ts");
+
+      // Re-export barrel (the barrel re-exports helpers, so it should be found)
+      expect(result).toContain("src/utils/index.ts");
+
+      // Transitive importers through re-exports (this is what we're adding)
+      expect(result).toContain("src/app.ts");
+      expect(result).toContain("src/services/userService.ts");
+    });
+
+    it("should find importers through star re-exports", async () => {
+      // formatter.ts is re-exported through utils/index.ts
+      // app.ts imports formatDate from utils/index.ts
+      const finder = new InverseDependencyFinder({
+        targetGlobs: ["src/utils/formatter.ts"],
+        projectPath: "tsconfig.json",
+      });
+
+      const result = await finder.execute();
+
+      // Direct importers
+      expect(result).toContain("src/index.ts");
+      expect(result).toContain("test/example.test.ts");
+
+      // Re-export barrel
+      expect(result).toContain("src/utils/index.ts");
+
+      // Transitive through re-export
+      expect(result).toContain("src/app.ts");
+    });
+
+    it("should handle the barrel file itself as a target", async () => {
+      // When querying the barrel file itself, should find its direct importers
+      const finder = new InverseDependencyFinder({
+        targetGlobs: ["src/utils/index.ts"],
+        projectPath: "tsconfig.json",
+      });
+
+      const result = await finder.execute();
+
+      expect(result).toContain("src/app.ts");
+      expect(result).toContain("src/services/userService.ts");
+    });
+  });
 });

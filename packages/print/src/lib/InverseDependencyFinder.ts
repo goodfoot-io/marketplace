@@ -118,9 +118,16 @@ export class InverseDependencyFinder {
     const referencedFiles: string[] = [];
 
     function visit(node: ts.Node) {
+      // Handle import declarations: import { x } from 'module'
       if (ts.isImportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
         referencedFiles.push(node.moduleSpecifier.text);
-      } else if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "require") {
+      }
+      // Handle re-exports: export { x } from 'module' and export * from 'module'
+      else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+        referencedFiles.push(node.moduleSpecifier.text);
+      }
+      // Handle require calls: require('module')
+      else if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "require") {
         const arg = node.arguments[0];
         if (arg && ts.isStringLiteral(arg)) {
           referencedFiles.push(arg.text);

@@ -1,5 +1,32 @@
 # Candidate Analysis Checklist
 
+## Status Reporting
+
+When a hook project is assessed as "concerning" or "poor_candidate", append to `reports/hook-repositories-status.csv`:
+
+```bash
+# Initialize CSV if needed
+mkdir -p reports
+[ -f reports/hook-repositories-status.csv ] || echo "repo,directory,internal_path,status" > reports/hook-repositories-status.csv
+
+# Log result (status: good | concerning | poor_candidate)
+echo "${repo},${directory},${internal_path},${status}" >> reports/hook-repositories-status.csv
+```
+
+| Column | Description |
+|--------|-------------|
+| `repo` | Repository name (e.g., `owner/repo-name`) |
+| `directory` | Full path to hook project (e.g., `/home/node/hook-repos/repo-name/packages/hooks`) |
+| `internal_path` | Relative path within repo (e.g., `packages/hooks`), empty if root-level |
+| `status` | Assessment result: `good`, `concerning`, or `poor_candidate` |
+
+## Multiple Hook Projects
+
+When `reports/hook-repositories.typescript.csv` contains multiple internal paths for a repository, **analyze each one separately**. Each internal path represents a distinct hook project that needs its own:
+- Candidacy assessment
+- Status report entry
+- Conversion (if good candidate)
+
 ## Finding Hooks
 
 Search for hook configuration files:
@@ -24,7 +51,7 @@ Common locations:
 - [ ] **Self-contained logic** - No external service dependencies
 - [ ] **Existing tests** - Has npm test, pytest, vitest, or similar
 
-### Concerning (Ask User)
+### Concerning (Log and Skip)
 
 - [ ] **Long-running daemons** - Worker services, background processes
 - [ ] **External API calls** - HTTP requests to external services
@@ -33,17 +60,22 @@ Common locations:
 - [ ] **No tests** - Cannot verify conversion correctness
 - [ ] **Heavy dependencies** - MCP servers, agent SDKs
 
-### Poor Candidates (Recommend Abort)
+**Action:** Log to `reports/hook-repositories-status.csv` with status `concerning` and skip.
+
+### Poor Candidates (Log and Skip)
 
 - [ ] **Service architecture** - Bun/Node services with lifecycle management
 - [ ] **Database dependencies** - SQLite, Redis, external storage
 - [ ] **Tightly coupled systems** - Hooks depend on other repo components
 - [ ] **Custom protocols** - Non-standard input/output formats
 
+**Action:** Log to `reports/hook-repositories-status.csv` with status `poor_candidate` and skip.
+
 ## Analysis Template
 
 ```markdown
 ## Repository: {name}
+## Internal Path: {internal_path or "root"}
 
 ### Hook Files Found
 - {path}: {line count} lines, {hook count} hooks
@@ -71,10 +103,9 @@ Common locations:
 - Relevant tests: {yes/no}
 
 ### Recommendation
-- [ ] Proceed with full conversion
-- [ ] Proceed with partial conversion (list exclusions)
-- [ ] Ask user for guidance
-- [ ] Recommend abort
+- [ ] Proceed with full conversion (status: `good`)
+- [ ] Log and skip (status: `concerning`)
+- [ ] Log and skip (status: `poor_candidate`)
 
 ### Notes
 {Any specific concerns or observations}
@@ -118,7 +149,7 @@ Single bash script, standard type, easy conversion.
 ```
 External tool invocation, needs execSync wrapper.
 
-### High Complexity (Ask User)
+### High Complexity (Log and Skip)
 ```json
 {
   "hooks": [{
@@ -131,4 +162,4 @@ External tool invocation, needs execSync wrapper.
   }]
 }
 ```
-Service architecture with persistent worker - may need significant redesign.
+Service architecture with persistent worker - log as `poor_candidate` and skip.

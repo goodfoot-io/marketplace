@@ -29,7 +29,7 @@
     "project@goodfoot": false,
     "vscode@goodfoot": true,
     "goodfoot@goodfoot": true,
-    "browser@goodfoot": false,
+    "browser@goodfoot": true,
     "gmail@goodfoot": false,
     "github@goodfoot": true,
     "claude-code-hooks@goodfoot": true,
