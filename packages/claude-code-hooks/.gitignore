@@ -1,0 +1,6 @@
+types
+dist
+build
+logs
+node_modules
+.env

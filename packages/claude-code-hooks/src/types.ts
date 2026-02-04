@@ -387,13 +387,7 @@ export type SubagentStartInput = SDKSubagentStartHookInput;
  * ```
  * @see https://code.claude.com/docs/en/hooks#subagentstop
  */
-export interface SubagentStopInput extends SDKSubagentStopHookInput {
-  /**
-   * Type of subagent that is stopping.
-   * Examples: 'explore', 'codebase-analysis', custom agent types
-   */
-  agent_type: string;
-}
+export type SubagentStopInput = SDKSubagentStopHookInput;
 
 /**
  * Input for PreCompact hooks.

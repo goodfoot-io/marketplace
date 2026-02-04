@@ -526,14 +526,29 @@ interface CompileHookOptions {
 }
 
 /**
+ * Result of compiling a hook.
+ */
+interface CompileHookResult {
+  /** Compiled content WITH sourcemaps (for final output). */
+  content: string;
+  /** Stable content hash generated from sourcemap-free output. */
+  contentHash: string;
+}
+
+/**
  * Compiles a TypeScript hook file to a self-contained ESM executable.
  *
- * Creates a wrapper that imports the hook and calls execute(), then bundles
- * everything together including the runtime.
+ * Uses a two-step process to generate stable content hashes:
+ * 1. Compile WITHOUT sourcemaps → generate stable content hash
+ * 2. Compile WITH sourcemaps → final output content
+ *
+ * This ensures content hashes are reproducible across different build
+ * environments, since sourcemaps contain file paths that can vary.
+ *
  * @param options - Compilation options
- * @returns Compiled output content as a string
+ * @returns Compiled content and stable content hash
  */
-async function compileHook(options: CompileHookOptions): Promise<string> {
+async function compileHook(options: CompileHookOptions): Promise<CompileHookResult> {
   const { sourcePath, logFilePath } = options;
 
   // Create a temporary wrapper file that imports the hook and executes it
@@ -543,7 +558,8 @@ async function compileHook(options: CompileHookOptions): Promise<string> {
   const buildHash = crypto.createHash("sha256").update(hashInputs).digest("hex").substring(0, 16);
   const tempDir = path.join(os.tmpdir(), "claude-code-hooks-build", buildHash);
   const wrapperPath = path.join(tempDir, "wrapper.ts");
-  const tempOutput = path.join(tempDir, "output.mjs");
+  const tempOutputNoSourcemap = path.join(tempDir, "output-no-sourcemap.mjs");
+  const tempOutputWithSourcemap = path.join(tempDir, "output.mjs");
 
   // Get the path to the runtime module (relative to this CLI)
   const runtimePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), "./runtime.js");
@@ -566,14 +582,13 @@ execute(hook);
 `;
   fs.writeFileSync(wrapperPath, wrapperContent, "utf-8");
 
-  await esbuild.build({
+  // Common esbuild options
+  const commonOptions: esbuild.BuildOptions = {
     entryPoints: [wrapperPath],
-    outfile: tempOutput,
     format: "esm",
     platform: "node",
     target: "node20",
     bundle: true,
-    sourcemap: "inline",
     minify: false,
     // Keep node built-ins external
     external: [
@@ -598,12 +613,28 @@ execute(hook);
     // Ensure we get clean ESM output
     mainFields: ["module", "main"],
     conditions: ["import", "node"],
-  });
+  };
 
-  // Read and return the compiled content
+  // Step 1: Compile WITHOUT sourcemaps to generate stable content hash
+  await esbuild.build({
+    ...commonOptions,
+    outfile: tempOutputNoSourcemap,
+    sourcemap: false,
+  });
+  const contentForHash = fs.readFileSync(tempOutputNoSourcemap, "utf-8");
+  const contentHash = generateContentHash(contentForHash);
+
+  // Step 2: Compile WITH sourcemaps for final output
+  await esbuild.build({
+    ...commonOptions,
+    outfile: tempOutputWithSourcemap,
+    sourcemap: "inline",
+  });
+  const content = fs.readFileSync(tempOutputWithSourcemap, "utf-8");
+
   // Don't delete temp directory - allows concurrent builds of same source
   // and the OS will clean up /tmp periodically
-  return fs.readFileSync(tempOutput, "utf-8");
+  return { content, contentHash };
 }
 
 /**
@@ -657,22 +688,19 @@ async function compileAllHooks(options: CompileAllHooksOptions): Promise<Compile
       timeout: metadata.timeout,
     });
 
-    // Compile the hook
+    // Compile the hook (two-step process for stable content hash)
     log("info", `Compiling: ${sourcePath}`);
-    const compiledContent = await compileHook({ sourcePath, outputDir, logFilePath });
+    const { content, contentHash } = await compileHook({ sourcePath, outputDir, logFilePath });
 
-    // Generate content hash
-    const hash = generateContentHash(compiledContent);
-
-    // Determine output filename
+    // Determine output filename using the stable content hash
     const baseName = path.basename(sourcePath, path.extname(sourcePath));
-    const outputFilename = `${baseName}.${hash}.mjs`;
+    const outputFilename = `${baseName}.${contentHash}.mjs`;
     const outputPath = path.join(outputDir, outputFilename);
 
     // Write compiled output with shebang for direct execution
     // --enable-source-maps enables stack traces with original source locations
     const shebang = "#!/usr/bin/env -S node --enable-source-maps\n";
-    fs.writeFileSync(outputPath, shebang + compiledContent, { encoding: "utf-8", mode: 0o755 });
+    fs.writeFileSync(outputPath, shebang + content, { encoding: "utf-8", mode: 0o755 });
     log("info", `Wrote: ${outputPath}`);
 
     compiledHooks.push({

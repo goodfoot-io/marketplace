@@ -153,7 +153,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
       "@goodfoot/claude-code-hooks": "^1.0.9",
     },
     devDependencies: {
-      "@biomejs/biome": "2.3.13",
+      "@biomejs/biome": "2.3.14",
       "@types/node": "^22.0.0",
       typescript: "^5.9.3",
       vitest: "^4.0.16",
@@ -200,7 +200,7 @@ function generateTsConfig(): string {
  */
 function generateBiomeConfig(): string {
   return `{
-  "$schema": "https://biomejs.dev/schemas/2.3.13/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.3.14/schema.json",
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
