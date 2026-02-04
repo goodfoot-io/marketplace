@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.18
+- Improved stability of compiled hook content hashes across different build environments
+- Updated Claude Agent SDK compatibility to v0.2.31
+
 ## 1.0.17
 - Fixed build output to be reproducible across different environments and machines
 
