@@ -185,41 +185,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@anthropic-ai/claude-agent-sdk@npm:^0.2.22":
-  version: 0.2.22
-  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.2.22"
-  dependencies:
-    "@img/sharp-darwin-arm64": "npm:^0.33.5"
-    "@img/sharp-darwin-x64": "npm:^0.33.5"
-    "@img/sharp-linux-arm": "npm:^0.33.5"
-    "@img/sharp-linux-arm64": "npm:^0.33.5"
-    "@img/sharp-linux-x64": "npm:^0.33.5"
-    "@img/sharp-linuxmusl-arm64": "npm:^0.33.5"
-    "@img/sharp-linuxmusl-x64": "npm:^0.33.5"
-    "@img/sharp-win32-x64": "npm:^0.33.5"
-  peerDependencies:
-    zod: ^4.0.0
-  dependenciesMeta:
-    "@img/sharp-darwin-arm64":
-      optional: true
-    "@img/sharp-darwin-x64":
-      optional: true
-    "@img/sharp-linux-arm":
-      optional: true
-    "@img/sharp-linux-arm64":
-      optional: true
-    "@img/sharp-linux-x64":
-      optional: true
-    "@img/sharp-linuxmusl-arm64":
-      optional: true
-    "@img/sharp-linuxmusl-x64":
-      optional: true
-    "@img/sharp-win32-x64":
-      optional: true
-  checksum: 10c0/24b45c7d256c8ee33b394dc108816f4c1e3a471a4b220fcacfa4f875df9318c5ec69fbf5391d7e836cfc3e4fb5df0a037a4e679087423e48e7423240c65bbaf0
-  languageName: node
-  linkType: hard
-
 "@anthropic-ai/claude-agent-sdk@npm:^0.2.31":
   version: 0.2.31
   resolution: "@anthropic-ai/claude-agent-sdk@npm:0.2.31"
@@ -255,9 +220,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@anthropic-ai/claude-code@npm:^2.1.22":
-  version: 2.1.22
-  resolution: "@anthropic-ai/claude-code@npm:2.1.22"
+"@anthropic-ai/claude-code@npm:^2.1.31":
+  version: 2.1.31
+  resolution: "@anthropic-ai/claude-code@npm:2.1.31"
   dependencies:
     "@img/sharp-darwin-arm64": "npm:^0.33.5"
     "@img/sharp-darwin-x64": "npm:^0.33.5"
@@ -286,7 +251,7 @@ __metadata:
       optional: true
   bin:
     claude: cli.js
-  checksum: 10c0/f6218bd1cb0a3e4cd1bd195a99aad65801c1c37be1ef2772f1862c5f1d34af40ad09fc198dc2569e4fed98a9b19511881896fa0b766c1b30b009c9066cbf926a
+  checksum: 10c0/0e73f36ad8bc03647ac16cc13dcb26f6c44b359084aacd1ae721c281fe20cc2184825e362f72b530367edfdefde8ec7e916d41c6b61a7c9341db1806142cebdb
   languageName: node
   linkType: hard
 
@@ -2161,8 +2126,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/marketplace@workspace:."
   dependencies:
-    "@anthropic-ai/claude-agent-sdk": "npm:^0.2.22"
-    "@anthropic-ai/claude-code": "npm:^2.1.22"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.2.31"
+    "@anthropic-ai/claude-code": "npm:^2.1.31"
     "@changesets/get-dependents-graph": "npm:^2.1.3"
     "@eslint/js": "npm:^9.36.0"
     "@linear/sdk": "npm:^65.0.0"

@@ -112,7 +112,7 @@ You should only ask the user questions for major ambiguity that would lead to fu
 You should generate a semantic kebab-case name (max 50 chars) and initialize the project:
 
 ```bash
-PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "[PROJECT_NAME]") && echo "$PROJECT_DIR"
+PROJECT_DIR=$(!` echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "[PROJECT_NAME]") && echo "$PROJECT_DIR"
 ```
 
 ## Step 3: Structure Tasks for TDD
