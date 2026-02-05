@@ -107,7 +107,7 @@ export class MetricsRunner {
   async runDuplicationMetrics(): Promise<DuplicationMetrics> {
     const files = this.options.files || (await this.findTypeScriptFiles());
     const detector = new DuplicationDetector({
-      minTokens: this.options.minTokens ?? 50,
+      minTokens: this.options.minTokens ?? 100,
     });
     detector.setFiles(files);
     return detector.analyze();

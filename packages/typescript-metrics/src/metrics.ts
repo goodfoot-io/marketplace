@@ -16,6 +16,54 @@ import type { CliArgs, MetricCategory, MetricsOutput, OutputFormat } from "./typ
 
 const VERSION = "0.0.1";
 
+// Default configuration
+const DEFAULT_MIN_TOKENS = 100;
+const DEFAULT_TOP_K = 10;
+const DEFAULT_LAYERS = [
+  // Lowest layers (foundations)
+  "shared",
+  "common",
+  "utils",
+  "helpers",
+  "constants",
+  // Type definitions
+  "types",
+  "models",
+  "interfaces",
+  // Core library
+  "lib",
+  "core",
+  // Data & services
+  "services",
+  "data",
+  "api",
+  "store",
+  // Business logic
+  "domain",
+  "business",
+  "logic",
+  // Middleware & hooks
+  "middleware",
+  "hooks",
+  // UI layer
+  "components",
+  "ui",
+  "views",
+  // Feature modules
+  "features",
+  "modules",
+  "pages",
+  "routes",
+  // Application entry
+  "app",
+  "main",
+  "index",
+  // Tests (highest - can import anything)
+  "test",
+  "tests",
+  "spec",
+];
+
 function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = { targets: [] };
 
@@ -62,9 +110,15 @@ Options:
   --format <format>       Output format: json (default) or summary
   --verbose               Show progress information
   --skip-path-metrics     Skip average path length and diameter (for large codebases)
-  --layers <layers>       Comma-separated layer order for directionality
-  --min-tokens <n>        Minimum tokens for duplication detection (default: 50)
-  --top-k <n>             Number of hub nodes to report (default: 10)
+  --layers <layers>       Comma-separated layer order for directionality (default: shared,common,...,app,test)
+  --min-tokens <n>        Minimum tokens for duplication detection (default: ${DEFAULT_MIN_TOKENS})
+  --top-k <n>             Number of hub nodes to report (default: ${DEFAULT_TOP_K})
+
+Default Layers (lowest to highest):
+  shared, common, utils, helpers, constants, types, models, interfaces,
+  lib, core, services, data, api, store, domain, business, logic,
+  middleware, hooks, components, ui, views, features, modules, pages,
+  routes, app, main, index, test, tests, spec
 
 Examples:
   typescript-metrics                           # Analyze current package
@@ -156,12 +210,16 @@ async function main(): Promise<void> {
     files,
     categories: args.metrics,
     skipPathMetrics: args.skipPathMetrics,
-    layers: args.layers,
-    minTokens: args.minTokens,
-    topK: args.topK,
+    layers: args.layers ?? DEFAULT_LAYERS,
+    minTokens: args.minTokens ?? DEFAULT_MIN_TOKENS,
+    topK: args.topK ?? DEFAULT_TOP_K,
   });
 
   const result = await runner.run();
+
+  const effectiveMinTokens = args.minTokens ?? DEFAULT_MIN_TOKENS;
+  const effectiveTopK = args.topK ?? DEFAULT_TOP_K;
+  const effectiveLayers = args.layers ?? DEFAULT_LAYERS;
 
   const output: MetricsOutput = {
     version: VERSION,
@@ -169,9 +227,9 @@ async function main(): Promise<void> {
     targets: args.targets.length > 0 ? args.targets : ["(package default)"],
     options: {
       skipPathMetrics: args.skipPathMetrics,
-      layers: args.layers,
-      minTokens: args.minTokens,
-      topK: args.topK,
+      layers: effectiveLayers,
+      minTokens: effectiveMinTokens,
+      topK: effectiveTopK,
     },
     metrics: result,
   };
