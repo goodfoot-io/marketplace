@@ -19,22 +19,23 @@ export class DependencyGraphAnalyzer {
   }
 
   /**
-   * Extract import/export references from a source file
+   * Extract import/export references from a source file, tracking if they are type-only
    */
-  private extractReferencedFiles(sourceFile: ts.SourceFile): string[] {
-    const referencedFiles: string[] = [];
+  private extractReferencedFiles(sourceFile: ts.SourceFile): Array<{ moduleSpecifier: string; isTypeOnly: boolean }> {
+    const references: Array<{ moduleSpecifier: string; isTypeOnly: boolean }> = [];
 
     function visit(node: ts.Node): void {
-      // Handle import declarations: import { x } from 'module'
-      // Handle re-exports: export { x } from 'module' and export * from 'module'
-      if (
-        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-        node.moduleSpecifier &&
-        ts.isStringLiteral(node.moduleSpecifier)
-      ) {
-        referencedFiles.push(node.moduleSpecifier.text);
+      // Handle import declarations: import { x } from 'module' or import type { x } from 'module'
+      if (ts.isImportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+        const isTypeOnly = node.importClause?.isTypeOnly ?? false;
+        references.push({ moduleSpecifier: node.moduleSpecifier.text, isTypeOnly });
       }
-      // Handle require calls: require('module')
+      // Handle re-exports: export { x } from 'module' and export * from 'module'
+      else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+        const isTypeOnly = node.isTypeOnly ?? false;
+        references.push({ moduleSpecifier: node.moduleSpecifier.text, isTypeOnly });
+      }
+      // Handle require calls: require('module') - these are never type-only
       else if (
         ts.isCallExpression(node) &&
         ts.isIdentifier(node.expression) &&
@@ -42,13 +43,13 @@ export class DependencyGraphAnalyzer {
         node.arguments[0] &&
         ts.isStringLiteral(node.arguments[0])
       ) {
-        referencedFiles.push(node.arguments[0].text);
+        references.push({ moduleSpecifier: node.arguments[0].text, isTypeOnly: false });
       }
       ts.forEachChild(node, visit);
     }
 
     visit(sourceFile);
-    return referencedFiles;
+    return references;
   }
 
   async buildGraph(): Promise<DependencyGraph> {
@@ -112,6 +113,10 @@ export class DependencyGraphAnalyzer {
     const reverse = new Map<string, string[]>();
     const allNodes = new Set<string>();
 
+    // Track type-only edges: "from|to" -> isTypeOnly
+    // An edge is type-only if ALL imports from A to B are type-only
+    const typeOnlyEdges = new Map<string, boolean>();
+
     for (const sourceFile of program.getSourceFiles()) {
       if (sourceFile.isDeclarationFile) continue;
 
@@ -126,7 +131,7 @@ export class DependencyGraphAnalyzer {
       const resolvedImports: string[] = [];
 
       for (const ref of refs) {
-        const resolvedModule = ts.resolveModuleName(ref, currentFile, compilerOptions, ts.sys);
+        const resolvedModule = ts.resolveModuleName(ref.moduleSpecifier, currentFile, compilerOptions, ts.sys);
 
         if (resolvedModule.resolvedModule?.resolvedFileName) {
           const resolvedPath = resolvedModule.resolvedModule.resolvedFileName;
@@ -141,15 +146,31 @@ export class DependencyGraphAnalyzer {
             continue;
           }
 
-          resolvedImports.push(resolvedPath);
-          allNodes.add(resolvedPath);
+          // Track type-only status for this edge
+          const edgeKey = `${currentFile}|${resolvedPath}`;
+          const existingTypeOnly = typeOnlyEdges.get(edgeKey);
+          if (existingTypeOnly === undefined) {
+            // First import from this file to that file
+            typeOnlyEdges.set(edgeKey, ref.isTypeOnly);
+          } else if (!ref.isTypeOnly) {
+            // If any import is NOT type-only, the edge is not type-only
+            typeOnlyEdges.set(edgeKey, false);
+          }
 
-          // Add to reverse map
-          const reverseList = reverse.get(resolvedPath);
-          if (reverseList) {
-            reverseList.push(currentFile);
-          } else {
-            reverse.set(resolvedPath, [currentFile]);
+          // Avoid duplicates in resolved imports
+          if (!resolvedImports.includes(resolvedPath)) {
+            resolvedImports.push(resolvedPath);
+            allNodes.add(resolvedPath);
+
+            // Add to reverse map
+            const reverseList = reverse.get(resolvedPath);
+            if (reverseList) {
+              if (!reverseList.includes(currentFile)) {
+                reverseList.push(currentFile);
+              }
+            } else {
+              reverse.set(resolvedPath, [currentFile]);
+            }
           }
         }
       }
@@ -167,7 +188,7 @@ export class DependencyGraphAnalyzer {
       }
     }
 
-    this.graph = { forward, reverse, allNodes };
+    this.graph = { forward, reverse, allNodes, typeOnlyEdges };
     return this.graph;
   }
 

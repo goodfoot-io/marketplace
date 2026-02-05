@@ -112,11 +112,60 @@ export class CycleDetector {
       distribution[size] = (distribution[size] ?? 0) + 1;
     }
 
+    // Detect type-only SCCs
+    const typeOnlySccIndices = this.detectTypeOnlySCCs(cycleSCCs);
+
     return {
       count: cycleSCCs.length,
       sccDistribution: distribution,
       edgesInCycles: this.countEdgesInCycles(),
       sccs: cycleSCCs,
+      typeOnlySccIndices,
     };
+  }
+
+  /**
+   * Detects which SCCs consist entirely of type-only imports.
+   * Returns indices of SCCs that are type-only.
+   */
+  private detectTypeOnlySCCs(cycleSCCs: string[][]): number[] {
+    const typeOnlyEdges = this.graph.typeOnlyEdges;
+    if (!typeOnlyEdges) {
+      return [];
+    }
+
+    const typeOnlyIndices: number[] = [];
+
+    for (let i = 0; i < cycleSCCs.length; i++) {
+      const scc = cycleSCCs[i];
+      const sccSet = new Set(scc);
+
+      // Check if all edges within this SCC are type-only
+      let allTypeOnly = true;
+
+      for (const source of scc) {
+        const targets = this.graph.forward.get(source) ?? [];
+        for (const target of targets) {
+          // Only check edges within the SCC
+          if (!sccSet.has(target)) continue;
+
+          const edgeKey = `${source}|${target}`;
+          const isTypeOnly = typeOnlyEdges.get(edgeKey);
+
+          // If any edge is not type-only (or unknown), the SCC is not type-only
+          if (isTypeOnly !== true) {
+            allTypeOnly = false;
+            break;
+          }
+        }
+        if (!allTypeOnly) break;
+      }
+
+      if (allTypeOnly) {
+        typeOnlyIndices.push(i);
+      }
+    }
+
+    return typeOnlyIndices;
   }
 }

@@ -52,6 +52,8 @@ export interface DependencyGraph {
   forward: Map<string, string[]>;
   reverse: Map<string, string[]>;
   allNodes: Set<string>;
+  /** Map of "from|to" edge keys to boolean indicating if the edge is type-only */
+  typeOnlyEdges?: Map<string, boolean>;
 }
 
 export interface ModuleCoupling {
@@ -97,12 +99,15 @@ export interface CycleMetrics {
   sccDistribution: Record<number, number>;
   edgesInCycles: number;
   sccs: string[][];
+  /** Indices of SCCs that are type-only (no runtime edges) */
+  typeOnlySccIndices?: number[];
 }
 
 export interface FunctionComplexity {
   name: string;
   file: string;
   line: number;
+  endLine: number;
   cyclomatic: number;
   cognitive: number;
 }
@@ -209,6 +214,9 @@ export interface UnusedParameter {
   parameterType: "optional" | "default" | "rest" | "destructured";
   totalCallSites: number;
   callSitesProviding: number;
+  defaultValue?: string;
+  isExported: boolean;
+  sampleCallSites: string[];
 }
 
 export interface IgnoredReturn {

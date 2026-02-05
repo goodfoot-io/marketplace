@@ -89,6 +89,17 @@ For detailed interpretation and refactoring guidance, see the references:
   - When to read: Empty catch blocks, log-only handlers, or fire-and-forget async
   - Covers: Error propagation, logging strategies, intentional swallowing
 
+## Report Features
+
+The generated report includes:
+
+- **Score transparency**: Each category score shows the contributing factor (e.g., "2.6% hotspots")
+- **Function LOC**: Complexity table shows lines of code to help assess severity
+- **Barrel file detection**: Hub nodes annotated with `(barrel)` for index.ts files
+- **Smart function naming**: Anonymous functions show context (e.g., `callback in app.get`, `Foo.bar`)
+- **Enhanced unused parameters**: Shows default value, export status, and sample call sites
+- **Type-only cycle detection**: Cycles using only `import type` marked as "(type-only — no runtime impact)"
+
 ## Quick Interpretation Reference
 
 ### Complexity Thresholds

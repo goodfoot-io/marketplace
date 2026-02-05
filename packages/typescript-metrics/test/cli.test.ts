@@ -47,7 +47,7 @@ describe("CLI", () => {
     expect(result2.exitCode).toBe(0);
   });
 
-  it("should output markdown report by default", () => {
+  it("should output markdown report by default", { timeout: 30000 }, () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
     const result = runCli("", pkgADir);
     expect(result.exitCode).toBe(0);

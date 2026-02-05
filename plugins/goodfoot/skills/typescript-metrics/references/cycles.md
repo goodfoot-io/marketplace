@@ -30,9 +30,23 @@ packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-b/src/cy
 
 **Action:** Ignore these; they exist to test cycle detection.
 
+### Type-Only Cycles
+
+Cycles using only `import type` syntax have no runtime impact:
+```
+src/types/user.ts → src/types/order.ts (type-only — no runtime impact)
+```
+
+**Why they're harmless:**
+- `import type` is erased at compile time
+- No actual JavaScript dependency exists
+- Common pattern for mutually referencing interfaces
+
+**Action:** Generally safe to ignore. Consider refactoring for clarity if confusing.
+
 ### Real Cycles
 
-Non-test cycles require investigation:
+Non-test, non-type-only cycles require investigation:
 ```
 src/services/user-service.ts → src/services/auth-service.ts
 src/services/auth-service.ts → src/services/user-service.ts

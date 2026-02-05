@@ -60,6 +60,7 @@ export class ComplexityAnalyzer {
       const fn = node as ts.FunctionLikeDeclaration;
       const name = this.getFunctionName(fn);
       const line = sourceFile.getLineAndCharacterOfPosition(fn.getStart()).line + 1;
+      const endLine = sourceFile.getLineAndCharacterOfPosition(fn.getEnd()).line + 1;
       const cyclomatic = this.calculateCyclomaticComplexity(fn);
       const cognitive = this.calculateCognitiveComplexity(fn);
 
@@ -67,6 +68,7 @@ export class ComplexityAnalyzer {
         name,
         file: filePath,
         line,
+        endLine,
         cyclomatic,
         cognitive,
       });
@@ -100,15 +102,91 @@ export class ComplexityAnalyzer {
     if (ts.isSetAccessor(fn)) {
       return `set ${fn.name?.getText() ?? "<anonymous>"}`;
     }
-    // For function expressions and arrow functions, try to get name from parent
+
+    // For function expressions and arrow functions, try to get name from parent context
     const parent = fn.parent;
+
+    // Variable declaration: const handler = () => {}
     if (ts.isVariableDeclaration(parent) && parent.name) {
       return parent.name.getText();
     }
+
+    // Property assignment: { onClick: () => {} }
     if (ts.isPropertyAssignment(parent) && parent.name) {
       return parent.name.getText();
     }
+
+    // Class property: class Foo { bar = () => {} }
+    if (ts.isPropertyDeclaration(parent) && parent.name) {
+      const className = this.getEnclosingClassName(parent);
+      const propName = parent.name.getText();
+      return className ? `${className}.${propName}` : propName;
+    }
+
+    // Call expression argument: app.get('/path', () => {})
+    if (ts.isCallExpression(parent)) {
+      const callName = this.getCallExpressionName(parent);
+      if (callName) {
+        const argIndex = parent.arguments.indexOf(fn as ts.Expression);
+        return argIndex >= 0 ? `callback in ${callName}` : `callback in ${callName}`;
+      }
+    }
+
+    // Try to find enclosing named function as fallback
+    const enclosingName = this.getEnclosingFunctionName(fn);
+    if (enclosingName) {
+      return `<anonymous in ${enclosingName}>`;
+    }
+
     return "<anonymous>";
+  }
+
+  private getEnclosingClassName(node: ts.Node): string | undefined {
+    let current: ts.Node | undefined = node.parent;
+    while (current) {
+      if (ts.isClassDeclaration(current) || ts.isClassExpression(current)) {
+        return current.name?.getText();
+      }
+      current = current.parent;
+    }
+    return undefined;
+  }
+
+  private getCallExpressionName(call: ts.CallExpression): string | undefined {
+    const expr = call.expression;
+    if (ts.isIdentifier(expr)) {
+      return expr.getText();
+    }
+    if (ts.isPropertyAccessExpression(expr)) {
+      // Get the method name (e.g., "get" from "app.get")
+      return expr.name.getText();
+    }
+    return undefined;
+  }
+
+  private getEnclosingFunctionName(node: ts.Node): string | undefined {
+    let current: ts.Node | undefined = node.parent;
+    while (current) {
+      if (this.isFunctionLike(current)) {
+        const fn = current as ts.FunctionLikeDeclaration;
+        // Only return if the enclosing function has a name
+        if (ts.isFunctionDeclaration(fn) && fn.name) {
+          return fn.name.getText();
+        }
+        if (ts.isMethodDeclaration(fn) && fn.name) {
+          return fn.name.getText();
+        }
+        // Check if it's a named variable declaration
+        if ((ts.isFunctionExpression(fn) || ts.isArrowFunction(fn)) && ts.isVariableDeclaration(fn.parent)) {
+          const varDecl = fn.parent;
+          if (varDecl.name && ts.isIdentifier(varDecl.name)) {
+            return varDecl.name.getText();
+          }
+        }
+      }
+      current = current.parent;
+    }
+    return undefined;
   }
 
   /**

@@ -16,6 +16,7 @@ interface FunctionInfo {
   parameters: ParameterInfo[];
   returnType: string;
   hasNonVoidReturn: boolean;
+  isExported: boolean;
 }
 
 interface ParameterInfo {
@@ -26,6 +27,7 @@ interface ParameterInfo {
   isRest: boolean;
   isDestructured: boolean;
   destructuredProperties?: string[];
+  defaultValue?: string;
 }
 
 interface CallSiteInfo {
@@ -154,6 +156,7 @@ export class DataFlowAnalyzer {
 
     const returnType = this.getReturnType(node, sourceFile);
     const hasNonVoidReturn = returnType !== "void" && returnType !== "undefined" && returnType !== "never";
+    const isExported = this.isNodeExported(node);
 
     return {
       name,
@@ -163,7 +166,32 @@ export class DataFlowAnalyzer {
       parameters,
       returnType,
       hasNonVoidReturn,
+      isExported,
     };
+  }
+
+  private isNodeExported(node: ts.Node): boolean {
+    // Check for export keyword on the node itself
+    if (ts.canHaveModifiers(node)) {
+      const modifiers = ts.getModifiers(node);
+      if (modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) {
+        return true;
+      }
+    }
+
+    // Check if it's a variable declaration inside an exported variable statement
+    let current: ts.Node | undefined = node.parent;
+    while (current) {
+      if (ts.isVariableStatement(current)) {
+        const modifiers = ts.getModifiers(current);
+        if (modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) {
+          return true;
+        }
+      }
+      current = current.parent;
+    }
+
+    return false;
   }
 
   private extractParameterInfo(
@@ -185,6 +213,13 @@ export class DataFlowAnalyzer {
         });
     }
 
+    // Extract default value (truncated if too long)
+    let defaultValue: string | undefined;
+    if (param.initializer) {
+      const initText = param.initializer.getText(sourceFile);
+      defaultValue = initText.length > 30 ? initText.slice(0, 27) + "..." : initText;
+    }
+
     return {
       name: isDestructured ? "(destructured)" : param.name.getText(sourceFile),
       index,
@@ -193,6 +228,7 @@ export class DataFlowAnalyzer {
       isRest: param.dotDotDotToken !== undefined,
       isDestructured,
       destructuredProperties,
+      defaultValue,
     };
   }
 
@@ -300,6 +336,9 @@ export class DataFlowAnalyzer {
           if (param.isRest) paramType = "rest";
           if (param.isDestructured) paramType = "destructured";
 
+          // Get sample call sites (up to 2)
+          const sampleCallSites = calls.slice(0, 2).map((c) => `${path.relative(this.rootDir, c.file)}:${c.line}`);
+
           results.push({
             file: funcInfo.file,
             line: funcInfo.line,
@@ -308,6 +347,9 @@ export class DataFlowAnalyzer {
             parameterType: paramType,
             totalCallSites: calls.length,
             callSitesProviding: providingCount,
+            defaultValue: param.defaultValue,
+            isExported: funcInfo.isExported,
+            sampleCallSites,
           });
         }
       }

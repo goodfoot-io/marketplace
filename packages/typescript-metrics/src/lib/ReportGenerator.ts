@@ -22,6 +22,7 @@ interface CategoryScore {
   name: string;
   score: number;
   weight: number;
+  reason: string;
 }
 
 interface Issue {
@@ -70,11 +71,11 @@ export class ReportGenerator {
     lines.push("");
 
     // Score table
-    lines.push("| Category | Score | Status |");
-    lines.push("|----------|-------|--------|");
+    lines.push("| Category | Score | Status | Reason |");
+    lines.push("|----------|-------|--------|--------|");
     for (const score of scores) {
       lines.push(
-        `| ${score.name} | ${score.score} | ${this.getStatusEmoji(score.score)} ${this.getStatusLabel(score.score)} |`,
+        `| ${score.name} | ${score.score} | ${this.getStatusEmoji(score.score)} ${this.getStatusLabel(score.score)} | ${score.reason} |`,
       );
     }
     lines.push("");
@@ -127,16 +128,17 @@ export class ReportGenerator {
         const hotspotsCount = result.complexity.hotspots.length;
         lines.push(`${hotspotsCount} of ${totalFunctions.toLocaleString()} functions exceed thresholds:`);
         lines.push("");
-        lines.push("| File | Line | Function | CC | Cognitive |");
-        lines.push("|------|------|----------|-----|-----------|");
+        lines.push("| File | Line | Function | LOC | CC | Cognitive |");
+        lines.push("|------|------|----------|-----|-----|-----------|");
 
         const toShow = result.complexity.hotspots.slice(0, 10);
         for (const fn of toShow) {
           const relPath = this.relativePath(fn.file);
+          const loc = fn.endLine - fn.line + 1;
           const ccStatus = fn.cyclomatic > COMPLEXITY_THRESHOLD_CYCLOMATIC ? " 🔴" : "";
           const cogStatus = fn.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE ? " 🔴" : "";
           lines.push(
-            `| ${relPath} | ${fn.line} | ${fn.name} | ${fn.cyclomatic}${ccStatus} | ${fn.cognitive}${cogStatus} |`,
+            `| ${relPath} | ${fn.line} | ${fn.name} | ${loc} | ${fn.cyclomatic}${ccStatus} | ${fn.cognitive}${cogStatus} |`,
           );
         }
         lines.push("");
@@ -167,10 +169,13 @@ export class ReportGenerator {
           lines.push("| File | Fan-In | Fan-Out | Total | Instability |");
           lines.push("|------|--------|---------|-------|-------------|");
           for (const hub of result.coupling.hubs.slice(0, 5)) {
+            const relPath = this.relativePath(hub.file);
+            const isBarrel = this.isBarrelFile(hub.file);
             const instability = hub.fanIn + hub.fanOut > 0 ? hub.fanOut / (hub.fanIn + hub.fanOut) : 0;
             const instabilityLabel = this.getInstabilityLabel(instability);
+            const barrelNote = isBarrel ? " *(barrel)*" : "";
             lines.push(
-              `| ${this.relativePath(hub.file)} | ${hub.fanIn} | ${hub.fanOut} | ${hub.totalDegree} | ${instability.toFixed(2)} (${instabilityLabel}) |`,
+              `| ${relPath}${barrelNote} | ${hub.fanIn} | ${hub.fanOut} | ${hub.totalDegree} | ${instability.toFixed(2)} (${instabilityLabel}) |`,
             );
           }
           lines.push("");
@@ -179,13 +184,23 @@ export class ReportGenerator {
         if (result.cycles.count > 0 && result.cycles.sccs.length > 0) {
           const isTestFixture = (file: string) =>
             file.includes("/test/fixtures/") || file.includes("/tests/fixtures/") || file.includes("/__fixtures__/");
+          const typeOnlyIndices = new Set(result.cycles.typeOnlySccIndices ?? []);
 
           lines.push("**Circular dependencies:**");
           lines.push("");
-          for (const scc of result.cycles.sccs.slice(0, 3)) {
+          for (let i = 0; i < Math.min(result.cycles.sccs.length, 3); i++) {
+            const scc = result.cycles.sccs[i];
             const files = scc.map((f) => `\`${this.relativePath(f)}\``).join(" → ");
             const inFixtures = scc.every((f) => isTestFixture(f));
-            lines.push(`- ${files}${inFixtures ? " *(test fixture — likely intentional)*" : ""}`);
+            const isTypeOnly = typeOnlyIndices.has(i);
+
+            let annotation = "";
+            if (inFixtures) {
+              annotation = " *(test fixture — likely intentional)*";
+            } else if (isTypeOnly) {
+              annotation = " *(type-only — no runtime impact)*";
+            }
+            lines.push(`- ${files}${annotation}`);
           }
           lines.push("");
         }
@@ -202,7 +217,8 @@ export class ReportGenerator {
       lines.push("");
       lines.push("## Top Duplicate Blocks");
       lines.push("");
-      lines.push("Largest duplicates worth extracting:");
+      const minTokens = options.minTokens ?? 100;
+      lines.push(`Largest duplicates worth extracting (minimum ${minTokens} tokens):`);
       lines.push("");
       lines.push("| Location A | Location B | Tokens |");
       lines.push("|------------|------------|--------|");
@@ -241,12 +257,27 @@ export class ReportGenerator {
           lines.push("");
           lines.push("Optional/default parameters that no caller ever provides:");
           lines.push("");
-          lines.push("| File | Function | Parameter | Type | Call Sites |");
-          lines.push("|------|----------|-----------|------|------------|");
+          lines.push("| File | Function | Parameter | Default | Calls | Exported |");
+          lines.push("|------|----------|-----------|---------|-------|----------|");
           for (const param of result.dataFlow.unusedParameters.slice(0, 10)) {
+            const defaultVal = param.defaultValue ? `\`${param.defaultValue}\`` : "-";
+            const exportedIndicator = param.isExported ? "yes" : "no";
             lines.push(
-              `| ${this.relativePath(param.file)}:${param.line} | ${param.functionName} | ${param.parameterName} | ${param.parameterType} | ${param.totalCallSites} |`,
+              `| ${this.relativePath(param.file)}:${param.line} | ${param.functionName} | ${param.parameterName} | ${defaultVal} | ${param.totalCallSites} | ${exportedIndicator} |`,
             );
+          }
+          // Show sample call sites for first few
+          const withCallSites = result.dataFlow.unusedParameters
+            .filter((p) => p.sampleCallSites.length > 0)
+            .slice(0, 3);
+          if (withCallSites.length > 0) {
+            lines.push("");
+            lines.push("**Sample call sites:**");
+            for (const param of withCallSites) {
+              const sites = param.sampleCallSites.join(", ");
+              const more = param.totalCallSites > 2 ? ` (+${param.totalCallSites - 2} more)` : "";
+              lines.push(`- \`${param.functionName}(${param.parameterName})\`: ${sites}${more}`);
+            }
           }
           lines.push("");
         }
@@ -461,32 +492,44 @@ export class ReportGenerator {
     const scores: CategoryScore[] = [];
 
     if (result.complexity) {
+      const { score, reason } = this.calculateComplexityScoreWithReason(result.complexity);
       scores.push({
         name: "Complexity",
-        score: this.calculateComplexityScore(result.complexity),
+        score,
         weight: 0.35,
+        reason,
       });
     }
 
     if (result.duplication) {
+      const { score, reason } = this.calculateDuplicationScoreWithReason(result.duplication);
       scores.push({
         name: "Duplication",
-        score: this.calculateDuplicationScore(result.duplication),
+        score,
         weight: 0.25,
+        reason,
       });
     }
 
     if (result.coupling) {
-      const cycleScore = result.cycles ? this.calculateCycleScore(result.cycles) : 100;
+      const { score: couplingScore, reason: couplingReason } = this.calculateCouplingScoreWithReason(
+        result.coupling,
+        result.cycles,
+      );
+      const { score: cycleScore, reason: cycleReason } = result.cycles
+        ? this.calculateCycleScoreWithReason(result.cycles)
+        : { score: 100, reason: "no cycles" };
       scores.push({
         name: "Coupling",
-        score: this.calculateCouplingScore(result.coupling, result.cycles),
+        score: couplingScore,
         weight: 0.25,
+        reason: couplingReason,
       });
       scores.push({
         name: "Cycles",
         score: cycleScore,
         weight: 0.15,
+        reason: cycleReason,
       });
     }
 
@@ -508,57 +551,87 @@ export class ReportGenerator {
   }
 
   private calculateComplexityScore(complexity: ComplexityMetrics): number {
-    if (complexity.functions.length === 0) return 100;
+    return this.calculateComplexityScoreWithReason(complexity).score;
+  }
+
+  private calculateComplexityScoreWithReason(complexity: ComplexityMetrics): { score: number; reason: string } {
+    if (complexity.functions.length === 0) return { score: 100, reason: "no functions" };
 
     const hotspotRatio = complexity.hotspots.length / complexity.functions.length;
+    const percent = (hotspotRatio * 100).toFixed(1);
+    const reason = `${percent}% hotspots`;
 
     // 0% hotspots = 100, 5% = 75, 10% = 50, 20%+ = 0
-    if (hotspotRatio === 0) return 100;
-    if (hotspotRatio <= 0.02) return 90;
-    if (hotspotRatio <= 0.05) return 75;
-    if (hotspotRatio <= 0.1) return 50;
-    if (hotspotRatio <= 0.2) return 25;
-    return 0;
+    if (hotspotRatio === 0) return { score: 100, reason: "0% hotspots" };
+    if (hotspotRatio <= 0.02) return { score: 90, reason };
+    if (hotspotRatio <= 0.05) return { score: 75, reason };
+    if (hotspotRatio <= 0.1) return { score: 50, reason };
+    if (hotspotRatio <= 0.2) return { score: 25, reason };
+    return { score: 0, reason };
   }
 
   private calculateDuplicationScore(duplication: DuplicationMetrics): number {
+    return this.calculateDuplicationScoreWithReason(duplication).score;
+  }
+
+  private calculateDuplicationScoreWithReason(duplication: DuplicationMetrics): { score: number; reason: string } {
     const density = duplication.density * 100;
+    const reason = `${density.toFixed(1)}% density`;
 
     // 0% = 100, 5% = 85, 10% = 70, 20% = 40, 30%+ = 0
-    if (density <= 2) return 100;
-    if (density <= 5) return 85;
-    if (density <= 10) return 70;
-    if (density <= 15) return 55;
-    if (density <= 20) return 40;
-    if (density <= 30) return 20;
-    return 0;
+    if (density <= 2) return { score: 100, reason };
+    if (density <= 5) return { score: 85, reason };
+    if (density <= 10) return { score: 70, reason };
+    if (density <= 15) return { score: 55, reason };
+    if (density <= 20) return { score: 40, reason };
+    if (density <= 30) return { score: 20, reason };
+    return { score: 0, reason };
   }
 
   private calculateCouplingScore(coupling: CouplingMetrics, cycles?: CycleMetrics): number {
+    return this.calculateCouplingScoreWithReason(coupling, cycles).score;
+  }
+
+  private calculateCouplingScoreWithReason(
+    coupling: CouplingMetrics,
+    cycles?: CycleMetrics,
+  ): { score: number; reason: string } {
     let score = 100;
+    const penalties: string[] = [];
 
     // Penalize for high-degree hubs
     const highDegreeHubs = coupling.hubs.filter((h) => h.totalDegree > COUPLING_HUB_THRESHOLD);
-    score -= highDegreeHubs.length * 5;
+    if (highDegreeHubs.length > 0) {
+      score -= highDegreeHubs.length * 5;
+      penalties.push(`${highDegreeHubs.length} hub${highDegreeHubs.length > 1 ? "s" : ""}`);
+    }
 
     // Penalize for cycles
     if (cycles && cycles.count > 0) {
       score -= cycles.count * 15;
+      penalties.push(`${cycles.count} cycle${cycles.count > 1 ? "s" : ""}`);
     }
 
     // Penalize for high graph density
     if (coupling.graphDensity > 0.1) {
       score -= 10;
+      penalties.push("high density");
     }
 
-    return Math.max(0, Math.min(100, score));
+    const finalScore = Math.max(0, Math.min(100, score));
+    const reason = penalties.length > 0 ? penalties.join(", ") : "healthy";
+    return { score: finalScore, reason };
   }
 
   private calculateCycleScore(cycles: CycleMetrics): number {
-    if (cycles.count === 0) return 100;
-    if (cycles.count === 1) return 70;
-    if (cycles.count <= 3) return 40;
-    return 0;
+    return this.calculateCycleScoreWithReason(cycles).score;
+  }
+
+  private calculateCycleScoreWithReason(cycles: CycleMetrics): { score: number; reason: string } {
+    if (cycles.count === 0) return { score: 100, reason: "no cycles" };
+    if (cycles.count === 1) return { score: 70, reason: "1 cycle" };
+    if (cycles.count <= 3) return { score: 40, reason: `${cycles.count} cycles` };
+    return { score: 0, reason: `${cycles.count} cycles` };
   }
 
   private identifyIssues(result: MetricsResult): Issue[] {
@@ -786,6 +859,11 @@ export class ReportGenerator {
     if (instability <= 0.3) return "stable";
     if (instability >= 0.7) return "unstable";
     return "balanced";
+  }
+
+  private isBarrelFile(filePath: string): boolean {
+    const basename = path.basename(filePath);
+    return basename === "index.ts" || basename === "index.tsx" || basename === "index.js" || basename === "index.mjs";
   }
 
   private getSwallowedErrorPatternLabel(pattern: string): string {
