@@ -231162,8 +231162,8 @@ var ComplexityAnalyzer = class {
       const fn = node;
       const name = this.getFunctionName(fn);
       const line = sourceFile.getLineAndCharacterOfPosition(fn.getStart()).line + 1;
-      const cyclomatic = this.calculateCyclomaticComplexity(fn, sourceFile);
-      const cognitive = this.calculateCognitiveComplexity(fn, sourceFile);
+      const cyclomatic = this.calculateCyclomaticComplexity(fn);
+      const cognitive = this.calculateCognitiveComplexity(fn);
       functions.push({
         name,
         file: filePath,
@@ -231203,32 +231203,24 @@ var ComplexityAnalyzer = class {
    * Calculates cyclomatic complexity (McCabe).
    * Base = 1, then +1 for each decision point.
    */
-  calculateCyclomaticComplexity(fn, _sourceFile) {
+  calculateCyclomaticComplexity(fn) {
     let complexity = 1;
     const visit = (node) => {
       switch (node.kind) {
         case ts.SyntaxKind.IfStatement:
-          complexity++;
-          break;
         case ts.SyntaxKind.ForStatement:
         case ts.SyntaxKind.ForInStatement:
         case ts.SyntaxKind.ForOfStatement:
         case ts.SyntaxKind.WhileStatement:
         case ts.SyntaxKind.DoStatement:
-          complexity++;
-          break;
         case ts.SyntaxKind.CaseClause:
-          complexity++;
-          break;
         case ts.SyntaxKind.CatchClause:
-          complexity++;
-          break;
         case ts.SyntaxKind.ConditionalExpression:
           complexity++;
           break;
         case ts.SyntaxKind.BinaryExpression: {
           const binaryExpr = node;
-          if (binaryExpr.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken || binaryExpr.operatorToken.kind === ts.SyntaxKind.BarBarToken || binaryExpr.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
+          if (this.isLogicalOperator(binaryExpr.operatorToken.kind)) {
             complexity++;
           }
           break;
@@ -231242,6 +231234,12 @@ var ComplexityAnalyzer = class {
     return complexity;
   }
   /**
+   * Checks if a token kind is a logical operator (&&, ||, ??)
+   */
+  isLogicalOperator(kind) {
+    return kind === ts.SyntaxKind.AmpersandAmpersandToken || kind === ts.SyntaxKind.BarBarToken || kind === ts.SyntaxKind.QuestionQuestionToken;
+  }
+  /**
    * Calculates cognitive complexity per SonarSource specification.
    *
    * Key rules:
@@ -231249,14 +231247,14 @@ var ComplexityAnalyzer = class {
    * 2. Nesting penalty: depth added for if, switch, for, while, do, catch, ternary (NOT else, NOT logical)
    * 3. Consecutive same logical operators count as +1 total
    */
-  calculateCognitiveComplexity(fn, _sourceFile) {
+  calculateCognitiveComplexity(fn) {
     let complexity = 0;
     const visit = (node, depth) => {
       switch (node.kind) {
         case ts.SyntaxKind.IfStatement: {
           const ifStmt = node;
           complexity += 1 + depth;
-          this.visitLogicalOperators(ifStmt.expression, complexity, (inc) => {
+          this.visitLogicalOperators(ifStmt.expression, (inc) => {
             complexity += inc;
           });
           if (ifStmt.thenStatement) {
@@ -231265,7 +231263,7 @@ var ComplexityAnalyzer = class {
           if (ifStmt.elseStatement) {
             if (ts.isIfStatement(ifStmt.elseStatement)) {
               complexity += 1;
-              this.visitLogicalOperators(ifStmt.elseStatement.expression, complexity, (inc) => {
+              this.visitLogicalOperators(ifStmt.elseStatement.expression, (inc) => {
                 complexity += inc;
               });
               if (ifStmt.elseStatement.thenStatement) {
@@ -231319,10 +231317,8 @@ var ComplexityAnalyzer = class {
         }
         case ts.SyntaxKind.BinaryExpression: {
           const binaryExpr = node;
-          const opKind = binaryExpr.operatorToken.kind;
-          if (opKind === ts.SyntaxKind.AmpersandAmpersandToken || opKind === ts.SyntaxKind.BarBarToken || opKind === ts.SyntaxKind.QuestionQuestionToken) {
-            const isRootOfLogicalTree = !this.isChildOfLogicalOperator(binaryExpr);
-            if (isRootOfLogicalTree) {
+          if (this.isLogicalOperator(binaryExpr.operatorToken.kind)) {
+            if (!this.isChildOfLogicalOperator(binaryExpr)) {
               complexity += this.countLogicalOperatorTypes(binaryExpr);
             }
             this.visitNonLogicalChildren(binaryExpr, depth, visit);
@@ -231355,7 +231351,7 @@ var ComplexityAnalyzer = class {
   visitElseChain(elseStmt, depth, addComplexity, visit) {
     if (ts.isIfStatement(elseStmt)) {
       addComplexity(1);
-      this.visitLogicalOperators(elseStmt.expression, 0, addComplexity);
+      this.visitLogicalOperators(elseStmt.expression, addComplexity);
       if (elseStmt.thenStatement) {
         visit(elseStmt.thenStatement, depth + 1);
       }
@@ -231369,18 +231365,14 @@ var ComplexityAnalyzer = class {
   }
   /**
    * Visits logical operators in an expression (for conditions in if statements, etc.)
-   * This is separate from the main visitor to handle logical operators in conditions.
    */
-  visitLogicalOperators(expr, _currentComplexity, addComplexity) {
+  visitLogicalOperators(expr, addComplexity) {
     const visit = (node) => {
-      if (ts.isBinaryExpression(node)) {
-        const opKind = node.operatorToken.kind;
-        if (opKind === ts.SyntaxKind.AmpersandAmpersandToken || opKind === ts.SyntaxKind.BarBarToken || opKind === ts.SyntaxKind.QuestionQuestionToken) {
-          if (!this.isChildOfLogicalOperator(node)) {
-            addComplexity(this.countLogicalOperatorTypes(node));
-          }
-          return;
+      if (ts.isBinaryExpression(node) && this.isLogicalOperator(node.operatorToken.kind)) {
+        if (!this.isChildOfLogicalOperator(node)) {
+          addComplexity(this.countLogicalOperatorTypes(node));
         }
+        return;
       }
       ts.forEachChild(node, visit);
     };
@@ -231391,28 +231383,19 @@ var ComplexityAnalyzer = class {
    */
   isChildOfLogicalOperator(expr) {
     const parent = expr.parent;
-    if (!ts.isBinaryExpression(parent)) {
-      return false;
-    }
-    const parentOpKind = parent.operatorToken.kind;
-    return parentOpKind === ts.SyntaxKind.AmpersandAmpersandToken || parentOpKind === ts.SyntaxKind.BarBarToken || parentOpKind === ts.SyntaxKind.QuestionQuestionToken;
+    return ts.isBinaryExpression(parent) && this.isLogicalOperator(parent.operatorToken.kind);
   }
   /**
-   * Counts the number of unique logical operator types in a logical expression tree.
-   * e.g., a && b && c = 1 (only &&)
-   * e.g., a && b || c = 2 (&& and ||)
+   * Counts unique logical operator types in a logical expression tree.
+   * e.g., a && b && c = 1 (only &&), a && b || c = 2 (&& and ||)
    */
   countLogicalOperatorTypes(expr) {
     const seenOps = /* @__PURE__ */ new Set();
     const collectOps = (node) => {
-      if (ts.isBinaryExpression(node)) {
-        const opKind = node.operatorToken.kind;
-        if (opKind === ts.SyntaxKind.AmpersandAmpersandToken || opKind === ts.SyntaxKind.BarBarToken || opKind === ts.SyntaxKind.QuestionQuestionToken) {
-          seenOps.add(opKind);
-          collectOps(node.left);
-          collectOps(node.right);
-          return;
-        }
+      if (ts.isBinaryExpression(node) && this.isLogicalOperator(node.operatorToken.kind)) {
+        seenOps.add(node.operatorToken.kind);
+        collectOps(node.left);
+        collectOps(node.right);
       }
     };
     collectOps(expr);
@@ -231423,15 +231406,12 @@ var ComplexityAnalyzer = class {
    */
   visitNonLogicalChildren(expr, depth, visit) {
     const visitChild = (node) => {
-      if (ts.isBinaryExpression(node)) {
-        const opKind = node.operatorToken.kind;
-        if (opKind === ts.SyntaxKind.AmpersandAmpersandToken || opKind === ts.SyntaxKind.BarBarToken || opKind === ts.SyntaxKind.QuestionQuestionToken) {
-          visitChild(node.left);
-          visitChild(node.right);
-          return;
-        }
+      if (ts.isBinaryExpression(node) && this.isLogicalOperator(node.operatorToken.kind)) {
+        visitChild(node.left);
+        visitChild(node.right);
+      } else {
+        visit(node, depth);
       }
-      visit(node, depth);
     };
     visitChild(expr.left);
     visitChild(expr.right);
@@ -231522,10 +231502,14 @@ var ComplexityAnalyzer = class {
 // src/lib/CycleDetector.ts
 var CycleDetector = class {
   graph;
+  cachedSCCs = null;
   constructor(graph) {
     this.graph = graph;
   }
   findSCCs() {
+    if (this.cachedSCCs) {
+      return this.cachedSCCs;
+    }
     const sccs = [];
     const index = /* @__PURE__ */ new Map();
     const lowlink = /* @__PURE__ */ new Map();
@@ -231538,21 +231522,17 @@ var CycleDetector = class {
       currentIndex++;
       stack.push(node);
       onStack.add(node);
-      const neighbors = this.graph.forward.get(node) || [];
+      const neighbors = this.graph.forward.get(node) ?? [];
       for (const neighbor of neighbors) {
         if (!index.has(neighbor)) {
           strongconnect(neighbor);
-          const nodeLowlink = lowlink.get(node);
-          const neighborLowlink = lowlink.get(neighbor);
-          if (nodeLowlink !== void 0 && neighborLowlink !== void 0) {
-            lowlink.set(node, Math.min(nodeLowlink, neighborLowlink));
-          }
+          const nodeLowlink = lowlink.get(node) ?? 0;
+          const neighborLowlink = lowlink.get(neighbor) ?? 0;
+          lowlink.set(node, Math.min(nodeLowlink, neighborLowlink));
         } else if (onStack.has(neighbor)) {
-          const nodeLowlink = lowlink.get(node);
-          const neighborIndex = index.get(neighbor);
-          if (nodeLowlink !== void 0 && neighborIndex !== void 0) {
-            lowlink.set(node, Math.min(nodeLowlink, neighborIndex));
-          }
+          const nodeLowlink = lowlink.get(node) ?? 0;
+          const neighborIndex = index.get(neighbor) ?? 0;
+          lowlink.set(node, Math.min(nodeLowlink, neighborIndex));
         }
       }
       if (lowlink.get(node) === index.get(node)) {
@@ -231573,37 +231553,35 @@ var CycleDetector = class {
         strongconnect(node);
       }
     }
+    this.cachedSCCs = sccs;
     return sccs;
   }
   getCircularDependencyCount() {
-    const sccs = this.findSCCs();
-    return sccs.filter((scc) => scc.length > 1).length;
+    return this.findSCCs().filter((scc) => scc.length > 1).length;
   }
   getSCCSizeDistribution() {
-    const sccs = this.findSCCs();
     const distribution = /* @__PURE__ */ new Map();
-    for (const scc of sccs) {
+    for (const scc of this.findSCCs()) {
       const size = scc.length;
-      distribution.set(size, (distribution.get(size) || 0) + 1);
+      distribution.set(size, (distribution.get(size) ?? 0) + 1);
     }
     return distribution;
   }
   countEdgesInCycles() {
-    const sccs = this.findSCCs().filter((scc) => scc.length > 1);
-    const nodeToSCC = /* @__PURE__ */ new Map();
-    sccs.forEach((scc, idx) => {
-      for (const node of scc) {
-        nodeToSCC.set(node, idx);
+    const cycleSCCs = this.findSCCs().filter((scc) => scc.length > 1);
+    const nodeToSCCIndex = /* @__PURE__ */ new Map();
+    for (let i = 0; i < cycleSCCs.length; i++) {
+      for (const node of cycleSCCs[i]) {
+        nodeToSCCIndex.set(node, i);
       }
-    });
+    }
     let count = 0;
     for (const [source, targets] of this.graph.forward) {
-      const sourceSCC = nodeToSCC.get(source);
-      if (sourceSCC !== void 0) {
-        for (const target of targets) {
-          if (nodeToSCC.get(target) === sourceSCC) {
-            count++;
-          }
+      const sourceSCCIndex = nodeToSCCIndex.get(source);
+      if (sourceSCCIndex === void 0) continue;
+      for (const target of targets) {
+        if (nodeToSCCIndex.get(target) === sourceSCCIndex) {
+          count++;
         }
       }
     }
@@ -231615,7 +231593,7 @@ var CycleDetector = class {
     const distribution = {};
     for (const scc of sccs) {
       const size = scc.length;
-      distribution[size] = (distribution[size] || 0) + 1;
+      distribution[size] = (distribution[size] ?? 0) + 1;
     }
     return {
       count: cycleSCCs.length,
@@ -231642,15 +231620,10 @@ var DependencyGraphAnalyzer = class {
   extractReferencedFiles(sourceFile) {
     const referencedFiles = [];
     function visit(node) {
-      if (ts2.isImportDeclaration(node) && node.moduleSpecifier && ts2.isStringLiteral(node.moduleSpecifier)) {
+      if ((ts2.isImportDeclaration(node) || ts2.isExportDeclaration(node)) && node.moduleSpecifier && ts2.isStringLiteral(node.moduleSpecifier)) {
         referencedFiles.push(node.moduleSpecifier.text);
-      } else if (ts2.isExportDeclaration(node) && node.moduleSpecifier && ts2.isStringLiteral(node.moduleSpecifier)) {
-        referencedFiles.push(node.moduleSpecifier.text);
-      } else if (ts2.isCallExpression(node) && ts2.isIdentifier(node.expression) && node.expression.text === "require") {
-        const arg = node.arguments[0];
-        if (arg && ts2.isStringLiteral(arg)) {
-          referencedFiles.push(arg.text);
-        }
+      } else if (ts2.isCallExpression(node) && ts2.isIdentifier(node.expression) && node.expression.text === "require" && node.arguments[0] && ts2.isStringLiteral(node.arguments[0])) {
+        referencedFiles.push(node.arguments[0].text);
       }
       ts2.forEachChild(node, visit);
     }
@@ -231720,12 +231693,11 @@ var DependencyGraphAnalyzer = class {
           }
           resolvedImports.push(resolvedPath);
           allNodes.add(resolvedPath);
-          if (!reverse.has(resolvedPath)) {
-            reverse.set(resolvedPath, []);
-          }
           const reverseList = reverse.get(resolvedPath);
           if (reverseList) {
             reverseList.push(currentFile);
+          } else {
+            reverse.set(resolvedPath, [currentFile]);
           }
         }
       }
@@ -231879,16 +231851,12 @@ var DependencyGraphAnalyzer = class {
     return { length: maxLength, longestPath };
   }
   /**
-   * Get the layer index for a file based on its filename matching layer patterns
+   * Get the layer index for a file based on its filename matching layer patterns.
+   * Returns -1 if no layer matches.
    */
   getLayerIndex(filePath, layers) {
     const filename = path2.basename(filePath, path2.extname(filePath));
-    for (let i = 0; i < layers.length; i++) {
-      if (filename.includes(layers[i])) {
-        return i;
-      }
-    }
-    return -1;
+    return layers.findIndex((layer) => filename.includes(layer));
   }
   calculateDirectionality(layers) {
     if (!this.graph) {
@@ -232084,21 +232052,16 @@ var DuplicationDetector = class {
   normalizeTokens(tokens) {
     return tokens.map((token) => {
       const kind = ts3.SyntaxKind[token.kind];
-      if (NORMALIZABLE_KINDS.has(kind)) {
-        if (kind === ts3.SyntaxKind.Identifier) {
-          if (KEYWORDS.has(token.normalizedValue)) {
-            return token;
-          }
-          return { ...token, normalizedValue: "$ID" };
-        }
-        if (kind === ts3.SyntaxKind.StringLiteral || kind === ts3.SyntaxKind.NoSubstitutionTemplateLiteral || kind === ts3.SyntaxKind.TemplateHead || kind === ts3.SyntaxKind.TemplateMiddle || kind === ts3.SyntaxKind.TemplateTail) {
-          return { ...token, normalizedValue: "$STR" };
-        }
-        if (kind === ts3.SyntaxKind.NumericLiteral || kind === ts3.SyntaxKind.BigIntLiteral) {
-          return { ...token, normalizedValue: "$NUM" };
-        }
+      if (!NORMALIZABLE_KINDS.has(kind)) {
+        return token;
       }
-      return token;
+      if (kind === ts3.SyntaxKind.Identifier) {
+        return KEYWORDS.has(token.normalizedValue) ? token : { ...token, normalizedValue: "$ID" };
+      }
+      if (kind === ts3.SyntaxKind.NumericLiteral || kind === ts3.SyntaxKind.BigIntLiteral) {
+        return { ...token, normalizedValue: "$NUM" };
+      }
+      return { ...token, normalizedValue: "$STR" };
     });
   }
   computeHash(tokens) {
@@ -232138,12 +232101,7 @@ var DuplicationDetector = class {
     if (window1.tokens.length !== window2.tokens.length) {
       return false;
     }
-    for (let i = 0; i < window1.tokens.length; i++) {
-      if (window1.tokens[i].normalizedValue !== window2.tokens[i].normalizedValue) {
-        return false;
-      }
-    }
-    return true;
+    return window1.tokens.every((t, i) => t.normalizedValue === window2.tokens[i].normalizedValue);
   }
   findDuplicates() {
     const minTokens = this.options.minTokens;
@@ -232164,7 +232122,7 @@ var DuplicationDetector = class {
         if (existing) {
           existing.push(...windows);
         } else {
-          globalHashMap.set(hash, [...windows]);
+          globalHashMap.set(hash, windows);
         }
       }
     }
@@ -232194,13 +232152,7 @@ var DuplicationDetector = class {
         const uniqueFiles = new Set(group.map((w) => w.file));
         if (uniqueFiles.size === 1) {
           const sortedWindows = [...group].sort((a, b) => a.startLine - b.startLine);
-          let hasNonOverlapping = false;
-          for (let i = 1; i < sortedWindows.length; i++) {
-            if (sortedWindows[i].startLine > sortedWindows[i - 1].endLine) {
-              hasNonOverlapping = true;
-              break;
-            }
-          }
+          const hasNonOverlapping = sortedWindows.some((w, i) => i > 0 && w.startLine > sortedWindows[i - 1].endLine);
           if (!hasNonOverlapping) {
             continue;
           }
@@ -232335,6 +232287,48 @@ var MonorepoAnalyzer = class {
   constructor(options) {
     this.options = options;
   }
+  /**
+   * Recursively find all TypeScript files in a directory.
+   */
+  findTsFiles(dir) {
+    const files = [];
+    const entries = fs3.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path3.join(dir, entry.name);
+      if (entry.isDirectory() && entry.name !== "node_modules") {
+        files.push(...this.findTsFiles(fullPath));
+      } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))) {
+        files.push(fullPath);
+      }
+    }
+    return files;
+  }
+  /**
+   * Check if a node has the export modifier.
+   */
+  hasExportModifier(node) {
+    const modifiers = node.modifiers;
+    return modifiers?.some((m) => m.kind === ts4.SyntaxKind.ExportKeyword) ?? false;
+  }
+  /**
+   * Check if a node has the default modifier.
+   */
+  hasDefaultModifier(node) {
+    const modifiers = node.modifiers;
+    return modifiers?.some((m) => m.kind === ts4.SyntaxKind.DefaultKeyword) ?? false;
+  }
+  /**
+   * Check if an import path refers to a workspace package.
+   */
+  isWorkspaceImport(importPath, workspacePackageNames) {
+    return workspacePackageNames.has(importPath) || workspacePackageNames.has(importPath.split("/")[0]);
+  }
+  /**
+   * Check if an import path is a relative (internal) import.
+   */
+  isRelativeImport(importPath) {
+    return importPath.startsWith("./") || importPath.startsWith("../");
+  }
   async discoverPackages() {
     const { packages } = await (0, import_get_packages.getPackages)(this.options.rootDir);
     return packages.filter(
@@ -232354,12 +232348,7 @@ var MonorepoAnalyzer = class {
   analyzeApiSurface(packageDir) {
     const entryPoint = path3.join(packageDir, "src/index.ts");
     if (!fs3.existsSync(entryPoint)) {
-      return {
-        namedExports: [],
-        defaultExport: false,
-        typeExports: [],
-        barrelReexports: 0
-      };
+      return { namedExports: [], defaultExport: false, typeExports: [], barrelReexports: 0 };
     }
     const sourceText = fs3.readFileSync(entryPoint, "utf-8");
     const sourceFile = ts4.createSourceFile(entryPoint, sourceText, ts4.ScriptTarget.Latest, true);
@@ -232367,48 +232356,44 @@ var MonorepoAnalyzer = class {
     let defaultExport = false;
     const typeExports = [];
     let barrelReexports = 0;
-    function visit(node) {
+    const visit = (node) => {
       if (ts4.isExportDeclaration(node)) {
         if (node.moduleSpecifier && !node.exportClause) {
           barrelReexports++;
         } else if (node.exportClause && ts4.isNamedExports(node.exportClause)) {
           for (const element of node.exportClause.elements) {
-            if (node.isTypeOnly) {
-              typeExports.push(element.name.text);
-            } else {
-              namedExports.push(element.name.text);
-            }
+            (node.isTypeOnly ? typeExports : namedExports).push(element.name.text);
           }
         }
       } else if (ts4.isExportAssignment(node)) {
         defaultExport = true;
-      } else if (ts4.isFunctionDeclaration(node) && node.modifiers?.some((m) => m.kind === ts4.SyntaxKind.ExportKeyword)) {
-        if (node.modifiers.some((m) => m.kind === ts4.SyntaxKind.DefaultKeyword)) {
+      } else if (ts4.isFunctionDeclaration(node) && this.hasExportModifier(node)) {
+        if (this.hasDefaultModifier(node)) {
           defaultExport = true;
         } else if (node.name) {
           namedExports.push(node.name.text);
         }
-      } else if (ts4.isClassDeclaration(node) && node.modifiers?.some((m) => m.kind === ts4.SyntaxKind.ExportKeyword)) {
-        if (node.modifiers.some((m) => m.kind === ts4.SyntaxKind.DefaultKeyword)) {
+      } else if (ts4.isClassDeclaration(node) && this.hasExportModifier(node)) {
+        if (this.hasDefaultModifier(node)) {
           defaultExport = true;
         } else if (node.name) {
           namedExports.push(node.name.text);
         }
-      } else if (ts4.isVariableStatement(node) && node.modifiers?.some((m) => m.kind === ts4.SyntaxKind.ExportKeyword)) {
+      } else if (ts4.isVariableStatement(node) && this.hasExportModifier(node)) {
         for (const declaration of node.declarationList.declarations) {
           if (ts4.isIdentifier(declaration.name)) {
             namedExports.push(declaration.name.text);
           }
         }
-      } else if (ts4.isInterfaceDeclaration(node) && node.modifiers?.some((m) => m.kind === ts4.SyntaxKind.ExportKeyword)) {
+      } else if (ts4.isInterfaceDeclaration(node) && this.hasExportModifier(node)) {
         namedExports.push(node.name.text);
-      } else if (ts4.isTypeAliasDeclaration(node) && node.modifiers?.some((m) => m.kind === ts4.SyntaxKind.ExportKeyword)) {
+      } else if (ts4.isTypeAliasDeclaration(node) && this.hasExportModifier(node)) {
         namedExports.push(node.name.text);
-      } else if (ts4.isEnumDeclaration(node) && node.modifiers?.some((m) => m.kind === ts4.SyntaxKind.ExportKeyword)) {
+      } else if (ts4.isEnumDeclaration(node) && this.hasExportModifier(node)) {
         namedExports.push(node.name.text);
       }
       ts4.forEachChild(node, visit);
-    }
+    };
     visit(sourceFile);
     return { namedExports, defaultExport, typeExports, barrelReexports };
   }
@@ -232417,46 +232402,33 @@ var MonorepoAnalyzer = class {
     let workspace = 0;
     let external = 0;
     const workspaceSet = new Set(workspacePackageNames);
-    const findTsFiles = (dir) => {
-      const files = [];
-      const entries = fs3.readdirSync(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        const fullPath = path3.join(dir, entry.name);
-        if (entry.isDirectory() && entry.name !== "node_modules") {
-          files.push(...findTsFiles(fullPath));
-        } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))) {
-          files.push(fullPath);
-        }
-      }
-      return files;
-    };
-    const tsFiles = findTsFiles(packageDir);
+    const tsFiles = this.findTsFiles(packageDir);
     for (const file of tsFiles) {
-      let visit2 = function(node) {
+      const sourceText = fs3.readFileSync(file, "utf-8");
+      const sourceFile = ts4.createSourceFile(file, sourceText, ts4.ScriptTarget.Latest, true);
+      const visit = (node) => {
         if (ts4.isImportDeclaration(node) && node.moduleSpecifier && ts4.isStringLiteral(node.moduleSpecifier)) {
           const importPath = node.moduleSpecifier.text;
-          if (importPath.startsWith("./") || importPath.startsWith("../")) {
+          if (this.isRelativeImport(importPath)) {
             internal++;
-          } else if (workspaceSet.has(importPath) || workspaceSet.has(importPath.split("/")[0])) {
+          } else if (this.isWorkspaceImport(importPath, workspaceSet)) {
             workspace++;
           } else {
             external++;
           }
         } else if (ts4.isExportDeclaration(node) && node.moduleSpecifier && ts4.isStringLiteral(node.moduleSpecifier)) {
           const importPath = node.moduleSpecifier.text;
-          if (importPath.startsWith("./") || importPath.startsWith("../")) {
-          } else if (workspaceSet.has(importPath) || workspaceSet.has(importPath.split("/")[0])) {
-            workspace++;
-          } else {
-            external++;
+          if (!this.isRelativeImport(importPath)) {
+            if (this.isWorkspaceImport(importPath, workspaceSet)) {
+              workspace++;
+            } else {
+              external++;
+            }
           }
         }
-        ts4.forEachChild(node, visit2);
+        ts4.forEachChild(node, visit);
       };
-      var visit = visit2;
-      const sourceText = fs3.readFileSync(file, "utf-8");
-      const sourceFile = ts4.createSourceFile(file, sourceText, ts4.ScriptTarget.Latest, true);
-      visit2(sourceFile);
+      visit(sourceFile);
     }
     const total = internal + workspace + external;
     return {
@@ -232467,39 +232439,24 @@ var MonorepoAnalyzer = class {
   }
   buildCrossBoundaryMatrix(packages) {
     const matrix = /* @__PURE__ */ new Map();
-    const packageNames = packages.map((p) => p.name);
-    const packageNameSet = new Set(packageNames);
-    const findTsFiles = (dir) => {
-      const files = [];
-      const entries = fs3.readdirSync(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        const fullPath = path3.join(dir, entry.name);
-        if (entry.isDirectory() && entry.name !== "node_modules") {
-          files.push(...findTsFiles(fullPath));
-        } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))) {
-          files.push(fullPath);
-        }
-      }
-      return files;
-    };
+    const packageNameSet = new Set(packages.map((p) => p.name));
     for (const pkg of packages) {
       const imports = /* @__PURE__ */ new Map();
-      const tsFiles = findTsFiles(pkg.dir);
+      const tsFiles = this.findTsFiles(pkg.dir);
       for (const file of tsFiles) {
-        let visit2 = function(node) {
-          if (ts4.isImportDeclaration(node) && node.moduleSpecifier && ts4.isStringLiteral(node.moduleSpecifier)) {
-            const importPath = node.moduleSpecifier.text;
-            if (packageNameSet.has(importPath) || packageNameSet.has(importPath.split("/")[0])) {
-              const targetPackage = importPath.split("/")[0];
-              imports.set(targetPackage, (imports.get(targetPackage) || 0) + 1);
-            }
-          }
-          ts4.forEachChild(node, visit2);
-        };
-        var visit = visit2;
         const sourceText = fs3.readFileSync(file, "utf-8");
         const sourceFile = ts4.createSourceFile(file, sourceText, ts4.ScriptTarget.Latest, true);
-        visit2(sourceFile);
+        const visit = (node) => {
+          if (ts4.isImportDeclaration(node) && node.moduleSpecifier && ts4.isStringLiteral(node.moduleSpecifier)) {
+            const importPath = node.moduleSpecifier.text;
+            if (this.isWorkspaceImport(importPath, packageNameSet)) {
+              const targetPackage = importPath.split("/")[0];
+              imports.set(targetPackage, (imports.get(targetPackage) ?? 0) + 1);
+            }
+          }
+          ts4.forEachChild(node, visit);
+        };
+        visit(sourceFile);
       }
       matrix.set(pkg.name, imports);
     }
@@ -232509,7 +232466,7 @@ var MonorepoAnalyzer = class {
     const packageNames = new Set(packages.map((p) => p.name));
     const deps = /* @__PURE__ */ new Map();
     for (const pkg of packages) {
-      const pkgDeps = pkg.packageJson.dependencies || {};
+      const pkgDeps = pkg.packageJson.dependencies ?? {};
       const workspaceDeps = Object.keys(pkgDeps).filter((d) => packageNames.has(d));
       deps.set(pkg.name, workspaceDeps);
     }
@@ -232519,17 +232476,13 @@ var MonorepoAnalyzer = class {
       if (cached !== void 0) return cached;
       if (visiting.has(name)) return 0;
       visiting.add(name);
-      const pkgDeps = deps.get(name) || [];
+      const pkgDeps = deps.get(name) ?? [];
       const depth = pkgDeps.length === 0 ? 0 : 1 + Math.max(...pkgDeps.map((d) => findDepth(d, visiting)));
       visiting.delete(name);
       memo.set(name, depth);
       return depth;
     }
-    let maxDepth = 0;
-    for (const pkg of packages) {
-      maxDepth = Math.max(maxDepth, findDepth(pkg.name));
-    }
-    return maxDepth;
+    return Math.max(0, ...packages.map((pkg) => findDepth(pkg.name)));
   }
   async analyze() {
     const packages = await this.discoverPackages();
@@ -232560,42 +232513,30 @@ var MetricsRunner = class {
     this.options = options;
   }
   async run() {
-    const categories = this.options.categories || ["coupling", "cycles", "complexity", "duplication", "monorepo"];
+    const categories = this.options.categories ?? ["coupling", "cycles", "complexity", "duplication", "monorepo"];
     const result = {};
-    if (categories.includes("coupling") || categories.includes("cycles")) {
+    const runWithWarning = async (name, fn) => {
       try {
-        result.coupling = await this.runCouplingMetrics();
+        return await fn();
       } catch (error) {
-        console.warn("Warning: Failed to calculate coupling metrics:", error);
+        console.warn(`Warning: Failed to calculate ${name} metrics:`, error);
+        return void 0;
       }
+    };
+    if (categories.includes("coupling") || categories.includes("cycles")) {
+      result.coupling = await runWithWarning("coupling", () => this.runCouplingMetrics());
     }
     if (categories.includes("cycles") && result.coupling) {
-      try {
-        result.cycles = await this.runCycleMetrics();
-      } catch (error) {
-        console.warn("Warning: Failed to calculate cycle metrics:", error);
-      }
+      result.cycles = await runWithWarning("cycle", () => this.runCycleMetrics());
     }
     if (categories.includes("complexity")) {
-      try {
-        result.complexity = await this.runComplexityMetrics();
-      } catch (error) {
-        console.warn("Warning: Failed to calculate complexity metrics:", error);
-      }
+      result.complexity = await runWithWarning("complexity", () => this.runComplexityMetrics());
     }
     if (categories.includes("duplication")) {
-      try {
-        result.duplication = await this.runDuplicationMetrics();
-      } catch (error) {
-        console.warn("Warning: Failed to calculate duplication metrics:", error);
-      }
+      result.duplication = await runWithWarning("duplication", () => this.runDuplicationMetrics());
     }
     if (categories.includes("monorepo")) {
-      try {
-        result.monorepo = await this.runMonorepoMetrics();
-      } catch (error) {
-        console.warn("Warning: Failed to calculate monorepo metrics:", error);
-      }
+      result.monorepo = await runWithWarning("monorepo", () => this.runMonorepoMetrics());
     }
     return result;
   }
@@ -232611,7 +232552,7 @@ var MetricsRunner = class {
     this.cachedGraph = graph;
     const modules = analyzer.calculateCoupling();
     const graphDensity = analyzer.calculateGraphDensity();
-    const hubs = analyzer.findHubs(this.options.topK || 10);
+    const hubs = analyzer.findHubs(this.options.topK ?? 10);
     return { modules, graphDensity, hubs };
   }
   async runCycleMetrics() {
@@ -232632,7 +232573,7 @@ var MetricsRunner = class {
   async runDuplicationMetrics() {
     const files = this.options.files || await this.findTypeScriptFiles();
     const detector = new DuplicationDetector({
-      minTokens: this.options.minTokens || 50
+      minTokens: this.options.minTokens ?? 50
     });
     detector.setFiles(files);
     return detector.analyze();
@@ -232836,7 +232777,7 @@ async function main() {
     },
     metrics: result
   };
-  const format = args.format || "json";
+  const format = args.format ?? "json";
   if (format === "json") {
     console.log(
       JSON.stringify(
