@@ -2,17 +2,21 @@
 
 export { ComplexityAnalyzer } from "./lib/ComplexityAnalyzer.js";
 export { CycleDetector } from "./lib/CycleDetector.js";
+export { DataFlowAnalyzer } from "./lib/DataFlowAnalyzer.js";
 export { DependencyGraphAnalyzer } from "./lib/DependencyGraphAnalyzer.js";
 export { DuplicationDetector } from "./lib/DuplicationDetector.js";
 export { MetricsRunner } from "./lib/MetricsRunner.js";
 export { MonorepoAnalyzer } from "./lib/MonorepoAnalyzer.js";
+export { ReportGenerator } from "./lib/ReportGenerator.js";
+export { SwallowedErrorAnalyzer } from "./lib/SwallowedErrorAnalyzer.js";
 export * from "./types.js";
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { glob } from "glob";
 import { MetricsRunner } from "./lib/MetricsRunner.js";
-import type { CliArgs, MetricCategory, MetricsOutput, OutputFormat } from "./types.js";
+import { ReportGenerator } from "./lib/ReportGenerator.js";
+import type { MetricCategory } from "./types.js";
 
 const VERSION = "0.0.1";
 
@@ -64,6 +68,19 @@ const DEFAULT_LAYERS = [
   "spec",
 ];
 
+interface CliArgs {
+  targets: string[];
+  metrics?: MetricCategory[];
+  json?: boolean;
+  verbose?: boolean;
+  skipPathMetrics?: boolean;
+  layers?: string[];
+  minTokens?: number;
+  topK?: number;
+  help?: boolean;
+  version?: boolean;
+}
+
 function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = { targets: [] };
 
@@ -76,12 +93,12 @@ function parseArgs(argv: string[]): CliArgs {
       args.version = true;
     } else if (arg === "--verbose") {
       args.verbose = true;
+    } else if (arg === "--json") {
+      args.json = true;
     } else if (arg === "--skip-path-metrics") {
       args.skipPathMetrics = true;
     } else if (arg === "--metrics" && argv[i + 1]) {
       args.metrics = argv[++i].split(",") as MetricCategory[];
-    } else if (arg === "--format" && argv[i + 1]) {
-      args.format = argv[++i] as OutputFormat;
     } else if (arg === "--layers" && argv[i + 1]) {
       args.layers = argv[++i].split(",");
     } else if (arg === "--min-tokens" && argv[i + 1]) {
@@ -103,28 +120,27 @@ typescript-metrics - Calculate TypeScript codebase metrics
 Usage:
   typescript-metrics [options] [targets...]
 
+Output:
+  Generates a markdown health report with actionable recommendations.
+  Use --json for machine-readable output.
+
 Options:
   -h, --help              Show this help message
   -v, --version           Show version number
-  --metrics <categories>  Comma-separated metrics to run (coupling,cycles,complexity,duplication,monorepo)
-  --format <format>       Output format: json (default) or summary
+  --json                  Output raw JSON instead of markdown report
+  --metrics <categories>  Comma-separated metrics to run (coupling,cycles,complexity,duplication,monorepo,dataflow,swallowed-errors)
   --verbose               Show progress information
   --skip-path-metrics     Skip average path length and diameter (for large codebases)
-  --layers <layers>       Comma-separated layer order for directionality (default: shared,common,...,app,test)
+  --layers <layers>       Comma-separated layer order for directionality
   --min-tokens <n>        Minimum tokens for duplication detection (default: ${DEFAULT_MIN_TOKENS})
   --top-k <n>             Number of hub nodes to report (default: ${DEFAULT_TOP_K})
 
-Default Layers (lowest to highest):
-  shared, common, utils, helpers, constants, types, models, interfaces,
-  lib, core, services, data, api, store, domain, business, logic,
-  middleware, hooks, components, ui, views, features, modules, pages,
-  routes, app, main, index, test, tests, spec
-
 Examples:
-  typescript-metrics                           # Analyze current package
+  typescript-metrics                           # Analyze current package, output markdown
+  typescript-metrics > report.md               # Save report to file
+  typescript-metrics --json                    # Output raw JSON
   typescript-metrics packages/foo/**/*.ts      # Analyze specific files
-  typescript-metrics --metrics coupling,cycles # Run specific metrics
-  typescript-metrics --format summary          # Human-readable output
+  typescript-metrics --metrics coupling,cycles # Run specific metrics only
 `);
 }
 
@@ -217,28 +233,22 @@ async function main(): Promise<void> {
 
   const result = await runner.run();
 
-  const effectiveMinTokens = args.minTokens ?? DEFAULT_MIN_TOKENS;
-  const effectiveTopK = args.topK ?? DEFAULT_TOP_K;
-  const effectiveLayers = args.layers ?? DEFAULT_LAYERS;
-
-  const output: MetricsOutput = {
-    version: VERSION,
-    timestamp: new Date().toISOString(),
-    targets: args.targets.length > 0 ? args.targets : ["(package default)"],
-    options: {
-      skipPathMetrics: args.skipPathMetrics,
-      layers: effectiveLayers,
-      minTokens: effectiveMinTokens,
-      topK: effectiveTopK,
-    },
-    metrics: result,
-  };
-
-  const format = args.format ?? "json";
-  if (format === "json") {
+  if (args.json) {
+    // Raw JSON output for programmatic use
     console.log(
       JSON.stringify(
-        output,
+        {
+          version: VERSION,
+          timestamp: new Date().toISOString(),
+          targets: args.targets.length > 0 ? args.targets : ["(package default)"],
+          options: {
+            skipPathMetrics: args.skipPathMetrics,
+            layers: args.layers ?? DEFAULT_LAYERS,
+            minTokens: args.minTokens ?? DEFAULT_MIN_TOKENS,
+            topK: args.topK ?? DEFAULT_TOP_K,
+          },
+          metrics: result,
+        },
         (_key, value) => {
           if (value instanceof Map) {
             return Object.fromEntries(value);
@@ -249,7 +259,19 @@ async function main(): Promise<void> {
       ),
     );
   } else {
-    console.log(runner.formatOutput(result, "summary"));
+    // Markdown report (default)
+    const reportGenerator = new ReportGenerator(cwd);
+    const packageCount = result.monorepo?.packages.length;
+
+    const report = reportGenerator.generate(result, {
+      rootDir: cwd,
+      fileCount: files.length,
+      packageCount,
+      timestamp: new Date().toISOString(),
+      minTokens: args.minTokens ?? DEFAULT_MIN_TOKENS,
+    });
+
+    console.log(report);
   }
 }
 

@@ -47,9 +47,19 @@ describe("CLI", () => {
     expect(result2.exitCode).toBe(0);
   });
 
-  it("should output valid JSON by default", () => {
+  it("should output markdown report by default", () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
     const result = runCli("", pkgADir);
+    expect(result.exitCode).toBe(0);
+
+    // Should be markdown, not JSON
+    expect(result.stdout).toContain("# Codebase Health Report");
+    expect(() => JSON.parse(result.stdout)).toThrow();
+  });
+
+  it("should output valid JSON with --json flag", () => {
+    const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
+    const result = runCli("--json", pkgADir);
     expect(result.exitCode).toBe(0);
 
     // Should be valid JSON
@@ -63,7 +73,7 @@ describe("CLI", () => {
 
   it("should parse --metrics flag correctly", () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
-    const result = runCli("--metrics coupling,cycles", pkgADir);
+    const result = runCli("--json --metrics coupling,cycles", pkgADir);
     expect(result.exitCode).toBe(0);
 
     const parsed = JSON.parse(result.stdout);
@@ -73,24 +83,9 @@ describe("CLI", () => {
     expect(parsed.metrics).not.toHaveProperty("duplication");
   });
 
-  it("should parse --format flag correctly", () => {
-    const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
-
-    // JSON format
-    const jsonResult = runCli("--format json", pkgADir);
-    expect(jsonResult.exitCode).toBe(0);
-    expect(() => JSON.parse(jsonResult.stdout)).not.toThrow();
-
-    // Summary format
-    const summaryResult = runCli("--format summary", pkgADir);
-    expect(summaryResult.exitCode).toBe(0);
-    expect(summaryResult.stdout).toContain("=== Metrics Summary ===");
-    expect(() => JSON.parse(summaryResult.stdout)).toThrow(); // Should not be JSON
-  });
-
   it("should parse --skip-path-metrics flag", () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
-    const result = runCli("--skip-path-metrics", pkgADir);
+    const result = runCli("--json --skip-path-metrics", pkgADir);
     expect(result.exitCode).toBe(0);
 
     const parsed = JSON.parse(result.stdout);
@@ -99,7 +94,7 @@ describe("CLI", () => {
 
   it("should parse --layers flag", () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
-    const result = runCli("--layers shared,data,domain,feature,ui,app", pkgADir);
+    const result = runCli("--json --layers shared,data,domain,feature,ui,app", pkgADir);
     expect(result.exitCode).toBe(0);
 
     const parsed = JSON.parse(result.stdout);
@@ -108,7 +103,7 @@ describe("CLI", () => {
 
   it("should parse --min-tokens flag", () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
-    const result = runCli("--min-tokens 100", pkgADir);
+    const result = runCli("--json --min-tokens 100", pkgADir);
     expect(result.exitCode).toBe(0);
 
     const parsed = JSON.parse(result.stdout);
@@ -117,7 +112,7 @@ describe("CLI", () => {
 
   it("should parse --top-k flag", () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
-    const result = runCli("--top-k 5", pkgADir);
+    const result = runCli("--json --top-k 5", pkgADir);
     expect(result.exitCode).toBe(0);
 
     const parsed = JSON.parse(result.stdout);
@@ -126,7 +121,7 @@ describe("CLI", () => {
 
   it("should use default targets when run in package directory", () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
-    const result = runCli("", pkgADir);
+    const result = runCli("--json", pkgADir);
     expect(result.exitCode).toBe(0);
 
     const parsed = JSON.parse(result.stdout);

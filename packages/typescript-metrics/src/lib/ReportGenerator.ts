@@ -1,0 +1,803 @@
+import * as path from "node:path";
+import type {
+  ComplexityMetrics,
+  CouplingMetrics,
+  CycleMetrics,
+  DuplicationMetrics,
+  MetricsResult,
+  SwallowedErrorMetrics,
+} from "../types.js";
+
+// Thresholds
+const COMPLEXITY_THRESHOLD_CYCLOMATIC = 10;
+const COMPLEXITY_THRESHOLD_COGNITIVE = 15;
+const DUPLICATION_THRESHOLD_PERCENT = 10;
+const COUPLING_HUB_THRESHOLD = 10;
+
+// Score thresholds: 0-49 = Critical, 50-74 = Warning, 75-100 = Healthy
+const SCORE_CRITICAL = 50;
+const SCORE_WARNING = 75;
+
+interface CategoryScore {
+  name: string;
+  score: number;
+  weight: number;
+}
+
+interface Issue {
+  severity: "critical" | "warning";
+  category: string;
+  title: string;
+  details: string[];
+  recommendation: string;
+}
+
+export interface ReportOptions {
+  rootDir: string;
+  fileCount: number;
+  packageCount?: number;
+  timestamp: string;
+  minTokens?: number;
+}
+
+export class ReportGenerator {
+  private rootDir: string;
+
+  constructor(rootDir: string) {
+    this.rootDir = rootDir;
+  }
+
+  generate(result: MetricsResult, options: ReportOptions): string {
+    const scores = this.calculateScores(result);
+    const healthScore = this.calculateHealthScore(scores);
+    const issues = this.identifyIssues(result);
+
+    const lines: string[] = [];
+
+    // Header
+    lines.push("# Codebase Health Report");
+    lines.push("");
+    lines.push(
+      `**Analyzed:** ${options.fileCount} files${options.packageCount ? ` across ${options.packageCount} packages` : ""}`,
+    );
+    lines.push(`**Generated:** ${options.timestamp}`);
+    lines.push("");
+
+    // Health Score
+    lines.push(`## Health: ${healthScore}/100 — ${this.getHealthLabel(healthScore)}`);
+    lines.push("");
+    lines.push("*Weighted average: complexity (35%), duplication (25%), coupling (25%), cycles (15%)*");
+    lines.push("");
+
+    // Score table
+    lines.push("| Category | Score | Status |");
+    lines.push("|----------|-------|--------|");
+    for (const score of scores) {
+      lines.push(
+        `| ${score.name} | ${score.score} | ${this.getStatusEmoji(score.score)} ${this.getStatusLabel(score.score)} |`,
+      );
+    }
+    lines.push("");
+
+    // Issues by severity
+    const criticalIssues = issues.filter((i) => i.severity === "critical");
+    const warningIssues = issues.filter((i) => i.severity === "warning");
+
+    if (criticalIssues.length > 0) {
+      lines.push("---");
+      lines.push("");
+      lines.push("## 🔴 Critical Issues");
+      lines.push("");
+      for (let i = 0; i < criticalIssues.length; i++) {
+        lines.push(...this.formatIssue(criticalIssues[i], i + 1));
+      }
+    }
+
+    if (warningIssues.length > 0) {
+      lines.push("---");
+      lines.push("");
+      lines.push("## 🟡 Warnings");
+      lines.push("");
+      const startNum = criticalIssues.length + 1;
+      for (let i = 0; i < warningIssues.length; i++) {
+        lines.push(...this.formatIssue(warningIssues[i], startNum + i));
+      }
+    }
+
+    if (criticalIssues.length === 0 && warningIssues.length === 0) {
+      lines.push("---");
+      lines.push("");
+      lines.push("## ✅ No Issues Found");
+      lines.push("");
+      lines.push("All metrics are within healthy thresholds.");
+      lines.push("");
+    }
+
+    // Complexity Hotspots (only if there are hotspots not already shown in issues)
+    if (result.complexity && result.complexity.hotspots.length > 0) {
+      const shownInIssues = criticalIssues.filter((i) => i.category === "Complexity").length;
+      const additionalHotspots = result.complexity.hotspots.slice(shownInIssues, shownInIssues + 5);
+
+      if (additionalHotspots.length > 0 || shownInIssues > 0) {
+        lines.push("---");
+        lines.push("");
+        lines.push("## Complexity Hotspots");
+        lines.push("");
+        const totalFunctions = result.complexity.functions.length;
+        const hotspotsCount = result.complexity.hotspots.length;
+        lines.push(`${hotspotsCount} of ${totalFunctions.toLocaleString()} functions exceed thresholds:`);
+        lines.push("");
+        lines.push("| File | Line | Function | CC | Cognitive |");
+        lines.push("|------|------|----------|-----|-----------|");
+
+        const toShow = result.complexity.hotspots.slice(0, 10);
+        for (const fn of toShow) {
+          const relPath = this.relativePath(fn.file);
+          const ccStatus = fn.cyclomatic > COMPLEXITY_THRESHOLD_CYCLOMATIC ? " 🔴" : "";
+          const cogStatus = fn.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE ? " 🔴" : "";
+          lines.push(
+            `| ${relPath} | ${fn.line} | ${fn.name} | ${fn.cyclomatic}${ccStatus} | ${fn.cognitive}${cogStatus} |`,
+          );
+        }
+        lines.push("");
+      }
+    }
+
+    // Coupling Overview (only if there are issues or notable hubs)
+    if (result.coupling && result.cycles) {
+      const couplingScore = this.calculateCouplingScore(result.coupling, result.cycles);
+      if (couplingScore < SCORE_WARNING || result.coupling.hubs.length > 0) {
+        lines.push("---");
+        lines.push("");
+        lines.push("## Coupling Overview");
+        lines.push("");
+        lines.push("| Metric | Value | Assessment |");
+        lines.push("|--------|-------|------------|");
+        lines.push(
+          `| Graph Density | ${(result.coupling.graphDensity * 100).toFixed(2)}% | ${result.coupling.graphDensity < 0.1 ? "Sparse (healthy)" : "Dense (review)"} |`,
+        );
+        lines.push(
+          `| Circular Dependencies | ${result.cycles.count} | ${result.cycles.count === 0 ? "None ✓" : result.cycles.count === 1 ? "1 (review below)" : `${result.cycles.count} 🔴`} |`,
+        );
+        lines.push("");
+
+        if (result.coupling.hubs.length > 0) {
+          lines.push("**Hub nodes** (files with most connections):");
+          lines.push("");
+          lines.push("| File | Fan-In | Fan-Out | Total | Instability |");
+          lines.push("|------|--------|---------|-------|-------------|");
+          for (const hub of result.coupling.hubs.slice(0, 5)) {
+            const instability = hub.fanIn + hub.fanOut > 0 ? hub.fanOut / (hub.fanIn + hub.fanOut) : 0;
+            const instabilityLabel = this.getInstabilityLabel(instability);
+            lines.push(
+              `| ${this.relativePath(hub.file)} | ${hub.fanIn} | ${hub.fanOut} | ${hub.totalDegree} | ${instability.toFixed(2)} (${instabilityLabel}) |`,
+            );
+          }
+          lines.push("");
+        }
+
+        if (result.cycles.count > 0 && result.cycles.sccs.length > 0) {
+          const isTestFixture = (file: string) =>
+            file.includes("/test/fixtures/") || file.includes("/tests/fixtures/") || file.includes("/__fixtures__/");
+
+          lines.push("**Circular dependencies:**");
+          lines.push("");
+          for (const scc of result.cycles.sccs.slice(0, 3)) {
+            const files = scc.map((f) => `\`${this.relativePath(f)}\``).join(" → ");
+            const inFixtures = scc.every((f) => isTestFixture(f));
+            lines.push(`- ${files}${inFixtures ? " *(test fixture — likely intentional)*" : ""}`);
+          }
+          lines.push("");
+        }
+      }
+    }
+
+    // Duplication details (top blocks)
+    if (
+      result.duplication &&
+      result.duplication.blocks.length > 0 &&
+      result.duplication.density > DUPLICATION_THRESHOLD_PERCENT / 100
+    ) {
+      lines.push("---");
+      lines.push("");
+      lines.push("## Top Duplicate Blocks");
+      lines.push("");
+      lines.push("Largest duplicates worth extracting:");
+      lines.push("");
+      lines.push("| Location A | Location B | Tokens |");
+      lines.push("|------------|------------|--------|");
+
+      const topBlocks = result.duplication.blocks
+        .filter((b) => b.files.length >= 2)
+        .sort((a, b) => b.tokenCount - a.tokenCount)
+        .slice(0, 5);
+
+      for (const block of topBlocks) {
+        const locA = `${this.relativePath(block.files[0].file)}:${block.files[0].startLine}`;
+        const locB = `${this.relativePath(block.files[1].file)}:${block.files[1].startLine}`;
+        lines.push(`| ${locA} | ${locB} | ${block.tokenCount} |`);
+      }
+      lines.push("");
+    }
+
+    // Data Flow Issues
+    if (result.dataFlow) {
+      const hasIssues =
+        result.dataFlow.unusedParameters.length > 0 ||
+        result.dataFlow.ignoredReturns.length > 0 ||
+        result.dataFlow.unreadWrites.length > 0;
+
+      if (hasIssues) {
+        lines.push("---");
+        lines.push("");
+        lines.push("## Data Flow Issues");
+        lines.push("");
+        lines.push("Potential broken data flow patterns detected:");
+        lines.push("");
+
+        // Unused parameters (most actionable)
+        if (result.dataFlow.unusedParameters.length > 0) {
+          lines.push("### Unused Parameters");
+          lines.push("");
+          lines.push("Optional/default parameters that no caller ever provides:");
+          lines.push("");
+          lines.push("| File | Function | Parameter | Type | Call Sites |");
+          lines.push("|------|----------|-----------|------|------------|");
+          for (const param of result.dataFlow.unusedParameters.slice(0, 10)) {
+            lines.push(
+              `| ${this.relativePath(param.file)}:${param.line} | ${param.functionName} | ${param.parameterName} | ${param.parameterType} | ${param.totalCallSites} |`,
+            );
+          }
+          lines.push("");
+        }
+
+        // Ignored returns (actionable)
+        const highConfidenceReturns = result.dataFlow.ignoredReturns.filter((r) => r.confidence === "high");
+        if (highConfidenceReturns.length > 0) {
+          lines.push("### Ignored Return Values");
+          lines.push("");
+          lines.push("Function calls whose return values are discarded:");
+          lines.push("");
+          lines.push("| File | Function | Return Type |");
+          lines.push("|------|----------|-------------|");
+          for (const ret of highConfidenceReturns.slice(0, 10)) {
+            lines.push(`| ${this.relativePath(ret.file)}:${ret.line} | ${ret.functionName} | ${ret.returnType} |`);
+          }
+          lines.push("");
+        }
+      }
+    }
+
+    // Swallowed Errors
+    if (result.swallowedErrors && result.swallowedErrors.summary.total > 0) {
+      lines.push("---");
+      lines.push("");
+      lines.push("## Swallowed Errors");
+      lines.push("");
+      lines.push("Patterns that hide errors from callers, developers, or operators:");
+      lines.push("");
+
+      const { summary, findings } = result.swallowedErrors;
+
+      // Summary table
+      lines.push("| Pattern | Count | Description |");
+      lines.push("|---------|-------|-------------|");
+      if (summary.byPattern["empty-catch"] > 0) {
+        lines.push(`| Empty catch | ${summary.byPattern["empty-catch"]} | \`catch {}\` blocks that silently discard errors |`);
+      }
+      if (summary.byPattern["comment-only-catch"] > 0) {
+        lines.push(`| Comment-only catch | ${summary.byPattern["comment-only-catch"]} | Catch blocks with only comments |`);
+      }
+      if (summary.byPattern["empty-promise-catch"] > 0) {
+        lines.push(`| Empty .catch() | ${summary.byPattern["empty-promise-catch"]} | \`.catch(() => {})\` that swallows rejections |`);
+      }
+      if (summary.byPattern["catch-returns-success"] > 0) {
+        lines.push(`| Catch returns success | ${summary.byPattern["catch-returns-success"]} | Catch returning \`[]\`, \`null\`, etc. |`);
+      }
+      if (summary.byPattern["catch-log-only"] > 0) {
+        lines.push(`| Catch log-only | ${summary.byPattern["catch-log-only"]} | Logs error but doesn't rethrow |`);
+      }
+      if (summary.byPattern["error-param-unused"] > 0) {
+        lines.push(`| Error param unused | ${summary.byPattern["error-param-unused"]} | Error variable declared but not used |`);
+      }
+      if (summary.byPattern["void-promise"] > 0) {
+        lines.push(`| Fire-and-forget | ${summary.byPattern["void-promise"]} | \`void asyncOp()\` discards rejections |`);
+      }
+      lines.push("");
+
+      // High confidence findings
+      const highConfidence = findings.filter((f) => f.confidence === "high");
+      if (highConfidence.length > 0) {
+        lines.push("### High Confidence Findings");
+        lines.push("");
+        lines.push("| File | Line | Pattern | Suggestion |");
+        lines.push("|------|------|---------|------------|");
+        for (const finding of highConfidence.slice(0, 10)) {
+          const patternLabel = this.getSwallowedErrorPatternLabel(finding.pattern);
+          lines.push(
+            `| ${this.relativePath(finding.file)} | ${finding.line} | ${patternLabel} | ${finding.suggestion.slice(0, 60)}${finding.suggestion.length > 60 ? "..." : ""} |`,
+          );
+        }
+        lines.push("");
+      }
+
+      // Medium confidence findings (show fewer)
+      const mediumConfidence = findings.filter((f) => f.confidence === "medium");
+      if (mediumConfidence.length > 0 && highConfidence.length < 10) {
+        lines.push("### Medium Confidence Findings");
+        lines.push("");
+        lines.push("*These may be intentional — review context before fixing.*");
+        lines.push("");
+        lines.push("| File | Line | Pattern |");
+        lines.push("|------|------|---------|");
+        for (const finding of mediumConfidence.slice(0, 5)) {
+          const patternLabel = this.getSwallowedErrorPatternLabel(finding.pattern);
+          lines.push(`| ${this.relativePath(finding.file)} | ${finding.line} | ${patternLabel} |`);
+        }
+        lines.push("");
+      }
+    }
+
+    // Recommended Actions
+    const actions = this.generateActions(issues, result);
+    if (actions.length > 0) {
+      lines.push("---");
+      lines.push("");
+      lines.push("## Recommended Actions");
+      lines.push("");
+      for (const action of actions) {
+        lines.push(`- [ ] ${action}`);
+      }
+      lines.push("");
+    }
+
+    // Metric Reference (collapsible)
+    lines.push("---");
+    lines.push("");
+    lines.push("<details>");
+    lines.push("<summary><strong>📖 Metric Reference</strong></summary>");
+    lines.push("");
+    lines.push("### Score Bands");
+    lines.push("");
+    lines.push("| Score | Status | Meaning |");
+    lines.push("|-------|--------|---------|");
+    lines.push("| 75–100 | 🟢 Healthy | Within acceptable thresholds |");
+    lines.push("| 50–74 | 🟡 Review | Some issues worth addressing |");
+    lines.push("| 0–49 | 🔴 Critical | Significant issues requiring attention |");
+    lines.push("");
+    lines.push("### Scoring Formulas");
+    lines.push("");
+    lines.push("**Complexity Score:** Based on % of functions exceeding thresholds");
+    lines.push("- 0% hotspots → 100, ≤2% → 90, ≤5% → 75, ≤10% → 50, ≤20% → 25, >20% → 0");
+    lines.push("");
+    lines.push("**Duplication Score:** Based on duplication density");
+    lines.push("- ≤2% → 100, ≤5% → 85, ≤10% → 70, ≤15% → 55, ≤20% → 40, ≤30% → 20, >30% → 0");
+    lines.push("");
+    lines.push("**Coupling Score:** Starts at 100, penalized for:");
+    lines.push("- Each hub with >10 connections: -5 points");
+    lines.push("- Each circular dependency: -15 points");
+    lines.push("- Graph density >10%: -10 points");
+    lines.push("");
+    lines.push("**Cycles Score:** Based on cycle count");
+    lines.push("- 0 cycles → 100, 1 cycle → 70, 2-3 cycles → 40, >3 cycles → 0");
+    lines.push("");
+    lines.push("### Complexity Thresholds");
+    lines.push("");
+    lines.push("| Metric | Description | Threshold |");
+    lines.push("|--------|-------------|-----------|");
+    lines.push(
+      `| Cyclomatic (CC) | Independent paths through code. Each \`if\`, \`for\`, \`while\`, \`&&\`, \`\\|\\|\` adds 1. | ≤ ${COMPLEXITY_THRESHOLD_CYCLOMATIC} |`,
+    );
+    lines.push(
+      `| Cognitive | Mental effort to understand. Penalizes nesting and breaks in linear flow. | ≤ ${COMPLEXITY_THRESHOLD_COGNITIVE} |`,
+    );
+    lines.push("");
+    lines.push("*Thresholds based on SonarSource recommendations.*");
+    lines.push("");
+    lines.push("### Coupling & Instability");
+    lines.push("");
+    lines.push("| Metric | Description |");
+    lines.push("|--------|-------------|");
+    lines.push("| Fan-in | Files that import this module (dependents) |");
+    lines.push("| Fan-out | Files this module imports (dependencies) |");
+    lines.push("| Instability | `Fan-out / (Fan-in + Fan-out)` — 0 = stable, 1 = unstable |");
+    lines.push("| Graph Density | `edges / (nodes × (nodes-1))` — <5% sparse, 5-10% moderate, >10% dense |");
+    lines.push("");
+    lines.push("**Instability interpretation:**");
+    lines.push("- **0.0–0.3 (Stable):** Core types, interfaces. Many dependents, few dependencies.");
+    lines.push("- **0.7–1.0 (Unstable):** Entry points, barrel files (`index.ts`). Expected for app code.");
+    lines.push("- **0.3–0.7 (Balanced):** May indicate mixed responsibilities — review for SRP.");
+    lines.push("");
+    lines.push("### Duplication Detection");
+    lines.push("");
+    lines.push("Token-based detection using Rabin-Karp rolling hash with identifier normalization.");
+    lines.push("");
+    lines.push(`- **Minimum tokens:** ${options.minTokens ?? 100} (configurable via \`--min-tokens\`)`);
+    lines.push(`- **Density threshold:** ${DUPLICATION_THRESHOLD_PERCENT}%`);
+    lines.push("- **Block:** A sequence of tokens appearing in 2+ locations");
+    lines.push("");
+    lines.push("### Data Flow Analysis");
+    lines.push("");
+    lines.push("Detects broken data flow patterns:");
+    lines.push("");
+    lines.push("| Pattern | Description |");
+    lines.push("|---------|-------------|");
+    lines.push("| Unused Parameters | Optional/default params that no caller provides |");
+    lines.push("| Ignored Returns | Non-void return values that are discarded |");
+    lines.push("| Unread Writes | Properties written but never read (low confidence) |");
+    lines.push("");
+    lines.push("### Swallowed Error Detection");
+    lines.push("");
+    lines.push("Detects patterns that hide errors from callers, developers, or operators:");
+    lines.push("");
+    lines.push("| Pattern | Description | Confidence |");
+    lines.push("|---------|-------------|------------|");
+    lines.push("| Empty catch | `catch {}` blocks with no error handling | High |");
+    lines.push("| Comment-only catch | Catch blocks with only comments | High |");
+    lines.push("| Empty .catch() | `.catch(() => {})` on promises | High |");
+    lines.push("| Returns success | Catch returning `[]`, `null`, `0`, etc. | Medium |");
+    lines.push("| Log-only catch | Logs error but doesn't rethrow | Medium |");
+    lines.push("| Error param unused | Error variable declared but never used | Medium |");
+    lines.push("| Fire-and-forget | `void asyncOp()` discards rejections | Medium |");
+    lines.push("");
+    lines.push("**Confidence adjustments:**");
+    lines.push("- Lowered in test files, finally blocks, or functions named `try*`/`maybe*`");
+    lines.push("- Lowered when nearby comments contain `intentional`, `expected`, `ignore`");
+    lines.push("");
+    lines.push("### Notes");
+    lines.push("");
+    lines.push("- Cycles in `test/fixtures/` directories are typically intentional test fixtures");
+    lines.push("- High instability on `index.ts` files is expected (barrel/entry point pattern)");
+    lines.push("- Test files are included in analysis; use `--exclude` patterns if needed");
+    lines.push("- Data flow analysis requires ≥2 call sites for confidence");
+    lines.push("");
+    lines.push("</details>");
+    lines.push("");
+
+    return lines.join("\n");
+  }
+
+  private calculateScores(result: MetricsResult): CategoryScore[] {
+    const scores: CategoryScore[] = [];
+
+    if (result.complexity) {
+      scores.push({
+        name: "Complexity",
+        score: this.calculateComplexityScore(result.complexity),
+        weight: 0.35,
+      });
+    }
+
+    if (result.duplication) {
+      scores.push({
+        name: "Duplication",
+        score: this.calculateDuplicationScore(result.duplication),
+        weight: 0.25,
+      });
+    }
+
+    if (result.coupling) {
+      const cycleScore = result.cycles ? this.calculateCycleScore(result.cycles) : 100;
+      scores.push({
+        name: "Coupling",
+        score: this.calculateCouplingScore(result.coupling, result.cycles),
+        weight: 0.25,
+      });
+      scores.push({
+        name: "Cycles",
+        score: cycleScore,
+        weight: 0.15,
+      });
+    }
+
+    return scores;
+  }
+
+  private calculateHealthScore(scores: CategoryScore[]): number {
+    if (scores.length === 0) return 100;
+
+    let totalWeight = 0;
+    let weightedSum = 0;
+
+    for (const score of scores) {
+      weightedSum += score.score * score.weight;
+      totalWeight += score.weight;
+    }
+
+    return Math.round(weightedSum / totalWeight);
+  }
+
+  private calculateComplexityScore(complexity: ComplexityMetrics): number {
+    if (complexity.functions.length === 0) return 100;
+
+    const hotspotRatio = complexity.hotspots.length / complexity.functions.length;
+
+    // 0% hotspots = 100, 5% = 75, 10% = 50, 20%+ = 0
+    if (hotspotRatio === 0) return 100;
+    if (hotspotRatio <= 0.02) return 90;
+    if (hotspotRatio <= 0.05) return 75;
+    if (hotspotRatio <= 0.1) return 50;
+    if (hotspotRatio <= 0.2) return 25;
+    return 0;
+  }
+
+  private calculateDuplicationScore(duplication: DuplicationMetrics): number {
+    const density = duplication.density * 100;
+
+    // 0% = 100, 5% = 85, 10% = 70, 20% = 40, 30%+ = 0
+    if (density <= 2) return 100;
+    if (density <= 5) return 85;
+    if (density <= 10) return 70;
+    if (density <= 15) return 55;
+    if (density <= 20) return 40;
+    if (density <= 30) return 20;
+    return 0;
+  }
+
+  private calculateCouplingScore(coupling: CouplingMetrics, cycles?: CycleMetrics): number {
+    let score = 100;
+
+    // Penalize for high-degree hubs
+    const highDegreeHubs = coupling.hubs.filter((h) => h.totalDegree > COUPLING_HUB_THRESHOLD);
+    score -= highDegreeHubs.length * 5;
+
+    // Penalize for cycles
+    if (cycles && cycles.count > 0) {
+      score -= cycles.count * 15;
+    }
+
+    // Penalize for high graph density
+    if (coupling.graphDensity > 0.1) {
+      score -= 10;
+    }
+
+    return Math.max(0, Math.min(100, score));
+  }
+
+  private calculateCycleScore(cycles: CycleMetrics): number {
+    if (cycles.count === 0) return 100;
+    if (cycles.count === 1) return 70;
+    if (cycles.count <= 3) return 40;
+    return 0;
+  }
+
+  private identifyIssues(result: MetricsResult): Issue[] {
+    const issues: Issue[] = [];
+
+    // Complexity issues
+    if (result.complexity) {
+      const worst = result.complexity.hotspots[0];
+      if (worst && worst.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE * 10) {
+        issues.push({
+          severity: "critical",
+          category: "Complexity",
+          title: `\`${this.relativePath(worst.file)}:${worst.line}\` — Cognitive complexity ${worst.cognitive}`,
+          details: [
+            `This function is ${Math.round(worst.cognitive / COMPLEXITY_THRESHOLD_COGNITIVE)}x over the threshold (${COMPLEXITY_THRESHOLD_COGNITIVE}).`,
+            `Cyclomatic complexity: ${worst.cyclomatic} (${Math.round(worst.cyclomatic / COMPLEXITY_THRESHOLD_CYCLOMATIC)}x over threshold).`,
+          ],
+          recommendation:
+            "Extract conditional branches into named handler functions. Consider using a strategy pattern, lookup table, or state machine to replace nested conditionals.",
+        });
+      } else if (worst && worst.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE * 3) {
+        issues.push({
+          severity: "warning",
+          category: "Complexity",
+          title: `\`${this.relativePath(worst.file)}:${worst.line}\` — High complexity (${worst.cognitive})`,
+          details: [`This function exceeds the cognitive complexity threshold of ${COMPLEXITY_THRESHOLD_COGNITIVE}.`],
+          recommendation: "Consider breaking this function into smaller, focused functions.",
+        });
+      }
+    }
+
+    // Duplication issues
+    if (result.duplication) {
+      const density = result.duplication.density * 100;
+      if (density > DUPLICATION_THRESHOLD_PERCENT * 2) {
+        issues.push({
+          severity: "critical",
+          category: "Duplication",
+          title: `Duplication density ${density.toFixed(1)}% (threshold: ${DUPLICATION_THRESHOLD_PERCENT}%)`,
+          details: [
+            `Found ${result.duplication.blocks.length.toLocaleString()} duplicate code blocks.`,
+            `${result.duplication.duplicatedLines.toLocaleString()} lines are duplicated.`,
+          ],
+          recommendation: "Extract duplicated logic into shared utility modules. Focus on the largest blocks first.",
+        });
+      } else if (density > DUPLICATION_THRESHOLD_PERCENT) {
+        issues.push({
+          severity: "warning",
+          category: "Duplication",
+          title: `Duplication density ${density.toFixed(1)}% (threshold: ${DUPLICATION_THRESHOLD_PERCENT}%)`,
+          details: [`Found ${result.duplication.blocks.length.toLocaleString()} duplicate code blocks.`],
+          recommendation: "Review largest duplicate blocks for extraction opportunities.",
+        });
+      }
+    }
+
+    // Coupling issues (hub nodes)
+    if (result.coupling) {
+      const highHubs = result.coupling.hubs.filter((h) => h.totalDegree > COUPLING_HUB_THRESHOLD);
+      for (const hub of highHubs.slice(0, 2)) {
+        const instability = hub.fanIn + hub.fanOut > 0 ? hub.fanOut / (hub.fanIn + hub.fanOut) : 0;
+        if (instability > 0.3 && instability < 0.7) {
+          issues.push({
+            severity: "warning",
+            category: "Coupling",
+            title: `\`${this.relativePath(hub.file)}\` — Hub node (${hub.totalDegree} connections)`,
+            details: [
+              `Fan-in: ${hub.fanIn} (files depending on this)`,
+              `Fan-out: ${hub.fanOut} (files this depends on)`,
+              `Instability: ${instability.toFixed(2)} (balanced — may indicate mixed responsibilities)`,
+            ],
+            recommendation:
+              "Review if this module has too many responsibilities. Consider splitting into focused modules or introducing a facade pattern.",
+          });
+        }
+      }
+    }
+
+    // Cycle issues
+    if (result.cycles && result.cycles.count > 0) {
+      // Check if cycles are only in test fixtures
+      const isTestFixture = (file: string) =>
+        file.includes("/test/fixtures/") || file.includes("/tests/fixtures/") || file.includes("/__fixtures__/");
+      const allCyclesInFixtures = result.cycles.sccs.every((scc) => scc.every((f) => isTestFixture(f)));
+
+      if (allCyclesInFixtures) {
+        // Don't report test fixture cycles as issues - they're likely intentional
+        // Just note it in the coupling section
+      } else {
+        const productionCycles = result.cycles.sccs.filter((scc) => !scc.every((f) => isTestFixture(f)));
+        issues.push({
+          severity: productionCycles.length > 2 ? "critical" : "warning",
+          category: "Cycles",
+          title: `${productionCycles.length} circular ${productionCycles.length === 1 ? "dependency" : "dependencies"} detected`,
+          details: productionCycles.slice(0, 3).map((scc) => scc.map((f) => this.relativePath(f)).join(" → ")),
+          recommendation:
+            "Break cycles by introducing interfaces, dependency injection, or restructuring module boundaries.",
+        });
+      }
+    }
+
+    // Data flow issues
+    if (result.dataFlow) {
+      const unusedParams = result.dataFlow.unusedParameters;
+      if (unusedParams.length >= 5) {
+        issues.push({
+          severity: unusedParams.length >= 10 ? "warning" : "warning",
+          category: "Data Flow",
+          title: `${unusedParams.length} unused optional parameters detected`,
+          details: [
+            "Parameters with default/optional values that no caller ever provides.",
+            `Example: \`${unusedParams[0].functionName}(${unusedParams[0].parameterName})\` in ${this.relativePath(unusedParams[0].file)}`,
+          ],
+          recommendation:
+            "Review if these parameters are needed. Remove unused parameters or update callers to provide values.",
+        });
+      }
+    }
+
+    // Swallowed error issues
+    if (result.swallowedErrors) {
+      const highConfidence = result.swallowedErrors.findings.filter((f) => f.confidence === "high");
+      const emptyCatches =
+        result.swallowedErrors.summary.byPattern["empty-catch"] +
+        result.swallowedErrors.summary.byPattern["empty-promise-catch"];
+
+      if (emptyCatches >= 5) {
+        issues.push({
+          severity: emptyCatches >= 10 ? "critical" : "warning",
+          category: "Error Handling",
+          title: `${emptyCatches} empty error handlers detected`,
+          details: [
+            "Empty catch blocks and .catch() handlers silently discard errors.",
+            "This hides failures from callers, developers, and monitoring systems.",
+          ],
+          recommendation:
+            "Handle errors explicitly: log them, rethrow them, or return error indicators. If intentional, add a comment explaining why.",
+        });
+      } else if (highConfidence.length >= 3) {
+        issues.push({
+          severity: "warning",
+          category: "Error Handling",
+          title: `${highConfidence.length} swallowed error patterns detected`,
+          details: [
+            "Code patterns that hide errors from callers or operators.",
+            `Example: ${this.getSwallowedErrorPatternLabel(highConfidence[0].pattern)} at ${this.relativePath(highConfidence[0].file)}:${highConfidence[0].line}`,
+          ],
+          recommendation: "Review swallowed error patterns and add proper error handling or propagation.",
+        });
+      }
+    }
+
+    return issues;
+  }
+
+  private formatIssue(issue: Issue, num: number): string[] {
+    const lines: string[] = [];
+    lines.push(`**${num}. ${issue.title}**`);
+    lines.push("");
+    for (const detail of issue.details) {
+      lines.push(detail);
+    }
+    lines.push("");
+    lines.push(`**Recommended fix:** ${issue.recommendation}`);
+    lines.push("");
+    return lines;
+  }
+
+  private generateActions(issues: Issue[], _result: MetricsResult): string[] {
+    const actions: string[] = [];
+
+    for (const issue of issues) {
+      if (issue.category === "Complexity" && issue.severity === "critical") {
+        const match = issue.title.match(/`([^`]+)`/);
+        if (match) {
+          actions.push(`Refactor ${match[1]} — reduce complexity`);
+        }
+      } else if (issue.category === "Duplication") {
+        actions.push("Extract duplicate code into shared modules");
+      } else if (issue.category === "Coupling") {
+        const match = issue.title.match(/`([^`]+)`/);
+        if (match) {
+          actions.push(`Review ${match[1]} — consider splitting responsibilities`);
+        }
+      } else if (issue.category === "Cycles") {
+        actions.push("Break circular dependencies");
+      } else if (issue.category === "Data Flow") {
+        actions.push("Review unused parameters — remove or wire up callers");
+      } else if (issue.category === "Error Handling") {
+        actions.push("Fix swallowed errors — add logging, rethrow, or document intentional handling");
+      }
+    }
+
+    // Add preventive action if there are any issues
+    if (issues.length > 0) {
+      actions.push("Add pre-commit complexity checks to prevent new hotspots");
+    }
+
+    return [...new Set(actions)]; // Deduplicate
+  }
+
+  private relativePath(filePath: string): string {
+    return path.relative(this.rootDir, filePath);
+  }
+
+  private getHealthLabel(score: number): string {
+    if (score >= SCORE_WARNING) return "Good";
+    if (score >= SCORE_CRITICAL) return "Needs Improvement";
+    return "Critical";
+  }
+
+  private getStatusEmoji(score: number): string {
+    if (score >= SCORE_WARNING) return "🟢";
+    if (score >= SCORE_CRITICAL) return "🟡";
+    return "🔴";
+  }
+
+  private getStatusLabel(score: number): string {
+    if (score >= SCORE_WARNING) return "Healthy";
+    if (score >= SCORE_CRITICAL) return "Review";
+    return "Critical";
+  }
+
+  private getInstabilityLabel(instability: number): string {
+    if (instability <= 0.3) return "stable";
+    if (instability >= 0.7) return "unstable";
+    return "balanced";
+  }
+
+  private getSwallowedErrorPatternLabel(pattern: string): string {
+    const labels: Record<string, string> = {
+      "empty-catch": "Empty catch",
+      "comment-only-catch": "Comment-only catch",
+      "catch-returns-success": "Returns success",
+      "catch-log-only": "Log-only catch",
+      "void-promise": "Fire-and-forget",
+      "empty-promise-catch": "Empty .catch()",
+      "error-param-unused": "Error unused",
+    };
+    return labels[pattern] ?? pattern;
+  }
+}

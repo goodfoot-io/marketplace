@@ -2,6 +2,7 @@ import type {
   ComplexityMetrics,
   CouplingMetrics,
   CycleMetrics,
+  DataFlowMetrics,
   DependencyGraph,
   DuplicationMetrics,
   MetricCategory,
@@ -9,12 +10,15 @@ import type {
   MetricsResult,
   MonorepoMetrics,
   OutputFormat,
+  SwallowedErrorMetrics,
 } from "../types.js";
 import { ComplexityAnalyzer } from "./ComplexityAnalyzer.js";
 import { CycleDetector } from "./CycleDetector.js";
+import { DataFlowAnalyzer } from "./DataFlowAnalyzer.js";
 import { DependencyGraphAnalyzer } from "./DependencyGraphAnalyzer.js";
 import { DuplicationDetector } from "./DuplicationDetector.js";
 import { MonorepoAnalyzer } from "./MonorepoAnalyzer.js";
+import { SwallowedErrorAnalyzer } from "./SwallowedErrorAnalyzer.js";
 
 export interface RunnerOptions extends MetricsOptions {
   rootDir: string;
@@ -31,7 +35,15 @@ export class MetricsRunner {
   }
 
   async run(): Promise<MetricsResult> {
-    const categories = this.options.categories ?? ["coupling", "cycles", "complexity", "duplication", "monorepo"];
+    const categories = this.options.categories ?? [
+      "coupling",
+      "cycles",
+      "complexity",
+      "duplication",
+      "monorepo",
+      "dataflow",
+      "swallowed-errors",
+    ];
     const result: MetricsResult = {};
 
     const runWithWarning = async <T>(name: string, fn: () => Promise<T>): Promise<T | undefined> => {
@@ -62,6 +74,14 @@ export class MetricsRunner {
 
     if (categories.includes("monorepo")) {
       result.monorepo = await runWithWarning("monorepo", () => this.runMonorepoMetrics());
+    }
+
+    if (categories.includes("dataflow")) {
+      result.dataFlow = await runWithWarning("data flow", () => this.runDataFlowMetrics());
+    }
+
+    if (categories.includes("swallowed-errors")) {
+      result.swallowedErrors = await runWithWarning("swallowed errors", () => this.runSwallowedErrorMetrics());
     }
 
     return result;
@@ -120,6 +140,24 @@ export class MetricsRunner {
     return analyzer.analyze();
   }
 
+  async runDataFlowMetrics(): Promise<DataFlowMetrics> {
+    const files = this.options.files || (await this.findTypeScriptFiles());
+    const analyzer = new DataFlowAnalyzer({
+      rootDir: this.options.rootDir,
+      files,
+    });
+    return analyzer.analyze(files);
+  }
+
+  async runSwallowedErrorMetrics(): Promise<SwallowedErrorMetrics> {
+    const files = this.options.files || (await this.findTypeScriptFiles());
+    const analyzer = new SwallowedErrorAnalyzer({
+      rootDir: this.options.rootDir,
+      files,
+    });
+    return analyzer.analyze(files);
+  }
+
   formatOutput(result: MetricsResult, format: OutputFormat): string {
     if (format === "json") {
       return JSON.stringify(
@@ -169,6 +207,24 @@ export class MetricsRunner {
       lines.push("\nMonorepo:");
       lines.push(`  Packages: ${result.monorepo.packages.length}`);
       lines.push(`  Dependency Depth: ${result.monorepo.dependencyDepth}`);
+    }
+
+    if (result.dataFlow) {
+      lines.push("\nData Flow:");
+      lines.push(`  Unused Parameters: ${result.dataFlow.unusedParameters.length}`);
+      lines.push(`  Ignored Returns: ${result.dataFlow.ignoredReturns.length}`);
+      lines.push(`  Unread Writes: ${result.dataFlow.unreadWrites.length}`);
+      lines.push(`  Orphan Reads: ${result.dataFlow.orphanReads.length}`);
+    }
+
+    if (result.swallowedErrors) {
+      lines.push("\nSwallowed Errors:");
+      lines.push(`  Total Findings: ${result.swallowedErrors.summary.total}`);
+      lines.push(`  High Confidence: ${result.swallowedErrors.summary.highConfidenceCount}`);
+      const patterns = result.swallowedErrors.summary.byPattern;
+      if (patterns["empty-catch"] > 0) lines.push(`  Empty Catch Blocks: ${patterns["empty-catch"]}`);
+      if (patterns["empty-promise-catch"] > 0) lines.push(`  Empty .catch() Handlers: ${patterns["empty-promise-catch"]}`);
+      if (patterns["catch-returns-success"] > 0) lines.push(`  Catch Returns Success: ${patterns["catch-returns-success"]}`);
     }
 
     return lines.join("\n");

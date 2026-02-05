@@ -44,6 +44,8 @@ export interface MetricsResult {
   complexity?: ComplexityMetrics;
   duplication?: DuplicationMetrics;
   monorepo?: MonorepoMetrics;
+  dataFlow?: DataFlowMetrics;
+  swallowedErrors?: SwallowedErrorMetrics;
 }
 
 export interface DependencyGraph {
@@ -197,9 +199,104 @@ export interface MonorepoMetrics {
   dependencyDepth: number;
 }
 
-export type MetricCategory = "coupling" | "cycles" | "complexity" | "duplication" | "monorepo";
+// Data Flow Analysis Types
+
+export interface UnusedParameter {
+  file: string;
+  line: number;
+  functionName: string;
+  parameterName: string;
+  parameterType: "optional" | "default" | "rest" | "destructured";
+  totalCallSites: number;
+  callSitesProviding: number;
+}
+
+export interface IgnoredReturn {
+  file: string;
+  line: number;
+  functionName: string;
+  returnType: string;
+  confidence: "high" | "medium";
+}
+
+export interface UnreadWrite {
+  file: string;
+  line: number;
+  propertyName: string;
+  writeContext: string;
+  confidence: "high" | "medium" | "low";
+}
+
+export interface OrphanRead {
+  file: string;
+  line: number;
+  propertyName: string;
+  readContext: string;
+  confidence: "high" | "medium" | "low";
+}
+
+export interface DataFlowMetrics {
+  unusedParameters: UnusedParameter[];
+  ignoredReturns: IgnoredReturn[];
+  unreadWrites: UnreadWrite[];
+  orphanReads: OrphanRead[];
+}
+
+export type MetricCategory =
+  | "coupling"
+  | "cycles"
+  | "complexity"
+  | "duplication"
+  | "monorepo"
+  | "dataflow"
+  | "swallowed-errors";
 
 export type OutputFormat = "json" | "summary";
+
+// Swallowed Error Analysis Types
+
+export type SwallowedErrorPattern =
+  | "empty-catch"
+  | "comment-only-catch"
+  | "catch-returns-success"
+  | "catch-log-only"
+  | "void-promise"
+  | "empty-promise-catch"
+  | "error-param-unused";
+
+export interface SwallowedErrorContext {
+  /** Whether this is in a test file */
+  isTestFile: boolean;
+  /** Whether there's logging nearby (within the catch block or try block) */
+  hasLoggingNearby: boolean;
+  /** Function name suggests optional behavior (try*, maybe*, attempt*) */
+  functionNameSuggestsOptional: boolean;
+  /** Comment keywords found nearby (intentional, expected, ignore, etc.) */
+  nearbyCommentKeywords: string[];
+  /** Whether this is in a finally block */
+  isInFinallyBlock: boolean;
+}
+
+export interface SwallowedErrorFinding {
+  file: string;
+  line: number;
+  column: number;
+  pattern: SwallowedErrorPattern;
+  confidence: "high" | "medium" | "low";
+  context: SwallowedErrorContext;
+  codeSnippet: string;
+  suggestion: string;
+}
+
+export interface SwallowedErrorMetrics {
+  findings: SwallowedErrorFinding[];
+  summary: {
+    total: number;
+    byPattern: Record<SwallowedErrorPattern, number>;
+    byConfidence: Record<"high" | "medium" | "low", number>;
+    highConfidenceCount: number;
+  };
+}
 
 export interface CliArgs {
   targets: string[];

@@ -1,181 +1,215 @@
-# TypeScript Metrics Report
+# Codebase Health Report
 
-**Generated:** 2026-02-05T05:02:06.072Z
-**Tool Version:** 0.0.1
-**Workspace:** /workspace
+**Analyzed:** 122 files across 14 packages
+**Generated:** 2026-02-05T05:31:33.832Z
 
----
+## Health: 64/100 — Needs Improvement
 
-## Summary
+*Weighted average: complexity (35%), duplication (25%), coupling (25%), cycles (15%)*
 
-| Category | Key Metric | Value |
-|----------|------------|-------|
-| **Coupling** | Graph Density | 0.0076 |
-| **Coupling** | Total Modules | 122 |
-| **Coupling** | Hub Nodes | 10 |
-| **Cycles** | Circular Dependencies | 1 |
-| **Cycles** | Edges in Cycles | 2 |
-| **Complexity** | Files Analyzed | 122 |
-| **Complexity** | Functions | 2,840 |
-| **Complexity** | Hotspots (high complexity) | 72 |
-| **Duplication** | Density | 41.34% |
-| **Duplication** | Duplicated Lines | 15,759 |
-| **Duplication** | Duplicate Blocks | 9,509 |
-| **Monorepo** | Packages | 14 |
-| **Monorepo** | Dependency Depth | 1 |
+| Category | Score | Status |
+|----------|-------|--------|
+| Complexity | 75 | 🟢 Healthy |
+| Duplication | 40 | 🔴 Critical |
+| Coupling | 70 | 🟡 Review |
+| Cycles | 70 | 🟡 Review |
 
 ---
 
-## Coupling Metrics
+## 🔴 Critical Issues
 
-### Hub Nodes (Top 10 by Total Degree)
+**1. `packages/mcp/browser/src/browser.ts:726` — Cognitive complexity 496**
 
-Hub nodes are files with the most connections (imports + importers). High hub nodes indicate central points in the codebase.
+This function is 33x over the threshold (15).
+Cyclomatic complexity: 137 (14x over threshold).
 
-| File | Total Degree | Fan-In | Fan-Out | Instability |
-|------|-------------|--------|---------|-------------|
-| `packages/claude-code-hooks/src/index.ts` | 13 | 1 | 12 | 0.92 |
-| `packages/claude-code-hooks/src/types.ts` | 12 | 12 | 0 | 0.00 |
-| `packages/mcp/wrapper/src/wrapper.ts` | 12 | 6 | 6 | 0.50 |
-| `packages/claude-code-hooks/src/hooks.ts` | 9 | 6 | 3 | 0.33 |
-| `packages/mcp/wrapper/src/agent-id.ts` | 9 | 9 | 0 | 0.00 |
-| `packages/claude-code-hooks/src/outputs.ts` | 8 | 8 | 0 | 0.00 |
-| `packages/claude-code-hooks/src/logger.ts` | 8 | 7 | 1 | 0.13 |
-| `packages/claude-code-hooks/src/runtime.ts` | 8 | 2 | 6 | 0.75 |
-| `packages/mcp/wrapper/src/logger.ts` | 6 | 6 | 0 | 0.00 |
-| `packages/claude-code-hooks/tests/hooks.test.ts` | 5 | 0 | 5 | 1.00 |
-
-**Interpretation:**
-- **Instability = 0**: Highly stable, many dependents (types.ts, agent-id.ts, outputs.ts)
-- **Instability = 1**: Highly unstable, depends on others but nothing depends on it (test files)
-- **Instability ≈ 0.5**: Balanced coupling (wrapper.ts)
+**Recommended fix:** Extract conditional branches into named handler functions. Consider using a strategy pattern, lookup table, or state machine to replace nested conditionals.
 
 ---
 
-## Cycle Detection
+## 🟡 Warnings
 
-### Circular Dependencies Found: 1
+**2. Duplication density 18.0% (threshold: 10%)**
 
-| Cycle | Files Involved | Edges |
-|-------|---------------|-------|
-| 1 | `pkg-b/src/cycle-a.ts` ↔ `pkg-b/src/cycle-b.ts` | 2 |
+Found 3,143 duplicate code blocks.
 
-**Note:** This cycle exists in the test fixtures (`packages/typescript-metrics/test/fixtures/`) and is intentional for testing the cycle detection feature. No production cycles detected.
+**Recommended fix:** Review largest duplicate blocks for extraction opportunities.
 
-### SCC Size Distribution
+**3. 6 unused optional parameters detected**
 
-| SCC Size | Count |
-|----------|-------|
-| 1 (no cycle) | 120 |
-| 2 (2-node cycle) | 1 |
+Parameters with default/optional values that no caller ever provides.
+Example: `getContextLines(contextSize)` in packages/typescript-hooks/src/typescript-check.ts
+
+**Recommended fix:** Review if these parameters are needed. Remove unused parameters or update callers to provide values.
 
 ---
 
-## Complexity Metrics
+## Complexity Hotspots
 
-### Top 10 Hotspots (Highest Cognitive Complexity)
+73 of 2,840 functions exceed thresholds:
 
-Functions with high cognitive complexity are harder to understand and maintain.
-
-| Function | File | Line | Cyclomatic | Cognitive |
-|----------|------|------|------------|-----------|
-| `<anonymous>` | `mcp/browser/src/browser.ts` | 726 | 137 | 496 |
-| `<anonymous>` | `mcp/test-agent/src/test-agent.ts` | 160 | 81 | 199 |
-| `initializeServer` | `mcp/wrapper/src/wrapper.ts` | 547 | 78 | 147 |
-| `<anonymous>` | `mcp/wrapper/src/wrapper.ts` | 633 | 78 | 147 |
-| `<anonymous>` | `mcp/codebase/src/codebase.ts` | 105 | 58 | 152 |
-| `<anonymous>` | `mcp/wrapper/tests/github-fetcher.test.ts` | 11 | 45 | 63 |
-| `executeAgent` | `mcp/wrapper/src/wrapper.ts` | 851 | 35 | 70 |
-| `parseCliArguments` | `mcp/wrapper/src/wrapper.ts` | 260 | 31 | 72 |
-| `<anonymous>` | `mcp/browser/tests/browser.test.ts` | 8 | 39 | 45 |
-| `formatErrorsAsYAML` | `typescript-hooks/src/typescript-check.ts` | 321 | 25 | 55 |
-
-**Thresholds (SonarSource recommendations):**
-- Cognitive Complexity > 15: Consider refactoring
-- Cyclomatic Complexity > 10: Consider refactoring
+| File | Line | Function | CC | Cognitive |
+|------|------|----------|-----|-----------|
+| packages/mcp/browser/src/browser.ts | 726 | <anonymous> | 137 🔴 | 496 🔴 |
+| packages/mcp/test-agent/src/test-agent.ts | 160 | <anonymous> | 81 🔴 | 199 🔴 |
+| packages/mcp/wrapper/src/wrapper.ts | 547 | initializeServer | 78 🔴 | 147 🔴 |
+| packages/mcp/wrapper/src/wrapper.ts | 633 | <anonymous> | 78 🔴 | 147 🔴 |
+| packages/mcp/codebase/src/codebase.ts | 105 | <anonymous> | 58 🔴 | 152 🔴 |
+| packages/mcp/wrapper/tests/github-fetcher.test.ts | 11 | <anonymous> | 45 🔴 | 63 🔴 |
+| packages/mcp/wrapper/src/wrapper.ts | 851 | executeAgent | 35 🔴 | 70 🔴 |
+| packages/mcp/wrapper/src/wrapper.ts | 260 | parseCliArguments | 31 🔴 | 72 🔴 |
+| packages/mcp/browser/tests/browser.test.ts | 8 | <anonymous> | 39 🔴 | 45 🔴 |
+| packages/typescript-hooks/src/typescript-check.ts | 321 | formatErrorsAsYAML | 25 🔴 | 55 🔴 |
 
 ---
 
-## Duplication Metrics
+## Coupling Overview
 
-| Metric | Value |
-|--------|-------|
-| Total Lines | 38,112 |
-| Duplicated Lines | 15,759 |
-| Duplication Density | 41.34% |
-| Duplicate Blocks | 9,509 |
+| Metric | Value | Assessment |
+|--------|-------|------------|
+| Graph Density | 0.76% | Sparse (healthy) |
+| Circular Dependencies | 1 | 1 (review below) |
 
-**Note:** High duplication density may include:
-- Similar test patterns across test files
-- Boilerplate code that's intentionally duplicated
-- Configuration patterns
+**Hub nodes** (files with most connections):
 
-Consider using the `--min-tokens` flag to adjust sensitivity.
+| File | Fan-In | Fan-Out | Total | Instability |
+|------|--------|---------|-------|-------------|
+| packages/claude-code-hooks/src/index.ts | 1 | 12 | 13 | 0.92 (unstable) |
+| packages/claude-code-hooks/src/types.ts | 12 | 0 | 12 | 0.00 (stable) |
+| packages/mcp/wrapper/src/wrapper.ts | 6 | 6 | 12 | 0.50 (balanced) |
+| packages/claude-code-hooks/src/hooks.ts | 6 | 3 | 9 | 0.33 (balanced) |
+| packages/mcp/wrapper/src/agent-id.ts | 9 | 0 | 9 | 0.00 (stable) |
+
+**Circular dependencies:**
+
+- `packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-b/src/cycle-a.ts` → `packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-b/src/cycle-b.ts` *(test fixture — likely intentional)*
 
 ---
 
-## Monorepo Structure
+## Top Duplicate Blocks
 
-### Packages (14 total)
+Largest duplicates worth extracting:
 
-| Package | Description |
+| Location A | Location B | Tokens |
+|------------|------------|--------|
+| packages/test-utilities/src/vitest-matchers.ts:21 | packages/jest-test-utilities/src/jest-matchers.ts:25 | 640 |
+| packages/test-utilities/tests/database-cleanup.test.ts:23 | packages/jest-test-utilities/tests/database-cleanup.test.ts:10 | 538 |
+| packages/test-utilities/src/sql.ts:17 | packages/jest-test-utilities/src/sql.ts:13 | 309 |
+| packages/test-utilities/tests/vitest-matchers.test.ts:1 | packages/jest-test-utilities/tests/jest-matchers.test.ts:1 | 308 |
+| packages/mcp/test-agent/src/test-agent.ts:314 | packages/mcp/codebase/src/codebase.ts:773 | 259 |
+
+---
+
+## Data Flow Issues
+
+Potential broken data flow patterns detected:
+
+### Unused Parameters
+
+Optional/default parameters that no caller ever provides:
+
+| File | Function | Parameter | Type | Call Sites |
+|------|----------|-----------|------|------------|
+| packages/typescript-hooks/src/typescript-check.ts:69 | getContextLines | contextSize | default | 2 |
+| packages/test-utilities/src/vitest-matchers.ts:40 | toEmit | timeoutInterval | default | 10 |
+| packages/test-utilities/src/sql.ts:28 | getTestSql | options | default | 6 |
+| packages/jest-test-utilities/src/sql.ts:24 | getTestSql | options | default | 6 |
+| packages/jest-test-utilities/src/jest-matchers.ts:44 | toEmit | timeoutInterval | default | 10 |
+| packages/mcp/browser/src/chrome-proxy.ts:44 | checkPort | host | default | 2 |
+
+### Ignored Return Values
+
+Function calls whose return values are discarded:
+
+| File | Function | Return Type |
+|------|----------|-------------|
+| packages/streamable-http-mcp-server-daemon/src/example-http-server.ts:84 | resume | ReadStream & { fd: 0; } |
+
+---
+
+## Recommended Actions
+
+- [ ] Refactor packages/mcp/browser/src/browser.ts:726 — reduce complexity
+- [ ] Extract duplicate code into shared modules
+- [ ] Review unused parameters — remove or wire up callers
+- [ ] Add pre-commit complexity checks to prevent new hotspots
+
+---
+
+<details>
+<summary><strong>📖 Metric Reference</strong></summary>
+
+### Score Bands
+
+| Score | Status | Meaning |
+|-------|--------|---------|
+| 75–100 | 🟢 Healthy | Within acceptable thresholds |
+| 50–74 | 🟡 Review | Some issues worth addressing |
+| 0–49 | 🔴 Critical | Significant issues requiring attention |
+
+### Scoring Formulas
+
+**Complexity Score:** Based on % of functions exceeding thresholds
+- 0% hotspots → 100, ≤2% → 90, ≤5% → 75, ≤10% → 50, ≤20% → 25, >20% → 0
+
+**Duplication Score:** Based on duplication density
+- ≤2% → 100, ≤5% → 85, ≤10% → 70, ≤15% → 55, ≤20% → 40, ≤30% → 20, >30% → 0
+
+**Coupling Score:** Starts at 100, penalized for:
+- Each hub with >10 connections: -5 points
+- Each circular dependency: -15 points
+- Graph density >10%: -10 points
+
+**Cycles Score:** Based on cycle count
+- 0 cycles → 100, 1 cycle → 70, 2-3 cycles → 40, >3 cycles → 0
+
+### Complexity Thresholds
+
+| Metric | Description | Threshold |
+|--------|-------------|-----------|
+| Cyclomatic (CC) | Independent paths through code. Each `if`, `for`, `while`, `&&`, `\|\|` adds 1. | ≤ 10 |
+| Cognitive | Mental effort to understand. Penalizes nesting and breaks in linear flow. | ≤ 15 |
+
+*Thresholds based on SonarSource recommendations.*
+
+### Coupling & Instability
+
+| Metric | Description |
+|--------|-------------|
+| Fan-in | Files that import this module (dependents) |
+| Fan-out | Files this module imports (dependencies) |
+| Instability | `Fan-out / (Fan-in + Fan-out)` — 0 = stable, 1 = unstable |
+| Graph Density | `edges / (nodes × (nodes-1))` — <5% sparse, 5-10% moderate, >10% dense |
+
+**Instability interpretation:**
+- **0.0–0.3 (Stable):** Core types, interfaces. Many dependents, few dependencies.
+- **0.7–1.0 (Unstable):** Entry points, barrel files (`index.ts`). Expected for app code.
+- **0.3–0.7 (Balanced):** May indicate mixed responsibilities — review for SRP.
+
+### Duplication Detection
+
+Token-based detection using Rabin-Karp rolling hash with identifier normalization.
+
+- **Minimum tokens:** 100 (configurable via `--min-tokens`)
+- **Density threshold:** 10%
+- **Block:** A sequence of tokens appearing in 2+ locations
+
+### Data Flow Analysis
+
+Detects broken data flow patterns:
+
+| Pattern | Description |
 |---------|-------------|
-| `@goodfoot/claude-code-hooks` | Claude Code hooks SDK |
-| `@goodfoot/example` | Example package |
-| `goodfoot-hooks` | Goodfoot-specific hooks |
-| `@goodfoot/jest-test-utilities` | Jest test utilities |
-| `@goodfoot/browser-mcp-server` | Browser MCP server |
-| `@goodfoot/codebase-mcp-server` | Codebase MCP server |
-| `@goodfoot/test-agent-mcp-server` | Test agent MCP server |
-| `@goodfoot/mcp-wrapper-server` | MCP wrapper server |
-| `@goodfoot/print` | Code analysis CLI tools |
-| `@goodfoot/streamable-http-mcp-server-daemon` | Streamable HTTP daemon |
-| `@goodfoot/test-utilities` | Vitest test utilities |
-| `typescript-hooks` | TypeScript Claude Code hooks |
-| `@goodfoot/typescript-metrics` | TypeScript metrics CLI |
-| `@goodfoot/yarn-plugin-worktree-isolation` | Yarn worktree plugin |
+| Unused Parameters | Optional/default params that no caller provides |
+| Ignored Returns | Non-void return values that are discarded |
+| Unread Writes | Properties written but never read (low confidence) |
 
-### Dependency Depth: 1
+### Notes
 
-The package dependency graph is shallow with a maximum depth of 1, indicating good package isolation.
+- Cycles in `test/fixtures/` directories are typically intentional test fixtures
+- High instability on `index.ts` files is expected (barrel/entry point pattern)
+- Test files are included in analysis; use `--exclude` patterns if needed
+- Data flow analysis requires ≥2 call sites for confidence
 
----
+</details>
 
-## Recommendations
-
-### High Priority
-
-1. **browser.ts:726** - Cognitive complexity of 496 is extremely high. Consider breaking this function into smaller, focused functions.
-
-2. **wrapper.ts** - Multiple high-complexity functions. Consider extracting configuration parsing and initialization logic.
-
-3. **test-agent.ts:160** - Complexity of 199 suggests this could benefit from helper functions.
-
-### Medium Priority
-
-4. Review duplication in test files - some duplication may be acceptable for test clarity, but opportunities for shared fixtures may exist.
-
-5. Consider adding more type exports with lower instability to create stable API boundaries.
-
-### Low Priority
-
-6. The intentional cycle in test fixtures is fine - no action needed.
-
----
-
-## Command Used
-
-```bash
-/workspace/plugins/goodfoot/bin/typescript-metrics.mjs --format summary
-```
-
-### Available Options
-
-```
---metrics <categories>  Comma-separated: coupling,cycles,complexity,duplication,monorepo
---format <format>       Output format: json (default) or summary
---skip-path-metrics     Skip expensive path calculations for large codebases
---layers <layers>       Custom layer order for directionality analysis
---min-tokens <n>        Minimum tokens for duplication detection (default: 50)
---top-k <n>             Number of hub nodes to report (default: 10)
-```

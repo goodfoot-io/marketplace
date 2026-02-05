@@ -1,49 +1,21 @@
 {
   "hooks": {
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-tracker.fcc507de.mjs"
-          }
-        ],
-        "matcher": "Skill"
-      }
-    ],
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-reloader.8fb4ea33.mjs"
-          },
-          {
-            "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/implement-plan-reloader.8f116856.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/implement-plan-reloader.69b2bbf6.mjs"
           }
         ],
         "matcher": "compact"
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/skill-cleanup.e832d8c0.mjs"
-          }
-        ]
       }
     ]
   },
   "__generated": {
     "files": [
-      "skill-tracker.fcc507de.mjs",
-      "skill-reloader.8fb4ea33.mjs",
-      "skill-cleanup.e832d8c0.mjs",
-      "implement-plan-reloader.8f116856.mjs"
+      "implement-plan-reloader.69b2bbf6.mjs"
     ],
-    "timestamp": "2026-01-23T01:49:14.396Z"
+    "timestamp": "2026-02-05T05:44:33.672Z"
   }
 }
