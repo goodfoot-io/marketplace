@@ -22,8 +22,8 @@ coupling, duplication, cycles, data flow, and swallowed error metrics.
 # Save report to file
 !`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs > health-report.md
 
-# Analyze specific files
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs "src/**/*.ts"
+# Analyze specific files (globs and individual files)
+!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs "src/**/*.ts" "lib/**/*.ts" src/index.ts
 
 # Run specific metrics only
 !`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs --metrics complexity,coupling
