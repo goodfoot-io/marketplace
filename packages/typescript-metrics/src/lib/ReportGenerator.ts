@@ -1,5 +1,13 @@
 import * as path from "node:path";
-import type { ComplexityMetrics, CouplingMetrics, CycleMetrics, DuplicationMetrics, MetricsResult } from "../types.js";
+import type {
+  ComplexityMetrics,
+  CouplingMetrics,
+  CycleMetrics,
+  DuplicationMetrics,
+  EncapsulationMetrics,
+  ChurnHotspotMetrics,
+  MetricsResult,
+} from "../types.js";
 
 // Thresholds
 const COMPLEXITY_THRESHOLD_CYCLOMATIC = 10;
@@ -39,6 +47,82 @@ export class ReportGenerator {
 
   constructor(rootDir: string) {
     this.rootDir = rootDir;
+  }
+
+  private formatEncapsulationSection(metrics: EncapsulationMetrics): string[] {
+    const lines: string[] = [];
+
+    lines.push("## Encapsulation Overview");
+    lines.push("");
+
+    // Aggregate metrics table with color coding
+    const mhfStatus = metrics.aggregateMhf >= 0.5 ? "🟢 Healthy" : metrics.aggregateMhf >= 0.3 ? "🟡 Review" : "🔴 Poor";
+    const ahfStatus = metrics.aggregateAhf >= 0.8 ? "🟢 Healthy" : metrics.aggregateAhf >= 0.5 ? "🟡 Review" : "🔴 Poor";
+
+    lines.push("| Metric | Score | Status |");
+    lines.push("|--------|-------|--------|");
+    lines.push(`| Method Hiding Factor | ${metrics.aggregateMhf.toFixed(2)} | ${mhfStatus} |`);
+    lines.push(`| Attribute Hiding Factor | ${metrics.aggregateAhf.toFixed(2)} | ${ahfStatus} |`);
+    lines.push("");
+    lines.push("*MHF measures the ratio of hidden methods. AHF measures the ratio of hidden attributes.*");
+    lines.push("");
+
+    // Classes with poor encapsulation
+    const poorEncapsulation = metrics.classes.filter((c) => c.mhf < 0.5 || c.ahf < 0.5);
+
+    if (poorEncapsulation.length > 0) {
+      lines.push("**Classes with low encapsulation:**");
+      lines.push("");
+      lines.push("| Class | File | MHF | AHF |");
+      lines.push("|-------|------|-----|-----|");
+
+      for (const cls of poorEncapsulation.slice(0, 10)) {
+        const location = `${this.relativePath(cls.file)}:${cls.line}`;
+        lines.push(`| ${cls.className} | ${location} | ${cls.mhf.toFixed(2)} | ${cls.ahf.toFixed(2)} |`);
+      }
+      lines.push("");
+    }
+
+    return lines;
+  }
+
+  private formatChurnHotspotsSection(metrics: ChurnHotspotMetrics): string[] {
+    const lines: string[] = [];
+
+    lines.push("## Churn Hotspots");
+    lines.push("");
+
+    if (!metrics.isGitRepo) {
+      lines.push("*Not a git repository — churn analysis skipped.*");
+      lines.push("");
+      return lines;
+    }
+
+    lines.push("Files with high churn and complexity are maintenance risks.");
+    lines.push("");
+
+    if (metrics.hotspots.length > 0) {
+      lines.push("| File | Churn | Complexity | Combined |");
+      lines.push("|------|-------|------------|----------|");
+
+      const topHotspots = metrics.hotspots.slice(0, 10);
+      for (const hotspot of topHotspots) {
+        const relPath = this.relativePath(hotspot.file);
+        lines.push(
+          `| ${relPath} | ${hotspot.churnScore} | ${hotspot.complexityScore} | ${hotspot.combinedScore.toFixed(2)} |`,
+        );
+      }
+      lines.push("");
+      lines.push(
+        "*Churn = commits + lines added + deleted (last 90 days). Combined = normalized(churn) × normalized(complexity).*",
+      );
+      lines.push("");
+    } else {
+      lines.push("*No churn hotspots detected in the analyzed time window.*");
+      lines.push("");
+    }
+
+    return lines;
   }
 
   generate(result: MetricsResult, options: ReportOptions): string {
@@ -415,6 +499,20 @@ export class ReportGenerator {
         }
         lines.push("");
       }
+    }
+
+    // Encapsulation section (informational)
+    if (result.encapsulation && result.encapsulation.classes.length > 0) {
+      lines.push("---");
+      lines.push("");
+      lines.push(...this.formatEncapsulationSection(result.encapsulation));
+    }
+
+    // Churn Hotspots section (informational)
+    if (result.churnHotspots) {
+      lines.push("---");
+      lines.push("");
+      lines.push(...this.formatChurnHotspotsSection(result.churnHotspots));
     }
 
     // Recommended Actions

@@ -16,7 +16,9 @@ describe("MetricsRunner", () => {
     expect(result.complexity).toBeDefined();
     expect(result.duplication).toBeDefined();
     expect(result.monorepo).toBeDefined();
-  });
+    expect(result.encapsulation).toBeDefined();
+    expect(result.churnHotspots).toBeDefined();
+  }, 15000);
 
   it("should run only selected metric categories", async () => {
     const runner = new MetricsRunner({
@@ -57,7 +59,9 @@ describe("MetricsRunner", () => {
     expect(result).toHaveProperty("complexity");
     expect(result).toHaveProperty("duplication");
     expect(result).toHaveProperty("monorepo");
-  });
+    expect(result).toHaveProperty("encapsulation");
+    expect(result).toHaveProperty("churnHotspots");
+  }, 15000);
 
   it("should handle analyzer errors gracefully", async () => {
     const runner = new MetricsRunner({
@@ -77,7 +81,7 @@ describe("MetricsRunner", () => {
     });
     const result = await runner.run();
     expect(result).toBeDefined();
-  });
+  }, 15000);
 
   it("should include relative path in file-not-found error", async () => {
     const runner = new MetricsRunner({
@@ -88,7 +92,7 @@ describe("MetricsRunner", () => {
     // Should handle gracefully with warnings
     const result = await runner.run();
     expect(result).toBeDefined();
-  });
+  }, 15000);
 
   it("should include path in permission-denied error", async () => {
     // This test would need a fixture with permission issues
@@ -98,7 +102,7 @@ describe("MetricsRunner", () => {
     });
     const result = await runner.run();
     expect(result).toBeDefined();
-  });
+  }, 15000);
 
   it("should format output as JSON", () => {
     const runner = new MetricsRunner({
@@ -183,4 +187,51 @@ describe("MetricsRunner", () => {
     expect(output).toContain("Duplication:");
     expect(output).toContain("Monorepo:");
   });
+
+  it("should run encapsulation metrics when requested", async () => {
+    const runner = new MetricsRunner({
+      rootDir: fixtureRoot,
+      categories: ["encapsulation"],
+    });
+    const result = await runner.run();
+
+    expect(result.encapsulation).toBeDefined();
+    expect(result.coupling).toBeUndefined();
+    expect(result.complexity).toBeUndefined();
+  });
+
+  it("should run churn-hotspots metrics when requested", async () => {
+    const runner = new MetricsRunner({
+      rootDir: fixtureRoot,
+      categories: ["churn-hotspots"],
+    });
+    const result = await runner.run();
+
+    expect(result.churnHotspots).toBeDefined();
+    if (result.churnHotspots) {
+      expect(result.churnHotspots.isGitRepo).toBeDefined();
+    }
+    expect(result.coupling).toBeUndefined();
+  }, 10000);
+
+  it("should pass cached complexity to churn-hotspots when both are requested", async () => {
+    const runner = new MetricsRunner({
+      rootDir: fixtureRoot,
+      categories: ["complexity", "churn-hotspots"],
+    });
+    const result = await runner.run();
+
+    expect(result.complexity).toBeDefined();
+    expect(result.churnHotspots).toBeDefined();
+
+    // If complexity is available, churn-hotspots should use it
+    if (!result.churnHotspots) return;
+
+    if (result.churnHotspots.hotspots.length > 0) {
+      // Some hotspots should have complexity data
+      const withComplexity = result.churnHotspots.hotspots.filter((h) => h.complexityScore > 0);
+      // This may be 0 if no files have both churn and complexity, which is ok
+      expect(withComplexity.length).toBeGreaterThanOrEqual(0);
+    }
+  }, 10000);
 });

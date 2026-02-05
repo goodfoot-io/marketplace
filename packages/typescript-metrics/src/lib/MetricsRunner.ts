@@ -1,10 +1,12 @@
 import type {
+  ChurnHotspotMetrics,
   ComplexityMetrics,
   CouplingMetrics,
   CycleMetrics,
   DataFlowMetrics,
   DependencyGraph,
   DuplicationMetrics,
+  EncapsulationMetrics,
   MetricCategory,
   MetricsOptions,
   MetricsResult,
@@ -12,11 +14,13 @@ import type {
   OutputFormat,
   SwallowedErrorMetrics,
 } from "../types.js";
+import { ChurnHotspotAnalyzer } from "./ChurnHotspotAnalyzer.js";
 import { ComplexityAnalyzer } from "./ComplexityAnalyzer.js";
 import { CycleDetector } from "./CycleDetector.js";
 import { DataFlowAnalyzer } from "./DataFlowAnalyzer.js";
 import { DependencyGraphAnalyzer } from "./DependencyGraphAnalyzer.js";
 import { DuplicationDetector } from "./DuplicationDetector.js";
+import { EncapsulationAnalyzer } from "./EncapsulationAnalyzer.js";
 import { MonorepoAnalyzer } from "./MonorepoAnalyzer.js";
 import { SwallowedErrorAnalyzer } from "./SwallowedErrorAnalyzer.js";
 
@@ -29,6 +33,7 @@ export interface RunnerOptions extends MetricsOptions {
 export class MetricsRunner {
   private options: RunnerOptions;
   private cachedGraph?: DependencyGraph;
+  private cachedComplexity?: ComplexityMetrics;
 
   constructor(options: RunnerOptions) {
     this.options = options;
@@ -43,6 +48,8 @@ export class MetricsRunner {
       "monorepo",
       "dataflow",
       "swallowed-errors",
+      "encapsulation",
+      "churn-hotspots",
     ];
     const result: MetricsResult = {};
 
@@ -66,6 +73,7 @@ export class MetricsRunner {
 
     if (categories.includes("complexity")) {
       result.complexity = await runWithWarning("complexity", () => this.runComplexityMetrics());
+      this.cachedComplexity = result.complexity; // Cache for churn-hotspots
     }
 
     if (categories.includes("duplication")) {
@@ -82,6 +90,14 @@ export class MetricsRunner {
 
     if (categories.includes("swallowed-errors")) {
       result.swallowedErrors = await runWithWarning("swallowed errors", () => this.runSwallowedErrorMetrics());
+    }
+
+    if (categories.includes("encapsulation")) {
+      result.encapsulation = await runWithWarning("encapsulation", () => this.runEncapsulationMetrics());
+    }
+
+    if (categories.includes("churn-hotspots")) {
+      result.churnHotspots = await runWithWarning("churn hotspots", () => this.runChurnHotspotMetrics());
     }
 
     return result;
@@ -154,6 +170,25 @@ export class MetricsRunner {
     const analyzer = new SwallowedErrorAnalyzer({
       rootDir: this.options.rootDir,
       files,
+    });
+    return analyzer.analyze(files);
+  }
+
+  async runEncapsulationMetrics(): Promise<EncapsulationMetrics> {
+    const files = this.options.files || (await this.findTypeScriptFiles());
+    const analyzer = new EncapsulationAnalyzer({
+      rootDir: this.options.rootDir,
+      files,
+    });
+    return analyzer.analyze(files);
+  }
+
+  async runChurnHotspotMetrics(): Promise<ChurnHotspotMetrics> {
+    const files = this.options.files || (await this.findTypeScriptFiles());
+    const analyzer = new ChurnHotspotAnalyzer({
+      rootDir: this.options.rootDir,
+      files,
+      complexityMetrics: this.cachedComplexity, // Pass cached complexity if available
     });
     return analyzer.analyze(files);
   }

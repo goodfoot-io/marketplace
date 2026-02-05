@@ -115,26 +115,30 @@ You should generate a semantic kebab-case name (max 50 chars) and initialize the
 PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "[PROJECT_NAME]") && echo "$PROJECT_DIR"
 ```
 
-## Step 3: Structure Tasks by Phase
+## Step 3: Structure Tasks for TDD
 
-Each task follows three phases. Structure tasks to make phase dependencies explicit:
+Each task is a self-contained unit executed by **one subagent** through all three phases sequentially:
 
 | Phase | Deliverable | Validation |
 |-------|-------------|------------|
-| **1. Types & Stubs** | Interfaces, type aliases, function stubs that throw `Error('Not Implemented')` | Typecheck passes |
+| **1. Types & Stubs** | Interfaces, type aliases, function stubs that `throw new Error('Not Implemented')` | Typecheck passes |
 | **2. Tests** | Tests using `it.skip` for expected behaviors | Tests run (all skipped) |
 | **3. Implementation** | Working code, unskipped tests | Tests pass |
 
-**Parallelization by phase:**
-- Phase 1: Parallelize unless types depend on each other
-- Phase 2: Parallelize freely (tests are independent)
-- Phase 3: Follow dependency order from the plan
+**Execution model:**
+- One subagent executes all three phases for a task, adjusting as it learns
+- Parallelization happens **across independent tasks**, not across phases
+- Dependencies specify full task completion (all phases), not individual phases
+
+**Task consolidation:**
+- If types are used by **one** task → Include in that task's Phase 1
+- If types are used by **multiple** tasks → Separate type-only task (Phase 1 only)
 
 **Task categories:**
-- New functions → All three phases
+- New functions → All three phases in a single task
 - Bug fixes → Phase 2 (reproduction test), then Phase 3 (fix + unskip)
 - Refactoring → Phase 2 (coverage gaps), then Phase 3 (refactor + unskip)
-- Config/types-only → Phase 1 only
+- Shared types only → Phase 1 only
 
 ## Step 4: Write Plan
 
@@ -168,11 +172,11 @@ You should write the plan using this template:
 **Rationale:** [Why this task exists]
 **Files:** [paths]
 
-| Phase | Deliverable |
-|-------|-------------|
-| Types & Stubs | Define `[InterfaceName]`; stub `[functionName]()` throwing 'Not Implemented' |
-| Tests | `it.skip`: [behavior 1], [behavior 2], [edge case] |
-| Implementation | [Logic description] |
+| Phase | Deliverable | Validation |
+|-------|-------------|------------|
+| Types & Stubs | Define `[InterfaceName]`; stub `[functionName]()` with `throw new Error('Not Implemented')` | typecheck |
+| Tests | `it.skip`: [behavior 1], [behavior 2], [edge case] | tests run |
+| Implementation | [Logic description] | tests pass |
 
 **Dependencies:** None
 
@@ -180,13 +184,13 @@ You should write the plan using this template:
 **Rationale:** [Why this task exists]
 **Files:** [paths]
 
-| Phase | Deliverable |
-|-------|-------------|
-| Types & Stubs | Extend `[Type]` with [fields] |
-| Tests | `it.skip`: [behavior] |
-| Implementation | [Logic description] |
+| Phase | Deliverable | Validation |
+|-------|-------------|------------|
+| Types & Stubs | Define `[Type]`; stub methods with `throw new Error('Not Implemented')` | typecheck |
+| Tests | `it.skip`: [behavior] | tests run |
+| Implementation | [Logic description] | tests pass |
 
-**Dependencies:** Phase 1 requires Task 1 Phase 1; Phase 3 requires Task 1 Phase 3
+**Dependencies:** Task 1
 
 ## Validation Commands
 
@@ -198,10 +202,11 @@ You should write the plan using this template:
 ## Exploration Summary
 [Key patterns, constraints, and context discovered during exploration]
 
-### Type Dependency Order
-[Types in definition order based on dependencies]
-1. `[BaseType]` - no dependencies
-2. `[DerivedType]` - extends `[BaseType]`
+### Task Dependency Order
+[Tasks in execution order based on dependencies]
+1. Task 1: [Feature] - no dependencies (can run in parallel with Task 2)
+2. Task 2: [Feature] - no dependencies (can run in parallel with Task 1)
+3. Task 3: [Feature] - depends on Task 1
 </parameter>
 </invoke>
 ```
@@ -257,14 +262,15 @@ Conclude with:
 **Example evaluation criteria** (for a drag-drop parity plan):
 
 ```
-1. **Phase Structure**: Does each task specify all three phases clearly?
-   - Types & Stubs: Are all new interfaces and function signatures defined?
+1. **TDD Structure**: Does each task follow the complete TDD flow?
+   - Types & Stubs: Are interfaces defined and stubs throwing `Error('Not Implemented')`?
    - Tests: Are `it.skip` tests specified for each expected behavior?
-   - Implementation: Is the logic description sufficient?
+   - Implementation: Is the logic description sufficient for a single agent to complete?
+   - Validation: Are typecheck/test gates specified?
 
-2. **Type Dependency Order**: Is the type definition order correct?
-   - Can Phase 1 of Task 2 run before Task 1 Phase 1 completes?
-   - Are there circular type dependencies that need resolution?
+2. **Task Independence**: Can tasks be executed by separate agents in parallel?
+   - Are dependencies specified as full tasks (not individual phases)?
+   - Are types consolidated with their implementation when used by only one task?
 
 3. **Pattern Alignment**: Does the proposed pattern match existing code?
    - /workspace/packages/extension/src/providers/TreeDragAndDropController.ts
@@ -315,8 +321,8 @@ Plan location: `[PROJECT_DIR]/plan.md`
 
 ### Summary
 - Problem: [one sentence]
-- Tasks: [N] tasks
-- Implementation phases: Types & Stubs → Tests (`it.skip`) → Implementation
+- Tasks: [N] tasks (each executed by one subagent through all phases)
+- TDD flow: Types & Stubs → Tests (`it.skip`) → Implementation
 - Files affected: [N]
 - Review cycles: [N] ([final assessment])
 
