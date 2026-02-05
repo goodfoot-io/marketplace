@@ -115,17 +115,26 @@ You should generate a semantic kebab-case name (max 50 chars) and initialize the
 PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "[PROJECT_NAME]") && echo "$PROJECT_DIR"
 ```
 
-## Step 3: Create Implementation Plan
+## Step 3: Structure Tasks by Phase
 
-You should bake testing requirements into each task description:
-- New features → "Write behavioral tests first, then implement"
-- Bug fixes → "Write test that reproduces bug, then fix"
-- Refactoring → "Verify test coverage, add tests if gaps, then refactor"
-- Config/docs → "No behavioral tests needed"
+Each task follows three phases. Structure tasks to make phase dependencies explicit:
 
-You should group tasks by parallelization potential:
-- **Can parallelize**: Different packages, no file overlap, no dependency conflicts
-- **Must sequence**: Creates dependency, overlapping files, same feature area
+| Phase | Deliverable | Validation |
+|-------|-------------|------------|
+| **1. Types & Stubs** | Interfaces, type aliases, function stubs that throw `Error('Not Implemented')` | Typecheck passes |
+| **2. Tests** | Tests using `it.skip` for expected behaviors | Tests run (all skipped) |
+| **3. Implementation** | Working code, unskipped tests | Tests pass |
+
+**Parallelization by phase:**
+- Phase 1: Parallelize unless types depend on each other
+- Phase 2: Parallelize freely (tests are independent)
+- Phase 3: Follow dependency order from the plan
+
+**Task categories:**
+- New functions → All three phases
+- Bug fixes → Phase 2 (reproduction test), then Phase 3 (fix + unskip)
+- Refactoring → Phase 2 (coverage gaps), then Phase 3 (refactor + unskip)
+- Config/types-only → Phase 1 only
 
 ## Step 4: Write Plan
 
@@ -155,19 +164,29 @@ You should write the plan using this template:
 
 ## Tasks
 
-### Parallel Group 1
+### Task 1: [Task name]
+**Rationale:** [Why this task exists]
+**Files:** [paths]
 
-1. **[Task name]** - [testing requirement]
-   - Rationale: [Why this task exists]
-   - Files: [paths]
-   - Parallel with: Task 2
+| Phase | Deliverable |
+|-------|-------------|
+| Types & Stubs | Define `[InterfaceName]`; stub `[functionName]()` throwing 'Not Implemented' |
+| Tests | `it.skip`: [behavior 1], [behavior 2], [edge case] |
+| Implementation | [Logic description] |
 
-### Sequential
+**Dependencies:** None
 
-2. **[Task name]** - [testing requirement]
-   - Rationale: [Why this task exists]
-   - Files: [paths]
-   - Depends on: Task 1
+### Task 2: [Task name]
+**Rationale:** [Why this task exists]
+**Files:** [paths]
+
+| Phase | Deliverable |
+|-------|-------------|
+| Types & Stubs | Extend `[Type]` with [fields] |
+| Tests | `it.skip`: [behavior] |
+| Implementation | [Logic description] |
+
+**Dependencies:** Phase 1 requires Task 1 Phase 1; Phase 3 requires Task 1 Phase 3
 
 ## Validation Commands
 
@@ -177,7 +196,12 @@ You should write the plan using this template:
 - Lint: `cd packages/[package-1] && yarn lint`
 
 ## Exploration Summary
-[Key patterns, constraints, and context discovered during exploration that implementers need to know]
+[Key patterns, constraints, and context discovered during exploration]
+
+### Type Dependency Order
+[Types in definition order based on dependencies]
+1. `[BaseType]` - no dependencies
+2. `[DerivedType]` - extends `[BaseType]`
 </parameter>
 </invoke>
 ```
@@ -233,22 +257,21 @@ Conclude with:
 **Example evaluation criteria** (for a drag-drop parity plan):
 
 ```
-1. **Pattern Alignment**: Does the proposed controller pattern match the reference implementation?
-   - /workspace/packages/extension/src/providers/TreeDragAndDropController.ts (compare-branch implementation)
-   - /workspace/packages/extension/src/views/attributionTree/dragDrop.ts (current stub)
+1. **Phase Structure**: Does each task specify all three phases clearly?
+   - Types & Stubs: Are all new interfaces and function signatures defined?
+   - Tests: Are `it.skip` tests specified for each expected behavior?
+   - Implementation: Is the logic description sufficient?
 
-2. **Task Dependencies**: The plan has 6 task groups. Verify:
-   - Does Group 2 (Provider Integration) truly depend on Group 1 (Utility Enhancements)?
-   - Can Tasks 7-9 run in parallel?
+2. **Type Dependency Order**: Is the type definition order correct?
+   - Can Phase 1 of Task 2 run before Task 1 Phase 1 completes?
+   - Are there circular type dependencies that need resolution?
 
-3. **Validation Coverage**: Are these validation rules complete?
-   - no deleted files, no conflicts, no self-reference, no cyclic, no same-parent, name conflicts
-   - Cross-reference: /workspace/packages/tree/src/dragDrop/validation.ts
+3. **Pattern Alignment**: Does the proposed pattern match existing code?
+   - /workspace/packages/extension/src/providers/TreeDragAndDropController.ts
 
-4. **Domain Concerns**: Does the plan address:
-   - MIME type compatibility between views
-   - Mode switching race conditions
-   - WorkspaceEdit undo/redo interactions
+4. **Test Coverage**: Are these behaviors covered in Phase 2?
+   - Happy path, error cases, edge cases
+   - Cross-reference existing test patterns in the codebase
 ```
 
 The criteria above are specific to that plan—yours should be specific to the plan you wrote.
@@ -292,7 +315,8 @@ Plan location: `[PROJECT_DIR]/plan.md`
 
 ### Summary
 - Problem: [one sentence]
-- Tasks: [N] tasks ([N] parallel, [N] sequential)
+- Tasks: [N] tasks
+- Implementation phases: Types & Stubs → Tests (`it.skip`) → Implementation
 - Files affected: [N]
 - Review cycles: [N] ([final assessment])
 

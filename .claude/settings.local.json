@@ -1,4 +1,10 @@
 {
-  "spinnerTipsEnabled": false,
-  "outputStyle": "default"
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:r.jina.ai)",
+      "WebSearch"
+    ]
+  },
+  "outputStyle": "default",
+  "spinnerTipsEnabled": false
 }
