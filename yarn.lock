@@ -2290,6 +2290,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@goodfoot/typescript-metrics@workspace:packages/typescript-metrics":
+  version: 0.0.0-use.local
+  resolution: "@goodfoot/typescript-metrics@workspace:packages/typescript-metrics"
+  dependencies:
+    "@biomejs/biome": "npm:2.3.11"
+    "@manypkg/get-packages": "npm:^2.2.2"
+    "@types/node": "npm:^24"
+    esbuild: "npm:^0.24.0"
+    glob: "npm:^11.0.0"
+    typescript: "npm:^5.9.3"
+    vitest: "npm:^4.0.16"
+  languageName: unknown
+  linkType: soft
+
 "@goodfoot/yarn-plugin-worktree-isolation@workspace:packages/yarn-plugin-worktree-isolation":
   version: 0.0.0-use.local
   resolution: "@goodfoot/yarn-plugin-worktree-isolation@workspace:packages/yarn-plugin-worktree-isolation"

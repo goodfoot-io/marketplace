@@ -1,0 +1,9 @@
+{
+  "name": "@fixture/pkg-c",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@fixture/pkg-b": "workspace:*"
+  }
+}

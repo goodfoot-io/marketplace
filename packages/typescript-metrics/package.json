@@ -1,0 +1,32 @@
+{
+  "name": "@goodfoot/typescript-metrics",
+  "version": "0.0.1",
+  "description": "CLI tool for calculating TypeScript codebase metrics: coupling, cycles, complexity, duplication, monorepo health",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "files": [
+    "dist",
+    "types",
+    "src"
+  ],
+  "scripts": {
+    "build": "node esbuild.config.mjs --outdir=../../plugins/goodfoot/bin/",
+    "test": "vitest run",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@manypkg/get-packages": "^2.2.2",
+    "esbuild": "^0.24.0",
+    "glob": "^11.0.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.11",
+    "@types/node": "^24",
+    "vitest": "^4.0.16"
+  }
+}

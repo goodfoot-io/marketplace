@@ -1,0 +1,543 @@
+import * as fs from "node:fs";
+import * as ts from "typescript";
+import type {
+  ComplexityMetrics,
+  ComplexityOptions,
+  FileComplexity,
+  FunctionComplexity,
+  LOCBreakdown,
+} from "../types.js";
+
+/**
+ * Analyzes cyclomatic and cognitive complexity of TypeScript code.
+ *
+ * Cyclomatic Complexity: McCabe's complexity measure
+ * - Base = 1
+ * - +1 for each: if, else if, for, while, do, case, catch, &&, ||, ??, ?:
+ *
+ * Cognitive Complexity: SonarSource specification
+ * - Structural increments (+1, no nesting): if, else if, else, switch, for, while, do, catch, ?:, &&, ||, ??
+ * - Nesting penalty: applied to if, switch, for, while, do, catch, ternary (NOT else, NOT logical operators)
+ * - Consecutive same logical operators count as +1 total (e.g., a && b && c = +1)
+ */
+export class ComplexityAnalyzer {
+  private options: ComplexityOptions;
+
+  constructor(options: ComplexityOptions) {
+    this.options = options;
+  }
+
+  analyzeFile(filePath: string): FileComplexity {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const sourceFile = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true);
+
+    const functions: FunctionComplexity[] = [];
+    this.visitFunctions(sourceFile, sourceFile, filePath, functions);
+
+    const loc = this.countLOC(filePath);
+    const statementCount = this.countStatements(sourceFile);
+    const commentDensity = this.calculateCommentDensity(loc);
+
+    return {
+      file: filePath,
+      functions,
+      loc,
+      statementCount,
+      commentDensity,
+    };
+  }
+
+  /**
+   * Recursively visits all function-like declarations in the AST.
+   */
+  private visitFunctions(
+    node: ts.Node,
+    sourceFile: ts.SourceFile,
+    filePath: string,
+    functions: FunctionComplexity[],
+  ): void {
+    if (this.isFunctionLike(node)) {
+      const fn = node as ts.FunctionLikeDeclaration;
+      const name = this.getFunctionName(fn);
+      const line = sourceFile.getLineAndCharacterOfPosition(fn.getStart()).line + 1;
+      const cyclomatic = this.calculateCyclomaticComplexity(fn, sourceFile);
+      const cognitive = this.calculateCognitiveComplexity(fn, sourceFile);
+
+      functions.push({
+        name,
+        file: filePath,
+        line,
+        cyclomatic,
+        cognitive,
+      });
+    }
+
+    ts.forEachChild(node, (child) => this.visitFunctions(child, sourceFile, filePath, functions));
+  }
+
+  private isFunctionLike(node: ts.Node): boolean {
+    return (
+      ts.isFunctionDeclaration(node) ||
+      ts.isFunctionExpression(node) ||
+      ts.isArrowFunction(node) ||
+      ts.isMethodDeclaration(node) ||
+      ts.isGetAccessor(node) ||
+      ts.isSetAccessor(node) ||
+      ts.isConstructorDeclaration(node)
+    );
+  }
+
+  private getFunctionName(fn: ts.FunctionLikeDeclaration): string {
+    if (ts.isFunctionDeclaration(fn) || ts.isMethodDeclaration(fn)) {
+      return fn.name?.getText() ?? "<anonymous>";
+    }
+    if (ts.isConstructorDeclaration(fn)) {
+      return "constructor";
+    }
+    if (ts.isGetAccessor(fn)) {
+      return `get ${fn.name?.getText() ?? "<anonymous>"}`;
+    }
+    if (ts.isSetAccessor(fn)) {
+      return `set ${fn.name?.getText() ?? "<anonymous>"}`;
+    }
+    // For function expressions and arrow functions, try to get name from parent
+    const parent = fn.parent;
+    if (ts.isVariableDeclaration(parent) && parent.name) {
+      return parent.name.getText();
+    }
+    if (ts.isPropertyAssignment(parent) && parent.name) {
+      return parent.name.getText();
+    }
+    return "<anonymous>";
+  }
+
+  /**
+   * Calculates cyclomatic complexity (McCabe).
+   * Base = 1, then +1 for each decision point.
+   */
+  calculateCyclomaticComplexity(fn: ts.FunctionLikeDeclaration, _sourceFile: ts.SourceFile): number {
+    let complexity = 1; // Base complexity
+
+    const visit = (node: ts.Node): void => {
+      switch (node.kind) {
+        case ts.SyntaxKind.IfStatement:
+          complexity++;
+          break;
+        case ts.SyntaxKind.ForStatement:
+        case ts.SyntaxKind.ForInStatement:
+        case ts.SyntaxKind.ForOfStatement:
+        case ts.SyntaxKind.WhileStatement:
+        case ts.SyntaxKind.DoStatement:
+          complexity++;
+          break;
+        case ts.SyntaxKind.CaseClause:
+          complexity++;
+          break;
+        case ts.SyntaxKind.CatchClause:
+          complexity++;
+          break;
+        case ts.SyntaxKind.ConditionalExpression:
+          complexity++;
+          break;
+        case ts.SyntaxKind.BinaryExpression: {
+          const binaryExpr = node as ts.BinaryExpression;
+          if (
+            binaryExpr.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+            binaryExpr.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+            binaryExpr.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+          ) {
+            complexity++;
+          }
+          break;
+        }
+      }
+
+      ts.forEachChild(node, visit);
+    };
+
+    if (fn.body) {
+      visit(fn.body);
+    }
+
+    return complexity;
+  }
+
+  /**
+   * Calculates cognitive complexity per SonarSource specification.
+   *
+   * Key rules:
+   * 1. Structural increment (+1): if, else if, else, switch, for, while, do, catch, ?:, logical ops
+   * 2. Nesting penalty: depth added for if, switch, for, while, do, catch, ternary (NOT else, NOT logical)
+   * 3. Consecutive same logical operators count as +1 total
+   */
+  calculateCognitiveComplexity(fn: ts.FunctionLikeDeclaration, _sourceFile: ts.SourceFile): number {
+    let complexity = 0;
+
+    const visit = (node: ts.Node, depth: number): void => {
+      switch (node.kind) {
+        case ts.SyntaxKind.IfStatement: {
+          const ifStmt = node as ts.IfStatement;
+          // +1 structural + nesting penalty
+          complexity += 1 + depth;
+
+          // Visit condition (for logical operators)
+          this.visitLogicalOperators(ifStmt.expression, complexity, (inc) => {
+            complexity += inc;
+          });
+
+          // Visit then branch with increased depth
+          if (ifStmt.thenStatement) {
+            visit(ifStmt.thenStatement, depth + 1);
+          }
+
+          // Handle else / else if
+          if (ifStmt.elseStatement) {
+            if (ts.isIfStatement(ifStmt.elseStatement)) {
+              // else if: +1 structural, NO nesting penalty, continue at same depth
+              complexity += 1;
+              // Visit else if condition for logical operators
+              this.visitLogicalOperators(ifStmt.elseStatement.expression, complexity, (inc) => {
+                complexity += inc;
+              });
+              // Visit else if then branch
+              if (ifStmt.elseStatement.thenStatement) {
+                visit(ifStmt.elseStatement.thenStatement, depth + 1);
+              }
+              // Continue with else if's else
+              if (ifStmt.elseStatement.elseStatement) {
+                this.visitElseChain(
+                  ifStmt.elseStatement.elseStatement,
+                  depth,
+                  (inc) => {
+                    complexity += inc;
+                  },
+                  visit,
+                );
+              }
+            } else {
+              // else: +1 structural, NO nesting penalty
+              complexity += 1;
+              visit(ifStmt.elseStatement, depth + 1);
+            }
+          }
+          return; // Don't use default child visiting
+        }
+
+        case ts.SyntaxKind.SwitchStatement: {
+          const switchStmt = node as ts.SwitchStatement;
+          // +1 structural + nesting penalty
+          complexity += 1 + depth;
+          // Visit cases with increased depth
+          ts.forEachChild(switchStmt.caseBlock, (child) => visit(child, depth + 1));
+          return;
+        }
+
+        case ts.SyntaxKind.ForStatement:
+        case ts.SyntaxKind.ForInStatement:
+        case ts.SyntaxKind.ForOfStatement:
+        case ts.SyntaxKind.WhileStatement:
+        case ts.SyntaxKind.DoStatement: {
+          // +1 structural + nesting penalty
+          complexity += 1 + depth;
+          ts.forEachChild(node, (child) => visit(child, depth + 1));
+          return;
+        }
+
+        case ts.SyntaxKind.CatchClause: {
+          // +1 structural + nesting penalty
+          complexity += 1 + depth;
+          const catchClause = node as ts.CatchClause;
+          visit(catchClause.block, depth + 1);
+          return;
+        }
+
+        case ts.SyntaxKind.ConditionalExpression: {
+          // Ternary: +1 structural + nesting penalty
+          complexity += 1 + depth;
+          const ternary = node as ts.ConditionalExpression;
+          visit(ternary.condition, depth);
+          visit(ternary.whenTrue, depth + 1);
+          visit(ternary.whenFalse, depth + 1);
+          return;
+        }
+
+        case ts.SyntaxKind.BinaryExpression: {
+          const binaryExpr = node as ts.BinaryExpression;
+          const opKind = binaryExpr.operatorToken.kind;
+          if (
+            opKind === ts.SyntaxKind.AmpersandAmpersandToken ||
+            opKind === ts.SyntaxKind.BarBarToken ||
+            opKind === ts.SyntaxKind.QuestionQuestionToken
+          ) {
+            // Check if this is the root of a logical expression tree
+            // Only count if the parent is not a logical operator
+            const isRootOfLogicalTree = !this.isChildOfLogicalOperator(binaryExpr);
+            if (isRootOfLogicalTree) {
+              // Count all unique operator types in this logical tree
+              complexity += this.countLogicalOperatorTypes(binaryExpr);
+            }
+            // Visit operands for non-logical expressions only
+            this.visitNonLogicalChildren(binaryExpr, depth, visit);
+            return;
+          }
+          break;
+        }
+
+        case ts.SyntaxKind.TryStatement: {
+          // Try itself doesn't add complexity, but increases nesting for its contents
+          const tryStmt = node as ts.TryStatement;
+          // The try block contents are at increased nesting depth
+          visit(tryStmt.tryBlock, depth + 1);
+          if (tryStmt.catchClause) {
+            // Catch clause itself gets the current depth (nesting penalty is added in CatchClause case)
+            visit(tryStmt.catchClause, depth);
+          }
+          if (tryStmt.finallyBlock) {
+            visit(tryStmt.finallyBlock, depth + 1);
+          }
+          return;
+        }
+      }
+
+      // Default: visit children at same depth
+      ts.forEachChild(node, (child) => visit(child, depth));
+    };
+
+    if (fn.body) {
+      visit(fn.body, 0);
+    }
+
+    return complexity;
+  }
+
+  /**
+   * Visits else chain for cognitive complexity.
+   */
+  private visitElseChain(
+    elseStmt: ts.Statement,
+    depth: number,
+    addComplexity: (inc: number) => void,
+    visit: (node: ts.Node, depth: number) => void,
+  ): void {
+    if (ts.isIfStatement(elseStmt)) {
+      // else if: +1 structural, NO nesting penalty
+      addComplexity(1);
+      this.visitLogicalOperators(elseStmt.expression, 0, addComplexity);
+      if (elseStmt.thenStatement) {
+        visit(elseStmt.thenStatement, depth + 1);
+      }
+      if (elseStmt.elseStatement) {
+        this.visitElseChain(elseStmt.elseStatement, depth, addComplexity, visit);
+      }
+    } else {
+      // else: +1 structural, NO nesting penalty
+      addComplexity(1);
+      visit(elseStmt, depth + 1);
+    }
+  }
+
+  /**
+   * Visits logical operators in an expression (for conditions in if statements, etc.)
+   * This is separate from the main visitor to handle logical operators in conditions.
+   */
+  private visitLogicalOperators(
+    expr: ts.Expression,
+    _currentComplexity: number,
+    addComplexity: (inc: number) => void,
+  ): void {
+    // Find all logical binary expressions at the top level of this expression
+    const visit = (node: ts.Node): void => {
+      if (ts.isBinaryExpression(node)) {
+        const opKind = node.operatorToken.kind;
+        if (
+          opKind === ts.SyntaxKind.AmpersandAmpersandToken ||
+          opKind === ts.SyntaxKind.BarBarToken ||
+          opKind === ts.SyntaxKind.QuestionQuestionToken
+        ) {
+          // Only count if this is the root of a logical tree
+          if (!this.isChildOfLogicalOperator(node)) {
+            addComplexity(this.countLogicalOperatorTypes(node));
+          }
+          // Don't recurse into logical children - they're counted in countLogicalOperatorTypes
+          return;
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(expr);
+  }
+
+  /**
+   * Checks if a binary expression is a child of another logical operator.
+   */
+  private isChildOfLogicalOperator(expr: ts.BinaryExpression): boolean {
+    const parent = expr.parent;
+    if (!ts.isBinaryExpression(parent)) {
+      return false;
+    }
+    const parentOpKind = parent.operatorToken.kind;
+    return (
+      parentOpKind === ts.SyntaxKind.AmpersandAmpersandToken ||
+      parentOpKind === ts.SyntaxKind.BarBarToken ||
+      parentOpKind === ts.SyntaxKind.QuestionQuestionToken
+    );
+  }
+
+  /**
+   * Counts the number of unique logical operator types in a logical expression tree.
+   * e.g., a && b && c = 1 (only &&)
+   * e.g., a && b || c = 2 (&& and ||)
+   */
+  private countLogicalOperatorTypes(expr: ts.BinaryExpression): number {
+    const seenOps = new Set<ts.SyntaxKind>();
+
+    const collectOps = (node: ts.Node): void => {
+      if (ts.isBinaryExpression(node)) {
+        const opKind = node.operatorToken.kind;
+        if (
+          opKind === ts.SyntaxKind.AmpersandAmpersandToken ||
+          opKind === ts.SyntaxKind.BarBarToken ||
+          opKind === ts.SyntaxKind.QuestionQuestionToken
+        ) {
+          seenOps.add(opKind);
+          collectOps(node.left);
+          collectOps(node.right);
+          return;
+        }
+      }
+      // Don't recurse into non-logical binary expressions
+    };
+
+    collectOps(expr);
+    return seenOps.size;
+  }
+
+  /**
+   * Visits children of a logical expression that are not themselves logical operators.
+   */
+  private visitNonLogicalChildren(
+    expr: ts.BinaryExpression,
+    depth: number,
+    visit: (node: ts.Node, depth: number) => void,
+  ): void {
+    const visitChild = (node: ts.Node): void => {
+      if (ts.isBinaryExpression(node)) {
+        const opKind = node.operatorToken.kind;
+        if (
+          opKind === ts.SyntaxKind.AmpersandAmpersandToken ||
+          opKind === ts.SyntaxKind.BarBarToken ||
+          opKind === ts.SyntaxKind.QuestionQuestionToken
+        ) {
+          // This is a logical operator, recurse into its children
+          visitChild(node.left);
+          visitChild(node.right);
+          return;
+        }
+      }
+      // This is a non-logical node, visit it with the main visitor
+      visit(node, depth);
+    };
+
+    visitChild(expr.left);
+    visitChild(expr.right);
+  }
+
+  /**
+   * Counts lines of code in a file.
+   */
+  countLOC(filePath: string): LOCBreakdown {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const lines = content.split("\n");
+
+    const total = lines.length;
+    let blank = 0;
+    let comment = 0;
+    let code = 0;
+    let inBlockComment = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      if (inBlockComment) {
+        comment++;
+        if (trimmed.includes("*/")) {
+          inBlockComment = false;
+        }
+        continue;
+      }
+
+      if (trimmed === "") {
+        blank++;
+      } else if (trimmed.startsWith("//")) {
+        comment++;
+      } else if (trimmed.startsWith("/*")) {
+        comment++;
+        if (!trimmed.includes("*/")) {
+          inBlockComment = true;
+        }
+      } else {
+        code++;
+      }
+    }
+
+    return { total, code, blank, comment };
+  }
+
+  /**
+   * Counts the number of statements in a source file.
+   */
+  countStatements(sourceFile: ts.SourceFile): number {
+    let count = 0;
+
+    const visit = (node: ts.Node): void => {
+      if (ts.isStatement(node)) {
+        count++;
+      }
+      ts.forEachChild(node, visit);
+    };
+
+    ts.forEachChild(sourceFile, visit);
+    return count;
+  }
+
+  /**
+   * Calculates comment density as comment lines / code lines.
+   */
+  calculateCommentDensity(loc: LOCBreakdown): number {
+    if (loc.code === 0) {
+      return 0;
+    }
+    return loc.comment / loc.code;
+  }
+
+  /**
+   * Analyzes all files and returns aggregated metrics.
+   */
+  analyze(): ComplexityMetrics {
+    const files: FileComplexity[] = [];
+    const allFunctions: FunctionComplexity[] = [];
+
+    for (const filePath of this.options.files) {
+      const fileResult = this.analyzeFile(filePath);
+      files.push(fileResult);
+      allFunctions.push(...fileResult.functions);
+    }
+
+    // Identify hotspots based on thresholds
+    const cyclomaticThreshold = this.options.thresholds?.cyclomatic ?? 10;
+    const cognitiveThreshold = this.options.thresholds?.cognitive ?? 15;
+
+    const hotspots = allFunctions.filter(
+      (fn) => fn.cyclomatic >= cyclomaticThreshold || fn.cognitive >= cognitiveThreshold,
+    );
+
+    // Sort hotspots by total complexity (cyclomatic + cognitive)
+    hotspots.sort((a, b) => b.cyclomatic + b.cognitive - (a.cyclomatic + a.cognitive));
+
+    return {
+      files,
+      functions: allFunctions,
+      hotspots,
+    };
+  }
+}

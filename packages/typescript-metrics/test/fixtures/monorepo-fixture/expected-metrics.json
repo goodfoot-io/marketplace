@@ -1,0 +1,34 @@
+{
+  "coupling": {
+    "knownValues": {
+      "pkg-a/src/internal.ts": { "Ca": 1, "Ce": 0 },
+      "pkg-a/src/index.ts": { "Ca": 1, "Ce": 4 },
+      "pkg-b/src/uses-pkg-a.ts": { "Ce": 1 }
+    }
+  },
+  "cycles": {
+    "count": 1,
+    "sccs": [["pkg-b/src/cycle-a.ts", "pkg-b/src/cycle-b.ts"]]
+  },
+  "complexity": {
+    "complex.ts": { "cyclomatic": 15, "cognitive": 20 },
+    "else-test.ts": { "cognitive": 2 },
+    "logical-ops.ts": { "cognitive": 5 }
+  },
+  "duplication": {
+    "duplicateBlocks": [
+      {
+        "files": ["pkg-b/src/duplicate.ts", "pkg-c/src/copy-of-duplicate.ts"],
+        "approximateTokens": 60
+      }
+    ]
+  },
+  "monorepo": {
+    "dependencyDepth": 2,
+    "packageCount": 3,
+    "crossBoundary": {
+      "@fixture/pkg-b": ["@fixture/pkg-a"],
+      "@fixture/pkg-c": ["@fixture/pkg-b"]
+    }
+  }
+}
