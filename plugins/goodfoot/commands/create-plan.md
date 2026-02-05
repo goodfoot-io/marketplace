@@ -82,11 +82,10 @@ Launch Explore subagents in parallel. Provide full paths.
 ```
 
 **Dependency Analysis** (run in parallel with above):
-```bash
-!` echo "FOO"`/bin/initialize-project-TEST
-!` echo "${CLAUDE_PLUGIN_ROOT}"`/bin/print-dependencies [SCOPE_HINT_FILES]
-!` echo "${CLAUDE_PLUGIN_ROOT}"`/bin/print-inverse-dependencies [SCOPE_HINT_FILES]
-!` echo "${CLAUDE_PLUGIN_ROOT}"`/bin/print-type-analysis [SCOPE_HINT_FILES]
+```!
+echo "${CLAUDE_PLUGIN_ROOT}/bin/print-dependencies [SCOPE_HINT_FILES]"
+echo "${CLAUDE_PLUGIN_ROOT}/bin/print-inverse-dependencies [SCOPE_HINT_FILES]"
+echo "${CLAUDE_PLUGIN_ROOT}/bin/print-type-analysis [SCOPE_HINT_FILES]"
 ```
 </exploration>
 
@@ -112,8 +111,8 @@ You should only ask the user questions for major ambiguity that would lead to fu
 
 You should generate a semantic kebab-case name (max 50 chars) and initialize the project. Capture the output path to `PROJECT_DIR`:
 
-```bash
-!` echo "FOO"`/bin/initialize-project [PROJECT_NAME]
+```!
+echo "${CLAUDE_PLUGIN_ROOT}/bin/initialize-project [PROJECT_NAME]"
 ```
 
 ## Step 3: Structure Tasks for TDD
