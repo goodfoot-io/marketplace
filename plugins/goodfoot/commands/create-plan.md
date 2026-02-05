@@ -83,6 +83,7 @@ Launch Explore subagents in parallel. Provide full paths.
 
 **Dependency Analysis** (run in parallel with above):
 ```bash
+!` echo "FOO"`/bin/initialize-project-TEST
 !` echo "${CLAUDE_PLUGIN_ROOT}"`/bin/print-dependencies [SCOPE_HINT_FILES]
 !` echo "${CLAUDE_PLUGIN_ROOT}"`/bin/print-inverse-dependencies [SCOPE_HINT_FILES]
 !` echo "${CLAUDE_PLUGIN_ROOT}"`/bin/print-type-analysis [SCOPE_HINT_FILES]
