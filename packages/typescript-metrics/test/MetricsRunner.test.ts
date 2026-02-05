@@ -1,6 +1,36 @@
+import { execSync } from "node:child_process";
 import * as path from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MetricsRunner } from "../src/lib/MetricsRunner.js";
+
+vi.mock("node:child_process", () => ({
+  execSync: vi.fn(),
+}));
+
+const mockedExecSync = vi.mocked(execSync);
+
+// Mock git output for fixture files
+const MOCK_GIT_LOG = `abc1234567890123456789012345678901234567
+10\t5\tpackages/pkg-a/src/complex.ts
+3\t2\tpackages/pkg-a/src/else-test.ts
+1\t1\tpackages/pkg-a/src/catch-test.ts
+`;
+
+beforeEach(() => {
+  mockedExecSync.mockReset();
+  mockedExecSync.mockImplementation((cmd: string | Buffer, options?: unknown) => {
+    const cmdStr = typeof cmd === "string" ? cmd : cmd.toString();
+    const opts = options as { encoding?: string } | undefined;
+
+    if (cmdStr === "git rev-parse --git-dir") {
+      return opts?.encoding ? ".git\n" : Buffer.from(".git\n");
+    }
+    if (cmdStr.startsWith("git log --numstat")) {
+      return opts?.encoding ? MOCK_GIT_LOG : Buffer.from(MOCK_GIT_LOG);
+    }
+    throw new Error(`Unexpected command: ${cmdStr}`);
+  });
+});
 
 const fixtureRoot = path.join(__dirname, "fixtures/monorepo-fixture");
 
@@ -18,7 +48,7 @@ describe("MetricsRunner", () => {
     expect(result.monorepo).toBeDefined();
     expect(result.encapsulation).toBeDefined();
     expect(result.churnHotspots).toBeDefined();
-  }, 15000);
+  });
 
   it("should run only selected metric categories", async () => {
     const runner = new MetricsRunner({
@@ -61,7 +91,7 @@ describe("MetricsRunner", () => {
     expect(result).toHaveProperty("monorepo");
     expect(result).toHaveProperty("encapsulation");
     expect(result).toHaveProperty("churnHotspots");
-  }, 15000);
+  });
 
   it("should handle analyzer errors gracefully", async () => {
     const runner = new MetricsRunner({
@@ -81,7 +111,7 @@ describe("MetricsRunner", () => {
     });
     const result = await runner.run();
     expect(result).toBeDefined();
-  }, 15000);
+  });
 
   it("should include relative path in file-not-found error", async () => {
     const runner = new MetricsRunner({
@@ -92,7 +122,7 @@ describe("MetricsRunner", () => {
     // Should handle gracefully with warnings
     const result = await runner.run();
     expect(result).toBeDefined();
-  }, 15000);
+  });
 
   it("should include path in permission-denied error", async () => {
     // This test would need a fixture with permission issues
@@ -102,7 +132,7 @@ describe("MetricsRunner", () => {
     });
     const result = await runner.run();
     expect(result).toBeDefined();
-  }, 15000);
+  });
 
   it("should format output as JSON", () => {
     const runner = new MetricsRunner({
@@ -212,7 +242,7 @@ describe("MetricsRunner", () => {
       expect(result.churnHotspots.isGitRepo).toBeDefined();
     }
     expect(result.coupling).toBeUndefined();
-  }, 10000);
+  });
 
   it("should pass cached complexity to churn-hotspots when both are requested", async () => {
     const runner = new MetricsRunner({
@@ -233,5 +263,5 @@ describe("MetricsRunner", () => {
       // This may be 0 if no files have both churn and complexity, which is ok
       expect(withComplexity.length).toBeGreaterThanOrEqual(0);
     }
-  }, 10000);
+  });
 });

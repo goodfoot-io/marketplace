@@ -1,23 +1,79 @@
+import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChurnHotspotAnalyzer } from "../src/lib/ChurnHotspotAnalyzer.js";
 import { ComplexityAnalyzer } from "../src/lib/ComplexityAnalyzer.js";
 
+vi.mock("node:child_process", () => ({
+  execSync: vi.fn(),
+}));
+
+const mockedExecSync = vi.mocked(execSync);
+
 const fixtureRoot = path.join(__dirname, "fixtures/monorepo-fixture");
 
+// Mock git output for fixtures
+// Git paths are relative to the rootDir (fixtureRoot), so they don't include "test/fixtures/monorepo-fixture"
+const MOCK_GIT_LOG = `abc1234567890123456789012345678901234567
+10\t5\tpackages/pkg-a/src/complex.ts
+3\t2\tpackages/pkg-a/src/else-test.ts
+1\t1\tpackages/pkg-a/src/catch-test.ts
+
+def2345678901234567890123456789012345678
+5\t3\tpackages/pkg-a/src/complex.ts
+2\t1\tpackages/pkg-a/src/else-test.ts
+`;
+
+// Git log for 1-day window (only recent commit)
+const MOCK_GIT_LOG_1DAY = `def2345678901234567890123456789012345678
+5\t3\tpackages/pkg-a/src/complex.ts
+2\t1\tpackages/pkg-a/src/else-test.ts
+`;
+
+// Git log for 365-day window (all commits)
+const MOCK_GIT_LOG_365DAY = `abc1234567890123456789012345678901234567
+10\t5\tpackages/pkg-a/src/complex.ts
+3\t2\tpackages/pkg-a/src/else-test.ts
+1\t1\tpackages/pkg-a/src/catch-test.ts
+
+def2345678901234567890123456789012345678
+5\t3\tpackages/pkg-a/src/complex.ts
+2\t1\tpackages/pkg-a/src/else-test.ts
+
+eee3456789012345678901234567890123456789
+2\t1\tpackages/pkg-a/src/complex.ts
+`;
+
 describe("ChurnHotspotAnalyzer", () => {
+  beforeEach(() => {
+    mockedExecSync.mockReset();
+    // Default: simulate git repo with known history
+    mockedExecSync.mockImplementation((cmd: string) => {
+      if (cmd === "git rev-parse --git-dir") {
+        return ".git\n";
+      }
+      if (cmd.startsWith("git log --numstat")) {
+        return MOCK_GIT_LOG;
+      }
+      throw new Error(`Unexpected command: ${cmd}`);
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("calculates churn from git history using git log", () => {
-    // Use actual repo - test with real git history
-    // The fixture files are in git, so they have history
+    // Test with mocked git history
     const files = [
       path.join(fixtureRoot, "packages/pkg-a/src/complex.ts"),
       path.join(fixtureRoot, "packages/pkg-a/src/else-test.ts"),
     ];
 
     const analyzer = new ChurnHotspotAnalyzer({
-      rootDir: path.join(__dirname, ".."), // typescript-metrics root is in git
+      rootDir: fixtureRoot,
       files,
     });
 
@@ -25,6 +81,22 @@ describe("ChurnHotspotAnalyzer", () => {
 
     expect(result.isGitRepo).toBe(true);
     expect(result.files).toHaveLength(2);
+
+    // complex.ts: 2 commits, 15 lines added (10+5), 8 lines deleted (5+3), churnScore = 25
+    const complexFile = result.files.find((f) => f.file.includes("complex.ts"));
+    expect(complexFile).toBeDefined();
+    expect(complexFile?.commits).toBe(2);
+    expect(complexFile?.linesAdded).toBe(15);
+    expect(complexFile?.linesDeleted).toBe(8);
+    expect(complexFile?.churnScore).toBe(25);
+
+    // else-test.ts: 2 commits, 5 lines added (3+2), 3 lines deleted (2+1), churnScore = 10
+    const elseTestFile = result.files.find((f) => f.file.includes("else-test.ts"));
+    expect(elseTestFile).toBeDefined();
+    expect(elseTestFile?.commits).toBe(2);
+    expect(elseTestFile?.linesAdded).toBe(5);
+    expect(elseTestFile?.linesDeleted).toBe(3);
+    expect(elseTestFile?.churnScore).toBe(10);
 
     // Check structure of FileChurn objects
     for (const fileChurn of result.files) {
@@ -35,36 +107,58 @@ describe("ChurnHotspotAnalyzer", () => {
       expect(fileChurn).toHaveProperty("churnScore");
       expect(fileChurn.churnScore).toBe(fileChurn.commits + fileChurn.linesAdded + fileChurn.linesDeleted);
     }
-  }, 10000);
+  });
 
   it("respects timeWindowDays option (default 90 days)", () => {
-    // Test that only recent commits are counted
     const files = [path.join(fixtureRoot, "packages/pkg-a/src/complex.ts")];
 
-    // Create analyzer with 1 day window
+    // First analyze with 1 day window
+    mockedExecSync.mockReset();
+    mockedExecSync.mockImplementation((cmd: string) => {
+      if (cmd === "git rev-parse --git-dir") {
+        return ".git\n";
+      }
+      if (cmd.startsWith("git log --numstat")) {
+        return MOCK_GIT_LOG_1DAY; // Only 1 commit
+      }
+      throw new Error(`Unexpected command: ${cmd}`);
+    });
+
     const recentAnalyzer = new ChurnHotspotAnalyzer({
-      rootDir: path.join(__dirname, ".."),
+      rootDir: fixtureRoot,
       files,
       timeWindowDays: 1,
     });
 
     const recentResult = recentAnalyzer.analyze();
+    const recentChurn = recentResult.files[0]?.commits ?? 0;
 
-    // Create analyzer with 365 day window
+    // Then analyze with 365 day window
+    mockedExecSync.mockReset();
+    mockedExecSync.mockImplementation((cmd: string) => {
+      if (cmd === "git rev-parse --git-dir") {
+        return ".git\n";
+      }
+      if (cmd.startsWith("git log --numstat")) {
+        return MOCK_GIT_LOG_365DAY; // All 3 commits
+      }
+      throw new Error(`Unexpected command: ${cmd}`);
+    });
+
     const longAnalyzer = new ChurnHotspotAnalyzer({
-      rootDir: path.join(__dirname, ".."),
+      rootDir: fixtureRoot,
       files,
       timeWindowDays: 365,
     });
 
     const longResult = longAnalyzer.analyze();
-
-    // The longer time window should have at least as many commits as the short window
-    const recentChurn = recentResult.files[0]?.commits ?? 0;
     const longChurn = longResult.files[0]?.commits ?? 0;
 
-    expect(longChurn).toBeGreaterThanOrEqual(recentChurn);
-  }, 10000);
+    // The longer time window should have more commits than the short window
+    expect(recentChurn).toBe(1); // Only 1 commit in 1-day window
+    expect(longChurn).toBe(3); // All 3 commits in 365-day window
+    expect(longChurn).toBeGreaterThan(recentChurn);
+  });
 
   it("combines churn with provided complexityMetrics to identify hotspots", () => {
     // Pass mock complexityMetrics, verify hotspots calculated
@@ -79,7 +173,7 @@ describe("ChurnHotspotAnalyzer", () => {
 
     // Now run churn analysis with complexity metrics
     const churnAnalyzer = new ChurnHotspotAnalyzer({
-      rootDir: path.join(__dirname, ".."),
+      rootDir: fixtureRoot,
       files,
       complexityMetrics,
     });
@@ -101,10 +195,17 @@ describe("ChurnHotspotAnalyzer", () => {
         expect(hotspot).toHaveProperty("cognitive");
       }
     }
-  }, 10000);
+  });
 
   it("handles non-git directory gracefully (isGitRepo=false, empty results)", () => {
-    // Create temp dir, run analyzer, expect isGitRepo: false
+    // Mock git rev-parse to throw (non-git directory)
+    mockedExecSync.mockImplementation((cmd: string) => {
+      if (cmd === "git rev-parse --git-dir") {
+        throw new Error("fatal: not a git repository");
+      }
+      throw new Error(`Unexpected command: ${cmd}`);
+    });
+
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "churn-test-"));
     const testFile = path.join(tempDir, "test.ts");
     fs.writeFileSync(testFile, "export const x = 1;");
@@ -127,13 +228,25 @@ describe("ChurnHotspotAnalyzer", () => {
   });
 
   it("handles files not tracked by git (churn=0)", () => {
+    // Mock git output without the untracked file
+    mockedExecSync.mockImplementation((cmd: string) => {
+      if (cmd === "git rev-parse --git-dir") {
+        return ".git\n";
+      }
+      if (cmd.startsWith("git log --numstat")) {
+        // Return empty log (file not in git history)
+        return "";
+      }
+      throw new Error(`Unexpected command: ${cmd}`);
+    });
+
     // Create temp file in git repo but don't track it
     const tempFile = path.join(__dirname, "..", "temp-untracked.ts");
     fs.writeFileSync(tempFile, "export const x = 1;");
 
     try {
       const analyzer = new ChurnHotspotAnalyzer({
-        rootDir: path.join(__dirname, ".."),
+        rootDir: fixtureRoot,
         files: [tempFile],
       });
 
@@ -149,7 +262,7 @@ describe("ChurnHotspotAnalyzer", () => {
       // Clean up
       fs.rmSync(tempFile, { force: true });
     }
-  }, 10000);
+  });
 
   it("ranks hotspots by combined score (churn * complexity normalized)", () => {
     // Verify sorting
@@ -165,7 +278,7 @@ describe("ChurnHotspotAnalyzer", () => {
 
     // Run churn analysis
     const churnAnalyzer = new ChurnHotspotAnalyzer({
-      rootDir: path.join(__dirname, ".."),
+      rootDir: fixtureRoot,
       files,
       complexityMetrics,
     });
@@ -176,16 +289,27 @@ describe("ChurnHotspotAnalyzer", () => {
     for (let i = 1; i < result.hotspots.length; i++) {
       expect(result.hotspots[i - 1]?.combinedScore).toBeGreaterThanOrEqual(result.hotspots[i]?.combinedScore);
     }
-  }, 10000);
+  });
 
   it("limits git log to avoid performance issues (--max-count=1000)", () => {
-    // Hard to test directly, but verify command includes limit
-    // This is more of an implementation check - we verify it doesn't crash
-    // on repos with many commits
+    // Verify command includes --max-count=1000
+    let capturedCommand = "";
+    mockedExecSync.mockImplementation((cmd: string) => {
+      if (cmd === "git rev-parse --git-dir") {
+        return ".git\n";
+      }
+      if (cmd.startsWith("git log --numstat")) {
+        capturedCommand = cmd;
+        expect(cmd).toContain("--max-count=1000");
+        return MOCK_GIT_LOG;
+      }
+      throw new Error(`Unexpected command: ${cmd}`);
+    });
+
     const files = [path.join(fixtureRoot, "packages/pkg-a/src/complex.ts")];
 
     const analyzer = new ChurnHotspotAnalyzer({
-      rootDir: path.join(__dirname, ".."),
+      rootDir: fixtureRoot,
       files,
       timeWindowDays: 3650, // 10 years - likely to have >1000 commits in some repos
     });
@@ -194,9 +318,9 @@ describe("ChurnHotspotAnalyzer", () => {
     const result = analyzer.analyze();
 
     expect(result.isGitRepo).toBe(true);
-    // Result should be defined - the test is that it doesn't hang
     expect(result.files).toBeDefined();
-  }, 15000);
+    expect(capturedCommand).toContain("--max-count=1000");
+  });
 
   it("handles churn without complexity metrics (churn-only hotspots)", () => {
     const files = [
@@ -205,7 +329,7 @@ describe("ChurnHotspotAnalyzer", () => {
     ];
 
     const analyzer = new ChurnHotspotAnalyzer({
-      rootDir: path.join(__dirname, ".."),
+      rootDir: fixtureRoot,
       files,
       // No complexityMetrics provided
     });
@@ -224,7 +348,7 @@ describe("ChurnHotspotAnalyzer", () => {
     for (let i = 1; i < result.hotspots.length; i++) {
       expect(result.hotspots[i - 1]?.churnScore).toBeGreaterThanOrEqual(result.hotspots[i]?.churnScore);
     }
-  }, 10000);
+  });
 
   it("normalizes scores correctly for combined calculation", () => {
     const files = [
@@ -237,7 +361,7 @@ describe("ChurnHotspotAnalyzer", () => {
     const complexityMetrics = complexityAnalyzer.analyze();
 
     const analyzer = new ChurnHotspotAnalyzer({
-      rootDir: path.join(__dirname, ".."),
+      rootDir: fixtureRoot,
       files,
       complexityMetrics,
     });
@@ -254,5 +378,5 @@ describe("ChurnHotspotAnalyzer", () => {
         expect(hotspot.combinedScore).toBeLessThanOrEqual(1);
       }
     }
-  }, 10000);
+  });
 });

@@ -43,7 +43,7 @@ try {
 
 ## Fixing Swallowed Errors
 
-### Empty Catch → Proper Handling
+### Empty Catch → Tighten or Propagate
 
 **Before:**
 ```typescript
@@ -54,7 +54,19 @@ try {
 }
 ```
 
-**Option 1: Propagate error**
+**Option 1: Tighten to expected errors, rethrow the rest**
+```typescript
+try {
+  await saveToDatabase(data);
+} catch (error) {
+  if (error.code === 'DUPLICATE_KEY') {
+    return { success: false, error: 'Already exists' };  // Expected
+  }
+  throw error;  // Unexpected: connection failure, etc.
+}
+```
+
+**Option 2: Always propagate (if caller needs to know)**
 ```typescript
 try {
   await saveToDatabase(data);
@@ -63,22 +75,13 @@ try {
 }
 ```
 
-**Option 2: Log and handle**
+**Option 3: Log only (if failure doesn't affect user)**
 ```typescript
 try {
-  await saveToDatabase(data);
+  await logAuditEvent(data);  // Non-critical
 } catch (error) {
-  logger.error('Database save failed', { error, data });
-  return { success: false, error: 'Save failed' };
-}
-```
-
-**Option 3: Document if intentional**
-```typescript
-try {
-  await saveToDatabase(data);
-} catch {
-  // Intentional: best-effort save, failure is acceptable
+  console.warn('Audit logging failed:', error);
+  // OK: audit failure doesn't affect user experience
 }
 ```
 
@@ -164,47 +167,53 @@ function handleClick() {
 
 ## When Swallowing Is Intentional
 
-Document these cases clearly:
+Swallowing is acceptable when failure **doesn't affect the user experience**. Even then, prefer logging the error for debugging.
 
-**Best-effort operations:**
+**Non-critical telemetry:**
 ```typescript
 try {
   await analytics.track('page_view');
-} catch {
-  // Intentional: analytics failure should not break user flow
+} catch (error) {
+  console.warn('Analytics failed:', error);
+  // OK: analytics failure doesn't affect user
 }
 ```
 
-**Graceful degradation:**
+**Graceful degradation with fallback:**
 ```typescript
 let cachedValue: Value | undefined;
 try {
   cachedValue = await cache.get(key);
-} catch {
-  // Intentional: cache miss falls through to database
+} catch (error) {
+  console.warn('Cache read failed, falling back to database:', error);
+  // OK: we have a fallback, user experience unaffected
 }
 ```
 
-**Cleanup in finally:**
+**Best-effort cleanup:**
 ```typescript
 try {
   await processFile(path);
 } finally {
   try {
     await fs.unlink(tempFile);
-  } catch {
-    // Intentional: temp file cleanup is best-effort
+  } catch (error) {
+    console.warn('Failed to clean up temp file:', error);
+    // OK: orphaned temp file doesn't affect user
   }
 }
 ```
 
-**Optional features (naming convention):**
+**Optional features (tighten to expected errors):**
 ```typescript
 function tryLoadPlugin(name: string): Plugin | undefined {
   try {
     return require(name);
-  } catch {
-    return undefined;  // Plugin not available
+  } catch (error) {
+    if (error.code === 'MODULE_NOT_FOUND') {
+      return undefined;  // Expected: plugin not installed
+    }
+    throw error;  // Unexpected: syntax error, etc.
   }
 }
 ```
@@ -214,17 +223,17 @@ function tryLoadPlugin(name: string): Plugin | undefined {
 ```
 Should I catch this error?
 │
+├─ Is this a specific, expected error type?
+│  ├─ Yes → Catch that specific type, handle it
+│  └─ No → Let it propagate (don't catch unknown errors)
+│
+├─ Does failure affect user experience?
+│  ├─ Yes → Must propagate (throw) so caller can handle
+│  └─ No → Can log and swallow (analytics, telemetry, cleanup)
+│
 ├─ Can this layer handle it meaningfully?
-│  ├─ Yes → Catch, handle, potentially rethrow wrapped
-│  └─ No → Let it propagate
-│
-├─ Is this a known/expected error type?
-│  ├─ Yes → Catch and handle specifically
-│  └─ No → Let it propagate (unknown = bug)
-│
-├─ Is silent failure acceptable?
-│  ├─ Yes → Catch, document why, optionally log
-│  └─ No → Must propagate or return error result
+│  ├─ Yes → Handle and potentially wrap with context
+│  └─ No → Let it propagate to a layer that can
 ```
 
 ## Priority by Confidence
