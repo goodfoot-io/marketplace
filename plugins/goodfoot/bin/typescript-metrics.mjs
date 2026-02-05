@@ -231270,60 +231270,41 @@ var ChurnHotspotAnalyzer = class {
         cognitive: maxCognitive
       });
     }
-    const churnScores = [];
-    const complexityScores = [];
-    for (const fc of churnData) {
-      const absPath = path.resolve(fc.file);
-      const complexity = fileComplexityMap.get(absPath);
-      if (fc.churnScore > 0 || complexity) {
-        churnScores.push(fc.churnScore);
-        const complexityScore = complexity ? Math.max(complexity.cyclomatic, complexity.cognitive) : 0;
-        complexityScores.push(complexityScore);
-      }
-    }
+    const fileData = churnData.map((fc) => ({
+      fc,
+      complexity: fileComplexityMap.get(fc.file)
+    })).filter(({ fc, complexity }) => fc.churnScore > 0 || complexity);
+    const churnScores = fileData.map(({ fc }) => fc.churnScore);
+    const complexityScores = fileData.map(
+      ({ complexity }) => complexity ? Math.max(complexity.cyclomatic, complexity.cognitive) : 0
+    );
     const normalizedChurn = this.normalize(churnScores);
     const normalizedComplexity = this.normalize(complexityScores);
-    const hotspots = [];
-    let index = 0;
-    for (const fc of churnData) {
-      const absPath = path.resolve(fc.file);
-      const complexity = fileComplexityMap.get(absPath);
-      if (fc.churnScore > 0 || complexity) {
-        const complexityScore = complexity ? Math.max(complexity.cyclomatic, complexity.cognitive) : 0;
-        const normalizedChurnScore = normalizedChurn.get(index) ?? 0;
-        const normalizedComplexityScore = normalizedComplexity.get(index) ?? 0;
-        const combinedScore = normalizedChurnScore * normalizedComplexityScore;
-        hotspots.push({
-          file: fc.file,
-          churnScore: fc.churnScore,
-          complexityScore,
-          combinedScore,
-          cyclomatic: complexity?.cyclomatic,
-          cognitive: complexity?.cognitive
-        });
-        index++;
-      }
-    }
+    const hotspots = fileData.map(({ fc, complexity }, index) => {
+      const complexityScore = complexityScores[index];
+      const combinedScore = normalizedChurn[index] * normalizedComplexity[index];
+      return {
+        file: fc.file,
+        churnScore: fc.churnScore,
+        complexityScore,
+        combinedScore,
+        cyclomatic: complexity?.cyclomatic,
+        cognitive: complexity?.cognitive
+      };
+    });
     return hotspots.sort((a, b) => b.combinedScore - a.combinedScore);
   }
   normalize(values) {
-    const result = /* @__PURE__ */ new Map();
     if (values.length === 0) {
-      return result;
+      return [];
     }
     const min = Math.min(...values);
     const max = Math.max(...values);
     if (max === min) {
-      for (let i = 0; i < values.length; i++) {
-        result.set(i, values[i] > 0 ? 1 : 0);
-      }
-      return result;
+      return values.map((v) => v > 0 ? 1 : 0);
     }
-    for (let i = 0; i < values.length; i++) {
-      const normalized = (values[i] - min) / (max - min);
-      result.set(i, normalized);
-    }
-    return result;
+    const range2 = max - min;
+    return values.map((v) => (v - min) / range2);
   }
 };
 
@@ -233219,65 +233200,62 @@ var EncapsulationAnalyzer = class {
   analyzeSourceFile(sourceFile, file, classes) {
     const visit = (node) => {
       if (ts5.isClassDeclaration(node)) {
-        if (node.modifiers?.some((m) => m.kind === ts5.SyntaxKind.AbstractKeyword)) {
-          return;
+        const classMetrics = this.analyzeClass(node, sourceFile, file);
+        if (classMetrics) {
+          classes.push(classMetrics);
         }
-        if (!node.name) {
-          return;
-        }
-        const className = node.name.getText(sourceFile);
-        const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
-        let totalMethods = 0;
-        let hiddenMethods = 0;
-        let totalAttributes = 0;
-        let hiddenAttributes = 0;
-        for (const member of node.members) {
-          if (ts5.isMethodDeclaration(member) || ts5.isGetAccessor(member) || ts5.isSetAccessor(member)) {
-            totalMethods++;
-            if (this.isHidden(member)) {
-              hiddenMethods++;
-            }
-          }
-          if (ts5.isPropertyDeclaration(member)) {
-            totalAttributes++;
-            if (this.isHidden(member)) {
-              hiddenAttributes++;
-            }
-          }
-        }
-        const mhf = totalMethods === 0 ? 1 : hiddenMethods / totalMethods;
-        const ahf = totalAttributes === 0 ? 1 : hiddenAttributes / totalAttributes;
-        classes.push({
-          className,
-          file,
-          line,
-          totalMethods,
-          hiddenMethods,
-          totalAttributes,
-          hiddenAttributes,
-          mhf,
-          ahf
-        });
       }
       ts5.forEachChild(node, visit);
     };
     visit(sourceFile);
   }
-  isHidden(node) {
-    if (ts5.canHaveModifiers(node)) {
-      const modifiers = ts5.getModifiers(node);
-      if (modifiers) {
-        const hasPrivate = modifiers.some((m) => m.kind === ts5.SyntaxKind.PrivateKeyword);
-        const hasProtected = modifiers.some((m) => m.kind === ts5.SyntaxKind.ProtectedKeyword);
-        if (hasPrivate || hasProtected) {
-          return true;
+  analyzeClass(node, sourceFile, file) {
+    if (node.modifiers?.some((m) => m.kind === ts5.SyntaxKind.AbstractKeyword)) {
+      return null;
+    }
+    if (!node.name) {
+      return null;
+    }
+    const className = node.name.getText(sourceFile);
+    const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+    let totalMethods = 0;
+    let hiddenMethods = 0;
+    let totalAttributes = 0;
+    let hiddenAttributes = 0;
+    for (const member of node.members) {
+      if (ts5.isMethodDeclaration(member) || ts5.isGetAccessor(member) || ts5.isSetAccessor(member)) {
+        totalMethods++;
+        if (this.isHidden(member)) {
+          hiddenMethods++;
+        }
+      } else if (ts5.isPropertyDeclaration(member)) {
+        totalAttributes++;
+        if (this.isHidden(member)) {
+          hiddenAttributes++;
         }
       }
     }
-    if (ts5.isPropertyDeclaration(node) || ts5.isMethodDeclaration(node) || ts5.isGetAccessor(node) || ts5.isSetAccessor(node)) {
-      if (node.name && ts5.isPrivateIdentifier(node.name)) {
-        return true;
-      }
+    const mhf = totalMethods === 0 ? 1 : hiddenMethods / totalMethods;
+    const ahf = totalAttributes === 0 ? 1 : hiddenAttributes / totalAttributes;
+    return {
+      className,
+      file,
+      line,
+      totalMethods,
+      hiddenMethods,
+      totalAttributes,
+      hiddenAttributes,
+      mhf,
+      ahf
+    };
+  }
+  isHidden(node) {
+    const modifiers = ts5.canHaveModifiers(node) ? ts5.getModifiers(node) : void 0;
+    if (modifiers?.some((m) => m.kind === ts5.SyntaxKind.PrivateKeyword || m.kind === ts5.SyntaxKind.ProtectedKeyword)) {
+      return true;
+    }
+    if ("name" in node && node.name && ts5.isPrivateIdentifier(node.name)) {
+      return true;
     }
     return false;
   }

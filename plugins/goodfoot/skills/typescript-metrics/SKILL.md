@@ -116,9 +116,9 @@ Dead code paths indicate either unfinished work or over-engineering. Either remo
 Errors exist to communicate problems. Swallowing them creates silent failures that surface far from their cause, making debugging far harder than it needs to be.
 
 **Quick fixes:**
-- Log and rethrow if layer can't handle it
-- Return error result instead of hiding failure
-- Document intentional swallowing with comment
+- Tighten the catch to only expected error types (e.g., file not found)
+- Rethrow unexpected errors (default behavior)
+- Log only when failure doesn't affect user experience
 
 ## When to Ignore Metrics
 

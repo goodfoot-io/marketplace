@@ -4,6 +4,31 @@
 
 Errors exist to communicate problems. Swallowing them creates silent failures that surface far from their cause. You'll spend hours debugging why something "just doesn't work" when an error message was available but discarded.
 
+## The Core Fix: Tighten the Catch
+
+Most swallowed errors come from catching too broadly. The fix is to catch only the specific error types you expect and know how to handle. Unexpected errors should propagate.
+
+```typescript
+// BAD: Catches everything, hides unexpected failures
+try {
+  const data = await readFile(path);
+} catch {
+  return null;
+}
+
+// GOOD: Catch only expected errors, rethrow the rest
+try {
+  const data = await readFile(path);
+} catch (error) {
+  if (error.code === 'ENOENT') {
+    return null;  // Expected: file doesn't exist
+  }
+  throw error;  // Unexpected: permissions, disk failure, etc.
+}
+```
+
+**Default to throwing.** Only log (instead of throw) when the failure genuinely doesn't affect the user experience—like analytics or optional telemetry.
+
 ## Patterns Detected
 
 | Pattern | Description | Confidence |
@@ -57,7 +82,7 @@ try {
 }
 ```
 
-### Catch Returns Success → Accurate Result
+### Catch Returns Success → Tighten to Expected Errors
 
 **Before:**
 ```typescript
@@ -84,7 +109,9 @@ async function fetchUser(id: string): Promise<User | null> {
 }
 ```
 
-### Log-Only → Log and Rethrow
+The key change: only `NotFoundError` returns null. Network failures, auth errors, and other unexpected problems propagate to the caller.
+
+### Log-Only → Rethrow (Default) or Log-Only (Non-Critical)
 
 **Before:**
 ```typescript
@@ -96,13 +123,23 @@ try {
 }
 ```
 
-**After:**
+**After (critical path—affects user):**
 ```typescript
 try {
   processPayment(order);
 } catch (error) {
   console.error('Payment failed:', error);
-  throw error;  // Caller can handle appropriately
+  throw error;  // Caller must know this failed
+}
+```
+
+**After (non-critical—doesn't affect user experience):**
+```typescript
+try {
+  await analytics.trackPurchase(order);
+} catch (error) {
+  console.error('Analytics failed:', error);
+  // OK to swallow: analytics failure doesn't affect the user
 }
 ```
 
