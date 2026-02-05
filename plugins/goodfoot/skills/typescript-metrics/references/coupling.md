@@ -1,14 +1,10 @@
-# Coupling: Understanding and Reducing
+# Coupling: Refactoring Guide
 
-## Why Coupling Causes Maintenance Pain
+## Reading the Metrics
 
-Highly coupled code changes together. When modifying one file requires changes to many others, coupling is too high. Research shows coupling metrics predict change ripple effects and maintenance effort.
-
-**Fan-in (Ca)** — Files that depend on this one. High fan-in means many things break if you change it.
-
-**Fan-out (Ce)** — Files this one depends on. High fan-out means this file has many reasons to change.
-
-**Instability (I = Ce / (Ca + Ce))** — How likely a file is to change when its dependencies change.
+- **Fan-in (Ca)** — Files that depend on this one. High = many things break if you change it.
+- **Fan-out (Ce)** — Files this one depends on. High = many reasons to change.
+- **Instability (I = Ce / (Ca + Ce))** — How likely to change when dependencies change.
 
 ## Expected Instability by File Type
 

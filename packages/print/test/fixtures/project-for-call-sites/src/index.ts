@@ -1,11 +1,12 @@
 // Main entry point that uses various components
-import { add, sum } from "./utils/math.js";
-import { capitalize } from "./utils/strings.js";
-import { Button, createButton } from "./components/Button.js";
+
+import { createButton } from "./components/Button.js";
 import { Form } from "./components/Form.js";
 import { Widget } from "./components/Widget.js";
 import { Calculator, quickAdd } from "./services/calculator.js";
-import { formatUser, formatNames } from "./services/formatter.js";
+import { formatNames, formatUser } from "./services/formatter.js";
+import { add, sum } from "./utils/math.js";
+import { capitalize } from "./utils/strings.js";
 
 /**
  * Main application function

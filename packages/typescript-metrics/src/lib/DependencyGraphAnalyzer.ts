@@ -255,8 +255,10 @@ export class DependencyGraphAnalyzer {
     const hubs: HubNode[] = [];
 
     for (const file of this.graph.allNodes) {
-      const fanIn = this.graph.reverse.get(file)?.length ?? 0;
-      const fanOut = this.graph.forward.get(file)?.length ?? 0;
+      const fanInFiles = this.graph.reverse.get(file) ?? [];
+      const fanOutFiles = this.graph.forward.get(file) ?? [];
+      const fanIn = fanInFiles.length;
+      const fanOut = fanOutFiles.length;
       const totalDegree = fanIn + fanOut;
 
       hubs.push({
@@ -265,6 +267,9 @@ export class DependencyGraphAnalyzer {
         fanIn,
         fanOut,
         betweennessCentrality: betweenness?.get(file),
+        // Include sample of files (up to 5 each) for context
+        fanInFiles: fanInFiles.slice(0, 5),
+        fanOutFiles: fanOutFiles.slice(0, 5),
       });
     }
 

@@ -231217,12 +231217,14 @@ var ChurnHotspotAnalyzer = class {
           const linesAdded = churnData.linesAdded;
           const linesDeleted = churnData.linesDeleted;
           const churnScore = commits + linesAdded + linesDeleted;
+          const avgLinesPerCommit = commits > 0 ? (linesAdded + linesDeleted) / commits : 0;
           result.push({
             file: absolutePath,
             commits,
             linesAdded,
             linesDeleted,
-            churnScore
+            churnScore,
+            avgLinesPerCommit
           });
         } else {
           result.push({
@@ -231230,7 +231232,8 @@ var ChurnHotspotAnalyzer = class {
             commits: 0,
             linesAdded: 0,
             linesDeleted: 0,
-            churnScore: 0
+            churnScore: 0,
+            avgLinesPerCommit: 0
           });
         }
       }
@@ -231242,7 +231245,8 @@ var ChurnHotspotAnalyzer = class {
         commits: 0,
         linesAdded: 0,
         linesDeleted: 0,
-        churnScore: 0
+        churnScore: 0,
+        avgLinesPerCommit: 0
       }));
     }
   }
@@ -231343,13 +231347,18 @@ var ComplexityAnalyzer = class {
       const endLine = sourceFile.getLineAndCharacterOfPosition(fn.getEnd()).line + 1;
       const cyclomatic = this.calculateCyclomaticComplexity(fn);
       const cognitive = this.calculateCognitiveComplexity(fn);
+      const isHotspot = cyclomatic >= 10 || cognitive >= 15;
+      const codeSnippet = isHotspot ? this.getCodeSnippet(fn, sourceFile) : void 0;
+      const complexityPattern = isHotspot ? this.detectComplexityPattern(fn) : void 0;
       functions.push({
         name,
         file: filePath,
         line,
         endLine,
         cyclomatic,
-        cognitive
+        cognitive,
+        codeSnippet,
+        complexityPattern
       });
     }
     ts.forEachChild(node, (child) => this.visitFunctions(child, sourceFile, filePath, functions));
@@ -231711,6 +231720,93 @@ var ComplexityAnalyzer = class {
       return 0;
     }
     return loc.comment / loc.code;
+  }
+  /**
+   * Gets a code snippet for a function showing the signature and first few lines.
+   */
+  getCodeSnippet(fn, sourceFile) {
+    const fullText = fn.getText(sourceFile);
+    const lines = fullText.split("\n");
+    const snippetLines = [];
+    let braceCount = 0;
+    let foundBody = false;
+    for (let i = 0; i < Math.min(lines.length, 8); i++) {
+      const line = lines[i];
+      snippetLines.push(line);
+      for (const char of line) {
+        if (char === "{") {
+          braceCount++;
+          foundBody = true;
+        } else if (char === "}") {
+          braceCount--;
+        }
+      }
+      if (foundBody && braceCount > 0 && i >= 3) {
+        snippetLines.push("    // ...");
+        break;
+      }
+    }
+    const snippet = snippetLines.join("\n");
+    if (snippet.length > 300) {
+      return `${snippet.slice(0, 297)}...`;
+    }
+    return snippet;
+  }
+  /**
+   * Detects the primary complexity pattern in a function.
+   */
+  detectComplexityPattern(fn) {
+    let ifCount = 0;
+    let switchCount = 0;
+    let caseCount = 0;
+    let loopCount = 0;
+    let maxNestingDepth = 0;
+    const visit = (node, depth) => {
+      let newDepth = depth;
+      switch (node.kind) {
+        case ts.SyntaxKind.IfStatement:
+          ifCount++;
+          newDepth = depth + 1;
+          break;
+        case ts.SyntaxKind.SwitchStatement:
+          switchCount++;
+          newDepth = depth + 1;
+          break;
+        case ts.SyntaxKind.CaseClause:
+        case ts.SyntaxKind.DefaultClause:
+          caseCount++;
+          break;
+        case ts.SyntaxKind.ForStatement:
+        case ts.SyntaxKind.ForInStatement:
+        case ts.SyntaxKind.ForOfStatement:
+        case ts.SyntaxKind.WhileStatement:
+        case ts.SyntaxKind.DoStatement:
+          loopCount++;
+          newDepth = depth + 1;
+          break;
+      }
+      maxNestingDepth = Math.max(maxNestingDepth, newDepth);
+      ts.forEachChild(node, (child) => visit(child, newDepth));
+    };
+    if (fn.body) {
+      visit(fn.body, 0);
+    }
+    if (switchCount > 0 && caseCount >= 5) {
+      return "switch-heavy";
+    }
+    if (maxNestingDepth >= 3 && ifCount >= 3) {
+      return "nested-conditionals";
+    }
+    if (loopCount >= 3) {
+      return "loop-heavy";
+    }
+    if (ifCount >= 5 || caseCount >= 5) {
+      return "many-branches";
+    }
+    if (ifCount >= 2 && loopCount >= 2) {
+      return "mixed";
+    }
+    return "unknown";
   }
   /**
    * Analyzes all files and returns aggregated metrics.
@@ -232572,15 +232668,20 @@ var DependencyGraphAnalyzer = class {
     const betweenness = includeBetweenness ? this.calculateBetweennessCentrality() : null;
     const hubs = [];
     for (const file of this.graph.allNodes) {
-      const fanIn = this.graph.reverse.get(file)?.length ?? 0;
-      const fanOut = this.graph.forward.get(file)?.length ?? 0;
+      const fanInFiles = this.graph.reverse.get(file) ?? [];
+      const fanOutFiles = this.graph.forward.get(file) ?? [];
+      const fanIn = fanInFiles.length;
+      const fanOut = fanOutFiles.length;
       const totalDegree = fanIn + fanOut;
       hubs.push({
         file,
         totalDegree,
         fanIn,
         fanOut,
-        betweennessCentrality: betweenness?.get(file)
+        betweennessCentrality: betweenness?.get(file),
+        // Include sample of files (up to 5 each) for context
+        fanInFiles: fanInFiles.slice(0, 5),
+        fanOutFiles: fanOutFiles.slice(0, 5)
       });
     }
     hubs.sort((a, b) => b.totalDegree - a.totalDegree);
@@ -233000,6 +233101,24 @@ var DuplicationDetector = class {
     }
     return window1.tokens.every((t, i) => t.normalizedValue === window2.tokens[i].normalizedValue);
   }
+  /**
+   * Gets a code snippet for a range in a file.
+   */
+  getCodeSnippetForRange(file, startLine, endLine, maxLines = 8) {
+    const content = fs3.readFileSync(file, "utf-8");
+    const lines = content.split("\n");
+    const start = Math.max(0, startLine - 1);
+    const end = Math.min(lines.length, startLine - 1 + maxLines);
+    const snippetLines = lines.slice(start, end);
+    if (endLine > startLine - 1 + maxLines) {
+      snippetLines.push("// ...");
+    }
+    const snippet = snippetLines.join("\n");
+    if (snippet.length > 400) {
+      return `${snippet.slice(0, 397)}...`;
+    }
+    return snippet;
+  }
   findDuplicates() {
     const minTokens = this.options.minTokens;
     const fileTokens = /* @__PURE__ */ new Map();
@@ -233054,6 +233173,12 @@ var DuplicationDetector = class {
             continue;
           }
         }
+        const firstWindow = group[0];
+        const codeSnippet = this.getCodeSnippetForRange(
+          firstWindow.file,
+          firstWindow.startLine,
+          firstWindow.endLine
+        );
         duplicateBlocks.push({
           files: group.map((w) => ({
             file: w.file,
@@ -233061,7 +233186,8 @@ var DuplicationDetector = class {
             endLine: w.endLine
           })),
           tokenCount: minTokens,
-          fingerprint: hash
+          fingerprint: hash,
+          codeSnippet
         });
       }
     }
@@ -233131,10 +233257,21 @@ var DuplicationDetector = class {
     const lineRange = mergedFiles[0].endLine - mergedFiles[0].startLine + 1;
     const avgTokensPerLine = block1.tokenCount / (block1.files[0].endLine - block1.files[0].startLine + 1);
     const estimatedTokenCount = Math.round(lineRange * avgTokensPerLine);
+    let codeSnippet;
+    try {
+      codeSnippet = this.getCodeSnippetForRange(
+        mergedFiles[0].file,
+        mergedFiles[0].startLine,
+        mergedFiles[0].endLine
+      );
+    } catch {
+      codeSnippet = block1.codeSnippet;
+    }
     return {
       files: mergedFiles,
       tokenCount: Math.max(block1.tokenCount, estimatedTokenCount),
-      fingerprint: block1.fingerprint
+      fingerprint: block1.fingerprint,
+      codeSnippet
     };
   }
   analyze() {
@@ -233613,6 +233750,7 @@ var SwallowedErrorAnalyzer = class {
     if (statements.length === 0) {
       const hasComments = this.hasCommentTrivia(block, sourceFile);
       if (hasComments) {
+        const commentText = this.extractCommentText(block, sourceFile);
         findings.push({
           file,
           line: pos.line + 1,
@@ -233621,7 +233759,8 @@ var SwallowedErrorAnalyzer = class {
           confidence: this.adjustConfidence("high", context),
           context,
           codeSnippet: this.getCodeSnippet(catchClause, sourceFile),
-          suggestion: "Add explicit error handling or rethrow. If intentional, consider logging the reason."
+          suggestion: "Add explicit error handling or rethrow. If intentional, consider logging the reason.",
+          commentText
         });
       } else {
         findings.push({
@@ -233796,6 +233935,34 @@ var SwallowedErrorAnalyzer = class {
     }
     const blockText = fullText.slice(start, end);
     return /\/\/|\/\*/.test(blockText);
+  }
+  /**
+   * Extracts comment text from inside a catch block.
+   */
+  extractCommentText(block, sourceFile) {
+    const fullText = sourceFile.getFullText();
+    const start = block.getStart(sourceFile);
+    const end = block.getEnd();
+    const leadingComments = import_typescript2.default.getLeadingCommentRanges(fullText, block.statements.pos) ?? [];
+    const comments = [];
+    for (const comment of leadingComments) {
+      const commentText = fullText.slice(comment.pos, comment.end).trim();
+      comments.push(commentText);
+    }
+    const blockText = fullText.slice(start, end);
+    const singleLineMatch = blockText.match(/\/\/\s*(.+)/);
+    if (singleLineMatch && comments.length === 0) {
+      comments.push(`// ${singleLineMatch[1].trim()}`);
+    }
+    const multiLineMatch = blockText.match(/\/\*[\s\S]*?\*\//);
+    if (multiLineMatch && comments.length === 0) {
+      comments.push(multiLineMatch[0].trim());
+    }
+    const result = comments.join(" ").trim();
+    if (result.length > 150) {
+      return `${result.slice(0, 147)}...`;
+    }
+    return result;
   }
   hasRethrow(block) {
     let found = false;
@@ -234250,19 +234417,22 @@ var ReportGenerator = class {
     lines.push("Files with high churn and complexity are maintenance risks.");
     lines.push("");
     if (metrics.hotspots.length > 0) {
-      lines.push("| File | Churn | Complexity | Combined |");
-      lines.push("|------|-------|------------|----------|");
+      lines.push("| File | Commits | Lines \u0394 | Avg/Commit | Complexity | Combined |");
+      lines.push("|------|---------|---------|------------|------------|----------|");
       const topHotspots = metrics.hotspots.slice(0, 10);
       for (const hotspot of topHotspots) {
         const relPath = this.relativePath(hotspot.file);
+        const fileChurn = metrics.files.find((f) => f.file === hotspot.file);
+        const commits = fileChurn?.commits ?? 0;
+        const linesChanged = fileChurn ? fileChurn.linesAdded + fileChurn.linesDeleted : 0;
+        const avgPerCommit = fileChurn?.avgLinesPerCommit ?? 0;
+        const avgLabel = avgPerCommit > 100 ? `${Math.round(avgPerCommit)} (refactor?)` : Math.round(avgPerCommit).toString();
         lines.push(
-          `| ${relPath} | ${hotspot.churnScore} | ${hotspot.complexityScore} | ${hotspot.combinedScore.toFixed(2)} |`
+          `| ${relPath} | ${commits} | ${linesChanged} | ${avgLabel} | ${hotspot.complexityScore} | ${hotspot.combinedScore.toFixed(2)} |`
         );
       }
       lines.push("");
-      lines.push(
-        "*Churn = commits + lines added + deleted (last 90 days). Combined = normalized(churn) \xD7 normalized(complexity).*"
-      );
+      lines.push("*Commits and lines changed in last 90 days. High avg/commit suggests refactors; low suggests incremental changes.*");
       lines.push("");
     } else {
       lines.push("*No churn hotspots detected in the analyzed time window.*");
@@ -234354,19 +234524,29 @@ var ReportGenerator = class {
           );
         }
         lines.push("");
-        lines.push("| File | Line | Function | LOC | CC | Cognitive |");
-        lines.push("|------|------|----------|-----|-----|-----------|");
+        lines.push("| File | Line | Function | LOC | CC | Cognitive | Pattern |");
+        lines.push("|------|------|----------|-----|-----|-----------|---------|");
         const toShow = result.complexity.hotspots.slice(0, 10);
         for (const fn of toShow) {
           const relPath = this.relativePath(fn.file);
           const loc = fn.endLine - fn.line + 1;
           const ccStatus = fn.cyclomatic > COMPLEXITY_THRESHOLD_CYCLOMATIC ? " \u{1F534}" : "";
           const cogStatus = fn.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE ? " \u{1F534}" : "";
+          const pattern = fn.complexityPattern ? this.getComplexityPatternLabel(fn.complexityPattern) : "-";
           lines.push(
-            `| ${relPath} | ${fn.line} | ${fn.name} | ${loc} | ${fn.cyclomatic}${ccStatus} | ${fn.cognitive}${cogStatus} |`
+            `| ${relPath} | ${fn.line} | ${fn.name} | ${loc} | ${fn.cyclomatic}${ccStatus} | ${fn.cognitive}${cogStatus} | ${pattern} |`
           );
         }
         lines.push("");
+        const worst = toShow[0];
+        if (worst?.codeSnippet) {
+          lines.push("**Worst hotspot preview:**");
+          lines.push("");
+          lines.push("```typescript");
+          lines.push(worst.codeSnippet);
+          lines.push("```");
+          lines.push("");
+        }
       }
     }
     if (result.coupling && result.cycles) {
@@ -234403,6 +234583,22 @@ var ReportGenerator = class {
             );
           }
           lines.push("");
+          const topHub = result.coupling.hubs[0];
+          if (topHub && (topHub.fanInFiles?.length || topHub.fanOutFiles?.length)) {
+            lines.push(`**${this.relativePath(topHub.file)} connections:**`);
+            lines.push("");
+            if (topHub.fanInFiles && topHub.fanInFiles.length > 0) {
+              const fanInList = topHub.fanInFiles.slice(0, 3).map((f) => `\`${this.relativePath(f)}\``).join(", ");
+              const more = topHub.fanIn > 3 ? ` (+${topHub.fanIn - 3} more)` : "";
+              lines.push(`- **Depended on by:** ${fanInList}${more}`);
+            }
+            if (topHub.fanOutFiles && topHub.fanOutFiles.length > 0) {
+              const fanOutList = topHub.fanOutFiles.slice(0, 3).map((f) => `\`${this.relativePath(f)}\``).join(", ");
+              const more = topHub.fanOut > 3 ? ` (+${topHub.fanOut - 3} more)` : "";
+              lines.push(`- **Depends on:** ${fanOutList}${more}`);
+            }
+            lines.push("");
+          }
         }
         if (result.cycles.count > 0 && result.cycles.sccs.length > 0) {
           const isTestFixture = (file) => file.includes("/test/fixtures/") || file.includes("/tests/fixtures/") || file.includes("/__fixtures__/");
@@ -234450,6 +234646,15 @@ var ReportGenerator = class {
         lines.push(`| ${locA} | ${locB} | ${block.tokenCount} |`);
       }
       lines.push("");
+      const largest = topBlocks[0];
+      if (largest?.codeSnippet) {
+        lines.push("**Largest duplicate preview:**");
+        lines.push("");
+        lines.push("```typescript");
+        lines.push(largest.codeSnippet);
+        lines.push("```");
+        lines.push("");
+      }
     }
     if (result.dataFlow) {
       const hasIssues = result.dataFlow.unusedParameters.length > 0 || result.dataFlow.ignoredReturns.length > 0 || result.dataFlow.unreadWrites.length > 0;
@@ -234555,13 +234760,12 @@ var ReportGenerator = class {
           `*Showing ${displayCount} of ${highConfidence.length} high-confidence findings (${mediumConfidence.length} medium-confidence omitted)*`
         );
         lines.push("");
-        lines.push("| File | Line | Pattern | Suggestion |");
-        lines.push("|------|------|---------|------------|");
+        lines.push("| File | Line | Pattern | Context |");
+        lines.push("|------|------|---------|---------|");
         for (const finding of highConfidence.slice(0, 10)) {
           const patternLabel = this.getSwallowedErrorPatternLabel(finding.pattern);
-          lines.push(
-            `| ${this.relativePath(finding.file)} | ${finding.line} | ${patternLabel} | ${finding.suggestion} |`
-          );
+          const context = finding.pattern === "comment-only-catch" && finding.commentText ? `"${finding.commentText.slice(0, 60)}${finding.commentText.length > 60 ? "..." : ""}"` : finding.suggestion.slice(0, 60);
+          lines.push(`| ${this.relativePath(finding.file)} | ${finding.line} | ${patternLabel} | ${context} |`);
         }
         lines.push("");
       }
@@ -234810,10 +235014,18 @@ var ReportGenerator = class {
     return { score: finalScore, reason };
   }
   calculateCycleScoreWithReason(cycles) {
-    if (cycles.count === 0) return { score: 100, reason: "no cycles" };
-    if (cycles.count === 1) return { score: 70, reason: "1 cycle" };
-    if (cycles.count <= 3) return { score: 40, reason: `${cycles.count} cycles` };
-    return { score: 0, reason: `${cycles.count} cycles` };
+    const isTestFixture = (file) => file.includes("/test/fixtures/") || file.includes("/tests/fixtures/") || file.includes("/__fixtures__/");
+    const productionCycles = cycles.sccs.filter((scc) => !scc.every((f) => isTestFixture(f)));
+    const productionCount = productionCycles.length;
+    if (productionCount === 0) {
+      if (cycles.count > 0) {
+        return { score: 100, reason: `${cycles.count} cycle${cycles.count > 1 ? "s" : ""} (test fixtures only)` };
+      }
+      return { score: 100, reason: "no cycles" };
+    }
+    if (productionCount === 1) return { score: 70, reason: "1 cycle" };
+    if (productionCount <= 3) return { score: 40, reason: `${productionCount} cycles` };
+    return { score: 0, reason: `${productionCount} cycles` };
   }
   identifyIssues(result) {
     const issues = [];
@@ -235017,6 +235229,17 @@ var ReportGenerator = class {
       "void-promise": "Fire-and-forget",
       "empty-promise-catch": "Empty .catch()",
       "error-param-unused": "Error unused"
+    };
+    return labels[pattern] ?? pattern;
+  }
+  getComplexityPatternLabel(pattern) {
+    const labels = {
+      "nested-conditionals": "Nested ifs",
+      "many-branches": "Many branches",
+      "switch-heavy": "Large switch",
+      "loop-heavy": "Many loops",
+      mixed: "Mixed",
+      unknown: "-"
     };
     return labels[pattern] ?? pattern;
   }

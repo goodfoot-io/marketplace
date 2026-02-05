@@ -236,7 +236,7 @@ describe("CallSiteFinder", () => {
 
       // Calculator.nestedAdd has: add(add(a, b), c)
       // Should find both calls
-      const calculatorCalls = result.callSites.filter(
+      const _calculatorCalls = result.callSites.filter(
         (cs) => cs.file.includes("calculator.ts") && cs.context.includes("nestedAdd"),
       );
 
@@ -255,7 +255,8 @@ describe("CallSiteFinder", () => {
 
       // Calculator.calculate has multiple add calls
       const calculateMethodCalls = result.callSites.filter(
-        (cs) => cs.file.includes("calculator.ts") && (cs.context.includes("sum = add") || cs.context.includes("add(product")),
+        (cs) =>
+          cs.file.includes("calculator.ts") && (cs.context.includes("sum = add") || cs.context.includes("add(product")),
       );
 
       expect(calculateMethodCalls.length).toBeGreaterThanOrEqual(2);

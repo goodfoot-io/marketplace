@@ -1,8 +1,4 @@
-# Duplication: Understanding and Extracting
-
-## Why Duplication Causes Defects
-
-Every copy of logic is a liability. When behavior needs to change, every copy must be found and updated identically. Miss one, and you have inconsistent behavior. Research shows duplicated code has approximately double the defect risk.
+# Duplication: Extraction Guide
 
 ## Density Thresholds
 

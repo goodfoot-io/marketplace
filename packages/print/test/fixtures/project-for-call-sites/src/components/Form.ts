@@ -1,5 +1,5 @@
-import { Button, createButton } from "./Button.js";
-import { Widget } from "./Widget.js";
+import { type Button, createButton } from "./Button.js";
+import type { Widget } from "./Widget.js";
 
 /**
  * Form component containing multiple widgets

@@ -3,6 +3,7 @@ import * as ts from "typescript";
 import type {
   ComplexityMetrics,
   ComplexityOptions,
+  ComplexityPattern,
   FileComplexity,
   FunctionComplexity,
   LOCBreakdown,
@@ -64,6 +65,11 @@ export class ComplexityAnalyzer {
       const cyclomatic = this.calculateCyclomaticComplexity(fn);
       const cognitive = this.calculateCognitiveComplexity(fn);
 
+      // Only capture code snippet and pattern for hotspots (complex functions)
+      const isHotspot = cyclomatic >= 10 || cognitive >= 15;
+      const codeSnippet = isHotspot ? this.getCodeSnippet(fn, sourceFile) : undefined;
+      const complexityPattern = isHotspot ? this.detectComplexityPattern(fn) : undefined;
+
       functions.push({
         name,
         file: filePath,
@@ -71,6 +77,8 @@ export class ComplexityAnalyzer {
         endLine,
         cyclomatic,
         cognitive,
+        codeSnippet,
+        complexityPattern,
       });
     }
 
@@ -535,6 +543,111 @@ export class ComplexityAnalyzer {
       return 0;
     }
     return loc.comment / loc.code;
+  }
+
+  /**
+   * Gets a code snippet for a function showing the signature and first few lines.
+   */
+  private getCodeSnippet(fn: ts.FunctionLikeDeclaration, sourceFile: ts.SourceFile): string {
+    const fullText = fn.getText(sourceFile);
+    const lines = fullText.split("\n");
+
+    // Show first 5 lines or until we hit the function body
+    const snippetLines: string[] = [];
+    let braceCount = 0;
+    let foundBody = false;
+
+    for (let i = 0; i < Math.min(lines.length, 8); i++) {
+      const line = lines[i];
+      snippetLines.push(line);
+
+      // Track braces to know when we're in the body
+      for (const char of line) {
+        if (char === "{") {
+          braceCount++;
+          foundBody = true;
+        } else if (char === "}") {
+          braceCount--;
+        }
+      }
+
+      // Stop after showing a bit of the body
+      if (foundBody && braceCount > 0 && i >= 3) {
+        snippetLines.push("    // ...");
+        break;
+      }
+    }
+
+    const snippet = snippetLines.join("\n");
+    // Truncate if still too long
+    if (snippet.length > 300) {
+      return `${snippet.slice(0, 297)}...`;
+    }
+    return snippet;
+  }
+
+  /**
+   * Detects the primary complexity pattern in a function.
+   */
+  private detectComplexityPattern(fn: ts.FunctionLikeDeclaration): ComplexityPattern {
+    let ifCount = 0;
+    let switchCount = 0;
+    let caseCount = 0;
+    let loopCount = 0;
+    let maxNestingDepth = 0;
+
+    const visit = (node: ts.Node, depth: number): void => {
+      let newDepth = depth;
+
+      switch (node.kind) {
+        case ts.SyntaxKind.IfStatement:
+          ifCount++;
+          newDepth = depth + 1;
+          break;
+        case ts.SyntaxKind.SwitchStatement:
+          switchCount++;
+          newDepth = depth + 1;
+          break;
+        case ts.SyntaxKind.CaseClause:
+        case ts.SyntaxKind.DefaultClause:
+          caseCount++;
+          break;
+        case ts.SyntaxKind.ForStatement:
+        case ts.SyntaxKind.ForInStatement:
+        case ts.SyntaxKind.ForOfStatement:
+        case ts.SyntaxKind.WhileStatement:
+        case ts.SyntaxKind.DoStatement:
+          loopCount++;
+          newDepth = depth + 1;
+          break;
+      }
+
+      maxNestingDepth = Math.max(maxNestingDepth, newDepth);
+      ts.forEachChild(node, (child) => visit(child, newDepth));
+    };
+
+    if (fn.body) {
+      visit(fn.body, 0);
+    }
+
+    // Determine the primary pattern
+    if (switchCount > 0 && caseCount >= 5) {
+      return "switch-heavy";
+    }
+    if (maxNestingDepth >= 3 && ifCount >= 3) {
+      return "nested-conditionals";
+    }
+    if (loopCount >= 3) {
+      return "loop-heavy";
+    }
+    if (ifCount >= 5 || caseCount >= 5) {
+      return "many-branches";
+    }
+    if (ifCount >= 2 && loopCount >= 2) {
+      return "mixed";
+    }
+
+    return "unknown";
   }
 
   /**

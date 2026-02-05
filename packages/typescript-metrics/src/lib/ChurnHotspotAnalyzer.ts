@@ -120,6 +120,7 @@ export class ChurnHotspotAnalyzer {
           const linesAdded = churnData.linesAdded;
           const linesDeleted = churnData.linesDeleted;
           const churnScore = commits + linesAdded + linesDeleted;
+          const avgLinesPerCommit = commits > 0 ? (linesAdded + linesDeleted) / commits : 0;
 
           result.push({
             file: absolutePath,
@@ -127,6 +128,7 @@ export class ChurnHotspotAnalyzer {
             linesAdded,
             linesDeleted,
             churnScore,
+            avgLinesPerCommit,
           });
         } else {
           // File not in git history or no changes in time window
@@ -136,6 +138,7 @@ export class ChurnHotspotAnalyzer {
             linesAdded: 0,
             linesDeleted: 0,
             churnScore: 0,
+            avgLinesPerCommit: 0,
           });
         }
       }
@@ -150,6 +153,7 @@ export class ChurnHotspotAnalyzer {
         linesAdded: 0,
         linesDeleted: 0,
         churnScore: 0,
+        avgLinesPerCommit: 0,
       }));
     }
   }

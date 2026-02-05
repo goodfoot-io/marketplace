@@ -1,9 +1,11 @@
 # Changelog
 
 ## 1.0.4
+
 - Reduced npm package size by excluding test files and development configuration
 
 ## 1.0.3
+
 - Improved PostgreSQL notice handling to suppress expected duplicate object warnings during test database setup
 
 ## 1.0.2

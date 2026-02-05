@@ -87,9 +87,7 @@ export class CallSiteFinder {
    */
   findFunctionDefinition(program: ts.Program, checker: ts.TypeChecker): FunctionDefinition | null {
     const cwd = process.cwd();
-    const absoluteSourceFile = path.isAbsolute(this.sourceFile)
-      ? this.sourceFile
-      : path.resolve(cwd, this.sourceFile);
+    const absoluteSourceFile = path.isAbsolute(this.sourceFile) ? this.sourceFile : path.resolve(cwd, this.sourceFile);
 
     const sourceFile = program.getSourceFile(absoluteSourceFile);
     if (!sourceFile) {
@@ -146,7 +144,10 @@ export class CallSiteFinder {
         if (ts.isVariableStatement(node)) {
           for (const decl of node.declarationList.declarations) {
             if (ts.isIdentifier(decl.name) && decl.name.text === this.functionName) {
-              if (decl.initializer && (ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer))) {
+              if (
+                decl.initializer &&
+                (ts.isArrowFunction(decl.initializer) || ts.isFunctionExpression(decl.initializer))
+              ) {
                 const symbol = checker.getSymbolAtLocation(decl.name);
                 if (symbol) {
                   const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
@@ -197,11 +198,7 @@ export class CallSiteFinder {
       );
     }
 
-    const parsedCommandLine = ts.parseJsonConfigFileContent(
-      configFile.config,
-      ts.sys,
-      configDir,
-    );
+    const parsedCommandLine = ts.parseJsonConfigFileContent(configFile.config, ts.sys, configDir);
 
     if (parsedCommandLine.errors.length > 0) {
       throw new Error(
@@ -226,14 +223,18 @@ export class CallSiteFinder {
   /**
    * Find all call sites of the target function/method
    */
-  findCallSites(program: ts.Program, checker: ts.TypeChecker, definition: FunctionDefinition, searchScope?: Set<string>): CallSite[] {
+  findCallSites(
+    program: ts.Program,
+    checker: ts.TypeChecker,
+    definition: FunctionDefinition,
+    searchScope?: Set<string>,
+  ): CallSite[] {
     const callSites: CallSite[] = [];
     const targetSymbol = definition.symbol;
 
     // Get the aliased symbol if this is an alias (e.g., from export)
-    const resolvedSymbol = targetSymbol.flags & ts.SymbolFlags.Alias
-      ? checker.getAliasedSymbol(targetSymbol)
-      : targetSymbol;
+    const resolvedSymbol =
+      targetSymbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(targetSymbol) : targetSymbol;
 
     for (const sourceFile of program.getSourceFiles()) {
       if (sourceFile.isDeclarationFile) continue;
@@ -259,18 +260,18 @@ export class CallSiteFinder {
 
           if (calledSymbol) {
             // Resolve alias if needed
-            const resolvedCalledSymbol = calledSymbol.flags & ts.SymbolFlags.Alias
-              ? checker.getAliasedSymbol(calledSymbol)
-              : calledSymbol;
+            const resolvedCalledSymbol =
+              calledSymbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(calledSymbol) : calledSymbol;
 
             if (resolvedCalledSymbol === resolvedSymbol) {
               const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
 
               // Get the context (the full line)
               const lineStart = sourceFile.getLineStarts()[line];
-              const lineEnd = line + 1 < sourceFile.getLineStarts().length
-                ? sourceFile.getLineStarts()[line + 1]
-                : sourceFile.text.length;
+              const lineEnd =
+                line + 1 < sourceFile.getLineStarts().length
+                  ? sourceFile.getLineStarts()[line + 1]
+                  : sourceFile.text.length;
               const context = sourceFile.text.substring(lineStart, lineEnd).trimEnd();
 
               callSites.push({
@@ -307,17 +308,16 @@ export class CallSiteFinder {
           if (isArgument || isPropertyValue || isArrayElement || isArrowReturn || isReturnStatement) {
             const symbol = checker.getSymbolAtLocation(node);
             if (symbol) {
-              const resolvedSym = symbol.flags & ts.SymbolFlags.Alias
-                ? checker.getAliasedSymbol(symbol)
-                : symbol;
+              const resolvedSym = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
 
               if (resolvedSym === resolvedSymbol) {
                 const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
 
                 const lineStart = sourceFile.getLineStarts()[line];
-                const lineEnd = line + 1 < sourceFile.getLineStarts().length
-                  ? sourceFile.getLineStarts()[line + 1]
-                  : sourceFile.text.length;
+                const lineEnd =
+                  line + 1 < sourceFile.getLineStarts().length
+                    ? sourceFile.getLineStarts()[line + 1]
+                    : sourceFile.text.length;
                 const context = sourceFile.text.substring(lineStart, lineEnd).trimEnd();
 
                 callSites.push({
@@ -353,9 +353,7 @@ export class CallSiteFinder {
    */
   async findTsConfig(): Promise<string> {
     const cwd = process.cwd();
-    const absoluteSourceFile = path.isAbsolute(this.sourceFile)
-      ? this.sourceFile
-      : path.resolve(cwd, this.sourceFile);
+    const absoluteSourceFile = path.isAbsolute(this.sourceFile) ? this.sourceFile : path.resolve(cwd, this.sourceFile);
 
     // If projectPath is provided, use it
     if (this.projectPath) {
@@ -413,11 +411,7 @@ export class CallSiteFinder {
       );
     }
 
-    const parsedCommandLine = ts.parseJsonConfigFileContent(
-      configFile.config,
-      ts.sys,
-      configDir,
-    );
+    const parsedCommandLine = ts.parseJsonConfigFileContent(configFile.config, ts.sys, configDir);
 
     if (parsedCommandLine.errors.length > 0) {
       throw new Error(
@@ -436,9 +430,7 @@ export class CallSiteFinder {
    */
   async execute(): Promise<CallSiteFinderResult> {
     const cwd = process.cwd();
-    const absoluteSourceFile = path.isAbsolute(this.sourceFile)
-      ? this.sourceFile
-      : path.resolve(cwd, this.sourceFile);
+    const absoluteSourceFile = path.isAbsolute(this.sourceFile) ? this.sourceFile : path.resolve(cwd, this.sourceFile);
 
     // Check if source file exists
     try {
@@ -481,9 +473,7 @@ export class CallSiteFinder {
 
     // Find all call sites
     // If searchGlobs was provided, limit search to those files
-    const searchScope = this.searchGlobs && this.searchGlobs.length > 0
-      ? new Set(searchFiles)
-      : undefined;
+    const searchScope = this.searchGlobs && this.searchGlobs.length > 0 ? new Set(searchFiles) : undefined;
     const callSites = this.findCallSites(program, checker, definition, searchScope);
 
     // Return result without the symbol (not serializable)

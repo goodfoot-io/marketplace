@@ -10,7 +10,7 @@ description: |
 
 # TypeScript Metrics
 
-Analyze codebase health. Generates markdown reports identifying where to focus refactoring effort.
+Generates health reports identifying where to focus refactoring effort.
 
 ## Run Analysis
 
@@ -28,103 +28,69 @@ Analyze codebase health. Generates markdown reports identifying where to focus r
 !`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs --help
 ```
 
-## Why These Metrics Matter
-
-Research consistently shows these metrics predict defects and maintenance costs:
-
-**Complexity** — Functions with cyclomatic complexity >10 show 3x higher defect rates. Cognitive complexity >15 indicates code difficult to understand and safely modify.
-
-**Coupling** — High fan-in/fan-out correlates with change ripple effects. When one file change requires touching many others, coupling is too high.
-
-**Duplication** — Duplicated code doubles defect risk—bugs must be fixed multiple times, and one copy is often missed.
-
-**Cycles** — Circular dependencies cause initialization bugs, make testing harder, and indicate tangled responsibilities.
-
-**Data Flow** — Unused parameters and ignored returns signal API rot and incomplete implementations.
-
-**Swallowed Errors** — Silent failures are the hardest bugs to diagnose. Error handling that hides problems creates debugging nightmares.
-
 ## Health Score (0-100)
 
-| Score | Meaning |
-|-------|---------|
-| 75-100 | Healthy — maintain practices |
-| 50-74 | Needs attention — address warnings |
-| 0-49 | Critical — prioritize fixes |
+| Score | Action |
+|-------|--------|
+| 75-100 | Maintain current practices |
+| 50-74 | Address warnings before adding features |
+| 0-49 | Prioritize fixes—defect risk is high |
+
+Test fixture cycles are excluded from scoring.
 
 ## Acting on Results
 
-### Complexity Hotspots
+### Complexity
 
-**Load `references/complexity.md` when:** Any function has CC >10 or Cognitive >15.
+**Load `references/complexity.md` for:** CC >10 or Cognitive >15.
 
-Complex code is hard to hold in working memory. If you can't understand a function in one read, neither can future maintainers.
+**First principle:** Reduce what must be held in working memory at once.
 
-**Quick fixes:**
-- Extract guard clauses to reduce nesting
-- Replace conditionals with lookup tables
-- Split functions that do multiple things
+The **Pattern** column tells you where complexity accumulates. The **code snippet** shows the actual structure. Ask: "What makes this hard to understand in one read?" Then reduce that—flatten nesting, extract named concepts, or separate concerns.
 
 ### Duplication
 
-**Load `references/duplication.md` when:** Density >10% or specific duplicate blocks identified.
+**Load `references/duplication.md` for:** Density >10% or duplicate blocks identified.
 
-Every copy of logic is a liability. When behavior needs to change, every copy must be found and updated identically.
+**First principle:** Single source of truth. Every copy is a liability—bugs fixed in one copy get missed in another.
 
-**Quick fixes:**
-- Extract common code to shared function
-- Use higher-order functions for similar-but-different patterns
-- Create shared module for cross-package duplicates
+The **code snippet** shows what's duplicated. The **location pairs** show where. Ask: "If this logic changes, will I remember to change all copies?" If not, extract.
 
 ### Coupling
 
-**Load `references/coupling.md` when:** Hub nodes have >10 connections, or instability seems wrong for file type.
+**Load `references/coupling.md` for:** Hub nodes >10 connections or unexpected instability.
 
-Highly coupled modules change together. If changing `types.ts` requires changing 15 other files, that coupling will slow every future change.
+**First principle:** Depend on stable abstractions, not volatile implementations.
 
-**Quick fixes:**
-- Depend on interfaces, not implementations
-- Extract shared dependencies to lower layer
-- Enforce module boundaries with explicit public APIs
+The **hub connections** show which files are entangled. High fan-in means many things break when this changes—make it more abstract. High fan-out means this file has many reasons to change—split it.
 
-### Circular Dependencies
+### Cycles
 
-**Load `references/cycles.md` when:** Any non-test cycles detected (ignore type-only cycles).
+**Load `references/cycles.md` for:** Non-test cycles (type-only cycles are harmless).
 
-Cycles mean neither module can be understood or tested in isolation. They often indicate responsibilities that should be merged or separated with clearer boundaries.
+**First principle:** Each module should be understandable and testable in isolation.
 
-**Quick fixes:**
-- Extract shared interface to third file
-- Merge tightly-coupled modules
-- Use dependency injection
+Cycles mean neither module stands alone. SCC size indicates severity: 2-file cycles need interface extraction; larger cycles indicate architectural confusion.
 
-### Data Flow Issues
+### Data Flow
 
-**Load `references/dataflow.md` when:** Unused parameters or ignored returns with high confidence.
+**Load `references/dataflow.md` for:** Unused parameters or ignored returns with high confidence.
 
-Dead code paths indicate either unfinished work or over-engineering. Either remove the unused parts or complete the intended usage.
+**First principle:** Code should be complete—everything declared should be used.
 
-**Quick fixes:**
-- Remove truly unused parameters
-- Handle or explicitly discard return values
-- Document why parameters are kept if intentional
+Unused parameters and ignored returns signal incomplete implementations or over-engineering. Remove what's unused, or finish what was started.
 
 ### Swallowed Errors
 
-**Load `references/swallowed-errors.md` when:** High-confidence findings (empty catch blocks, ignored promises).
+**Load `references/swallowed-errors.md` for:** High-confidence findings.
 
-Errors exist to communicate problems. Swallowing them creates silent failures that surface far from their cause, making debugging far harder than it needs to be.
+**First principle:** Failures should be visible, not hidden.
 
-**Quick fixes:**
-- Tighten the catch to only expected error types (e.g., file not found)
-- Rethrow unexpected errors (default behavior)
-- Log only when failure doesn't affect user experience
+The **comment text** reveals intent. Comments saying "intentionally ignored" need verification. Comments saying "TODO" or absent comments need fixing. Default: catch only expected errors, rethrow unexpected ones.
 
-## When to Ignore Metrics
+## When to Skip
 
-Not every warning needs action:
-
-- **Test fixtures** — Intentional complexity or cycles for testing
-- **Entry points** — `index.ts` files naturally have high instability
-- **Generated code** — Don't refactor auto-generated files
-- **Stable, unchanged code** — Low-churn code with no bug history is low priority regardless of complexity
+- **Test fixtures** — Intentional for testing
+- **Entry points** — `index.ts` naturally has high instability
+- **Generated code** — Don't refactor what's regenerated
+- **Low-churn stable code** — If it works and rarely changes, leave it

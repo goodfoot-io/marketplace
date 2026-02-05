@@ -1,7 +1,7 @@
 // Test various import styles
-import { add, multiply } from "../utils/math.js";
-import { add as addNumbers } from "../utils/math.js";
+
 import * as mathUtils from "../utils/math.js";
+import { add, add as addNumbers, multiply } from "../utils/math.js";
 
 /**
  * Calculator service demonstrating various call patterns

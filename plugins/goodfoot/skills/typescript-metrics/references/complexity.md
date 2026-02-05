@@ -1,12 +1,4 @@
-# Complexity: Understanding and Fixing
-
-## Why Complexity Causes Defects
-
-Code with high complexity has more execution paths than humans can hold in working memory. Each branch doubles the mental model required to understand behavior. Research shows functions exceeding CC=10 have significantly higher defect rates.
-
-**Cyclomatic Complexity (CC)** counts independent paths. Each `if`, `for`, `case`, `&&`, `||`, `?.`, and `catch` adds one.
-
-**Cognitive Complexity** measures mental effort. It penalizes nesting exponentially—a CC=10 function with flat structure is readable; CC=10 with 5 levels of nesting is not.
+# Complexity: Refactoring Guide
 
 ## Thresholds
 

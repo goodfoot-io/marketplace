@@ -71,6 +71,10 @@ export interface HubNode {
   fanIn: number;
   fanOut: number;
   betweennessCentrality?: number;
+  /** Files that import this module (sample of dependents) */
+  fanInFiles?: string[];
+  /** Files this module imports (sample of dependencies) */
+  fanOutFiles?: string[];
 }
 
 export interface DiameterResult {
@@ -108,6 +112,14 @@ export interface CycleMetrics {
   selfLoops?: string[];
 }
 
+export type ComplexityPattern =
+  | "nested-conditionals"
+  | "many-branches"
+  | "switch-heavy"
+  | "loop-heavy"
+  | "mixed"
+  | "unknown";
+
 export interface FunctionComplexity {
   name: string;
   file: string;
@@ -115,6 +127,10 @@ export interface FunctionComplexity {
   endLine: number;
   cyclomatic: number;
   cognitive: number;
+  /** Code snippet showing the function signature and first few lines */
+  codeSnippet?: string;
+  /** Detected complexity pattern to help understand WHY the function is complex */
+  complexityPattern?: ComplexityPattern;
 }
 
 export interface LOCBreakdown {
@@ -161,6 +177,8 @@ export interface DuplicateBlock {
   }>;
   tokenCount: number;
   fingerprint: string;
+  /** Sample of the duplicated code (from the first occurrence) */
+  codeSnippet?: string;
 }
 
 export interface DuplicationMetrics {
@@ -301,6 +319,8 @@ export interface SwallowedErrorFinding {
   context: SwallowedErrorContext;
   codeSnippet: string;
   suggestion: string;
+  /** For comment-only catches, the actual comment text */
+  commentText?: string;
 }
 
 export interface SwallowedErrorMetrics {
@@ -353,6 +373,8 @@ export interface FileChurn {
   linesAdded: number;
   linesDeleted: number;
   churnScore: number; // commits + linesAdded + linesDeleted
+  /** Average lines changed per commit - high value suggests refactors, low suggests incremental */
+  avgLinesPerCommit: number;
 }
 
 export interface Hotspot {

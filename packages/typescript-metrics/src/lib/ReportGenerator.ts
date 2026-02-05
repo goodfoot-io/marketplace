@@ -104,19 +104,26 @@ export class ReportGenerator {
     lines.push("");
 
     if (metrics.hotspots.length > 0) {
-      lines.push("| File | Churn | Complexity | Combined |");
-      lines.push("|------|-------|------------|----------|");
+      lines.push("| File | Commits | Lines Δ | Avg/Commit | Complexity | Combined |");
+      lines.push("|------|---------|---------|------------|------------|----------|");
 
       const topHotspots = metrics.hotspots.slice(0, 10);
       for (const hotspot of topHotspots) {
         const relPath = this.relativePath(hotspot.file);
+        // Find the file churn data to get detailed breakdown
+        const fileChurn = metrics.files.find((f) => f.file === hotspot.file);
+        const commits = fileChurn?.commits ?? 0;
+        const linesChanged = fileChurn ? fileChurn.linesAdded + fileChurn.linesDeleted : 0;
+        const avgPerCommit = fileChurn?.avgLinesPerCommit ?? 0;
+        const avgLabel =
+          avgPerCommit > 100 ? `${Math.round(avgPerCommit)} (refactor?)` : Math.round(avgPerCommit).toString();
         lines.push(
-          `| ${relPath} | ${hotspot.churnScore} | ${hotspot.complexityScore} | ${hotspot.combinedScore.toFixed(2)} |`,
+          `| ${relPath} | ${commits} | ${linesChanged} | ${avgLabel} | ${hotspot.complexityScore} | ${hotspot.combinedScore.toFixed(2)} |`,
         );
       }
       lines.push("");
       lines.push(
-        "*Churn = commits + lines added + deleted (last 90 days). Combined = normalized(churn) × normalized(complexity).*",
+        "*Commits and lines changed in last 90 days. High avg/commit suggests refactors; low suggests incremental changes.*",
       );
       lines.push("");
     } else {
@@ -236,8 +243,8 @@ export class ReportGenerator {
           );
         }
         lines.push("");
-        lines.push("| File | Line | Function | LOC | CC | Cognitive |");
-        lines.push("|------|------|----------|-----|-----|-----------|");
+        lines.push("| File | Line | Function | LOC | CC | Cognitive | Pattern |");
+        lines.push("|------|------|----------|-----|-----|-----------|---------|");
 
         const toShow = result.complexity.hotspots.slice(0, 10);
         for (const fn of toShow) {
@@ -245,11 +252,23 @@ export class ReportGenerator {
           const loc = fn.endLine - fn.line + 1;
           const ccStatus = fn.cyclomatic > COMPLEXITY_THRESHOLD_CYCLOMATIC ? " 🔴" : "";
           const cogStatus = fn.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE ? " 🔴" : "";
+          const pattern = fn.complexityPattern ? this.getComplexityPatternLabel(fn.complexityPattern) : "-";
           lines.push(
-            `| ${relPath} | ${fn.line} | ${fn.name} | ${loc} | ${fn.cyclomatic}${ccStatus} | ${fn.cognitive}${cogStatus} |`,
+            `| ${relPath} | ${fn.line} | ${fn.name} | ${loc} | ${fn.cyclomatic}${ccStatus} | ${fn.cognitive}${cogStatus} | ${pattern} |`,
           );
         }
         lines.push("");
+
+        // Show code snippet for the worst hotspot
+        const worst = toShow[0];
+        if (worst?.codeSnippet) {
+          lines.push("**Worst hotspot preview:**");
+          lines.push("");
+          lines.push("```typescript");
+          lines.push(worst.codeSnippet);
+          lines.push("```");
+          lines.push("");
+        }
       }
     }
 
@@ -289,6 +308,30 @@ export class ReportGenerator {
             );
           }
           lines.push("");
+
+          // Show connection details for the top hub
+          const topHub = result.coupling.hubs[0];
+          if (topHub && (topHub.fanInFiles?.length || topHub.fanOutFiles?.length)) {
+            lines.push(`**${this.relativePath(topHub.file)} connections:**`);
+            lines.push("");
+            if (topHub.fanInFiles && topHub.fanInFiles.length > 0) {
+              const fanInList = topHub.fanInFiles
+                .slice(0, 3)
+                .map((f) => `\`${this.relativePath(f)}\``)
+                .join(", ");
+              const more = topHub.fanIn > 3 ? ` (+${topHub.fanIn - 3} more)` : "";
+              lines.push(`- **Depended on by:** ${fanInList}${more}`);
+            }
+            if (topHub.fanOutFiles && topHub.fanOutFiles.length > 0) {
+              const fanOutList = topHub.fanOutFiles
+                .slice(0, 3)
+                .map((f) => `\`${this.relativePath(f)}\``)
+                .join(", ");
+              const more = topHub.fanOut > 3 ? ` (+${topHub.fanOut - 3} more)` : "";
+              lines.push(`- **Depends on:** ${fanOutList}${more}`);
+            }
+            lines.push("");
+          }
         }
 
         if (result.cycles.count > 0 && result.cycles.sccs.length > 0) {
@@ -351,6 +394,17 @@ export class ReportGenerator {
         lines.push(`| ${locA} | ${locB} | ${block.tokenCount} |`);
       }
       lines.push("");
+
+      // Show code snippet for the largest duplicate
+      const largest = topBlocks[0];
+      if (largest?.codeSnippet) {
+        lines.push("**Largest duplicate preview:**");
+        lines.push("");
+        lines.push("```typescript");
+        lines.push(largest.codeSnippet);
+        lines.push("```");
+        lines.push("");
+      }
     }
 
     // Data Flow Issues
@@ -476,13 +530,16 @@ export class ReportGenerator {
           `*Showing ${displayCount} of ${highConfidence.length} high-confidence findings (${mediumConfidence.length} medium-confidence omitted)*`,
         );
         lines.push("");
-        lines.push("| File | Line | Pattern | Suggestion |");
-        lines.push("|------|------|---------|------------|");
+        lines.push("| File | Line | Pattern | Context |");
+        lines.push("|------|------|---------|---------|");
         for (const finding of highConfidence.slice(0, 10)) {
           const patternLabel = this.getSwallowedErrorPatternLabel(finding.pattern);
-          lines.push(
-            `| ${this.relativePath(finding.file)} | ${finding.line} | ${patternLabel} | ${finding.suggestion} |`,
-          );
+          // Show comment text for comment-only catches, otherwise show suggestion
+          const context =
+            finding.pattern === "comment-only-catch" && finding.commentText
+              ? `"${finding.commentText.slice(0, 60)}${finding.commentText.length > 60 ? "..." : ""}"`
+              : finding.suggestion.slice(0, 60);
+          lines.push(`| ${this.relativePath(finding.file)} | ${finding.line} | ${patternLabel} | ${context} |`);
         }
         lines.push("");
       }
@@ -773,10 +830,22 @@ export class ReportGenerator {
   }
 
   private calculateCycleScoreWithReason(cycles: CycleMetrics): { score: number; reason: string } {
-    if (cycles.count === 0) return { score: 100, reason: "no cycles" };
-    if (cycles.count === 1) return { score: 70, reason: "1 cycle" };
-    if (cycles.count <= 3) return { score: 40, reason: `${cycles.count} cycles` };
-    return { score: 0, reason: `${cycles.count} cycles` };
+    // Count only non-fixture cycles for scoring
+    const isTestFixture = (file: string) =>
+      file.includes("/test/fixtures/") || file.includes("/tests/fixtures/") || file.includes("/__fixtures__/");
+
+    const productionCycles = cycles.sccs.filter((scc) => !scc.every((f) => isTestFixture(f)));
+    const productionCount = productionCycles.length;
+
+    if (productionCount === 0) {
+      if (cycles.count > 0) {
+        return { score: 100, reason: `${cycles.count} cycle${cycles.count > 1 ? "s" : ""} (test fixtures only)` };
+      }
+      return { score: 100, reason: "no cycles" };
+    }
+    if (productionCount === 1) return { score: 70, reason: "1 cycle" };
+    if (productionCount <= 3) return { score: 40, reason: `${productionCount} cycles` };
+    return { score: 0, reason: `${productionCount} cycles` };
   }
 
   private identifyIssues(result: MetricsResult): Issue[] {
@@ -1020,6 +1089,18 @@ export class ReportGenerator {
       "void-promise": "Fire-and-forget",
       "empty-promise-catch": "Empty .catch()",
       "error-param-unused": "Error unused",
+    };
+    return labels[pattern] ?? pattern;
+  }
+
+  private getComplexityPatternLabel(pattern: string): string {
+    const labels: Record<string, string> = {
+      "nested-conditionals": "Nested ifs",
+      "many-branches": "Many branches",
+      "switch-heavy": "Large switch",
+      "loop-heavy": "Many loops",
+      mixed: "Mixed",
+      unknown: "-",
     };
     return labels[pattern] ?? pattern;
   }

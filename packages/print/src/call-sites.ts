@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 
 // Re-export the CallSiteFinder for library usage
-export { CallSiteFinder, type CallSiteFinderOptions, type CallSiteFinderResult, type CallSite, type FunctionDefinition } from "./lib/CallSiteFinder.js";
+export {
+  type CallSite,
+  CallSiteFinder,
+  type CallSiteFinderOptions,
+  type CallSiteFinderResult,
+  type FunctionDefinition,
+} from "./lib/CallSiteFinder.js";
 
 // If this file is run directly, execute the CLI functionality
 if (import.meta.url === `file://${process.argv[1]}`) {

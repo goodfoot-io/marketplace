@@ -31,15 +31,15 @@ try {
 
 ## Patterns Detected
 
-| Pattern | Description | Confidence |
-|---------|-------------|------------|
-| `empty-catch` | Catch block with no statements | High |
-| `comment-only-catch` | Catch block with only comments | High |
-| `catch-returns-success` | Catch returns success value | High |
-| `catch-log-only` | Catch only logs, doesn't rethrow | Medium |
-| `void-promise` | `void asyncOp()` discards rejection | Medium |
-| `empty-promise-catch` | `.catch(() => {})` | High |
-| `error-param-unused` | `catch (e)` but `e` never used | Medium |
+| Pattern | Description | Confidence | Default Action |
+|---------|-------------|------------|----------------|
+| `empty-catch` | Catch block with no statements | High | Add error handling or rethrow |
+| `comment-only-catch` | Catch block with only comments | High | Check comment text for intent, fix or document |
+| `catch-returns-success` | Catch returns success value | High | Tighten to expected error types |
+| `catch-log-only` | Catch only logs, doesn't rethrow | Medium | Rethrow if failure affects user |
+| `void-promise` | `void asyncOp()` discards rejection | Medium | Add `.catch()` handler |
+| `empty-promise-catch` | `.catch(() => {})` | High | Add error handling |
+| `error-param-unused` | `catch (e)` but `e` never used | Medium | Use error or remove parameter |
 
 ## Fixing Swallowed Errors
 

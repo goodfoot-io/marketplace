@@ -9,13 +9,13 @@ Circular dependencies mean neither module can be understood, tested, or changed 
 3. **Initialization bugs** — Race conditions at module load time
 4. **Tangled responsibilities** — Modules that should be separate are entangled
 
-## What the Report Shows
+## Interpreting the Report
 
-**Test fixtures** — Cycles in `test/fixtures/` are intentional for testing cycle detection. Ignore them.
+**Test fixtures** — Cycles in `test/fixtures/`, `tests/fixtures/`, or `__fixtures__/` are excluded from health score penalties. Skip them.
 
 **Type-only cycles** — Cycles using only `import type` have no runtime impact—TypeScript erases these at compile time. Usually safe to ignore.
 
-**Real cycles** — Non-test, non-type-only cycles need investigation.
+**Real cycles** — Non-test, non-type-only cycles need investigation. Use the SCC size to choose your approach.
 
 ## Breaking Cycles
 

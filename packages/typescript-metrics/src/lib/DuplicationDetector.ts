@@ -253,6 +253,31 @@ export class DuplicationDetector {
     return window1.tokens.every((t, i) => t.normalizedValue === window2.tokens[i].normalizedValue);
   }
 
+  /**
+   * Gets a code snippet for a range in a file.
+   */
+  private getCodeSnippetForRange(file: string, startLine: number, endLine: number, maxLines = 8): string {
+    const content = fs.readFileSync(file, "utf-8");
+    const lines = content.split("\n");
+
+    const start = Math.max(0, startLine - 1);
+    const end = Math.min(lines.length, startLine - 1 + maxLines);
+
+    const snippetLines = lines.slice(start, end);
+
+    // Add ellipsis if we truncated
+    if (endLine > startLine - 1 + maxLines) {
+      snippetLines.push("// ...");
+    }
+
+    const snippet = snippetLines.join("\n");
+    // Truncate if still too long
+    if (snippet.length > 400) {
+      return `${snippet.slice(0, 397)}...`;
+    }
+    return snippet;
+  }
+
   findDuplicates(): DuplicateBlock[] {
     const minTokens = this.options.minTokens;
 
@@ -328,6 +353,10 @@ export class DuplicationDetector {
           }
         }
 
+        // Get code snippet from first occurrence
+        const firstWindow = group[0];
+        const codeSnippet = this.getCodeSnippetForRange(firstWindow.file, firstWindow.startLine, firstWindow.endLine);
+
         duplicateBlocks.push({
           files: group.map((w) => ({
             file: w.file,
@@ -336,6 +365,7 @@ export class DuplicationDetector {
           })),
           tokenCount: minTokens,
           fingerprint: hash,
+          codeSnippet,
         });
       }
     }
@@ -432,10 +462,20 @@ export class DuplicationDetector {
     const avgTokensPerLine = block1.tokenCount / (block1.files[0].endLine - block1.files[0].startLine + 1);
     const estimatedTokenCount = Math.round(lineRange * avgTokensPerLine);
 
+    // Regenerate code snippet for the merged range (if file exists)
+    let codeSnippet: string | undefined;
+    try {
+      codeSnippet = this.getCodeSnippetForRange(mergedFiles[0].file, mergedFiles[0].startLine, mergedFiles[0].endLine);
+    } catch {
+      // File may not exist (e.g., in tests) - use original snippet if available
+      codeSnippet = block1.codeSnippet;
+    }
+
     return {
       files: mergedFiles,
       tokenCount: Math.max(block1.tokenCount, estimatedTokenCount),
       fingerprint: block1.fingerprint,
+      codeSnippet,
     };
   }
 

@@ -163,6 +163,7 @@ export class SwallowedErrorAnalyzer {
 
       if (hasComments) {
         // Pattern 2: Comment-only catch
+        const commentText = this.extractCommentText(block, sourceFile);
         findings.push({
           file,
           line: pos.line + 1,
@@ -172,6 +173,7 @@ export class SwallowedErrorAnalyzer {
           context,
           codeSnippet: this.getCodeSnippet(catchClause, sourceFile),
           suggestion: "Add explicit error handling or rethrow. If intentional, consider logging the reason.",
+          commentText,
         });
       } else {
         // Pattern 1: Truly empty catch
@@ -409,6 +411,43 @@ export class SwallowedErrorAnalyzer {
     // Check for comments between braces
     const blockText = fullText.slice(start, end);
     return /\/\/|\/\*/.test(blockText);
+  }
+
+  /**
+   * Extracts comment text from inside a catch block.
+   */
+  private extractCommentText(block: ts.Block, sourceFile: ts.SourceFile): string {
+    const fullText = sourceFile.getFullText();
+    const start = block.getStart(sourceFile);
+    const end = block.getEnd();
+
+    // Get leading comments in the block
+    const leadingComments = ts.getLeadingCommentRanges(fullText, block.statements.pos) ?? [];
+    const comments: string[] = [];
+
+    for (const comment of leadingComments) {
+      const commentText = fullText.slice(comment.pos, comment.end).trim();
+      comments.push(commentText);
+    }
+
+    // Also check for inline comments in the block text
+    const blockText = fullText.slice(start, end);
+    const singleLineMatch = blockText.match(/\/\/\s*(.+)/);
+    if (singleLineMatch && comments.length === 0) {
+      comments.push(`// ${singleLineMatch[1].trim()}`);
+    }
+
+    const multiLineMatch = blockText.match(/\/\*[\s\S]*?\*\//);
+    if (multiLineMatch && comments.length === 0) {
+      comments.push(multiLineMatch[0].trim());
+    }
+
+    const result = comments.join(" ").trim();
+    // Truncate if too long
+    if (result.length > 150) {
+      return `${result.slice(0, 147)}...`;
+    }
+    return result;
   }
 
   private hasRethrow(block: ts.Block): boolean {
