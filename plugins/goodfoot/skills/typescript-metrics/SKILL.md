@@ -10,154 +10,121 @@ description: |
 
 # TypeScript Metrics
 
-CLI tool for codebase health analysis. Generates actionable markdown reports with complexity,
-coupling, duplication, cycles, data flow, and swallowed error metrics.
+Analyze codebase health. Generates markdown reports identifying where to focus refactoring effort.
 
-## Quick Start
+## Run Analysis
 
 ```bash
-# Analyze current package (default: markdown report)
+# Analyze current package
 !`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs
 
-# Save report to file
+# Save report
 !`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs > health-report.md
 
-# Analyze specific files (globs and individual files)
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs "src/**/*.ts" "lib/**/*.ts" src/index.ts
-
-# Run specific metrics only
+# Specific metrics only
 !`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs --metrics complexity,coupling
 
-# JSON output for programmatic use
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs --json
+# Help
+!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs --help
 ```
 
-## CLI Options
+## Why These Metrics Matter
 
-| Option | Description |
-|--------|-------------|
-| `--metrics <list>` | Comma-separated: `coupling,cycles,complexity,duplication,monorepo,dataflow,swallowed-errors` |
-| `--json` | Output raw JSON instead of markdown |
-| `--verbose` | Show progress information |
-| `--skip-path-metrics` | Skip expensive path calculations (large codebases) |
-| `--min-tokens <n>` | Minimum tokens for duplication detection (default: 100) |
-| `--top-k <n>` | Number of hub nodes to report (default: 10) |
+Research consistently shows these metrics predict defects and maintenance costs:
 
-## Filtering Files
+**Complexity** — Functions with cyclomatic complexity >10 show 3x higher defect rates. Cognitive complexity >15 indicates code difficult to understand and safely modify.
 
-The tool analyzes files matching your glob patterns. Use negation patterns to exclude:
+**Coupling** — High fan-in/fan-out correlates with change ripple effects. When one file change requires touching many others, coupling is too high.
 
-```bash
-# Analyze src but exclude test files
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs "src/**/*.ts" "!**/*.test.ts" "!**/*.spec.ts"
+**Duplication** — Duplicated code doubles defect risk—bugs must be fixed multiple times, and one copy is often missed.
 
-# Exclude tooling and scripts directories
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs "src/**/*.ts" "!scripts/**" "!tools/**"
+**Cycles** — Circular dependencies cause initialization bugs, make testing harder, and indicate tangled responsibilities.
 
-# Production code only (exclude tests, mocks, fixtures)
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs "src/**/*.ts" "!**/__tests__/**" "!**/__mocks__/**" "!**/fixtures/**"
-```
+**Data Flow** — Unused parameters and ignored returns signal API rot and incomplete implementations.
 
-**Note:** The tool also respects your `tsconfig.json` exclude patterns for dependency graph analysis.
+**Swallowed Errors** — Silent failures are the hardest bugs to diagnose. Error handling that hides problems creates debugging nightmares.
 
-## Interpreting Results
+## Health Score (0-100)
 
-### Health Score
+| Score | Meaning |
+|-------|---------|
+| 75-100 | Healthy — maintain practices |
+| 50-74 | Needs attention — address warnings |
+| 0-49 | Critical — prioritize fixes |
 
-**Overall Score** (0-100): Weighted average of category scores.
+## Acting on Results
 
-| Score | Status | Action |
-|-------|--------|--------|
-| 75-100 | Healthy | Maintain current practices |
-| 50-74 | Review | Address warnings before they worsen |
-| 0-49 | Critical | Prioritize immediate fixes |
+### Complexity Hotspots
 
-**Category Weights:**
-- Complexity: 35%
-- Duplication: 25%
-- Coupling: 25%
-- Cycles: 15%
+**Load `references/complexity.md` when:** Any function has CC >10 or Cognitive >15.
 
-### Metric Categories
+Complex code is hard to hold in working memory. If you can't understand a function in one read, neither can future maintainers.
 
-For detailed interpretation and refactoring guidance, see the references:
+**Quick fixes:**
+- Extract guard clauses to reduce nesting
+- Replace conditionals with lookup tables
+- Split functions that do multiple things
 
-- **Complexity Hotspots** → `references/complexity.md`
-  - When to read: Functions exceed CC>10 or Cognitive>15
-  - Covers: Extraction patterns, refactoring strategies, when to ignore
+### Duplication
 
-- **Duplication** → `references/duplication.md`
-  - When to read: Duplication density >10% or duplicate blocks identified
-  - Covers: Extraction to shared modules, DRY principles, acceptable duplication
+**Load `references/duplication.md` when:** Density >10% or specific duplicate blocks identified.
 
-- **Coupling & Instability** → `references/coupling.md`
-  - When to read: Hub nodes with >10 connections or instability concerns
-  - Covers: Dependency injection, interface extraction, layer violations
+Every copy of logic is a liability. When behavior needs to change, every copy must be found and updated identically.
 
-- **Circular Dependencies** → `references/cycles.md`
-  - When to read: SCCs detected (except test fixtures)
-  - Covers: Breaking cycles, interface extraction, dependency inversion
+**Quick fixes:**
+- Extract common code to shared function
+- Use higher-order functions for similar-but-different patterns
+- Create shared module for cross-package duplicates
 
-- **Data Flow Issues** → `references/dataflow.md`
-  - When to read: Unused parameters, ignored returns, or broken data patterns
-  - Covers: Parameter removal, return value handling, API cleanup
+### Coupling
 
-- **Swallowed Errors** → `references/swallowed-errors.md`
-  - When to read: Empty catch blocks, log-only handlers, or fire-and-forget async
-  - Covers: Error propagation, logging strategies, intentional swallowing
+**Load `references/coupling.md` when:** Hub nodes have >10 connections, or instability seems wrong for file type.
 
-## Report Features
+Highly coupled modules change together. If changing `types.ts` requires changing 15 other files, that coupling will slow every future change.
 
-The generated report includes:
+**Quick fixes:**
+- Depend on interfaces, not implementations
+- Extract shared dependencies to lower layer
+- Enforce module boundaries with explicit public APIs
 
-- **Score transparency**: Each category score shows the contributing factor (e.g., "2.6% hotspots")
-- **Function LOC**: Complexity table shows lines of code to help assess severity
-- **Barrel file detection**: Hub nodes annotated with `(barrel)` for index.ts files
-- **Smart function naming**: Anonymous functions show context (e.g., `callback in app.get`, `Foo.bar`)
-- **Enhanced unused parameters**: Shows default value, export status, and sample call sites
-- **Type-only cycle detection**: Cycles using only `import type` marked as "(type-only — no runtime impact)"
+### Circular Dependencies
 
-## Quick Interpretation Reference
+**Load `references/cycles.md` when:** Any non-test cycles detected (ignore type-only cycles).
 
-### Complexity Thresholds
+Cycles mean neither module can be understood or tested in isolation. They often indicate responsibilities that should be merged or separated with clearer boundaries.
 
-| Metric | Threshold | Meaning |
-|--------|-----------|---------|
-| Cyclomatic (CC) | ≤10 | Independent paths through code |
-| Cognitive | ≤15 | Mental effort to understand |
+**Quick fixes:**
+- Extract shared interface to third file
+- Merge tightly-coupled modules
+- Use dependency injection
 
-### Instability Formula
+### Data Flow Issues
 
-`I = Fan-out / (Fan-in + Fan-out)`
+**Load `references/dataflow.md` when:** Unused parameters or ignored returns with high confidence.
 
-| Range | Meaning | Typical Files |
-|-------|---------|---------------|
-| 0.0-0.3 | Stable | Types, interfaces, core utilities |
-| 0.3-0.7 | Balanced | Review for mixed responsibilities |
-| 0.7-1.0 | Unstable | Entry points, barrel files (expected) |
+Dead code paths indicate either unfinished work or over-engineering. Either remove the unused parts or complete the intended usage.
 
-### Graph Density
+**Quick fixes:**
+- Remove truly unused parameters
+- Handle or explicitly discard return values
+- Document why parameters are kept if intentional
 
-| Density | Assessment |
-|---------|------------|
-| <5% | Sparse (healthy) |
-| 5-10% | Moderate |
-| >10% | Dense (review coupling) |
+### Swallowed Errors
 
-## Decision Framework
+**Load `references/swallowed-errors.md` when:** High-confidence findings (empty catch blocks, ignored promises).
 
-**When to act on metrics:**
+Errors exist to communicate problems. Swallowing them creates silent failures that surface far from their cause, making debugging far harder than it needs to be.
 
-1. **Complexity hotspots**: Refactor when CC>20 or Cognitive>30, especially if file changes frequently
-2. **Duplication**: Extract when same block appears 3+ times OR >50 tokens duplicated
-3. **Coupling**: Investigate hubs with >10 connections; consider interface extraction
-4. **Cycles**: Break all non-test-fixture cycles; use dependency inversion
-5. **Data flow**: Remove unused parameters; handle or explicitly ignore returns
-6. **Swallowed errors**: Fix high-confidence findings; document intentional swallowing
+**Quick fixes:**
+- Log and rethrow if layer can't handle it
+- Return error result instead of hiding failure
+- Document intentional swallowing with comment
 
-**When to ignore metrics:**
+## When to Ignore Metrics
 
-- Test fixtures with intentional cycles
-- Entry points (`index.ts`) with high instability
-- Generated code or vendor files
-- Hotspots in stable, rarely-modified code
+Not every warning needs action:
+
+- **Test fixtures** — Intentional complexity or cycles for testing
+- **Entry points** — `index.ts` files naturally have high instability
+- **Generated code** — Don't refactor auto-generated files
+- **Stable, unchanged code** — Low-churn code with no bug history is low priority regardless of complexity

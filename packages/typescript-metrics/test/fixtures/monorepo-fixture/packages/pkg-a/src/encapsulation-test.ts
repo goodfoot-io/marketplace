@@ -3,7 +3,7 @@
 
 /**
  * PublicClass - All public members (poor encapsulation)
- * Expected MHF: 0 (0/3), AHF: 0 (0/2)
+ * MHF: 0 (0/3 hidden methods), AHF: 0 (0/2 hidden attributes)
  */
 export class PublicClass {
   public prop1: string = "";
@@ -19,8 +19,8 @@ export class PublicClass {
 }
 
 /**
- * WellEncapsulatedClass - Good encapsulation
- * Expected MHF: 0.75 (3/4), AHF: 0.75 (3/4)
+ * WellEncapsulatedClass - Demonstrates private attributes
+ * MHF: 0 (0/1 hidden methods), AHF: 0.5 (1/2 hidden attributes)
  */
 export class WellEncapsulatedClass {
   public visibleProp: string = "";
@@ -33,7 +33,7 @@ export class WellEncapsulatedClass {
 
 /**
  * ProtectedClass - Uses protected members
- * Expected MHF: 0.67 (2/3), AHF: 1.0 (1/1)
+ * MHF: 0.67 (2/3 hidden methods), AHF: 1.0 (1/1 hidden attributes)
  */
 export class ProtectedClass {
   protected _internalState: string = "";
@@ -47,7 +47,7 @@ export class ProtectedClass {
 
 /**
  * ModernPrivateClass - Uses TypeScript # private fields
- * Expected MHF: 0.5 (2/4), AHF: 1.0 (1/1)
+ * MHF: 0 (0/2 hidden methods), AHF: 1.0 (1/1 hidden attributes)
  */
 export class ModernPrivateClass {
   #privateData: string = "";
@@ -62,8 +62,8 @@ export class ModernPrivateClass {
 }
 
 /**
- * MixedVisibilityClass - Mix of all visibility modifiers
- * Expected MHF: 0.67 (2/3), AHF: 0.67 (2/3)
+ * MixedVisibilityClass - Mix of visibility modifiers
+ * MHF: 0.5 (1/2 hidden methods), AHF: 0 (0/1 hidden attributes)
  */
 export class MixedVisibilityClass {
   public publicProp: string = "";
@@ -74,6 +74,6 @@ export class MixedVisibilityClass {
 
 /**
  * EmptyClass - Edge case with no methods/properties
- * Expected MHF: 1.0, AHF: 1.0 (convention for empty)
+ * MHF: 1.0, AHF: 1.0 (convention for empty classes)
  */
 export class EmptyClass {}

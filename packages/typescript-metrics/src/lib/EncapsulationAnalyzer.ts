@@ -31,89 +31,73 @@ export class EncapsulationAnalyzer {
   private analyzeSourceFile(sourceFile: ts.SourceFile, file: string, classes: ClassEncapsulation[]): void {
     const visit = (node: ts.Node): void => {
       if (ts.isClassDeclaration(node)) {
-        // Skip abstract classes
-        if (node.modifiers?.some((m) => m.kind === ts.SyntaxKind.AbstractKeyword)) {
-          return;
+        const classMetrics = this.analyzeClass(node, sourceFile, file);
+        if (classMetrics) {
+          classes.push(classMetrics);
         }
-
-        // Skip classes without names
-        if (!node.name) {
-          return;
-        }
-
-        const className = node.name.getText(sourceFile);
-        const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
-
-        let totalMethods = 0;
-        let hiddenMethods = 0;
-        let totalAttributes = 0;
-        let hiddenAttributes = 0;
-
-        // Analyze class members
-        for (const member of node.members) {
-          // Count methods (exclude constructors)
-          if (ts.isMethodDeclaration(member) || ts.isGetAccessor(member) || ts.isSetAccessor(member)) {
-            totalMethods++;
-            if (this.isHidden(member)) {
-              hiddenMethods++;
-            }
-          }
-
-          // Count properties
-          if (ts.isPropertyDeclaration(member)) {
-            totalAttributes++;
-            if (this.isHidden(member)) {
-              hiddenAttributes++;
-            }
-          }
-        }
-
-        // Calculate MHF and AHF
-        const mhf = totalMethods === 0 ? 1.0 : hiddenMethods / totalMethods;
-        const ahf = totalAttributes === 0 ? 1.0 : hiddenAttributes / totalAttributes;
-
-        classes.push({
-          className,
-          file,
-          line,
-          totalMethods,
-          hiddenMethods,
-          totalAttributes,
-          hiddenAttributes,
-          mhf,
-          ahf,
-        });
       }
-
       ts.forEachChild(node, visit);
     };
-
     visit(sourceFile);
   }
 
-  private isHidden(node: ts.ClassElement): boolean {
-    // Check for private or protected modifiers
-    if (ts.canHaveModifiers(node)) {
-      const modifiers = ts.getModifiers(node);
-      if (modifiers) {
-        const hasPrivate = modifiers.some((m: ts.Modifier) => m.kind === ts.SyntaxKind.PrivateKeyword);
-        const hasProtected = modifiers.some((m: ts.Modifier) => m.kind === ts.SyntaxKind.ProtectedKeyword);
-        if (hasPrivate || hasProtected) {
-          return true;
+  private analyzeClass(node: ts.ClassDeclaration, sourceFile: ts.SourceFile, file: string): ClassEncapsulation | null {
+    // Skip abstract classes and classes without names
+    if (node.modifiers?.some((m) => m.kind === ts.SyntaxKind.AbstractKeyword)) {
+      return null;
+    }
+    if (!node.name) {
+      return null;
+    }
+
+    const className = node.name.getText(sourceFile);
+    const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+
+    let totalMethods = 0;
+    let hiddenMethods = 0;
+    let totalAttributes = 0;
+    let hiddenAttributes = 0;
+
+    for (const member of node.members) {
+      if (ts.isMethodDeclaration(member) || ts.isGetAccessor(member) || ts.isSetAccessor(member)) {
+        totalMethods++;
+        if (this.isHidden(member)) {
+          hiddenMethods++;
+        }
+      } else if (ts.isPropertyDeclaration(member)) {
+        totalAttributes++;
+        if (this.isHidden(member)) {
+          hiddenAttributes++;
         }
       }
     }
 
+    const mhf = totalMethods === 0 ? 1.0 : hiddenMethods / totalMethods;
+    const ahf = totalAttributes === 0 ? 1.0 : hiddenAttributes / totalAttributes;
+
+    return {
+      className,
+      file,
+      line,
+      totalMethods,
+      hiddenMethods,
+      totalAttributes,
+      hiddenAttributes,
+      mhf,
+      ahf,
+    };
+  }
+
+  private isHidden(node: ts.ClassElement): boolean {
+    // Check for private or protected modifiers
+    const modifiers = ts.canHaveModifiers(node) ? ts.getModifiers(node) : undefined;
+    if (modifiers?.some((m) => m.kind === ts.SyntaxKind.PrivateKeyword || m.kind === ts.SyntaxKind.ProtectedKeyword)) {
+      return true;
+    }
+
     // Check for #private name (ECMAScript private field)
-    if (
-      ts.isPropertyDeclaration(node) ||
-      ts.isMethodDeclaration(node) ||
-      ts.isGetAccessor(node) ||
-      ts.isSetAccessor(node)
-    ) {
-      if (node.name && ts.isPrivateIdentifier(node.name)) {
-        return true;
-      }
+    if ("name" in node && node.name && ts.isPrivateIdentifier(node.name)) {
+      return true;
     }
 
     return false;

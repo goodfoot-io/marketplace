@@ -189,64 +189,46 @@ export class ChurnHotspotAnalyzer {
       });
     }
 
-    // Collect churn scores and complexity scores for normalization
-    const churnScores: number[] = [];
-    const complexityScores: number[] = [];
+    // Build intermediate data with complexity lookup (fc.file is already absolute from getChurnData)
+    const fileData = churnData
+      .map((fc) => ({
+        fc,
+        complexity: fileComplexityMap.get(fc.file),
+      }))
+      .filter(({ fc, complexity }) => fc.churnScore > 0 || complexity);
 
-    for (const fc of churnData) {
-      const absPath = path.resolve(fc.file);
-      const complexity = fileComplexityMap.get(absPath);
-
-      if (fc.churnScore > 0 || complexity) {
-        churnScores.push(fc.churnScore);
-        // Use max of cyclomatic and cognitive as complexity score
-        const complexityScore = complexity ? Math.max(complexity.cyclomatic, complexity.cognitive) : 0;
-        complexityScores.push(complexityScore);
-      }
-    }
+    // Collect scores for normalization
+    const churnScores = fileData.map(({ fc }) => fc.churnScore);
+    const complexityScores = fileData.map(({ complexity }) =>
+      complexity ? Math.max(complexity.cyclomatic, complexity.cognitive) : 0,
+    );
 
     // Normalize scores
     const normalizedChurn = this.normalize(churnScores);
     const normalizedComplexity = this.normalize(complexityScores);
 
     // Build hotspots with combined scores
-    const hotspots: Hotspot[] = [];
-    let index = 0;
+    const hotspots: Hotspot[] = fileData.map(({ fc, complexity }, index) => {
+      const complexityScore = complexityScores[index];
+      const combinedScore = normalizedChurn[index] * normalizedComplexity[index];
 
-    for (const fc of churnData) {
-      const absPath = path.resolve(fc.file);
-      const complexity = fileComplexityMap.get(absPath);
-
-      if (fc.churnScore > 0 || complexity) {
-        const complexityScore = complexity ? Math.max(complexity.cyclomatic, complexity.cognitive) : 0;
-        const normalizedChurnScore = normalizedChurn.get(index) ?? 0;
-        const normalizedComplexityScore = normalizedComplexity.get(index) ?? 0;
-
-        // Combined score is product of normalized values
-        const combinedScore = normalizedChurnScore * normalizedComplexityScore;
-
-        hotspots.push({
-          file: fc.file,
-          churnScore: fc.churnScore,
-          complexityScore,
-          combinedScore,
-          cyclomatic: complexity?.cyclomatic,
-          cognitive: complexity?.cognitive,
-        });
-
-        index++;
-      }
-    }
+      return {
+        file: fc.file,
+        churnScore: fc.churnScore,
+        complexityScore,
+        combinedScore,
+        cyclomatic: complexity?.cyclomatic,
+        cognitive: complexity?.cognitive,
+      };
+    });
 
     // Sort by combined score descending
     return hotspots.sort((a, b) => b.combinedScore - a.combinedScore);
   }
 
-  private normalize(values: number[]): Map<number, number> {
-    const result = new Map<number, number>();
-
+  private normalize(values: number[]): number[] {
     if (values.length === 0) {
-      return result;
+      return [];
     }
 
     const min = Math.min(...values);
@@ -254,18 +236,11 @@ export class ChurnHotspotAnalyzer {
 
     // Handle edge case where all values are the same
     if (max === min) {
-      for (let i = 0; i < values.length; i++) {
-        result.set(i, values[i] > 0 ? 1 : 0);
-      }
-      return result;
+      return values.map((v) => (v > 0 ? 1 : 0));
     }
 
     // Min-max normalization: (value - min) / (max - min)
-    for (let i = 0; i < values.length; i++) {
-      const normalized = (values[i] - min) / (max - min);
-      result.set(i, normalized);
-    }
-
-    return result;
+    const range = max - min;
+    return values.map((v) => (v - min) / range);
   }
 }

@@ -1,51 +1,29 @@
-# Duplication Interpretation Guide
+# Duplication: Understanding and Extracting
 
-## Understanding Duplication Metrics
+## Why Duplication Causes Defects
 
-### How Detection Works
+Every copy of logic is a liability. When behavior needs to change, every copy must be found and updated identically. Miss one, and you have inconsistent behavior. Research shows duplicated code has approximately double the defect risk.
 
-Token-based detection using Rabin-Karp rolling hash with identifier normalization:
-- Variable names are normalized (`myVar` → `identifier`)
-- String literals are normalized
-- Minimum threshold: 100 tokens (configurable via `--min-tokens`)
+## Density Thresholds
 
-### Key Metrics
+| Density | Assessment |
+|---------|------------|
+| ≤5% | Healthy |
+| 5-10% | Acceptable, review largest blocks |
+| 10-20% | Concerning, prioritize extraction |
+| >20% | Systematic refactoring needed |
 
-| Metric | Meaning |
-|--------|---------|
-| Duplication Density | `duplicatedLines / totalLines` |
-| Block Count | Number of duplicate code sequences |
-| Token Count | Size of duplicate block (larger = higher priority) |
+## Prioritizing What to Extract
 
-### Density Thresholds
+1. **Higher token count** = More impactful extraction
+2. **Same package** = Easier to extract
+3. **Cross-package** = May indicate missing shared module
 
-| Density | Assessment | Action |
-|---------|------------|--------|
-| ≤5% | Healthy | Monitor only |
-| 5-10% | Acceptable | Review largest blocks |
-| 10-20% | Concerning | Prioritize extraction |
-| >20% | Critical | Systematic refactoring needed |
+## Extraction Patterns
 
-## Interpreting Duplicate Blocks
+### Extract to Shared Function
 
-### Report Format
-
-```
-| Location A | Location B | Tokens |
-|------------|------------|--------|
-| src/handlers/user.ts:45 | src/handlers/admin.ts:72 | 640 |
-```
-
-**Prioritization:**
-1. Higher token count = more impactful extraction
-2. Same package duplication = easier to extract
-3. Cross-package duplication = may indicate missing shared module
-
-## Refactoring Strategies
-
-### 1. Extract to Shared Module
-
-**When:** Same logic in multiple files within a package.
+When the same logic appears in multiple files.
 
 **Before:**
 ```typescript
@@ -59,7 +37,7 @@ async function createUser(data: UserInput) {
   // ... insert logic
 }
 
-// handlers/admin.ts
+// handlers/admin.ts (same normalization)
 async function createAdmin(data: AdminInput) {
   const validated = {
     email: data.email.toLowerCase().trim(),
@@ -85,25 +63,12 @@ export function normalizeUserInput<T extends { email: string; name: string }>(
 }
 ```
 
-### 2. Create Shared Workspace Package
+### Higher-Order Function for Similar Patterns
 
-**When:** Duplicate code across multiple packages in monorepo.
+When logic is similar but differs in one operation.
 
-```
-packages/
-├── package-a/src/utils.ts  # Duplicate
-├── package-b/src/utils.ts  # Duplicate
-└── shared-utils/           # NEW: Extract here
-    └── src/index.ts
-```
-
-### 3. Higher-Order Function Extraction
-
-**When:** Similar logic with different operations.
-
-**Before:**
+**Before:** (Two functions with 50 lines of similar retry logic)
 ```typescript
-// Both files have 50 lines of similar retry logic
 async function fetchWithRetry(url: string) {
   let attempts = 0;
   while (attempts < 3) {
@@ -118,16 +83,7 @@ async function fetchWithRetry(url: string) {
 }
 
 async function queryWithRetry(query: string) {
-  let attempts = 0;
-  while (attempts < 3) {
-    try {
-      return await db.query(query);
-    } catch (e) {
-      attempts++;
-      if (attempts >= 3) throw e;
-      await sleep(1000 * attempts);
-    }
-  }
+  // Same retry logic, different operation
 }
 ```
 
@@ -154,33 +110,9 @@ const data = await withRetry(() => fetch(url));
 const results = await withRetry(() => db.query(query));
 ```
 
-### 4. Template Method Pattern
+### Configuration-Driven Approach
 
-**When:** Similar algorithms with variation points.
-
-```typescript
-abstract class DataProcessor<T, R> {
-  async process(input: T): Promise<R> {
-    const validated = this.validate(input);
-    const transformed = this.transform(validated);
-    const result = await this.save(transformed);
-    await this.notify(result);
-    return result;
-  }
-
-  protected abstract validate(input: T): T;
-  protected abstract transform(input: T): R;
-  protected abstract save(data: R): Promise<R>;
-  protected notify(result: R): Promise<void> {
-    // Default implementation, override if needed
-    return Promise.resolve();
-  }
-}
-```
-
-### 5. Configuration-Driven Approach
-
-**When:** Duplicate code differs only in constants/config.
+When duplicates differ only in constants.
 
 **Before:**
 ```typescript
@@ -213,44 +145,30 @@ const validateUser = createValidator({ minAge: 18, maxNameLength: 100 });
 const validateAdmin = createValidator({ minAge: 21, maxNameLength: 50 });
 ```
 
+### Create Shared Package (Monorepo)
+
+When duplication crosses package boundaries.
+
+```
+packages/
+├── package-a/src/utils.ts  # Duplicate
+├── package-b/src/utils.ts  # Duplicate
+└── shared-utils/           # NEW: Extract here
+    └── src/index.ts
+```
+
+## The Rule of Three
+
+Extract when:
+- Code appears **3+ times**, OR
+- Code appears **2 times AND is complex** (>50 tokens), OR
+- Code will **definitely be needed again**
+
 ## Acceptable Duplication
 
 Not all duplication should be eliminated:
 
-1. **Test fixtures**: Similar setup across tests is fine
-2. **Boilerplate required by frameworks**: e.g., React component structure
-3. **Independent evolution**: Code that looks similar now but serves different domains
-4. **Clarity over DRY**: Sometimes explicit is better than abstracted
-
-### Rule of Three
-
-Extract when:
-- Code appears 3+ times, OR
-- Code appears 2 times AND is complex (>50 tokens), OR
-- Code will definitely be needed again
-
-## Cross-Package Duplication Patterns
-
-### Common Scenarios
-
-| Pattern | Example | Solution |
-|---------|---------|----------|
-| Test utilities | Matchers, fixtures | Shared test-utilities package |
-| Type definitions | Same interfaces | Shared types package |
-| API clients | Same fetch patterns | Shared HTTP client |
-| Validation | Same schema logic | Shared validation package |
-
-### Migration Strategy
-
-1. Identify largest duplicate blocks in report
-2. Group by package pairs
-3. Create shared package for highest-value extractions
-4. Update imports incrementally
-5. Re-run metrics to verify improvement
-
-## Monitoring Duplication
-
-Track over time:
-- **Density trend**: Should decrease or stay stable
-- **New block count**: Alert on large new duplicates
-- **Cross-package growth**: May indicate missing abstractions
+1. **Test fixtures** — Similar setup across tests is fine
+2. **Framework boilerplate** — Required structure (React components, etc.)
+3. **Independent evolution** — Code that looks similar now but serves different domains may diverge
+4. **Clarity over DRY** — Sometimes explicit is better than an abstraction that's hard to understand

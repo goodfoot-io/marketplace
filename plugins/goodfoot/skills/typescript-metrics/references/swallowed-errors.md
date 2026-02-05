@@ -1,54 +1,24 @@
-# Swallowed Error Detection Interpretation Guide
+# Swallowed Errors: Understanding and Fixing
 
-## Understanding Swallowed Errors
+## Why Swallowed Errors Are Dangerous
 
-Swallowed errors hide failures from callers, developers, or operators. They make debugging difficult and can mask critical issues.
+Errors exist to communicate problems. Swallowing them creates silent failures that surface far from their cause. You'll spend hours debugging why something "just doesn't work" when an error message was available but discarded.
 
-### Detected Patterns
+## Patterns Detected
 
-| Pattern | Description | Default Confidence |
-|---------|-------------|-------------------|
+| Pattern | Description | Confidence |
+|---------|-------------|------------|
 | `empty-catch` | Catch block with no statements | High |
 | `comment-only-catch` | Catch block with only comments | High |
-| `catch-returns-success` | Catch returns success value (true, 200, "ok") | High |
+| `catch-returns-success` | Catch returns success value | High |
 | `catch-log-only` | Catch only logs, doesn't rethrow | Medium |
 | `void-promise` | `void asyncOp()` discards rejection | Medium |
-| `empty-promise-catch` | `.catch(() => {})` or `.catch(() => undefined)` | High |
+| `empty-promise-catch` | `.catch(() => {})` | High |
 | `error-param-unused` | `catch (e)` but `e` never used | Medium |
 
-### Context Factors
+## Fixing Swallowed Errors
 
-The analyzer adjusts confidence based on:
-
-| Factor | Effect |
-|--------|--------|
-| Test file | Lower priority (test isolation is OK) |
-| Logging nearby | Reduces severity (at least observable) |
-| Function name (`try*`, `maybe*`, `attempt*`) | Intentionally optional |
-| Comment keywords (`intentional`, `expected`, `ignore`) | Documented decision |
-| Finally block | May be cleanup code |
-
-## Interpreting Results
-
-### Report Format
-
-```
-| File | Line | Pattern | Confidence | Suggestion |
-|------|------|---------|------------|------------|
-| src/api.ts | 45 | empty-catch | high | Add error handling or logging |
-```
-
-### Priority by Confidence
-
-| Confidence | Action |
-|------------|--------|
-| High | Fix immediately—likely a bug |
-| Medium | Review context—may need fix or documentation |
-| Low | Informational—usually intentional |
-
-## Refactoring Patterns
-
-### 1. Empty Catch → Proper Handling
+### Empty Catch → Proper Handling
 
 **Before:**
 ```typescript
@@ -59,7 +29,7 @@ try {
 }
 ```
 
-**After - Option 1: Propagate error**
+**Option 1: Propagate error**
 ```typescript
 try {
   await saveToDatabase(data);
@@ -68,7 +38,7 @@ try {
 }
 ```
 
-**After - Option 2: Log and handle**
+**Option 2: Log and handle**
 ```typescript
 try {
   await saveToDatabase(data);
@@ -78,7 +48,7 @@ try {
 }
 ```
 
-**After - Option 3: Document intentional**
+**Option 3: Document if intentional**
 ```typescript
 try {
   await saveToDatabase(data);
@@ -87,7 +57,7 @@ try {
 }
 ```
 
-### 2. Catch Returns Success → Accurate Result
+### Catch Returns Success → Accurate Result
 
 **Before:**
 ```typescript
@@ -114,7 +84,7 @@ async function fetchUser(id: string): Promise<User | null> {
 }
 ```
 
-### 3. Log-Only → Log and Rethrow
+### Log-Only → Log and Rethrow
 
 **Before:**
 ```typescript
@@ -136,7 +106,7 @@ try {
 }
 ```
 
-### 4. Void Promise → Explicit Handling
+### Void Promise → Explicit Handling
 
 **Before:**
 ```typescript
@@ -145,7 +115,7 @@ function handleClick() {
 }
 ```
 
-**After - Option 1: Catch locally**
+**After:**
 ```typescript
 function handleClick() {
   fetchData().catch(error => {
@@ -155,66 +125,11 @@ function handleClick() {
 }
 ```
 
-**After - Option 2: Let framework handle**
-```typescript
-// In React with error boundary
-async function handleClick() {
-  await fetchData();  // Error propagates to boundary
-}
-```
-
-### 5. Empty Promise Catch → Meaningful Handler
-
-**Before:**
-```typescript
-promise.catch(() => {});
-```
-
-**After:**
-```typescript
-promise.catch(error => {
-  // Fire-and-forget telemetry—failure is acceptable
-  // Intentional: best-effort, non-critical operation
-});
-```
-
-### 6. Unused Error Parameter → Use or Remove
-
-**Before:**
-```typescript
-try {
-  riskyOperation();
-} catch (error) {
-  return defaultValue;  // 'error' unused
-}
-```
-
-**After - Option 1: Use the error**
-```typescript
-try {
-  riskyOperation();
-} catch (error) {
-  logger.warn('Operation failed, using default', { error });
-  return defaultValue;
-}
-```
-
-**After - Option 2: Remove if intentional**
-```typescript
-try {
-  riskyOperation();
-} catch {
-  // Intentional: any error means use default
-  return defaultValue;
-}
-```
-
 ## When Swallowing Is Intentional
 
 Document these cases clearly:
 
-### 1. Best-Effort Operations
-
+**Best-effort operations:**
 ```typescript
 try {
   await analytics.track('page_view');
@@ -223,8 +138,7 @@ try {
 }
 ```
 
-### 2. Graceful Degradation
-
+**Graceful degradation:**
 ```typescript
 let cachedValue: Value | undefined;
 try {
@@ -234,8 +148,7 @@ try {
 }
 ```
 
-### 3. Cleanup in Finally
-
+**Cleanup in finally:**
 ```typescript
 try {
   await processFile(path);
@@ -248,10 +161,8 @@ try {
 }
 ```
 
-### 4. Optional Features
-
+**Optional features (naming convention):**
 ```typescript
-// Function name signals optional behavior
 function tryLoadPlugin(name: string): Plugin | undefined {
   try {
     return require(name);
@@ -261,76 +172,7 @@ function tryLoadPlugin(name: string): Plugin | undefined {
 }
 ```
 
-## Configuration Options
-
-The analyzer supports customization:
-
-```typescript
-interface SwallowedErrorOptions {
-  // Skip test files entirely
-  excludeTestFiles?: boolean;
-
-  // Function patterns treated as intentionally optional
-  optionalFunctionPatterns?: RegExp[];
-  // Default: /^try[A-Z]/, /^maybe[A-Z]/, /^attempt[A-Z]/
-
-  // Comments that indicate intentional swallowing
-  intentionalKeywords?: string[];
-  // Default: intentional, expected, ignore, optional, fallback, graceful
-
-  // Functions allowed to fire-and-forget
-  fireAndForgetAllowlist?: RegExp[];
-  // Default: track*, log*, telemetry*, analytics*, metrics*, etc.
-}
-```
-
-## Integration with Other Metrics
-
-### Swallowed Errors + Complexity
-
-High complexity + swallowed errors = high risk:
-- Complex error paths are hard to reason about
-- Silent failures in complex code cause subtle bugs
-
-### Swallowed Errors + Data Flow
-
-Unused error parameters often indicate:
-- Copy-paste from template
-- Incomplete error handling
-- Rushed implementation
-
-## Error Handling Best Practices
-
-### Error Propagation Strategy
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Application Entry                       │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Global Error Handler                     │   │
-│  │  • Log all uncaught errors                           │   │
-│  │  • Report to monitoring                              │   │
-│  │  • Show user-friendly message                        │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                            ▲                                 │
-│                            │ rethrow                         │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Domain Layer                             │   │
-│  │  • Catch known error types                           │   │
-│  │  • Wrap with domain context                          │   │
-│  │  • Rethrow unknown errors                            │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                            ▲                                 │
-│                            │ rethrow                         │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Infrastructure Layer                     │   │
-│  │  • Let errors propagate                              │   │
-│  │  • Only catch for retry logic                        │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Decision Tree
+## Error Handling Decision Tree
 
 ```
 Should I catch this error?
@@ -348,9 +190,10 @@ Should I catch this error?
 │  └─ No → Must propagate or return error result
 ```
 
-## Monitoring Swallowed Errors
+## Priority by Confidence
 
-Track over time:
-- **High-confidence count**: Should be zero
-- **Pattern distribution**: Identifies systematic issues
-- **Test vs. production ratio**: Test files should have more
+| Confidence | Action |
+|------------|--------|
+| High | Fix immediately—likely a bug |
+| Medium | Review context—may need fix or documentation |
+| Low | Informational—usually intentional |
