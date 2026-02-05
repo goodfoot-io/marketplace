@@ -233813,7 +233813,8 @@ var ReportGenerator = class {
     lines.push("");
     lines.push(`## Health: ${healthScore}/100 \u2014 ${this.getHealthLabel(healthScore)}`);
     lines.push("");
-    lines.push("*Weighted average: complexity (35%), duplication (25%), coupling (25%), cycles (15%)*");
+    const calcParts = scores.map((s) => `${s.score}\xD7${(s.weight * 100).toFixed(0)}%`);
+    lines.push(`*Weighted average: ${calcParts.join(" + ")} = ${healthScore}*`);
     lines.push("");
     lines.push("| Category | Score | Status | Reason |");
     lines.push("|----------|-------|--------|--------|");
@@ -233862,7 +233863,21 @@ var ReportGenerator = class {
         lines.push("");
         const totalFunctions = result.complexity.functions.length;
         const hotspotsCount = result.complexity.hotspots.length;
-        lines.push(`${hotspotsCount} of ${totalFunctions.toLocaleString()} functions exceed thresholds:`);
+        lines.push(
+          `${hotspotsCount} of ${totalFunctions.toLocaleString()} functions exceed thresholds (CC>${COMPLEXITY_THRESHOLD_CYCLOMATIC} or Cognitive>${COMPLEXITY_THRESHOLD_COGNITIVE}):`
+        );
+        const mild = result.complexity.hotspots.filter(
+          (fn) => fn.cyclomatic > COMPLEXITY_THRESHOLD_CYCLOMATIC && fn.cyclomatic <= COMPLEXITY_THRESHOLD_CYCLOMATIC * 2 || fn.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE && fn.cognitive <= COMPLEXITY_THRESHOLD_COGNITIVE * 2
+        ).length;
+        const moderate = result.complexity.hotspots.filter(
+          (fn) => fn.cyclomatic > COMPLEXITY_THRESHOLD_CYCLOMATIC * 2 && fn.cyclomatic <= COMPLEXITY_THRESHOLD_CYCLOMATIC * 3 || fn.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE * 2 && fn.cognitive <= COMPLEXITY_THRESHOLD_COGNITIVE * 3
+        ).length;
+        const severe = result.complexity.hotspots.filter(
+          (fn) => fn.cyclomatic > COMPLEXITY_THRESHOLD_CYCLOMATIC * 3 || fn.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE * 3
+        ).length;
+        if (hotspotsCount > 0) {
+          lines.push(`*Severity: ${mild} mild (1-2\xD7 threshold), ${moderate} moderate (2-3\xD7), ${severe} severe (>3\xD7)*`);
+        }
         lines.push("");
         lines.push("| File | Line | Function | LOC | CC | Cognitive |");
         lines.push("|------|------|----------|-----|-----|-----------|");
@@ -233940,6 +233955,13 @@ var ReportGenerator = class {
       lines.push("## Top Duplicate Blocks");
       lines.push("");
       const minTokens = options.minTokens ?? 100;
+      const totalLines = result.duplication.totalLines;
+      const duplicatedLines = result.duplication.duplicatedLines;
+      const density = (result.duplication.density * 100).toFixed(1);
+      lines.push(
+        `*Density: ${duplicatedLines.toLocaleString()} of ${totalLines.toLocaleString()} lines duplicated (${density}%)*`
+      );
+      lines.push("");
       lines.push(`Largest duplicates worth extracting (minimum ${minTokens} tokens):`);
       lines.push("");
       lines.push("| Location A | Location B | Tokens |");
@@ -233966,8 +233988,8 @@ var ReportGenerator = class {
           lines.push("");
           lines.push("Optional/default parameters that no caller ever provides:");
           lines.push("");
-          lines.push("| File | Function | Parameter | Default | Calls | Exported |");
-          lines.push("|------|----------|-----------|---------|-------|----------|");
+          lines.push("| File | Function | Parameter | Default | Total Calls | Exported |");
+          lines.push("|------|----------|-----------|---------|-------------|----------|");
           for (const param of result.dataFlow.unusedParameters.slice(0, 10)) {
             const defaultVal = param.defaultValue ? `\`${param.defaultValue}\`` : "-";
             const exportedIndicator = param.isExported ? "yes" : "no";
@@ -234035,8 +234057,14 @@ var ReportGenerator = class {
       }
       lines.push("");
       const highConfidence = findings.filter((f) => f.confidence === "high");
+      const mediumConfidence = findings.filter((f) => f.confidence === "medium");
       if (highConfidence.length > 0) {
         lines.push("### High Confidence Findings");
+        lines.push("");
+        const displayCount = Math.min(highConfidence.length, 10);
+        lines.push(
+          `*Showing ${displayCount} of ${highConfidence.length} high-confidence findings (${mediumConfidence.length} medium-confidence omitted)*`
+        );
         lines.push("");
         lines.push("| File | Line | Pattern | Suggestion |");
         lines.push("|------|------|---------|------------|");
@@ -234048,7 +234076,6 @@ var ReportGenerator = class {
         }
         lines.push("");
       }
-      const mediumConfidence = findings.filter((f) => f.confidence === "medium");
       if (mediumConfidence.length > 0 && highConfidence.length < 10) {
         lines.push("### Medium Confidence Findings");
         lines.push("");

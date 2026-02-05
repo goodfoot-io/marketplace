@@ -133,7 +133,7 @@ The generated report includes:
 
 1. **Complexity hotspots**: Refactor when CC>20 or Cognitive>30, especially if file changes frequently
 2. **Duplication**: Extract when same block appears 3+ times OR >50 tokens duplicated
-3. **Coupling**: Investigate hubs with >15 connections; consider interface extraction
+3. **Coupling**: Investigate hubs with >10 connections; consider interface extraction
 4. **Cycles**: Break all non-test-fixture cycles; use dependency inversion
 5. **Data flow**: Remove unused parameters; handle or explicitly ignore returns
 6. **Swallowed errors**: Fix high-confidence findings; document intentional swallowing
