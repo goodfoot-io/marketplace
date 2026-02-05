@@ -176,7 +176,7 @@ async function main(): Promise<void> {
     metrics: result,
   };
 
-  const format = args.format || "json";
+  const format = args.format ?? "json";
   if (format === "json") {
     console.log(
       JSON.stringify(

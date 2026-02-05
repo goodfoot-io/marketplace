@@ -24,21 +24,25 @@ export class DependencyGraphAnalyzer {
   private extractReferencedFiles(sourceFile: ts.SourceFile): string[] {
     const referencedFiles: string[] = [];
 
-    function visit(node: ts.Node) {
+    function visit(node: ts.Node): void {
       // Handle import declarations: import { x } from 'module'
-      if (ts.isImportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-        referencedFiles.push(node.moduleSpecifier.text);
-      }
       // Handle re-exports: export { x } from 'module' and export * from 'module'
-      else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+      if (
+        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        node.moduleSpecifier &&
+        ts.isStringLiteral(node.moduleSpecifier)
+      ) {
         referencedFiles.push(node.moduleSpecifier.text);
       }
       // Handle require calls: require('module')
-      else if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "require") {
-        const arg = node.arguments[0];
-        if (arg && ts.isStringLiteral(arg)) {
-          referencedFiles.push(arg.text);
-        }
+      else if (
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === "require" &&
+        node.arguments[0] &&
+        ts.isStringLiteral(node.arguments[0])
+      ) {
+        referencedFiles.push(node.arguments[0].text);
       }
       ts.forEachChild(node, visit);
     }
@@ -141,12 +145,11 @@ export class DependencyGraphAnalyzer {
           allNodes.add(resolvedPath);
 
           // Add to reverse map
-          if (!reverse.has(resolvedPath)) {
-            reverse.set(resolvedPath, []);
-          }
           const reverseList = reverse.get(resolvedPath);
           if (reverseList) {
             reverseList.push(currentFile);
+          } else {
+            reverse.set(resolvedPath, [currentFile]);
           }
         }
       }
@@ -359,19 +362,12 @@ export class DependencyGraphAnalyzer {
   }
 
   /**
-   * Get the layer index for a file based on its filename matching layer patterns
+   * Get the layer index for a file based on its filename matching layer patterns.
+   * Returns -1 if no layer matches.
    */
   private getLayerIndex(filePath: string, layers: string[]): number {
     const filename = path.basename(filePath, path.extname(filePath));
-
-    for (let i = 0; i < layers.length; i++) {
-      if (filename.includes(layers[i])) {
-        return i;
-      }
-    }
-
-    // If no layer matches, return -1 (unknown layer)
-    return -1;
+    return layers.findIndex((layer) => filename.includes(layer));
   }
 
   calculateDirectionality(layers: string[]): DirectionalityResult {

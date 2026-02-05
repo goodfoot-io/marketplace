@@ -187,34 +187,22 @@ export class DuplicationDetector {
     return tokens.map((token) => {
       const kind = ts.SyntaxKind[token.kind as keyof typeof ts.SyntaxKind];
 
-      // Check if this token should be normalized
-      if (NORMALIZABLE_KINDS.has(kind)) {
-        // Don't normalize TypeScript keywords
-        if (kind === ts.SyntaxKind.Identifier) {
-          if (KEYWORDS.has(token.normalizedValue)) {
-            return token;
-          }
-          return { ...token, normalizedValue: "$ID" };
-        }
-
-        // Normalize string literals
-        if (
-          kind === ts.SyntaxKind.StringLiteral ||
-          kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral ||
-          kind === ts.SyntaxKind.TemplateHead ||
-          kind === ts.SyntaxKind.TemplateMiddle ||
-          kind === ts.SyntaxKind.TemplateTail
-        ) {
-          return { ...token, normalizedValue: "$STR" };
-        }
-
-        // Normalize numeric literals
-        if (kind === ts.SyntaxKind.NumericLiteral || kind === ts.SyntaxKind.BigIntLiteral) {
-          return { ...token, normalizedValue: "$NUM" };
-        }
+      if (!NORMALIZABLE_KINDS.has(kind)) {
+        return token;
       }
 
-      return token;
+      // Don't normalize TypeScript keywords
+      if (kind === ts.SyntaxKind.Identifier) {
+        return KEYWORDS.has(token.normalizedValue) ? token : { ...token, normalizedValue: "$ID" };
+      }
+
+      // Normalize numeric literals
+      if (kind === ts.SyntaxKind.NumericLiteral || kind === ts.SyntaxKind.BigIntLiteral) {
+        return { ...token, normalizedValue: "$NUM" };
+      }
+
+      // All other normalizable kinds are string-like literals
+      return { ...token, normalizedValue: "$STR" };
     });
   }
 
@@ -262,14 +250,7 @@ export class DuplicationDetector {
     if (window1.tokens.length !== window2.tokens.length) {
       return false;
     }
-
-    for (let i = 0; i < window1.tokens.length; i++) {
-      if (window1.tokens[i].normalizedValue !== window2.tokens[i].normalizedValue) {
-        return false;
-      }
-    }
-
-    return true;
+    return window1.tokens.every((t, i) => t.normalizedValue === window2.tokens[i].normalizedValue);
   }
 
   findDuplicates(): DuplicateBlock[] {
@@ -299,7 +280,7 @@ export class DuplicationDetector {
         if (existing) {
           existing.push(...windows);
         } else {
-          globalHashMap.set(hash, [...windows]);
+          globalHashMap.set(hash, windows);
         }
       }
     }
@@ -340,17 +321,8 @@ export class DuplicationDetector {
         // Skip if all windows are from the same file and overlapping
         const uniqueFiles = new Set(group.map((w) => w.file));
         if (uniqueFiles.size === 1) {
-          // Check for overlapping windows within same file
           const sortedWindows = [...group].sort((a, b) => a.startLine - b.startLine);
-          let hasNonOverlapping = false;
-
-          for (let i = 1; i < sortedWindows.length; i++) {
-            if (sortedWindows[i].startLine > sortedWindows[i - 1].endLine) {
-              hasNonOverlapping = true;
-              break;
-            }
-          }
-
+          const hasNonOverlapping = sortedWindows.some((w, i) => i > 0 && w.startLine > sortedWindows[i - 1].endLine);
           if (!hasNonOverlapping) {
             continue;
           }

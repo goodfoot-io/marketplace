@@ -12,7 +12,7 @@ describe("ComplexityAnalyzer", () => {
     const code = `function simple() { return 1; }`;
     const sourceFile = ts.createSourceFile("test.ts", code, ts.ScriptTarget.Latest, true);
     const fn = sourceFile.statements[0] as ts.FunctionDeclaration;
-    expect(analyzer.calculateCyclomaticComplexity(fn, sourceFile)).toBe(1);
+    expect(analyzer.calculateCyclomaticComplexity(fn)).toBe(1);
   });
 
   it("should increment cyclomatic for if/for/while/case/catch", () => {
@@ -32,7 +32,7 @@ describe("ComplexityAnalyzer", () => {
     const sourceFile = ts.createSourceFile("test.ts", code, ts.ScriptTarget.Latest, true);
     const fn = sourceFile.statements[0] as ts.FunctionDeclaration;
     // Base 1 + if(1) + for(1) + while(1) + case(2) + catch(1) = 7
-    expect(analyzer.calculateCyclomaticComplexity(fn, sourceFile)).toBe(7);
+    expect(analyzer.calculateCyclomaticComplexity(fn)).toBe(7);
   });
 
   it("should increment cyclomatic for &&/||/?? operators", () => {
@@ -47,7 +47,7 @@ describe("ComplexityAnalyzer", () => {
     const sourceFile = ts.createSourceFile("test.ts", code, ts.ScriptTarget.Latest, true);
     const fn = sourceFile.statements[0] as ts.FunctionDeclaration;
     // Base 1 + if(1) + &&(1) + if(1) + ||(1) + ??(1) = 6
-    expect(analyzer.calculateCyclomaticComplexity(fn, sourceFile)).toBe(6);
+    expect(analyzer.calculateCyclomaticComplexity(fn)).toBe(6);
   });
 
   it("should calculate cognitive complexity with nesting penalty", () => {
@@ -66,7 +66,7 @@ describe("ComplexityAnalyzer", () => {
     // outer if: +1 (no nesting yet)
     // inner if: +1 + 1 (nesting penalty = depth 1) = +2
     // Total: 3
-    expect(analyzer.calculateCognitiveComplexity(fn, sourceFile)).toBe(3);
+    expect(analyzer.calculateCognitiveComplexity(fn)).toBe(3);
   });
 
   it("should add +1 for else but NO nesting penalty", () => {
@@ -117,7 +117,7 @@ describe("ComplexityAnalyzer", () => {
     const sourceFile = ts.createSourceFile("test.ts", code, ts.ScriptTarget.Latest, true);
     const fn = sourceFile.statements[0] as ts.FunctionDeclaration;
     // a ?? b ?? c ?? 0 = one sequence of ?? operators = +1
-    expect(analyzer.calculateCognitiveComplexity(fn, sourceFile)).toBe(1);
+    expect(analyzer.calculateCognitiveComplexity(fn)).toBe(1);
   });
 
   it("should count LOC correctly (total, code, blank, comment)", () => {

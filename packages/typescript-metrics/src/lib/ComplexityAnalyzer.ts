@@ -60,8 +60,8 @@ export class ComplexityAnalyzer {
       const fn = node as ts.FunctionLikeDeclaration;
       const name = this.getFunctionName(fn);
       const line = sourceFile.getLineAndCharacterOfPosition(fn.getStart()).line + 1;
-      const cyclomatic = this.calculateCyclomaticComplexity(fn, sourceFile);
-      const cognitive = this.calculateCognitiveComplexity(fn, sourceFile);
+      const cyclomatic = this.calculateCyclomaticComplexity(fn);
+      const cognitive = this.calculateCognitiveComplexity(fn);
 
       functions.push({
         name,
@@ -115,43 +115,30 @@ export class ComplexityAnalyzer {
    * Calculates cyclomatic complexity (McCabe).
    * Base = 1, then +1 for each decision point.
    */
-  calculateCyclomaticComplexity(fn: ts.FunctionLikeDeclaration, _sourceFile: ts.SourceFile): number {
+  calculateCyclomaticComplexity(fn: ts.FunctionLikeDeclaration): number {
     let complexity = 1; // Base complexity
 
     const visit = (node: ts.Node): void => {
       switch (node.kind) {
         case ts.SyntaxKind.IfStatement:
-          complexity++;
-          break;
         case ts.SyntaxKind.ForStatement:
         case ts.SyntaxKind.ForInStatement:
         case ts.SyntaxKind.ForOfStatement:
         case ts.SyntaxKind.WhileStatement:
         case ts.SyntaxKind.DoStatement:
-          complexity++;
-          break;
         case ts.SyntaxKind.CaseClause:
-          complexity++;
-          break;
         case ts.SyntaxKind.CatchClause:
-          complexity++;
-          break;
         case ts.SyntaxKind.ConditionalExpression:
           complexity++;
           break;
         case ts.SyntaxKind.BinaryExpression: {
           const binaryExpr = node as ts.BinaryExpression;
-          if (
-            binaryExpr.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
-            binaryExpr.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
-            binaryExpr.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
-          ) {
+          if (this.isLogicalOperator(binaryExpr.operatorToken.kind)) {
             complexity++;
           }
           break;
         }
       }
-
       ts.forEachChild(node, visit);
     };
 
@@ -163,6 +150,17 @@ export class ComplexityAnalyzer {
   }
 
   /**
+   * Checks if a token kind is a logical operator (&&, ||, ??)
+   */
+  private isLogicalOperator(kind: ts.SyntaxKind): boolean {
+    return (
+      kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+      kind === ts.SyntaxKind.BarBarToken ||
+      kind === ts.SyntaxKind.QuestionQuestionToken
+    );
+  }
+
+  /**
    * Calculates cognitive complexity per SonarSource specification.
    *
    * Key rules:
@@ -170,7 +168,7 @@ export class ComplexityAnalyzer {
    * 2. Nesting penalty: depth added for if, switch, for, while, do, catch, ternary (NOT else, NOT logical)
    * 3. Consecutive same logical operators count as +1 total
    */
-  calculateCognitiveComplexity(fn: ts.FunctionLikeDeclaration, _sourceFile: ts.SourceFile): number {
+  calculateCognitiveComplexity(fn: ts.FunctionLikeDeclaration): number {
     let complexity = 0;
 
     const visit = (node: ts.Node, depth: number): void => {
@@ -181,7 +179,7 @@ export class ComplexityAnalyzer {
           complexity += 1 + depth;
 
           // Visit condition (for logical operators)
-          this.visitLogicalOperators(ifStmt.expression, complexity, (inc) => {
+          this.visitLogicalOperators(ifStmt.expression, (inc) => {
             complexity += inc;
           });
 
@@ -196,7 +194,7 @@ export class ComplexityAnalyzer {
               // else if: +1 structural, NO nesting penalty, continue at same depth
               complexity += 1;
               // Visit else if condition for logical operators
-              this.visitLogicalOperators(ifStmt.elseStatement.expression, complexity, (inc) => {
+              this.visitLogicalOperators(ifStmt.elseStatement.expression, (inc) => {
                 complexity += inc;
               });
               // Visit else if then branch
@@ -263,17 +261,9 @@ export class ComplexityAnalyzer {
 
         case ts.SyntaxKind.BinaryExpression: {
           const binaryExpr = node as ts.BinaryExpression;
-          const opKind = binaryExpr.operatorToken.kind;
-          if (
-            opKind === ts.SyntaxKind.AmpersandAmpersandToken ||
-            opKind === ts.SyntaxKind.BarBarToken ||
-            opKind === ts.SyntaxKind.QuestionQuestionToken
-          ) {
-            // Check if this is the root of a logical expression tree
-            // Only count if the parent is not a logical operator
-            const isRootOfLogicalTree = !this.isChildOfLogicalOperator(binaryExpr);
-            if (isRootOfLogicalTree) {
-              // Count all unique operator types in this logical tree
+          if (this.isLogicalOperator(binaryExpr.operatorToken.kind)) {
+            // Only count if this is the root of a logical expression tree
+            if (!this.isChildOfLogicalOperator(binaryExpr)) {
               complexity += this.countLogicalOperatorTypes(binaryExpr);
             }
             // Visit operands for non-logical expressions only
@@ -322,7 +312,7 @@ export class ComplexityAnalyzer {
     if (ts.isIfStatement(elseStmt)) {
       // else if: +1 structural, NO nesting penalty
       addComplexity(1);
-      this.visitLogicalOperators(elseStmt.expression, 0, addComplexity);
+      this.visitLogicalOperators(elseStmt.expression, addComplexity);
       if (elseStmt.thenStatement) {
         visit(elseStmt.thenStatement, depth + 1);
       }
@@ -338,29 +328,15 @@ export class ComplexityAnalyzer {
 
   /**
    * Visits logical operators in an expression (for conditions in if statements, etc.)
-   * This is separate from the main visitor to handle logical operators in conditions.
    */
-  private visitLogicalOperators(
-    expr: ts.Expression,
-    _currentComplexity: number,
-    addComplexity: (inc: number) => void,
-  ): void {
-    // Find all logical binary expressions at the top level of this expression
+  private visitLogicalOperators(expr: ts.Expression, addComplexity: (inc: number) => void): void {
     const visit = (node: ts.Node): void => {
-      if (ts.isBinaryExpression(node)) {
-        const opKind = node.operatorToken.kind;
-        if (
-          opKind === ts.SyntaxKind.AmpersandAmpersandToken ||
-          opKind === ts.SyntaxKind.BarBarToken ||
-          opKind === ts.SyntaxKind.QuestionQuestionToken
-        ) {
-          // Only count if this is the root of a logical tree
-          if (!this.isChildOfLogicalOperator(node)) {
-            addComplexity(this.countLogicalOperatorTypes(node));
-          }
-          // Don't recurse into logical children - they're counted in countLogicalOperatorTypes
-          return;
+      if (ts.isBinaryExpression(node) && this.isLogicalOperator(node.operatorToken.kind)) {
+        // Only count if this is the root of a logical tree
+        if (!this.isChildOfLogicalOperator(node)) {
+          addComplexity(this.countLogicalOperatorTypes(node));
         }
+        return;
       }
       ts.forEachChild(node, visit);
     };
@@ -372,40 +348,22 @@ export class ComplexityAnalyzer {
    */
   private isChildOfLogicalOperator(expr: ts.BinaryExpression): boolean {
     const parent = expr.parent;
-    if (!ts.isBinaryExpression(parent)) {
-      return false;
-    }
-    const parentOpKind = parent.operatorToken.kind;
-    return (
-      parentOpKind === ts.SyntaxKind.AmpersandAmpersandToken ||
-      parentOpKind === ts.SyntaxKind.BarBarToken ||
-      parentOpKind === ts.SyntaxKind.QuestionQuestionToken
-    );
+    return ts.isBinaryExpression(parent) && this.isLogicalOperator(parent.operatorToken.kind);
   }
 
   /**
-   * Counts the number of unique logical operator types in a logical expression tree.
-   * e.g., a && b && c = 1 (only &&)
-   * e.g., a && b || c = 2 (&& and ||)
+   * Counts unique logical operator types in a logical expression tree.
+   * e.g., a && b && c = 1 (only &&), a && b || c = 2 (&& and ||)
    */
   private countLogicalOperatorTypes(expr: ts.BinaryExpression): number {
     const seenOps = new Set<ts.SyntaxKind>();
 
     const collectOps = (node: ts.Node): void => {
-      if (ts.isBinaryExpression(node)) {
-        const opKind = node.operatorToken.kind;
-        if (
-          opKind === ts.SyntaxKind.AmpersandAmpersandToken ||
-          opKind === ts.SyntaxKind.BarBarToken ||
-          opKind === ts.SyntaxKind.QuestionQuestionToken
-        ) {
-          seenOps.add(opKind);
-          collectOps(node.left);
-          collectOps(node.right);
-          return;
-        }
+      if (ts.isBinaryExpression(node) && this.isLogicalOperator(node.operatorToken.kind)) {
+        seenOps.add(node.operatorToken.kind);
+        collectOps(node.left);
+        collectOps(node.right);
       }
-      // Don't recurse into non-logical binary expressions
     };
 
     collectOps(expr);
@@ -421,21 +379,12 @@ export class ComplexityAnalyzer {
     visit: (node: ts.Node, depth: number) => void,
   ): void {
     const visitChild = (node: ts.Node): void => {
-      if (ts.isBinaryExpression(node)) {
-        const opKind = node.operatorToken.kind;
-        if (
-          opKind === ts.SyntaxKind.AmpersandAmpersandToken ||
-          opKind === ts.SyntaxKind.BarBarToken ||
-          opKind === ts.SyntaxKind.QuestionQuestionToken
-        ) {
-          // This is a logical operator, recurse into its children
-          visitChild(node.left);
-          visitChild(node.right);
-          return;
-        }
+      if (ts.isBinaryExpression(node) && this.isLogicalOperator(node.operatorToken.kind)) {
+        visitChild(node.left);
+        visitChild(node.right);
+      } else {
+        visit(node, depth);
       }
-      // This is a non-logical node, visit it with the main visitor
-      visit(node, depth);
     };
 
     visitChild(expr.left);

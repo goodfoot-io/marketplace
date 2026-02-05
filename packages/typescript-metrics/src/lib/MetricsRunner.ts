@@ -31,48 +31,37 @@ export class MetricsRunner {
   }
 
   async run(): Promise<MetricsResult> {
-    const categories = this.options.categories || ["coupling", "cycles", "complexity", "duplication", "monorepo"];
+    const categories = this.options.categories ?? ["coupling", "cycles", "complexity", "duplication", "monorepo"];
     const result: MetricsResult = {};
+
+    const runWithWarning = async <T>(name: string, fn: () => Promise<T>): Promise<T | undefined> => {
+      try {
+        return await fn();
+      } catch (error) {
+        console.warn(`Warning: Failed to calculate ${name} metrics:`, error);
+        return undefined;
+      }
+    };
 
     // Coupling must run first (provides graph for cycles)
     if (categories.includes("coupling") || categories.includes("cycles")) {
-      try {
-        result.coupling = await this.runCouplingMetrics();
-      } catch (error) {
-        console.warn("Warning: Failed to calculate coupling metrics:", error);
-      }
+      result.coupling = await runWithWarning("coupling", () => this.runCouplingMetrics());
     }
 
     if (categories.includes("cycles") && result.coupling) {
-      try {
-        result.cycles = await this.runCycleMetrics();
-      } catch (error) {
-        console.warn("Warning: Failed to calculate cycle metrics:", error);
-      }
+      result.cycles = await runWithWarning("cycle", () => this.runCycleMetrics());
     }
 
     if (categories.includes("complexity")) {
-      try {
-        result.complexity = await this.runComplexityMetrics();
-      } catch (error) {
-        console.warn("Warning: Failed to calculate complexity metrics:", error);
-      }
+      result.complexity = await runWithWarning("complexity", () => this.runComplexityMetrics());
     }
 
     if (categories.includes("duplication")) {
-      try {
-        result.duplication = await this.runDuplicationMetrics();
-      } catch (error) {
-        console.warn("Warning: Failed to calculate duplication metrics:", error);
-      }
+      result.duplication = await runWithWarning("duplication", () => this.runDuplicationMetrics());
     }
 
     if (categories.includes("monorepo")) {
-      try {
-        result.monorepo = await this.runMonorepoMetrics();
-      } catch (error) {
-        console.warn("Warning: Failed to calculate monorepo metrics:", error);
-      }
+      result.monorepo = await runWithWarning("monorepo", () => this.runMonorepoMetrics());
     }
 
     return result;
@@ -93,7 +82,7 @@ export class MetricsRunner {
 
     const modules = analyzer.calculateCoupling();
     const graphDensity = analyzer.calculateGraphDensity();
-    const hubs = analyzer.findHubs(this.options.topK || 10);
+    const hubs = analyzer.findHubs(this.options.topK ?? 10);
 
     return { modules, graphDensity, hubs };
   }
@@ -118,7 +107,7 @@ export class MetricsRunner {
   async runDuplicationMetrics(): Promise<DuplicationMetrics> {
     const files = this.options.files || (await this.findTypeScriptFiles());
     const detector = new DuplicationDetector({
-      minTokens: this.options.minTokens || 50,
+      minTokens: this.options.minTokens ?? 50,
     });
     detector.setFiles(files);
     return detector.analyze();
