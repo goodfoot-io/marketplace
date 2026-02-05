@@ -24,8 +24,8 @@ describe("DependencyGraphAnalyzer", () => {
     expect(graph.reverse).toBeInstanceOf(Map);
     expect(graph.allNodes).toBeInstanceOf(Set);
 
-    // pkg-a has 6 files: index.ts, internal.ts, complex.ts, else-test.ts, logical-ops.ts, catch-test.ts
-    expect(graph.allNodes.size).toBe(6);
+    // pkg-a has 7 files: index.ts, internal.ts, complex.ts, else-test.ts, logical-ops.ts, catch-test.ts, encapsulation-test.ts
+    expect(graph.allNodes.size).toBe(7);
 
     // index.ts imports 4 files
     const indexPath = path.join(fixtureRoot, "src/index.ts");
@@ -68,10 +68,10 @@ describe("DependencyGraphAnalyzer", () => {
 
   it("should calculate graph density", () => {
     // density = edges / (nodes * (nodes - 1))
-    // pkg-a: 6 nodes, 4 edges (index imports 4 files)
-    // density = 4 / (6 * 5) = 4/30 = 0.1333...
+    // pkg-a: 7 nodes, 4 edges (index imports 4 files)
+    // density = 4 / (7 * 6) = 4/42 = 0.0952...
     const density = analyzer.calculateGraphDensity();
-    expect(density).toBeCloseTo(4 / 30, 4);
+    expect(density).toBeCloseTo(4 / 42, 4);
   });
 
   it("should find top-k hub nodes", () => {

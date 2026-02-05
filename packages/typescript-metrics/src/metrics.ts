@@ -1,10 +1,12 @@
 // Library exports
 
+export { ChurnHotspotAnalyzer } from "./lib/ChurnHotspotAnalyzer.js";
 export { ComplexityAnalyzer } from "./lib/ComplexityAnalyzer.js";
 export { CycleDetector } from "./lib/CycleDetector.js";
 export { DataFlowAnalyzer } from "./lib/DataFlowAnalyzer.js";
 export { DependencyGraphAnalyzer } from "./lib/DependencyGraphAnalyzer.js";
 export { DuplicationDetector } from "./lib/DuplicationDetector.js";
+export { EncapsulationAnalyzer } from "./lib/EncapsulationAnalyzer.js";
 export { MetricsRunner } from "./lib/MetricsRunner.js";
 export { MonorepoAnalyzer } from "./lib/MonorepoAnalyzer.js";
 export { ReportGenerator } from "./lib/ReportGenerator.js";

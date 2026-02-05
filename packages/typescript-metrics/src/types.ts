@@ -46,6 +46,8 @@ export interface MetricsResult {
   monorepo?: MonorepoMetrics;
   dataFlow?: DataFlowMetrics;
   swallowedErrors?: SwallowedErrorMetrics;
+  encapsulation?: EncapsulationMetrics;
+  churnHotspots?: ChurnHotspotMetrics;
 }
 
 export interface DependencyGraph {
@@ -260,7 +262,9 @@ export type MetricCategory =
   | "duplication"
   | "monorepo"
   | "dataflow"
-  | "swallowed-errors";
+  | "swallowed-errors"
+  | "encapsulation"
+  | "churn-hotspots";
 
 export type OutputFormat = "json" | "summary";
 
@@ -307,6 +311,63 @@ export interface SwallowedErrorMetrics {
     byConfidence: Record<"high" | "medium" | "low", number>;
     highConfidenceCount: number;
   };
+}
+
+// Encapsulation Analysis Types
+
+export interface EncapsulationOptions {
+  rootDir: string;
+  files: string[];
+}
+
+export interface ClassEncapsulation {
+  className: string;
+  file: string;
+  line: number;
+  totalMethods: number;
+  hiddenMethods: number;
+  totalAttributes: number;
+  hiddenAttributes: number;
+  mhf: number; // Method Hiding Factor (hiddenMethods / totalMethods, 1.0 if no methods)
+  ahf: number; // Attribute Hiding Factor (hiddenAttributes / totalAttributes, 1.0 if no attributes)
+}
+
+export interface EncapsulationMetrics {
+  classes: ClassEncapsulation[];
+  aggregateMhf: number; // Average MHF across all classes
+  aggregateAhf: number; // Average AHF across all classes
+}
+
+// Churn Hotspot Analysis Types
+
+export interface ChurnHotspotOptions {
+  rootDir: string;
+  files: string[];
+  timeWindowDays?: number; // Default 90 days
+  complexityMetrics?: ComplexityMetrics; // Optional - passed from cached runner results
+}
+
+export interface FileChurn {
+  file: string;
+  commits: number;
+  linesAdded: number;
+  linesDeleted: number;
+  churnScore: number; // commits + linesAdded + linesDeleted
+}
+
+export interface Hotspot {
+  file: string;
+  churnScore: number;
+  complexityScore: number;
+  combinedScore: number; // normalized(churn) * normalized(complexity)
+  cyclomatic?: number; // Max cyclomatic in file (if complexity data available)
+  cognitive?: number; // Max cognitive in file (if complexity data available)
+}
+
+export interface ChurnHotspotMetrics {
+  files: FileChurn[];
+  hotspots: Hotspot[];
+  isGitRepo: boolean;
 }
 
 export interface CliArgs {
