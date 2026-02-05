@@ -68,6 +68,7 @@ export interface HubNode {
   totalDegree: number;
   fanIn: number;
   fanOut: number;
+  betweennessCentrality?: number;
 }
 
 export interface DiameterResult {
@@ -101,6 +102,8 @@ export interface CycleMetrics {
   sccs: string[][];
   /** Indices of SCCs that are type-only (no runtime edges) */
   typeOnlySccIndices?: number[];
+  /** Files that import themselves (self-loops) */
+  selfLoops?: string[];
 }
 
 export interface FunctionComplexity {

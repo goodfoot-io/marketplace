@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import * as fs from "node:fs";
-import * as path from "node:path";
 import * as os from "node:os";
+import * as path from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { SwallowedErrorAnalyzer } from "../src/lib/SwallowedErrorAnalyzer.js";
 
 describe("SwallowedErrorAnalyzer", () => {

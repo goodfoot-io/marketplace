@@ -217,7 +217,7 @@ export class DataFlowAnalyzer {
     let defaultValue: string | undefined;
     if (param.initializer) {
       const initText = param.initializer.getText(sourceFile);
-      defaultValue = initText.length > 30 ? initText.slice(0, 27) + "..." : initText;
+      defaultValue = initText.length > 30 ? `${initText.slice(0, 27)}...` : initText;
     }
 
     return {

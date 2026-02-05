@@ -102,6 +102,21 @@ export class CycleDetector {
     return count;
   }
 
+  /**
+   * Find self-loops (files that import themselves).
+   */
+  findSelfLoops(): string[] {
+    const selfLoops: string[] = [];
+
+    for (const [node, targets] of this.graph.forward) {
+      if (targets.includes(node)) {
+        selfLoops.push(node);
+      }
+    }
+
+    return selfLoops;
+  }
+
   getCycleMetrics(): CycleMetrics {
     const sccs = this.findSCCs();
     const cycleSCCs = sccs.filter((scc) => scc.length > 1);
@@ -115,12 +130,16 @@ export class CycleDetector {
     // Detect type-only SCCs
     const typeOnlySccIndices = this.detectTypeOnlySCCs(cycleSCCs);
 
+    // Detect self-loops
+    const selfLoops = this.findSelfLoops();
+
     return {
       count: cycleSCCs.length,
       sccDistribution: distribution,
       edgesInCycles: this.countEdgesInCycles(),
       sccs: cycleSCCs,
       typeOnlySccIndices,
+      selfLoops: selfLoops.length > 0 ? selfLoops : undefined,
     };
   }
 

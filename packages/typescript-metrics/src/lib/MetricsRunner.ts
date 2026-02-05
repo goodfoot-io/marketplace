@@ -102,7 +102,7 @@ export class MetricsRunner {
 
     const modules = analyzer.calculateCoupling();
     const graphDensity = analyzer.calculateGraphDensity();
-    const hubs = analyzer.findHubs(this.options.topK ?? 10);
+    const hubs = analyzer.findHubs(this.options.topK ?? 10, true);
 
     return { modules, graphDensity, hubs };
   }
@@ -223,8 +223,10 @@ export class MetricsRunner {
       lines.push(`  High Confidence: ${result.swallowedErrors.summary.highConfidenceCount}`);
       const patterns = result.swallowedErrors.summary.byPattern;
       if (patterns["empty-catch"] > 0) lines.push(`  Empty Catch Blocks: ${patterns["empty-catch"]}`);
-      if (patterns["empty-promise-catch"] > 0) lines.push(`  Empty .catch() Handlers: ${patterns["empty-promise-catch"]}`);
-      if (patterns["catch-returns-success"] > 0) lines.push(`  Catch Returns Success: ${patterns["catch-returns-success"]}`);
+      if (patterns["empty-promise-catch"] > 0)
+        lines.push(`  Empty .catch() Handlers: ${patterns["empty-promise-catch"]}`);
+      if (patterns["catch-returns-success"] > 0)
+        lines.push(`  Catch Returns Success: ${patterns["catch-returns-success"]}`);
     }
 
     return lines.join("\n");

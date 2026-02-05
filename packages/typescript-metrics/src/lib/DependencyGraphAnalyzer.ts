@@ -244,10 +244,13 @@ export class DependencyGraphAnalyzer {
     return edges / (nodes * (nodes - 1));
   }
 
-  findHubs(k: number): HubNode[] {
+  findHubs(k: number, includeBetweenness = false): HubNode[] {
     if (!this.graph) {
       throw new Error("Graph not built. Call buildGraph() first.");
     }
+
+    // Optionally calculate betweenness centrality
+    const betweenness = includeBetweenness ? this.calculateBetweennessCentrality() : null;
 
     const hubs: HubNode[] = [];
 
@@ -256,7 +259,13 @@ export class DependencyGraphAnalyzer {
       const fanOut = this.graph.forward.get(file)?.length ?? 0;
       const totalDegree = fanIn + fanOut;
 
-      hubs.push({ file, totalDegree, fanIn, fanOut });
+      hubs.push({
+        file,
+        totalDegree,
+        fanIn,
+        fanOut,
+        betweennessCentrality: betweenness?.get(file),
+      });
     }
 
     // Sort by totalDegree descending
@@ -389,6 +398,102 @@ export class DependencyGraphAnalyzer {
   private getLayerIndex(filePath: string, layers: string[]): number {
     const filename = path.basename(filePath, path.extname(filePath));
     return layers.findIndex((layer) => filename.includes(layer));
+  }
+
+  /**
+   * Calculate betweenness centrality for all nodes using Brandes' algorithm.
+   * Betweenness centrality measures how often a node lies on shortest paths between other nodes.
+   * Nodes with high betweenness are "bridge" modules that many paths flow through.
+   */
+  calculateBetweennessCentrality(): Map<string, number> {
+    if (!this.graph) {
+      throw new Error("Graph not built. Call buildGraph() first.");
+    }
+
+    const centrality = new Map<string, number>();
+    const nodes = Array.from(this.graph.allNodes);
+
+    // Initialize centrality to 0
+    for (const node of nodes) {
+      centrality.set(node, 0);
+    }
+
+    // Brandes' algorithm
+    for (const source of nodes) {
+      // Single-source shortest paths
+      const stack: string[] = [];
+      const predecessors = new Map<string, string[]>();
+      const sigma = new Map<string, number>(); // Number of shortest paths
+      const distance = new Map<string, number>();
+
+      for (const node of nodes) {
+        predecessors.set(node, []);
+        sigma.set(node, 0);
+        distance.set(node, -1);
+      }
+
+      sigma.set(source, 1);
+      distance.set(source, 0);
+
+      const queue: string[] = [source];
+
+      while (queue.length > 0) {
+        const v = queue.shift();
+        if (v === undefined) break;
+        stack.push(v);
+
+        const neighbors = this.graph.forward.get(v) ?? [];
+        for (const w of neighbors) {
+          const distW = distance.get(w) ?? -1;
+          const distV = distance.get(v) ?? 0;
+
+          // First visit?
+          if (distW < 0) {
+            queue.push(w);
+            distance.set(w, distV + 1);
+          }
+
+          // Shortest path to w via v?
+          if (distance.get(w) === distV + 1) {
+            sigma.set(w, (sigma.get(w) ?? 0) + (sigma.get(v) ?? 0));
+            predecessors.get(w)?.push(v);
+          }
+        }
+      }
+
+      // Accumulation
+      const delta = new Map<string, number>();
+      for (const node of nodes) {
+        delta.set(node, 0);
+      }
+
+      while (stack.length > 0) {
+        const w = stack.pop();
+        if (w === undefined) break;
+        const preds = predecessors.get(w) ?? [];
+        for (const v of preds) {
+          const sigmaV = sigma.get(v) ?? 0;
+          const sigmaW = sigma.get(w) ?? 1; // Avoid division by zero
+          const deltaW = delta.get(w) ?? 0;
+          const contribution = (sigmaV / sigmaW) * (1 + deltaW);
+          delta.set(v, (delta.get(v) ?? 0) + contribution);
+        }
+        if (w !== source) {
+          centrality.set(w, (centrality.get(w) ?? 0) + (delta.get(w) ?? 0));
+        }
+      }
+    }
+
+    // Normalize by (n-1)(n-2) for directed graphs
+    const n = nodes.length;
+    if (n > 2) {
+      const normFactor = (n - 1) * (n - 2);
+      for (const [node, value] of centrality) {
+        centrality.set(node, value / normFactor);
+      }
+    }
+
+    return centrality;
   }
 
   calculateDirectionality(layers: string[]): DirectionalityResult {

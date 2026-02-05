@@ -15,7 +15,7 @@
   "scripts": {
     "build": "node esbuild.config.mjs --outdir=../../plugins/goodfoot/bin/",
     "test": "vitest run",
-    "lint": "biome check .",
+    "lint": "biome check --write --unsafe --max-diagnostics 500 .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

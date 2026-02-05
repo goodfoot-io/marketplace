@@ -231647,6 +231647,18 @@ var CycleDetector = class {
     }
     return count;
   }
+  /**
+   * Find self-loops (files that import themselves).
+   */
+  findSelfLoops() {
+    const selfLoops = [];
+    for (const [node, targets] of this.graph.forward) {
+      if (targets.includes(node)) {
+        selfLoops.push(node);
+      }
+    }
+    return selfLoops;
+  }
   getCycleMetrics() {
     const sccs = this.findSCCs();
     const cycleSCCs = sccs.filter((scc) => scc.length > 1);
@@ -231656,12 +231668,14 @@ var CycleDetector = class {
       distribution[size] = (distribution[size] ?? 0) + 1;
     }
     const typeOnlySccIndices = this.detectTypeOnlySCCs(cycleSCCs);
+    const selfLoops = this.findSelfLoops();
     return {
       count: cycleSCCs.length,
       sccDistribution: distribution,
       edgesInCycles: this.countEdgesInCycles(),
       sccs: cycleSCCs,
-      typeOnlySccIndices
+      typeOnlySccIndices,
+      selfLoops: selfLoops.length > 0 ? selfLoops : void 0
     };
   }
   /**
@@ -231835,7 +231849,7 @@ var DataFlowAnalyzer = class {
     let defaultValue;
     if (param.initializer) {
       const initText = param.initializer.getText(sourceFile);
-      defaultValue = initText.length > 30 ? initText.slice(0, 27) + "..." : initText;
+      defaultValue = initText.length > 30 ? `${initText.slice(0, 27)}...` : initText;
     }
     return {
       name: isDestructured ? "(destructured)" : param.name.getText(sourceFile),
@@ -232373,16 +232387,23 @@ var DependencyGraphAnalyzer = class {
     }
     return edges / (nodes * (nodes - 1));
   }
-  findHubs(k) {
+  findHubs(k, includeBetweenness = false) {
     if (!this.graph) {
       throw new Error("Graph not built. Call buildGraph() first.");
     }
+    const betweenness = includeBetweenness ? this.calculateBetweennessCentrality() : null;
     const hubs = [];
     for (const file of this.graph.allNodes) {
       const fanIn = this.graph.reverse.get(file)?.length ?? 0;
       const fanOut = this.graph.forward.get(file)?.length ?? 0;
       const totalDegree = fanIn + fanOut;
-      hubs.push({ file, totalDegree, fanIn, fanOut });
+      hubs.push({
+        file,
+        totalDegree,
+        fanIn,
+        fanOut,
+        betweennessCentrality: betweenness?.get(file)
+      });
     }
     hubs.sort((a, b) => b.totalDegree - a.totalDegree);
     return hubs.slice(0, k);
@@ -232481,6 +232502,80 @@ var DependencyGraphAnalyzer = class {
   getLayerIndex(filePath, layers) {
     const filename = path3.basename(filePath, path3.extname(filePath));
     return layers.findIndex((layer) => filename.includes(layer));
+  }
+  /**
+   * Calculate betweenness centrality for all nodes using Brandes' algorithm.
+   * Betweenness centrality measures how often a node lies on shortest paths between other nodes.
+   * Nodes with high betweenness are "bridge" modules that many paths flow through.
+   */
+  calculateBetweennessCentrality() {
+    if (!this.graph) {
+      throw new Error("Graph not built. Call buildGraph() first.");
+    }
+    const centrality = /* @__PURE__ */ new Map();
+    const nodes = Array.from(this.graph.allNodes);
+    for (const node of nodes) {
+      centrality.set(node, 0);
+    }
+    for (const source of nodes) {
+      const stack = [];
+      const predecessors = /* @__PURE__ */ new Map();
+      const sigma = /* @__PURE__ */ new Map();
+      const distance = /* @__PURE__ */ new Map();
+      for (const node of nodes) {
+        predecessors.set(node, []);
+        sigma.set(node, 0);
+        distance.set(node, -1);
+      }
+      sigma.set(source, 1);
+      distance.set(source, 0);
+      const queue = [source];
+      while (queue.length > 0) {
+        const v = queue.shift();
+        if (v === void 0) break;
+        stack.push(v);
+        const neighbors = this.graph.forward.get(v) ?? [];
+        for (const w of neighbors) {
+          const distW = distance.get(w) ?? -1;
+          const distV = distance.get(v) ?? 0;
+          if (distW < 0) {
+            queue.push(w);
+            distance.set(w, distV + 1);
+          }
+          if (distance.get(w) === distV + 1) {
+            sigma.set(w, (sigma.get(w) ?? 0) + (sigma.get(v) ?? 0));
+            predecessors.get(w)?.push(v);
+          }
+        }
+      }
+      const delta = /* @__PURE__ */ new Map();
+      for (const node of nodes) {
+        delta.set(node, 0);
+      }
+      while (stack.length > 0) {
+        const w = stack.pop();
+        if (w === void 0) break;
+        const preds = predecessors.get(w) ?? [];
+        for (const v of preds) {
+          const sigmaV = sigma.get(v) ?? 0;
+          const sigmaW = sigma.get(w) ?? 1;
+          const deltaW = delta.get(w) ?? 0;
+          const contribution = sigmaV / sigmaW * (1 + deltaW);
+          delta.set(v, (delta.get(v) ?? 0) + contribution);
+        }
+        if (w !== source) {
+          centrality.set(w, (centrality.get(w) ?? 0) + (delta.get(w) ?? 0));
+        }
+      }
+    }
+    const n = nodes.length;
+    if (n > 2) {
+      const normFactor = (n - 1) * (n - 2);
+      for (const [node, value] of centrality) {
+        centrality.set(node, value / normFactor);
+      }
+    }
+    return centrality;
   }
   calculateDirectionality(layers) {
     if (!this.graph) {
@@ -232942,10 +233037,25 @@ var MonorepoAnalyzer = class {
     return modifiers?.some((m) => m.kind === ts5.SyntaxKind.DefaultKeyword) ?? false;
   }
   /**
+   * Extract the package name from an import path.
+   * Handles both regular packages (lodash/subpath -> lodash) and scoped packages (@scope/pkg/subpath -> @scope/pkg).
+   */
+  extractPackageName(importPath) {
+    if (importPath.startsWith("@")) {
+      const parts = importPath.split("/");
+      return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : importPath;
+    }
+    return importPath.split("/")[0];
+  }
+  /**
    * Check if an import path refers to a workspace package.
+   * Handles both regular packages (lodash) and scoped packages (@scope/package).
    */
   isWorkspaceImport(importPath, workspacePackageNames) {
-    return workspacePackageNames.has(importPath) || workspacePackageNames.has(importPath.split("/")[0]);
+    if (workspacePackageNames.has(importPath)) {
+      return true;
+    }
+    return workspacePackageNames.has(this.extractPackageName(importPath));
   }
   /**
    * Check if an import path is a relative (internal) import.
@@ -233074,7 +233184,7 @@ var MonorepoAnalyzer = class {
           if (ts5.isImportDeclaration(node) && node.moduleSpecifier && ts5.isStringLiteral(node.moduleSpecifier)) {
             const importPath = node.moduleSpecifier.text;
             if (this.isWorkspaceImport(importPath, packageNameSet)) {
-              const targetPackage = importPath.split("/")[0];
+              const targetPackage = this.extractPackageName(importPath);
               imports.set(targetPackage, (imports.get(targetPackage) ?? 0) + 1);
             }
           }
@@ -233481,7 +233591,7 @@ var SwallowedErrorAnalyzer = class {
     }
     return true;
   }
-  isIdentifierUsedInBlock(name, block, sourceFile) {
+  isIdentifierUsedInBlock(name, block, _sourceFile) {
     let found = false;
     const visit = (node) => {
       if (found) return;
@@ -233523,16 +233633,16 @@ var SwallowedErrorAnalyzer = class {
   }
   matchesOptionalPattern(name) {
     if (!name) return false;
-    return this.options.optionalFunctionPatterns.some((p) => p.test(name));
+    return this.options.optionalFunctionPatterns?.some((p) => p.test(name)) ?? false;
   }
   findNearbyIntentionalKeywords(node, sourceFile) {
     const keywords = [];
     const fullText = sourceFile.getFullText();
-    const start = node.getStart(sourceFile);
+    const _start = node.getStart(sourceFile);
     const leadingComments = import_typescript2.default.getLeadingCommentRanges(fullText, node.pos) ?? [];
     for (const comment of leadingComments) {
       const commentText = fullText.slice(comment.pos, comment.end).toLowerCase();
-      for (const keyword of this.options.intentionalKeywords) {
+      for (const keyword of this.options.intentionalKeywords ?? []) {
         if (commentText.includes(keyword.toLowerCase())) {
           keywords.push(keyword);
         }
@@ -233563,7 +233673,7 @@ var SwallowedErrorAnalyzer = class {
   }
   isInFireAndForgetAllowlist(name) {
     if (!name) return false;
-    return this.options.fireAndForgetAllowlist.some((p) => p.test(name));
+    return this.options.fireAndForgetAllowlist?.some((p) => p.test(name)) ?? false;
   }
   looksLikeAsyncCall(call, sourceFile) {
     const name = this.getCallExpressionName(call, sourceFile).toLowerCase();
@@ -233572,7 +233682,7 @@ var SwallowedErrorAnalyzer = class {
   getCodeSnippet(node, sourceFile) {
     const text = node.getText(sourceFile);
     if (text.length > 100) {
-      return text.slice(0, 97) + "...";
+      return `${text.slice(0, 97)}...`;
     }
     return text;
   }
@@ -233668,7 +233778,7 @@ var MetricsRunner = class {
     this.cachedGraph = graph;
     const modules = analyzer.calculateCoupling();
     const graphDensity = analyzer.calculateGraphDensity();
-    const hubs = analyzer.findHubs(this.options.topK ?? 10);
+    const hubs = analyzer.findHubs(this.options.topK ?? 10, true);
     return { modules, graphDensity, hubs };
   }
   async runCycleMetrics() {
@@ -233771,8 +233881,10 @@ var MetricsRunner = class {
       lines.push(`  High Confidence: ${result.swallowedErrors.summary.highConfidenceCount}`);
       const patterns = result.swallowedErrors.summary.byPattern;
       if (patterns["empty-catch"] > 0) lines.push(`  Empty Catch Blocks: ${patterns["empty-catch"]}`);
-      if (patterns["empty-promise-catch"] > 0) lines.push(`  Empty .catch() Handlers: ${patterns["empty-promise-catch"]}`);
-      if (patterns["catch-returns-success"] > 0) lines.push(`  Catch Returns Success: ${patterns["catch-returns-success"]}`);
+      if (patterns["empty-promise-catch"] > 0)
+        lines.push(`  Empty .catch() Handlers: ${patterns["empty-promise-catch"]}`);
+      if (patterns["catch-returns-success"] > 0)
+        lines.push(`  Catch Returns Success: ${patterns["catch-returns-success"]}`);
     }
     return lines.join("\n");
   }
@@ -233876,7 +233988,11 @@ var ReportGenerator = class {
           (fn) => fn.cyclomatic > COMPLEXITY_THRESHOLD_CYCLOMATIC * 3 || fn.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE * 3
         ).length;
         if (hotspotsCount > 0) {
-          lines.push(`*Severity: ${mild} mild (1-2\xD7 threshold), ${moderate} moderate (2-3\xD7), ${severe} severe (>3\xD7)*`);
+          const ccT = COMPLEXITY_THRESHOLD_CYCLOMATIC;
+          const cogT = COMPLEXITY_THRESHOLD_COGNITIVE;
+          lines.push(
+            `*Severity: ${mild} mild (CC ${ccT + 1}-${ccT * 2} or Cog ${cogT + 1}-${cogT * 2}), ${moderate} moderate (CC ${ccT * 2 + 1}-${ccT * 3} or Cog ${cogT * 2 + 1}-${cogT * 3}), ${severe} severe (CC >${ccT * 3} or Cog >${cogT * 3})*`
+          );
         }
         lines.push("");
         lines.push("| File | Line | Function | LOC | CC | Cognitive |");
@@ -233909,6 +234025,8 @@ var ReportGenerator = class {
         lines.push(
           `| Circular Dependencies | ${result.cycles.count} | ${result.cycles.count === 0 ? "None \u2713" : result.cycles.count === 1 ? "1 (review below)" : `${result.cycles.count} \u{1F534}`} |`
         );
+        lines.push("");
+        lines.push("*Density measures import relationships across all analyzed files.*");
         lines.push("");
         if (result.coupling.hubs.length > 0) {
           lines.push("**Hub nodes** (files with most connections):");
@@ -234035,25 +234153,37 @@ var ReportGenerator = class {
       lines.push("| Pattern | Count | Description |");
       lines.push("|---------|-------|-------------|");
       if (summary.byPattern["empty-catch"] > 0) {
-        lines.push(`| Empty catch | ${summary.byPattern["empty-catch"]} | \`catch {}\` blocks that silently discard errors |`);
+        lines.push(
+          `| Empty catch | ${summary.byPattern["empty-catch"]} | \`catch {}\` blocks that silently discard errors |`
+        );
       }
       if (summary.byPattern["comment-only-catch"] > 0) {
-        lines.push(`| Comment-only catch | ${summary.byPattern["comment-only-catch"]} | Catch blocks with only comments |`);
+        lines.push(
+          `| Comment-only catch | ${summary.byPattern["comment-only-catch"]} | Catch blocks with only comments |`
+        );
       }
       if (summary.byPattern["empty-promise-catch"] > 0) {
-        lines.push(`| Empty .catch() | ${summary.byPattern["empty-promise-catch"]} | \`.catch(() => {})\` that swallows rejections |`);
+        lines.push(
+          `| Empty .catch() | ${summary.byPattern["empty-promise-catch"]} | \`.catch(() => {})\` that swallows rejections |`
+        );
       }
       if (summary.byPattern["catch-returns-success"] > 0) {
-        lines.push(`| Catch returns success | ${summary.byPattern["catch-returns-success"]} | Catch returning \`[]\`, \`null\`, etc. |`);
+        lines.push(
+          `| Catch returns success | ${summary.byPattern["catch-returns-success"]} | Catch returning \`[]\`, \`null\`, etc. |`
+        );
       }
       if (summary.byPattern["catch-log-only"] > 0) {
         lines.push(`| Catch log-only | ${summary.byPattern["catch-log-only"]} | Logs error but doesn't rethrow |`);
       }
       if (summary.byPattern["error-param-unused"] > 0) {
-        lines.push(`| Error param unused | ${summary.byPattern["error-param-unused"]} | Error variable declared but not used |`);
+        lines.push(
+          `| Error param unused | ${summary.byPattern["error-param-unused"]} | Error variable declared but not used |`
+        );
       }
       if (summary.byPattern["void-promise"] > 0) {
-        lines.push(`| Fire-and-forget | ${summary.byPattern["void-promise"]} | \`void asyncOp()\` discards rejections |`);
+        lines.push(
+          `| Fire-and-forget | ${summary.byPattern["void-promise"]} | \`void asyncOp()\` discards rejections |`
+        );
       }
       lines.push("");
       const highConfidence = findings.filter((f) => f.confidence === "high");
@@ -234071,7 +234201,7 @@ var ReportGenerator = class {
         for (const finding of highConfidence.slice(0, 10)) {
           const patternLabel = this.getSwallowedErrorPatternLabel(finding.pattern);
           lines.push(
-            `| ${this.relativePath(finding.file)} | ${finding.line} | ${patternLabel} | ${finding.suggestion.slice(0, 60)}${finding.suggestion.length > 60 ? "..." : ""} |`
+            `| ${this.relativePath(finding.file)} | ${finding.line} | ${patternLabel} | ${finding.suggestion} |`
           );
         }
         lines.push("");
@@ -234113,6 +234243,15 @@ var ReportGenerator = class {
     lines.push("| 75\u2013100 | \u{1F7E2} Healthy | Within acceptable thresholds |");
     lines.push("| 50\u201374 | \u{1F7E1} Review | Some issues worth addressing |");
     lines.push("| 0\u201349 | \u{1F534} Critical | Significant issues requiring attention |");
+    lines.push("");
+    lines.push("### Category Weights");
+    lines.push("");
+    lines.push("| Category | Weight | Rationale |");
+    lines.push("|----------|--------|-----------|");
+    lines.push("| Complexity | 35% | Primary maintainability driver; complex code is hard to modify safely |");
+    lines.push("| Duplication | 25% | Increases bug surface and maintenance burden |");
+    lines.push("| Coupling | 25% | Affects change propagation and testability |");
+    lines.push("| Cycles | 15% | Less common but severe when present; blocks incremental refactoring |");
     lines.push("");
     lines.push("### Scoring Formulas");
     lines.push("");
@@ -234197,7 +234336,7 @@ var ReportGenerator = class {
     lines.push("");
     lines.push("- Cycles in `test/fixtures/` directories are typically intentional test fixtures");
     lines.push("- High instability on `index.ts` files is expected (barrel/entry point pattern)");
-    lines.push("- Test files are included in analysis; use `--exclude` patterns if needed");
+    lines.push("- Test files are included in analysis; use negation patterns (e.g., `!**/*.test.ts`) to filter");
     lines.push("- Data flow analysis requires \u22652 call sites for confidence");
     lines.push("");
     lines.push("</details>");
@@ -234255,9 +234394,6 @@ var ReportGenerator = class {
     }
     return Math.round(weightedSum / totalWeight);
   }
-  calculateComplexityScore(complexity) {
-    return this.calculateComplexityScoreWithReason(complexity).score;
-  }
   calculateComplexityScoreWithReason(complexity) {
     if (complexity.functions.length === 0) return { score: 100, reason: "no functions" };
     const hotspotRatio = complexity.hotspots.length / complexity.functions.length;
@@ -234269,9 +234405,6 @@ var ReportGenerator = class {
     if (hotspotRatio <= 0.1) return { score: 50, reason };
     if (hotspotRatio <= 0.2) return { score: 25, reason };
     return { score: 0, reason };
-  }
-  calculateDuplicationScore(duplication) {
-    return this.calculateDuplicationScoreWithReason(duplication).score;
   }
   calculateDuplicationScoreWithReason(duplication) {
     const density = duplication.density * 100;
@@ -234306,9 +234439,6 @@ var ReportGenerator = class {
     const finalScore = Math.max(0, Math.min(100, score));
     const reason = penalties.length > 0 ? penalties.join(", ") : "healthy";
     return { score: finalScore, reason };
-  }
-  calculateCycleScore(cycles) {
-    return this.calculateCycleScoreWithReason(cycles).score;
   }
   calculateCycleScoreWithReason(cycles) {
     if (cycles.count === 0) return { score: 100, reason: "no cycles" };

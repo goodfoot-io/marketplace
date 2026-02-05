@@ -1,12 +1,5 @@
 import * as path from "node:path";
-import type {
-  ComplexityMetrics,
-  CouplingMetrics,
-  CycleMetrics,
-  DuplicationMetrics,
-  MetricsResult,
-  SwallowedErrorMetrics,
-} from "../types.js";
+import type { ComplexityMetrics, CouplingMetrics, CycleMetrics, DuplicationMetrics, MetricsResult } from "../types.js";
 
 // Thresholds
 const COMPLEXITY_THRESHOLD_CYCLOMATIC = 10;
@@ -145,11 +138,16 @@ export class ReportGenerator {
             (fn.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE * 2 && fn.cognitive <= COMPLEXITY_THRESHOLD_COGNITIVE * 3),
         ).length;
         const severe = result.complexity.hotspots.filter(
-          (fn) => fn.cyclomatic > COMPLEXITY_THRESHOLD_CYCLOMATIC * 3 || fn.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE * 3,
+          (fn) =>
+            fn.cyclomatic > COMPLEXITY_THRESHOLD_CYCLOMATIC * 3 || fn.cognitive > COMPLEXITY_THRESHOLD_COGNITIVE * 3,
         ).length;
 
         if (hotspotsCount > 0) {
-          lines.push(`*Severity: ${mild} mild (1-2× threshold), ${moderate} moderate (2-3×), ${severe} severe (>3×)*`);
+          const ccT = COMPLEXITY_THRESHOLD_CYCLOMATIC;
+          const cogT = COMPLEXITY_THRESHOLD_COGNITIVE;
+          lines.push(
+            `*Severity: ${mild} mild (CC ${ccT + 1}-${ccT * 2} or Cog ${cogT + 1}-${cogT * 2}), ${moderate} moderate (CC ${ccT * 2 + 1}-${ccT * 3} or Cog ${cogT * 2 + 1}-${cogT * 3}), ${severe} severe (CC >${ccT * 3} or Cog >${cogT * 3})*`,
+          );
         }
         lines.push("");
         lines.push("| File | Line | Function | LOC | CC | Cognitive |");
@@ -185,6 +183,8 @@ export class ReportGenerator {
         lines.push(
           `| Circular Dependencies | ${result.cycles.count} | ${result.cycles.count === 0 ? "None ✓" : result.cycles.count === 1 ? "1 (review below)" : `${result.cycles.count} 🔴`} |`,
         );
+        lines.push("");
+        lines.push("*Density measures import relationships across all analyzed files.*");
         lines.push("");
 
         if (result.coupling.hubs.length > 0) {
@@ -345,25 +345,37 @@ export class ReportGenerator {
       lines.push("| Pattern | Count | Description |");
       lines.push("|---------|-------|-------------|");
       if (summary.byPattern["empty-catch"] > 0) {
-        lines.push(`| Empty catch | ${summary.byPattern["empty-catch"]} | \`catch {}\` blocks that silently discard errors |`);
+        lines.push(
+          `| Empty catch | ${summary.byPattern["empty-catch"]} | \`catch {}\` blocks that silently discard errors |`,
+        );
       }
       if (summary.byPattern["comment-only-catch"] > 0) {
-        lines.push(`| Comment-only catch | ${summary.byPattern["comment-only-catch"]} | Catch blocks with only comments |`);
+        lines.push(
+          `| Comment-only catch | ${summary.byPattern["comment-only-catch"]} | Catch blocks with only comments |`,
+        );
       }
       if (summary.byPattern["empty-promise-catch"] > 0) {
-        lines.push(`| Empty .catch() | ${summary.byPattern["empty-promise-catch"]} | \`.catch(() => {})\` that swallows rejections |`);
+        lines.push(
+          `| Empty .catch() | ${summary.byPattern["empty-promise-catch"]} | \`.catch(() => {})\` that swallows rejections |`,
+        );
       }
       if (summary.byPattern["catch-returns-success"] > 0) {
-        lines.push(`| Catch returns success | ${summary.byPattern["catch-returns-success"]} | Catch returning \`[]\`, \`null\`, etc. |`);
+        lines.push(
+          `| Catch returns success | ${summary.byPattern["catch-returns-success"]} | Catch returning \`[]\`, \`null\`, etc. |`,
+        );
       }
       if (summary.byPattern["catch-log-only"] > 0) {
         lines.push(`| Catch log-only | ${summary.byPattern["catch-log-only"]} | Logs error but doesn't rethrow |`);
       }
       if (summary.byPattern["error-param-unused"] > 0) {
-        lines.push(`| Error param unused | ${summary.byPattern["error-param-unused"]} | Error variable declared but not used |`);
+        lines.push(
+          `| Error param unused | ${summary.byPattern["error-param-unused"]} | Error variable declared but not used |`,
+        );
       }
       if (summary.byPattern["void-promise"] > 0) {
-        lines.push(`| Fire-and-forget | ${summary.byPattern["void-promise"]} | \`void asyncOp()\` discards rejections |`);
+        lines.push(
+          `| Fire-and-forget | ${summary.byPattern["void-promise"]} | \`void asyncOp()\` discards rejections |`,
+        );
       }
       lines.push("");
 
@@ -383,7 +395,7 @@ export class ReportGenerator {
         for (const finding of highConfidence.slice(0, 10)) {
           const patternLabel = this.getSwallowedErrorPatternLabel(finding.pattern);
           lines.push(
-            `| ${this.relativePath(finding.file)} | ${finding.line} | ${patternLabel} | ${finding.suggestion.slice(0, 60)}${finding.suggestion.length > 60 ? "..." : ""} |`,
+            `| ${this.relativePath(finding.file)} | ${finding.line} | ${patternLabel} | ${finding.suggestion} |`,
           );
         }
         lines.push("");
@@ -431,6 +443,15 @@ export class ReportGenerator {
     lines.push("| 75–100 | 🟢 Healthy | Within acceptable thresholds |");
     lines.push("| 50–74 | 🟡 Review | Some issues worth addressing |");
     lines.push("| 0–49 | 🔴 Critical | Significant issues requiring attention |");
+    lines.push("");
+    lines.push("### Category Weights");
+    lines.push("");
+    lines.push("| Category | Weight | Rationale |");
+    lines.push("|----------|--------|-----------|");
+    lines.push("| Complexity | 35% | Primary maintainability driver; complex code is hard to modify safely |");
+    lines.push("| Duplication | 25% | Increases bug surface and maintenance burden |");
+    lines.push("| Coupling | 25% | Affects change propagation and testability |");
+    lines.push("| Cycles | 15% | Less common but severe when present; blocks incremental refactoring |");
     lines.push("");
     lines.push("### Scoring Formulas");
     lines.push("");
@@ -515,7 +536,7 @@ export class ReportGenerator {
     lines.push("");
     lines.push("- Cycles in `test/fixtures/` directories are typically intentional test fixtures");
     lines.push("- High instability on `index.ts` files is expected (barrel/entry point pattern)");
-    lines.push("- Test files are included in analysis; use `--exclude` patterns if needed");
+    lines.push("- Test files are included in analysis; use negation patterns (e.g., `!**/*.test.ts`) to filter");
     lines.push("- Data flow analysis requires ≥2 call sites for confidence");
     lines.push("");
     lines.push("</details>");
@@ -586,10 +607,6 @@ export class ReportGenerator {
     return Math.round(weightedSum / totalWeight);
   }
 
-  private calculateComplexityScore(complexity: ComplexityMetrics): number {
-    return this.calculateComplexityScoreWithReason(complexity).score;
-  }
-
   private calculateComplexityScoreWithReason(complexity: ComplexityMetrics): { score: number; reason: string } {
     if (complexity.functions.length === 0) return { score: 100, reason: "no functions" };
 
@@ -604,10 +621,6 @@ export class ReportGenerator {
     if (hotspotRatio <= 0.1) return { score: 50, reason };
     if (hotspotRatio <= 0.2) return { score: 25, reason };
     return { score: 0, reason };
-  }
-
-  private calculateDuplicationScore(duplication: DuplicationMetrics): number {
-    return this.calculateDuplicationScoreWithReason(duplication).score;
   }
 
   private calculateDuplicationScoreWithReason(duplication: DuplicationMetrics): { score: number; reason: string } {
@@ -657,10 +670,6 @@ export class ReportGenerator {
     const finalScore = Math.max(0, Math.min(100, score));
     const reason = penalties.length > 0 ? penalties.join(", ") : "healthy";
     return { score: finalScore, reason };
-  }
-
-  private calculateCycleScore(cycles: CycleMetrics): number {
-    return this.calculateCycleScoreWithReason(cycles).score;
   }
 
   private calculateCycleScoreWithReason(cycles: CycleMetrics): { score: number; reason: string } {

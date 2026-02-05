@@ -49,6 +49,17 @@ A hub with high Fan-in AND high Fan-out:
 | 10-15 | Any | Any | Monitor, may grow |
 | <10 | Any | Any | Normal |
 
+### Hub Severity & Priority
+
+| Connections | Severity | Action |
+|-------------|----------|--------|
+| 10-15 | Low | Monitor in code review; investigate if growing |
+| 16-25 | Medium | Review for split opportunities; document if intentional |
+| 26-40 | High | Schedule refactoring; likely violates SRP |
+| >40 | Critical | Immediate attention; architectural smell |
+
+**Exception:** Barrel files (`index.ts`) and explicit facade modules are expected to have high connections. Evaluate based on whether the connections are intentional aggregation vs organic growth.
+
 ## Refactoring Strategies
 
 ### 1. Dependency Inversion

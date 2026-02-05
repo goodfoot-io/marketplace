@@ -491,7 +491,7 @@ export class SwallowedErrorAnalyzer {
     return true;
   }
 
-  private isIdentifierUsedInBlock(name: string, block: ts.Block, sourceFile: ts.SourceFile): boolean {
+  private isIdentifierUsedInBlock(name: string, block: ts.Block, _sourceFile: ts.SourceFile): boolean {
     let found = false;
     const visit = (node: ts.Node): void => {
       if (found) return;
@@ -542,7 +542,7 @@ export class SwallowedErrorAnalyzer {
 
   private matchesOptionalPattern(name: string): boolean {
     if (!name) return false;
-    return this.options.optionalFunctionPatterns!.some((p) => p.test(name));
+    return this.options.optionalFunctionPatterns?.some((p) => p.test(name)) ?? false;
   }
 
   private findNearbyIntentionalKeywords(node: ts.Node, sourceFile: ts.SourceFile): string[] {
@@ -550,12 +550,12 @@ export class SwallowedErrorAnalyzer {
     const fullText = sourceFile.getFullText();
 
     // Get comments around the node
-    const start = node.getStart(sourceFile);
+    const _start = node.getStart(sourceFile);
     const leadingComments = ts.getLeadingCommentRanges(fullText, node.pos) ?? [];
 
     for (const comment of leadingComments) {
       const commentText = fullText.slice(comment.pos, comment.end).toLowerCase();
-      for (const keyword of this.options.intentionalKeywords!) {
+      for (const keyword of this.options.intentionalKeywords ?? []) {
         if (commentText.includes(keyword.toLowerCase())) {
           keywords.push(keyword);
         }
@@ -590,7 +590,7 @@ export class SwallowedErrorAnalyzer {
 
   private isInFireAndForgetAllowlist(name: string): boolean {
     if (!name) return false;
-    return this.options.fireAndForgetAllowlist!.some((p) => p.test(name));
+    return this.options.fireAndForgetAllowlist?.some((p) => p.test(name)) ?? false;
   }
 
   private looksLikeAsyncCall(call: ts.CallExpression, sourceFile: ts.SourceFile): boolean {
@@ -612,7 +612,7 @@ export class SwallowedErrorAnalyzer {
     const text = node.getText(sourceFile);
     // Truncate long snippets
     if (text.length > 100) {
-      return text.slice(0, 97) + "...";
+      return `${text.slice(0, 97)}...`;
     }
     return text;
   }

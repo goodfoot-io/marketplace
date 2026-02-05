@@ -54,10 +54,31 @@ export class MonorepoAnalyzer {
   }
 
   /**
+   * Extract the package name from an import path.
+   * Handles both regular packages (lodash/subpath -> lodash) and scoped packages (@scope/pkg/subpath -> @scope/pkg).
+   */
+  private extractPackageName(importPath: string): string {
+    if (importPath.startsWith("@")) {
+      // Scoped package: @scope/package-name/subpath -> @scope/package-name
+      const parts = importPath.split("/");
+      return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : importPath;
+    }
+    // Regular package: package-name/subpath -> package-name
+    return importPath.split("/")[0];
+  }
+
+  /**
    * Check if an import path refers to a workspace package.
+   * Handles both regular packages (lodash) and scoped packages (@scope/package).
    */
   private isWorkspaceImport(importPath: string, workspacePackageNames: Set<string>): boolean {
-    return workspacePackageNames.has(importPath) || workspacePackageNames.has(importPath.split("/")[0]);
+    // Direct match
+    if (workspacePackageNames.has(importPath)) {
+      return true;
+    }
+
+    // Extract package name and check
+    return workspacePackageNames.has(this.extractPackageName(importPath));
   }
 
   /**
@@ -215,7 +236,7 @@ export class MonorepoAnalyzer {
             const importPath = node.moduleSpecifier.text;
 
             if (this.isWorkspaceImport(importPath, packageNameSet)) {
-              const targetPackage = importPath.split("/")[0];
+              const targetPackage = this.extractPackageName(importPath);
               imports.set(targetPackage, (imports.get(targetPackage) ?? 0) + 1);
             }
           }

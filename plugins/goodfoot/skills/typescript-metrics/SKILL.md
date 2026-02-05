@@ -43,6 +43,23 @@ coupling, duplication, cycles, data flow, and swallowed error metrics.
 | `--min-tokens <n>` | Minimum tokens for duplication detection (default: 100) |
 | `--top-k <n>` | Number of hub nodes to report (default: 10) |
 
+## Filtering Files
+
+The tool analyzes files matching your glob patterns. Use negation patterns to exclude:
+
+```bash
+# Analyze src but exclude test files
+!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs "src/**/*.ts" "!**/*.test.ts" "!**/*.spec.ts"
+
+# Exclude tooling and scripts directories
+!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs "src/**/*.ts" "!scripts/**" "!tools/**"
+
+# Production code only (exclude tests, mocks, fixtures)
+!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/typescript-metrics.mjs "src/**/*.ts" "!**/__tests__/**" "!**/__mocks__/**" "!**/fixtures/**"
+```
+
+**Note:** The tool also respects your `tsconfig.json` exclude patterns for dependency graph analysis.
+
 ## Interpreting Results
 
 ### Health Score

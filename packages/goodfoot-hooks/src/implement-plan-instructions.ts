@@ -372,6 +372,9 @@ Delegate refactoring to improve code quality while preserving behavior.
 - Only refactor files modified by the implementation
 - Do not add new features or capabilities
 - Keep changes minimal and focused on clarity
+
+## Metrics Analysis
+After refactoring, load the \`goodfoot:typescript-metrics\` skill and run metrics on the files modified during implementation to identify any issues introduced by the changes.
 </parameter>
 </invoke>
 \`\`\`
