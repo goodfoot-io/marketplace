@@ -1,11 +1,11 @@
 import * as path from "node:path";
 import type {
+  ChurnHotspotMetrics,
   ComplexityMetrics,
   CouplingMetrics,
   CycleMetrics,
   DuplicationMetrics,
   EncapsulationMetrics,
-  ChurnHotspotMetrics,
   MetricsResult,
 } from "../types.js";
 
@@ -56,8 +56,10 @@ export class ReportGenerator {
     lines.push("");
 
     // Aggregate metrics table with color coding
-    const mhfStatus = metrics.aggregateMhf >= 0.5 ? "🟢 Healthy" : metrics.aggregateMhf >= 0.3 ? "🟡 Review" : "🔴 Poor";
-    const ahfStatus = metrics.aggregateAhf >= 0.8 ? "🟢 Healthy" : metrics.aggregateAhf >= 0.5 ? "🟡 Review" : "🔴 Poor";
+    const mhfStatus =
+      metrics.aggregateMhf >= 0.5 ? "🟢 Healthy" : metrics.aggregateMhf >= 0.3 ? "🟡 Review" : "🔴 Poor";
+    const ahfStatus =
+      metrics.aggregateAhf >= 0.8 ? "🟢 Healthy" : metrics.aggregateAhf >= 0.5 ? "🟡 Review" : "🔴 Poor";
 
     lines.push("| Metric | Score | Status |");
     lines.push("|--------|-------|--------|");

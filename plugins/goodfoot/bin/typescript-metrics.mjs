@@ -231194,14 +231194,15 @@ var ChurnHotspotAnalyzer = class {
             continue;
           }
           const absolutePath = path.resolve(this.options.rootDir, filename);
-          if (!fileChurnMap.has(absolutePath)) {
-            fileChurnMap.set(absolutePath, {
+          let churnData = fileChurnMap.get(absolutePath);
+          if (!churnData) {
+            churnData = {
               commits: /* @__PURE__ */ new Set(),
               linesAdded: 0,
               linesDeleted: 0
-            });
+            };
+            fileChurnMap.set(absolutePath, churnData);
           }
-          const churnData = fileChurnMap.get(absolutePath);
           churnData.commits.add(currentCommit);
           churnData.linesAdded += Number.parseInt(additions, 10);
           churnData.linesDeleted += Number.parseInt(deletions, 10);
@@ -234014,6 +234015,7 @@ var SwallowedErrorAnalyzer = class {
 var MetricsRunner = class {
   options;
   cachedGraph;
+  cachedComplexity;
   constructor(options) {
     this.options = options;
   }
@@ -234025,7 +234027,9 @@ var MetricsRunner = class {
       "duplication",
       "monorepo",
       "dataflow",
-      "swallowed-errors"
+      "swallowed-errors",
+      "encapsulation",
+      "churn-hotspots"
     ];
     const result = {};
     const runWithWarning = async (name, fn) => {
@@ -234044,6 +234048,7 @@ var MetricsRunner = class {
     }
     if (categories.includes("complexity")) {
       result.complexity = await runWithWarning("complexity", () => this.runComplexityMetrics());
+      this.cachedComplexity = result.complexity;
     }
     if (categories.includes("duplication")) {
       result.duplication = await runWithWarning("duplication", () => this.runDuplicationMetrics());
@@ -234056,6 +234061,12 @@ var MetricsRunner = class {
     }
     if (categories.includes("swallowed-errors")) {
       result.swallowedErrors = await runWithWarning("swallowed errors", () => this.runSwallowedErrorMetrics());
+    }
+    if (categories.includes("encapsulation")) {
+      result.encapsulation = await runWithWarning("encapsulation", () => this.runEncapsulationMetrics());
+    }
+    if (categories.includes("churn-hotspots")) {
+      result.churnHotspots = await runWithWarning("churn hotspots", () => this.runChurnHotspotMetrics());
     }
     return result;
   }
@@ -234116,6 +234127,24 @@ var MetricsRunner = class {
     const analyzer = new SwallowedErrorAnalyzer({
       rootDir: this.options.rootDir,
       files
+    });
+    return analyzer.analyze(files);
+  }
+  async runEncapsulationMetrics() {
+    const files = this.options.files || await this.findTypeScriptFiles();
+    const analyzer = new EncapsulationAnalyzer({
+      rootDir: this.options.rootDir,
+      files
+    });
+    return analyzer.analyze(files);
+  }
+  async runChurnHotspotMetrics() {
+    const files = this.options.files || await this.findTypeScriptFiles();
+    const analyzer = new ChurnHotspotAnalyzer({
+      rootDir: this.options.rootDir,
+      files,
+      complexityMetrics: this.cachedComplexity
+      // Pass cached complexity if available
     });
     return analyzer.analyze(files);
   }
@@ -234203,6 +234232,65 @@ var ReportGenerator = class {
   rootDir;
   constructor(rootDir) {
     this.rootDir = rootDir;
+  }
+  formatEncapsulationSection(metrics) {
+    const lines = [];
+    lines.push("## Encapsulation Overview");
+    lines.push("");
+    const mhfStatus = metrics.aggregateMhf >= 0.5 ? "\u{1F7E2} Healthy" : metrics.aggregateMhf >= 0.3 ? "\u{1F7E1} Review" : "\u{1F534} Poor";
+    const ahfStatus = metrics.aggregateAhf >= 0.8 ? "\u{1F7E2} Healthy" : metrics.aggregateAhf >= 0.5 ? "\u{1F7E1} Review" : "\u{1F534} Poor";
+    lines.push("| Metric | Score | Status |");
+    lines.push("|--------|-------|--------|");
+    lines.push(`| Method Hiding Factor | ${metrics.aggregateMhf.toFixed(2)} | ${mhfStatus} |`);
+    lines.push(`| Attribute Hiding Factor | ${metrics.aggregateAhf.toFixed(2)} | ${ahfStatus} |`);
+    lines.push("");
+    lines.push("*MHF measures the ratio of hidden methods. AHF measures the ratio of hidden attributes.*");
+    lines.push("");
+    const poorEncapsulation = metrics.classes.filter((c) => c.mhf < 0.5 || c.ahf < 0.5);
+    if (poorEncapsulation.length > 0) {
+      lines.push("**Classes with low encapsulation:**");
+      lines.push("");
+      lines.push("| Class | File | MHF | AHF |");
+      lines.push("|-------|------|-----|-----|");
+      for (const cls of poorEncapsulation.slice(0, 10)) {
+        const location = `${this.relativePath(cls.file)}:${cls.line}`;
+        lines.push(`| ${cls.className} | ${location} | ${cls.mhf.toFixed(2)} | ${cls.ahf.toFixed(2)} |`);
+      }
+      lines.push("");
+    }
+    return lines;
+  }
+  formatChurnHotspotsSection(metrics) {
+    const lines = [];
+    lines.push("## Churn Hotspots");
+    lines.push("");
+    if (!metrics.isGitRepo) {
+      lines.push("*Not a git repository \u2014 churn analysis skipped.*");
+      lines.push("");
+      return lines;
+    }
+    lines.push("Files with high churn and complexity are maintenance risks.");
+    lines.push("");
+    if (metrics.hotspots.length > 0) {
+      lines.push("| File | Churn | Complexity | Combined |");
+      lines.push("|------|-------|------------|----------|");
+      const topHotspots = metrics.hotspots.slice(0, 10);
+      for (const hotspot of topHotspots) {
+        const relPath = this.relativePath(hotspot.file);
+        lines.push(
+          `| ${relPath} | ${hotspot.churnScore} | ${hotspot.complexityScore} | ${hotspot.combinedScore.toFixed(2)} |`
+        );
+      }
+      lines.push("");
+      lines.push(
+        "*Churn = commits + lines added + deleted (last 90 days). Combined = normalized(churn) \xD7 normalized(complexity).*"
+      );
+      lines.push("");
+    } else {
+      lines.push("*No churn hotspots detected in the analyzed time window.*");
+      lines.push("");
+    }
+    return lines;
   }
   generate(result, options) {
     const scores = this.calculateScores(result);
@@ -234512,6 +234600,16 @@ var ReportGenerator = class {
         }
         lines.push("");
       }
+    }
+    if (result.encapsulation && result.encapsulation.classes.length > 0) {
+      lines.push("---");
+      lines.push("");
+      lines.push(...this.formatEncapsulationSection(result.encapsulation));
+    }
+    if (result.churnHotspots) {
+      lines.push("---");
+      lines.push("");
+      lines.push(...this.formatChurnHotspotsSection(result.churnHotspots));
     }
     const actions = this.generateActions(issues, result);
     if (actions.length > 0) {
