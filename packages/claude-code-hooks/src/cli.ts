@@ -18,7 +18,6 @@
 
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import * as esbuild from "esbuild";
 import { glob } from "glob";
@@ -538,12 +537,14 @@ interface CompileHookResult {
 /**
  * Compiles a TypeScript hook file to a self-contained ESM executable.
  *
+ * Uses esbuild's stdin option to avoid writing temporary wrapper files to disk.
+ * This produces stable, reproducible builds by:
+ * - Using a distinct sourcefile name to avoid import resolution conflicts
+ * - Eliminating environment-specific temp paths from source comments
+ *
  * Uses a two-step process to generate stable content hashes:
  * 1. Compile WITHOUT sourcemaps → generate stable content hash
  * 2. Compile WITH sourcemaps → final output content
- *
- * This ensures content hashes are reproducible across different build
- * environments, since sourcemaps contain file paths that can vary.
  *
  * @param options - Compilation options
  * @returns Compiled content and stable content hash
@@ -551,21 +552,8 @@ interface CompileHookResult {
 async function compileHook(options: CompileHookOptions): Promise<CompileHookResult> {
   const { sourcePath, logFilePath } = options;
 
-  // Create a temporary wrapper file that imports the hook and executes it
-  // Use system temp directory with deterministic name based on hook basename (not full path)
-  // This ensures builds are reproducible across different environments/machines
-  const hashInputs = [path.basename(sourcePath), logFilePath ? "log" : ""].join(":");
-  const buildHash = crypto.createHash("sha256").update(hashInputs).digest("hex").substring(0, 16);
-  const tempDir = path.join(os.tmpdir(), "claude-code-hooks-build", buildHash);
-  const wrapperPath = path.join(tempDir, "wrapper.ts");
-  const tempOutputNoSourcemap = path.join(tempDir, "output-no-sourcemap.mjs");
-  const tempOutputWithSourcemap = path.join(tempDir, "output.mjs");
-
   // Get the path to the runtime module (relative to this CLI)
   const runtimePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), "./runtime.js");
-
-  // Ensure temp directory exists (don't delete - concurrent builds may be using it)
-  fs.mkdirSync(tempDir, { recursive: true });
 
   // Build log file injection code if specified
   const logFileInjection =
@@ -573,23 +561,35 @@ async function compileHook(options: CompileHookOptions): Promise<CompileHookResu
       ? `process.env['CLAUDE_CODE_HOOKS_CLI_LOG_FILE'] = ${JSON.stringify(logFilePath)};\n`
       : "";
 
-  // Create wrapper that imports the hook and calls execute
+  // Create wrapper content that imports the hook and calls execute
+  // Uses absolute paths to avoid resolution issues
   const wrapperContent = `${logFileInjection}
 import hook from '${sourcePath.replace(/\\/g, "/")}';
 import { execute } from '${runtimePath.replace(/\\/g, "/")}';
 
 execute(hook);
 `;
-  fs.writeFileSync(wrapperPath, wrapperContent, "utf-8");
+
+  // Use stdin instead of a temp file - sourcefile becomes the stable reference
+  // The sourcefile name must be distinct from the actual source file to avoid
+  // esbuild resolving the import to the stdin content instead of the real file
+  const baseName = path.basename(sourcePath, path.extname(sourcePath));
+  const stdinOptions: esbuild.StdinOptions = {
+    contents: wrapperContent,
+    resolveDir: path.dirname(sourcePath),
+    sourcefile: `${baseName}-entry.ts`,
+    loader: "ts",
+  };
 
   // Common esbuild options
   const commonOptions: esbuild.BuildOptions = {
-    entryPoints: [wrapperPath],
+    stdin: stdinOptions,
     format: "esm",
     platform: "node",
     target: "node20",
     bundle: true,
     minify: false,
+    write: false, // Return content directly via outputFiles
     // Keep node built-ins external
     external: [
       "node:*",
@@ -616,24 +616,26 @@ execute(hook);
   };
 
   // Step 1: Compile WITHOUT sourcemaps to generate stable content hash
-  await esbuild.build({
+  const resultNoSourcemap = await esbuild.build({
     ...commonOptions,
-    outfile: tempOutputNoSourcemap,
     sourcemap: false,
   });
-  const contentForHash = fs.readFileSync(tempOutputNoSourcemap, "utf-8");
+  const contentForHash = resultNoSourcemap.outputFiles?.[0]?.text;
+  if (contentForHash === undefined) {
+    throw new Error(`esbuild produced no output for ${sourcePath}`);
+  }
   const contentHash = generateContentHash(contentForHash);
 
   // Step 2: Compile WITH sourcemaps for final output
-  await esbuild.build({
+  const resultWithSourcemap = await esbuild.build({
     ...commonOptions,
-    outfile: tempOutputWithSourcemap,
     sourcemap: "inline",
   });
-  const content = fs.readFileSync(tempOutputWithSourcemap, "utf-8");
+  const content = resultWithSourcemap.outputFiles?.[0]?.text;
+  if (content === undefined) {
+    throw new Error(`esbuild produced no output for ${sourcePath}`);
+  }
 
-  // Don't delete temp directory - allows concurrent builds of same source
-  // and the OS will clean up /tmp periodically
   return { content, contentHash };
 }
 
