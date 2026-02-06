@@ -49,7 +49,7 @@ For each candidate found, capture:
 
 ## Phase 2: Verify with Tracers
 
-For each candidate identified, verify whether the data flow is actually broken using parallel Tracer subagents.
+For each candidate identified, verify whether the data flow is actually broken using parallel goodfoot:Tracer subagents.
 
 ### Verification Questions
 
@@ -80,7 +80,7 @@ Launch Tracer subagents in parallel for independent candidates:
 ```xml
 <invoke name="Task">
 <parameter name="description">trace-[candidate-id]</parameter>
-<parameter name="subagent_type">Tracer</parameter>
+<parameter name="subagent_type">goodfoot:Tracer</parameter>
 <parameter name="prompt"># Verify Data Flow: [candidate description]
 
 ## Suspect Location
