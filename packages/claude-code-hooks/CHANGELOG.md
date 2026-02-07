@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.20
+- Added `teammateIdleHook` and `taskCompletedHook` factory functions for new hook types
+- Added `teammateIdleOutput` and `taskCompletedOutput` output builders
+- Fixed reproducible builds when compiling hooks from different directories
+
 ## 1.0.19
 - Improved build stability with reproducible hook compilation across different environments
 
