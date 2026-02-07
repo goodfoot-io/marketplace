@@ -77,6 +77,8 @@ const EVENT_TO_OUTPUT_FUNCTION: Record<HookEventName, string> = {
   PreCompact: "preCompactOutput",
   PermissionRequest: "permissionRequestOutput",
   Setup: "setupOutput",
+  TeammateIdle: "teammateIdleOutput",
+  TaskCompleted: "taskCompletedOutput",
 };
 
 // ============================================================================

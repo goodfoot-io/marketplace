@@ -37,7 +37,7 @@ export type {
   TypedPostToolUseInput,
   TypedPreToolUseInput,
 } from "./hooks.js";
-// Hook factory functions - all 13 hook types
+// Hook factory functions - all 15 hook types
 export {
   notificationHook,
   permissionRequestHook,
@@ -51,6 +51,8 @@ export {
   stopHook,
   subagentStartHook,
   subagentStopHook,
+  taskCompletedHook,
+  teammateIdleHook,
   userPromptSubmitHook,
 } from "./hooks.js";
 
@@ -93,6 +95,8 @@ export type {
   SubagentStartOptions,
   SubagentStopOptions,
   SyncHookJSONOutput,
+  TaskCompletedOptions,
+  TeammateIdleOptions,
   UserPromptSubmitHookSpecificOutput,
   UserPromptSubmitOptions,
 } from "./outputs.js";
@@ -105,7 +109,7 @@ export {
   postToolUseFailureOutput,
   postToolUseOutput,
   preCompactOutput,
-  // All 13 output builder functions
+  // All 15 output builder functions
   preToolUseOutput,
   sessionEndOutput,
   sessionStartOutput,
@@ -113,6 +117,8 @@ export {
   stopOutput,
   subagentStartOutput,
   subagentStopOutput,
+  taskCompletedOutput,
+  teammateIdleOutput,
   userPromptSubmitOutput,
 } from "./outputs.js";
 
@@ -190,6 +196,8 @@ export type {
   StopInput,
   SubagentStartInput,
   SubagentStopInput,
+  TaskCompletedInput,
+  TeammateIdleInput,
   ToolInputMap,
   UserPromptSubmitInput,
 } from "./types.js";

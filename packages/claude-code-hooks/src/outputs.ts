@@ -287,6 +287,14 @@ export type PermissionRequestOutput = BaseSpecificOutput<"PermissionRequest">;
  *
  */
 export type SetupOutput = BaseSpecificOutput<"Setup">;
+/**
+ *
+ */
+export type TeammateIdleOutput = BaseSpecificOutput<"TeammateIdle">;
+/**
+ *
+ */
+export type TaskCompletedOutput = BaseSpecificOutput<"TaskCompleted">;
 
 /**
  * Union of all specific output types.
@@ -304,7 +312,9 @@ export type SpecificHookOutput =
   | SubagentStopOutput
   | PreCompactOutput
   | PermissionRequestOutput
-  | SetupOutput;
+  | SetupOutput
+  | TeammateIdleOutput
+  | TaskCompletedOutput;
 
 // ============================================================================
 // Output Builder Factories
@@ -786,6 +796,48 @@ export type SetupOptions = CommonOptions & {
  * ```
  */
 export const setupOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<"Setup", SetupHookSpecificOutput>("Setup");
+
+// ============================================================================
+// TeammateIdle Output Builder
+// ============================================================================
+
+/**
+ * Options for the TeammateIdle output builder.
+ * TeammateIdle hooks only support common options.
+ */
+export type TeammateIdleOptions = CommonOptions;
+
+/**
+ * Creates an output for TeammateIdle hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A TeammateIdleOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * teammateIdleOutput({});
+ * ```
+ */
+export const teammateIdleOutput = /* @__PURE__ */ createSimpleOutputBuilder<"TeammateIdle">("TeammateIdle");
+
+// ============================================================================
+// TaskCompleted Output Builder
+// ============================================================================
+
+/**
+ * Options for the TaskCompleted output builder.
+ * TaskCompleted hooks only support common options.
+ */
+export type TaskCompletedOptions = CommonOptions;
+
+/**
+ * Creates an output for TaskCompleted hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A TaskCompletedOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * taskCompletedOutput({});
+ * ```
+ */
+export const taskCompletedOutput = /* @__PURE__ */ createSimpleOutputBuilder<"TaskCompleted">("TaskCompleted");
 
 // ============================================================================
 // Legacy type aliases for backwards compatibility

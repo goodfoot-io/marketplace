@@ -22,4 +22,6 @@ export const HOOK_FACTORY_TO_EVENT: Record<string, HookEventName> = {
   preCompactHook: "PreCompact",
   permissionRequestHook: "PermissionRequest",
   setupHook: "Setup",
+  teammateIdleHook: "TeammateIdle",
+  taskCompletedHook: "TaskCompleted",
 };

@@ -58,6 +58,10 @@ describe("HookInput discriminated union", () => {
             return input.tool_name;
           case "Setup":
             return input.trigger;
+          case "TeammateIdle":
+            return input.teammate_name;
+          case "TaskCompleted":
+            return input.task_id;
           default: {
             // Exhaustiveness check
             const _exhaustive: never = input;

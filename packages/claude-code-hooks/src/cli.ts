@@ -552,8 +552,8 @@ interface CompileHookResult {
 async function compileHook(options: CompileHookOptions): Promise<CompileHookResult> {
   const { sourcePath, logFilePath } = options;
 
-  // Get the path to the runtime module (relative to this CLI)
-  const runtimePath = path.resolve(path.dirname(new URL(import.meta.url).pathname), "./runtime.js");
+  // Get the path to the runtime module (absolute, then converted to relative)
+  const runtimePathAbsolute = path.resolve(path.dirname(new URL(import.meta.url).pathname), "./runtime.js");
 
   // Build log file injection code if specified
   const logFileInjection =
@@ -561,11 +561,17 @@ async function compileHook(options: CompileHookOptions): Promise<CompileHookResu
       ? `process.env['CLAUDE_CODE_HOOKS_CLI_LOG_FILE'] = ${JSON.stringify(logFilePath)};\n`
       : "";
 
+  // Compute relative paths from resolveDir to avoid absolute paths in source maps.
+  // This ensures reproducible builds regardless of checkout directory.
+  const resolveDir = path.dirname(sourcePath);
+  const relativeSourcePath = `./${path.basename(sourcePath)}`;
+  const relativeRuntimePath = path.relative(resolveDir, runtimePathAbsolute);
+
   // Create wrapper content that imports the hook and calls execute
-  // Uses absolute paths to avoid resolution issues
+  // Uses relative paths to produce reproducible builds
   const wrapperContent = `${logFileInjection}
-import hook from '${sourcePath.replace(/\\/g, "/")}';
-import { execute } from '${runtimePath.replace(/\\/g, "/")}';
+import hook from '${relativeSourcePath.replace(/\\/g, "/")}';
+import { execute } from '${relativeRuntimePath.replace(/\\/g, "/")}';
 
 execute(hook);
 `;
@@ -576,7 +582,7 @@ execute(hook);
   const baseName = path.basename(sourcePath, path.extname(sourcePath));
   const stdinOptions: esbuild.StdinOptions = {
     contents: wrapperContent,
-    resolveDir: path.dirname(sourcePath),
+    resolveDir,
     sourcefile: `${baseName}-entry.ts`,
     loader: "ts",
   };

@@ -35,6 +35,8 @@ export type {
   StopHookInput as SDKStopHookInput,
   SubagentStartHookInput as SDKSubagentStartHookInput,
   SubagentStopHookInput as SDKSubagentStopHookInput,
+  TaskCompletedHookInput as SDKTaskCompletedHookInput,
+  TeammateIdleHookInput as SDKTeammateIdleHookInput,
   UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 
@@ -54,6 +56,8 @@ import type {
   StopHookInput as SDKStopHookInput,
   SubagentStartHookInput as SDKSubagentStartHookInput,
   SubagentStopHookInput as SDKSubagentStopHookInput,
+  TaskCompletedHookInput as SDKTaskCompletedHookInput,
+  TeammateIdleHookInput as SDKTeammateIdleHookInput,
   UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 
@@ -442,6 +446,48 @@ export interface PermissionRequestInput extends SDKPermissionRequestHookInput {
 }
 
 /**
+ * Input for TeammateIdle hooks.
+ *
+ * Fires when a teammate in a team is about to go idle, allowing you to:
+ * - Assign work to idle teammates
+ * - Log team activity
+ * - Coordinate multi-agent workflows
+ *
+ * This hook does not support matchers; it fires on all teammate idle events.
+ * @example
+ * ```typescript
+ * // Assign work to an idle teammate
+ * teammateIdleHook({}, async (input: TeammateIdleInput) => {
+ *   console.log(`${input.teammate_name} is idle in team ${input.team_name}`);
+ *   return teammateIdleOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#teammateidle
+ */
+export type TeammateIdleInput = SDKTeammateIdleHookInput;
+
+/**
+ * Input for TaskCompleted hooks.
+ *
+ * Fires when a task is being marked as completed, allowing you to:
+ * - Verify task completion
+ * - Log task metrics
+ * - Trigger follow-up actions
+ *
+ * This hook does not support matchers; it fires on all task completion events.
+ * @example
+ * ```typescript
+ * // Log task completion
+ * taskCompletedHook({}, async (input: TaskCompletedInput) => {
+ *   console.log(`Task ${input.task_id}: ${input.task_subject} completed`);
+ *   return taskCompletedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#taskcompleted
+ */
+export type TaskCompletedInput = SDKTaskCompletedHookInput;
+
+/**
  * Trigger type for Setup hooks.
  */
 export type SetupTrigger = "init" | "maintenance";
@@ -513,7 +559,9 @@ export type HookInput =
   | SubagentStopInput
   | PreCompactInput
   | PermissionRequestInput
-  | SetupInput;
+  | SetupInput
+  | TeammateIdleInput
+  | TaskCompletedInput;
 
 /**
  * Hook event name literal union.
@@ -547,6 +595,8 @@ export const HOOK_EVENT_NAMES = [
   "PreCompact",
   "PermissionRequest",
   "Setup",
+  "TeammateIdle",
+  "TaskCompleted",
 ] as const satisfies readonly HookEventName[];
 
 // Re-export PermissionUpdate from SDK for convenience

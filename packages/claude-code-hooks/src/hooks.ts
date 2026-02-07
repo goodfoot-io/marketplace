@@ -37,6 +37,8 @@ import type {
   StopOutput,
   SubagentStartOutput,
   SubagentStopOutput,
+  TaskCompletedOutput,
+  TeammateIdleOutput,
   UserPromptSubmitOutput,
 } from "./outputs.js";
 import type {
@@ -54,6 +56,8 @@ import type {
   StopInput,
   SubagentStartInput,
   SubagentStopInput,
+  TaskCompletedInput,
+  TeammateIdleInput,
   ToolInputMap,
   UserPromptSubmitInput,
 } from "./types.js";
@@ -1062,4 +1066,84 @@ export function setupHook(
   handler: HookHandler<SetupInput, SetupOutput>,
 ): HookFunction<SetupInput, SetupOutput> {
   return createHookFunction("Setup", config, handler);
+}
+
+// ============================================================================
+// TeammateIdle Hook Factory
+// ============================================================================
+
+/**
+ * Creates a TeammateIdle hook handler.
+ *
+ * TeammateIdle hooks fire when a teammate in a team is about to go idle,
+ * allowing you to:
+ * - Assign work to idle teammates
+ * - Log team activity
+ * - Coordinate multi-agent workflows
+ *
+ * **Matcher**: No matcher support - fires on all teammate idle events
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { teammateIdleHook, teammateIdleOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * // Log when teammates go idle
+ * export default teammateIdleHook({}, async (input, { logger }) => {
+ *   logger.info('Teammate going idle', {
+ *     teammateName: input.teammate_name,
+ *     teamName: input.team_name
+ *   });
+ *
+ *   return teammateIdleOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#teammateidle
+ */
+export function teammateIdleHook(
+  config: HookConfig,
+  handler: HookHandler<TeammateIdleInput, TeammateIdleOutput>,
+): HookFunction<TeammateIdleInput, TeammateIdleOutput> {
+  return createHookFunction("TeammateIdle", config, handler);
+}
+
+// ============================================================================
+// TaskCompleted Hook Factory
+// ============================================================================
+
+/**
+ * Creates a TaskCompleted hook handler.
+ *
+ * TaskCompleted hooks fire when a task is being marked as completed,
+ * allowing you to:
+ * - Verify task completion
+ * - Log task metrics
+ * - Trigger follow-up actions
+ *
+ * **Matcher**: No matcher support - fires on all task completion events
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { taskCompletedHook, taskCompletedOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * // Log task completion
+ * export default taskCompletedHook({}, async (input, { logger }) => {
+ *   logger.info('Task completed', {
+ *     taskId: input.task_id,
+ *     taskSubject: input.task_subject
+ *   });
+ *
+ *   return taskCompletedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#taskcompleted
+ */
+export function taskCompletedHook(
+  config: HookConfig,
+  handler: HookHandler<TaskCompletedInput, TaskCompletedOutput>,
+): HookFunction<TaskCompletedInput, TaskCompletedOutput> {
+  return createHookFunction("TaskCompleted", config, handler);
 }
