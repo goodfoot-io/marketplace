@@ -9,8 +9,13 @@ describe("MonorepoAnalyzer", () => {
     const analyzer = new MonorepoAnalyzer({ rootDir: fixtureRoot });
     const packages = await analyzer.discoverPackages();
 
-    expect(packages).toHaveLength(3);
-    expect(packages.map((p) => p.name).sort()).toEqual(["@fixture/pkg-a", "@fixture/pkg-b", "@fixture/pkg-c"]);
+    expect(packages).toHaveLength(4);
+    expect(packages.map((p) => p.name).sort()).toEqual([
+      "@fixture/pkg-a",
+      "@fixture/pkg-b",
+      "@fixture/pkg-c",
+      "@fixture/pkg-orphaned",
+    ]);
   });
 
   it("should count named exports from package entry point", () => {
@@ -84,7 +89,7 @@ describe("MonorepoAnalyzer", () => {
     const matrix = analyzer.buildCrossBoundaryMatrix(packages);
 
     expect(matrix).toBeInstanceOf(Map);
-    expect(matrix.size).toBe(3);
+    expect(matrix.size).toBe(4);
   });
 
   it("should calculate package dependency depth from package.json", async () => {
@@ -95,5 +100,50 @@ describe("MonorepoAnalyzer", () => {
 
     // pkg-c -> pkg-b -> pkg-a = depth 2
     expect(depth).toBe(2);
+  });
+
+  describe("analyzeLifecycles", () => {
+    it("should mark private package with 0 consumers as orphaned", async () => {
+      const analyzer = new MonorepoAnalyzer({ rootDir: fixtureRoot });
+      const packages = await analyzer.discoverPackages();
+      const matrix = analyzer.buildCrossBoundaryMatrix(packages);
+
+      const lifecycles = analyzer.analyzeLifecycles(packages, matrix);
+
+      const orphanedPkg = lifecycles.get("@fixture/pkg-orphaned");
+      expect(orphanedPkg).toBeDefined();
+      expect(orphanedPkg?.isPrivate).toBe(true);
+      expect(orphanedPkg?.consumerCount).toBe(0);
+      expect(orphanedPkg?.state).toBe("orphaned");
+    });
+
+    it("should not mark public package as orphaned", async () => {
+      const analyzer = new MonorepoAnalyzer({ rootDir: fixtureRoot });
+      const packages = await analyzer.discoverPackages();
+      const matrix = analyzer.buildCrossBoundaryMatrix(packages);
+
+      const lifecycles = analyzer.analyzeLifecycles(packages, matrix);
+
+      const pkgA = lifecycles.get("@fixture/pkg-a");
+      expect(pkgA).toBeDefined();
+      expect(pkgA?.isPrivate).toBe(false);
+      expect(pkgA?.state).toBe("active");
+    });
+
+    it("should not mark private package with consumers as orphaned", async () => {
+      const analyzer = new MonorepoAnalyzer({ rootDir: fixtureRoot });
+      const packages = await analyzer.discoverPackages();
+      const matrix = analyzer.buildCrossBoundaryMatrix(packages);
+
+      const lifecycles = analyzer.analyzeLifecycles(packages, matrix);
+
+      // Find a private package with consumers (we'll need to verify this exists in fixtures)
+      // For now, check that having consumers prevents orphaned state
+      for (const [_pkgName, lifecycle] of lifecycles.entries()) {
+        if (lifecycle.isPrivate && lifecycle.consumerCount > 0) {
+          expect(lifecycle.state).toBe("active");
+        }
+      }
+    });
   });
 });

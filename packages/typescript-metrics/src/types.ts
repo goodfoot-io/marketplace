@@ -75,6 +75,10 @@ export interface HubNode {
   fanInFiles?: string[];
   /** Files this module imports (sample of dependencies) */
   fanOutFiles?: string[];
+  /** Number of production files that depend on this module */
+  productionFanIn?: number;
+  /** Number of test files that depend on this module */
+  testFanIn?: number;
 }
 
 export interface DiameterResult {
@@ -169,6 +173,14 @@ export interface TokenWindow {
   hash: string;
 }
 
+export type StructuralUnitType = "function" | "loop-body" | "switch-case" | "conditional" | "block" | "unknown";
+
+export interface StructuralUnit {
+  type: StructuralUnitType;
+  label: string; // Human-readable label, e.g., "message processing loop"
+  repetitionCount: number;
+}
+
 export interface DuplicateBlock {
   files: Array<{
     file: string;
@@ -179,6 +191,8 @@ export interface DuplicateBlock {
   fingerprint: string;
   /** Sample of the duplicated code (from the first occurrence) */
   codeSnippet?: string;
+  /** Structural classification of the duplicated code */
+  structuralUnit?: StructuralUnit;
 }
 
 export interface DuplicationMetrics {
@@ -218,6 +232,14 @@ export interface PackageImportBreakdown {
 }
 
 export type CrossBoundaryMatrix = Map<string, Map<string, number>>;
+
+export type PackageLifecycleState = "active" | "orphaned";
+
+export interface PackageLifecycle {
+  isPrivate: boolean;
+  consumerCount: number;
+  state: PackageLifecycleState;
+}
 
 export interface MonorepoMetrics {
   packages: WorkspacePackage[];

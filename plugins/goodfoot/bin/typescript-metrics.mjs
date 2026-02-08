@@ -232681,11 +232681,22 @@ var DependencyGraphAnalyzer = class {
         betweennessCentrality: betweenness?.get(file),
         // Include sample of files (up to 5 each) for context
         fanInFiles: fanInFiles.slice(0, 5),
-        fanOutFiles: fanOutFiles.slice(0, 5)
+        fanOutFiles: fanOutFiles.slice(0, 5),
+        productionFanIn: this.calculateProductionFanIn(fanInFiles),
+        testFanIn: this.calculateTestFanIn(fanInFiles)
       });
     }
     hubs.sort((a, b) => b.totalDegree - a.totalDegree);
     return hubs.slice(0, k);
+  }
+  isTestFile(file) {
+    return file.includes(".test.") || file.includes(".spec.") || file.includes("__tests__") || file.includes("/test/") || file.includes("/tests/");
+  }
+  calculateProductionFanIn(fanInFiles) {
+    return fanInFiles.filter((f) => !this.isTestFile(f)).length;
+  }
+  calculateTestFanIn(fanInFiles) {
+    return fanInFiles.filter((f) => this.isTestFile(f)).length;
   }
   /**
    * BFS from a source node, returns distances and parent map for path reconstruction
@@ -233119,6 +233130,15 @@ var DuplicationDetector = class {
     }
     return snippet;
   }
+  /**
+   * Classifies the structural type of a code snippet by parsing and analyzing its AST.
+   * @param codeSnippet The code snippet to classify
+   * @param file The file path (for context)
+   * @returns StructuralUnit with type, label, and repetition count, or undefined if unclassifiable
+   */
+  classifyStructure(codeSnippet, file) {
+    throw new Error("Not implemented");
+  }
   findDuplicates() {
     const minTokens = this.options.minTokens;
     const fileTokens = /* @__PURE__ */ new Map();
@@ -233174,11 +233194,7 @@ var DuplicationDetector = class {
           }
         }
         const firstWindow = group[0];
-        const codeSnippet = this.getCodeSnippetForRange(
-          firstWindow.file,
-          firstWindow.startLine,
-          firstWindow.endLine
-        );
+        const codeSnippet = this.getCodeSnippetForRange(firstWindow.file, firstWindow.startLine, firstWindow.endLine);
         duplicateBlocks.push({
           files: group.map((w) => ({
             file: w.file,
@@ -233259,11 +233275,7 @@ var DuplicationDetector = class {
     const estimatedTokenCount = Math.round(lineRange * avgTokensPerLine);
     let codeSnippet;
     try {
-      codeSnippet = this.getCodeSnippetForRange(
-        mergedFiles[0].file,
-        mergedFiles[0].startLine,
-        mergedFiles[0].endLine
-      );
+      codeSnippet = this.getCodeSnippetForRange(mergedFiles[0].file, mergedFiles[0].startLine, mergedFiles[0].endLine);
     } catch {
       codeSnippet = block1.codeSnippet;
     }
@@ -233626,6 +233638,29 @@ var MonorepoAnalyzer = class {
       return depth;
     }
     return Math.max(0, ...packages.map((pkg) => findDepth(pkg.name)));
+  }
+  analyzeLifecycles(packages, matrix) {
+    const lifecycles = /* @__PURE__ */ new Map();
+    const consumerCounts = /* @__PURE__ */ new Map();
+    for (const pkg of packages) {
+      consumerCounts.set(pkg.name, 0);
+    }
+    for (const [importerPackage, imports] of matrix.entries()) {
+      for (const [importedPackage] of imports.entries()) {
+        consumerCounts.set(importedPackage, (consumerCounts.get(importedPackage) ?? 0) + 1);
+      }
+    }
+    for (const pkg of packages) {
+      const isPrivate = Boolean(pkg.packageJson.private);
+      const consumerCount = consumerCounts.get(pkg.name) ?? 0;
+      const state = isPrivate && consumerCount === 0 ? "orphaned" : "active";
+      lifecycles.set(pkg.name, {
+        isPrivate,
+        consumerCount,
+        state
+      });
+    }
+    return lifecycles;
   }
   async analyze() {
     const packages = await this.discoverPackages();
@@ -234432,7 +234467,9 @@ var ReportGenerator = class {
         );
       }
       lines.push("");
-      lines.push("*Commits and lines changed in last 90 days. High avg/commit suggests refactors; low suggests incremental changes.*");
+      lines.push(
+        "*Commits and lines changed in last 90 days. High avg/commit suggests refactors; low suggests incremental changes.*"
+      );
       lines.push("");
     } else {
       lines.push("*No churn hotspots detected in the analyzed time window.*");

@@ -1,6 +1,14 @@
 import * as fs from "node:fs";
 import * as ts from "typescript";
-import type { DuplicateBlock, DuplicationMetrics, DuplicationOptions, NormalizedToken, TokenWindow } from "../types.js";
+import type {
+  DuplicateBlock,
+  DuplicationMetrics,
+  DuplicationOptions,
+  NormalizedToken,
+  StructuralUnit,
+  StructuralUnitType,
+  TokenWindow,
+} from "../types.js";
 
 // Rabin-Karp rolling hash constants
 const HASH_BASE = 31;
@@ -278,6 +286,185 @@ export class DuplicationDetector {
     return snippet;
   }
 
+  /**
+   * Gets the full code snippet for a range without truncation (for classification).
+   */
+  private getFullCodeSnippet(file: string, startLine: number, endLine: number): string {
+    const content = fs.readFileSync(file, "utf-8");
+    const lines = content.split("\n");
+
+    const start = Math.max(0, startLine - 1);
+    const end = Math.min(lines.length, endLine);
+
+    return lines.slice(start, end).join("\n");
+  }
+
+  /**
+   * Classifies the structural type of a code snippet by parsing and analyzing its AST.
+   * @param codeSnippet The code snippet to classify
+   * @param file The file path (for context)
+   * @returns StructuralUnit with type, label, and repetition count, or undefined if unclassifiable
+   */
+  classifyStructure(codeSnippet: string, file: string): StructuralUnit | undefined {
+    try {
+      // Basic validation - check if snippet has reasonable structure
+      const trimmed = codeSnippet.trim();
+      if (!trimmed || trimmed.length < 3) {
+        return undefined;
+      }
+
+      // Parse the code snippet as a TypeScript source file
+      const sourceFile = ts.createSourceFile(file, codeSnippet, ts.ScriptTarget.Latest, true);
+
+      // Analyze the first meaningful statement/node
+      let firstNode: ts.Node | undefined;
+      ts.forEachChild(sourceFile, (node) => {
+        if (!firstNode && node.kind !== ts.SyntaxKind.EndOfFileToken) {
+          firstNode = node;
+        }
+      });
+
+      if (!firstNode) {
+        return undefined;
+      }
+
+      // Classify based on node type
+      const classification = this.classifyNode(firstNode);
+      if (!classification) {
+        return undefined;
+      }
+
+      // Count the number of duplicate instances (at least 2 for duplication)
+      return {
+        type: classification.type,
+        label: classification.label,
+        repetitionCount: 2, // Minimum for duplication
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Classifies a TypeScript AST node and returns its structural type and label.
+   */
+  private classifyNode(node: ts.Node): { type: StructuralUnitType; label: string } | undefined {
+    // Function declarations
+    if (ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node)) {
+      const name = this.getFunctionName(node);
+      return {
+        type: "function",
+        label: name || "anonymous function",
+      };
+    }
+
+    // For loops
+    if (ts.isForStatement(node)) {
+      return {
+        type: "loop-body",
+        label: "for loop",
+      };
+    }
+
+    // While loops
+    if (ts.isWhileStatement(node)) {
+      return {
+        type: "loop-body",
+        label: "while loop",
+      };
+    }
+
+    // Do-while loops
+    if (ts.isDoStatement(node)) {
+      return {
+        type: "loop-body",
+        label: "do-while loop",
+      };
+    }
+
+    // For-of and for-in loops
+    if (ts.isForOfStatement(node) || ts.isForInStatement(node)) {
+      return {
+        type: "loop-body",
+        label: ts.isForOfStatement(node) ? "for-of loop" : "for-in loop",
+      };
+    }
+
+    // Switch case clauses
+    if (ts.isCaseClause(node)) {
+      const caseLabel = this.getCaseLabel(node);
+      return {
+        type: "switch-case",
+        label: `case ${caseLabel}`,
+      };
+    }
+
+    // If statements
+    if (ts.isIfStatement(node)) {
+      return {
+        type: "conditional",
+        label: "if statement",
+      };
+    }
+
+    // Conditional expressions (ternary)
+    if (ts.isConditionalExpression(node)) {
+      return {
+        type: "conditional",
+        label: "conditional expression",
+      };
+    }
+
+    // Block statements or multiple statements
+    if (ts.isBlock(node) || ts.isSourceFile(node)) {
+      return {
+        type: "block",
+        label: "code block",
+      };
+    }
+
+    // Expression statements or other top-level code
+    if (ts.isExpressionStatement(node) || ts.isVariableStatement(node)) {
+      return {
+        type: "block",
+        label: "statements",
+      };
+    }
+
+    // Unknown/unclassified
+    return {
+      type: "unknown",
+      label: "code fragment",
+    };
+  }
+
+  /**
+   * Extracts the name of a function from its declaration.
+   */
+  private getFunctionName(node: ts.FunctionDeclaration | ts.FunctionExpression | ts.ArrowFunction): string | undefined {
+    if (ts.isFunctionDeclaration(node) && node.name) {
+      return node.name.text;
+    }
+    if (ts.isFunctionExpression(node) && node.name) {
+      return node.name.text;
+    }
+    return undefined;
+  }
+
+  /**
+   * Extracts the label from a case clause.
+   */
+  private getCaseLabel(node: ts.CaseClause): string {
+    const expression = node.expression;
+    if (ts.isStringLiteral(expression) || ts.isNumericLiteral(expression)) {
+      return expression.text;
+    }
+    if (ts.isIdentifier(expression)) {
+      return expression.text;
+    }
+    return "value";
+  }
+
   findDuplicates(): DuplicateBlock[] {
     const minTokens = this.options.minTokens;
 
@@ -357,6 +544,10 @@ export class DuplicationDetector {
         const firstWindow = group[0];
         const codeSnippet = this.getCodeSnippetForRange(firstWindow.file, firstWindow.startLine, firstWindow.endLine);
 
+        // Classify the structural type of the duplicate (use full snippet for accurate parsing)
+        const fullSnippet = this.getFullCodeSnippet(firstWindow.file, firstWindow.startLine, firstWindow.endLine);
+        const structuralUnit = fullSnippet ? this.classifyStructure(fullSnippet, firstWindow.file) : undefined;
+
         duplicateBlocks.push({
           files: group.map((w) => ({
             file: w.file,
@@ -366,6 +557,7 @@ export class DuplicationDetector {
           tokenCount: minTokens,
           fingerprint: hash,
           codeSnippet,
+          structuralUnit,
         });
       }
     }
@@ -471,11 +663,27 @@ export class DuplicationDetector {
       codeSnippet = block1.codeSnippet;
     }
 
+    // Reclassify the merged block if we have a new snippet
+    let structuralUnit: StructuralUnit | undefined;
+    if (codeSnippet && codeSnippet !== block1.codeSnippet) {
+      // New snippet was generated, reclassify
+      const fullSnippet = this.getFullCodeSnippet(
+        mergedFiles[0].file,
+        mergedFiles[0].startLine,
+        mergedFiles[0].endLine,
+      );
+      structuralUnit = fullSnippet ? this.classifyStructure(fullSnippet, mergedFiles[0].file) : undefined;
+    } else {
+      // Use original classification
+      structuralUnit = block1.structuralUnit;
+    }
+
     return {
       files: mergedFiles,
       tokenCount: Math.max(block1.tokenCount, estimatedTokenCount),
       fingerprint: block1.fingerprint,
       codeSnippet,
+      structuralUnit,
     };
   }
 

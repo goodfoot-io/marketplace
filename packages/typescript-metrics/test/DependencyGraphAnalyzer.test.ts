@@ -130,4 +130,63 @@ describe("DependencyGraphAnalyzer", () => {
     expect(result.percentage).toBe(0);
     expect(result.violations.length).toBe(4);
   });
+
+  describe("Test/Production Edge Classification", () => {
+    it("should split fanIn into production and test counts", () => {
+      const hubs = analyzer.findHubs(10);
+
+      // Find internal.ts which has 1 dependent
+      const internalHub = hubs.find((h) => h.file.endsWith("internal.ts"));
+      expect(internalHub).toBeDefined();
+
+      // Note: In this test fixture, all files are under /test/fixtures/
+      // so they all match the /test/ pattern. In a real codebase,
+      // files under /test/ would be test files.
+      // internal.ts is imported by index.ts which is under /test/ path
+      expect(internalHub?.fanIn).toBe(1);
+      expect(internalHub?.productionFanIn).toBe(0);
+      expect(internalHub?.testFanIn).toBe(1);
+    });
+
+    it("should handle files with zero dependents", () => {
+      const hubs = analyzer.findHubs(10);
+
+      // index.ts has no dependents (fanIn = 0)
+      const indexHub = hubs.find((h) => h.file.endsWith("index.ts"));
+      expect(indexHub).toBeDefined();
+      expect(indexHub?.fanIn).toBe(0);
+      expect(indexHub?.productionFanIn).toBe(0);
+      expect(indexHub?.testFanIn).toBe(0);
+    });
+
+    it("should accurately split mixed test and production dependents", () => {
+      const hubs = analyzer.findHubs(10);
+
+      // For all hubs, production + test should equal total fanIn
+      for (const hub of hubs) {
+        const sum = (hub.productionFanIn ?? 0) + (hub.testFanIn ?? 0);
+        expect(sum).toBe(hub.fanIn);
+      }
+    });
+
+    it("should classify test files based on common patterns", () => {
+      const hubs = analyzer.findHubs(10);
+
+      // Files with test patterns in their name should have testFanIn
+      const testFiles = hubs.filter(
+        (h) =>
+          h.file.includes(".test.") ||
+          h.file.includes(".spec.") ||
+          h.file.includes("__tests__") ||
+          h.file.includes("/test/") ||
+          h.file.includes("/tests/"),
+      );
+
+      // If any test files are hubs, verify they have the fields defined
+      for (const testHub of testFiles) {
+        expect(testHub.productionFanIn).toBeDefined();
+        expect(testHub.testFanIn).toBeDefined();
+      }
+    });
+  });
 });

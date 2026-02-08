@@ -270,6 +270,8 @@ export class DependencyGraphAnalyzer {
         // Include sample of files (up to 5 each) for context
         fanInFiles: fanInFiles.slice(0, 5),
         fanOutFiles: fanOutFiles.slice(0, 5),
+        productionFanIn: this.calculateProductionFanIn(fanInFiles),
+        testFanIn: this.calculateTestFanIn(fanInFiles),
       });
     }
 
@@ -278,6 +280,24 @@ export class DependencyGraphAnalyzer {
 
     // Return top k
     return hubs.slice(0, k);
+  }
+
+  private isTestFile(file: string): boolean {
+    return (
+      file.includes(".test.") ||
+      file.includes(".spec.") ||
+      file.includes("__tests__") ||
+      file.includes("/test/") ||
+      file.includes("/tests/")
+    );
+  }
+
+  private calculateProductionFanIn(fanInFiles: string[]): number {
+    return fanInFiles.filter((f) => !this.isTestFile(f)).length;
+  }
+
+  private calculateTestFanIn(fanInFiles: string[]): number {
+    return fanInFiles.filter((f) => this.isTestFile(f)).length;
   }
 
   /**

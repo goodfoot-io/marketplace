@@ -8,6 +8,7 @@ import type {
   MonorepoOptions,
   PackageApiSurface,
   PackageImportBreakdown,
+  PackageLifecycle,
   WorkspacePackage,
 } from "../types.js";
 
@@ -281,6 +282,40 @@ export class MonorepoAnalyzer {
     }
 
     return Math.max(0, ...packages.map((pkg) => findDepth(pkg.name)));
+  }
+
+  analyzeLifecycles(packages: WorkspacePackage[], matrix: CrossBoundaryMatrix): Map<string, PackageLifecycle> {
+    const lifecycles = new Map<string, PackageLifecycle>();
+
+    // Invert the matrix to count consumers per package
+    const consumerCounts = new Map<string, number>();
+
+    // Initialize all packages with 0 consumers
+    for (const pkg of packages) {
+      consumerCounts.set(pkg.name, 0);
+    }
+
+    // Count consumers by inverting the cross-boundary matrix
+    for (const [_importerPackage, imports] of matrix.entries()) {
+      for (const [importedPackage] of imports.entries()) {
+        consumerCounts.set(importedPackage, (consumerCounts.get(importedPackage) ?? 0) + 1);
+      }
+    }
+
+    // Analyze lifecycle for each package
+    for (const pkg of packages) {
+      const isPrivate = Boolean(pkg.packageJson.private);
+      const consumerCount = consumerCounts.get(pkg.name) ?? 0;
+      const state: PackageLifecycle["state"] = isPrivate && consumerCount === 0 ? "orphaned" : "active";
+
+      lifecycles.set(pkg.name, {
+        isPrivate,
+        consumerCount,
+        state,
+      });
+    }
+
+    return lifecycles;
   }
 
   async analyze(): Promise<MonorepoMetrics> {
