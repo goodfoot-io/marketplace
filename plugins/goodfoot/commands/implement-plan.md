@@ -204,7 +204,7 @@ Each task prompt should be self-contained with:
 
 ## File Ownership
 This task owns: [absolute paths from plan]
-Do not modify files outside this list.
+Only modify files within this workspace.
 
 ## Current File Content
 [Read and include current content of files to be modified]
@@ -285,6 +285,7 @@ Do not dispatch the next phase until the current phase passes validation.
 
 ## File Ownership
 This task owns: [all files for this coherent group]
+Only modify files within this workspace.
 
 ## Current File Content
 [Read and include current content of ALL files]
@@ -386,6 +387,7 @@ When dispatching fix tasks, include the exact error output:
 
 ## File Ownership
 This task owns: [files mentioned in error]
+Only modify files within this workspace.
 
 ## Current File Content
 [Content of files with errors]
@@ -459,7 +461,7 @@ Use the metrics output to identify and prioritize refactoring opportunities. The
 - Validate after each change
 
 ## Guidelines
-- Only refactor files in the Changed Files list
+- Only refactor files in the Changed Files list within this workspace
 - Prioritize issues identified by metrics analysis
 - Do not add new features or capabilities
 - Keep changes minimal and focused on clarity
