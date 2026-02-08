@@ -332,6 +332,7 @@ export class MonorepoAnalyzer {
 
     const crossBoundaryMatrix = this.buildCrossBoundaryMatrix(packages);
     const dependencyDepth = this.calculateDependencyDepth(packages);
+    const packageLifecycles = this.analyzeLifecycles(packages, crossBoundaryMatrix);
 
     return {
       packages,
@@ -339,6 +340,7 @@ export class MonorepoAnalyzer {
       importBreakdowns,
       crossBoundaryMatrix,
       dependencyDepth,
+      packageLifecycles,
     };
   }
 }

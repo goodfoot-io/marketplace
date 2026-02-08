@@ -247,6 +247,7 @@ export interface MonorepoMetrics {
   importBreakdowns: Map<string, PackageImportBreakdown>;
   crossBoundaryMatrix: CrossBoundaryMatrix;
   dependencyDepth: number;
+  packageLifecycles?: Map<string, PackageLifecycle>;
 }
 
 // Data Flow Analysis Types

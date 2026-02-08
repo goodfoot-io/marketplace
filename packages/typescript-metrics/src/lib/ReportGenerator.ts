@@ -6,6 +6,7 @@ import type {
   CycleMetrics,
   DuplicationMetrics,
   EncapsulationMetrics,
+  HubNode,
   MetricsResult,
 } from "../types.js";
 
@@ -303,8 +304,9 @@ export class ReportGenerator {
             const instability = hub.fanIn + hub.fanOut > 0 ? hub.fanOut / (hub.fanIn + hub.fanOut) : 0;
             const instabilityLabel = this.getInstabilityLabel(instability);
             const barrelNote = isBarrel ? " *(barrel)*" : "";
+            const fanInFormatted = this.formatFanIn(hub);
             lines.push(
-              `| ${relPath}${barrelNote} | ${hub.fanIn} | ${hub.fanOut} | ${hub.totalDegree} | ${instability.toFixed(2)} (${instabilityLabel}) |`,
+              `| ${relPath}${barrelNote} | ${fanInFormatted} | ${hub.fanOut} | ${hub.totalDegree} | ${instability.toFixed(2)} (${instabilityLabel}) |`,
             );
           }
           lines.push("");
@@ -380,8 +382,8 @@ export class ReportGenerator {
       lines.push("");
       lines.push(`Largest duplicates worth extracting (minimum ${minTokens} tokens):`);
       lines.push("");
-      lines.push("| Location A | Location B | Tokens |");
-      lines.push("|------------|------------|--------|");
+      lines.push("| Location A | Location B | Tokens | Structure |");
+      lines.push("|------------|------------|--------|-----------|");
 
       const topBlocks = result.duplication.blocks
         .filter((b) => b.files.length >= 2)
@@ -389,9 +391,23 @@ export class ReportGenerator {
         .slice(0, 5);
 
       for (const block of topBlocks) {
-        const locA = `${this.relativePath(block.files[0].file)}:${block.files[0].startLine}`;
-        const locB = `${this.relativePath(block.files[1].file)}:${block.files[1].startLine}`;
-        lines.push(`| ${locA} | ${locB} | ${block.tokenCount} |`);
+        let locA = `${this.relativePath(block.files[0].file)}:${block.files[0].startLine}`;
+        let locB = `${this.relativePath(block.files[1].file)}:${block.files[1].startLine}`;
+
+        // Annotate orphaned packages
+        if (
+          this.isInOrphanedPackage(block.files[0].file, result.monorepo?.packageLifecycles, result.monorepo?.packages)
+        ) {
+          locA += " *(orphaned — consider deletion)*";
+        }
+        if (
+          this.isInOrphanedPackage(block.files[1].file, result.monorepo?.packageLifecycles, result.monorepo?.packages)
+        ) {
+          locB += " *(orphaned — consider deletion)*";
+        }
+
+        const structure = block.structuralUnit?.label ?? "-";
+        lines.push(`| ${locA} | ${locB} | ${block.tokenCount} | ${structure} |`);
       }
       lines.push("");
 
@@ -998,6 +1014,29 @@ export class ReportGenerator {
       }
     }
 
+    // Orphaned package issues
+    if (result.monorepo?.packageLifecycles) {
+      const orphanedPackages: string[] = [];
+      for (const [pkgName, lifecycle] of result.monorepo.packageLifecycles.entries()) {
+        if (lifecycle.state === "orphaned") {
+          orphanedPackages.push(pkgName);
+        }
+      }
+
+      if (orphanedPackages.length > 0) {
+        issues.push({
+          severity: "warning",
+          category: "Monorepo",
+          title: `${orphanedPackages.length} orphaned ${orphanedPackages.length === 1 ? "package" : "packages"} detected`,
+          details: [
+            "Private packages with no consumers in the monorepo.",
+            `Orphaned packages: ${orphanedPackages.join(", ")}`,
+          ],
+          recommendation: "Review these packages — consider deletion if they are no longer needed.",
+        });
+      }
+    }
+
     return issues;
   }
 
@@ -1080,6 +1119,26 @@ export class ReportGenerator {
     return basename === "index.ts" || basename === "index.tsx" || basename === "index.js" || basename === "index.mjs";
   }
 
+  private isInOrphanedPackage(
+    filePath: string,
+    packageLifecycles?: Map<string, import("../types.js").PackageLifecycle>,
+    packages?: import("../types.js").WorkspacePackage[],
+  ): boolean {
+    if (!packageLifecycles || !packages) {
+      return false;
+    }
+
+    // Find which package this file belongs to
+    for (const pkg of packages) {
+      if (filePath.startsWith(pkg.dir)) {
+        const lifecycle = packageLifecycles.get(pkg.name);
+        return lifecycle?.state === "orphaned";
+      }
+    }
+
+    return false;
+  }
+
   private getSwallowedErrorPatternLabel(pattern: string): string {
     const labels: Record<string, string> = {
       "empty-catch": "Empty catch",
@@ -1103,5 +1162,28 @@ export class ReportGenerator {
       unknown: "-",
     };
     return labels[pattern] ?? pattern;
+  }
+
+  private formatFanIn(hub: HubNode): string {
+    // Backward compatibility: if new fields are undefined, just return fanIn
+    if (hub.productionFanIn === undefined && hub.testFanIn === undefined) {
+      return hub.fanIn.toString();
+    }
+
+    const prodFanIn = hub.productionFanIn ?? 0;
+    const testFanIn = hub.testFanIn ?? 0;
+
+    // All test dependencies
+    if (prodFanIn === 0 && testFanIn > 0) {
+      return `${hub.fanIn} (all tests)`;
+    }
+
+    // Mixed production and test
+    if (prodFanIn > 0 && testFanIn > 0) {
+      return `${prodFanIn} prod / ${testFanIn} test`;
+    }
+
+    // All production (or no dependencies at all)
+    return hub.fanIn.toString();
   }
 }

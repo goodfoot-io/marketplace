@@ -102,6 +102,18 @@ describe("MonorepoAnalyzer", () => {
     expect(depth).toBe(2);
   });
 
+  it("should populate packageLifecycles in analyze()", async () => {
+    const analyzer = new MonorepoAnalyzer({ rootDir: fixtureRoot });
+    const metrics = await analyzer.analyze();
+
+    expect(metrics.packageLifecycles).toBeDefined();
+    expect(metrics.packageLifecycles).toBeInstanceOf(Map);
+    expect(metrics.packageLifecycles?.size).toBe(4);
+
+    const orphanedPkg = metrics.packageLifecycles?.get("@fixture/pkg-orphaned");
+    expect(orphanedPkg?.state).toBe("orphaned");
+  });
+
   describe("analyzeLifecycles", () => {
     it("should mark private package with 0 consumers as orphaned", async () => {
       const analyzer = new MonorepoAnalyzer({ rootDir: fixtureRoot });
