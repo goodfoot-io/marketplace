@@ -428,13 +428,29 @@ Delegate refactoring to improve code quality while preserving behavior.
 ## Plan
 @[PROJECT_DIR]/plan.md
 
-## Focus Areas
-1. Eliminate dead code
-2. Simplify logic (guard clauses, smaller functions)
-3. Remove over-engineering (YAGNI)
-4. Improve naming (align with plan intent)
-5. Harmonize patterns (match codebase conventions)
-6. Refine tests (remove redundant, focus on behavior)
+## Changed Files
+[LIST_OF_PLAN_FILES - files modified during implementation]
+
+## Pre-Refactor Metrics Analysis
+
+Before making changes, load the `goodfoot:typescript-metrics` skill and run metrics on the changed files:
+
+```bash
+# Run all metrics on changed files (use binary path from skill)
+typescript-metrics [CHANGED_FILES]
+```
+
+Use the metrics output to identify and prioritize refactoring opportunities. The report highlights issues and recommends fixes.
+
+## Focus Areas (prioritized by metrics)
+1. Address complexity hotspots identified in metrics
+2. Fix data flow issues (unused params, ignored returns)
+3. Resolve swallowed errors
+4. Eliminate dead code
+5. Simplify logic (guard clauses, smaller functions)
+6. Remove over-engineering (YAGNI)
+7. Improve naming (align with plan intent)
+8. Harmonize patterns (match codebase conventions)
 
 ## Constraints
 - Preserve observable behavior
@@ -443,15 +459,15 @@ Delegate refactoring to improve code quality while preserving behavior.
 - Validate after each change
 
 ## Guidelines
-- Only refactor files modified by the implementation
+- Only refactor files in the Changed Files list
+- Prioritize issues identified by metrics analysis
 - Do not add new features or capabilities
 - Keep changes minimal and focused on clarity
-
-## Metrics Analysis
-After refactoring, load the `goodfoot:typescript-metrics` skill and run metrics on the files modified during implementation to identify any issues introduced by the changes.
+- If metrics show no issues, focus on basic cleanup only
 </parameter>
 </invoke>
 ```
+
 
 ### Process Result
 
