@@ -213,25 +213,11 @@ You should write the plan using this template:
 
 ## Step 5: Review and Refine
 
-You should launch a Plan subagent to critically evaluate the plan. The subagent has no conversation context—construct the prompt from your exploration findings and the plan you just wrote.
+This step has two phases: **Plan Review** and **Gap Analysis**. Both must pass before proceeding.
 
-**What the reviewer needs:**
+### Phase 1: Plan Review
 
-| Element | Why | Source |
-|---------|-----|--------|
-| Plan path and goal | Understand what's being evaluated | [PROJECT_DIR]/plan.md, [REQUEST] |
-| User requirements | Constraints that cannot be removed or simplified | [REQUEST], [REQUIREMENTS] |
-| Reference files | Compare approach against existing patterns | Files discovered in Step 1 |
-| Specific questions | Focus evaluation on plan's actual structure | Task groups and dependencies from the plan |
-| Domain concerns | Identify gaps specific to this problem | Technical considerations from exploration |
-
-**Constructing the prompt:**
-
-1. State the goal and list user requirements as fixed constraints (from [REQUEST] and [REQUIREMENTS])
-2. List the reference files from exploration with brief descriptions of why each matters
-3. Ask pointed questions about the plan's design decisions—task grouping, dependencies, implementation approach
-4. List technical concerns relevant to this domain (not generic concerns)
-5. Request feedback with file paths and line numbers
+Launch a Plan subagent to evaluate the plan's structure and TDD compliance.
 
 ```xml
 <invoke name="Task">
@@ -240,13 +226,17 @@ You should launch a Plan subagent to critically evaluate the plan. The subagent 
 <parameter name="prompt"><task>
 Critically evaluate the implementation plan at [FULL_PLAN_PATH]. This plan aims to [GOAL_FROM_REQUEST].
 
-[EVALUATION_CRITERIA_DERIVED_FROM_EXPLORATION_AND_PLAN]
+Evaluate:
+1. **TDD Structure**: Does each task have Types & Stubs → Tests (`it.skip`) → Implementation phases with validation gates?
+2. **Task Independence**: Can tasks run in parallel? Are dependencies specified as full tasks?
+3. **Pattern Alignment**: Does the approach match existing codebase patterns?
+4. **Test Coverage**: Are happy path, error cases, and edge cases covered?
 
-Provide specific, actionable feedback with references to file paths and line numbers. If you identify gaps, propose concrete additions.
+User requirements are fixed constraints—do not recommend removing or simplifying them.
 </task>
 
 <instructions>
-Evaluate design decisions in this plan—task grouping, dependencies, implementation approach. User requirements are fixed constraints; do not recommend removing or simplifying them.
+Provide specific feedback with file paths and line numbers.
 
 Conclude with:
 
@@ -259,47 +249,71 @@ Conclude with:
 </invoke>
 ```
 
-**Example evaluation criteria** (for a drag-drop parity plan):
+If MAJOR_CHANGES: apply changes, re-run Plan Review. Maximum 3 iterations.
 
+### Phase 2: Gap Analysis
+
+After Plan Review passes (READY or MINOR_CHANGES), launch Tracer agents to identify gaps. Extract the files being modified from the plan and trace their consumers.
+
+```xml
+<!-- COMPLETENESS CHECK -->
+<invoke name="Task">
+<parameter name="description">Trace plan completeness</parameter>
+<parameter name="subagent_type">goodfoot:Tracer</parameter>
+<parameter name="prompt">Trace the components being modified in [FULL_PLAN_PATH]:
+[LIST_OF_FILES_FROM_PLAN]
+
+For each component, follow execution paths forward to find:
+1. What depends on these components that is NOT included in the plan
+2. What must happen AFTER this plan completes for the system to work
+3. State changes or side effects that consumers expect but the plan doesn't address
+
+Report gaps as: file:line - description of missing work</parameter>
+</invoke>
+
+<!-- CONSUMER COVERAGE -->
+<invoke name="Task">
+<parameter name="description">Trace consumer coverage</parameter>
+<parameter name="subagent_type">goodfoot:Tracer</parameter>
+<parameter name="prompt">For each exported interface, function, or type being modified in [FULL_PLAN_PATH]:
+[LIST_OF_MODIFIED_EXPORTS_FROM_PLAN]
+
+Trace all call sites and consumers. Identify any consumers that:
+1. Are NOT mentioned in the plan's task list
+2. Would break or behave incorrectly after the planned changes
+3. Require updates to maintain compatibility
+
+Report missing consumers as: file:line - how this consumer uses the modified component</parameter>
+</invoke>
 ```
-1. **TDD Structure**: Does each task follow the complete TDD flow?
-   - Types & Stubs: Are interfaces defined and stubs throwing `Error('Not Implemented')`?
-   - Tests: Are `it.skip` tests specified for each expected behavior?
-   - Implementation: Is the logic description sufficient for a single agent to complete?
-   - Validation: Are typecheck/test gates specified?
 
-2. **Task Independence**: Can tasks be executed by separate agents in parallel?
-   - Are dependencies specified as full tasks (not individual phases)?
-   - Are types consolidated with their implementation when used by only one task?
+**Interpreting Gap Analysis:**
 
-3. **Pattern Alignment**: Does the proposed pattern match existing code?
-   - /workspace/packages/extension/src/providers/TreeDragAndDropController.ts
+| Finding | Action |
+|---------|--------|
+| No gaps found | Proceed to Step 6 |
+| Gaps within original scope | Add tasks to plan, re-run Phase 2 |
+| Gaps that expand scope | Present to user with options: (a) add to plan, (b) defer to follow-up work, (c) accept risk |
 
-4. **Test Coverage**: Are these behaviors covered in Phase 2?
-   - Happy path, error cases, edge cases
-   - Cross-reference existing test patterns in the codebase
-```
+**Handling scope-expanding gaps:**
 
-The criteria above are specific to that plan—yours should be specific to the plan you wrote.
+If Tracer agents find consumers or dependencies that significantly expand the work:
 
-**Interpreting the assessment:**
-
-| Assessment | Action |
-|------------|--------|
-| READY | Proceed to Step 6 |
-| MINOR_CHANGES | Apply changes that don't conflict with user requirements, proceed to Step 6 |
-| MAJOR_CHANGES | Apply changes that don't conflict with user requirements, repeat evaluation |
+1. List each gap with its impact
+2. Ask the user how to proceed using AskUserQuestion:
+   - "Add to this plan" → Add tasks, re-run both phases
+   - "Defer to follow-up" → Add to Out of Scope section
+   - "Accept as-is" → Document risk in plan, proceed
 
 **Revision cycle:**
 
-After any major changes—whether from evaluation recommendations or user feedback—re-run the Plan subagent evaluation:
-1. Read the current plan
-2. Apply changes (from evaluation or user)
-3. Write the revised plan to `[PROJECT_DIR]/plan.md`
-4. Launch the Plan subagent again with the same prompt structure
-5. Repeat until assessment is READY or MINOR_CHANGES
+After any changes from either phase:
+1. Update `[PROJECT_DIR]/plan.md`
+2. Re-run the phase that triggered changes
+3. If Phase 1 changes affect scope, re-run Phase 2
+4. Maximum 3 total iterations across both phases
 
-Do not iterate more than 3 times. If still receiving MAJOR_CHANGES after 3 cycles, proceed to Step 6 and note unresolved concerns in the summary.
+If still finding issues after 3 cycles, proceed to Step 6 and note unresolved concerns in the summary.
 
 ## Step 6: Present to User
 
