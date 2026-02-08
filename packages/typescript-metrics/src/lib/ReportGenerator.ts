@@ -72,8 +72,21 @@ export class ReportGenerator {
     lines.push("*MHF measures the ratio of hidden methods. AHF measures the ratio of hidden attributes.*");
     lines.push("");
 
-    // Classes with poor encapsulation
-    const poorEncapsulation = metrics.classes.filter((c) => c.mhf < 0.5 || c.ahf < 0.5);
+    // Filter out test files and fixtures
+    const isTestOrFixture = (filePath: string): boolean => {
+      // Check for test/tests/__fixtures__ directories
+      if (/\/(test|tests|__fixtures__)\//.test(filePath)) {
+        return true;
+      }
+      // Check for *.test.ts or *.spec.ts files
+      if (/\.(test|spec)\.tsx?$/.test(filePath)) {
+        return true;
+      }
+      return false;
+    };
+
+    // Classes with poor encapsulation (excluding test files and fixtures)
+    const poorEncapsulation = metrics.classes.filter((c) => (c.mhf < 0.5 || c.ahf < 0.5) && !isTestOrFixture(c.file));
 
     if (poorEncapsulation.length > 0) {
       lines.push("**Classes with low encapsulation:**");
@@ -107,8 +120,8 @@ export class ReportGenerator {
     lines.push("");
 
     if (metrics.hotspots.length > 0) {
-      lines.push("| File | Commits | Lines Δ | Avg/Commit | Complexity | Combined |");
-      lines.push("|------|---------|---------|------------|------------|----------|");
+      lines.push("| File | Commits | Lines Δ | Avg/Commit | Complexity |");
+      lines.push("|------|---------|---------|------------|------------|");
 
       const topHotspots = metrics.hotspots.slice(0, 10);
       for (const hotspot of topHotspots) {
@@ -121,7 +134,7 @@ export class ReportGenerator {
         const avgLabel =
           avgPerCommit > 100 ? `${Math.round(avgPerCommit)} (refactor?)` : Math.round(avgPerCommit).toString();
         lines.push(
-          `| ${relPath} | ${commits} | ${linesChanged} | ${avgLabel} | ${hotspot.complexityScore} | ${hotspot.combinedScore.toFixed(2)} |`,
+          `| ${relPath} | ${commits} | ${linesChanged} | ${avgLabel} | ${hotspot.complexityScore} |`,
         );
       }
       lines.push("");
@@ -286,13 +299,8 @@ export class ReportGenerator {
         lines.push("| Metric | Value | Assessment |");
         lines.push("|--------|-------|------------|");
         lines.push(
-          `| Graph Density | ${(result.coupling.graphDensity * 100).toFixed(2)}% | ${result.coupling.graphDensity < 0.1 ? "Sparse (healthy)" : "Dense (review)"} |`,
-        );
-        lines.push(
           `| Circular Dependencies | ${result.cycles.count} | ${result.cycles.count === 0 ? "None ✓" : result.cycles.count === 1 ? "1 (review below)" : `${result.cycles.count} 🔴`} |`,
         );
-        lines.push("");
-        lines.push("*Density measures import relationships across all analyzed files.*");
         lines.push("");
 
         if (result.coupling.hubs.length > 0) {
@@ -307,8 +315,11 @@ export class ReportGenerator {
             const instabilityLabel = this.getInstabilityLabel(instability);
             const barrelNote = isBarrel ? " *(barrel)*" : "";
             const fanInFormatted = this.formatFanIn(hub);
+            // Only show instability when actionable (extreme values)
+            const instabilityDisplay =
+              instabilityLabel === "balanced" ? "-" : `${instability.toFixed(2)} (${instabilityLabel})`;
             lines.push(
-              `| ${relPath}${barrelNote} | ${fanInFormatted} | ${hub.fanOut} | ${hub.totalDegree} | ${instability.toFixed(2)} (${instabilityLabel}) |`,
+              `| ${relPath}${barrelNote} | ${fanInFormatted} | ${hub.fanOut} | ${hub.totalDegree} | ${instabilityDisplay} |`,
             );
           }
           lines.push("");
@@ -343,23 +354,31 @@ export class ReportGenerator {
             file.includes("/test/fixtures/") || file.includes("/tests/fixtures/") || file.includes("/__fixtures__/");
           const typeOnlyIndices = new Set(result.cycles.typeOnlySccIndices ?? []);
 
-          lines.push("**Circular dependencies:**");
-          lines.push("");
-          for (let i = 0; i < Math.min(result.cycles.sccs.length, 3); i++) {
-            const scc = result.cycles.sccs[i];
-            const files = scc.map((f) => `\`${this.relativePath(f)}\``).join(" → ");
-            const inFixtures = scc.every((f) => isTestFixture(f));
-            const isTypeOnly = typeOnlyIndices.has(i);
+          // Check if all cycles are in test fixtures
+          const allTestFixtures = result.cycles.sccs.every((scc) => scc.every((f) => isTestFixture(f)));
 
-            let annotation = "";
-            if (inFixtures) {
-              annotation = " *(test fixture — likely intentional)*";
-            } else if (isTypeOnly) {
-              annotation = " *(type-only — no runtime impact)*";
+          if (allTestFixtures) {
+            lines.push(`No production cycles (${result.cycles.sccs.length} test fixture cycle${result.cycles.sccs.length === 1 ? "" : "s"} omitted)`);
+            lines.push("");
+          } else {
+            lines.push("**Circular dependencies:**");
+            lines.push("");
+            for (let i = 0; i < Math.min(result.cycles.sccs.length, 3); i++) {
+              const scc = result.cycles.sccs[i];
+              const files = scc.map((f) => `\`${this.relativePath(f)}\``).join(" → ");
+              const inFixtures = scc.every((f) => isTestFixture(f));
+              const isTypeOnly = typeOnlyIndices.has(i);
+
+              let annotation = "";
+              if (inFixtures) {
+                annotation = " *(test fixture — likely intentional)*";
+              } else if (isTypeOnly) {
+                annotation = " *(type-only — no runtime impact)*";
+              }
+              lines.push(`- ${files}${annotation}`);
             }
-            lines.push(`- ${files}${annotation}`);
+            lines.push("");
           }
-          lines.push("");
         }
       }
     }
@@ -374,7 +393,6 @@ export class ReportGenerator {
       lines.push("");
       lines.push("## Top Duplicate Blocks");
       lines.push("");
-      const minTokens = options.minTokens ?? 100;
       const totalLines = result.duplication.totalLines;
       const duplicatedLines = result.duplication.duplicatedLines;
       const density = (result.duplication.density * 100).toFixed(1);
@@ -382,10 +400,10 @@ export class ReportGenerator {
         `*Density: ${duplicatedLines.toLocaleString()} of ${totalLines.toLocaleString()} lines duplicated (${density}%)*`,
       );
       lines.push("");
-      lines.push(`Largest duplicates worth extracting (minimum ${minTokens} tokens):`);
+      lines.push(`Largest duplicates worth extracting:`);
       lines.push("");
-      lines.push("| Location A | Location B | Tokens | Structure |");
-      lines.push("|------------|------------|--------|-----------|");
+      lines.push("| Location A | Location B | Lines | Structure |");
+      lines.push("|------------|------------|-------|-----------|");
 
       const topBlocks = result.duplication.blocks
         .filter((b) => b.files.length >= 2)
@@ -409,7 +427,8 @@ export class ReportGenerator {
         }
 
         const structure = block.structuralUnit?.label ?? "-";
-        lines.push(`| ${locA} | ${locB} | ${block.tokenCount} | ${structure} |`);
+        const approxLines = block.files[0].endLine - block.files[0].startLine + 1;
+        lines.push(`| ${locA} | ${locB} | ~${approxLines} | ${structure} |`);
       }
       lines.push("");
 
@@ -604,118 +623,6 @@ export class ReportGenerator {
       }
       lines.push("");
     }
-
-    // Metric Reference (collapsible)
-    lines.push("---");
-    lines.push("");
-    lines.push("<details>");
-    lines.push("<summary><strong>📖 Metric Reference</strong></summary>");
-    lines.push("");
-    lines.push("### Score Bands");
-    lines.push("");
-    lines.push("| Score | Status | Meaning |");
-    lines.push("|-------|--------|---------|");
-    lines.push("| 75–100 | 🟢 Healthy | Within acceptable thresholds |");
-    lines.push("| 50–74 | 🟡 Review | Some issues worth addressing |");
-    lines.push("| 0–49 | 🔴 Critical | Significant issues requiring attention |");
-    lines.push("");
-    lines.push("### Category Weights");
-    lines.push("");
-    lines.push("| Category | Weight | Rationale |");
-    lines.push("|----------|--------|-----------|");
-    lines.push("| Complexity | 35% | Primary maintainability driver; complex code is hard to modify safely |");
-    lines.push("| Duplication | 25% | Increases bug surface and maintenance burden |");
-    lines.push("| Coupling | 25% | Affects change propagation and testability |");
-    lines.push("| Cycles | 15% | Less common but severe when present; blocks incremental refactoring |");
-    lines.push("");
-    lines.push("### Scoring Formulas");
-    lines.push("");
-    lines.push("**Complexity Score:** Based on % of functions exceeding thresholds");
-    lines.push("- 0% hotspots → 100, ≤2% → 90, ≤5% → 75, ≤10% → 50, ≤20% → 25, >20% → 0");
-    lines.push("");
-    lines.push("**Duplication Score:** Based on duplication density");
-    lines.push("- ≤2% → 100, ≤5% → 85, ≤10% → 70, ≤15% → 55, ≤20% → 40, ≤30% → 20, >30% → 0");
-    lines.push("");
-    lines.push("**Coupling Score:** Starts at 100, penalized for:");
-    lines.push("- Each hub with >10 connections: -5 points");
-    lines.push("- Each circular dependency: -15 points");
-    lines.push("- Graph density >10%: -10 points");
-    lines.push("");
-    lines.push("**Cycles Score:** Based on cycle count");
-    lines.push("- 0 cycles → 100, 1 cycle → 70, 2-3 cycles → 40, >3 cycles → 0");
-    lines.push("");
-    lines.push("### Complexity Thresholds");
-    lines.push("");
-    lines.push("| Metric | Description | Threshold |");
-    lines.push("|--------|-------------|-----------|");
-    lines.push(
-      `| Cyclomatic (CC) | Independent paths through code. Each \`if\`, \`for\`, \`while\`, \`&&\`, \`\\|\\|\` adds 1. | ≤ ${COMPLEXITY_THRESHOLD_CYCLOMATIC} |`,
-    );
-    lines.push(
-      `| Cognitive | Mental effort to understand. Penalizes nesting and breaks in linear flow. | ≤ ${COMPLEXITY_THRESHOLD_COGNITIVE} |`,
-    );
-    lines.push("");
-    lines.push("*Thresholds based on SonarSource recommendations.*");
-    lines.push("");
-    lines.push("### Coupling & Instability");
-    lines.push("");
-    lines.push("| Metric | Description |");
-    lines.push("|--------|-------------|");
-    lines.push("| Fan-in | Files that import this module (dependents) |");
-    lines.push("| Fan-out | Files this module imports (dependencies) |");
-    lines.push("| Instability | `Fan-out / (Fan-in + Fan-out)` — 0 = stable, 1 = unstable |");
-    lines.push("| Graph Density | `edges / (nodes × (nodes-1))` — <5% sparse, 5-10% moderate, >10% dense |");
-    lines.push("");
-    lines.push("**Instability interpretation:**");
-    lines.push("- **0.0–0.3 (Stable):** Core types, interfaces. Many dependents, few dependencies.");
-    lines.push("- **0.7–1.0 (Unstable):** Entry points, barrel files (`index.ts`). Expected for app code.");
-    lines.push("- **0.3–0.7 (Balanced):** May indicate mixed responsibilities — review for SRP.");
-    lines.push("");
-    lines.push("### Duplication Detection");
-    lines.push("");
-    lines.push("Token-based detection using Rabin-Karp rolling hash with identifier normalization.");
-    lines.push("");
-    lines.push(`- **Minimum tokens:** ${options.minTokens ?? 100} (configurable via \`--min-tokens\`)`);
-    lines.push(`- **Density threshold:** ${DUPLICATION_THRESHOLD_PERCENT}%`);
-    lines.push("- **Block:** A sequence of tokens appearing in 2+ locations");
-    lines.push("");
-    lines.push("### Data Flow Analysis");
-    lines.push("");
-    lines.push("Detects broken data flow patterns:");
-    lines.push("");
-    lines.push("| Pattern | Description |");
-    lines.push("|---------|-------------|");
-    lines.push("| Unused Parameters | Optional/default params that no caller provides |");
-    lines.push("| Ignored Returns | Non-void return values that are discarded |");
-    lines.push("| Unread Writes | Properties written but never read (low confidence) |");
-    lines.push("");
-    lines.push("### Swallowed Error Detection");
-    lines.push("");
-    lines.push("Detects patterns that hide errors from callers, developers, or operators:");
-    lines.push("");
-    lines.push("| Pattern | Description | Confidence |");
-    lines.push("|---------|-------------|------------|");
-    lines.push("| Empty catch | `catch {}` blocks with no error handling | High |");
-    lines.push("| Comment-only catch | Catch blocks with only comments | High |");
-    lines.push("| Empty .catch() | `.catch(() => {})` on promises | High |");
-    lines.push("| Returns success | Catch returning `[]`, `null`, `0`, etc. | Medium |");
-    lines.push("| Log-only catch | Logs error but doesn't rethrow | Medium |");
-    lines.push("| Error param unused | Error variable declared but never used | Medium |");
-    lines.push("| Fire-and-forget | `void asyncOp()` discards rejections | Medium |");
-    lines.push("");
-    lines.push("**Confidence adjustments:**");
-    lines.push("- Lowered in test files, finally blocks, or functions named `try*`/`maybe*`");
-    lines.push("- Lowered when nearby comments contain `intentional`, `expected`, `ignore`");
-    lines.push("");
-    lines.push("### Notes");
-    lines.push("");
-    lines.push("- Cycles in `test/fixtures/` directories are typically intentional test fixtures");
-    lines.push("- High instability on `index.ts` files is expected (barrel/entry point pattern)");
-    lines.push("- Test files are included in analysis; use negation patterns (e.g., `!**/*.test.ts`) to filter");
-    lines.push("- Data flow analysis requires ≥2 call sites for confidence");
-    lines.push("");
-    lines.push("</details>");
-    lines.push("");
 
     return lines.join("\n");
   }
@@ -1020,7 +927,7 @@ export class ReportGenerator {
     if (result.monorepo?.packageLifecycles) {
       const orphanedPackages: string[] = [];
       for (const [pkgName, lifecycle] of result.monorepo.packageLifecycles.entries()) {
-        if (lifecycle.state === "orphaned") {
+        if (lifecycle.state === "orphaned" && !pkgName.toLowerCase().includes("example")) {
           orphanedPackages.push(pkgName);
         }
       }
@@ -1111,8 +1018,8 @@ export class ReportGenerator {
   }
 
   private getInstabilityLabel(instability: number): string {
-    if (instability <= 0.3) return "stable";
-    if (instability >= 0.7) return "unstable";
+    if (instability <= 0.2) return "stable";
+    if (instability >= 0.8) return "unstable";
     return "balanced";
   }
 

@@ -3488,7 +3488,7 @@ var require_typescript = __commonJS({
         isCaseClause: () => isCaseClause2,
         isCaseKeyword: () => isCaseKeyword,
         isCaseOrDefaultClause: () => isCaseOrDefaultClause,
-        isCatchClause: () => isCatchClause,
+        isCatchClause: () => isCatchClause2,
         isCatchClauseVariableDeclaration: () => isCatchClauseVariableDeclaration,
         isCatchClauseVariableDeclarationOrBindingElement: () => isCatchClauseVariableDeclarationOrBindingElement,
         isCheckJsEnabledForFile: () => isCheckJsEnabledForFile,
@@ -3546,7 +3546,7 @@ var require_typescript = __commonJS({
         isDeprecatedDeclaration: () => isDeprecatedDeclaration,
         isDestructuringAssignment: () => isDestructuringAssignment,
         isDiskPathRoot: () => isDiskPathRoot,
-        isDoStatement: () => isDoStatement2,
+        isDoStatement: () => isDoStatement3,
         isDocumentRegistryEntry: () => isDocumentRegistryEntry,
         isDotDotDotToken: () => isDotDotDotToken,
         isDottedName: () => isDottedName,
@@ -3603,10 +3603,10 @@ var require_typescript = __commonJS({
         isFirstDeclarationOfSymbolParameter: () => isFirstDeclarationOfSymbolParameter,
         isFixablePromiseHandler: () => isFixablePromiseHandler,
         isForInOrOfStatement: () => isForInOrOfStatement,
-        isForInStatement: () => isForInStatement2,
+        isForInStatement: () => isForInStatement3,
         isForInitializer: () => isForInitializer,
-        isForOfStatement: () => isForOfStatement2,
-        isForStatement: () => isForStatement2,
+        isForOfStatement: () => isForOfStatement3,
+        isForStatement: () => isForStatement3,
         isFullSourceFile: () => isFullSourceFile,
         isFunctionBlock: () => isFunctionBlock,
         isFunctionBody: () => isFunctionBody,
@@ -3989,7 +3989,7 @@ var require_typescript = __commonJS({
         isSuperKeyword: () => isSuperKeyword,
         isSuperProperty: () => isSuperProperty,
         isSupportedSourceFileName: () => isSupportedSourceFileName,
-        isSwitchStatement: () => isSwitchStatement,
+        isSwitchStatement: () => isSwitchStatement2,
         isSyntaxList: () => isSyntaxList,
         isSyntheticExpression: () => isSyntheticExpression,
         isSyntheticReference: () => isSyntheticReference,
@@ -4024,7 +4024,7 @@ var require_typescript = __commonJS({
         isTraceEnabled: () => isTraceEnabled,
         isTransientSymbol: () => isTransientSymbol,
         isTrivia: () => isTrivia,
-        isTryStatement: () => isTryStatement,
+        isTryStatement: () => isTryStatement2,
         isTupleTypeNode: () => isTupleTypeNode,
         isTypeAlias: () => isTypeAlias,
         isTypeAliasDeclaration: () => isTypeAliasDeclaration2,
@@ -4070,7 +4070,7 @@ var require_typescript = __commonJS({
         isVariableStatement: () => isVariableStatement3,
         isVoidExpression: () => isVoidExpression,
         isWatchSet: () => isWatchSet,
-        isWhileStatement: () => isWhileStatement2,
+        isWhileStatement: () => isWhileStatement3,
         isWhiteSpaceLike: () => isWhiteSpaceLike,
         isWhiteSpaceSingleLine: () => isWhiteSpaceSingleLine,
         isWithStatement: () => isWithStatement,
@@ -25962,7 +25962,7 @@ ${lanes.join("\n")}
             node = parent2;
             continue;
           }
-          if (isExpressionStatement2(parent2) || isVoidExpression(parent2) || isForStatement2(parent2) && (parent2.initializer === node || parent2.incrementor === node)) {
+          if (isExpressionStatement2(parent2) || isVoidExpression(parent2) || isForStatement3(parent2) && (parent2.initializer === node || parent2.incrementor === node)) {
             return true;
           }
           if (isCommaListExpression(parent2)) {
@@ -34792,19 +34792,19 @@ ${lanes.join("\n")}
       function isIfStatement3(node) {
         return node.kind === 246;
       }
-      function isDoStatement2(node) {
+      function isDoStatement3(node) {
         return node.kind === 247;
       }
-      function isWhileStatement2(node) {
+      function isWhileStatement3(node) {
         return node.kind === 248;
       }
-      function isForStatement2(node) {
+      function isForStatement3(node) {
         return node.kind === 249;
       }
-      function isForInStatement2(node) {
+      function isForInStatement3(node) {
         return node.kind === 250;
       }
-      function isForOfStatement2(node) {
+      function isForOfStatement3(node) {
         return node.kind === 251;
       }
       function isContinueStatement(node) {
@@ -34819,7 +34819,7 @@ ${lanes.join("\n")}
       function isWithStatement(node) {
         return node.kind === 255;
       }
-      function isSwitchStatement(node) {
+      function isSwitchStatement2(node) {
         return node.kind === 256;
       }
       function isLabeledStatement(node) {
@@ -34828,7 +34828,7 @@ ${lanes.join("\n")}
       function isThrowStatement(node) {
         return node.kind === 258;
       }
-      function isTryStatement(node) {
+      function isTryStatement2(node) {
         return node.kind === 259;
       }
       function isDebuggerStatement(node) {
@@ -34975,7 +34975,7 @@ ${lanes.join("\n")}
       function isHeritageClause(node) {
         return node.kind === 299;
       }
-      function isCatchClause(node) {
+      function isCatchClause2(node) {
         return node.kind === 300;
       }
       function isPropertyAssignment2(node) {
@@ -83906,7 +83906,7 @@ ${lanes.join("\n")}
         }
         function isParameterOrMutableLocalVariable(symbol) {
           const declaration = symbol.valueDeclaration && getRootDeclaration(symbol.valueDeclaration);
-          return !!declaration && (isParameter(declaration) || isVariableDeclaration2(declaration) && (isCatchClause(declaration.parent) || isMutableLocalVariableDeclaration(declaration)));
+          return !!declaration && (isParameter(declaration) || isVariableDeclaration2(declaration) && (isCatchClause2(declaration.parent) || isMutableLocalVariableDeclaration(declaration)));
         }
         function isMutableLocalVariableDeclaration(declaration) {
           return !!(declaration.parent.flags & 1) && !(getCombinedModifierFlags(declaration) & 32 || declaration.parent.parent.kind === 244 && isGlobalSourceFile(declaration.parent.parent.parent));
@@ -84614,7 +84614,7 @@ ${lanes.join("\n")}
           if (enclosingIterationStatement) {
             if (isCaptured) {
               let capturesBlockScopeBindingInLoopBody = true;
-              if (isForStatement2(container)) {
+              if (isForStatement3(container)) {
                 const varDeclList = getAncestor(
                   symbol.valueDeclaration,
                   262
@@ -84637,7 +84637,7 @@ ${lanes.join("\n")}
                 getNodeLinks(enclosingIterationStatement).flags |= 4096;
               }
             }
-            if (isForStatement2(container)) {
+            if (isForStatement3(container)) {
               const varDeclList = getAncestor(
                 symbol.valueDeclaration,
                 262
@@ -87623,7 +87623,7 @@ ${lanes.join("\n")}
           if (!getContainingClass(privId)) {
             return grammarErrorOnNode(privId, Diagnostics.Private_identifiers_are_not_allowed_outside_class_bodies);
           }
-          if (!isForInStatement2(privId.parent)) {
+          if (!isForInStatement3(privId.parent)) {
             if (!isExpressionNode(privId)) {
               return grammarErrorOnNode(privId, Diagnostics.Private_identifiers_are_only_allowed_in_class_bodies_and_may_only_be_used_as_part_of_a_class_member_declaration_property_access_or_on_the_left_hand_side_of_an_in_expression);
             }
@@ -97535,7 +97535,7 @@ ${lanes.join("\n")}
           const message = allowAsyncIterables ? Diagnostics.Type_0_must_have_a_Symbol_asyncIterator_method_that_returns_an_async_iterator : Diagnostics.Type_0_must_have_a_Symbol_iterator_method_that_returns_an_iterator;
           const suggestAwait = (
             // for (const x of Promise<...>) or [...Promise<...>]
-            !!getAwaitedTypeOfPromise(type) || !allowAsyncIterables && isForOfStatement2(errorNode.parent) && errorNode.parent.expression === errorNode && getGlobalAsyncIterableType(
+            !!getAwaitedTypeOfPromise(type) || !allowAsyncIterables && isForOfStatement3(errorNode.parent) && errorNode.parent.expression === errorNode && getGlobalAsyncIterableType(
               /*reportErrors*/
               false
             ) !== emptyGenericType && isTypeAssignableTo(type, createTypeFromGenericGlobalType(getGlobalAsyncIterableType(
@@ -103350,7 +103350,7 @@ ${lanes.join("\n")}
               }
             }
           }
-          if (isForOfStatement2(forInOrOfStatement) && !(forInOrOfStatement.flags & 65536) && isIdentifier5(forInOrOfStatement.initializer) && forInOrOfStatement.initializer.escapedText === "async") {
+          if (isForOfStatement3(forInOrOfStatement) && !(forInOrOfStatement.flags & 65536) && isIdentifier5(forInOrOfStatement.initializer) && forInOrOfStatement.initializer.escapedText === "async") {
             grammarErrorOnNode(forInOrOfStatement.initializer, Diagnostics.The_left_hand_side_of_a_for_of_statement_may_not_be_async);
             return false;
           }
@@ -103697,7 +103697,7 @@ ${lanes.join("\n")}
           }
           const blockScopeFlags = declarationList.flags & 7;
           if (blockScopeFlags === 4 || blockScopeFlags === 6) {
-            if (isForInStatement2(declarationList.parent)) {
+            if (isForInStatement3(declarationList.parent)) {
               return grammarErrorOnNode(
                 declarationList,
                 blockScopeFlags === 4 ? Diagnostics.The_left_hand_side_of_a_for_in_statement_cannot_be_a_using_declaration : Diagnostics.The_left_hand_side_of_a_for_in_statement_cannot_be_an_await_using_declaration
@@ -105524,7 +105524,7 @@ ${lanes.join("\n")}
           return context.factory.updateTryStatement(
             node,
             Debug.checkDefined(nodeVisitor(node.tryBlock, visitor, isBlock2)),
-            nodeVisitor(node.catchClause, visitor, isCatchClause),
+            nodeVisitor(node.catchClause, visitor, isCatchClause2),
             nodeVisitor(node.finallyBlock, visitor, isBlock2)
           );
         },
@@ -106926,7 +106926,7 @@ ${lanes.join("\n")}
           if (getSuperCallFromStatement(statement)) {
             indices.unshift(i);
             return true;
-          } else if (isTryStatement(statement) && findSuperStatementIndexPathWorker(statement.tryBlock.statements, 0, indices)) {
+          } else if (isTryStatement2(statement) && findSuperStatementIndexPathWorker(statement.tryBlock.statements, 0, indices)) {
             indices.unshift(i);
             return true;
           }
@@ -108712,7 +108712,7 @@ ${lanes.join("\n")}
           const superStatementIndex = superPath[superPathDepth];
           const superStatement = statementsIn[superStatementIndex];
           addRange(statementsOut, visitNodes2(statementsIn, visitor, isStatement2, statementOffset, superStatementIndex - statementOffset));
-          if (isTryStatement(superStatement)) {
+          if (isTryStatement2(superStatement)) {
             const tryBlockStatements = [];
             transformConstructorBodyWorker(
               tryBlockStatements,
@@ -108728,7 +108728,7 @@ ${lanes.join("\n")}
             statementsOut.push(factory2.updateTryStatement(
               superStatement,
               factory2.updateBlock(superStatement.tryBlock, tryBlockStatements),
-              visitNode(superStatement.catchClause, visitor, isCatchClause),
+              visitNode(superStatement.catchClause, visitor, isCatchClause2),
               visitNode(superStatement.finallyBlock, visitor, isBlock2)
             ));
           } else {
@@ -111299,7 +111299,7 @@ ${lanes.join("\n")}
           const superStatement = statementsIn[superStatementIndex];
           addRange(statementsOut, visitNodes2(statementsIn, visitor, isStatement2, statementOffset, superStatementIndex - statementOffset));
           statementOffset = superStatementIndex + 1;
-          if (isTryStatement(superStatement)) {
+          if (isTryStatement2(superStatement)) {
             const tryBlockStatements = [];
             transformConstructorBodyWorker(
               tryBlockStatements,
@@ -111316,7 +111316,7 @@ ${lanes.join("\n")}
             statementsOut.push(factory2.updateTryStatement(
               superStatement,
               factory2.updateBlock(superStatement.tryBlock, tryBlockStatements),
-              visitNode(superStatement.catchClause, visitor, isCatchClause),
+              visitNode(superStatement.catchClause, visitor, isCatchClause2),
               visitNode(superStatement.finallyBlock, visitor, isBlock2)
             ));
           } else {
@@ -113992,7 +113992,7 @@ ${lanes.join("\n")}
           const superStatementIndex = superPath[superPathDepth];
           const superStatement = statementsIn[superStatementIndex];
           addRange(statementsOut, visitNodes2(statementsIn, visitor, isStatement2, statementOffset, superStatementIndex - statementOffset));
-          if (isTryStatement(superStatement)) {
+          if (isTryStatement2(superStatement)) {
             const tryBlockStatements = [];
             transformConstructorBodyWorker(
               tryBlockStatements,
@@ -114008,7 +114008,7 @@ ${lanes.join("\n")}
             statementsOut.push(factory2.updateTryStatement(
               superStatement,
               factory2.updateBlock(superStatement.tryBlock, tryBlockStatements),
-              visitNode(superStatement.catchClause, visitor, isCatchClause),
+              visitNode(superStatement.catchClause, visitor, isCatchClause2),
               visitNode(superStatement.finallyBlock, visitor, isBlock2)
             ));
           } else {
@@ -119443,7 +119443,7 @@ ${lanes.join("\n")}
           return (hierarchyFacts & 8192) !== 0 && node.kind === 254 && !node.expression;
         }
         function isOrMayContainReturnCompletion(node) {
-          return node.transformFlags & 4194304 && (isReturnStatement(node) || isIfStatement3(node) || isWithStatement(node) || isSwitchStatement(node) || isCaseBlock(node) || isCaseClause2(node) || isDefaultClause(node) || isTryStatement(node) || isCatchClause(node) || isLabeledStatement(node) || isIterationStatement(
+          return node.transformFlags & 4194304 && (isReturnStatement(node) || isIfStatement3(node) || isWithStatement(node) || isSwitchStatement2(node) || isCaseBlock(node) || isCaseClause2(node) || isDefaultClause(node) || isTryStatement2(node) || isCatchClause2(node) || isLabeledStatement(node) || isIterationStatement(
             node,
             /*lookInLabeledStatements*/
             false
@@ -121848,13 +121848,13 @@ ${lanes.join("\n")}
           );
         }
         function shouldConvertInitializerOfForStatement(node) {
-          return isForStatement2(node) && !!node.initializer && shouldConvertPartOfIterationStatement(node.initializer);
+          return isForStatement3(node) && !!node.initializer && shouldConvertPartOfIterationStatement(node.initializer);
         }
         function shouldConvertConditionOfForStatement(node) {
-          return isForStatement2(node) && !!node.condition && shouldConvertPartOfIterationStatement(node.condition);
+          return isForStatement3(node) && !!node.condition && shouldConvertPartOfIterationStatement(node.condition);
         }
         function shouldConvertIncrementorOfForStatement(node) {
-          return isForStatement2(node) && !!node.incrementor && shouldConvertPartOfIterationStatement(node.incrementor);
+          return isForStatement3(node) && !!node.incrementor && shouldConvertPartOfIterationStatement(node.incrementor);
         }
         function shouldConvertIterationStatement(node) {
           return shouldConvertBodyOfIterationStatement(node) || shouldConvertInitializerOfForStatement(node);
@@ -121897,7 +121897,7 @@ ${lanes.join("\n")}
               void 0,
               ancestorFacts
             ) : factory2.restoreEnclosingLabel(
-              isForStatement2(node) ? visitEachChildOfForStatement2(node) : visitEachChild(node, visitor, context),
+              isForStatement3(node) ? visitEachChildOfForStatement2(node) : visitEachChild(node, visitor, context),
               outermostLabeledStatement,
               convertedLoopState && resetLabel
             );
@@ -122446,7 +122446,7 @@ ${lanes.join("\n")}
               if (needsOutParam) {
                 flags |= 1;
               }
-              if (isForStatement2(container)) {
+              if (isForStatement3(container)) {
                 if (container.initializer && resolver.isBindingCapturedByNode(container.initializer, decl)) {
                   flags |= 2;
                 }
@@ -152080,7 +152080,7 @@ ${lanes.join("\n")}
           if (node.kind === 130 && isAsExpression(parent2) && isTypeReferenceNode(parent2.type)) {
             return parent2.type.typeName;
           }
-          if (node.kind === 103 && isForInStatement2(parent2) || node.kind === 165 && isForOfStatement2(parent2)) {
+          if (node.kind === 103 && isForInStatement3(parent2) || node.kind === 165 && isForOfStatement3(parent2)) {
             return skipOuterExpressions(parent2.expression);
           }
         }
@@ -155690,13 +155690,13 @@ ${lanes.join("\n")}
             case 85:
             case 98:
               const tryStatement = node.kind === 85 ? node.parent.parent : node.parent;
-              return useParent(tryStatement, isTryStatement, getTryCatchFinallyOccurrences);
+              return useParent(tryStatement, isTryStatement2, getTryCatchFinallyOccurrences);
             case 109:
-              return useParent(node.parent, isSwitchStatement, getSwitchCaseDefaultOccurrences);
+              return useParent(node.parent, isSwitchStatement2, getSwitchCaseDefaultOccurrences);
             case 84:
             case 90: {
               if (isDefaultClause(node.parent) || isCaseClause2(node.parent)) {
-                return useParent(node.parent.parent.parent, isSwitchStatement, getSwitchCaseDefaultOccurrences);
+                return useParent(node.parent.parent.parent, isSwitchStatement2, getSwitchCaseDefaultOccurrences);
               }
               return void 0;
             }
@@ -155751,7 +155751,7 @@ ${lanes.join("\n")}
         function aggregateOwnedThrowStatements(node) {
           if (isThrowStatement(node)) {
             return [node];
-          } else if (isTryStatement(node)) {
+          } else if (isTryStatement2(node)) {
             return concatenate(
               node.catchClause ? aggregateOwnedThrowStatements(node.catchClause) : node.tryBlock && aggregateOwnedThrowStatements(node.tryBlock),
               node.finallyBlock && aggregateOwnedThrowStatements(node.finallyBlock)
@@ -155766,7 +155766,7 @@ ${lanes.join("\n")}
             if (isFunctionBlock(parent2) || parent2.kind === 308) {
               return parent2;
             }
-            if (isTryStatement(parent2) && parent2.tryBlock === child && parent2.catchClause) {
+            if (isTryStatement2(parent2) && parent2.tryBlock === child && parent2.catchClause) {
               return child;
             }
             child = parent2;
@@ -163538,7 +163538,7 @@ ${newComment.split("\n").map((c) => ` * ${c}`).join("\n")}
               prevStatement = statement;
             }
             if (!prevStatement && isCaseClause2(curr)) {
-              Debug.assert(isSwitchStatement(curr.parent.parent), "Grandparent isn't a switch statement");
+              Debug.assert(isSwitchStatement2(curr.parent.parent), "Grandparent isn't a switch statement");
               return curr.parent.parent;
             }
             return Debug.checkDefined(prevStatement, "prevStatement failed to get set");
@@ -164209,7 +164209,7 @@ ${newComment.split("\n").map((c) => ` * ${c}`).join("\n")}
           decl = getDeclarationForBindingElement(decl);
         }
         if (isVariableDeclaration2(decl)) {
-          return (!isSourceFile2(decl.parent.parent.parent) || isCatchClause(decl.parent)) && decl.getSourceFile() === sourceFile;
+          return (!isSourceFile2(decl.parent.parent.parent) || isCatchClause2(decl.parent)) && decl.getSourceFile() === sourceFile;
         } else if (isFunctionDeclaration4(decl)) {
           return !isSourceFile2(decl.parent) && decl.getSourceFile() === sourceFile;
         }
@@ -168148,7 +168148,7 @@ ${newComment.split("\n").map((c) => ` * ${c}`).join("\n")}
         return node.flags & 65536 || !!findAncestor(node, (ancestor) => ancestor.parent && isArrowFunction3(ancestor.parent) && ancestor.parent.body === ancestor || isBlock2(ancestor) && (ancestor.parent.kind === 263 || ancestor.parent.kind === 219 || ancestor.parent.kind === 220 || ancestor.parent.kind === 175));
       }
       function makeChange3(changeTracker, errorCode, sourceFile, checker, insertionSite, fixedDeclarations) {
-        if (isForOfStatement2(insertionSite.parent) && !insertionSite.parent.awaitModifier) {
+        if (isForOfStatement3(insertionSite.parent) && !insertionSite.parent.awaitModifier) {
           const exprType = checker.getTypeAtLocation(insertionSite);
           const asyncIter = checker.getAnyAsyncIterableType();
           if (asyncIter && checker.isTypeAssignableTo(exprType, asyncIter)) {
@@ -185545,7 +185545,7 @@ ${newComment.split("\n").map((c) => ` * ${c}`).join("\n")}
       function getExportNode(parent2, node) {
         const declaration = isVariableDeclaration2(parent2) ? parent2 : isBindingElement(parent2) ? walkUpBindingElementsAndPatterns(parent2) : void 0;
         if (declaration) {
-          return parent2.name !== node ? void 0 : isCatchClause(declaration.parent) ? void 0 : isVariableStatement3(declaration.parent.parent) ? declaration.parent.parent : void 0;
+          return parent2.name !== node ? void 0 : isCatchClause2(declaration.parent) ? void 0 : isVariableStatement3(declaration.parent.parent) ? declaration.parent.parent : void 0;
         } else {
           return parent2;
         }
@@ -186104,7 +186104,7 @@ ${newComment.split("\n").map((c) => ` * ${c}`).join("\n")}
             return !!decl.body;
           case 261:
           case 173:
-            return !!decl.initializer || isCatchClause(decl.parent);
+            return !!decl.initializer || isCatchClause2(decl.parent);
           case 174:
           case 172:
           case 349:
@@ -187652,7 +187652,7 @@ ${newComment.split("\n").map((c) => ` * ${c}`).join("\n")}
             }
           // falls through
           case 84:
-            const switchStatement = findAncestor(node.parent, isSwitchStatement);
+            const switchStatement = findAncestor(node.parent, isSwitchStatement2);
             if (switchStatement) {
               return [createDefinitionInfoFromSwitch(switchStatement, sourceFile)];
             }
@@ -189595,10 +189595,10 @@ ${content}
         if (isIfStatement3(a) && isIfStatement3(b)) {
           return a.expression.getText() === b.expression.getText();
         }
-        if (isWhileStatement2(a) && isWhileStatement2(b)) {
+        if (isWhileStatement3(a) && isWhileStatement3(b)) {
           return a.expression.getText() === b.expression.getText();
         }
-        if (isForStatement2(a) && isForStatement2(b)) {
+        if (isForStatement3(a) && isForStatement3(b)) {
           return ((_a = a.initializer) == null ? void 0 : _a.getText()) === ((_b = b.initializer) == null ? void 0 : _b.getText()) && ((_c = a.incrementor) == null ? void 0 : _c.getText()) === ((_d = b.incrementor) == null ? void 0 : _d.getText()) && ((_e = a.condition) == null ? void 0 : _e.getText()) === ((_f = b.condition) == null ? void 0 : _f.getText());
         }
         if (isForInOrOfStatement(a) && isForInOrOfStatement(b)) {
@@ -199261,7 +199261,7 @@ ${options.prefix}` : "\n" : options.prefix
         isCaseClause: () => isCaseClause2,
         isCaseKeyword: () => isCaseKeyword,
         isCaseOrDefaultClause: () => isCaseOrDefaultClause,
-        isCatchClause: () => isCatchClause,
+        isCatchClause: () => isCatchClause2,
         isCatchClauseVariableDeclaration: () => isCatchClauseVariableDeclaration,
         isCatchClauseVariableDeclarationOrBindingElement: () => isCatchClauseVariableDeclarationOrBindingElement,
         isCheckJsEnabledForFile: () => isCheckJsEnabledForFile,
@@ -199319,7 +199319,7 @@ ${options.prefix}` : "\n" : options.prefix
         isDeprecatedDeclaration: () => isDeprecatedDeclaration,
         isDestructuringAssignment: () => isDestructuringAssignment,
         isDiskPathRoot: () => isDiskPathRoot,
-        isDoStatement: () => isDoStatement2,
+        isDoStatement: () => isDoStatement3,
         isDocumentRegistryEntry: () => isDocumentRegistryEntry,
         isDotDotDotToken: () => isDotDotDotToken,
         isDottedName: () => isDottedName,
@@ -199376,10 +199376,10 @@ ${options.prefix}` : "\n" : options.prefix
         isFirstDeclarationOfSymbolParameter: () => isFirstDeclarationOfSymbolParameter,
         isFixablePromiseHandler: () => isFixablePromiseHandler,
         isForInOrOfStatement: () => isForInOrOfStatement,
-        isForInStatement: () => isForInStatement2,
+        isForInStatement: () => isForInStatement3,
         isForInitializer: () => isForInitializer,
-        isForOfStatement: () => isForOfStatement2,
-        isForStatement: () => isForStatement2,
+        isForOfStatement: () => isForOfStatement3,
+        isForStatement: () => isForStatement3,
         isFullSourceFile: () => isFullSourceFile,
         isFunctionBlock: () => isFunctionBlock,
         isFunctionBody: () => isFunctionBody,
@@ -199762,7 +199762,7 @@ ${options.prefix}` : "\n" : options.prefix
         isSuperKeyword: () => isSuperKeyword,
         isSuperProperty: () => isSuperProperty,
         isSupportedSourceFileName: () => isSupportedSourceFileName,
-        isSwitchStatement: () => isSwitchStatement,
+        isSwitchStatement: () => isSwitchStatement2,
         isSyntaxList: () => isSyntaxList,
         isSyntheticExpression: () => isSyntheticExpression,
         isSyntheticReference: () => isSyntheticReference,
@@ -199797,7 +199797,7 @@ ${options.prefix}` : "\n" : options.prefix
         isTraceEnabled: () => isTraceEnabled,
         isTransientSymbol: () => isTransientSymbol,
         isTrivia: () => isTrivia,
-        isTryStatement: () => isTryStatement,
+        isTryStatement: () => isTryStatement2,
         isTupleTypeNode: () => isTupleTypeNode,
         isTypeAlias: () => isTypeAlias,
         isTypeAliasDeclaration: () => isTypeAliasDeclaration2,
@@ -199843,7 +199843,7 @@ ${options.prefix}` : "\n" : options.prefix
         isVariableStatement: () => isVariableStatement3,
         isVoidExpression: () => isVoidExpression,
         isWatchSet: () => isWatchSet,
-        isWhileStatement: () => isWhileStatement2,
+        isWhileStatement: () => isWhileStatement3,
         isWhiteSpaceLike: () => isWhiteSpaceLike,
         isWhiteSpaceSingleLine: () => isWhiteSpaceSingleLine,
         isWithStatement: () => isWithStatement,
@@ -231722,35 +231722,73 @@ var ComplexityAnalyzer = class {
     return loc.comment / loc.code;
   }
   /**
-   * Gets a code snippet for a function showing the signature and first few lines.
+   * Gets a code snippet for a function showing the signature and the most complex portion.
+   * Shows 12-15 lines to provide meaningful context about why the function is complex.
    */
   getCodeSnippet(fn, sourceFile) {
     const fullText = fn.getText(sourceFile);
     const lines = fullText.split("\n");
-    const snippetLines = [];
-    let braceCount = 0;
-    let foundBody = false;
-    for (let i = 0; i < Math.min(lines.length, 8); i++) {
-      const line = lines[i];
-      snippetLines.push(line);
-      for (const char of line) {
-        if (char === "{") {
-          braceCount++;
-          foundBody = true;
-        } else if (char === "}") {
-          braceCount--;
-        }
-      }
-      if (foundBody && braceCount > 0 && i >= 3) {
-        snippetLines.push("    // ...");
-        break;
-      }
+    if (lines.length <= 15) {
+      return fullText;
     }
-    const snippet = snippetLines.join("\n");
-    if (snippet.length > 300) {
-      return `${snippet.slice(0, 297)}...`;
+    const deepestLocation = this.findDeepestNestingLocation(fn, sourceFile);
+    if (deepestLocation !== null) {
+      const fnStartLine = sourceFile.getLineAndCharacterOfPosition(fn.getStart()).line;
+      const deepestLineInFn = deepestLocation - fnStartLine;
+      const signatureLines = lines.slice(0, 3);
+      const contextStart = Math.max(3, deepestLineInFn - 4);
+      const contextEnd = Math.min(lines.length, deepestLineInFn + 6);
+      const complexLines = lines.slice(contextStart, contextEnd);
+      if (contextStart > 3) {
+        const snippet2 = [...signatureLines, "    // ... (skipping to complex section)", ...complexLines];
+        if (contextEnd < lines.length) {
+          snippet2.push("    // ...");
+        }
+        return this.truncateSnippet(snippet2.join("\n"));
+      }
+      const snippet = lines.slice(0, contextEnd);
+      if (contextEnd < lines.length) {
+        snippet.push("    // ...");
+      }
+      return this.truncateSnippet(snippet.join("\n"));
+    }
+    const snippetLines = lines.slice(0, 12);
+    if (lines.length > 12) {
+      snippetLines.push("    // ...");
+    }
+    return this.truncateSnippet(snippetLines.join("\n"));
+  }
+  /**
+   * Truncates a snippet if it exceeds the maximum length.
+   */
+  truncateSnippet(snippet) {
+    const maxLength = 600;
+    if (snippet.length > maxLength) {
+      return `${snippet.slice(0, maxLength - 3)}...`;
     }
     return snippet;
+  }
+  /**
+   * Finds the line number (0-based from source file start) with the deepest nesting.
+   */
+  findDeepestNestingLocation(fn, sourceFile) {
+    let maxDepth = 0;
+    let deepestLine = null;
+    const visit = (node, depth) => {
+      let newDepth = depth;
+      if (ts.isIfStatement(node) || ts.isSwitchStatement(node) || ts.isForStatement(node) || ts.isForInStatement(node) || ts.isForOfStatement(node) || ts.isWhileStatement(node) || ts.isDoStatement(node) || ts.isTryStatement(node) || ts.isCatchClause(node)) {
+        newDepth = depth + 1;
+        if (newDepth > maxDepth) {
+          maxDepth = newDepth;
+          deepestLine = sourceFile.getLineAndCharacterOfPosition(node.getStart()).line;
+        }
+      }
+      ts.forEachChild(node, (child) => visit(child, newDepth));
+    };
+    if (fn.body) {
+      visit(fn.body, 0);
+    }
+    return deepestLine;
   }
   /**
    * Detects the primary complexity pattern in a function.
@@ -232672,18 +232710,17 @@ var DependencyGraphAnalyzer = class {
       const fanOutFiles = this.graph.forward.get(file) ?? [];
       const fanIn = fanInFiles.length;
       const fanOut = fanOutFiles.length;
-      const totalDegree = fanIn + fanOut;
+      const testFanIn = this.countTestFanIn(fanInFiles);
       hubs.push({
         file,
-        totalDegree,
+        totalDegree: fanIn + fanOut,
         fanIn,
         fanOut,
         betweennessCentrality: betweenness?.get(file),
-        // Include sample of files (up to 5 each) for context
         fanInFiles: fanInFiles.slice(0, 5),
         fanOutFiles: fanOutFiles.slice(0, 5),
-        productionFanIn: this.calculateProductionFanIn(fanInFiles),
-        testFanIn: this.calculateTestFanIn(fanInFiles)
+        productionFanIn: fanIn - testFanIn,
+        testFanIn
       });
     }
     hubs.sort((a, b) => b.totalDegree - a.totalDegree);
@@ -232692,10 +232729,7 @@ var DependencyGraphAnalyzer = class {
   isTestFile(file) {
     return file.includes(".test.") || file.includes(".spec.") || file.includes("__tests__") || file.includes("/test/") || file.includes("/tests/");
   }
-  calculateProductionFanIn(fanInFiles) {
-    return fanInFiles.filter((f) => !this.isTestFile(f)).length;
-  }
-  calculateTestFanIn(fanInFiles) {
+  countTestFanIn(fanInFiles) {
     return fanInFiles.filter((f) => this.isTestFile(f)).length;
   }
   /**
@@ -233181,80 +233215,25 @@ var DuplicationDetector = class {
    */
   classifyNode(node) {
     if (ts4.isFunctionDeclaration(node) || ts4.isFunctionExpression(node) || ts4.isArrowFunction(node)) {
-      const name = this.getFunctionName(node);
-      return {
-        type: "function",
-        label: name || "anonymous function"
-      };
+      return { type: "function", label: this.getFunctionName(node) ?? "anonymous function" };
     }
-    if (ts4.isForStatement(node)) {
-      return {
-        type: "loop-body",
-        label: "for loop"
-      };
-    }
-    if (ts4.isWhileStatement(node)) {
-      return {
-        type: "loop-body",
-        label: "while loop"
-      };
-    }
-    if (ts4.isDoStatement(node)) {
-      return {
-        type: "loop-body",
-        label: "do-while loop"
-      };
-    }
-    if (ts4.isForOfStatement(node) || ts4.isForInStatement(node)) {
-      return {
-        type: "loop-body",
-        label: ts4.isForOfStatement(node) ? "for-of loop" : "for-in loop"
-      };
-    }
-    if (ts4.isCaseClause(node)) {
-      const caseLabel = this.getCaseLabel(node);
-      return {
-        type: "switch-case",
-        label: `case ${caseLabel}`
-      };
-    }
-    if (ts4.isIfStatement(node)) {
-      return {
-        type: "conditional",
-        label: "if statement"
-      };
-    }
-    if (ts4.isConditionalExpression(node)) {
-      return {
-        type: "conditional",
-        label: "conditional expression"
-      };
-    }
-    if (ts4.isBlock(node) || ts4.isSourceFile(node)) {
-      return {
-        type: "block",
-        label: "code block"
-      };
-    }
-    if (ts4.isExpressionStatement(node) || ts4.isVariableStatement(node)) {
-      return {
-        type: "block",
-        label: "statements"
-      };
-    }
-    return {
-      type: "unknown",
-      label: "code fragment"
-    };
+    if (ts4.isForStatement(node)) return { type: "loop-body", label: "for loop" };
+    if (ts4.isWhileStatement(node)) return { type: "loop-body", label: "while loop" };
+    if (ts4.isDoStatement(node)) return { type: "loop-body", label: "do-while loop" };
+    if (ts4.isForOfStatement(node)) return { type: "loop-body", label: "for-of loop" };
+    if (ts4.isForInStatement(node)) return { type: "loop-body", label: "for-in loop" };
+    if (ts4.isCaseClause(node)) return { type: "switch-case", label: `case ${this.getCaseLabel(node)}` };
+    if (ts4.isIfStatement(node)) return { type: "conditional", label: "if statement" };
+    if (ts4.isConditionalExpression(node)) return { type: "conditional", label: "conditional expression" };
+    if (ts4.isBlock(node) || ts4.isSourceFile(node)) return { type: "block", label: "code block" };
+    if (ts4.isExpressionStatement(node) || ts4.isVariableStatement(node)) return { type: "block", label: "statements" };
+    return { type: "unknown", label: "code fragment" };
   }
   /**
    * Extracts the name of a function from its declaration.
    */
   getFunctionName(node) {
-    if (ts4.isFunctionDeclaration(node) && node.name) {
-      return node.name.text;
-    }
-    if (ts4.isFunctionExpression(node) && node.name) {
+    if ((ts4.isFunctionDeclaration(node) || ts4.isFunctionExpression(node)) && node.name) {
       return node.name.text;
     }
     return void 0;
@@ -233788,24 +233767,20 @@ var MonorepoAnalyzer = class {
     return Math.max(0, ...packages.map((pkg) => findDepth(pkg.name)));
   }
   analyzeLifecycles(packages, matrix) {
-    const lifecycles = /* @__PURE__ */ new Map();
     const consumerCounts = /* @__PURE__ */ new Map();
-    for (const pkg of packages) {
-      consumerCounts.set(pkg.name, 0);
-    }
-    for (const [_importerPackage, imports] of matrix.entries()) {
-      for (const [importedPackage] of imports.entries()) {
+    for (const imports of matrix.values()) {
+      for (const importedPackage of imports.keys()) {
         consumerCounts.set(importedPackage, (consumerCounts.get(importedPackage) ?? 0) + 1);
       }
     }
+    const lifecycles = /* @__PURE__ */ new Map();
     for (const pkg of packages) {
       const isPrivate = Boolean(pkg.packageJson.private);
       const consumerCount = consumerCounts.get(pkg.name) ?? 0;
-      const state = isPrivate && consumerCount === 0 ? "orphaned" : "active";
       lifecycles.set(pkg.name, {
         isPrivate,
         consumerCount,
-        state
+        state: isPrivate && consumerCount === 0 ? "orphaned" : "active"
       });
     }
     return lifecycles;
@@ -234576,7 +234551,16 @@ var ReportGenerator = class {
     lines.push("");
     lines.push("*MHF measures the ratio of hidden methods. AHF measures the ratio of hidden attributes.*");
     lines.push("");
-    const poorEncapsulation = metrics.classes.filter((c) => c.mhf < 0.5 || c.ahf < 0.5);
+    const isTestOrFixture = (filePath) => {
+      if (/\/(test|tests|__fixtures__)\//.test(filePath)) {
+        return true;
+      }
+      if (/\.(test|spec)\.tsx?$/.test(filePath)) {
+        return true;
+      }
+      return false;
+    };
+    const poorEncapsulation = metrics.classes.filter((c) => (c.mhf < 0.5 || c.ahf < 0.5) && !isTestOrFixture(c.file));
     if (poorEncapsulation.length > 0) {
       lines.push("**Classes with low encapsulation:**");
       lines.push("");
@@ -234602,8 +234586,8 @@ var ReportGenerator = class {
     lines.push("Files with high churn and complexity are maintenance risks.");
     lines.push("");
     if (metrics.hotspots.length > 0) {
-      lines.push("| File | Commits | Lines \u0394 | Avg/Commit | Complexity | Combined |");
-      lines.push("|------|---------|---------|------------|------------|----------|");
+      lines.push("| File | Commits | Lines \u0394 | Avg/Commit | Complexity |");
+      lines.push("|------|---------|---------|------------|------------|");
       const topHotspots = metrics.hotspots.slice(0, 10);
       for (const hotspot of topHotspots) {
         const relPath = this.relativePath(hotspot.file);
@@ -234613,7 +234597,7 @@ var ReportGenerator = class {
         const avgPerCommit = fileChurn?.avgLinesPerCommit ?? 0;
         const avgLabel = avgPerCommit > 100 ? `${Math.round(avgPerCommit)} (refactor?)` : Math.round(avgPerCommit).toString();
         lines.push(
-          `| ${relPath} | ${commits} | ${linesChanged} | ${avgLabel} | ${hotspot.complexityScore} | ${hotspot.combinedScore.toFixed(2)} |`
+          `| ${relPath} | ${commits} | ${linesChanged} | ${avgLabel} | ${hotspot.complexityScore} |`
         );
       }
       lines.push("");
@@ -234746,13 +234730,8 @@ var ReportGenerator = class {
         lines.push("| Metric | Value | Assessment |");
         lines.push("|--------|-------|------------|");
         lines.push(
-          `| Graph Density | ${(result.coupling.graphDensity * 100).toFixed(2)}% | ${result.coupling.graphDensity < 0.1 ? "Sparse (healthy)" : "Dense (review)"} |`
-        );
-        lines.push(
           `| Circular Dependencies | ${result.cycles.count} | ${result.cycles.count === 0 ? "None \u2713" : result.cycles.count === 1 ? "1 (review below)" : `${result.cycles.count} \u{1F534}`} |`
         );
-        lines.push("");
-        lines.push("*Density measures import relationships across all analyzed files.*");
         lines.push("");
         if (result.coupling.hubs.length > 0) {
           lines.push("**Hub nodes** (files with most connections):");
@@ -234766,8 +234745,9 @@ var ReportGenerator = class {
             const instabilityLabel = this.getInstabilityLabel(instability);
             const barrelNote = isBarrel ? " *(barrel)*" : "";
             const fanInFormatted = this.formatFanIn(hub);
+            const instabilityDisplay = instabilityLabel === "balanced" ? "-" : `${instability.toFixed(2)} (${instabilityLabel})`;
             lines.push(
-              `| ${relPath}${barrelNote} | ${fanInFormatted} | ${hub.fanOut} | ${hub.totalDegree} | ${instability.toFixed(2)} (${instabilityLabel}) |`
+              `| ${relPath}${barrelNote} | ${fanInFormatted} | ${hub.fanOut} | ${hub.totalDegree} | ${instabilityDisplay} |`
             );
           }
           lines.push("");
@@ -234791,22 +234771,28 @@ var ReportGenerator = class {
         if (result.cycles.count > 0 && result.cycles.sccs.length > 0) {
           const isTestFixture = (file) => file.includes("/test/fixtures/") || file.includes("/tests/fixtures/") || file.includes("/__fixtures__/");
           const typeOnlyIndices = new Set(result.cycles.typeOnlySccIndices ?? []);
-          lines.push("**Circular dependencies:**");
-          lines.push("");
-          for (let i = 0; i < Math.min(result.cycles.sccs.length, 3); i++) {
-            const scc = result.cycles.sccs[i];
-            const files = scc.map((f) => `\`${this.relativePath(f)}\``).join(" \u2192 ");
-            const inFixtures = scc.every((f) => isTestFixture(f));
-            const isTypeOnly = typeOnlyIndices.has(i);
-            let annotation = "";
-            if (inFixtures) {
-              annotation = " *(test fixture \u2014 likely intentional)*";
-            } else if (isTypeOnly) {
-              annotation = " *(type-only \u2014 no runtime impact)*";
+          const allTestFixtures = result.cycles.sccs.every((scc) => scc.every((f) => isTestFixture(f)));
+          if (allTestFixtures) {
+            lines.push(`No production cycles (${result.cycles.sccs.length} test fixture cycle${result.cycles.sccs.length === 1 ? "" : "s"} omitted)`);
+            lines.push("");
+          } else {
+            lines.push("**Circular dependencies:**");
+            lines.push("");
+            for (let i = 0; i < Math.min(result.cycles.sccs.length, 3); i++) {
+              const scc = result.cycles.sccs[i];
+              const files = scc.map((f) => `\`${this.relativePath(f)}\``).join(" \u2192 ");
+              const inFixtures = scc.every((f) => isTestFixture(f));
+              const isTypeOnly = typeOnlyIndices.has(i);
+              let annotation = "";
+              if (inFixtures) {
+                annotation = " *(test fixture \u2014 likely intentional)*";
+              } else if (isTypeOnly) {
+                annotation = " *(type-only \u2014 no runtime impact)*";
+              }
+              lines.push(`- ${files}${annotation}`);
             }
-            lines.push(`- ${files}${annotation}`);
+            lines.push("");
           }
-          lines.push("");
         }
       }
     }
@@ -234815,7 +234801,6 @@ var ReportGenerator = class {
       lines.push("");
       lines.push("## Top Duplicate Blocks");
       lines.push("");
-      const minTokens = options.minTokens ?? 100;
       const totalLines = result.duplication.totalLines;
       const duplicatedLines = result.duplication.duplicatedLines;
       const density = (result.duplication.density * 100).toFixed(1);
@@ -234823,10 +234808,10 @@ var ReportGenerator = class {
         `*Density: ${duplicatedLines.toLocaleString()} of ${totalLines.toLocaleString()} lines duplicated (${density}%)*`
       );
       lines.push("");
-      lines.push(`Largest duplicates worth extracting (minimum ${minTokens} tokens):`);
+      lines.push(`Largest duplicates worth extracting:`);
       lines.push("");
-      lines.push("| Location A | Location B | Tokens | Structure |");
-      lines.push("|------------|------------|--------|-----------|");
+      lines.push("| Location A | Location B | Lines | Structure |");
+      lines.push("|------------|------------|-------|-----------|");
       const topBlocks = result.duplication.blocks.filter((b) => b.files.length >= 2).sort((a, b) => b.tokenCount - a.tokenCount).slice(0, 5);
       for (const block of topBlocks) {
         let locA = `${this.relativePath(block.files[0].file)}:${block.files[0].startLine}`;
@@ -234838,7 +234823,8 @@ var ReportGenerator = class {
           locB += " *(orphaned \u2014 consider deletion)*";
         }
         const structure = block.structuralUnit?.label ?? "-";
-        lines.push(`| ${locA} | ${locB} | ${block.tokenCount} | ${structure} |`);
+        const approxLines = block.files[0].endLine - block.files[0].startLine + 1;
+        lines.push(`| ${locA} | ${locB} | ~${approxLines} | ${structure} |`);
       }
       lines.push("");
       const largest = topBlocks[0];
@@ -234999,116 +234985,6 @@ var ReportGenerator = class {
       }
       lines.push("");
     }
-    lines.push("---");
-    lines.push("");
-    lines.push("<details>");
-    lines.push("<summary><strong>\u{1F4D6} Metric Reference</strong></summary>");
-    lines.push("");
-    lines.push("### Score Bands");
-    lines.push("");
-    lines.push("| Score | Status | Meaning |");
-    lines.push("|-------|--------|---------|");
-    lines.push("| 75\u2013100 | \u{1F7E2} Healthy | Within acceptable thresholds |");
-    lines.push("| 50\u201374 | \u{1F7E1} Review | Some issues worth addressing |");
-    lines.push("| 0\u201349 | \u{1F534} Critical | Significant issues requiring attention |");
-    lines.push("");
-    lines.push("### Category Weights");
-    lines.push("");
-    lines.push("| Category | Weight | Rationale |");
-    lines.push("|----------|--------|-----------|");
-    lines.push("| Complexity | 35% | Primary maintainability driver; complex code is hard to modify safely |");
-    lines.push("| Duplication | 25% | Increases bug surface and maintenance burden |");
-    lines.push("| Coupling | 25% | Affects change propagation and testability |");
-    lines.push("| Cycles | 15% | Less common but severe when present; blocks incremental refactoring |");
-    lines.push("");
-    lines.push("### Scoring Formulas");
-    lines.push("");
-    lines.push("**Complexity Score:** Based on % of functions exceeding thresholds");
-    lines.push("- 0% hotspots \u2192 100, \u22642% \u2192 90, \u22645% \u2192 75, \u226410% \u2192 50, \u226420% \u2192 25, >20% \u2192 0");
-    lines.push("");
-    lines.push("**Duplication Score:** Based on duplication density");
-    lines.push("- \u22642% \u2192 100, \u22645% \u2192 85, \u226410% \u2192 70, \u226415% \u2192 55, \u226420% \u2192 40, \u226430% \u2192 20, >30% \u2192 0");
-    lines.push("");
-    lines.push("**Coupling Score:** Starts at 100, penalized for:");
-    lines.push("- Each hub with >10 connections: -5 points");
-    lines.push("- Each circular dependency: -15 points");
-    lines.push("- Graph density >10%: -10 points");
-    lines.push("");
-    lines.push("**Cycles Score:** Based on cycle count");
-    lines.push("- 0 cycles \u2192 100, 1 cycle \u2192 70, 2-3 cycles \u2192 40, >3 cycles \u2192 0");
-    lines.push("");
-    lines.push("### Complexity Thresholds");
-    lines.push("");
-    lines.push("| Metric | Description | Threshold |");
-    lines.push("|--------|-------------|-----------|");
-    lines.push(
-      `| Cyclomatic (CC) | Independent paths through code. Each \`if\`, \`for\`, \`while\`, \`&&\`, \`\\|\\|\` adds 1. | \u2264 ${COMPLEXITY_THRESHOLD_CYCLOMATIC} |`
-    );
-    lines.push(
-      `| Cognitive | Mental effort to understand. Penalizes nesting and breaks in linear flow. | \u2264 ${COMPLEXITY_THRESHOLD_COGNITIVE} |`
-    );
-    lines.push("");
-    lines.push("*Thresholds based on SonarSource recommendations.*");
-    lines.push("");
-    lines.push("### Coupling & Instability");
-    lines.push("");
-    lines.push("| Metric | Description |");
-    lines.push("|--------|-------------|");
-    lines.push("| Fan-in | Files that import this module (dependents) |");
-    lines.push("| Fan-out | Files this module imports (dependencies) |");
-    lines.push("| Instability | `Fan-out / (Fan-in + Fan-out)` \u2014 0 = stable, 1 = unstable |");
-    lines.push("| Graph Density | `edges / (nodes \xD7 (nodes-1))` \u2014 <5% sparse, 5-10% moderate, >10% dense |");
-    lines.push("");
-    lines.push("**Instability interpretation:**");
-    lines.push("- **0.0\u20130.3 (Stable):** Core types, interfaces. Many dependents, few dependencies.");
-    lines.push("- **0.7\u20131.0 (Unstable):** Entry points, barrel files (`index.ts`). Expected for app code.");
-    lines.push("- **0.3\u20130.7 (Balanced):** May indicate mixed responsibilities \u2014 review for SRP.");
-    lines.push("");
-    lines.push("### Duplication Detection");
-    lines.push("");
-    lines.push("Token-based detection using Rabin-Karp rolling hash with identifier normalization.");
-    lines.push("");
-    lines.push(`- **Minimum tokens:** ${options.minTokens ?? 100} (configurable via \`--min-tokens\`)`);
-    lines.push(`- **Density threshold:** ${DUPLICATION_THRESHOLD_PERCENT}%`);
-    lines.push("- **Block:** A sequence of tokens appearing in 2+ locations");
-    lines.push("");
-    lines.push("### Data Flow Analysis");
-    lines.push("");
-    lines.push("Detects broken data flow patterns:");
-    lines.push("");
-    lines.push("| Pattern | Description |");
-    lines.push("|---------|-------------|");
-    lines.push("| Unused Parameters | Optional/default params that no caller provides |");
-    lines.push("| Ignored Returns | Non-void return values that are discarded |");
-    lines.push("| Unread Writes | Properties written but never read (low confidence) |");
-    lines.push("");
-    lines.push("### Swallowed Error Detection");
-    lines.push("");
-    lines.push("Detects patterns that hide errors from callers, developers, or operators:");
-    lines.push("");
-    lines.push("| Pattern | Description | Confidence |");
-    lines.push("|---------|-------------|------------|");
-    lines.push("| Empty catch | `catch {}` blocks with no error handling | High |");
-    lines.push("| Comment-only catch | Catch blocks with only comments | High |");
-    lines.push("| Empty .catch() | `.catch(() => {})` on promises | High |");
-    lines.push("| Returns success | Catch returning `[]`, `null`, `0`, etc. | Medium |");
-    lines.push("| Log-only catch | Logs error but doesn't rethrow | Medium |");
-    lines.push("| Error param unused | Error variable declared but never used | Medium |");
-    lines.push("| Fire-and-forget | `void asyncOp()` discards rejections | Medium |");
-    lines.push("");
-    lines.push("**Confidence adjustments:**");
-    lines.push("- Lowered in test files, finally blocks, or functions named `try*`/`maybe*`");
-    lines.push("- Lowered when nearby comments contain `intentional`, `expected`, `ignore`");
-    lines.push("");
-    lines.push("### Notes");
-    lines.push("");
-    lines.push("- Cycles in `test/fixtures/` directories are typically intentional test fixtures");
-    lines.push("- High instability on `index.ts` files is expected (barrel/entry point pattern)");
-    lines.push("- Test files are included in analysis; use negation patterns (e.g., `!**/*.test.ts`) to filter");
-    lines.push("- Data flow analysis requires \u22652 call sites for confidence");
-    lines.push("");
-    lines.push("</details>");
-    lines.push("");
     return lines.join("\n");
   }
   calculateScores(result) {
@@ -235349,7 +235225,7 @@ var ReportGenerator = class {
     if (result.monorepo?.packageLifecycles) {
       const orphanedPackages = [];
       for (const [pkgName, lifecycle] of result.monorepo.packageLifecycles.entries()) {
-        if (lifecycle.state === "orphaned") {
+        if (lifecycle.state === "orphaned" && !pkgName.toLowerCase().includes("example")) {
           orphanedPackages.push(pkgName);
         }
       }
@@ -235427,8 +235303,8 @@ var ReportGenerator = class {
     return "Critical";
   }
   getInstabilityLabel(instability) {
-    if (instability <= 0.3) return "stable";
-    if (instability >= 0.7) return "unstable";
+    if (instability <= 0.2) return "stable";
+    if (instability >= 0.8) return "unstable";
     return "balanced";
   }
   isBarrelFile(filePath) {
@@ -235436,16 +235312,9 @@ var ReportGenerator = class {
     return basename3 === "index.ts" || basename3 === "index.tsx" || basename3 === "index.js" || basename3 === "index.mjs";
   }
   isInOrphanedPackage(filePath, packageLifecycles, packages) {
-    if (!packageLifecycles || !packages) {
-      return false;
-    }
-    for (const pkg of packages) {
-      if (filePath.startsWith(pkg.dir)) {
-        const lifecycle = packageLifecycles.get(pkg.name);
-        return lifecycle?.state === "orphaned";
-      }
-    }
-    return false;
+    if (!packageLifecycles || !packages) return false;
+    const pkg = packages.find((p) => filePath.startsWith(p.dir));
+    return pkg ? packageLifecycles.get(pkg.name)?.state === "orphaned" : false;
   }
   getSwallowedErrorPatternLabel(pattern) {
     const labels = {
@@ -235471,18 +235340,15 @@ var ReportGenerator = class {
     return labels[pattern] ?? pattern;
   }
   formatFanIn(hub) {
-    if (hub.productionFanIn === void 0 && hub.testFanIn === void 0) {
-      return hub.fanIn.toString();
+    const { fanIn, productionFanIn, testFanIn } = hub;
+    if (productionFanIn === void 0 && testFanIn === void 0) {
+      return fanIn.toString();
     }
-    const prodFanIn = hub.productionFanIn ?? 0;
-    const testFanIn = hub.testFanIn ?? 0;
-    if (prodFanIn === 0 && testFanIn > 0) {
-      return `${hub.fanIn} (all tests)`;
-    }
-    if (prodFanIn > 0 && testFanIn > 0) {
-      return `${prodFanIn} prod / ${testFanIn} test`;
-    }
-    return hub.fanIn.toString();
+    const prod = productionFanIn ?? 0;
+    const test = testFanIn ?? 0;
+    if (prod === 0 && test > 0) return `${fanIn} (all tests)`;
+    if (prod > 0 && test > 0) return `${prod} prod / ${test} test`;
+    return fanIn.toString();
   }
 };
 

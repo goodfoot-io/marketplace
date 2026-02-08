@@ -546,44 +546,105 @@ export class ComplexityAnalyzer {
   }
 
   /**
-   * Gets a code snippet for a function showing the signature and first few lines.
+   * Gets a code snippet for a function showing the signature and the most complex portion.
+   * Shows 12-15 lines to provide meaningful context about why the function is complex.
    */
   private getCodeSnippet(fn: ts.FunctionLikeDeclaration, sourceFile: ts.SourceFile): string {
     const fullText = fn.getText(sourceFile);
     const lines = fullText.split("\n");
 
-    // Show first 5 lines or until we hit the function body
-    const snippetLines: string[] = [];
-    let braceCount = 0;
-    let foundBody = false;
+    // For short functions, show the entire thing
+    if (lines.length <= 15) {
+      return fullText;
+    }
 
-    for (let i = 0; i < Math.min(lines.length, 8); i++) {
-      const line = lines[i];
-      snippetLines.push(line);
+    // Find the deepest nesting location to show the most complex part
+    const deepestLocation = this.findDeepestNestingLocation(fn, sourceFile);
 
-      // Track braces to know when we're in the body
-      for (const char of line) {
-        if (char === "{") {
-          braceCount++;
-          foundBody = true;
-        } else if (char === "}") {
-          braceCount--;
+    if (deepestLocation !== null) {
+      // Show context around the deepest nesting
+      const fnStartLine = sourceFile.getLineAndCharacterOfPosition(fn.getStart()).line;
+      const deepestLineInFn = deepestLocation - fnStartLine;
+
+      // Show 3 lines of signature/context, then skip to the complex part
+      const signatureLines = lines.slice(0, 3);
+      const contextStart = Math.max(3, deepestLineInFn - 4);
+      const contextEnd = Math.min(lines.length, deepestLineInFn + 6);
+      const complexLines = lines.slice(contextStart, contextEnd);
+
+      if (contextStart > 3) {
+        // There's a gap between signature and complex section
+        const snippet = [...signatureLines, "    // ... (skipping to complex section)", ...complexLines];
+        if (contextEnd < lines.length) {
+          snippet.push("    // ...");
+        }
+        return this.truncateSnippet(snippet.join("\n"));
+      }
+
+      // No gap needed, just show from start to complex section
+      const snippet = lines.slice(0, contextEnd);
+      if (contextEnd < lines.length) {
+        snippet.push("    // ...");
+      }
+      return this.truncateSnippet(snippet.join("\n"));
+    }
+
+    // Fallback: show first 12 lines
+    const snippetLines = lines.slice(0, 12);
+    if (lines.length > 12) {
+      snippetLines.push("    // ...");
+    }
+    return this.truncateSnippet(snippetLines.join("\n"));
+  }
+
+  /**
+   * Truncates a snippet if it exceeds the maximum length.
+   */
+  private truncateSnippet(snippet: string): string {
+    const maxLength = 600;
+    if (snippet.length > maxLength) {
+      return `${snippet.slice(0, maxLength - 3)}...`;
+    }
+    return snippet;
+  }
+
+  /**
+   * Finds the line number (0-based from source file start) with the deepest nesting.
+   */
+  private findDeepestNestingLocation(fn: ts.FunctionLikeDeclaration, sourceFile: ts.SourceFile): number | null {
+    let maxDepth = 0;
+    let deepestLine: number | null = null;
+
+    const visit = (node: ts.Node, depth: number): void => {
+      let newDepth = depth;
+
+      // These constructs increase nesting depth
+      if (
+        ts.isIfStatement(node) ||
+        ts.isSwitchStatement(node) ||
+        ts.isForStatement(node) ||
+        ts.isForInStatement(node) ||
+        ts.isForOfStatement(node) ||
+        ts.isWhileStatement(node) ||
+        ts.isDoStatement(node) ||
+        ts.isTryStatement(node) ||
+        ts.isCatchClause(node)
+      ) {
+        newDepth = depth + 1;
+        if (newDepth > maxDepth) {
+          maxDepth = newDepth;
+          deepestLine = sourceFile.getLineAndCharacterOfPosition(node.getStart()).line;
         }
       }
 
-      // Stop after showing a bit of the body
-      if (foundBody && braceCount > 0 && i >= 3) {
-        snippetLines.push("    // ...");
-        break;
-      }
+      ts.forEachChild(node, (child) => visit(child, newDepth));
+    };
+
+    if (fn.body) {
+      visit(fn.body, 0);
     }
 
-    const snippet = snippetLines.join("\n");
-    // Truncate if still too long
-    if (snippet.length > 300) {
-      return `${snippet.slice(0, 297)}...`;
-    }
-    return snippet;
+    return deepestLine;
   }
 
   /**

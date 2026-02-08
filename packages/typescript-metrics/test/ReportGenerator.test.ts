@@ -141,7 +141,7 @@ describe("ReportGenerator - Structural Labels in Duplication Report", () => {
     const report = generator.generate(result, baseOptions);
 
     // Header should include Structure column
-    expect(report).toContain("| Location A | Location B | Tokens | Structure |");
+    expect(report).toContain("| Location A | Location B | Lines | Structure |");
   });
 
   it("should show structural label for classified blocks", () => {
@@ -181,8 +181,8 @@ describe("ReportGenerator - Structural Labels in Duplication Report", () => {
     const report = generator.generate(result, baseOptions);
 
     // Should show "-" for blocks without structural classification
-    // The table row should end with "| - |"
-    expect(report).toMatch(/\|\s*150\s*\|\s*-\s*\|/);
+    // The table row should end with "| - |" (with ~11 lines from endLine 20 - startLine 10 + 1)
+    expect(report).toMatch(/\|\s*~11\s*\|\s*-\s*\|/);
   });
 
   it("should handle multiple blocks with mixed classification", () => {
@@ -216,7 +216,7 @@ describe("ReportGenerator - Structural Labels in Duplication Report", () => {
 
     // Should show both the label and the dash
     expect(report).toContain("data processing loop");
-    expect(report).toMatch(/\|\s*150\s*\|\s*-\s*\|/);
+    expect(report).toMatch(/\|\s*~11\s*\|\s*-\s*\|/);
   });
 });
 
