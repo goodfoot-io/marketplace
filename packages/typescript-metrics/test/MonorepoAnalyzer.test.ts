@@ -142,17 +142,20 @@ describe("MonorepoAnalyzer", () => {
       expect(pkgA?.state).toBe("active");
     });
 
-    it("should not mark private package with consumers as orphaned", async () => {
+    it("should classify packages correctly based on privacy and consumers", async () => {
       const analyzer = new MonorepoAnalyzer({ rootDir: fixtureRoot });
       const packages = await analyzer.discoverPackages();
       const matrix = analyzer.buildCrossBoundaryMatrix(packages);
 
       const lifecycles = analyzer.analyzeLifecycles(packages, matrix);
 
-      // Find a private package with consumers (we'll need to verify this exists in fixtures)
-      // For now, check that having consumers prevents orphaned state
+      // Verify the invariant: orphaned requires both private=true AND consumerCount=0
       for (const [_pkgName, lifecycle] of lifecycles.entries()) {
-        if (lifecycle.isPrivate && lifecycle.consumerCount > 0) {
+        if (lifecycle.state === "orphaned") {
+          expect(lifecycle.isPrivate).toBe(true);
+          expect(lifecycle.consumerCount).toBe(0);
+        }
+        if (!lifecycle.isPrivate || lifecycle.consumerCount > 0) {
           expect(lifecycle.state).toBe("active");
         }
       }

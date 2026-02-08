@@ -8,6 +8,8 @@ import type {
   EncapsulationMetrics,
   HubNode,
   MetricsResult,
+  PackageLifecycle,
+  WorkspacePackage,
 } from "../types.js";
 
 // Thresholds
@@ -1121,22 +1123,13 @@ export class ReportGenerator {
 
   private isInOrphanedPackage(
     filePath: string,
-    packageLifecycles?: Map<string, import("../types.js").PackageLifecycle>,
-    packages?: import("../types.js").WorkspacePackage[],
+    packageLifecycles?: Map<string, PackageLifecycle>,
+    packages?: WorkspacePackage[],
   ): boolean {
-    if (!packageLifecycles || !packages) {
-      return false;
-    }
+    if (!packageLifecycles || !packages) return false;
 
-    // Find which package this file belongs to
-    for (const pkg of packages) {
-      if (filePath.startsWith(pkg.dir)) {
-        const lifecycle = packageLifecycles.get(pkg.name);
-        return lifecycle?.state === "orphaned";
-      }
-    }
-
-    return false;
+    const pkg = packages.find((p) => filePath.startsWith(p.dir));
+    return pkg ? packageLifecycles.get(pkg.name)?.state === "orphaned" : false;
   }
 
   private getSwallowedErrorPatternLabel(pattern: string): string {
@@ -1165,25 +1158,18 @@ export class ReportGenerator {
   }
 
   private formatFanIn(hub: HubNode): string {
+    const { fanIn, productionFanIn, testFanIn } = hub;
+
     // Backward compatibility: if new fields are undefined, just return fanIn
-    if (hub.productionFanIn === undefined && hub.testFanIn === undefined) {
-      return hub.fanIn.toString();
+    if (productionFanIn === undefined && testFanIn === undefined) {
+      return fanIn.toString();
     }
 
-    const prodFanIn = hub.productionFanIn ?? 0;
-    const testFanIn = hub.testFanIn ?? 0;
+    const prod = productionFanIn ?? 0;
+    const test = testFanIn ?? 0;
 
-    // All test dependencies
-    if (prodFanIn === 0 && testFanIn > 0) {
-      return `${hub.fanIn} (all tests)`;
-    }
-
-    // Mixed production and test
-    if (prodFanIn > 0 && testFanIn > 0) {
-      return `${prodFanIn} prod / ${testFanIn} test`;
-    }
-
-    // All production (or no dependencies at all)
-    return hub.fanIn.toString();
+    if (prod === 0 && test > 0) return `${fanIn} (all tests)`;
+    if (prod > 0 && test > 0) return `${prod} prod / ${test} test`;
+    return fanIn.toString();
   }
 }

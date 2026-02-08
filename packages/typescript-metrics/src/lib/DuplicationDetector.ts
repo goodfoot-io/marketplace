@@ -349,103 +349,37 @@ export class DuplicationDetector {
    * Classifies a TypeScript AST node and returns its structural type and label.
    */
   private classifyNode(node: ts.Node): { type: StructuralUnitType; label: string } | undefined {
-    // Function declarations
+    // Functions
     if (ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node)) {
-      const name = this.getFunctionName(node);
-      return {
-        type: "function",
-        label: name || "anonymous function",
-      };
+      return { type: "function", label: this.getFunctionName(node) ?? "anonymous function" };
     }
 
-    // For loops
-    if (ts.isForStatement(node)) {
-      return {
-        type: "loop-body",
-        label: "for loop",
-      };
-    }
+    // Loops
+    if (ts.isForStatement(node)) return { type: "loop-body", label: "for loop" };
+    if (ts.isWhileStatement(node)) return { type: "loop-body", label: "while loop" };
+    if (ts.isDoStatement(node)) return { type: "loop-body", label: "do-while loop" };
+    if (ts.isForOfStatement(node)) return { type: "loop-body", label: "for-of loop" };
+    if (ts.isForInStatement(node)) return { type: "loop-body", label: "for-in loop" };
 
-    // While loops
-    if (ts.isWhileStatement(node)) {
-      return {
-        type: "loop-body",
-        label: "while loop",
-      };
-    }
+    // Switch cases
+    if (ts.isCaseClause(node)) return { type: "switch-case", label: `case ${this.getCaseLabel(node)}` };
 
-    // Do-while loops
-    if (ts.isDoStatement(node)) {
-      return {
-        type: "loop-body",
-        label: "do-while loop",
-      };
-    }
+    // Conditionals
+    if (ts.isIfStatement(node)) return { type: "conditional", label: "if statement" };
+    if (ts.isConditionalExpression(node)) return { type: "conditional", label: "conditional expression" };
 
-    // For-of and for-in loops
-    if (ts.isForOfStatement(node) || ts.isForInStatement(node)) {
-      return {
-        type: "loop-body",
-        label: ts.isForOfStatement(node) ? "for-of loop" : "for-in loop",
-      };
-    }
+    // Blocks and statements
+    if (ts.isBlock(node) || ts.isSourceFile(node)) return { type: "block", label: "code block" };
+    if (ts.isExpressionStatement(node) || ts.isVariableStatement(node)) return { type: "block", label: "statements" };
 
-    // Switch case clauses
-    if (ts.isCaseClause(node)) {
-      const caseLabel = this.getCaseLabel(node);
-      return {
-        type: "switch-case",
-        label: `case ${caseLabel}`,
-      };
-    }
-
-    // If statements
-    if (ts.isIfStatement(node)) {
-      return {
-        type: "conditional",
-        label: "if statement",
-      };
-    }
-
-    // Conditional expressions (ternary)
-    if (ts.isConditionalExpression(node)) {
-      return {
-        type: "conditional",
-        label: "conditional expression",
-      };
-    }
-
-    // Block statements or multiple statements
-    if (ts.isBlock(node) || ts.isSourceFile(node)) {
-      return {
-        type: "block",
-        label: "code block",
-      };
-    }
-
-    // Expression statements or other top-level code
-    if (ts.isExpressionStatement(node) || ts.isVariableStatement(node)) {
-      return {
-        type: "block",
-        label: "statements",
-      };
-    }
-
-    // Unknown/unclassified
-    return {
-      type: "unknown",
-      label: "code fragment",
-    };
+    return { type: "unknown", label: "code fragment" };
   }
 
   /**
    * Extracts the name of a function from its declaration.
    */
   private getFunctionName(node: ts.FunctionDeclaration | ts.FunctionExpression | ts.ArrowFunction): string | undefined {
-    if (ts.isFunctionDeclaration(node) && node.name) {
-      return node.name.text;
-    }
-    if (ts.isFunctionExpression(node) && node.name) {
+    if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) {
       return node.name.text;
     }
     return undefined;

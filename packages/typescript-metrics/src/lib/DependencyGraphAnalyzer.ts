@@ -259,19 +259,18 @@ export class DependencyGraphAnalyzer {
       const fanOutFiles = this.graph.forward.get(file) ?? [];
       const fanIn = fanInFiles.length;
       const fanOut = fanOutFiles.length;
-      const totalDegree = fanIn + fanOut;
+      const testFanIn = this.countTestFanIn(fanInFiles);
 
       hubs.push({
         file,
-        totalDegree,
+        totalDegree: fanIn + fanOut,
         fanIn,
         fanOut,
         betweennessCentrality: betweenness?.get(file),
-        // Include sample of files (up to 5 each) for context
         fanInFiles: fanInFiles.slice(0, 5),
         fanOutFiles: fanOutFiles.slice(0, 5),
-        productionFanIn: this.calculateProductionFanIn(fanInFiles),
-        testFanIn: this.calculateTestFanIn(fanInFiles),
+        productionFanIn: fanIn - testFanIn,
+        testFanIn,
       });
     }
 
@@ -292,11 +291,7 @@ export class DependencyGraphAnalyzer {
     );
   }
 
-  private calculateProductionFanIn(fanInFiles: string[]): number {
-    return fanInFiles.filter((f) => !this.isTestFile(f)).length;
-  }
-
-  private calculateTestFanIn(fanInFiles: string[]): number {
+  private countTestFanIn(fanInFiles: string[]): number {
     return fanInFiles.filter((f) => this.isTestFile(f)).length;
   }
 

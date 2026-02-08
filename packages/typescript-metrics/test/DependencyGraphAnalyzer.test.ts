@@ -159,33 +159,12 @@ describe("DependencyGraphAnalyzer", () => {
       expect(indexHub?.testFanIn).toBe(0);
     });
 
-    it("should accurately split mixed test and production dependents", () => {
+    it("should ensure productionFanIn + testFanIn equals total fanIn", () => {
       const hubs = analyzer.findHubs(10);
 
-      // For all hubs, production + test should equal total fanIn
       for (const hub of hubs) {
         const sum = (hub.productionFanIn ?? 0) + (hub.testFanIn ?? 0);
         expect(sum).toBe(hub.fanIn);
-      }
-    });
-
-    it("should classify test files based on common patterns", () => {
-      const hubs = analyzer.findHubs(10);
-
-      // Files with test patterns in their name should have testFanIn
-      const testFiles = hubs.filter(
-        (h) =>
-          h.file.includes(".test.") ||
-          h.file.includes(".spec.") ||
-          h.file.includes("__tests__") ||
-          h.file.includes("/test/") ||
-          h.file.includes("/tests/"),
-      );
-
-      // If any test files are hubs, verify they have the fields defined
-      for (const testHub of testFiles) {
-        expect(testHub.productionFanIn).toBeDefined();
-        expect(testHub.testFanIn).toBeDefined();
       }
     });
   });

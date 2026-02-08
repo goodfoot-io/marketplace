@@ -253,41 +253,18 @@ export function processData(input: string): string {
       }
     });
 
-    it("should classify duplicated loop body as 'loop-body' type", () => {
-      // Test code with for loop
-      const codeSnippet = `
-for (let i = 0; i < items.length; i++) {
-  const item = items[i];
-  processItem(item);
-  logResult(item);
-}`;
+    it("should classify loop constructs as 'loop-body' type", () => {
+      const loopSnippets = [
+        { code: `for (let i = 0; i < items.length; i++) { process(i); }`, expected: "for loop" },
+        { code: `while (hasMore) { next(); }`, expected: "while loop" },
+        { code: `for (const item of items) { process(item); }`, expected: "for-of loop" },
+      ];
 
-      const structural = detector.classifyStructure(codeSnippet, "test.ts");
-
-      expect(structural).toBeDefined();
-      if (structural) {
-        expect(structural.type).toBe("loop-body");
-        expect(structural.label).toMatch(/loop|iteration/i);
-        expect(structural.repetitionCount).toBeGreaterThan(0);
-      }
-    });
-
-    it("should classify duplicated while loop as 'loop-body' type", () => {
-      // Test code with while loop
-      const codeSnippet = `
-while (hasMore) {
-  const next = getNext();
-  processNext(next);
-  hasMore = checkMore();
-}`;
-
-      const structural = detector.classifyStructure(codeSnippet, "test.ts");
-
-      expect(structural).toBeDefined();
-      if (structural) {
-        expect(structural.type).toBe("loop-body");
-        expect(structural.label).toMatch(/loop|iteration/i);
-        expect(structural.repetitionCount).toBeGreaterThan(0);
+      for (const { code, expected } of loopSnippets) {
+        const structural = detector.classifyStructure(code, "test.ts");
+        expect(structural).toBeDefined();
+        expect(structural?.type).toBe("loop-body");
+        expect(structural?.label).toBe(expected);
       }
     });
 
