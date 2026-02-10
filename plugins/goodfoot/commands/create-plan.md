@@ -268,7 +268,7 @@ For each component, follow execution paths forward to find:
 2. What must happen AFTER this plan completes for the system to work
 3. State changes or side effects that consumers expect but the plan doesn't address
 
-Report gaps as: file:line - description of missing work</parameter>
+Report gaps in your response message as: file:line - description of missing work. Do not create external files.</parameter>
 </invoke>
 
 <!-- CONSUMER COVERAGE -->
@@ -283,7 +283,7 @@ Trace all call sites and consumers. Identify any consumers that:
 2. Would break or behave incorrectly after the planned changes
 3. Require updates to maintain compatibility
 
-Report missing consumers as: file:line - how this consumer uses the modified component</parameter>
+Report missing consumers in your response message as: file:line - how this consumer uses the modified component. Do not create external files.</parameter>
 </invoke>
 ```
 
