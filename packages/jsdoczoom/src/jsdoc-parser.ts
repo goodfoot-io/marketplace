@@ -43,16 +43,10 @@ export function extractFileJsdoc(sourceText: string): string | null {
 	}
 
 	// The JSDoc block sits in the leading trivia of the first non-import statement.
-	// Use getFullStart() to get the position including leading trivia, then scan
-	// from there to the node's actual start for block comments.
 	const fullStart = firstNonImportStatement.getFullStart();
 	const nodeStart = firstNonImportStatement.getStart(sourceFile);
 
-	// Also check from position 0 if there are no imports at all
-	// (the JSDoc could be at the very start of the file)
-	const searchStart = fullStart;
-
-	return findFirstJsdocBlock(sourceText, searchStart, nodeStart);
+	return findFirstJsdocBlock(sourceText, fullStart, nodeStart);
 }
 
 /**
@@ -80,7 +74,33 @@ function findFirstJsdocBlock(
 }
 
 /**
+ * Find the end position of a block comment starting at `pos` (after the `/*`).
+ */
+function findBlockCommentEnd(sourceText: string, pos: number): number {
+	while (pos < sourceText.length) {
+		if (sourceText[pos] === "*" && sourceText[pos + 1] === "/") {
+			return pos + 2;
+		}
+		pos++;
+	}
+	return pos;
+}
+
+/**
+ * Skip past a line comment starting at `pos` (after the `//`).
+ */
+function findLineCommentEnd(sourceText: string, pos: number): number {
+	while (pos < sourceText.length && sourceText[pos] !== "\n") {
+		pos++;
+	}
+	return pos;
+}
+
+const WHITESPACE = new Set([" ", "\t", "\n", "\r"]);
+
+/**
  * Scan for block comments in the source text between start and end positions.
+ * Stops at the first non-whitespace, non-comment character (code).
  */
 function getAllBlockComments(
 	sourceText: string,
@@ -91,54 +111,26 @@ function getAllBlockComments(
 	let pos = start;
 
 	while (pos < end) {
-		// Skip whitespace
-		if (
-			sourceText[pos] === " " ||
-			sourceText[pos] === "\t" ||
-			sourceText[pos] === "\n" ||
-			sourceText[pos] === "\r"
-		) {
+		if (WHITESPACE.has(sourceText[pos])) {
 			pos++;
 			continue;
 		}
 
-		// Check for block comment
-		if (
-			sourceText[pos] === "/" &&
-			pos + 1 < end &&
-			sourceText[pos + 1] === "*"
-		) {
+		const nextChar = sourceText[pos + 1];
+		if (sourceText[pos] !== "/" || pos + 1 >= end) break;
+
+		if (nextChar === "*") {
 			const commentStart = pos;
-			pos += 2;
-			while (pos < sourceText.length) {
-				if (
-					sourceText[pos] === "*" &&
-					pos + 1 < sourceText.length &&
-					sourceText[pos + 1] === "/"
-				) {
-					pos += 2;
-					break;
-				}
-				pos++;
-			}
+			pos = findBlockCommentEnd(sourceText, pos + 2);
 			results.push({ start: commentStart, end: pos });
 			continue;
 		}
 
-		// Check for line comment
-		if (
-			sourceText[pos] === "/" &&
-			pos + 1 < end &&
-			sourceText[pos + 1] === "/"
-		) {
-			pos += 2;
-			while (pos < sourceText.length && sourceText[pos] !== "\n") {
-				pos++;
-			}
+		if (nextChar === "/") {
+			pos = findLineCommentEnd(sourceText, pos + 2);
 			continue;
 		}
 
-		// Any other character means we've hit code — stop scanning
 		break;
 	}
 
@@ -155,6 +147,15 @@ function getDiagnostics(sourceFile: ts.SourceFile): string[] {
 	).parseDiagnostics;
 	if (!diags || diags.length === 0) return [];
 	return diags.map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n"));
+}
+
+/**
+ * Append non-empty text to an accumulator with space separation.
+ */
+function appendText(existing: string, addition: string): string {
+	if (addition.length === 0) return existing;
+	if (existing.length === 0) return addition;
+	return `${existing} ${addition}`;
 }
 
 /**
@@ -175,61 +176,41 @@ function parseSummaryLevels(jsdocText: string): string[] {
 	let currentContent = "";
 
 	for (const rawLine of lines) {
-		// Strip leading whitespace and optional leading "* " prefix
 		const stripped = rawLine.replace(/^\s*\*?\s?/, "");
-
-		// Check if this line starts a new tag
-		// A tag is @word at the beginning of the stripped line (after * prefix removal)
 		const tagMatch = stripped.match(/^@([a-zA-Z]+)(?:\s|$)/);
 
 		if (tagMatch) {
-			// Flush previous tag/content
-			flushContent();
-
+			// Flush previous @summary tag content
+			if (currentTag === "summary") {
+				const trimmed = currentContent.trim();
+				if (trimmed.length > 0) summaries.push(trimmed);
+			}
 			currentTag = tagMatch[1];
 			currentContent = stripped.slice(tagMatch[0].length);
-		} else {
-			// Continuation line — check for @ in the middle (like user@example.com)
-			// This is NOT a tag start, just append to current content
-			if (currentTag === null) {
-				// We're in free-text region (before first tag)
-				if (freeText.length > 0 && stripped.length > 0) {
-					freeText += ` ${stripped}`;
-				} else if (stripped.length > 0) {
-					freeText += stripped;
-				}
-			} else {
-				// Continue the current tag content
-				if (stripped.length > 0) {
-					currentContent += ` ${stripped}`;
-				}
-			}
+			continue;
+		}
+
+		// Continuation line
+		if (currentTag === null) {
+			freeText = appendText(freeText, stripped);
+		} else if (stripped.length > 0) {
+			currentContent += ` ${stripped}`;
 		}
 	}
 
-	// Flush the last tag
-	flushContent();
-
-	function flushContent(): void {
-		if (currentTag === "summary") {
-			const trimmed = currentContent.trim();
-			if (trimmed.length > 0) {
-				summaries.push(trimmed);
-			}
-		}
-		// Reset for next tag (non-summary tags are simply discarded)
-		currentTag = null;
-		currentContent = "";
+	// Flush final tag
+	if (currentTag === "summary") {
+		const trimmed = currentContent.trim();
+		if (trimmed.length > 0) summaries.push(trimmed);
 	}
 
-	// Build the result: summaries first, then free-text last
-	const levels: string[] = [...summaries];
+	// Build result: summaries first, then free-text last
 	const trimmedFreeText = freeText.trim();
 	if (trimmedFreeText.length > 0) {
-		levels.push(trimmedFreeText);
+		summaries.push(trimmedFreeText);
 	}
 
-	return levels;
+	return summaries;
 }
 
 /**

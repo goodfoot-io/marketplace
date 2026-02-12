@@ -55,6 +55,7 @@ export function getBarrelChildren(barrelPath: string, _cwd: string): string[] {
 				return [];
 			});
 	} catch {
+		// Directory unreadable (permissions, deleted, etc.) — no children discoverable
 		return [];
 	}
 

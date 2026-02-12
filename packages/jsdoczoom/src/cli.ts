@@ -80,6 +80,70 @@ function extractDepthFromArg(selectorArg: string): number | undefined {
 }
 
 /**
+ * Process stdin mode: file paths piped in.
+ */
+function processStdin(
+	stdin: string,
+	selectorArg: string | undefined,
+	validateMode: boolean,
+	pretty: boolean,
+	cwd: string,
+): void {
+	const stdinPaths = parseStdinPaths(stdin, cwd);
+	const depth =
+		selectorArg !== undefined ? extractDepthFromArg(selectorArg) : undefined;
+
+	if (validateMode) {
+		const result = validateFiles(stdinPaths, cwd);
+		writeResult(result, pretty);
+		handleValidationExitCode(result);
+	} else {
+		const result = drilldownFiles(stdinPaths, depth, cwd);
+		writeResult(result, pretty);
+	}
+}
+
+/**
+ * Process selector mode: glob or path argument.
+ */
+function processSelector(
+	selectorArg: string | undefined,
+	validateMode: boolean,
+	pretty: boolean,
+	cwd: string,
+): void {
+	const selector: SelectorInfo = selectorArg
+		? parseSelector(selectorArg)
+		: { type: "glob", pattern: "**/*.{ts,tsx}", depth: undefined };
+
+	if (validateMode) {
+		const result = validate(selector, cwd);
+		writeResult(result, pretty);
+		handleValidationExitCode(result);
+	} else {
+		const result = drilldown(selector, cwd);
+		writeResult(result, pretty);
+	}
+}
+
+/**
+ * Write an error to stderr as JSON and set exit code.
+ */
+function writeError(error: unknown): void {
+	if (error instanceof JsdocError) {
+		process.stderr.write(`${JSON.stringify(error.toJSON())}\n`);
+		process.exitCode = 1;
+		return;
+	}
+
+	const message = error instanceof Error ? error.message : String(error);
+	process.stderr.write(
+		`${JSON.stringify({ error: { code: "INTERNAL_ERROR", message } })}\n`,
+	);
+	process.exitCode = 1;
+}
+
+/**
  * Main CLI entry point. Exported for testability.
  */
 export async function main(args: string[], stdin?: string): Promise<void> {
@@ -92,49 +156,13 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 
 	try {
 		const cwd = process.cwd();
-
 		if (stdin !== undefined) {
-			// Stdin mode: file paths piped in
-			const stdinPaths = parseStdinPaths(stdin, cwd);
-			const depth =
-				selectorArg !== undefined
-					? extractDepthFromArg(selectorArg)
-					: undefined;
-
-			if (validateMode) {
-				const result = validateFiles(stdinPaths, cwd);
-				writeResult(result, pretty);
-				handleValidationExitCode(result);
-			} else {
-				const result = drilldownFiles(stdinPaths, depth, cwd);
-				writeResult(result, pretty);
-			}
+			processStdin(stdin, selectorArg, validateMode, pretty, cwd);
 		} else {
-			// No stdin: use selector argument or default
-			const selector: SelectorInfo = selectorArg
-				? parseSelector(selectorArg)
-				: { type: "glob", pattern: "**/*.{ts,tsx}", depth: undefined };
-
-			if (validateMode) {
-				const result = validate(selector, cwd);
-				writeResult(result, pretty);
-				handleValidationExitCode(result);
-			} else {
-				const result = drilldown(selector, cwd);
-				writeResult(result, pretty);
-			}
+			processSelector(selectorArg, validateMode, pretty, cwd);
 		}
 	} catch (error: unknown) {
-		if (error instanceof JsdocError) {
-			process.stderr.write(`${JSON.stringify(error.toJSON())}\n`);
-			process.exitCode = 1;
-		} else {
-			const message = error instanceof Error ? error.message : String(error);
-			process.stderr.write(
-				`${JSON.stringify({ error: { code: "INTERNAL_ERROR", message } })}\n`,
-			);
-			process.exitCode = 1;
-		}
+		writeError(error);
 	}
 }
 
@@ -183,6 +211,7 @@ function isDirectRun(): boolean {
 			import.meta.url.endsWith("/cli.js")
 		);
 	} catch {
+		// Cannot determine script path — safe to skip auto-invoke
 		return false;
 	}
 }

@@ -63,6 +63,30 @@ function processFile(
 }
 
 /**
+ * Create an OutputErrorItem for a PARSE_ERROR.
+ */
+function makeParseErrorItem(
+	filePath: string,
+	error: JsdocError,
+	cwd: string,
+): OutputErrorItem {
+	const relativePath = relative(cwd, filePath);
+	return {
+		id: relativePath,
+		path: relativePath,
+		more: false as const,
+		error: { code: error.code, message: error.message },
+	};
+}
+
+/**
+ * Check if an error is a PARSE_ERROR JsdocError.
+ */
+function isParseError(error: unknown): error is JsdocError {
+	return error instanceof JsdocError && error.code === "PARSE_ERROR";
+}
+
+/**
  * Process a file safely, returning an OutputErrorItem on PARSE_ERROR.
  * Returns null if the file has no summaries.
  * Rethrows non-PARSE_ERROR exceptions.
@@ -77,16 +101,7 @@ function processFileSafe(
 		if (info.summaryLevels.length === 0) return null;
 		return processFile(filePath, depth, cwd);
 	} catch (error) {
-		if (error instanceof JsdocError && error.code === "PARSE_ERROR") {
-			const relativePath = relative(cwd, filePath);
-			const errorItem: OutputErrorItem = {
-				id: relativePath,
-				path: relativePath,
-				more: false as const,
-				error: { code: error.code, message: error.message },
-			};
-			return errorItem;
-		}
+		if (isParseError(error)) return makeParseErrorItem(filePath, error, cwd);
 		throw error;
 	}
 }
@@ -98,6 +113,91 @@ interface BarrelInfo {
 	path: string;
 	summaryCount: number;
 	children: string[];
+}
+
+/**
+ * Gather barrel info and error entries from a list of barrel file paths.
+ * Returns successfully parsed barrel infos and error entries for unparseable barrels.
+ */
+function gatherBarrelInfos(
+	barrelPaths: string[],
+	cwd: string,
+): { infos: BarrelInfo[]; errors: OutputEntry[] } {
+	const infos: BarrelInfo[] = [];
+	const errors: OutputEntry[] = [];
+
+	for (const barrelPath of barrelPaths) {
+		try {
+			const info = parseFileSummaries(barrelPath);
+			const children = getBarrelChildren(barrelPath, cwd);
+			infos.push({
+				path: barrelPath,
+				summaryCount: info.summaryLevels.length,
+				children,
+			});
+		} catch (error) {
+			if (isParseError(error)) {
+				errors.push(makeParseErrorItem(barrelPath, error, cwd));
+				continue;
+			}
+			throw error;
+		}
+	}
+
+	return { infos, errors };
+}
+
+/**
+ * Build the set of files gated by barrels that have summaries.
+ */
+function buildGatedFileSet(barrelInfos: BarrelInfo[]): Set<string> {
+	const gated = new Set<string>();
+	for (const barrel of barrelInfos) {
+		if (barrel.summaryCount > 0) {
+			for (const child of barrel.children) {
+				gated.add(child);
+			}
+		}
+	}
+	return gated;
+}
+
+/**
+ * Process a single barrel at the given depth.
+ * Returns the barrel's own summary entry if still gating, or its children's entries
+ * if the barrel has transitioned.
+ */
+function processBarrelAtDepth(
+	barrel: BarrelInfo,
+	depth: number,
+	cwd: string,
+): OutputEntry[] {
+	if (barrel.summaryCount === 0) return [];
+
+	if (depth < barrel.summaryCount) {
+		const result = processFileSafe(barrel.path, depth, cwd);
+		return result ? [result] : [];
+	}
+
+	// Barrel transitions: barrel disappears, children appear
+	const childDepth = depth - barrel.summaryCount;
+	return collectSafeResults(barrel.children, childDepth, cwd);
+}
+
+/**
+ * Process a list of files through processFileSafe, collecting non-null results.
+ */
+function collectSafeResults(
+	files: string[],
+	depth: number,
+	cwd: string,
+): OutputEntry[] {
+	const results: OutputEntry[] = [];
+	for (const filePath of files) {
+		const result = processFileSafe(filePath, depth, cwd);
+		if (result) results.push(result);
+	}
+	return results;
 }
 
 /**
@@ -118,120 +218,37 @@ function processGlobWithBarrels(
 	depth: number,
 	cwd: string,
 ): OutputEntry[] {
-	// Separate barrels from non-barrel files
-	const barrels: string[] = [];
-	const nonBarrels: string[] = [];
+	const barrelPaths: string[] = [];
+	const nonBarrelPaths: string[] = [];
 
 	for (const filePath of files) {
 		if (isBarrel(filePath)) {
-			barrels.push(filePath);
+			barrelPaths.push(filePath);
 		} else {
-			nonBarrels.push(filePath);
+			nonBarrelPaths.push(filePath);
 		}
 	}
 
-	// If no barrels, process all files normally (no gating)
-	if (barrels.length === 0) {
-		return processLeafFiles(nonBarrels, depth, cwd);
+	if (barrelPaths.length === 0) {
+		return collectSafeResults(nonBarrelPaths, depth, cwd);
 	}
 
-	// First pass: gather barrel info and build the gated-files set.
-	// A barrel with 0 summaries is not a tree node and does not gate children.
-	const barrelInfos: BarrelInfo[] = [];
-	const barrelErrors: OutputEntry[] = [];
+	const { infos: barrelInfos, errors: barrelErrors } = gatherBarrelInfos(
+		barrelPaths,
+		cwd,
+	);
+	const gatedFiles = buildGatedFileSet(barrelInfos);
 
-	for (const barrelPath of barrels) {
-		let summaryCount: number;
-		try {
-			const info = parseFileSummaries(barrelPath);
-			summaryCount = info.summaryLevels.length;
-		} catch (error) {
-			if (error instanceof JsdocError && error.code === "PARSE_ERROR") {
-				const relativePath = relative(cwd, barrelPath);
-				barrelErrors.push({
-					id: relativePath,
-					path: relativePath,
-					more: false as const,
-					error: { code: error.code, message: error.message },
-				});
-				continue;
-			}
-			throw error;
-		}
-
-		const children = getBarrelChildren(barrelPath, cwd);
-		barrelInfos.push({ path: barrelPath, summaryCount, children });
-	}
-
-	// Build the complete set of gated files (children of barrels with summaries > 0)
-	const gatedFiles = new Set<string>();
-	for (const barrel of barrelInfos) {
-		if (barrel.summaryCount > 0) {
-			for (const child of barrel.children) {
-				gatedFiles.add(child);
-			}
-		}
-	}
-
-	// Second pass: process barrels that are NOT themselves gated by another barrel
 	const results: OutputEntry[] = [...barrelErrors];
 
 	for (const barrel of barrelInfos) {
-		// Skip barrels that are gated by a parent barrel
 		if (gatedFiles.has(barrel.path)) continue;
-
-		if (barrel.summaryCount === 0) {
-			// Barrel with 0 summaries is not a tree node.
-			// Its children appear as regular leaf files (not gated).
-			// The barrel itself is skipped (no summaries to show).
-			continue;
-		}
-
-		if (depth < barrel.summaryCount) {
-			// Show barrel summary at this depth
-			const result = processFileSafe(barrel.path, depth, cwd);
-			if (result) {
-				results.push(result);
-			}
-		} else {
-			// Barrel transitions: barrel disappears, children appear
-			const childDepth = depth - barrel.summaryCount;
-			for (const child of barrel.children) {
-				const result = processFileSafe(child, childDepth, cwd);
-				if (result) {
-					results.push(result);
-				}
-			}
-		}
+		results.push(...processBarrelAtDepth(barrel, depth, cwd));
 	}
 
-	// Process non-barrel files that are NOT gated by any barrel
-	for (const filePath of nonBarrels) {
-		if (gatedFiles.has(filePath)) continue;
-		const result = processFileSafe(filePath, depth, cwd);
-		if (result) {
-			results.push(result);
-		}
-	}
+	const ungatedNonBarrels = nonBarrelPaths.filter((f) => !gatedFiles.has(f));
+	results.push(...collectSafeResults(ungatedNonBarrels, depth, cwd));
 
-	return results;
-}
-
-/**
- * Process a list of files as leaf files (no barrel gating).
- */
-function processLeafFiles(
-	files: string[],
-	depth: number,
-	cwd: string,
-): OutputEntry[] {
-	const results: OutputEntry[] = [];
-	for (const filePath of files) {
-		const result = processFileSafe(filePath, depth, cwd);
-		if (result) {
-			results.push(result);
-		}
-	}
 	return results;
 }
 
@@ -310,27 +327,6 @@ export function drilldownFiles(
 		(f) => f.endsWith(".ts") || f.endsWith(".tsx"),
 	);
 
-	const results: OutputEntry[] = [];
-	for (const filePath of tsFiles) {
-		try {
-			const info = parseFileSummaries(filePath);
-			if (info.summaryLevels.length === 0) continue;
-			results.push(processFile(filePath, d, cwd));
-		} catch (error) {
-			if (error instanceof JsdocError && error.code === "PARSE_ERROR") {
-				const relativePath = relative(cwd, filePath);
-				const errorItem: OutputErrorItem = {
-					id: relativePath,
-					path: relativePath,
-					more: false as const,
-					error: { code: error.code, message: error.message },
-				};
-				results.push(errorItem);
-			} else {
-				throw error;
-			}
-		}
-	}
-
+	const results = collectSafeResults(tsFiles, d, cwd);
 	return results.sort((a, b) => a.path.localeCompare(b.path));
 }
