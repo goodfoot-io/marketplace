@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.21
+- Improved IDE hover tooltips to show expanded type properties for better discoverability
+- Added type guards for MCP tools: `isListMcpResourcesTool`, `isMcpTool`, `isReadMcpResourceTool`
+- Added `isConfigTool` type guard for Config tool inputs
+- Renamed typed hook input types for clarity (`TypedPreToolUseHookInput`, `TypedPostToolUseHookInput`, `TypedPostToolUseFailureHookInput`)
+
 ## 1.0.20
 - Added `teammateIdleHook` and `taskCompletedHook` factory functions for new hook types
 - Added `teammateIdleOutput` and `taskCompletedOutput` output builders
