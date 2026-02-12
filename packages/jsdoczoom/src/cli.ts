@@ -217,7 +217,9 @@ function isDirectRun(): boolean {
 }
 
 if (isDirectRun()) {
-	const stdinText = process.stdin.isTTY ? undefined : await readStdin();
+	// Only read stdin when it's explicitly piped (isTTY === false, not just undefined)
+	const stdinText =
+		process.stdin.isTTY === false ? await readStdin() : undefined;
 	main(process.argv.slice(2), stdinText).catch(() => {
 		// Error already handled in main
 	});
