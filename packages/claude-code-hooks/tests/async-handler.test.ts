@@ -3,9 +3,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { TypedPreToolUseInput } from "../src/hooks.js";
+import type { StopInput, TypedPreToolUseHookInput } from "../src/index.js";
 import { Logger, preToolUseHook, preToolUseOutput, stopHook, stopOutput } from "../src/index.js";
-import type { StopInput } from "../src/types.js";
 
 describe("async handler support", () => {
   // Logger is silent by default (no stdout/stderr output) — no mocking needed
@@ -61,7 +60,7 @@ describe("async handler support", () => {
       });
     });
 
-    const mockInput: TypedPreToolUseInput<"Bash"> = {
+    const mockInput: TypedPreToolUseHookInput<"Bash"> = {
       ...baseInput,
       hook_event_name: "PreToolUse",
       tool_name: "Bash",

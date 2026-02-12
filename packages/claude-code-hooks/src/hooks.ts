@@ -185,46 +185,62 @@ export interface TypedHookConfig<T extends KnownToolName> {
 }
 
 /**
- * PreToolUseInput with typed tool_input for a specific tool.
+ * PreToolUseHookInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
-export type TypedPreToolUseInput<T extends KnownToolName> = Omit<PreToolUseInput, "tool_name" | "tool_input"> & {
+type _TypedPreToolUseHookInputBase<T extends KnownToolName> = Omit<PreToolUseInput, "tool_name" | "tool_input"> & {
   tool_name: T;
   tool_input: ToolInputMap[T];
 };
+// Inlined mapped type forces TypeScript to expand properties in hover tooltips
+export type TypedPreToolUseHookInput<T extends KnownToolName> = {
+  [K in keyof _TypedPreToolUseHookInputBase<T>]: _TypedPreToolUseHookInputBase<T>[K];
+} & {};
 
 /**
- * PostToolUseInput with typed tool_input for a specific tool.
+ * PostToolUseHookInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
-export type TypedPostToolUseInput<T extends KnownToolName> = Omit<PostToolUseInput, "tool_name" | "tool_input"> & {
+type _TypedPostToolUseHookInputBase<T extends KnownToolName> = Omit<PostToolUseInput, "tool_name" | "tool_input"> & {
   tool_name: T;
   tool_input: ToolInputMap[T];
 };
+// Inlined mapped type forces TypeScript to expand properties in hover tooltips
+export type TypedPostToolUseHookInput<T extends KnownToolName> = {
+  [K in keyof _TypedPostToolUseHookInputBase<T>]: _TypedPostToolUseHookInputBase<T>[K];
+} & {};
 
 /**
- * PostToolUseFailureInput with typed tool_input for a specific tool.
+ * PostToolUseFailureHookInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
-export type TypedPostToolUseFailureInput<T extends KnownToolName> = Omit<
+type _TypedPostToolUseFailureHookInputBase<T extends KnownToolName> = Omit<
   PostToolUseFailureInput,
   "tool_name" | "tool_input"
 > & {
   tool_name: T;
   tool_input: ToolInputMap[T];
 };
+// Inlined mapped type forces TypeScript to expand properties in hover tooltips
+export type TypedPostToolUseFailureHookInput<T extends KnownToolName> = {
+  [K in keyof _TypedPostToolUseFailureHookInputBase<T>]: _TypedPostToolUseFailureHookInputBase<T>[K];
+} & {};
 
 /**
  * PermissionRequestInput with typed tool_input for a specific tool.
  * @template T - The known tool name
  */
-export type TypedPermissionRequestInput<T extends KnownToolName> = Omit<
+type _TypedPermissionRequestInputBase<T extends KnownToolName> = Omit<
   PermissionRequestInput,
   "tool_name" | "tool_input"
 > & {
   tool_name: T;
   tool_input: ToolInputMap[T];
 };
+// Inlined mapped type forces TypeScript to expand properties in hover tooltips
+export type TypedPermissionRequestInput<T extends KnownToolName> = {
+  [K in keyof _TypedPermissionRequestInputBase<T>]: _TypedPermissionRequestInputBase<T>[K];
+} & {};
 
 /**
  * Context provided to hook handlers.
@@ -457,8 +473,8 @@ function createHookFunction<TInput, TOutput extends SpecificHookOutput, TContext
  */
 export function preToolUseHook<T extends KnownToolName>(
   config: TypedHookConfig<T>,
-  handler: HookHandler<TypedPreToolUseInput<T>, PreToolUseOutput>,
-): HookFunction<TypedPreToolUseInput<T>, PreToolUseOutput>;
+  handler: HookHandler<TypedPreToolUseHookInput<T>, PreToolUseOutput>,
+): HookFunction<TypedPreToolUseHookInput<T>, PreToolUseOutput>;
 export function preToolUseHook(
   config: HookConfig,
   handler: HookHandler<PreToolUseInput, PreToolUseOutput>,
@@ -510,8 +526,8 @@ export function preToolUseHook(
  */
 export function postToolUseHook<T extends KnownToolName>(
   config: TypedHookConfig<T>,
-  handler: HookHandler<TypedPostToolUseInput<T>, PostToolUseOutput>,
-): HookFunction<TypedPostToolUseInput<T>, PostToolUseOutput>;
+  handler: HookHandler<TypedPostToolUseHookInput<T>, PostToolUseOutput>,
+): HookFunction<TypedPostToolUseHookInput<T>, PostToolUseOutput>;
 export function postToolUseHook(
   config: HookConfig,
   handler: HookHandler<PostToolUseInput, PostToolUseOutput>,
@@ -566,8 +582,8 @@ export function postToolUseHook(
  */
 export function postToolUseFailureHook<T extends KnownToolName>(
   config: TypedHookConfig<T>,
-  handler: HookHandler<TypedPostToolUseFailureInput<T>, PostToolUseFailureOutput>,
-): HookFunction<TypedPostToolUseFailureInput<T>, PostToolUseFailureOutput>;
+  handler: HookHandler<TypedPostToolUseFailureHookInput<T>, PostToolUseFailureOutput>,
+): HookFunction<TypedPostToolUseFailureHookInput<T>, PostToolUseFailureOutput>;
 export function postToolUseFailureHook(
   config: HookConfig,
   handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>,

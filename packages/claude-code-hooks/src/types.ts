@@ -67,6 +67,7 @@ import type {
   AgentInput,
   AskUserQuestionInput,
   BashInput,
+  ConfigInput,
   ExitPlanModeInput,
   FileEditInput,
   FileReadInput,
@@ -74,7 +75,10 @@ import type {
   GlobInput,
   GrepInput,
   TaskStopInput as KillShellInput,
+  ListMcpResourcesInput,
+  McpInput,
   NotebookEditInput,
+  ReadMcpResourceInput,
   TaskOutputInput,
   TodoWriteInput,
   WebFetchInput,
@@ -148,145 +152,93 @@ export interface BaseHookInput extends SDKBaseHookInput {
   permission_mode?: PermissionMode;
 }
 
+// ============================================================================
+// Hook Input Types with Expanded Hover Tooltips
+// ============================================================================
+// These types use inlined mapped types to force TypeScript to expand
+// properties in hover tooltips, improving developer experience.
+
 /**
  * Input for PreToolUse hooks.
- *
- * Fires before any tool is executed, allowing you to:
- * - Inspect and validate tool inputs
- * - Allow, deny, or modify the tool execution
- * - Add custom permission logic
- *
- * This hook uses `tool_name` for matcher matching.
- * @example
- * ```typescript
- * // Block dangerous Bash commands
- * preToolUseHook({ matcher: 'Bash' }, async (input: PreToolUseInput) => {
- *   const command = input.tool_input.command as string;
- *   if (command.includes('rm -rf')) {
- *     return preToolUseOutput({
- *       deny: 'Destructive commands are not allowed'
- *     });
- *   }
- *   return preToolUseOutput({ allow: true });
- * });
- * ```
  * @see https://code.claude.com/docs/en/hooks#pretooluse
  */
-export type PreToolUseInput = SDKPreToolUseHookInput;
+export type PreToolUseInput = { [K in keyof SDKPreToolUseHookInput]: SDKPreToolUseHookInput[K] } & {};
 
 /**
  * Input for PostToolUse hooks.
- *
- * Fires after a tool executes successfully, allowing you to:
- * - Inspect tool results
- * - Add additional context to the conversation
- * - Modify MCP tool output
- *
- * This hook uses `tool_name` for matcher matching.
- * @example
- * ```typescript
- * // Add context after file reads
- * postToolUseHook({ matcher: 'Read' }, async (input: PostToolUseInput) => {
- *   const filePath = input.tool_input.file_path as string;
- *   return postToolUseOutput({
- *     additionalContext: `File ${filePath} was read successfully`
- *   });
- * });
- * ```
  * @see https://code.claude.com/docs/en/hooks#posttooluse
  */
-export type PostToolUseInput = SDKPostToolUseHookInput;
+export type PostToolUseInput = { [K in keyof SDKPostToolUseHookInput]: SDKPostToolUseHookInput[K] } & {};
 
 /**
  * Input for PostToolUseFailure hooks.
- *
- * Fires after a tool execution fails, allowing you to:
- * - Log or report tool failures
- * - Add context about the failure
- * - Take corrective action
- *
- * This hook uses `tool_name` for matcher matching.
- * @example
- * ```typescript
- * // Log tool failures
- * postToolUseFailureHook({ matcher: '.*' }, async (input: PostToolUseFailureInput) => {
- *   console.error(`Tool ${input.tool_name} failed: ${input.error}`);
- *   return postToolUseFailureOutput({
- *     additionalContext: 'Please try an alternative approach'
- *   });
- * });
- * ```
  * @see https://code.claude.com/docs/en/hooks#posttoolusefailure
  */
-export type PostToolUseFailureInput = SDKPostToolUseFailureHookInput;
+export type PostToolUseFailureInput = {
+  [K in keyof SDKPostToolUseFailureHookInput]: SDKPostToolUseFailureHookInput[K];
+} & {};
 
 /**
  * Input for Notification hooks.
- *
- * Fires when Claude Code sends a notification, allowing you to:
- * - Forward notifications to external systems
- * - Log important events
- * - Trigger custom alerting
- *
- * This hook uses `notification_type` for matcher matching.
- * @example
- * ```typescript
- * // Forward notifications to Slack
- * notificationHook({}, async (input: NotificationInput) => {
- *   await sendSlackMessage(input.title, input.message);
- *   return notificationOutput({});
- * });
- * ```
  * @see https://code.claude.com/docs/en/hooks#notification
  */
-export type NotificationInput = SDKNotificationHookInput;
+export type NotificationInput = { [K in keyof SDKNotificationHookInput]: SDKNotificationHookInput[K] } & {};
 
 /**
  * Input for UserPromptSubmit hooks.
- *
- * Fires when a user submits a prompt, allowing you to:
- * - Add additional context or instructions
- * - Log user interactions
- * - Validate or transform prompts
- *
- * This hook does not support matchers; it fires on all prompt submissions.
- * @example
- * ```typescript
- * // Add project context to every prompt
- * userPromptSubmitHook({}, async (input: UserPromptSubmitInput) => {
- *   return userPromptSubmitOutput({
- *     additionalContext: await getProjectContext()
- *   });
- * });
- * ```
  * @see https://code.claude.com/docs/en/hooks#userpromptsubmit
  */
-export type UserPromptSubmitInput = SDKUserPromptSubmitHookInput;
+export type UserPromptSubmitInput = {
+  [K in keyof SDKUserPromptSubmitHookInput]: SDKUserPromptSubmitHookInput[K];
+} & {};
 
 /**
  * Input for SessionStart hooks.
- *
- * Fires when a Claude Code session starts or restarts, allowing you to:
- * - Initialize session state
- * - Inject context or instructions
- * - Set up logging or monitoring
- *
- * This hook uses `source` for matcher matching.
- * @example
- * ```typescript
- * // Initialize context for new sessions
- * sessionStartHook({ matcher: 'startup' }, async (input: SessionStartInput) => {
- *   return sessionStartOutput({
- *     additionalContext: JSON.stringify({
- *       project: 'my-project',
- *       initialized: true
- *     })
- *   });
- * });
- * ```
  * @see https://code.claude.com/docs/en/hooks#sessionstart
  */
-export type SessionStartInput = SDKSessionStartHookInput;
+export type SessionStartInput = { [K in keyof SDKSessionStartHookInput]: SDKSessionStartHookInput[K] } & {};
+
+/**
+ * Input for Stop hooks.
+ * @see https://code.claude.com/docs/en/hooks#stop
+ */
+export type StopInput = { [K in keyof SDKStopHookInput]: SDKStopHookInput[K] } & {};
+
+/**
+ * Input for SubagentStart hooks.
+ * @see https://code.claude.com/docs/en/hooks#subagentstart
+ */
+export type SubagentStartInput = { [K in keyof SDKSubagentStartHookInput]: SDKSubagentStartHookInput[K] } & {};
+
+/**
+ * Input for SubagentStop hooks.
+ * @see https://code.claude.com/docs/en/hooks#subagentstop
+ */
+export type SubagentStopInput = { [K in keyof SDKSubagentStopHookInput]: SDKSubagentStopHookInput[K] } & {};
+
+/**
+ * Input for PreCompact hooks.
+ * @see https://code.claude.com/docs/en/hooks#precompact
+ */
+export type PreCompactInput = { [K in keyof SDKPreCompactHookInput]: SDKPreCompactHookInput[K] } & {};
+
+/**
+ * Input for Setup hooks.
+ * @see https://code.claude.com/docs/en/hooks#setup
+ */
+export type SetupInput = { [K in keyof SDKSetupHookInput]: SDKSetupHookInput[K] } & {};
+
+/**
+ * Input for TeammateIdle hooks.
+ * @see https://code.claude.com/docs/en/hooks#teammateidle
+ */
+export type TeammateIdleInput = { [K in keyof SDKTeammateIdleHookInput]: SDKTeammateIdleHookInput[K] } & {};
+
+/**
+ * Input for TaskCompleted hooks.
+ * @see https://code.claude.com/docs/en/hooks#taskcompleted
+ */
+export type TaskCompletedInput = { [K in keyof SDKTaskCompletedHookInput]: SDKTaskCompletedHookInput[K] } & {};
 
 /**
  * Input for SessionEnd hooks.
@@ -307,7 +259,7 @@ export type SessionStartInput = SDKSessionStartHookInput;
  * ```
  * @see https://code.claude.com/docs/en/hooks#sessionend
  */
-export interface SessionEndInput extends Omit<SDKSessionEndHookInput, "reason"> {
+type _SessionEndInputBase = Omit<SDKSessionEndHookInput, "reason"> & {
   /**
    * The reason the session ended.
    *
@@ -317,102 +269,9 @@ export interface SessionEndInput extends Omit<SDKSessionEndHookInput, "reason"> 
    * - `'other'` - Other reasons
    */
   reason: SessionEndReason;
-}
-
-/**
- * Input for Stop hooks.
- *
- * Fires when Claude Code is about to stop, allowing you to:
- * - Block the stop and require additional action
- * - Confirm the user wants to stop
- * - Clean up resources before stopping
- *
- * This hook does not support matchers; it fires on all stop events.
- * @example
- * ```typescript
- * // Require confirmation before stopping with pending changes
- * stopHook({}, async (input: StopInput) => {
- *   const pendingChanges = await checkPendingChanges();
- *   if (pendingChanges.length > 0) {
- *     return stopOutput({
- *       decision: 'block',
- *       reason: 'There are uncommitted changes'
- *     });
- *   }
- *   return stopOutput({ decision: 'approve' });
- * });
- * ```
- * @see https://code.claude.com/docs/en/hooks#stop
- */
-export type StopInput = SDKStopHookInput;
-
-/**
- * Input for SubagentStart hooks.
- *
- * Fires when a subagent (Task tool) starts, allowing you to:
- * - Inject context for the subagent
- * - Log subagent invocations
- * - Configure subagent behavior
- *
- * This hook uses `agent_type` for matcher matching.
- * @example
- * ```typescript
- * // Add context for explore subagents
- * subagentStartHook({ matcher: 'explore' }, async (input: SubagentStartInput) => {
- *   return subagentStartOutput({
- *     additionalContext: 'Focus on finding patterns and conventions'
- *   });
- * });
- * ```
- * @see https://code.claude.com/docs/en/hooks#subagentstart
- */
-export type SubagentStartInput = SDKSubagentStartHookInput;
-
-/**
- * Input for SubagentStop hooks.
- *
- * Fires when a subagent completes or stops, allowing you to:
- * - Process subagent results
- * - Clean up subagent resources
- * - Log subagent completion
- * - Block subagent from stopping
- *
- * This hook uses `agent_type` for matcher matching.
- * @example
- * ```typescript
- * // Block explore subagent if task incomplete
- * subagentStopHook({ matcher: 'explore' }, async (input: SubagentStopInput) => {
- *   console.log(`Subagent ${input.agent_id} (${input.agent_type}) stopping`);
- *   return subagentStopOutput({
- *     decision: 'block',
- *     reason: 'Please verify all files were explored'
- *   });
- * });
- * ```
- * @see https://code.claude.com/docs/en/hooks#subagentstop
- */
-export type SubagentStopInput = SDKSubagentStopHookInput;
-
-/**
- * Input for PreCompact hooks.
- *
- * Fires before context compaction occurs, allowing you to:
- * - Preserve important information before compaction
- * - Log compaction events
- * - Modify custom instructions for the compacted context
- *
- * This hook uses `trigger` for matcher matching.
- * @example
- * ```typescript
- * // Log compaction events
- * preCompactHook({}, async (input: PreCompactInput) => {
- *   console.log(`Compacting (${input.trigger})`);
- *   return preCompactOutput({});
- * });
- * ```
- * @see https://code.claude.com/docs/en/hooks#precompact
- */
-export type PreCompactInput = SDKPreCompactHookInput;
+};
+// Inlined mapped type forces TypeScript to expand properties in hover tooltips
+export type SessionEndInput = { [K in keyof _SessionEndInputBase]: _SessionEndInputBase[K] } & {};
 
 /**
  * Input for PermissionRequest hooks.
@@ -438,89 +297,21 @@ export type PreCompactInput = SDKPreCompactHookInput;
  * ```
  * @see https://code.claude.com/docs/en/hooks#permissionrequest
  */
-export interface PermissionRequestInput extends SDKPermissionRequestHookInput {
+type _PermissionRequestInputBase = SDKPermissionRequestHookInput & {
   /**
    * Unique identifier for this specific tool invocation.
    */
   tool_use_id: string;
-}
-
-/**
- * Input for TeammateIdle hooks.
- *
- * Fires when a teammate in a team is about to go idle, allowing you to:
- * - Assign work to idle teammates
- * - Log team activity
- * - Coordinate multi-agent workflows
- *
- * This hook does not support matchers; it fires on all teammate idle events.
- * @example
- * ```typescript
- * // Assign work to an idle teammate
- * teammateIdleHook({}, async (input: TeammateIdleInput) => {
- *   console.log(`${input.teammate_name} is idle in team ${input.team_name}`);
- *   return teammateIdleOutput({});
- * });
- * ```
- * @see https://code.claude.com/docs/en/hooks#teammateidle
- */
-export type TeammateIdleInput = SDKTeammateIdleHookInput;
-
-/**
- * Input for TaskCompleted hooks.
- *
- * Fires when a task is being marked as completed, allowing you to:
- * - Verify task completion
- * - Log task metrics
- * - Trigger follow-up actions
- *
- * This hook does not support matchers; it fires on all task completion events.
- * @example
- * ```typescript
- * // Log task completion
- * taskCompletedHook({}, async (input: TaskCompletedInput) => {
- *   console.log(`Task ${input.task_id}: ${input.task_subject} completed`);
- *   return taskCompletedOutput({});
- * });
- * ```
- * @see https://code.claude.com/docs/en/hooks#taskcompleted
- */
-export type TaskCompletedInput = SDKTaskCompletedHookInput;
+};
+// Inlined mapped type forces TypeScript to expand properties in hover tooltips
+export type PermissionRequestInput = {
+  [K in keyof _PermissionRequestInputBase]: _PermissionRequestInputBase[K];
+} & {};
 
 /**
  * Trigger type for Setup hooks.
  */
 export type SetupTrigger = "init" | "maintenance";
-
-/**
- * Input for Setup hooks.
- *
- * Fires during initialization or maintenance, allowing you to:
- * - Configure initial session state
- * - Perform setup tasks before the session starts
- * - Add context for maintenance operations
- *
- * This hook uses `trigger` for matcher matching.
- * @example
- * ```typescript
- * // Log setup events
- * setupHook({}, async (input: SetupInput) => {
- *   console.log(`Setup triggered by: ${input.trigger}`);
- *   return setupOutput({});
- * });
- *
- * // Only handle init triggers
- * setupHook({ matcher: 'init' }, async (input: SetupInput) => {
- *   return setupOutput({
- *     hookSpecificOutput: {
- *       additionalContext: 'Initial setup complete'
- *     }
- *   });
- * });
- * ```
- * @see https://code.claude.com/docs/en/hooks#setup
- */
-export type SetupInput = SDKSetupHookInput;
 
 /**
  * Discriminated union of all hook input types.
@@ -688,7 +479,11 @@ export type KnownToolInput =
   | TodoWriteInput
   | WebFetchInput
   | WebSearchInput
-  | AskUserQuestionInput;
+  | AskUserQuestionInput
+  | ListMcpResourcesInput
+  | McpInput
+  | ReadMcpResourceInput
+  | ConfigInput;
 
 /**
  * Tool names for all known tools with typed inputs.
@@ -709,7 +504,11 @@ export type KnownToolName =
   | "TodoWrite"
   | "WebFetch"
   | "WebSearch"
-  | "AskUserQuestion";
+  | "AskUserQuestion"
+  | "ListMcpResources"
+  | "Mcp"
+  | "ReadMcpResource"
+  | "Config";
 
 /**
  * Type mapping from tool name to tool input type.
@@ -737,4 +536,8 @@ export interface ToolInputMap {
   WebFetch: WebFetchInput;
   WebSearch: WebSearchInput;
   AskUserQuestion: AskUserQuestionInput;
+  ListMcpResources: ListMcpResourcesInput;
+  Mcp: McpInput;
+  ReadMcpResource: ReadMcpResourceInput;
+  Config: ConfigInput;
 }

@@ -220,9 +220,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@anthropic-ai/claude-agent-sdk@npm:^0.2.37":
-  version: 0.2.37
-  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.2.37"
+"@anthropic-ai/claude-agent-sdk@npm:^0.2.39":
+  version: 0.2.39
+  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.2.39"
   dependencies:
     "@img/sharp-darwin-arm64": "npm:^0.33.5"
     "@img/sharp-darwin-x64": "npm:^0.33.5"
@@ -251,7 +251,7 @@ __metadata:
       optional: true
     "@img/sharp-win32-x64":
       optional: true
-  checksum: 10c0/ee02211d0516deaf558678c24fe838a14aedc888735f7a32531b1aa7bc100fcb20077e4ada288a99a1df2c6bdd10cdd8a1bdbe26bbd203224f47a440cd1f55aa
+  checksum: 10c0/5dfcc17d9662b342e2a54bb728c2b1178f2b01bf164710553613be0b96f27d51c484bd80c59a0fd8cda98a067eabe9bd7b8611e8a155c0da31fc427e9e761879
   languageName: node
   linkType: hard
 
@@ -2081,7 +2081,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/claude-code-hooks@workspace:packages/claude-code-hooks"
   dependencies:
-    "@anthropic-ai/claude-agent-sdk": "npm:^0.2.37"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.2.39"
     "@biomejs/biome": "npm:2.3.14"
     "@types/node": "npm:^24"
     esbuild: "npm:^0.24.0"

@@ -8,6 +8,7 @@
  * - forEachContent iteration
  */
 
+import type { PostToolUseHookInput, PreToolUseHookInput } from "@anthropic-ai/claude-agent-sdk";
 import { describe, expect, it } from "vitest";
 import {
   // Content inspection
@@ -16,21 +17,24 @@ import {
   // File path utilities
   getFilePath,
   isBashTool,
+  isConfigTool,
   isEditTool,
   isFileModifyingTool,
   isGlobTool,
   isGrepTool,
   isJsTsFile,
+  isListMcpResourcesTool,
+  isMcpTool,
   isMultiEditTool,
+  isReadMcpResourceTool,
   isReadTool,
   isTsFile,
   // Type guards
   isWriteTool,
 } from "../src/tool-helpers.js";
-import type { PostToolUseInput, PreToolUseInput } from "../src/types.js";
 
 // Helper to create minimal valid inputs
-function createBaseInput(): Omit<PreToolUseInput, "hook_event_name" | "tool_name" | "tool_input" | "tool_use_id"> {
+function createBaseInput(): Omit<PreToolUseHookInput, "hook_event_name" | "tool_name" | "tool_input" | "tool_use_id"> {
   return {
     session_id: "test-session",
     transcript_path: "/path/to/transcript",
@@ -39,7 +43,7 @@ function createBaseInput(): Omit<PreToolUseInput, "hook_event_name" | "tool_name
   };
 }
 
-function createWriteInput(content = "const x = 1;"): PreToolUseInput {
+function createWriteInput(content = "const x = 1;"): PreToolUseHookInput {
   return {
     ...createBaseInput(),
     hook_event_name: "PreToolUse",
@@ -49,7 +53,7 @@ function createWriteInput(content = "const x = 1;"): PreToolUseInput {
   };
 }
 
-function createEditInput(oldString = "const x = 1;", newString = "const x = 2;"): PreToolUseInput {
+function createEditInput(oldString = "const x = 1;", newString = "const x = 2;"): PreToolUseHookInput {
   return {
     ...createBaseInput(),
     hook_event_name: "PreToolUse",
@@ -59,7 +63,9 @@ function createEditInput(oldString = "const x = 1;", newString = "const x = 2;")
   };
 }
 
-function createMultiEditInput(edits = [{ old_string: "const x = 1;", new_string: "const x = 2;" }]): PreToolUseInput {
+function createMultiEditInput(
+  edits = [{ old_string: "const x = 1;", new_string: "const x = 2;" }],
+): PreToolUseHookInput {
   return {
     ...createBaseInput(),
     hook_event_name: "PreToolUse",
@@ -69,7 +75,7 @@ function createMultiEditInput(edits = [{ old_string: "const x = 1;", new_string:
   };
 }
 
-function createReadInput(): PreToolUseInput {
+function createReadInput(): PreToolUseHookInput {
   return {
     ...createBaseInput(),
     hook_event_name: "PreToolUse",
@@ -79,7 +85,7 @@ function createReadInput(): PreToolUseInput {
   };
 }
 
-function createBashInput(): PreToolUseInput {
+function createBashInput(): PreToolUseHookInput {
   return {
     ...createBaseInput(),
     hook_event_name: "PreToolUse",
@@ -89,7 +95,7 @@ function createBashInput(): PreToolUseInput {
   };
 }
 
-function createGlobInput(): PreToolUseInput {
+function createGlobInput(): PreToolUseHookInput {
   return {
     ...createBaseInput(),
     hook_event_name: "PreToolUse",
@@ -99,12 +105,52 @@ function createGlobInput(): PreToolUseInput {
   };
 }
 
-function createGrepInput(): PreToolUseInput {
+function createGrepInput(): PreToolUseHookInput {
   return {
     ...createBaseInput(),
     hook_event_name: "PreToolUse",
     tool_name: "Grep",
     tool_input: { pattern: "function\\s+\\w+", glob: "*.ts" },
+    tool_use_id: "tu_123",
+  };
+}
+
+function createListMcpResourcesInput(): PreToolUseHookInput {
+  return {
+    ...createBaseInput(),
+    hook_event_name: "PreToolUse",
+    tool_name: "ListMcpResources",
+    tool_input: { server: "my-mcp-server" },
+    tool_use_id: "tu_123",
+  };
+}
+
+function createMcpInput(): PreToolUseHookInput {
+  return {
+    ...createBaseInput(),
+    hook_event_name: "PreToolUse",
+    tool_name: "Mcp",
+    tool_input: { some_property: "value" },
+    tool_use_id: "tu_123",
+  };
+}
+
+function createReadMcpResourceInput(): PreToolUseHookInput {
+  return {
+    ...createBaseInput(),
+    hook_event_name: "PreToolUse",
+    tool_name: "ReadMcpResource",
+    tool_input: { server: "my-mcp-server", uri: "resource://example" },
+    tool_use_id: "tu_123",
+  };
+}
+
+function createConfigInput(): PreToolUseHookInput {
+  return {
+    ...createBaseInput(),
+    hook_event_name: "PreToolUse",
+    tool_name: "Config",
+    tool_input: { setting: "theme", value: "dark" },
     tool_use_id: "tu_123",
   };
 }
@@ -254,9 +300,9 @@ describe("Type Guards", () => {
     });
   });
 
-  describe("type guards work with PostToolUseInput", () => {
-    it("works with PostToolUseInput", () => {
-      const input: PostToolUseInput = {
+  describe("type guards work with PostToolUseHookInput", () => {
+    it("works with PostToolUseHookInput", () => {
+      const input: PostToolUseHookInput = {
         ...createBaseInput(),
         hook_event_name: "PostToolUse",
         tool_name: "Write",
@@ -265,6 +311,73 @@ describe("Type Guards", () => {
         tool_response: "File written successfully",
       };
       expect(isWriteTool(input)).toBe(true);
+    });
+  });
+
+  describe("isListMcpResourcesTool", () => {
+    it("returns true for ListMcpResources tool", () => {
+      expect(isListMcpResourcesTool(createListMcpResourcesInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isListMcpResourcesTool(createBashInput())).toBe(false);
+      expect(isListMcpResourcesTool(createMcpInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createListMcpResourcesInput();
+      if (isListMcpResourcesTool(input)) {
+        expect(input.tool_input.server).toBe("my-mcp-server");
+      }
+    });
+  });
+
+  describe("isMcpTool", () => {
+    it("returns true for Mcp tool", () => {
+      expect(isMcpTool(createMcpInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isMcpTool(createBashInput())).toBe(false);
+      expect(isMcpTool(createListMcpResourcesInput())).toBe(false);
+    });
+  });
+
+  describe("isReadMcpResourceTool", () => {
+    it("returns true for ReadMcpResource tool", () => {
+      expect(isReadMcpResourceTool(createReadMcpResourceInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isReadMcpResourceTool(createBashInput())).toBe(false);
+      expect(isReadMcpResourceTool(createListMcpResourcesInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createReadMcpResourceInput();
+      if (isReadMcpResourceTool(input)) {
+        expect(input.tool_input.server).toBe("my-mcp-server");
+        expect(input.tool_input.uri).toBe("resource://example");
+      }
+    });
+  });
+
+  describe("isConfigTool", () => {
+    it("returns true for Config tool", () => {
+      expect(isConfigTool(createConfigInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isConfigTool(createBashInput())).toBe(false);
+      expect(isConfigTool(createWriteInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createConfigInput();
+      if (isConfigTool(input)) {
+        expect(input.tool_input.setting).toBe("theme");
+        expect(input.tool_input.value).toBe("dark");
+      }
     });
   });
 });
@@ -296,7 +409,7 @@ describe("File Path Utilities", () => {
     });
 
     it("returns null if file_path is not a string", () => {
-      const input: PreToolUseInput = {
+      const input: PreToolUseHookInput = {
         ...createBaseInput(),
         hook_event_name: "PreToolUse",
         tool_name: "Write",
@@ -307,7 +420,7 @@ describe("File Path Utilities", () => {
     });
 
     it("returns null if tool_input is null", () => {
-      const input: PreToolUseInput = {
+      const input: PreToolUseHookInput = {
         ...createBaseInput(),
         hook_event_name: "PreToolUse",
         tool_name: "CustomTool",

@@ -33,9 +33,9 @@ export type {
   // Typed hook config and input types for single-tool matchers
   TypedHookConfig,
   TypedPermissionRequestInput,
-  TypedPostToolUseFailureInput,
-  TypedPostToolUseInput,
-  TypedPreToolUseInput,
+  TypedPostToolUseFailureHookInput,
+  TypedPostToolUseHookInput,
+  TypedPreToolUseHookInput,
 } from "./hooks.js";
 // Hook factory functions - all 15 hook types
 export {
@@ -140,6 +140,8 @@ export {
   isAskUserQuestionTool,
   // Type guards - Commands
   isBashTool,
+  // Type guards - Config
+  isConfigTool,
   isEditTool,
   isExitPlanModeTool,
   isFileModifyingTool,
@@ -148,8 +150,12 @@ export {
   isGrepTool,
   isJsTsFile,
   isKillShellTool,
+  // Type guards - MCP
+  isListMcpResourcesTool,
+  isMcpTool,
   isMultiEditTool,
   isNotebookEditTool,
+  isReadMcpResourceTool,
   isReadTool,
   isTaskOutputTool,
   // Type guards - Agents
@@ -166,6 +172,7 @@ export {
 export type {
   // Base type
   BaseHookInput,
+  ConfigInput,
   FileModifyingToolInput,
   FileModifyingToolName,
   // Supporting types
@@ -174,9 +181,12 @@ export type {
   HookInput,
   KnownToolInput,
   KnownToolName,
+  ListMcpResourcesInput,
+  McpInput,
   // Tool input types
   MultiEditEntry,
   MultiEditToolInput,
+  // Hook input types (with expanded hover tooltips)
   NotificationInput,
   PermissionMode,
   PermissionRequestInput,
@@ -185,8 +195,8 @@ export type {
   PostToolUseInput,
   PreCompactInput,
   PreCompactTrigger,
-  // Individual hook input types
   PreToolUseInput,
+  ReadMcpResourceInput,
   SessionEndInput,
   SessionEndReason,
   SessionStartInput,

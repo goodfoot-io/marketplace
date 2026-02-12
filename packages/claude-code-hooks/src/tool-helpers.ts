@@ -39,6 +39,7 @@ import type {
   AgentInput,
   AskUserQuestionInput,
   BashInput,
+  ConfigInput,
   ExitPlanModeInput,
   FileEditInput,
   FileModifyingToolInput,
@@ -48,12 +49,15 @@ import type {
   GlobInput,
   GrepInput,
   KillShellInput,
+  ListMcpResourcesInput,
+  McpInput,
   MultiEditToolInput,
   NotebookEditInput,
   PermissionRequestInput,
-  PostToolUseFailureInput,
-  PostToolUseInput,
-  PreToolUseInput,
+  ReadMcpResourceInput,
+  SDKPostToolUseFailureHookInput,
+  SDKPostToolUseHookInput,
+  SDKPreToolUseHookInput,
   TaskOutputInput,
   TodoWriteInput,
   WebFetchInput,
@@ -67,7 +71,11 @@ import type {
 /**
  * Union of all hook input types that include tool_input.
  */
-export type ToolUseInput = PreToolUseInput | PostToolUseInput | PostToolUseFailureInput | PermissionRequestInput;
+export type ToolUseInput =
+  | SDKPreToolUseHookInput
+  | SDKPostToolUseHookInput
+  | SDKPostToolUseFailureHookInput
+  | PermissionRequestInput;
 
 // ============================================================================
 // Type Guards
@@ -408,6 +416,82 @@ export function isAskUserQuestionTool<T extends ToolUseInput>(
   return input.tool_name === "AskUserQuestion";
 }
 
+/**
+ * Type guard for ListMcpResources tool inputs.
+ *
+ * Narrows the input type to include a typed ListMcpResourcesInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a ListMcpResources tool
+ * @example
+ * ```typescript
+ * if (isListMcpResourcesTool(input)) {
+ *   console.log(input.tool_input.server);
+ * }
+ * ```
+ */
+export function isListMcpResourcesTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "ListMcpResources"; tool_input: ListMcpResourcesInput } {
+  return input.tool_name === "ListMcpResources";
+}
+
+/**
+ * Type guard for Mcp tool inputs.
+ *
+ * Narrows the input type to include a typed McpInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for an Mcp tool
+ * @example
+ * ```typescript
+ * if (isMcpTool(input)) {
+ *   // input.tool_input is now typed as McpInput
+ * }
+ * ```
+ */
+export function isMcpTool<T extends ToolUseInput>(input: T): input is T & { tool_name: "Mcp"; tool_input: McpInput } {
+  return input.tool_name === "Mcp";
+}
+
+/**
+ * Type guard for ReadMcpResource tool inputs.
+ *
+ * Narrows the input type to include a typed ReadMcpResourceInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a ReadMcpResource tool
+ * @example
+ * ```typescript
+ * if (isReadMcpResourceTool(input)) {
+ *   console.log(input.tool_input.server);
+ *   console.log(input.tool_input.uri);
+ * }
+ * ```
+ */
+export function isReadMcpResourceTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "ReadMcpResource"; tool_input: ReadMcpResourceInput } {
+  return input.tool_name === "ReadMcpResource";
+}
+
+/**
+ * Type guard for Config tool inputs.
+ *
+ * Narrows the input type to include a typed ConfigInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a Config tool
+ * @example
+ * ```typescript
+ * if (isConfigTool(input)) {
+ *   console.log(input.tool_input.setting);
+ *   console.log(input.tool_input.value);
+ * }
+ * ```
+ */
+export function isConfigTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "Config"; tool_input: ConfigInput } {
+  return input.tool_name === "Config";
+}
+
 // ============================================================================
 // File Path Utilities
 // ============================================================================
@@ -520,7 +604,7 @@ export interface PatternCheckResult {
  * }
  * ```
  */
-export function checkContentForPattern(input: PreToolUseInput, pattern: RegExp): PatternCheckResult | null {
+export function checkContentForPattern(input: SDKPreToolUseHookInput, pattern: RegExp): PatternCheckResult | null {
   // Ensure pattern has global flag for matchAll
   const globalPattern = pattern.global ? pattern : new RegExp(pattern.source, `${pattern.flags}g`);
 
@@ -625,7 +709,7 @@ export interface ContentContext {
  * });
  * ```
  */
-export function forEachContent(input: PreToolUseInput, callback: (ctx: ContentContext) => boolean): boolean {
+export function forEachContent(input: SDKPreToolUseHookInput, callback: (ctx: ContentContext) => boolean): boolean {
   if (isWriteTool(input)) {
     return callback({
       newContent: input.tool_input.content,

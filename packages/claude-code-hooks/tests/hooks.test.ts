@@ -7,6 +7,18 @@
  * - Handler receives correct context (logger)
  */
 
+import type {
+  NotificationHookInput,
+  PostToolUseFailureHookInput,
+  PostToolUseHookInput,
+  PreCompactHookInput,
+  PreToolUseHookInput,
+  SessionStartHookInput,
+  StopHookInput,
+  SubagentStartHookInput,
+  SubagentStopHookInput,
+  UserPromptSubmitHookInput,
+} from "@anthropic-ai/claude-agent-sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { HookContext, SessionStartContext } from "../src/hooks.js";
 import {
@@ -38,23 +50,10 @@ import {
   subagentStopOutput,
   userPromptSubmitOutput,
 } from "../src/outputs.js";
-import type {
-  NotificationInput,
-  PermissionRequestInput,
-  PostToolUseFailureInput,
-  PostToolUseInput,
-  PreCompactInput,
-  PreToolUseInput,
-  SessionEndInput,
-  SessionStartInput,
-  StopInput,
-  SubagentStartInput,
-  SubagentStopInput,
-  UserPromptSubmitInput,
-} from "../src/types.js";
+import type { PermissionRequestInput, SessionEndInput } from "../src/types.js";
 
 // Helper to create minimal valid inputs for each hook type
-function createPreToolUseInput(): PreToolUseInput {
+function createPreToolUseHookInput(): PreToolUseHookInput {
   return {
     hook_event_name: "PreToolUse",
     session_id: "test-session",
@@ -67,7 +66,7 @@ function createPreToolUseInput(): PreToolUseInput {
   };
 }
 
-function createPostToolUseInput(): PostToolUseInput {
+function createPostToolUseHookInput(): PostToolUseHookInput {
   return {
     hook_event_name: "PostToolUse",
     session_id: "test-session",
@@ -81,7 +80,7 @@ function createPostToolUseInput(): PostToolUseInput {
   };
 }
 
-function createPostToolUseFailureInput(): PostToolUseFailureInput {
+function createPostToolUseFailureHookInput(): PostToolUseFailureHookInput {
   return {
     hook_event_name: "PostToolUseFailure",
     session_id: "test-session",
@@ -96,7 +95,7 @@ function createPostToolUseFailureInput(): PostToolUseFailureInput {
   };
 }
 
-function createNotificationInput(): NotificationInput {
+function createNotificationHookInput(): NotificationHookInput {
   return {
     hook_event_name: "Notification",
     session_id: "test-session",
@@ -108,7 +107,7 @@ function createNotificationInput(): NotificationInput {
   };
 }
 
-function createUserPromptSubmitInput(): UserPromptSubmitInput {
+function createUserPromptSubmitHookInput(): UserPromptSubmitHookInput {
   return {
     hook_event_name: "UserPromptSubmit",
     session_id: "test-session",
@@ -119,7 +118,7 @@ function createUserPromptSubmitInput(): UserPromptSubmitInput {
   };
 }
 
-function createSessionStartInput(): SessionStartInput {
+function createSessionStartHookInput(): SessionStartHookInput {
   return {
     hook_event_name: "SessionStart",
     session_id: "test-session",
@@ -141,7 +140,7 @@ function createSessionEndInput(): SessionEndInput {
   };
 }
 
-function createStopInput(): StopInput {
+function createStopHookInput(): StopHookInput {
   return {
     hook_event_name: "Stop",
     session_id: "test-session",
@@ -152,7 +151,7 @@ function createStopInput(): StopInput {
   };
 }
 
-function createSubagentStartInput(): SubagentStartInput {
+function createSubagentStartHookInput(): SubagentStartHookInput {
   return {
     hook_event_name: "SubagentStart",
     session_id: "test-session",
@@ -164,7 +163,7 @@ function createSubagentStartInput(): SubagentStartInput {
   };
 }
 
-function createSubagentStopInput(): SubagentStopInput {
+function createSubagentStopHookInput(): SubagentStopHookInput {
   return {
     hook_event_name: "SubagentStop",
     session_id: "test-session",
@@ -178,7 +177,7 @@ function createSubagentStopInput(): SubagentStopInput {
   };
 }
 
-function createPreCompactInput(): PreCompactInput {
+function createPreCompactHookInput(): PreCompactHookInput {
   return {
     hook_event_name: "PreCompact",
     session_id: "test-session",
@@ -241,14 +240,14 @@ describe("Hook Factory Functions", () => {
     });
 
     it("handler receives typed input", async () => {
-      let receivedInput: PreToolUseInput | undefined;
+      let receivedInput: PreToolUseHookInput | undefined;
 
       const hook = preToolUseHook({}, (input) => {
         receivedInput = input;
         return preToolUseOutput({});
       });
 
-      const input = createPreToolUseInput();
+      const input = createPreToolUseHookInput();
       await hook(input, { logger: testLogger });
 
       expect(receivedInput).toBeDefined();
@@ -264,7 +263,7 @@ describe("Hook Factory Functions", () => {
         return preToolUseOutput({});
       });
 
-      await hook(createPreToolUseInput(), { logger: testLogger });
+      await hook(createPreToolUseHookInput(), { logger: testLogger });
 
       expect(receivedContext).toBeDefined();
       expect(receivedContext?.logger).toBe(testLogger);
@@ -277,7 +276,7 @@ describe("Hook Factory Functions", () => {
         }),
       );
 
-      const result = await hook(createPreToolUseInput(), { logger: testLogger });
+      const result = await hook(createPreToolUseHookInput(), { logger: testLogger });
 
       expect(result.stdout.hookSpecificOutput?.hookEventName).toBe("PreToolUse");
       if (result.stdout.hookSpecificOutput?.hookEventName === "PreToolUse") {
@@ -293,15 +292,15 @@ describe("Hook Factory Functions", () => {
       expect(hook.hookEventName).toBe("PostToolUse");
     });
 
-    it("handler receives PostToolUseInput with tool_response", async () => {
-      let receivedInput: PostToolUseInput | undefined;
+    it("handler receives PostToolUseHookInput with tool_response", async () => {
+      let receivedInput: PostToolUseHookInput | undefined;
 
       const hook = postToolUseHook({}, (input) => {
         receivedInput = input;
         return postToolUseOutput({});
       });
 
-      await hook(createPostToolUseInput(), { logger: testLogger });
+      await hook(createPostToolUseHookInput(), { logger: testLogger });
 
       expect(receivedInput?.tool_response).toBe("file1.txt\nfile2.txt");
     });
@@ -314,14 +313,14 @@ describe("Hook Factory Functions", () => {
     });
 
     it("handler receives error and is_interrupt fields", async () => {
-      let receivedInput: PostToolUseFailureInput | undefined;
+      let receivedInput: PostToolUseFailureHookInput | undefined;
 
       const hook = postToolUseFailureHook({}, (input) => {
         receivedInput = input;
         return postToolUseFailureOutput({});
       });
 
-      await hook(createPostToolUseFailureInput(), { logger: testLogger });
+      await hook(createPostToolUseFailureHookInput(), { logger: testLogger });
 
       expect(receivedInput?.error).toBe("Command not found");
       expect(receivedInput?.is_interrupt).toBe(false);
@@ -335,14 +334,14 @@ describe("Hook Factory Functions", () => {
     });
 
     it("handler receives notification fields", async () => {
-      let receivedInput: NotificationInput | undefined;
+      let receivedInput: NotificationHookInput | undefined;
 
       const hook = notificationHook({}, (input) => {
         receivedInput = input;
         return notificationOutput({});
       });
 
-      await hook(createNotificationInput(), { logger: testLogger });
+      await hook(createNotificationHookInput(), { logger: testLogger });
 
       expect(receivedInput?.message).toBe("Task completed");
       expect(receivedInput?.notification_type).toBe("info");
@@ -356,14 +355,14 @@ describe("Hook Factory Functions", () => {
     });
 
     it("handler receives prompt field", async () => {
-      let receivedInput: UserPromptSubmitInput | undefined;
+      let receivedInput: UserPromptSubmitHookInput | undefined;
 
       const hook = userPromptSubmitHook({}, (input) => {
         receivedInput = input;
         return userPromptSubmitOutput({});
       });
 
-      await hook(createUserPromptSubmitInput(), { logger: testLogger });
+      await hook(createUserPromptSubmitHookInput(), { logger: testLogger });
 
       expect(receivedInput?.prompt).toBe("Help me with this code");
     });
@@ -381,7 +380,7 @@ describe("Hook Factory Functions", () => {
     });
 
     it("handler receives source field", async () => {
-      let receivedInput: SessionStartInput | undefined;
+      let receivedInput: SessionStartHookInput | undefined;
 
       const hook = sessionStartHook({}, (input) => {
         receivedInput = input;
@@ -393,7 +392,7 @@ describe("Hook Factory Functions", () => {
         persistEnvVar: () => {},
         persistEnvVars: () => {},
       };
-      await hook(createSessionStartInput(), sessionStartContext);
+      await hook(createSessionStartHookInput(), sessionStartContext);
 
       expect(receivedInput?.source).toBe("startup");
     });
@@ -426,14 +425,14 @@ describe("Hook Factory Functions", () => {
     });
 
     it("handler receives stop_hook_active field", async () => {
-      let receivedInput: StopInput | undefined;
+      let receivedInput: StopHookInput | undefined;
 
       const hook = stopHook({}, (input) => {
         receivedInput = input;
         return stopOutput({});
       });
 
-      await hook(createStopInput(), { logger: testLogger });
+      await hook(createStopHookInput(), { logger: testLogger });
 
       expect(receivedInput?.stop_hook_active).toBe(true);
     });
@@ -441,7 +440,7 @@ describe("Hook Factory Functions", () => {
     it("returns correct output for block decision", async () => {
       const hook = stopHook({}, () => stopOutput({ decision: "block", reason: "Pending changes" }));
 
-      const result = await hook(createStopInput(), { logger: testLogger });
+      const result = await hook(createStopHookInput(), { logger: testLogger });
 
       expect(result.stdout.decision).toBe("block");
       expect(result.stdout.reason).toBe("Pending changes");
@@ -460,14 +459,14 @@ describe("Hook Factory Functions", () => {
     });
 
     it("handler receives agent fields", async () => {
-      let receivedInput: SubagentStartInput | undefined;
+      let receivedInput: SubagentStartHookInput | undefined;
 
       const hook = subagentStartHook({}, (input) => {
         receivedInput = input;
         return subagentStartOutput({});
       });
 
-      await hook(createSubagentStartInput(), { logger: testLogger });
+      await hook(createSubagentStartHookInput(), { logger: testLogger });
 
       expect(receivedInput?.agent_id).toBe("agent_123");
       expect(receivedInput?.agent_type).toBe("explore");
@@ -481,14 +480,14 @@ describe("Hook Factory Functions", () => {
     });
 
     it("handler receives transcript path", async () => {
-      let receivedInput: SubagentStopInput | undefined;
+      let receivedInput: SubagentStopHookInput | undefined;
 
       const hook = subagentStopHook({}, (input) => {
         receivedInput = input;
         return subagentStopOutput({});
       });
 
-      await hook(createSubagentStopInput(), { logger: testLogger });
+      await hook(createSubagentStopHookInput(), { logger: testLogger });
 
       expect(receivedInput?.agent_transcript_path).toBe("/path/to/agent/transcript");
     });
@@ -506,14 +505,14 @@ describe("Hook Factory Functions", () => {
     });
 
     it("handler receives trigger and custom_instructions", async () => {
-      let receivedInput: PreCompactInput | undefined;
+      let receivedInput: PreCompactHookInput | undefined;
 
       const hook = preCompactHook({}, (input) => {
         receivedInput = input;
         return preCompactOutput({});
       });
 
-      await hook(createPreCompactInput(), { logger: testLogger });
+      await hook(createPreCompactHookInput(), { logger: testLogger });
 
       expect(receivedInput?.trigger).toBe("auto");
       expect(receivedInput?.custom_instructions).toBeNull();
@@ -551,7 +550,7 @@ describe("Hook Factory Functions", () => {
       it("returns a callable async function", async () => {
         const hook = preToolUseHook({}, () => preToolUseOutput({}));
         expect(typeof hook).toBe("function");
-        const result = hook(createPreToolUseInput(), { logger: testLogger });
+        const result = hook(createPreToolUseHookInput(), { logger: testLogger });
         expect(result).toBeInstanceOf(Promise);
         const resolved = await result;
         expect(resolved).toHaveProperty("stdout");
@@ -574,14 +573,14 @@ describe("Hook Factory Functions", () => {
           executed = true;
           return preToolUseOutput({});
         });
-        await hook(createPreToolUseInput(), { logger: testLogger });
+        await hook(createPreToolUseHookInput(), { logger: testLogger });
         expect(executed).toBe(true);
       });
 
       it("supports sync handlers returning PreToolUseOutput", async () => {
         const output = preToolUseOutput({ continue: true });
         const hook = preToolUseHook({}, () => output);
-        const result = await hook(createPreToolUseInput(), { logger: testLogger });
+        const result = await hook(createPreToolUseHookInput(), { logger: testLogger });
         expect(result).toBe(output);
       });
     });
@@ -595,7 +594,7 @@ describe("Hook Factory Functions", () => {
           persistEnvVar: () => {},
           persistEnvVars: () => {},
         };
-        const result = hook(createSessionStartInput(), sessionStartContext);
+        const result = hook(createSessionStartHookInput(), sessionStartContext);
         expect(result).toBeInstanceOf(Promise);
         const resolved = await result;
         expect(resolved).toHaveProperty("stdout");
@@ -616,7 +615,7 @@ describe("Hook Factory Functions", () => {
       it("returns a callable async function", async () => {
         const hook = stopHook({}, () => stopOutput({}));
         expect(typeof hook).toBe("function");
-        const result = hook(createStopInput(), { logger: testLogger });
+        const result = hook(createStopHookInput(), { logger: testLogger });
         expect(result).toBeInstanceOf(Promise);
         const resolved = await result;
         expect(resolved).toHaveProperty("stdout");
