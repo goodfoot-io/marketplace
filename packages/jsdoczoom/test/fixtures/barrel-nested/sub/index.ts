@@ -4,4 +4,4 @@
  * @summary Sub overview
  */
 
-export * from './detail.js';
+export * from "./detail.js";

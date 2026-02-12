@@ -1,4 +1,4 @@
-import type { SelectorInfo } from './types.js';
+import type { SelectorInfo } from "./types.js";
 /**
  * Parses a selector string into its components.
  *

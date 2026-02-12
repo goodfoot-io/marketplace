@@ -1,1 +1,1 @@
-export * from './child.js';
+export * from "./child.js";

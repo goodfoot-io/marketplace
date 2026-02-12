@@ -4,4 +4,4 @@
  * @summary Detail overview
  */
 
-export const detail = 'detail';
+export const detail = "detail";

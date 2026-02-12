@@ -4,4 +4,4 @@
  * @summary Email module summary
  */
 
-export const email = 'user@example.com';
+export const email = "user@example.com";

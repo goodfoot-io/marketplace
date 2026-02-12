@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync } from "node:fs";
 
 /**
  * This JSDoc appears after imports but before code.
@@ -7,5 +7,5 @@ import { readFileSync } from 'fs';
  */
 
 export function doSomething(): string {
-  return readFileSync('/dev/null', 'utf-8');
+	return readFileSync("/dev/null", "utf-8");
 }

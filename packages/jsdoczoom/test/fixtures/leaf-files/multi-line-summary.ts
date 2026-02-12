@@ -6,4 +6,4 @@
  * and should be joined with spaces
  */
 
-export const value = 'multi';
+export const value = "multi";

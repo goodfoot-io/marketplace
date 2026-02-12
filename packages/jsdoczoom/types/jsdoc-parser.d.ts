@@ -1,4 +1,4 @@
-import type { ParsedFileInfo } from './types.js';
+import type { ParsedFileInfo } from "./types.js";
 /**
  * Extract the first file-level JSDoc block from TypeScript source text.
  *

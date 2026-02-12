@@ -1,5 +1,5 @@
-import { readdirSync, existsSync } from 'node:fs';
-import { basename, dirname, resolve } from 'node:path';
+import { existsSync, readdirSync } from "node:fs";
+import { basename, dirname, resolve } from "node:path";
 
 /**
  * Barrel detection and child discovery for index.ts/index.tsx files.
@@ -18,8 +18,8 @@ import { basename, dirname, resolve } from 'node:path';
  * @returns true if the file is a barrel (index.ts or index.tsx)
  */
 export function isBarrel(filePath: string): boolean {
-  const name = basename(filePath);
-  return name === 'index.ts' || name === 'index.tsx';
+	const name = basename(filePath);
+	return name === "index.ts" || name === "index.tsx";
 }
 
 /**
@@ -35,39 +35,39 @@ export function isBarrel(filePath: string): boolean {
  * @returns Sorted array of absolute paths to child files
  */
 export function getBarrelChildren(barrelPath: string, _cwd: string): string[] {
-  const dir = dirname(barrelPath);
-  const barrelName = basename(barrelPath);
+	const dir = dirname(barrelPath);
+	const barrelName = basename(barrelPath);
 
-  let entries: string[];
-  try {
-    entries = readdirSync(dir, { withFileTypes: true })
-      .map((e) => ({ name: e.name, isDirectory: e.isDirectory() }))
-      .flatMap((entry) => {
-        if (entry.isDirectory) {
-          // Check for child barrel in this subdirectory
-          const childBarrel = findChildBarrel(resolve(dir, entry.name));
-          return childBarrel ? [childBarrel] : [];
-        }
-        // Sibling file: must be .ts/.tsx, not .d.ts, not the barrel itself
-        if (isTsFile(entry.name) && entry.name !== barrelName) {
-          return [resolve(dir, entry.name)];
-        }
-        return [];
-      });
-  } catch {
-    return [];
-  }
+	let entries: string[];
+	try {
+		entries = readdirSync(dir, { withFileTypes: true })
+			.map((e) => ({ name: e.name, isDirectory: e.isDirectory() }))
+			.flatMap((entry) => {
+				if (entry.isDirectory) {
+					// Check for child barrel in this subdirectory
+					const childBarrel = findChildBarrel(resolve(dir, entry.name));
+					return childBarrel ? [childBarrel] : [];
+				}
+				// Sibling file: must be .ts/.tsx, not .d.ts, not the barrel itself
+				if (isTsFile(entry.name) && entry.name !== barrelName) {
+					return [resolve(dir, entry.name)];
+				}
+				return [];
+			});
+	} catch {
+		return [];
+	}
 
-  return entries.sort();
+	return entries.sort();
 }
 
 /**
  * Check if a filename is a .ts or .tsx file (excluding .d.ts).
  */
 function isTsFile(name: string): boolean {
-  return (
-    (name.endsWith('.ts') || name.endsWith('.tsx')) && !name.endsWith('.d.ts')
-  );
+	return (
+		(name.endsWith(".ts") || name.endsWith(".tsx")) && !name.endsWith(".d.ts")
+	);
 }
 
 /**
@@ -76,13 +76,13 @@ function isTsFile(name: string): boolean {
  * Returns the absolute path to the barrel, or null if none found.
  */
 function findChildBarrel(subdirPath: string): string | null {
-  const tsPath = resolve(subdirPath, 'index.ts');
-  if (existsSync(tsPath)) {
-    return tsPath;
-  }
-  const tsxPath = resolve(subdirPath, 'index.tsx');
-  if (existsSync(tsxPath)) {
-    return tsxPath;
-  }
-  return null;
+	const tsPath = resolve(subdirPath, "index.ts");
+	if (existsSync(tsPath)) {
+		return tsPath;
+	}
+	const tsxPath = resolve(subdirPath, "index.tsx");
+	if (existsSync(tsxPath)) {
+		return tsxPath;
+	}
+	return null;
 }

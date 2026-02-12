@@ -4,4 +4,4 @@
  * @summary Child overview
  */
 
-export const child = 'child';
+export const child = "child";

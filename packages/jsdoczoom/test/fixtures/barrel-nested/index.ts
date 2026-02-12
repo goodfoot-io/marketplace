@@ -5,4 +5,4 @@
  * @summary Parent detail
  */
 
-export * from './leaf.js';
+export * from "./leaf.js";

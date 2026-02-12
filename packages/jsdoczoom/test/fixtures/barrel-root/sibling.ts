@@ -4,4 +4,4 @@
  * @summary Sibling overview
  */
 
-export const sibling = 'sib';
+export const sibling = "sib";

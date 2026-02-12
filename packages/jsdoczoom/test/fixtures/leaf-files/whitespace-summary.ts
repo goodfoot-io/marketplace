@@ -5,4 +5,4 @@
  * @summary Real summary here
  */
 
-export const value = 'ws';
+export const value = "ws";

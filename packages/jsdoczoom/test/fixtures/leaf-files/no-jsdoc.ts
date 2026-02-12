@@ -1,1 +1,1 @@
-export const value = 'no docs';
+export const value = "no docs";

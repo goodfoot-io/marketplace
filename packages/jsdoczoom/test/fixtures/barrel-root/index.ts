@@ -4,4 +4,4 @@
  * @summary Root overview
  */
 
-export * from './sibling.js';
+export * from "./sibling.js";

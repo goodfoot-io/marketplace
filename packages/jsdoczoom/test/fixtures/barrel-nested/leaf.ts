@@ -4,4 +4,4 @@
  * @summary Leaf overview
  */
 
-export const leaf = 'leaf';
+export const leaf = "leaf";

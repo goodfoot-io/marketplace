@@ -5,4 +5,4 @@
  * @summary Utils detail
  */
 
-export const utils = 'util';
+export const utils = "util";

@@ -1,350 +1,343 @@
-import { describe, it, expect } from 'vitest';
-import { resolve, dirname, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
-import { drilldown, drilldownFiles } from '../src/drilldown.js';
-import { JsdocError } from '../src/errors.js';
-import type { SelectorInfo, OutputItem, OutputErrorItem } from '../src/types.js';
+import { readFileSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+import { drilldown, drilldownFiles } from "../src/drilldown.js";
+import { JsdocError } from "../src/errors.js";
+import type {
+	OutputErrorItem,
+	OutputItem,
+	SelectorInfo,
+} from "../src/types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturesDir = resolve(__dirname, 'fixtures');
-const leafFilesDir = resolve(fixturesDir, 'leaf-files');
-const depthDir = resolve(fixturesDir, 'depth-advancement');
+const fixturesDir = resolve(__dirname, "fixtures");
+const leafFilesDir = resolve(fixturesDir, "leaf-files");
+const depthDir = resolve(fixturesDir, "depth-advancement");
 
 function pathSelector(pattern: string, depth?: number): SelectorInfo {
-  return { type: 'path', pattern, depth };
+	return { type: "path", pattern, depth };
 }
 
 function globSelector(pattern: string, depth?: number): SelectorInfo {
-  return { type: 'glob', pattern, depth };
+	return { type: "glob", pattern, depth };
 }
 
 function isOutputItem(entry: { id: string }): entry is OutputItem {
-  return 'text' in entry;
+	return "text" in entry;
 }
 
 function isOutputErrorItem(entry: { id: string }): entry is OutputErrorItem {
-  return 'error' in entry;
+	return "error" in entry;
 }
 
-describe('drilldown', () => {
-  // one-summary.ts has 2 levels: ["Single summary line", "Module description as free-text."]
-  // depth 0 → L0 (first summary), depth 1 → L1 (free-text), depth 2 → type decls, depth 3 → full file
+describe("drilldown", () => {
+	// one-summary.ts has 2 levels: ["Single summary line", "Module description as free-text."]
+	// depth 0 → L0 (first summary), depth 1 → L1 (free-text), depth 2 → type decls, depth 3 → full file
 
-  it('path selector returns L0 with id F@0 and more=true', () => {
-    const results = drilldown(pathSelector('one-summary.ts'), leafFilesDir);
-    expect(results).toHaveLength(1);
-    const entry = results[0];
-    expect(isOutputItem(entry)).toBe(true);
-    if (isOutputItem(entry)) {
-      expect(entry.id).toBe('one-summary.ts@0');
-      expect(entry.path).toBe('one-summary.ts');
-      expect(entry.more).toBe(true);
-      expect(entry.text).toBe('Single summary line');
-    }
-  });
+	it("path selector returns L0 with id F@0 and more=true", () => {
+		const results = drilldown(pathSelector("one-summary.ts"), leafFilesDir);
+		expect(results).toHaveLength(1);
+		const entry = results[0];
+		expect(isOutputItem(entry)).toBe(true);
+		if (isOutputItem(entry)) {
+			expect(entry.id).toBe("one-summary.ts@0");
+			expect(entry.path).toBe("one-summary.ts");
+			expect(entry.more).toBe(true);
+			expect(entry.text).toBe("Single summary line");
+		}
+	});
 
-  it('F@0 returns L1 with more=true (need file with 2+ summaries)', () => {
-    // two-summaries.ts has 3 levels:
-    // L0: "First summary - concise overview"
-    // L1: "Second summary - more detail about the module"
-    // L2: "This is the free-text description of the module."
-    const results = drilldown(
-      pathSelector('two-summaries.ts', 1),
-      leafFilesDir,
-    );
-    expect(results).toHaveLength(1);
-    const entry = results[0];
-    expect(isOutputItem(entry)).toBe(true);
-    if (isOutputItem(entry)) {
-      expect(entry.id).toBe('two-summaries.ts@1');
-      expect(entry.path).toBe('two-summaries.ts');
-      expect(entry.more).toBe(true);
-      expect(entry.text).toBe(
-        'Second summary - more detail about the module',
-      );
-    }
-  });
+	it("F@0 returns L1 with more=true (need file with 2+ summaries)", () => {
+		// two-summaries.ts has 3 levels:
+		// L0: "First summary - concise overview"
+		// L1: "Second summary - more detail about the module"
+		// L2: "This is the free-text description of the module."
+		const results = drilldown(
+			pathSelector("two-summaries.ts", 1),
+			leafFilesDir,
+		);
+		expect(results).toHaveLength(1);
+		const entry = results[0];
+		expect(isOutputItem(entry)).toBe(true);
+		if (isOutputItem(entry)) {
+			expect(entry.id).toBe("two-summaries.ts@1");
+			expect(entry.path).toBe("two-summaries.ts");
+			expect(entry.more).toBe(true);
+			expect(entry.text).toBe("Second summary - more detail about the module");
+		}
+	});
 
-  it('after last summary level returns JSDoc+types with more=true', () => {
-    // one-summary.ts: 2 summary levels → type level is depth 2
-    const results = drilldown(pathSelector('one-summary.ts', 2), leafFilesDir);
-    expect(results).toHaveLength(1);
-    const entry = results[0];
-    expect(isOutputItem(entry)).toBe(true);
-    if (isOutputItem(entry)) {
-      expect(entry.id).toBe('one-summary.ts@2');
-      expect(entry.more).toBe(true);
-      // Type declarations output — should contain declaration-like content
-      expect(entry.text).toBeDefined();
-    }
-  });
+	it("after last summary level returns JSDoc+types with more=true", () => {
+		// one-summary.ts: 2 summary levels → type level is depth 2
+		const results = drilldown(pathSelector("one-summary.ts", 2), leafFilesDir);
+		expect(results).toHaveLength(1);
+		const entry = results[0];
+		expect(isOutputItem(entry)).toBe(true);
+		if (isOutputItem(entry)) {
+			expect(entry.id).toBe("one-summary.ts@2");
+			expect(entry.more).toBe(true);
+			// Type declarations output — should contain declaration-like content
+			expect(entry.text).toBeDefined();
+		}
+	});
 
-  it('next level returns full file content with more=false', () => {
-    // one-summary.ts: 2 summary levels → full content level is depth 3
-    const results = drilldown(pathSelector('one-summary.ts', 3), leafFilesDir);
-    expect(results).toHaveLength(1);
-    const entry = results[0];
-    expect(isOutputItem(entry)).toBe(true);
-    if (isOutputItem(entry)) {
-      expect(entry.id).toBe('one-summary.ts@3');
-      expect(entry.more).toBe(false);
-      const expectedContent = readFileSync(
-        resolve(leafFilesDir, 'one-summary.ts'),
-        'utf-8',
-      );
-      expect(entry.text).toBe(expectedContent);
-    }
-  });
+	it("next level returns full file content with more=false", () => {
+		// one-summary.ts: 2 summary levels → full content level is depth 3
+		const results = drilldown(pathSelector("one-summary.ts", 3), leafFilesDir);
+		expect(results).toHaveLength(1);
+		const entry = results[0];
+		expect(isOutputItem(entry)).toBe(true);
+		if (isOutputItem(entry)) {
+			expect(entry.id).toBe("one-summary.ts@3");
+			expect(entry.more).toBe(false);
+			const expectedContent = readFileSync(
+				resolve(leafFilesDir, "one-summary.ts"),
+				"utf-8",
+			);
+			expect(entry.text).toBe(expectedContent);
+		}
+	});
 
-  it('depth clamping (F@99 returns terminal with clamped id)', () => {
-    // one-summary.ts: 2 summary levels → terminal is depth 3
-    // Requesting depth 99 should clamp to depth 3
-    const results = drilldown(pathSelector('one-summary.ts', 99), leafFilesDir);
-    expect(results).toHaveLength(1);
-    const entry = results[0];
-    expect(isOutputItem(entry)).toBe(true);
-    if (isOutputItem(entry)) {
-      // Clamped id should be at the terminal level, not 99
-      expect(entry.id).toBe('one-summary.ts@3');
-      expect(entry.more).toBe(false);
-      const expectedContent = readFileSync(
-        resolve(leafFilesDir, 'one-summary.ts'),
-        'utf-8',
-      );
-      expect(entry.text).toBe(expectedContent);
-    }
-  });
+	it("depth clamping (F@99 returns terminal with clamped id)", () => {
+		// one-summary.ts: 2 summary levels → terminal is depth 3
+		// Requesting depth 99 should clamp to depth 3
+		const results = drilldown(pathSelector("one-summary.ts", 99), leafFilesDir);
+		expect(results).toHaveLength(1);
+		const entry = results[0];
+		expect(isOutputItem(entry)).toBe(true);
+		if (isOutputItem(entry)) {
+			// Clamped id should be at the terminal level, not 99
+			expect(entry.id).toBe("one-summary.ts@3");
+			expect(entry.more).toBe(false);
+			const expectedContent = readFileSync(
+				resolve(leafFilesDir, "one-summary.ts"),
+				"utf-8",
+			);
+			expect(entry.text).toBe(expectedContent);
+		}
+	});
 
-  it('glob returns all matching files at requested depth independently', () => {
-    // Use a glob that matches multiple files in leaf-files
-    const results = drilldown(
-      globSelector('*-summary.ts', 0),
-      leafFilesDir,
-    );
-    // Should match one-summary.ts and two-summaries.ts (both have summaries)
-    expect(results.length).toBeGreaterThanOrEqual(2);
-    for (const entry of results) {
-      expect(isOutputItem(entry)).toBe(true);
-      if (isOutputItem(entry)) {
-        expect(entry.id).toMatch(/@0$/);
-        expect(entry.more).toBe(true);
-      }
-    }
-  });
+	it("glob returns all matching files at requested depth independently", () => {
+		// Use a glob that matches multiple files in leaf-files
+		const results = drilldown(globSelector("*-summary.ts", 0), leafFilesDir);
+		// Should match one-summary.ts and two-summaries.ts (both have summaries)
+		expect(results.length).toBeGreaterThanOrEqual(2);
+		for (const entry of results) {
+			expect(isOutputItem(entry)).toBe(true);
+			if (isOutputItem(entry)) {
+				expect(entry.id).toMatch(/@0$/);
+				expect(entry.more).toBe(true);
+			}
+		}
+	});
 
-  it('glob excludes files with no summaries', () => {
-    // Use a glob that could match no-jsdoc.ts along with others
-    const results = drilldown(globSelector('*.ts', 0), leafFilesDir);
-    // no-jsdoc.ts has 0 summary levels, should be excluded
-    const paths = results.map((r) => r.path);
-    expect(paths).not.toContain('no-jsdoc.ts');
-  });
+	it("glob excludes files with no summaries", () => {
+		// Use a glob that could match no-jsdoc.ts along with others
+		const results = drilldown(globSelector("*.ts", 0), leafFilesDir);
+		// no-jsdoc.ts has 0 summary levels, should be excluded
+		const paths = results.map((r) => r.path);
+		expect(paths).not.toContain("no-jsdoc.ts");
+	});
 
-  it('glob NO_FILES_MATCHED when glob matches zero .ts/.tsx files on disk', () => {
-    expect(() =>
-      drilldown(globSelector('nonexistent/**/*.ts'), leafFilesDir),
-    ).toThrow(JsdocError);
-    try {
-      drilldown(globSelector('nonexistent/**/*.ts'), leafFilesDir);
-    } catch (error) {
-      expect(error).toBeInstanceOf(JsdocError);
-      expect((error as JsdocError).code).toBe('NO_FILES_MATCHED');
-    }
-  });
+	it("glob NO_FILES_MATCHED when glob matches zero .ts/.tsx files on disk", () => {
+		expect(() =>
+			drilldown(globSelector("nonexistent/**/*.ts"), leafFilesDir),
+		).toThrow(JsdocError);
+		try {
+			drilldown(globSelector("nonexistent/**/*.ts"), leafFilesDir);
+		} catch (error) {
+			expect(error).toBeInstanceOf(JsdocError);
+			expect((error as JsdocError).code).toBe("NO_FILES_MATCHED");
+		}
+	});
 
-  it('glob NO_FILES_MATCHED when all matched files lack summary levels', () => {
-    // no-jsdoc.ts is the only file that matches and has no summaries
-    // Create a glob that only matches no-jsdoc.ts
-    expect(() =>
-      drilldown(globSelector('no-jsdoc.ts'), leafFilesDir),
-    ).toThrow(JsdocError);
-    try {
-      drilldown(globSelector('no-jsdoc.ts'), leafFilesDir);
-    } catch (error) {
-      expect(error).toBeInstanceOf(JsdocError);
-      expect((error as JsdocError).code).toBe('NO_FILES_MATCHED');
-    }
-  });
+	it("glob NO_FILES_MATCHED when all matched files lack summary levels", () => {
+		// no-jsdoc.ts is the only file that matches and has no summaries
+		// Create a glob that only matches no-jsdoc.ts
+		expect(() => drilldown(globSelector("no-jsdoc.ts"), leafFilesDir)).toThrow(
+			JsdocError,
+		);
+		try {
+			drilldown(globSelector("no-jsdoc.ts"), leafFilesDir);
+		} catch (error) {
+			expect(error).toBeInstanceOf(JsdocError);
+			expect((error as JsdocError).code).toBe("NO_FILES_MATCHED");
+		}
+	});
 
-  it('path NO_SUMMARY_FOUND for file without summaries', () => {
-    expect(() =>
-      drilldown(pathSelector('no-jsdoc.ts'), leafFilesDir),
-    ).toThrow(JsdocError);
-    try {
-      drilldown(pathSelector('no-jsdoc.ts'), leafFilesDir);
-    } catch (error) {
-      expect(error).toBeInstanceOf(JsdocError);
-      expect((error as JsdocError).code).toBe('NO_SUMMARY_FOUND');
-    }
-  });
+	it("path NO_SUMMARY_FOUND for file without summaries", () => {
+		expect(() => drilldown(pathSelector("no-jsdoc.ts"), leafFilesDir)).toThrow(
+			JsdocError,
+		);
+		try {
+			drilldown(pathSelector("no-jsdoc.ts"), leafFilesDir);
+		} catch (error) {
+			expect(error).toBeInstanceOf(JsdocError);
+			expect((error as JsdocError).code).toBe("NO_SUMMARY_FOUND");
+		}
+	});
 
-  it('alphabetical ordering by path', () => {
-    const results = drilldown(globSelector('*.ts', 0), leafFilesDir);
-    const paths = results.map((r) => r.path);
-    const sorted = [...paths].sort();
-    expect(paths).toEqual(sorted);
-  });
+	it("alphabetical ordering by path", () => {
+		const results = drilldown(globSelector("*.ts", 0), leafFilesDir);
+		const paths = results.map((r) => r.path);
+		const sorted = [...paths].sort();
+		expect(paths).toEqual(sorted);
+	});
 
-  it('PARSE_ERROR in glob context produces OutputErrorItem (partial results)', () => {
-    // Use a glob that matches both syntax-error.ts and valid files
-    const results = drilldown(globSelector('*.ts', 0), leafFilesDir);
+	it("PARSE_ERROR in glob context produces OutputErrorItem (partial results)", () => {
+		// Use a glob that matches both syntax-error.ts and valid files
+		const results = drilldown(globSelector("*.ts", 0), leafFilesDir);
 
-    // Should have results (some valid files + the error entry for syntax-error.ts)
-    expect(results.length).toBeGreaterThan(1);
+		// Should have results (some valid files + the error entry for syntax-error.ts)
+		expect(results.length).toBeGreaterThan(1);
 
-    const errorEntry = results.find((r) => r.path === 'syntax-error.ts');
-    expect(errorEntry).toBeDefined();
-    expect(isOutputErrorItem(errorEntry!)).toBe(true);
-    if (isOutputErrorItem(errorEntry!)) {
-      // Error item id has no depth suffix
-      expect(errorEntry!.id).toBe('syntax-error.ts');
-      expect(errorEntry!.more).toBe(false);
-      expect(errorEntry!.error.code).toBe('PARSE_ERROR');
-    }
+		const errorEntry = results.find((r) => r.path === "syntax-error.ts");
+		expect(errorEntry).toBeDefined();
+		if (errorEntry && isOutputErrorItem(errorEntry)) {
+			// Error item id has no depth suffix
+			expect(errorEntry.id).toBe("syntax-error.ts");
+			expect(errorEntry.more).toBe(false);
+			expect(errorEntry.error.code).toBe("PARSE_ERROR");
+		}
 
-    // Valid files should still be present
-    const validEntries = results.filter((r) => isOutputItem(r));
-    expect(validEntries.length).toBeGreaterThan(0);
-  });
+		// Valid files should still be present
+		const validEntries = results.filter((r) => isOutputItem(r));
+		expect(validEntries.length).toBeGreaterThan(0);
+	});
 
-  it('PARSE_ERROR for path selector throws fatal error', () => {
-    expect(() =>
-      drilldown(pathSelector('syntax-error.ts'), leafFilesDir),
-    ).toThrow(JsdocError);
-    try {
-      drilldown(pathSelector('syntax-error.ts'), leafFilesDir);
-    } catch (error) {
-      expect(error).toBeInstanceOf(JsdocError);
-      expect((error as JsdocError).code).toBe('PARSE_ERROR');
-    }
-  });
+	it("PARSE_ERROR for path selector throws fatal error", () => {
+		expect(() =>
+			drilldown(pathSelector("syntax-error.ts"), leafFilesDir),
+		).toThrow(JsdocError);
+		try {
+			drilldown(pathSelector("syntax-error.ts"), leafFilesDir);
+		} catch (error) {
+			expect(error).toBeInstanceOf(JsdocError);
+			expect((error as JsdocError).code).toBe("PARSE_ERROR");
+		}
+	});
 
-  it('independent depth advancement (glob @2 with files having different summary counts reach different stages)', () => {
-    // depth-advancement/one-summary.ts: 2 levels (1 @summary + free-text)
-    //   at depth 2 → type declarations level (numSummaryLevels = 2, typeLevel = 2)
-    // depth-advancement/three-summaries.ts: 4 levels (3 @summary + free-text)
-    //   at depth 2 → L2 summary (third @summary: "Third summary")
-    const results = drilldown(globSelector('*.ts', 2), depthDir);
-    expect(results).toHaveLength(2);
+	it("independent depth advancement (glob @2 with files having different summary counts reach different stages)", () => {
+		// depth-advancement/one-summary.ts: 2 levels (1 @summary + free-text)
+		//   at depth 2 → type declarations level (numSummaryLevels = 2, typeLevel = 2)
+		// depth-advancement/three-summaries.ts: 4 levels (3 @summary + free-text)
+		//   at depth 2 → L2 summary (third @summary: "Third summary")
+		const results = drilldown(globSelector("*.ts", 2), depthDir);
+		expect(results).toHaveLength(2);
 
-    const oneSum = results.find((r) => r.path === 'one-summary.ts');
-    const threeSum = results.find((r) => r.path === 'three-summaries.ts');
+		const oneSum = results.find((r) => r.path === "one-summary.ts");
+		const threeSum = results.find((r) => r.path === "three-summaries.ts");
 
-    expect(oneSum).toBeDefined();
-    expect(threeSum).toBeDefined();
+		expect(oneSum).toBeDefined();
+		expect(threeSum).toBeDefined();
 
-    // one-summary.ts at depth 2 = type declarations level (more=true)
-    expect(isOutputItem(oneSum!)).toBe(true);
-    if (isOutputItem(oneSum!)) {
-      expect(oneSum!.id).toBe('one-summary.ts@2');
-      expect(oneSum!.more).toBe(true);
-      // This is the type declarations level, not a summary
-    }
+		// one-summary.ts at depth 2 = type declarations level (more=true)
+		if (oneSum && isOutputItem(oneSum)) {
+			expect(oneSum.id).toBe("one-summary.ts@2");
+			expect(oneSum.more).toBe(true);
+			// This is the type declarations level, not a summary
+		}
 
-    // three-summaries.ts at depth 2 = L2 summary (more=true)
-    expect(isOutputItem(threeSum!)).toBe(true);
-    if (isOutputItem(threeSum!)) {
-      expect(threeSum!.id).toBe('three-summaries.ts@2');
-      expect(threeSum!.more).toBe(true);
-      expect(threeSum!.text).toBe('Third summary');
-    }
-  });
+		// three-summaries.ts at depth 2 = L2 summary (more=true)
+		if (threeSum && isOutputItem(threeSum)) {
+			expect(threeSum.id).toBe("three-summaries.ts@2");
+			expect(threeSum.more).toBe(true);
+			expect(threeSum.text).toBe("Third summary");
+		}
+	});
 
-  it('../ path resolution uses resolved path in output', () => {
-    // From leaf-files, use ../ to access depth-advancement/one-summary.ts
-    const selector = pathSelector(
-      '../depth-advancement/one-summary.ts',
-      0,
-    );
-    const results = drilldown(selector, leafFilesDir);
-    expect(results).toHaveLength(1);
-    const entry = results[0];
-    expect(isOutputItem(entry)).toBe(true);
-    if (isOutputItem(entry)) {
-      // The path should be relative to leafFilesDir, using ../
-      expect(entry.path).toBe(
-        relative(leafFilesDir, resolve(depthDir, 'one-summary.ts')),
-      );
-      expect(entry.id).toContain('@0');
-    }
-  });
+	it("../ path resolution uses resolved path in output", () => {
+		// From leaf-files, use ../ to access depth-advancement/one-summary.ts
+		const selector = pathSelector("../depth-advancement/one-summary.ts", 0);
+		const results = drilldown(selector, leafFilesDir);
+		expect(results).toHaveLength(1);
+		const entry = results[0];
+		expect(isOutputItem(entry)).toBe(true);
+		if (isOutputItem(entry)) {
+			// The path should be relative to leafFilesDir, using ../
+			expect(entry.path).toBe(
+				relative(leafFilesDir, resolve(depthDir, "one-summary.ts")),
+			);
+			expect(entry.id).toContain("@0");
+		}
+	});
 });
 
-describe('drilldownFiles', () => {
-  it('processes explicit file list at given depth', () => {
-    const files = [resolve(leafFilesDir, 'one-summary.ts')];
-    const results = drilldownFiles(files, 0, leafFilesDir);
-    expect(results).toHaveLength(1);
-    const entry = results[0];
-    expect(isOutputItem(entry)).toBe(true);
-    if (isOutputItem(entry)) {
-      expect(entry.id).toBe('one-summary.ts@0');
-      expect(entry.text).toBe('Single summary line');
-    }
-  });
+describe("drilldownFiles", () => {
+	it("processes explicit file list at given depth", () => {
+		const files = [resolve(leafFilesDir, "one-summary.ts")];
+		const results = drilldownFiles(files, 0, leafFilesDir);
+		expect(results).toHaveLength(1);
+		const entry = results[0];
+		expect(isOutputItem(entry)).toBe(true);
+		if (isOutputItem(entry)) {
+			expect(entry.id).toBe("one-summary.ts@0");
+			expect(entry.text).toBe("Single summary line");
+		}
+	});
 
-  it('filters to .ts/.tsx only', () => {
-    const files = [
-      resolve(leafFilesDir, 'one-summary.ts'),
-      resolve(leafFilesDir, 'one-summary.js'), // Non-existent .js file should be filtered
-      '/some/file.json',
-    ];
-    const results = drilldownFiles(files, 0, leafFilesDir);
-    // Only the .ts file should be processed
-    expect(results).toHaveLength(1);
-    expect(results[0].path).toBe('one-summary.ts');
-  });
+	it("filters to .ts/.tsx only", () => {
+		const files = [
+			resolve(leafFilesDir, "one-summary.ts"),
+			resolve(leafFilesDir, "one-summary.js"), // Non-existent .js file should be filtered
+			"/some/file.json",
+		];
+		const results = drilldownFiles(files, 0, leafFilesDir);
+		// Only the .ts file should be processed
+		expect(results).toHaveLength(1);
+		expect(results[0].path).toBe("one-summary.ts");
+	});
 
-  it('excludes files with no summaries', () => {
-    const files = [
-      resolve(leafFilesDir, 'one-summary.ts'),
-      resolve(leafFilesDir, 'no-jsdoc.ts'),
-    ];
-    const results = drilldownFiles(files, 0, leafFilesDir);
-    // no-jsdoc.ts has 0 summary levels, should be excluded
-    expect(results).toHaveLength(1);
-    expect(results[0].path).toBe('one-summary.ts');
-  });
+	it("excludes files with no summaries", () => {
+		const files = [
+			resolve(leafFilesDir, "one-summary.ts"),
+			resolve(leafFilesDir, "no-jsdoc.ts"),
+		];
+		const results = drilldownFiles(files, 0, leafFilesDir);
+		// no-jsdoc.ts has 0 summary levels, should be excluded
+		expect(results).toHaveLength(1);
+		expect(results[0].path).toBe("one-summary.ts");
+	});
 
-  it('each file advances independently through its own levels', () => {
-    const files = [
-      resolve(depthDir, 'one-summary.ts'),
-      resolve(depthDir, 'three-summaries.ts'),
-    ];
-    // At depth 2:
-    // one-summary.ts (2 levels) → type declarations level
-    // three-summaries.ts (4 levels) → L2 summary
-    const results = drilldownFiles(files, 2, depthDir);
-    expect(results).toHaveLength(2);
+	it("each file advances independently through its own levels", () => {
+		const files = [
+			resolve(depthDir, "one-summary.ts"),
+			resolve(depthDir, "three-summaries.ts"),
+		];
+		// At depth 2:
+		// one-summary.ts (2 levels) → type declarations level
+		// three-summaries.ts (4 levels) → L2 summary
+		const results = drilldownFiles(files, 2, depthDir);
+		expect(results).toHaveLength(2);
 
-    const oneSum = results.find((r) => r.path === 'one-summary.ts');
-    const threeSum = results.find((r) => r.path === 'three-summaries.ts');
+		const oneSum = results.find((r) => r.path === "one-summary.ts");
+		const threeSum = results.find((r) => r.path === "three-summaries.ts");
 
-    expect(oneSum).toBeDefined();
-    expect(threeSum).toBeDefined();
+		expect(oneSum).toBeDefined();
+		expect(threeSum).toBeDefined();
 
-    if (isOutputItem(oneSum!)) {
-      expect(oneSum!.id).toBe('one-summary.ts@2');
-      expect(oneSum!.more).toBe(true);
-    }
+		if (oneSum && isOutputItem(oneSum)) {
+			expect(oneSum.id).toBe("one-summary.ts@2");
+			expect(oneSum.more).toBe(true);
+		}
 
-    if (isOutputItem(threeSum!)) {
-      expect(threeSum!.id).toBe('three-summaries.ts@2');
-      expect(threeSum!.more).toBe(true);
-      expect(threeSum!.text).toBe('Third summary');
-    }
-  });
+		if (threeSum && isOutputItem(threeSum)) {
+			expect(threeSum.id).toBe("three-summaries.ts@2");
+			expect(threeSum.more).toBe(true);
+			expect(threeSum.text).toBe("Third summary");
+		}
+	});
 
-  it('alphabetical ordering by path', () => {
-    const files = [
-      resolve(leafFilesDir, 'two-summaries.ts'),
-      resolve(leafFilesDir, 'one-summary.ts'),
-      resolve(leafFilesDir, 'exported-types.ts'),
-    ];
-    const results = drilldownFiles(files, 0, leafFilesDir);
-    const paths = results.map((r) => r.path);
-    const sorted = [...paths].sort();
-    expect(paths).toEqual(sorted);
-  });
+	it("alphabetical ordering by path", () => {
+		const files = [
+			resolve(leafFilesDir, "two-summaries.ts"),
+			resolve(leafFilesDir, "one-summary.ts"),
+			resolve(leafFilesDir, "exported-types.ts"),
+		];
+		const results = drilldownFiles(files, 0, leafFilesDir);
+		const paths = results.map((r) => r.path);
+		const sorted = [...paths].sort();
+		expect(paths).toEqual(sorted);
+	});
 });
