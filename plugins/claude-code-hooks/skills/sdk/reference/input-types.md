@@ -348,6 +348,35 @@ if (isAskUserQuestionTool(input)) {
 }
 ```
 
+### MCP & Config Type Guards
+
+```typescript
+import {
+  isMcpTool,
+  isListMcpResourcesTool,
+  isReadMcpResourceTool,
+  isConfigTool
+} from '@goodfoot/claude-code-hooks';
+
+if (isMcpTool(input)) {
+  // input.tool_input is typed as McpInput
+}
+
+if (isListMcpResourcesTool(input)) {
+  console.log(input.tool_input.server);
+}
+
+if (isReadMcpResourceTool(input)) {
+  console.log(input.tool_input.server);
+  console.log(input.tool_input.uri);
+}
+
+if (isConfigTool(input)) {
+  console.log(input.tool_input.setting);
+  console.log(input.tool_input.value);
+}
+```
+
 ### Notebook Type Guards
 
 ```typescript
@@ -529,6 +558,10 @@ Supported tools for automatic typing:
 - `WebFetch` — WebFetchInput
 - `WebSearch` — WebSearchInput
 - `AskUserQuestion` — AskUserQuestionInput
+- `ListMcpResources` — ListMcpResourcesInput
+- `Mcp` — McpInput
+- `ReadMcpResource` — ReadMcpResourceInput
+- `Config` — ConfigInput
 
 **Note**: Multi-tool matchers like `'Write|Edit'` or regex patterns like `'.*'` use the non-typed overload where `tool_input` remains `unknown`. Use type guards in those cases.
 
@@ -551,16 +584,18 @@ Supported tools for automatic typing:
 type FileModifyingToolInput = FileWriteInput | FileEditInput | MultiEditToolInput;
 type FileModifyingToolName = 'Write' | 'Edit' | 'MultiEdit';
 
-// All known tools (expanded in v1.0.11)
+// All known tools
 type KnownToolName =
   | 'Write' | 'Edit' | 'MultiEdit' | 'Read' | 'NotebookEdit'  // File operations
   | 'Bash' | 'KillShell'                                        // Commands
   | 'Glob' | 'Grep'                                             // Search
   | 'Task' | 'TaskOutput' | 'ExitPlanMode' | 'TodoWrite'       // Agents & tasks
   | 'WebFetch' | 'WebSearch'                                    // Web
-  | 'AskUserQuestion';                                          // User interaction
+  | 'AskUserQuestion'                                           // User interaction
+  | 'ListMcpResources' | 'Mcp' | 'ReadMcpResource'             // MCP
+  | 'Config';                                                   // Config
 
-// Type mapping (use with TypedPreToolUseInput, TypedPostToolUseInput, etc.)
+// Type mapping (use with TypedPreToolUseHookInput, TypedPostToolUseHookInput, etc.)
 interface ToolInputMap {
   Write: FileWriteInput;
   Edit: FileEditInput;
@@ -578,6 +613,10 @@ interface ToolInputMap {
   WebFetch: WebFetchInput;
   WebSearch: WebSearchInput;
   AskUserQuestion: AskUserQuestionInput;
+  ListMcpResources: ListMcpResourcesInput;
+  Mcp: McpInput;
+  ReadMcpResource: ReadMcpResourceInput;
+  Config: ConfigInput;
 }
 ```
 
