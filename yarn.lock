@@ -2157,6 +2157,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@goodfoot/jsdoczoom@workspace:packages/jsdoczoom":
+  version: 0.0.0-use.local
+  resolution: "@goodfoot/jsdoczoom@workspace:packages/jsdoczoom"
+  dependencies:
+    "@biomejs/biome": "npm:2.3.14"
+    "@types/node": "npm:^24"
+    glob: "npm:^11.0.0"
+    typescript: "npm:^5.9.3"
+    vitest: "npm:4.0.13"
+  bin:
+    jsdoczoom: ./dist/cli.js
+  languageName: unknown
+  linkType: soft
+
 "@goodfoot/marketplace@workspace:.":
   version: 0.0.0-use.local
   resolution: "@goodfoot/marketplace@workspace:."
