@@ -111,7 +111,7 @@ TypeScript projects already have explicit types. JSDoc should add **intent, beha
 
 ### IntelliSense tags (always include)
 
-These tags power IDE hover tooltips, autocomplete, and signature help. Always include them for public APIs, constructors, and functions with non-trivial signatures:
+These tags power IDE hover tooltips, autocomplete, and signature help. Always include them for public APIs, constructors, and functions:
 
 - **\`@param\`**: Include for every parameter. Describe the parameter's purpose, valid ranges, or constraints—not just its type.
 - **\`@returns\`**: Include when the function returns a value. Describe what the return value represents, especially for edge cases.
