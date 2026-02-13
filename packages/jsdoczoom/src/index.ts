@@ -12,7 +12,7 @@ export type {
 	OutputItem,
 	ParsedFileInfo,
 	SelectorInfo,
-	ValidationFileResult,
 	ValidationResult,
+	ValidationStatus,
 } from "./types.js";
 export { validate, validateFiles } from "./validate.js";

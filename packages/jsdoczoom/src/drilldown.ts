@@ -63,7 +63,6 @@ function processFile(
 
 	return {
 		id: `${relativePath}@${effectiveDepth}`,
-		path: relativePath,
 		more: level.more,
 		text: level.text(),
 	};
@@ -80,7 +79,6 @@ function makeParseErrorItem(
 	const relativePath = relative(cwd, filePath);
 	return {
 		id: relativePath,
-		path: relativePath,
 		more: false as const,
 		error: { code: error.code, message: error.message },
 	};
@@ -271,12 +269,16 @@ function processGlobWithBarrels(
  * @throws {JsdocError} NO_SUMMARY_FOUND for path selector targeting file without summaries
  * @throws {JsdocError} PARSE_ERROR for path selector targeting file with syntax errors
  */
-export function drilldown(selector: SelectorInfo, cwd: string): OutputEntry[] {
+export function drilldown(
+	selector: SelectorInfo,
+	cwd: string,
+	gitignore = true,
+): OutputEntry[] {
 	const depth = selector.depth ?? 0;
 
 	if (selector.type === "path") {
 		// Single file path — errors are fatal, no barrel gating
-		const files = discoverFiles(selector.pattern, cwd);
+		const files = discoverFiles(selector.pattern, cwd, gitignore);
 		const filePath = files[0];
 		const info = parseFileSummaries(filePath);
 		if (info.summary === null) {
@@ -289,7 +291,7 @@ export function drilldown(selector: SelectorInfo, cwd: string): OutputEntry[] {
 	}
 
 	// Glob selector — apply barrel gating
-	const files = discoverFiles(selector.pattern, cwd);
+	const files = discoverFiles(selector.pattern, cwd, gitignore);
 	if (files.length === 0) {
 		throw new JsdocError(
 			"NO_FILES_MATCHED",
@@ -306,8 +308,8 @@ export function drilldown(selector: SelectorInfo, cwd: string): OutputEntry[] {
 		);
 	}
 
-	// Sort alphabetically by path
-	return results.sort((a, b) => a.path.localeCompare(b.path));
+	// Sort alphabetically by id
+	return results.sort((a, b) => a.id.localeCompare(b.id));
 }
 
 /**
@@ -333,5 +335,5 @@ export function drilldownFiles(
 	);
 
 	const results = collectSafeResults(tsFiles, d, cwd);
-	return results.sort((a, b) => a.path.localeCompare(b.path));
+	return results.sort((a, b) => a.id.localeCompare(b.id));
 }

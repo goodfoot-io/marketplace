@@ -31,6 +31,11 @@ function isOutputErrorItem(entry: { id: string }): entry is OutputErrorItem {
 	return "error" in entry;
 }
 
+function pathFromId(id: string): string {
+	const atIndex = id.lastIndexOf("@");
+	return atIndex === -1 ? id : id.substring(0, atIndex);
+}
+
 describe("drilldown", () => {
 	// one-summary.ts has @summary + description → 4 levels:
 	// depth 0 → summary, depth 1 → description, depth 2 → type decls, depth 3 → full file
@@ -42,7 +47,6 @@ describe("drilldown", () => {
 		expect(isOutputItem(entry)).toBe(true);
 		if (isOutputItem(entry)) {
 			expect(entry.id).toBe("one-summary.ts@0");
-			expect(entry.path).toBe("one-summary.ts");
 			expect(entry.more).toBe(true);
 			expect(entry.text).toBe("Single summary line");
 		}
@@ -57,7 +61,6 @@ describe("drilldown", () => {
 		expect(isOutputItem(entry)).toBe(true);
 		if (isOutputItem(entry)) {
 			expect(entry.id).toBe("one-summary.ts@1");
-			expect(entry.path).toBe("one-summary.ts");
 			expect(entry.more).toBe(true);
 			expect(entry.text).toBe("Module description as free-text.");
 		}
@@ -193,7 +196,7 @@ describe("drilldown", () => {
 	it("glob excludes files with no summaries", () => {
 		// Use a glob that could match no-jsdoc.ts and description-only.ts along with others
 		const results = drilldown(globSelector("*.ts", 0), leafFilesDir);
-		const paths = results.map((r) => r.path);
+		const paths = results.map((r) => pathFromId(r.id));
 		// no-jsdoc.ts has no JSDoc at all, should be excluded
 		expect(paths).not.toContain("no-jsdoc.ts");
 		// description-only.ts has no @summary tag (summary === null), should be excluded
@@ -240,7 +243,7 @@ describe("drilldown", () => {
 
 	it("alphabetical ordering by path", () => {
 		const results = drilldown(globSelector("*.ts", 0), leafFilesDir);
-		const paths = results.map((r) => r.path);
+		const paths = results.map((r) => pathFromId(r.id));
 		const sorted = [...paths].sort();
 		expect(paths).toEqual(sorted);
 	});
@@ -252,7 +255,7 @@ describe("drilldown", () => {
 		// Should have results (some valid files + the error entry for syntax-error.ts)
 		expect(results.length).toBeGreaterThan(1);
 
-		const errorEntry = results.find((r) => r.path === "syntax-error.ts");
+		const errorEntry = results.find((r) => r.id === "syntax-error.ts");
 		expect(errorEntry).toBeDefined();
 		if (errorEntry && isOutputErrorItem(errorEntry)) {
 			// Error item id has no depth suffix
@@ -285,8 +288,10 @@ describe("drilldown", () => {
 		const results = drilldown(globSelector("*.ts", 2), depthDir);
 		expect(results).toHaveLength(2);
 
-		const oneSum = results.find((r) => r.path === "one-summary.ts");
-		const threeSum = results.find((r) => r.path === "three-summaries.ts");
+		const oneSum = results.find((r) => r.id.startsWith("one-summary.ts@"));
+		const threeSum = results.find((r) =>
+			r.id.startsWith("three-summaries.ts@"),
+		);
 
 		expect(oneSum).toBeDefined();
 		expect(threeSum).toBeDefined();
@@ -313,7 +318,7 @@ describe("drilldown", () => {
 		expect(isOutputItem(entry)).toBe(true);
 		if (isOutputItem(entry)) {
 			// The path should be relative to leafFilesDir, using ../
-			expect(entry.path).toBe(
+			expect(pathFromId(entry.id)).toBe(
 				relative(leafFilesDir, resolve(depthDir, "one-summary.ts")),
 			);
 			expect(entry.id).toContain("@0");
@@ -343,7 +348,7 @@ describe("drilldownFiles", () => {
 		const results = drilldownFiles(files, 0, leafFilesDir);
 		// Only the .ts file should be processed
 		expect(results).toHaveLength(1);
-		expect(results[0].path).toBe("one-summary.ts");
+		expect(pathFromId(results[0].id)).toBe("one-summary.ts");
 	});
 
 	it("excludes files with no summaries", () => {
@@ -354,7 +359,7 @@ describe("drilldownFiles", () => {
 		const results = drilldownFiles(files, 0, leafFilesDir);
 		// no-jsdoc.ts has no summaries, should be excluded
 		expect(results).toHaveLength(1);
-		expect(results[0].path).toBe("one-summary.ts");
+		expect(pathFromId(results[0].id)).toBe("one-summary.ts");
 	});
 
 	it("each file advances independently through its own levels", () => {
@@ -367,8 +372,10 @@ describe("drilldownFiles", () => {
 		const results = drilldownFiles(files, 2, depthDir);
 		expect(results).toHaveLength(2);
 
-		const oneSum = results.find((r) => r.path === "one-summary.ts");
-		const threeSum = results.find((r) => r.path === "three-summaries.ts");
+		const oneSum = results.find((r) => r.id.startsWith("one-summary.ts@"));
+		const threeSum = results.find((r) =>
+			r.id.startsWith("three-summaries.ts@"),
+		);
 
 		expect(oneSum).toBeDefined();
 		expect(threeSum).toBeDefined();
@@ -391,7 +398,7 @@ describe("drilldownFiles", () => {
 			resolve(leafFilesDir, "exported-types.ts"),
 		];
 		const results = drilldownFiles(files, 0, leafFilesDir);
-		const paths = results.map((r) => r.path);
+		const paths = results.map((r) => pathFromId(r.id));
 		const sorted = [...paths].sort();
 		expect(paths).toEqual(sorted);
 	});

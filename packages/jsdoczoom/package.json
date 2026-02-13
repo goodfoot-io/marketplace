@@ -1,5 +1,5 @@
 {
-	"name": "@goodfoot/jsdoczoom",
+	"name": "jsdoczoom",
 	"version": "0.1.0",
 	"description": "CLI tool for extracting JSDoc summaries at configurable depths",
 	"type": "module",
@@ -35,6 +35,7 @@
 	},
 	"dependencies": {
 		"glob": "^11.0.0",
+		"ignore": "^7.0.5",
 		"typescript": "^5.9.3"
 	},
 	"devDependencies": {

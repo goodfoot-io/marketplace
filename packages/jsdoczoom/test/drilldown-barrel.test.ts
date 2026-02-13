@@ -19,6 +19,11 @@ function isOutputItem(entry: { id: string }): entry is OutputItem {
 	return "text" in entry;
 }
 
+function pathFromId(id: string): string {
+	const atIndex = id.lastIndexOf("@");
+	return atIndex === -1 ? id : id.substring(0, atIndex);
+}
+
 describe("drilldown with barrels", () => {
 	// barrel-basic has:
 	//   index.ts with 1 @summary + description: summary="Barrel overview", description="Basic barrel module."
@@ -35,7 +40,7 @@ describe("drilldown with barrels", () => {
 		const entry = results[0];
 		expect(isOutputItem(entry)).toBe(true);
 		if (isOutputItem(entry)) {
-			expect(entry.path).toBe("index.ts");
+			expect(pathFromId(entry.id)).toBe("index.ts");
 			expect(entry.text).toBe("Barrel overview");
 			expect(entry.more).toBe(true);
 		}
@@ -48,7 +53,7 @@ describe("drilldown with barrels", () => {
 		const results = drilldown(globSelector("**/*.ts", 1), basicDir);
 
 		// Children: helper.ts and utils.ts — each at their L0
-		const paths = results.map((r) => r.path);
+		const paths = results.map((r) => pathFromId(r.id));
 		expect(paths).toContain("helper.ts");
 		expect(paths).toContain("utils.ts");
 	});
@@ -58,7 +63,7 @@ describe("drilldown with barrels", () => {
 		// At depth 1, barrel transitions
 		const results = drilldown(globSelector("**/*.ts", 1), basicDir);
 
-		const paths = results.map((r) => r.path);
+		const paths = results.map((r) => pathFromId(r.id));
 		expect(paths).not.toContain("index.ts");
 	});
 
@@ -67,7 +72,7 @@ describe("drilldown with barrels", () => {
 		// barrel gates for 1 depth. At depth 1, children appear at depth 0.
 		const results = drilldown(globSelector("**/*.ts", 1), basicDir);
 
-		const helperEntry = results.find((r) => r.path === "helper.ts");
+		const helperEntry = results.find((r) => r.id.startsWith("helper.ts@"));
 		expect(helperEntry).toBeDefined();
 		if (helperEntry && isOutputItem(helperEntry)) {
 			expect(helperEntry.id).toBe("helper.ts@0");
@@ -75,7 +80,7 @@ describe("drilldown with barrels", () => {
 			expect(helperEntry.more).toBe(true);
 		}
 
-		const utilsEntry = results.find((r) => r.path === "utils.ts");
+		const utilsEntry = results.find((r) => r.id.startsWith("utils.ts@"));
 		expect(utilsEntry).toBeDefined();
 		if (utilsEntry && isOutputItem(utilsEntry)) {
 			expect(utilsEntry.id).toBe("utils.ts@0");
@@ -93,7 +98,7 @@ describe("drilldown with barrels", () => {
 		const entry = results[0];
 		expect(isOutputItem(entry)).toBe(true);
 		if (isOutputItem(entry)) {
-			expect(entry.path).toBe("index.ts");
+			expect(pathFromId(entry.id)).toBe("index.ts");
 			expect(entry.id).toBe("index.ts@0");
 			expect(entry.text).toBe("Barrel overview");
 			expect(entry.more).toBe(true);
@@ -106,7 +111,7 @@ describe("drilldown with barrels", () => {
 		// child.ts should appear directly.
 		const results = drilldown(globSelector("**/*.ts", 0), zeroSumDir);
 
-		const paths = results.map((r) => r.path);
+		const paths = results.map((r) => pathFromId(r.id));
 		// child.ts should appear as a leaf since the barrel has no summaries
 		expect(paths).toContain("child.ts");
 		// The barrel itself (index.ts) has no summaries, so it's excluded
@@ -118,13 +123,13 @@ describe("drilldown with barrels", () => {
 		// barrel-root/index.ts has 1 @summary + description
 		// At depth 0, barrel gates: only barrel summary shown
 		const results0 = drilldown(globSelector("**/*.ts", 0), rootDir);
-		const paths0 = results0.map((r) => r.path);
+		const paths0 = results0.map((r) => pathFromId(r.id));
 		expect(paths0).toContain("index.ts");
 		expect(paths0).not.toContain("sibling.ts");
 
 		// At depth 1, barrel transitions: children appear
 		const results1 = drilldown(globSelector("**/*.ts", 1), rootDir);
-		const paths1 = results1.map((r) => r.path);
+		const paths1 = results1.map((r) => pathFromId(r.id));
 		expect(paths1).not.toContain("index.ts");
 		expect(paths1).toContain("sibling.ts");
 		expect(paths1).toContain("nested/index.ts");
@@ -149,7 +154,7 @@ describe("drilldown with barrels", () => {
 		// sub/index.ts is itself a barrel but appears as a regular item at this level
 		const results = drilldown(globSelector("**/*.ts", 1), nestedDir);
 
-		const subBarrel = results.find((r) => r.path === "sub/index.ts");
+		const subBarrel = results.find((r) => r.id.startsWith("sub/index.ts@"));
 		expect(subBarrel).toBeDefined();
 		if (subBarrel && isOutputItem(subBarrel)) {
 			// The sub-barrel at depth 0 shows its own summary
@@ -162,7 +167,7 @@ describe("drilldown with barrels", () => {
 		const basicDir = resolve(fixturesDir, "barrel-basic");
 		// At barrel transition depth (1), children appear sorted
 		const results = drilldown(globSelector("**/*.ts", 1), basicDir);
-		const paths = results.map((r) => r.path);
+		const paths = results.map((r) => pathFromId(r.id));
 		const sorted = [...paths].sort();
 		expect(paths).toEqual(sorted);
 	});
@@ -177,13 +182,13 @@ describe("drilldown with barrels", () => {
 		const entry = results[0];
 		expect(isOutputItem(entry)).toBe(true);
 		if (isOutputItem(entry)) {
-			expect(entry.path).toBe("index.ts");
+			expect(pathFromId(entry.id)).toBe("index.ts");
 			expect(entry.text).toBe("Root overview");
 		}
 
 		// At transition depth (1), sibling and child barrel appear
 		const results1 = drilldown(globSelector("**/*.ts", 1), rootDir);
-		const paths1 = results1.map((r) => r.path);
+		const paths1 = results1.map((r) => pathFromId(r.id));
 		expect(paths1).toContain("sibling.ts");
 		expect(paths1).toContain("nested/index.ts");
 		expect(paths1).not.toContain("index.ts");

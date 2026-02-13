@@ -4,70 +4,107 @@ import { discoverFiles } from "./file-discovery.js";
 import { parseFileSummaries } from "./jsdoc-parser.js";
 import type {
 	SelectorInfo,
-	ValidationFileResult,
 	ValidationResult,
+	ValidationStatus,
 } from "./types.js";
 
+/** Internal per-file classification */
+interface FileStatus {
+	path: string;
+	status: ValidationStatus | "valid";
+}
+
 /**
- * Validate a single file against validation requirements.
+ * Classify a single file against validation requirements.
  *
- * Validation checks:
- * 1. No syntax errors
- * 2. Has file-level JSDoc block
- * 3. Has @summary tag
- * 4. Has description
+ * Priority order (first failing check wins):
+ * 1. syntax_error
+ * 2. missing_jsdoc
+ * 3. missing_summary
+ * 4. missing_description
  */
-function validateFile(filePath: string, cwd: string): ValidationFileResult {
+function classifyFile(filePath: string, cwd: string): FileStatus {
 	const relativePath = relative(cwd, filePath);
-	const issues: string[] = [];
 
 	try {
 		const info = parseFileSummaries(filePath);
 
 		if (!info.hasFileJsdoc) {
-			issues.push(
-				"Missing file-level JSDoc block. Add a /** ... */ comment before the first code statement with a @summary tag for concise orientation and a description paragraph explaining responsibilities, invariants, and trade-offs.",
-			);
-			return { path: relativePath, passed: false, issues };
+			return { path: relativePath, status: "missing_jsdoc" };
 		}
 
 		if (info.summary === null) {
-			issues.push(
-				"Missing @summary tag. Add @summary followed by a concise one-line overview of what this file does — enough for quick orientation when scanning a codebase.",
-			);
-			return { path: relativePath, passed: false, issues };
+			return { path: relativePath, status: "missing_summary" };
 		}
 
 		if (info.description === null) {
-			issues.push(
-				"Missing description. Add a prose paragraph at the top of the JSDoc block (before any @ tags) explaining the file's responsibilities, invariants, trade-offs, and failure modes — the deepest native documentation level.",
-			);
-			return { path: relativePath, passed: false, issues };
+			return { path: relativePath, status: "missing_description" };
 		}
 
-		return { path: relativePath, passed: true, issues: [] };
+		return { path: relativePath, status: "valid" };
 	} catch (error) {
 		if (error instanceof JsdocError && error.code === "PARSE_ERROR") {
-			issues.push(`Syntax error: ${error.message}`);
-			return { path: relativePath, passed: false, issues };
+			return { path: relativePath, status: "syntax_error" };
 		}
 		throw error;
 	}
 }
 
+/** Priority order for filling groups when applying limit */
+const STATUS_PRIORITY: ValidationStatus[] = [
+	"syntax_error",
+	"missing_jsdoc",
+	"missing_summary",
+	"missing_description",
+];
+
 /**
- * Build a ValidationResult from a list of file validation results.
+ * Group file statuses into a ValidationResult, applying a limit
+ * to the total number of invalid file paths shown.
  */
-function buildResult(fileResults: ValidationFileResult[]): ValidationResult {
-	const passed = fileResults.filter((f) => f.passed).length;
-	return {
-		files: fileResults,
+function buildGroupedResult(
+	statuses: FileStatus[],
+	limit: number,
+): ValidationResult {
+	const groups: Record<ValidationStatus, string[]> = {
+		syntax_error: [],
+		missing_jsdoc: [],
+		missing_summary: [],
+		missing_description: [],
+	};
+
+	for (const { path, status } of statuses) {
+		if (status !== "valid") {
+			groups[status].push(path);
+		}
+	}
+
+	const totalInvalid = Object.values(groups).reduce(
+		(sum, arr) => sum + arr.length,
+		0,
+	);
+	const truncated = totalInvalid > limit;
+
+	const result: ValidationResult = {
 		summary: {
-			total: fileResults.length,
-			passed,
-			failed: fileResults.length - passed,
+			total: statuses.length,
+			invalid: totalInvalid,
+			truncated,
 		},
 	};
+
+	let remaining = limit;
+	for (const status of STATUS_PRIORITY) {
+		const files = groups[status];
+		if (files.length === 0) continue;
+		if (remaining <= 0) break;
+
+		const slice = files.slice(0, remaining);
+		result[status] = slice;
+		remaining -= slice.length;
+	}
+
+	return result;
 }
 
 /**
@@ -75,7 +112,8 @@ function buildResult(fileResults: ValidationFileResult[]): ValidationResult {
  *
  * @param selector - Selector information (glob or path)
  * @param cwd - Working directory for resolving paths
- * @returns Validation results with per-file details and summary
+ * @param limit - Max number of invalid file paths to include (default 100)
+ * @returns Grouped validation results with summary
  * @throws {JsdocError} INVALID_DEPTH if selector has @depth suffix
  * @throws {JsdocError} NO_FILES_MATCHED if glob selector matches no files
  * @throws {JsdocError} FILE_NOT_FOUND if path selector targets nonexistent file
@@ -83,6 +121,8 @@ function buildResult(fileResults: ValidationFileResult[]): ValidationResult {
 export function validate(
 	selector: SelectorInfo,
 	cwd: string,
+	limit = 100,
+	gitignore = true,
 ): ValidationResult {
 	if (selector.depth !== undefined) {
 		throw new JsdocError(
@@ -91,7 +131,7 @@ export function validate(
 		);
 	}
 
-	const files = discoverFiles(selector.pattern, cwd);
+	const files = discoverFiles(selector.pattern, cwd, gitignore);
 	if (files.length === 0) {
 		throw new JsdocError(
 			"NO_FILES_MATCHED",
@@ -99,8 +139,8 @@ export function validate(
 		);
 	}
 
-	const results = files.map((f) => validateFile(f, cwd));
-	return buildResult(results);
+	const statuses = files.map((f) => classifyFile(f, cwd));
+	return buildGroupedResult(statuses, limit);
 }
 
 /**
@@ -110,15 +150,17 @@ export function validate(
  *
  * @param filePaths - List of file paths to validate
  * @param cwd - Working directory for resolving relative paths
- * @returns Validation results with per-file details and summary
+ * @param limit - Max number of invalid file paths to include (default 100)
+ * @returns Grouped validation results with summary
  */
 export function validateFiles(
 	filePaths: string[],
 	cwd: string,
+	limit = 100,
 ): ValidationResult {
 	const tsFiles = filePaths.filter(
 		(f) => f.endsWith(".ts") || f.endsWith(".tsx"),
 	);
-	const results = tsFiles.map((f) => validateFile(f, cwd));
-	return buildResult(results);
+	const statuses = tsFiles.map((f) => classifyFile(f, cwd));
+	return buildGroupedResult(statuses, limit);
 }

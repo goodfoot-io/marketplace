@@ -74,16 +74,15 @@ describe("cli", () => {
 		it("-v runs validation mode", async () => {
 			await main(["-v", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
-			expect(output).toHaveProperty("files");
 			expect(output).toHaveProperty("summary");
 			expect(output.summary.total).toBe(1);
+			expect(output.summary.invalid).toBe(0);
 			expect(process.exitCode).toBe(0);
 		});
 
 		it("--validate runs validation mode", async () => {
 			await main(["--validate", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
-			expect(output).toHaveProperty("files");
 			expect(output).toHaveProperty("summary");
 		});
 
@@ -125,7 +124,7 @@ describe("cli", () => {
 			expect(Array.isArray(output)).toBe(true);
 			// depth-advancement dir has one-summary.ts and three-summaries.ts
 			expect(output.length).toBeGreaterThanOrEqual(2);
-			const paths = output.map((e: { path: string }) => e.path);
+			const paths = output.map((e: { id: string }) => e.id.split("@")[0]);
 			expect(paths).toContain("one-summary.ts");
 			expect(paths).toContain("three-summaries.ts");
 		});
@@ -154,16 +153,16 @@ describe("cli", () => {
 			const output = JSON.parse(capture.getStdout());
 			expect(Array.isArray(output)).toBe(true);
 			expect(output).toHaveLength(1);
-			expect(output[0].path).toBe("two-summaries.ts");
+			expect(output[0].id.split("@")[0]).toBe("two-summaries.ts");
 		});
 
 		it("stdin with -v processes via validateFiles", async () => {
 			const stdin = "two-summaries.ts\none-summary.ts";
 			await main(["-v"], stdin);
 			const output = JSON.parse(capture.getStdout());
-			expect(output).toHaveProperty("files");
 			expect(output).toHaveProperty("summary");
 			expect(output.summary.total).toBe(2);
+			expect(output.summary.invalid).toBe(0);
 		});
 
 		it("stdin combined with @depth suffix applies depth to all paths", async () => {
@@ -263,7 +262,6 @@ describe("cli", () => {
 			expect(Array.isArray(output)).toBe(true);
 			expect(output).toHaveLength(1);
 			expect(output[0]).toHaveProperty("id");
-			expect(output[0]).toHaveProperty("path");
 			expect(output[0]).toHaveProperty("more");
 			expect(output[0]).toHaveProperty("text");
 		});
@@ -273,8 +271,10 @@ describe("cli", () => {
 			const output = JSON.parse(capture.getStdout());
 			expect(typeof output).toBe("object");
 			expect(Array.isArray(output)).toBe(false);
-			expect(output).toHaveProperty("files");
 			expect(output).toHaveProperty("summary");
+			expect(output.summary).toHaveProperty("total");
+			expect(output.summary).toHaveProperty("invalid");
+			expect(output.summary).toHaveProperty("truncated");
 		});
 
 		it("output always ends with a newline", async () => {
@@ -286,8 +286,7 @@ describe("cli", () => {
 		it("validation success writes result to stdout only, no stderr", async () => {
 			await main(["-v", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
-			expect(output.summary.passed).toBe(1);
-			expect(output.summary.failed).toBe(0);
+			expect(output.summary.invalid).toBe(0);
 			expect(capture.getStderr()).toBe("");
 			expect(process.exitCode).toBe(0);
 		});
@@ -296,7 +295,7 @@ describe("cli", () => {
 			await main(["-v", "description-only.ts"]);
 			// stdout has the validation result
 			const output = JSON.parse(capture.getStdout());
-			expect(output.summary.failed).toBe(1);
+			expect(output.summary.invalid).toBe(1);
 			// stderr has the VALIDATION_FAILED error
 			const errOutput = JSON.parse(capture.getStderr());
 			expect(errOutput.error.code).toBe("VALIDATION_FAILED");

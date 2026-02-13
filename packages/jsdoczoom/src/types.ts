@@ -1,7 +1,6 @@
 /** Single output item representing a file at a specific drill-down level */
 export interface OutputItem {
 	id: string;
-	path: string;
 	more: boolean;
 	text: string;
 }
@@ -9,7 +8,6 @@ export interface OutputItem {
 /** Output item for files that encountered errors during processing */
 export interface OutputErrorItem {
 	id: string;
-	path: string;
 	more: false;
 	error: {
 		code: string;
@@ -31,20 +29,23 @@ export type ErrorCode =
 	| "VALIDATION_FAILED"
 	| "INTERNAL_ERROR";
 
-/** Validation result for a single file */
-export interface ValidationFileResult {
-	path: string;
-	passed: boolean;
-	issues: string[];
-}
+/** Validation status categories for invalid files */
+export type ValidationStatus =
+	| "syntax_error"
+	| "missing_jsdoc"
+	| "missing_summary"
+	| "missing_description";
 
-/** Complete validation result */
+/** Grouped validation result — only invalid-file groups appear */
 export interface ValidationResult {
-	files: ValidationFileResult[];
+	syntax_error?: string[];
+	missing_jsdoc?: string[];
+	missing_summary?: string[];
+	missing_description?: string[];
 	summary: {
 		total: number;
-		passed: number;
-		failed: number;
+		invalid: number;
+		truncated: boolean;
 	};
 }
 

@@ -2164,6 +2164,7 @@ __metadata:
     "@biomejs/biome": "npm:2.3.14"
     "@types/node": "npm:^24"
     glob: "npm:^11.0.0"
+    ignore: "npm:^7.0.5"
     typescript: "npm:^5.9.3"
     vitest: "npm:4.0.13"
   bin:
@@ -9491,7 +9492,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ignore@npm:^7.0.0":
+"ignore@npm:^7.0.0, ignore@npm:^7.0.5":
   version: 7.0.5
   resolution: "ignore@npm:7.0.5"
   checksum: 10c0/ae00db89fe873064a093b8999fe4cc284b13ef2a178636211842cceb650b9c3e390d3339191acb145d81ed5379d2074840cf0c33a20bdbd6f32821f79eb4ad5d

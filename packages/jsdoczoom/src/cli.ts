@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { drilldown, drilldownFiles } from "./drilldown.js";
 import { JsdocError } from "./errors.js";
 import { parseSelector } from "./selector.js";
+import { SKILL_TEXT } from "./skill-text.js";
 import type { SelectorInfo, ValidationResult } from "./types.js";
 import { validate, validateFiles } from "./validate.js";
 
@@ -14,7 +15,10 @@ Progressively explore TypeScript codebase documentation.
 Options:
   -h, --help       Show this help text
   -v, --validate   Run validation mode
+  -s, --skill      Print JSDoc writing guidelines
   --pretty         Format JSON output with 2-space indent
+  --limit N        Max invalid file paths shown (default 100, validation only)
+  --no-gitignore   Include files ignored by .gitignore
 
 Selector:
   A glob pattern or file path, optionally with @depth suffix.
@@ -36,27 +40,49 @@ Stdin:
 function parseArgs(args: string[]): {
 	help: boolean;
 	validateMode: boolean;
+	skillMode: boolean;
 	pretty: boolean;
+	limit: number;
+	gitignore: boolean;
 	selectorArg: string | undefined;
 } {
 	let help = false;
 	let validateMode = false;
+	let skillMode = false;
 	let pretty = false;
+	let limit = 100;
+	let gitignore = true;
 	let selectorArg: string | undefined;
 
-	for (const arg of args) {
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
 		if (arg === "-h" || arg === "--help") {
 			help = true;
 		} else if (arg === "-v" || arg === "--validate") {
 			validateMode = true;
+		} else if (arg === "-s" || arg === "--skill") {
+			skillMode = true;
 		} else if (arg === "--pretty") {
 			pretty = true;
+		} else if (arg === "--limit") {
+			const next = args[++i];
+			limit = Number(next);
+		} else if (arg === "--no-gitignore") {
+			gitignore = false;
 		} else if (selectorArg === undefined) {
 			selectorArg = arg;
 		}
 	}
 
-	return { help, validateMode, pretty, selectorArg };
+	return {
+		help,
+		validateMode,
+		skillMode,
+		pretty,
+		limit,
+		gitignore,
+		selectorArg,
+	};
 }
 
 /**
@@ -87,6 +113,7 @@ function processStdin(
 	selectorArg: string | undefined,
 	validateMode: boolean,
 	pretty: boolean,
+	limit: number,
 	cwd: string,
 ): void {
 	const stdinPaths = parseStdinPaths(stdin, cwd);
@@ -94,7 +121,7 @@ function processStdin(
 		selectorArg !== undefined ? extractDepthFromArg(selectorArg) : undefined;
 
 	if (validateMode) {
-		const result = validateFiles(stdinPaths, cwd);
+		const result = validateFiles(stdinPaths, cwd, limit);
 		writeResult(result, pretty);
 		handleValidationExitCode(result);
 	} else {
@@ -110,6 +137,8 @@ function processSelector(
 	selectorArg: string | undefined,
 	validateMode: boolean,
 	pretty: boolean,
+	limit: number,
+	gitignore: boolean,
 	cwd: string,
 ): void {
 	const selector: SelectorInfo = selectorArg
@@ -117,11 +146,11 @@ function processSelector(
 		: { type: "glob", pattern: "**/*.{ts,tsx}", depth: undefined };
 
 	if (validateMode) {
-		const result = validate(selector, cwd);
+		const result = validate(selector, cwd, limit, gitignore);
 		writeResult(result, pretty);
 		handleValidationExitCode(result);
 	} else {
-		const result = drilldown(selector, cwd);
+		const result = drilldown(selector, cwd, gitignore);
 		writeResult(result, pretty);
 	}
 }
@@ -147,19 +176,32 @@ function writeError(error: unknown): void {
  * Main CLI entry point. Exported for testability.
  */
 export async function main(args: string[], stdin?: string): Promise<void> {
-	const { help, validateMode, pretty, selectorArg } = parseArgs(args);
+	const {
+		help,
+		validateMode,
+		skillMode,
+		pretty,
+		limit,
+		gitignore,
+		selectorArg,
+	} = parseArgs(args);
 
 	if (help) {
 		process.stdout.write(HELP_TEXT);
 		return;
 	}
 
+	if (skillMode) {
+		process.stdout.write(SKILL_TEXT);
+		return;
+	}
+
 	try {
 		const cwd = process.cwd();
 		if (stdin !== undefined) {
-			processStdin(stdin, selectorArg, validateMode, pretty, cwd);
+			processStdin(stdin, selectorArg, validateMode, pretty, limit, cwd);
 		} else {
-			processSelector(selectorArg, validateMode, pretty, cwd);
+			processSelector(selectorArg, validateMode, pretty, limit, gitignore, cwd);
 		}
 	} catch (error: unknown) {
 		writeError(error);
@@ -180,12 +222,12 @@ function writeResult(result: unknown, pretty: boolean): void {
  * Set exit code 2 if validation has failures.
  */
 function handleValidationExitCode(result: ValidationResult): void {
-	if (result.summary.failed > 0) {
+	if (result.summary.invalid > 0) {
 		process.stderr.write(
 			`${JSON.stringify(
 				new JsdocError(
 					"VALIDATION_FAILED",
-					`${result.summary.failed} file(s) failed validation`,
+					`${result.summary.invalid} file(s) failed validation`,
 				).toJSON(),
 			)}\n`,
 		);

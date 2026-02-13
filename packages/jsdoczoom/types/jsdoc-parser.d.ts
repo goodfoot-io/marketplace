@@ -8,9 +8,9 @@ import type { ParsedFileInfo } from "./types.js";
  */
 export declare function extractFileJsdoc(sourceText: string): string | null;
 /**
- * Parse a TypeScript file and extract its summary levels from file-level JSDoc.
+ * Parse a TypeScript file and extract its summary and description from file-level JSDoc.
  *
- * Reads the file, extracts the first file-level JSDoc block, and parses @summary
- * tags and free-text into ordered summary levels.
+ * Reads the file, extracts the first file-level JSDoc block, and parses the first
+ * @summary tag and free-text description.
  */
 export declare function parseFileSummaries(filePath: string): ParsedFileInfo;
