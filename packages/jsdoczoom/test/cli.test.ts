@@ -394,13 +394,13 @@ describe("cli", () => {
 		});
 
 		it("lint failure exits 2", async () => {
-			// two-summaries.ts export const value = 42 lacks JSDoc
-			await main(["-l", "two-summaries.ts"]);
+			// description-only.ts has no @summary, which triggers lint rules
+			await main(["-l", "description-only.ts"]);
 			expect(process.exitCode).toBe(2);
 		});
 
 		it("-l output is valid JSON with files and summary", async () => {
-			await main(["-l", "two-summaries.ts"]);
+			await main(["-l", "description-only.ts"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(Array.isArray(output.files)).toBe(true);
 			expect(typeof output.summary.totalFiles).toBe("number");

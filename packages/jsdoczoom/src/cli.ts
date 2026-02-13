@@ -85,6 +85,11 @@ function parseArgs(args: string[]): {
 			limit = Number(next);
 		} else if (arg === "--no-gitignore") {
 			gitignore = false;
+		} else if (arg.startsWith("-")) {
+			throw new JsdocError(
+				"INVALID_SELECTOR",
+				`Unrecognized option: ${arg}`,
+			);
 		} else if (selectorArg === undefined) {
 			selectorArg = arg;
 		}
@@ -139,9 +144,11 @@ async function processStdin(
 		selectorArg !== undefined ? extractDepthFromArg(selectorArg) : undefined;
 
 	if (lintMode) {
+		const { lintFiles } = await import("./lint.js");
 		const result = await lintFiles(stdinPaths, cwd, limit);
 		writeLintResult(result, pretty);
 	} else if (validateMode) {
+		const { validateFiles } = await import("./validate.js");
 		const result = await validateFiles(stdinPaths, cwd, limit);
 		writeValidationResult(result, pretty);
 	} else {
@@ -199,35 +206,35 @@ function writeError(error: unknown): void {
  * Main CLI entry point. Exported for testability.
  */
 export async function main(args: string[], stdin?: string): Promise<void> {
-	const {
-		help,
-		validateMode,
-		lintMode,
-		skillMode,
-		pretty,
-		limit,
-		gitignore,
-		selectorArg,
-	} = parseArgs(args);
-
-	if (help) {
-		process.stdout.write(HELP_TEXT);
-		return;
-	}
-
-	if (skillMode) {
-		process.stdout.write(SKILL_TEXT);
-		return;
-	}
-
-	if (validateMode && lintMode) {
-		writeError(
-			new JsdocError("INVALID_SELECTOR", "Cannot use -v and -l together"),
-		);
-		return;
-	}
-
 	try {
+		const {
+			help,
+			validateMode,
+			lintMode,
+			skillMode,
+			pretty,
+			limit,
+			gitignore,
+			selectorArg,
+		} = parseArgs(args);
+
+		if (help) {
+			process.stdout.write(HELP_TEXT);
+			return;
+		}
+
+		if (skillMode) {
+			process.stdout.write(SKILL_TEXT);
+			return;
+		}
+
+		if (validateMode && lintMode) {
+			writeError(
+				new JsdocError("INVALID_SELECTOR", "Cannot use -v and -l together"),
+			);
+			return;
+		}
+
 		const cwd = process.cwd();
 		if (stdin !== undefined) {
 			await processStdin(

@@ -70,7 +70,7 @@ export function createLintLinter(cwd?: string): ESLint {
 					"jsdoc/check-tag-names": "error",
 					"jsdoc/no-types": "error",
 					"jsdoc/informative-docs": "error",
-					"jsdoc/tag-lines": "error",
+					"jsdoc/tag-lines": "off",
 					"jsdoc/no-blank-blocks": "error",
 					"jsdoc/require-description": "error",
 				},

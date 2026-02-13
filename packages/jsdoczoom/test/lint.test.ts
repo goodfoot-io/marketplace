@@ -331,13 +331,18 @@ describe("lintFiles", () => {
 	});
 
 	it("works with existing leaf-files fixture", async () => {
-		// two-summaries.ts has a blank line before @summary which triggers jsdoc/tag-lines
-		const result = await lintFiles([fixture("two-summaries.ts")], fixturesDir);
+		// description-only.ts has JSDoc without @summary, triggering jsdoczoom/require-file-summary
+		const result = await lintFiles(
+			[fixture("description-only.ts")],
+			fixturesDir,
+		);
 
 		expect(result.summary.totalFiles).toBe(1);
 		expect(result.summary.filesWithIssues).toBe(1);
 		expect(
-			result.files[0].diagnostics.some((d) => d.rule === "jsdoc/tag-lines"),
+			result.files[0].diagnostics.some(
+				(d) => d.rule === "jsdoczoom/require-file-summary",
+			),
 		).toBe(true);
 	});
 
