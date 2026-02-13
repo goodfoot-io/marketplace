@@ -3,6 +3,14 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { main } from "../src/cli.js";
 
+/**
+ * Verifies flag parsing, selector dispatch, stdin piping, JSON output
+ * formatting, exit codes, and error serialization by capturing stdout
+ * and stderr writes during CLI invocation.
+ *
+ * @summary Integration tests for CLI argument parsing, output format, and exit codes
+ */
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = resolve(__dirname, "fixtures");
 const leafFilesDir = resolve(fixturesDir, "leaf-files");
@@ -42,6 +50,21 @@ function captureOutput() {
 	};
 }
 
+/** Extract the key from an output item (either next_id or id). */
+function itemKey(item: Record<string, unknown>): string {
+	if ("next_id" in item && typeof item.next_id === "string")
+		return item.next_id;
+	if ("id" in item && typeof item.id === "string") return item.id;
+	return "";
+}
+
+/** Extract path from an output item key. */
+function pathFromItem(item: Record<string, unknown>): string {
+	const key = itemKey(item);
+	const atIndex = key.lastIndexOf("@");
+	return atIndex === -1 ? key : key.substring(0, atIndex);
+}
+
 describe("cli", () => {
 	let capture: ReturnType<typeof captureOutput>;
 	let cwdSpy: ReturnType<typeof vi.spyOn>;
@@ -74,16 +97,15 @@ describe("cli", () => {
 		it("-v runs validation mode", async () => {
 			await main(["-v", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
-			expect(output).toHaveProperty("summary");
-			expect(output.summary.total).toBe(1);
-			expect(output.summary.invalid).toBe(0);
+			expect(output.success).toBe(true);
+			expect(output.message).toBe("All files passed validation");
 			expect(process.exitCode).toBe(0);
 		});
 
 		it("--validate runs validation mode", async () => {
 			await main(["--validate", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
-			expect(output).toHaveProperty("summary");
+			expect(output.success).toBe(true);
 		});
 
 		it("--pretty outputs indented JSON (2-space indent)", async () => {
@@ -92,9 +114,9 @@ describe("cli", () => {
 			// Pretty JSON starts with "{\n" and contains indented lines
 			expect(raw).toContain("\n  ");
 			const parsed = JSON.parse(raw);
-			// Verify it's valid JSON object with items and summary
+			// Verify it's valid JSON object with items and truncated
 			expect(parsed).toHaveProperty("items");
-			expect(parsed).toHaveProperty("summary");
+			expect(parsed).toHaveProperty("truncated");
 			// Verify the indentation matches 2-space indent
 			expect(raw.trimEnd()).toBe(JSON.stringify(parsed, null, 2));
 		});
@@ -110,9 +132,8 @@ describe("cli", () => {
 		it("--pretty works with validation mode", async () => {
 			await main(["--pretty", "-v", "two-summaries.ts"]);
 			const raw = capture.getStdout();
-			expect(raw).toContain("\n  ");
 			const parsed = JSON.parse(raw);
-			expect(parsed).toHaveProperty("summary");
+			expect(parsed.success).toBe(true);
 			expect(raw.trimEnd()).toBe(JSON.stringify(parsed, null, 2));
 		});
 	});
@@ -125,17 +146,28 @@ describe("cli", () => {
 			expect(output).toHaveProperty("items");
 			// depth-advancement dir has one-summary.ts and three-summaries.ts
 			expect(output.items.length).toBeGreaterThanOrEqual(2);
-			const paths = output.items.map((e: { id: string }) => e.id.split("@")[0]);
+			const paths = output.items.map((e: Record<string, unknown>) =>
+				pathFromItem(e),
+			);
 			expect(paths).toContain("one-summary.ts");
 			expect(paths).toContain("three-summaries.ts");
 		});
 
+		it("directory path discovers files and produces drilldown output", async () => {
+			cwdSpy.mockReturnValue(fixturesDir);
+			await main(["leaf-files"]);
+			const output = JSON.parse(capture.getStdout());
+			expect(output).toHaveProperty("items");
+			expect(output.items.length).toBeGreaterThan(0);
+		});
+
 		it("selector argument is parsed and passed to drilldown", async () => {
-			await main(["two-summaries.ts@1"]);
+			await main(["two-summaries.ts@2"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(output.items).toHaveLength(1);
-			expect(output.items[0].id).toBe("two-summaries.ts@1");
+			// Level 2 (description) has next_id pointing to @3
+			expect(output.items[0].next_id).toBe("two-summaries.ts@3");
 		});
 	});
 
@@ -154,25 +186,24 @@ describe("cli", () => {
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(output.items).toHaveLength(1);
-			expect(output.items[0].id.split("@")[0]).toBe("two-summaries.ts");
+			expect(pathFromItem(output.items[0])).toBe("two-summaries.ts");
 		});
 
 		it("stdin with -v processes via validateFiles", async () => {
 			const stdin = "two-summaries.ts\none-summary.ts";
 			await main(["-v"], stdin);
 			const output = JSON.parse(capture.getStdout());
-			expect(output).toHaveProperty("summary");
-			expect(output.summary.total).toBe(2);
-			expect(output.summary.invalid).toBe(0);
+			expect(output.success).toBe(true);
 		});
 
 		it("stdin combined with @depth suffix applies depth to all paths", async () => {
 			const stdin = "two-summaries.ts";
-			await main(["@1"], stdin);
+			await main(["@2"], stdin);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(output.items).toHaveLength(1);
-			expect(output.items[0].id).toBe("two-summaries.ts@1");
+			// Level 2 (description) → next_id points to @3
+			expect(output.items[0].next_id).toBe("two-summaries.ts@3");
 		});
 
 		it("stdin ignores blank lines", async () => {
@@ -193,12 +224,12 @@ describe("cli", () => {
 			// Provide a selector with a pattern and depth; stdin takes priority for file list
 			// but depth should be extracted from the selector argument
 			const stdin = "two-summaries.ts";
-			await main(["some-other-pattern.ts@1"], stdin);
+			await main(["some-other-pattern.ts@2"], stdin);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(output.items).toHaveLength(1);
-			// Depth 1 should be applied from the selector argument
-			expect(output.items[0].id).toBe("two-summaries.ts@1");
+			// Depth 2 should be applied from the selector argument → next_id @3
+			expect(output.items[0].next_id).toBe("two-summaries.ts@3");
 		});
 	});
 
@@ -261,11 +292,12 @@ describe("cli", () => {
 			await main(["two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
-			expect(output).toHaveProperty("summary");
+			expect(output).toHaveProperty("truncated");
 			expect(output.items).toHaveLength(1);
-			expect(output.items[0]).toHaveProperty("id");
-			expect(output.items[0]).toHaveProperty("more");
-			expect(output.items[0]).toHaveProperty("text");
+			// Item should have either next_id or id, plus text
+			const item = output.items[0];
+			expect(item).toHaveProperty("text");
+			expect("next_id" in item || "id" in item).toBe(true);
 		});
 
 		it("validation mode output is valid JSON object on stdout", async () => {
@@ -273,10 +305,8 @@ describe("cli", () => {
 			const output = JSON.parse(capture.getStdout());
 			expect(typeof output).toBe("object");
 			expect(Array.isArray(output)).toBe(false);
-			expect(output).toHaveProperty("summary");
-			expect(output.summary).toHaveProperty("total");
-			expect(output.summary).toHaveProperty("invalid");
-			expect(output.summary).toHaveProperty("truncated");
+			expect(output.success).toBe(true);
+			expect(output.message).toBe("All files passed validation");
 		});
 
 		it("output always ends with a newline", async () => {
@@ -288,16 +318,18 @@ describe("cli", () => {
 		it("validation success writes result to stdout only, no stderr", async () => {
 			await main(["-v", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
-			expect(output.summary.invalid).toBe(0);
+			expect(output.success).toBe(true);
 			expect(capture.getStderr()).toBe("");
 			expect(process.exitCode).toBe(0);
 		});
 
 		it("validation failure writes result to stdout and error to stderr", async () => {
 			await main(["-v", "description-only.ts"]);
-			// stdout has the validation result
+			// stdout has the validation result with groups and success: false
 			const output = JSON.parse(capture.getStdout());
-			expect(output.summary.invalid).toBe(1);
+			expect(output.success).toBe(false);
+			expect(output.missing_summary).toBeDefined();
+			expect(output.missing_summary.files).toEqual(["description-only.ts"]);
 			// stderr has the VALIDATION_FAILED error
 			const errOutput = JSON.parse(capture.getStderr());
 			expect(errOutput.error.code).toBe("VALIDATION_FAILED");

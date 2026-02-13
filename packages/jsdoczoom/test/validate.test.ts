@@ -5,6 +5,14 @@ import { JsdocError } from "../src/errors.js";
 import type { SelectorInfo } from "../src/types.js";
 import { validate, validateFiles } from "../src/validate.js";
 
+/**
+ * Verifies status classification (valid, syntax_error, missing_jsdoc,
+ * missing_summary, missing_description), priority-order group filling
+ * under limits, and error handling for missing files and empty globs.
+ *
+ * @summary Tests for file-level JSDoc validation and grouped result output
+ */
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.resolve(__dirname, "fixtures", "leaf-files");
 
@@ -13,7 +21,7 @@ function fixture(name: string): string {
 }
 
 describe("validate", () => {
-	it("valid file produces no status groups", () => {
+	it("valid file produces empty result", () => {
 		const selector: SelectorInfo = {
 			type: "path",
 			pattern: fixture("two-summaries.ts"),
@@ -21,9 +29,6 @@ describe("validate", () => {
 		};
 		const result = validate(selector, fixturesDir);
 
-		expect(result.summary.total).toBe(1);
-		expect(result.summary.invalid).toBe(0);
-		expect(result.summary.truncated).toBe(false);
 		expect(result.syntax_error).toBeUndefined();
 		expect(result.missing_jsdoc).toBeUndefined();
 		expect(result.missing_summary).toBeUndefined();
@@ -38,9 +43,7 @@ describe("validate", () => {
 		};
 		const result = validate(selector, fixturesDir);
 
-		expect(result.summary.total).toBe(1);
-		expect(result.summary.invalid).toBe(1);
-		expect(result.missing_description).toEqual(["summary-only.ts"]);
+		expect(result.missing_description?.files).toEqual(["summary-only.ts"]);
 		expect(result.missing_jsdoc).toBeUndefined();
 		expect(result.missing_summary).toBeUndefined();
 	});
@@ -53,9 +56,7 @@ describe("validate", () => {
 		};
 		const result = validate(selector, fixturesDir);
 
-		expect(result.summary.total).toBe(1);
-		expect(result.summary.invalid).toBe(1);
-		expect(result.missing_summary).toEqual(["description-only.ts"]);
+		expect(result.missing_summary?.files).toEqual(["description-only.ts"]);
 	});
 
 	it("file with no file-level JSDoc is missing_jsdoc", () => {
@@ -66,9 +67,7 @@ describe("validate", () => {
 		};
 		const result = validate(selector, fixturesDir);
 
-		expect(result.summary.total).toBe(1);
-		expect(result.summary.invalid).toBe(1);
-		expect(result.missing_jsdoc).toEqual(["no-jsdoc.ts"]);
+		expect(result.missing_jsdoc?.files).toEqual(["no-jsdoc.ts"]);
 	});
 
 	it("file with syntax error is syntax_error", () => {
@@ -79,9 +78,7 @@ describe("validate", () => {
 		};
 		const result = validate(selector, fixturesDir);
 
-		expect(result.summary.total).toBe(1);
-		expect(result.summary.invalid).toBe(1);
-		expect(result.syntax_error).toEqual(["syntax-error.ts"]);
+		expect(result.syntax_error?.files).toEqual(["syntax-error.ts"]);
 	});
 
 	it("whitespace-only @summary is skipped, uses next non-empty one", () => {
@@ -92,28 +89,30 @@ describe("validate", () => {
 		};
 		const result = validate(selector, fixturesDir);
 
-		expect(result.summary.total).toBe(1);
-		expect(result.summary.invalid).toBe(0);
 		expect(result.missing_summary).toBeUndefined();
 	});
 
-	it("rejects @depth suffix with INVALID_DEPTH error", () => {
+	it("flags files with multiple @summary tags", () => {
+		const selector: SelectorInfo = {
+			type: "path",
+			pattern: "multiple-summaries.ts",
+			depth: undefined,
+		};
+		const result = validate(selector, fixturesDir);
+		expect(result.multiple_summary).toBeDefined();
+		expect(result.multiple_summary?.files).toEqual(["multiple-summaries.ts"]);
+	});
+
+	it("silently strips @depth suffix", () => {
 		const selector: SelectorInfo = {
 			type: "glob",
 			pattern: "**/*.ts",
 			depth: 1,
 		};
 
-		expect(() => validate(selector, fixturesDir)).toThrow(JsdocError);
-		try {
-			validate(selector, fixturesDir);
-		} catch (e) {
-			expect(e).toBeInstanceOf(JsdocError);
-			expect((e as JsdocError).code).toBe("INVALID_DEPTH");
-			expect((e as JsdocError).message).toBe(
-				"Validation mode does not support @depth",
-			);
-		}
+		const result = validate(selector, fixturesDir);
+		// Should succeed without throwing — depth is ignored
+		expect(typeof result).toBe("object");
 	});
 
 	it("output groups only contain invalid files, empty groups omitted", () => {
@@ -124,28 +123,29 @@ describe("validate", () => {
 		};
 		const result = validate(selector, fixturesDir);
 
-		expect(result.summary.total).toBeGreaterThan(0);
-		expect(result).toHaveProperty("summary");
-
-		// Every group key that exists should be an array of strings
+		// Every group key that exists should have { guidance, files } shape
 		for (const key of [
 			"syntax_error",
 			"missing_jsdoc",
 			"missing_summary",
+			"multiple_summary",
 			"missing_description",
+			"missing_barrel",
 		] as const) {
 			const group = result[key];
 			if (group !== undefined) {
-				expect(Array.isArray(group)).toBe(true);
-				expect(group.length).toBeGreaterThan(0);
-				for (const p of group) {
+				expect(typeof group.guidance).toBe("string");
+				expect(group.guidance.length).toBeGreaterThan(0);
+				expect(Array.isArray(group.files)).toBe(true);
+				expect(group.files.length).toBeGreaterThan(0);
+				for (const p of group.files) {
 					expect(typeof p).toBe("string");
 				}
 			}
 		}
 	});
 
-	it("summary counts are consistent", () => {
+	it("each group includes guidance text", () => {
 		const selector: SelectorInfo = {
 			type: "glob",
 			pattern: "*.ts",
@@ -153,14 +153,22 @@ describe("validate", () => {
 		};
 		const result = validate(selector, fixturesDir);
 
-		const totalInvalid =
-			(result.syntax_error?.length ?? 0) +
-			(result.missing_jsdoc?.length ?? 0) +
-			(result.missing_summary?.length ?? 0) +
-			(result.missing_description?.length ?? 0);
-
-		expect(result.summary.invalid).toBe(totalInvalid);
-		expect(result.summary.total).toBeGreaterThanOrEqual(result.summary.invalid);
+		if (result.syntax_error) {
+			expect(result.syntax_error.guidance).toContain("### Syntax error");
+		}
+		if (result.missing_jsdoc) {
+			expect(result.missing_jsdoc.guidance).toContain(
+				"### Missing file-level JSDoc",
+			);
+		}
+		if (result.missing_summary) {
+			expect(result.missing_summary.guidance).toContain("### The @summary tag");
+		}
+		if (result.missing_description) {
+			expect(result.missing_description.guidance).toContain(
+				"### The description paragraph",
+			);
+		}
 	});
 
 	it("works with glob selectors", () => {
@@ -171,9 +179,11 @@ describe("validate", () => {
 		};
 		const result = validate(selector, fixturesDir);
 
-		expect(result.summary.total).toBeGreaterThan(0);
-		// two-summaries.ts is valid, so no groups should mention it
-		expect(result.summary.invalid).toBe(0);
+		// two-summaries.ts is valid, so no groups should appear
+		expect(result.syntax_error).toBeUndefined();
+		expect(result.missing_jsdoc).toBeUndefined();
+		expect(result.missing_summary).toBeUndefined();
+		expect(result.missing_description).toBeUndefined();
 	});
 
 	it("works with path selectors", () => {
@@ -184,8 +194,10 @@ describe("validate", () => {
 		};
 		const result = validate(selector, fixturesDir);
 
-		expect(result.summary.total).toBe(1);
-		expect(result.summary.invalid).toBe(0);
+		expect(result.syntax_error).toBeUndefined();
+		expect(result.missing_jsdoc).toBeUndefined();
+		expect(result.missing_summary).toBeUndefined();
+		expect(result.missing_description).toBeUndefined();
 	});
 
 	it("path targeting nonexistent file throws FILE_NOT_FOUND", () => {
@@ -220,8 +232,44 @@ describe("validate", () => {
 		}
 	});
 
+	it("flags directories with >3 files and no barrel as missing_barrel", () => {
+		// leaf-files has 12+ .ts files and no index.ts
+		const selector: SelectorInfo = {
+			type: "glob",
+			pattern: "*.ts",
+			depth: undefined,
+		};
+		const result = validate(selector, fixturesDir);
+		expect(result.missing_barrel).toBeDefined();
+		expect(result.missing_barrel?.files).toContain(".");
+	});
+
+	it("does not flag directories with <=3 files as missing_barrel", () => {
+		// depth-advancement has only 2 files
+		const depthDir = path.resolve(__dirname, "fixtures", "depth-advancement");
+		const selector: SelectorInfo = {
+			type: "glob",
+			pattern: "*.ts",
+			depth: undefined,
+		};
+		const result = validate(selector, depthDir);
+		expect(result.missing_barrel).toBeUndefined();
+	});
+
+	it("does not flag directories that have a barrel as missing_barrel", () => {
+		// barrel-basic has index.ts + helper.ts + utils.ts
+		const barrelDir = path.resolve(__dirname, "fixtures", "barrel-basic");
+		const selector: SelectorInfo = {
+			type: "glob",
+			pattern: "**/*.ts",
+			depth: undefined,
+		};
+		const result = validate(selector, barrelDir);
+		expect(result.missing_barrel).toBeUndefined();
+	});
+
 	describe("limit", () => {
-		it("truncated is false when invalid count is within limit", () => {
+		it("all invalid files shown when within limit", () => {
 			const selector: SelectorInfo = {
 				type: "glob",
 				pattern: "*.ts",
@@ -229,10 +277,16 @@ describe("validate", () => {
 			};
 			const result = validate(selector, fixturesDir, 100);
 
-			expect(result.summary.truncated).toBe(false);
+			// With a high limit, all invalid files should be present
+			const totalShown =
+				(result.syntax_error?.files.length ?? 0) +
+				(result.missing_jsdoc?.files.length ?? 0) +
+				(result.missing_summary?.files.length ?? 0) +
+				(result.missing_description?.files.length ?? 0);
+			expect(totalShown).toBeGreaterThan(0);
 		});
 
-		it("truncated is true when invalid count exceeds limit", () => {
+		it("total shown paths capped at limit", () => {
 			const selector: SelectorInfo = {
 				type: "glob",
 				pattern: "*.ts",
@@ -240,19 +294,16 @@ describe("validate", () => {
 			};
 			const result = validate(selector, fixturesDir, 1);
 
-			expect(result.summary.truncated).toBe(true);
 			// Total shown paths should equal limit
 			const shownPaths =
-				(result.syntax_error?.length ?? 0) +
-				(result.missing_jsdoc?.length ?? 0) +
-				(result.missing_summary?.length ?? 0) +
-				(result.missing_description?.length ?? 0);
+				(result.syntax_error?.files.length ?? 0) +
+				(result.missing_jsdoc?.files.length ?? 0) +
+				(result.missing_summary?.files.length ?? 0) +
+				(result.missing_description?.files.length ?? 0);
 			expect(shownPaths).toBe(1);
-			// But summary.invalid reflects the real total
-			expect(result.summary.invalid).toBeGreaterThan(1);
 		});
 
-		it("limit of 0 shows no file paths but counts remain accurate", () => {
+		it("limit of 0 shows no file paths", () => {
 			const selector: SelectorInfo = {
 				type: "glob",
 				pattern: "*.ts",
@@ -260,12 +311,10 @@ describe("validate", () => {
 			};
 			const result = validate(selector, fixturesDir, 0);
 
-			expect(result.summary.truncated).toBe(true);
 			expect(result.syntax_error).toBeUndefined();
 			expect(result.missing_jsdoc).toBeUndefined();
 			expect(result.missing_summary).toBeUndefined();
 			expect(result.missing_description).toBeUndefined();
-			expect(result.summary.invalid).toBeGreaterThan(0);
 		});
 
 		it("groups are filled in priority order (syntax_error first)", () => {
@@ -277,12 +326,10 @@ describe("validate", () => {
 			];
 			const result = validateFiles(files, fixturesDir, 2);
 
-			expect(result.summary.invalid).toBe(4);
-			expect(result.summary.truncated).toBe(true);
 			// syntax_error should be filled first
-			expect(result.syntax_error).toEqual(["syntax-error.ts"]);
+			expect(result.syntax_error?.files).toEqual(["syntax-error.ts"]);
 			// Then missing_jsdoc
-			expect(result.missing_jsdoc).toEqual(["no-jsdoc.ts"]);
+			expect(result.missing_jsdoc?.files).toEqual(["no-jsdoc.ts"]);
 			// Remaining groups should not appear (limit reached)
 			expect(result.missing_summary).toBeUndefined();
 			expect(result.missing_description).toBeUndefined();
@@ -299,9 +346,7 @@ describe("validateFiles", () => {
 		];
 		const result = validateFiles(files, fixturesDir);
 
-		expect(result.summary.total).toBe(3);
-		expect(result.summary.invalid).toBe(1);
-		expect(result.missing_jsdoc).toEqual(["no-jsdoc.ts"]);
+		expect(result.missing_jsdoc?.files).toEqual(["no-jsdoc.ts"]);
 	});
 
 	it("filters to .ts/.tsx only", () => {
@@ -313,27 +358,29 @@ describe("validateFiles", () => {
 		];
 		const result = validateFiles(files, fixturesDir);
 
-		// Should only validate .ts/.tsx files (filters out .js/.jsx)
-		expect(result.summary.total).toBe(2);
-		expect(result.summary.invalid).toBe(0);
+		// Should only validate .ts/.tsx files (filters out .js/.jsx) — all valid
+		expect(result.syntax_error).toBeUndefined();
+		expect(result.missing_jsdoc).toBeUndefined();
+		expect(result.missing_summary).toBeUndefined();
+		expect(result.missing_description).toBeUndefined();
 	});
 
-	it("produces grouped output format with summary", () => {
-		const files = [fixture("two-summaries.ts")];
+	it("produces grouped output format with ValidationGroup shape", () => {
+		const files = [fixture("no-jsdoc.ts")];
 		const result = validateFiles(files, fixturesDir);
 
-		expect(result).toHaveProperty("summary");
-		expect(result.summary).toHaveProperty("total");
-		expect(result.summary).toHaveProperty("invalid");
-		expect(result.summary).toHaveProperty("truncated");
+		expect(result.missing_jsdoc).toBeDefined();
+		expect(typeof result.missing_jsdoc?.guidance).toBe("string");
+		expect(Array.isArray(result.missing_jsdoc?.files)).toBe(true);
 	});
 
 	it("handles empty file list", () => {
 		const result = validateFiles([], fixturesDir);
 
-		expect(result.summary.total).toBe(0);
-		expect(result.summary.invalid).toBe(0);
-		expect(result.summary.truncated).toBe(false);
+		expect(result.syntax_error).toBeUndefined();
+		expect(result.missing_jsdoc).toBeUndefined();
+		expect(result.missing_summary).toBeUndefined();
+		expect(result.missing_description).toBeUndefined();
 	});
 
 	it("handles mixed pass/fail results", () => {
@@ -343,8 +390,6 @@ describe("validateFiles", () => {
 		];
 		const result = validateFiles(files, fixturesDir);
 
-		expect(result.summary.total).toBe(2);
-		expect(result.summary.invalid).toBe(1);
-		expect(result.missing_summary).toEqual(["description-only.ts"]);
+		expect(result.missing_summary?.files).toEqual(["description-only.ts"]);
 	});
 });

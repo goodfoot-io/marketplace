@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { JsdocError } from "../src/errors.js";
 
+/**
+ * Verifies that JsdocError stores code and message properties, extends
+ * Error, and serializes to the documented JSON shape via toJSON().
+ *
+ * @summary Tests for JsdocError construction and JSON serialization
+ */
+
 describe("JsdocError", () => {
 	it("stores code and message properties", () => {
 		const err = new JsdocError("PARSE_ERROR", "failed to parse");

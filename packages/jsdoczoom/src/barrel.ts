@@ -3,9 +3,12 @@ import { basename, dirname, resolve } from "node:path";
 
 /**
  * Barrel detection and child discovery for index.ts/index.tsx files.
+ * A barrel is strictly `index.ts` or `index.tsx`; other index variants
+ * (e.g. `index.test.ts`, `index.d.ts`) are excluded. Children include
+ * sibling .ts/.tsx files and child barrels in immediate subdirectories,
+ * with index.ts taking priority over index.tsx in the same subdirectory.
  *
- * @summary Barrel tree model for hierarchical gating in glob mode
- * @summary Detects barrels and discovers their children for drill-down gating
+ * @summary Detect barrel files and discover their children for drill-down gating
  */
 
 /**

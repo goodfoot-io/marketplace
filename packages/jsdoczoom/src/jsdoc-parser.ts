@@ -4,6 +4,15 @@ import { JsdocError } from "./errors.js";
 import type { ParsedFileInfo } from "./types.js";
 
 /**
+ * Uses the TypeScript compiler to locate the first JSDoc block before any
+ * code statements, then extracts the first `@summary` tag and free-text
+ * description. Syntax errors in the source file produce PARSE_ERROR;
+ * whitespace-only summaries are skipped in favor of the next non-empty one.
+ *
+ * @summary Extract file-level JSDoc summary and description from TypeScript source files
+ */
+
+/**
  * Extract the first file-level JSDoc block from TypeScript source text.
  *
  * The JSDoc block must appear before any code statements (after imports is OK).
@@ -156,6 +165,14 @@ function appendText(existing: string, addition: string): string {
 	return `${existing} ${addition}`;
 }
 
+/** Tags whose content is treated as description (free-text). */
+const DESCRIPTION_TAGS = new Set([
+	"desc",
+	"description",
+	"file",
+	"fileoverview",
+]);
+
 /**
  * Parse @summary tag and free-text description from raw JSDoc inner text.
  *
@@ -163,26 +180,37 @@ function appendText(existing: string, addition: string): string {
  * - summary: First non-empty @summary tag content (or null if none)
  * - description: Free-text before first @ tag (or null if none)
  *
+ * Only exact lowercase @summary is recognized. Case variants like
+ * @Summary or @SUMMARY are ignored (causing missing_summary in
+ * validation). The @desc, @description, @file, and @fileoverview
+ * tags (case-insensitive) are treated as description synonyms —
+ * their content is included in the description field.
+ *
  * Additional @summary tags are silently ignored.
  * Whitespace-only @summary tags are skipped.
  */
 function parseJsdocContent(jsdocText: string): {
 	summary: string | null;
 	description: string | null;
+	summaryCount: number;
 } {
 	const lines = jsdocText.split("\n");
 
 	let freeText = "";
 	let firstSummary: string | null = null;
+	let summaryCount = 0;
 	let currentTag: string | null = null;
 	let currentContent = "";
 
-	/** Flush a pending @summary tag if we haven't captured one yet. */
+	/** Flush a pending @summary tag, counting all non-empty occurrences. */
 	function flushSummary(): void {
-		if (currentTag !== "summary" || firstSummary !== null) return;
+		if (currentTag !== "summary") return;
 		const trimmed = currentContent.trim();
 		if (trimmed.length > 0) {
-			firstSummary = trimmed;
+			summaryCount++;
+			if (firstSummary === null) {
+				firstSummary = trimmed;
+			}
 		}
 	}
 
@@ -192,8 +220,17 @@ function parseJsdocContent(jsdocText: string): {
 
 		if (tagMatch) {
 			flushSummary();
-			currentTag = tagMatch[1];
-			currentContent = stripped.slice(tagMatch[0].length);
+			const rawTagName = tagMatch[1];
+			const tagContent = stripped.slice(tagMatch[0].length);
+
+			if (DESCRIPTION_TAGS.has(rawTagName.toLowerCase())) {
+				freeText = appendText(freeText, tagContent);
+				currentTag = null;
+				currentContent = "";
+			} else {
+				currentTag = rawTagName;
+				currentContent = tagContent;
+			}
 			continue;
 		}
 
@@ -212,6 +249,7 @@ function parseJsdocContent(jsdocText: string): {
 	return {
 		summary: firstSummary,
 		description: trimmedFreeText.length > 0 ? trimmedFreeText : null,
+		summaryCount,
 	};
 }
 
@@ -236,16 +274,18 @@ export function parseFileSummaries(filePath: string): ParsedFileInfo {
 			path: filePath,
 			summary: null,
 			description: null,
+			summaryCount: 0,
 			hasFileJsdoc: false,
 		};
 	}
 
-	const { summary, description } = parseJsdocContent(jsdocText);
+	const { summary, description, summaryCount } = parseJsdocContent(jsdocText);
 
 	return {
 		path: filePath,
 		summary,
 		description,
+		summaryCount,
 		hasFileJsdoc: true,
 	};
 }

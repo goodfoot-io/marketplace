@@ -5,8 +5,21 @@ import { drilldown, drilldownFiles } from "./drilldown.js";
 import { JsdocError } from "./errors.js";
 import { parseSelector } from "./selector.js";
 import { SKILL_TEXT } from "./skill-text.js";
-import type { SelectorInfo, ValidationResult } from "./types.js";
+import type {
+	SelectorInfo,
+	ValidationResult,
+	ValidationStatus,
+} from "./types.js";
 import { validate, validateFiles } from "./validate.js";
+
+/**
+ * Parses argv flags (--help, --validate, --skill, --pretty, --limit,
+ * --no-gitignore), dispatches to drilldown or validation mode, and handles
+ * stdin piping. Errors are written to stderr as JSON; validation failures
+ * use exit code 2 while other errors use exit code 1.
+ *
+ * @summary CLI entry point -- argument parsing, mode dispatch, and exit code handling
+ */
 
 const HELP_TEXT = `Usage: jsdoczoom [options] [selector]
 
@@ -23,9 +36,9 @@ Options:
 Selector:
   A glob pattern or file path, optionally with @depth suffix.
   Examples:
-    jsdoczoom src/**/*.ts       # All .ts files at depth 0
-    jsdoczoom src/index.ts@2    # Single file at depth 2
-    jsdoczoom **/*.ts@1         # All .ts files at depth 1
+    jsdoczoom src/**/*.ts       # All .ts files at shallowest level
+    jsdoczoom src/index.ts@2    # Single file at depth 2 (description)
+    jsdoczoom **/*.ts@3         # All .ts files at depth 3 (type decls)
 
 Stdin:
   Pipe file paths one per line:
@@ -122,8 +135,7 @@ function processStdin(
 
 	if (validateMode) {
 		const result = validateFiles(stdinPaths, cwd, limit);
-		writeResult(result, pretty);
-		handleValidationExitCode(result);
+		writeValidationResult(result, pretty);
 	} else {
 		const result = drilldownFiles(stdinPaths, depth, cwd, limit);
 		writeResult(result, pretty);
@@ -147,8 +159,7 @@ function processSelector(
 
 	if (validateMode) {
 		const result = validate(selector, cwd, limit, gitignore);
-		writeResult(result, pretty);
-		handleValidationExitCode(result);
+		writeValidationResult(result, pretty);
 	} else {
 		const result = drilldown(selector, cwd, gitignore, limit);
 		writeResult(result, pretty);
@@ -218,16 +229,48 @@ function writeResult(result: unknown, pretty: boolean): void {
 	process.stdout.write(`${json}\n`);
 }
 
+/** Status keys used to detect validation failures */
+const STATUS_KEYS: ValidationStatus[] = [
+	"syntax_error",
+	"missing_jsdoc",
+	"missing_summary",
+	"multiple_summary",
+	"missing_description",
+	"missing_barrel",
+];
+
 /**
- * Set exit code 2 if validation has failures.
+ * Count invalid files across all validation groups.
  */
-function handleValidationExitCode(result: ValidationResult): void {
-	if (result.summary.invalid > 0) {
+function countInvalid(result: ValidationResult): number {
+	return STATUS_KEYS.reduce(
+		(sum, k) => sum + (result[k]?.files.length ?? 0),
+		0,
+	);
+}
+
+/**
+ * Write validation result to stdout and set exit code.
+ * Adds success/message fields to the output.
+ */
+function writeValidationResult(
+	result: ValidationResult,
+	pretty: boolean,
+): void {
+	const invalidCount = countInvalid(result);
+
+	if (invalidCount === 0) {
+		writeResult(
+			{ success: true, message: "All files passed validation" },
+			pretty,
+		);
+	} else {
+		writeResult({ ...result, success: false }, pretty);
 		process.stderr.write(
 			`${JSON.stringify(
 				new JsdocError(
 					"VALIDATION_FAILED",
-					`${result.summary.invalid} file(s) failed validation`,
+					`${invalidCount} file(s) failed validation`,
 				).toJSON(),
 			)}\n`,
 		);

@@ -1,11 +1,16 @@
-/**
- * Tests for type declarations generation
- */
-
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { generateTypeDeclarations } from "../src/type-declarations.js";
+
+/**
+ * Verifies that generateTypeDeclarations produces .d.ts-like output
+ * including exported types, interfaces, function signatures, const
+ * declarations, and class signatures while excluding imports, non-exported
+ * internals, and implementation bodies. JSDoc comments are preserved.
+ *
+ * @summary Tests for TypeScript declaration output generation
+ */
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

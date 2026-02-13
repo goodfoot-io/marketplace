@@ -2,6 +2,15 @@ import { JsdocError } from "./errors.js";
 import type { SelectorInfo } from "./types.js";
 
 /**
+ * Extracts glob vs. path classification and an optional `@depth` suffix
+ * from selector strings. Float depths are rejected; negative or non-digit
+ * suffixes are left as part of the pattern string. An empty selector
+ * throws INVALID_SELECTOR.
+ *
+ * @summary Parse selector strings into type, pattern, and optional depth components
+ */
+
+/**
  * Parses a selector string into its components.
  *
  * @param input - Selector string (e.g., "src/star-star/star.ts@3", "file.ts", "../config.js@2")

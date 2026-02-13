@@ -1,3 +1,11 @@
+/**
+ * Re-exports all public functions, classes, and types from internal modules.
+ * This is the sole entry point for programmatic consumers of the jsdoczoom
+ * package.
+ *
+ * @summary Public API barrel re-exporting all functions, types, and classes
+ */
+
 export { getBarrelChildren, isBarrel } from "./barrel.js";
 export { drilldown, drilldownFiles } from "./drilldown.js";
 export { JsdocError } from "./errors.js";
@@ -11,8 +19,11 @@ export type {
 	OutputEntry,
 	OutputErrorItem,
 	OutputItem,
+	OutputItemNext,
+	OutputItemTerminal,
 	ParsedFileInfo,
 	SelectorInfo,
+	ValidationGroup,
 	ValidationResult,
 	ValidationStatus,
 } from "./types.js";

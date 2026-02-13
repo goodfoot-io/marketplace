@@ -2157,21 +2157,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@goodfoot/jsdoczoom@workspace:packages/jsdoczoom":
-  version: 0.0.0-use.local
-  resolution: "@goodfoot/jsdoczoom@workspace:packages/jsdoczoom"
-  dependencies:
-    "@biomejs/biome": "npm:2.3.14"
-    "@types/node": "npm:^24"
-    glob: "npm:^11.0.0"
-    ignore: "npm:^7.0.5"
-    typescript: "npm:^5.9.3"
-    vitest: "npm:4.0.13"
-  bin:
-    jsdoczoom: ./dist/cli.js
-  languageName: unknown
-  linkType: soft
-
 "@goodfoot/marketplace@workspace:.":
   version: 0.0.0-use.local
   resolution: "@goodfoot/marketplace@workspace:."
@@ -10736,6 +10721,21 @@ __metadata:
   checksum: 10c0/184a24b4eaacfce40ad9074c64fd42ac83cf74d8c8cd137718d456ced75051229e5061b8633c3366b8aada17945a7a356b337828c19da92b51ae62126575018f
   languageName: node
   linkType: hard
+
+"jsdoczoom@workspace:packages/jsdoczoom":
+  version: 0.0.0-use.local
+  resolution: "jsdoczoom@workspace:packages/jsdoczoom"
+  dependencies:
+    "@biomejs/biome": "npm:2.3.14"
+    "@types/node": "npm:^24"
+    glob: "npm:^11.0.0"
+    ignore: "npm:^7.0.5"
+    typescript: "npm:^5.9.3"
+    vitest: "npm:4.0.13"
+  bin:
+    jsdoczoom: ./dist/cli.js
+  languageName: unknown
+  linkType: soft
 
 "jsdom@npm:^26.1.0":
   version: 26.1.0

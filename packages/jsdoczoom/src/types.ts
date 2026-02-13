@@ -1,14 +1,29 @@
-/** Single output item representing a file at a specific drill-down level */
-export interface OutputItem {
-	id: string;
-	more: boolean;
+/**
+ * Defines the output shapes, error codes, validation statuses, and
+ * parsed-file structures used across all modules. These types form the
+ * public contract for both JSON output and programmatic API consumers.
+ *
+ * @summary Shared type definitions for output shapes, error codes, and parsed structures
+ */
+
+/** Output item with more detail available — next_id points to the next level */
+export interface OutputItemNext {
+	next_id: string;
 	text: string;
 }
+
+/** Output item at terminal level — id represents the current (final) state */
+export interface OutputItemTerminal {
+	id: string;
+	text: string;
+}
+
+/** Single output item representing a file at a specific drill-down level */
+export type OutputItem = OutputItemNext | OutputItemTerminal;
 
 /** Output item for files that encountered errors during processing */
 export interface OutputErrorItem {
 	id: string;
-	more: false;
 	error: {
 		code: string;
 		message: string;
@@ -18,13 +33,10 @@ export interface OutputErrorItem {
 /** Union of successful and error output entries */
 export type OutputEntry = OutputItem | OutputErrorItem;
 
-/** Drilldown result with items and summary */
+/** Drilldown result with items and truncation flag */
 export interface DrilldownResult {
 	items: OutputEntry[];
-	summary: {
-		total: number;
-		truncated: boolean;
-	};
+	truncated: boolean;
 }
 
 /** All recognized error codes */
@@ -42,19 +54,24 @@ export type ValidationStatus =
 	| "syntax_error"
 	| "missing_jsdoc"
 	| "missing_summary"
-	| "missing_description";
+	| "multiple_summary"
+	| "missing_description"
+	| "missing_barrel";
+
+/** A validation group: guidance text and file paths */
+export interface ValidationGroup {
+	guidance: string;
+	files: string[];
+}
 
 /** Grouped validation result — only invalid-file groups appear */
 export interface ValidationResult {
-	syntax_error?: string[];
-	missing_jsdoc?: string[];
-	missing_summary?: string[];
-	missing_description?: string[];
-	summary: {
-		total: number;
-		invalid: number;
-		truncated: boolean;
-	};
+	syntax_error?: ValidationGroup;
+	missing_jsdoc?: ValidationGroup;
+	missing_summary?: ValidationGroup;
+	multiple_summary?: ValidationGroup;
+	missing_description?: ValidationGroup;
+	missing_barrel?: ValidationGroup;
 }
 
 /** Parsed summary and description from a file's JSDoc */
@@ -62,6 +79,7 @@ export interface ParsedFileInfo {
 	path: string;
 	summary: string | null;
 	description: string | null;
+	summaryCount: number;
 	hasFileJsdoc: boolean;
 }
 

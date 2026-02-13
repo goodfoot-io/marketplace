@@ -6,6 +6,14 @@ import { describe, expect, it } from "vitest";
 import { JsdocError } from "../src/errors.js";
 import { extractFileJsdoc, parseFileSummaries } from "../src/jsdoc-parser.js";
 
+/**
+ * Verifies extraction of file-level JSDoc blocks before code statements,
+ * multi-line summary joining, whitespace-only summary skipping, tag isolation,
+ * and PARSE_ERROR on syntax errors. Uses both fixture files and temp files.
+ *
+ * @summary Tests for JSDoc extraction and summary/description parsing
+ */
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.resolve(__dirname, "fixtures", "leaf-files");
 
@@ -156,15 +164,13 @@ describe("parseFileSummaries", () => {
 		expect(result.description).toBeNull();
 	});
 
-	it("only recognizes lowercase @summary", () => {
+	it("only recognizes exact lowercase @summary", () => {
 		const source = [
 			"/**",
 			" * Free text here.",
 			" *",
 			" * @Summary Uppercase summary",
 			" * @SUMMARY All caps summary",
-			" * @desc Description tag",
-			" * @description Full description tag",
 			" * @summary Real summary",
 			" */",
 			"",
@@ -175,8 +181,141 @@ describe("parseFileSummaries", () => {
 			const result = parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
 			expect(result.summary).toBe("Real summary");
+			expect(result.summaryCount).toBe(1);
 			expect(result.description).toBe("Free text here.");
 		});
+	});
+
+	it("@Summary without lowercase @summary results in missing summary", () => {
+		const source = [
+			"/**",
+			" * Description.",
+			" *",
+			" * @Summary Uppercase summary",
+			" */",
+			"",
+			"export const x = 1;",
+		].join("\n");
+
+		withTempFile(source, (tmpFile) => {
+			const result = parseFileSummaries(tmpFile);
+			expect(result.hasFileJsdoc).toBe(true);
+			expect(result.summary).toBeNull();
+			expect(result.summaryCount).toBe(0);
+		});
+	});
+
+	it("@desc tag content is included in description", () => {
+		const source = [
+			"/**",
+			" * @desc Module description via desc tag.",
+			" *",
+			" * @summary My summary",
+			" */",
+			"",
+			"export const x = 1;",
+		].join("\n");
+
+		withTempFile(source, (tmpFile) => {
+			const result = parseFileSummaries(tmpFile);
+			expect(result.summary).toBe("My summary");
+			expect(result.description).toBe("Module description via desc tag.");
+		});
+	});
+
+	it("@description tag content is included in description", () => {
+		const source = [
+			"/**",
+			" * @description Full description tag content.",
+			" *",
+			" * @summary My summary",
+			" */",
+			"",
+			"export const x = 1;",
+		].join("\n");
+
+		withTempFile(source, (tmpFile) => {
+			const result = parseFileSummaries(tmpFile);
+			expect(result.summary).toBe("My summary");
+			expect(result.description).toBe("Full description tag content.");
+		});
+	});
+
+	it("@file and @fileoverview tags are included in description", () => {
+		const source = [
+			"/**",
+			" * @file File-level overview.",
+			" *",
+			" * @summary My summary",
+			" */",
+			"",
+			"export const x = 1;",
+		].join("\n");
+
+		withTempFile(source, (tmpFile) => {
+			const result = parseFileSummaries(tmpFile);
+			expect(result.summary).toBe("My summary");
+			expect(result.description).toBe("File-level overview.");
+		});
+	});
+
+	it("free-text and @description tag are combined in description", () => {
+		const source = [
+			"/**",
+			" * Free text first.",
+			" *",
+			" * @description Additional description.",
+			" *",
+			" * @summary My summary",
+			" */",
+			"",
+			"export const x = 1;",
+		].join("\n");
+
+		withTempFile(source, (tmpFile) => {
+			const result = parseFileSummaries(tmpFile);
+			expect(result.summary).toBe("My summary");
+			expect(result.description).toBe(
+				"Free text first. Additional description.",
+			);
+		});
+	});
+
+	it("@description continuation lines are included in description", () => {
+		const source = [
+			"/**",
+			" * @description First line of description",
+			" * continues on this line.",
+			" *",
+			" * @summary My summary",
+			" */",
+			"",
+			"export const x = 1;",
+		].join("\n");
+
+		withTempFile(source, (tmpFile) => {
+			const result = parseFileSummaries(tmpFile);
+			expect(result.summary).toBe("My summary");
+			expect(result.description).toBe(
+				"First line of description continues on this line.",
+			);
+		});
+	});
+
+	it("summaryCount is 1 for single @summary", () => {
+		const result = parseFileSummaries(fixture("one-summary.ts"));
+		expect(result.summaryCount).toBe(1);
+	});
+
+	it("summaryCount is 0 for no @summary", () => {
+		const result = parseFileSummaries(fixture("description-only.ts"));
+		expect(result.summaryCount).toBe(0);
+	});
+
+	it("summaryCount tracks multiple @summary tags", () => {
+		const result = parseFileSummaries(fixture("multiple-summaries.ts"));
+		expect(result.summaryCount).toBe(2);
+		expect(result.summary).toBe("First summary tag");
 	});
 
 	it("handles TypeScript syntax errors (throws PARSE_ERROR)", () => {

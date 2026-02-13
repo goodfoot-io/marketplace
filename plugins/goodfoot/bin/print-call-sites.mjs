@@ -231235,11 +231235,7 @@ var init_CallSiteFinder = __esm({
             `Error reading tsconfig.json: ${ts.flattenDiagnosticMessageText(configFile.error.messageText, "\n")}`
           );
         }
-        const parsedCommandLine = ts.parseJsonConfigFileContent(
-          configFile.config,
-          ts.sys,
-          configDir
-        );
+        const parsedCommandLine = ts.parseJsonConfigFileContent(configFile.config, ts.sys, configDir);
         if (parsedCommandLine.errors.length > 0) {
           throw new Error(
             `Error parsing tsconfig.json: ${ts.flattenDiagnosticMessageText(parsedCommandLine.errors[0].messageText, "\n")}`
@@ -231383,11 +231379,7 @@ var init_CallSiteFinder = __esm({
             `Error reading tsconfig.json: ${ts.flattenDiagnosticMessageText(configFile.error.messageText, "\n")}`
           );
         }
-        const parsedCommandLine = ts.parseJsonConfigFileContent(
-          configFile.config,
-          ts.sys,
-          configDir
-        );
+        const parsedCommandLine = ts.parseJsonConfigFileContent(configFile.config, ts.sys, configDir);
         if (parsedCommandLine.errors.length > 0) {
           throw new Error(
             `Error parsing tsconfig.json: ${ts.flattenDiagnosticMessageText(parsedCommandLine.errors[0].messageText, "\n")}`

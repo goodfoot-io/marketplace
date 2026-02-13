@@ -13,6 +13,16 @@ into `packages/foo` and run `jsdoczoom "src/**/*.ts"`, it searches
 selector searches `./src/`. There is no workspace-root detection or
 package-root inference — CWD is always the anchor.
 
+### Gitignore Support
+
+Files matched by `.gitignore` rules are excluded by default. The
+ignore filter walks `.gitignore` files from CWD to filesystem root.
+Direct-path lookups bypass the filter since the user explicitly named
+the file. The ignore instance is created per call — no caching —
+because CWD may differ between invocations.
+
+Use `--no-gitignore` to disable this filtering.
+
 ## Selector Type Detection
 
 A selector containing any glob metacharacter (`*`, `?`, `[`, `{`) is
@@ -21,8 +31,7 @@ paths. This distinction matters because:
 
 - **Glob selectors**: produce NO_FILES_MATCHED on no results; trigger
   barrel gating when matching barrel files.
-- **Path selectors**: produce FILE_NOT_FOUND if the file doesn't exist,
-  or NO_SUMMARY_FOUND if the file exists but has no summary levels;
+- **Path selectors**: produce FILE_NOT_FOUND if the file doesn't exist;
   never trigger barrel gating (always follow leaf drill-down rules).
 
 ## File-Level JSDoc Extraction
@@ -33,16 +42,17 @@ other code statements (variable declarations, function declarations,
 class declarations, etc.).
 
 If a file has multiple `/** */` blocks, only the first one is used for
-summary extraction. Subsequent blocks are symbol-level JSDoc and are
-included in the "JSDoc + type declarations" level.
+summary and description extraction. Subsequent blocks are symbol-level
+JSDoc.
 
-## Summary Level Parsing
+## Summary and Description Parsing
 
 ### @summary Tag Extraction
 
-Tags are extracted in source order from the file-level JSDoc block.
-Multi-line @summary content (text continuing on the next line with leading
-`*`) is joined with spaces and trimmed. For example:
+Only the first non-empty `@summary` tag is used. Additional `@summary`
+tags are silently ignored (not an error). Multi-line @summary content
+(text continuing on the next line with leading `*`) is joined with
+spaces and trimmed. For example:
 
 ```
 @summary First line
@@ -56,175 +66,249 @@ Becomes: `"First line continues here"`
 The free-text description is all text in the JSDoc block before any
 `@tag` line. A line starting a new tag is identified by the pattern
 `* @tagname` (where `@tagname` is any JSDoc tag like `@summary`,
-`@param`, `@returns`, etc.). Literal `@` in prose (like email addresses)
-does not start a new tag unless it matches this pattern.
+`@param`, `@returns`, etc.).
 
-If the free-text is empty or whitespace-only, no description level is
-created.
+If the free-text is empty or whitespace-only, description is null.
 
-### Level Numbering With Free-Text
+### ParsedFileInfo
 
-Summary levels are ordered from most concise to most detailed:
+```typescript
+interface ParsedFileInfo {
+  path: string;
+  summary: string | null;      // First @summary tag text, or null
+  description: string | null;  // Free-text before @ tags, or null
+  summaryCount: number;        // Number of non-empty @summary tags
+  hasFileJsdoc: boolean;       // Whether any file-level JSDoc block exists
+}
+```
 
-- L0: first @summary (most concise)
-- L1: second @summary
-- ...
-- LN-1: last @summary
-- LN: free-text description (most detailed, if present)
+## Fixed Drill-Down Levels
 
-Despite appearing first in the JSDoc source, the free-text description
-is returned as the deepest (last) summary level. This is because
-@summary tags provide progressive summaries from brief to detailed,
-while the free-text description is typically the most comprehensive
-explanation.
+Every file has four fixed levels numbered 1 through 4:
 
-### Files With No Summaries
+| Level | Content | Condition |
+|-------|---------|-----------|
+| 1 | @summary text | Present if file has @summary |
+| 2 | Description (free-text) | Present if file has description |
+| 3 | Type declarations (exported signatures) | Always present |
+| 4 | Full file content | Always present (terminal) |
 
-A file with no @summary tags and no free-text description has zero summary
-levels. It is not a tree node and is excluded from glob results silently.
-Targeting it directly by path returns NO_SUMMARY_FOUND.
+### Null-Level Advancement
 
-A file with a free-text description but no @summary tags has one summary
-level. It is a valid tree node but fails validation (which requires at
-least two @summary tags).
+When a requested depth has no content (null level), the system advances
+to the next non-null level. Levels 3 and 4 are always non-null.
 
-## Depth Cursor Model
+### Output Item Shape
 
-The @k in an id is a cursor meaning "level k was already returned."
-Requesting F@k returns level k+1. This means:
+Output items use a discriminated shape based on whether more detail is
+available:
 
-- `F` (no suffix) returns level 0. The id `F@0` is emitted.
-- `F@0` returns level 1. The id `F@1` is emitted.
-- `F@k` where k+1 exceeds the final level returns the terminal level
-  with more=false. The id is clamped to the terminal level's cursor
-  value. For example, if the terminal cursor is N+2, requesting `F@99`
-  returns the terminal content with `id: F@(N+2)`.
+- **Non-terminal**: `{ next_id: "F@N+1", text: "..." }` — the `next_id`
+  field points to the next level. Use `next_id` as the selector to get
+  more detail.
+- **Terminal**: `{ id: "F@N", text: "..." }` — the `id` field represents
+  the current (final) state. No deeper level exists.
 
-For a leaf file with summary levels L0 through LN:
-- Levels 0 through N: summary content
-- Level N+1: JSDoc + type declarations
-- Level N+2: full file content (terminal, more=false)
+This enables the zoom workflow: see a `next_id` like `F@2`, request `F@2`
+to get more detail. When `id` is present instead of `next_id`, there is
+no further detail.
 
-For a barrel file reached via direct path, the same progression applies.
-For a barrel file reached via glob, see Barrel Gating below.
+### Examples by File Type
+
+**File with @summary + description** (4 populated levels):
+- Depth 1 → `next_id: F@2` (summary)
+- Depth 2 → `next_id: F@3` (description)
+- Depth 3 → `next_id: F@4` (type declarations)
+- Depth 4 → `id: F@4` (full file, terminal)
+
+**File with @summary, no description** (3 populated levels):
+- Depth 1 → `next_id: F@2` (summary)
+- Depth 2 → `next_id: F@4` (type declarations — level 2 null, advances to 3)
+- Depth 3 → `next_id: F@4` (type declarations)
+- Depth 4 → `id: F@4` (full file, terminal)
+
+**File with description, no @summary** (3 populated levels):
+- Depth 1 → `next_id: F@3` (description — level 1 null, advances to 2)
+- Depth 2 → `next_id: F@3` (description)
+- Depth 3 → `next_id: F@4` (type declarations)
+- Depth 4 → `id: F@4` (full file, terminal)
+
+**File with no JSDoc** (2 populated levels):
+- Depth 1 → `next_id: F@4` (type declarations — levels 1 and 2 null, advances to 3)
+- Depth 4 → `id: F@4` (full file, terminal)
+
+### Depth Clamping
+
+Depths beyond level 4 are clamped to level 4. Requesting `F@99` returns
+the full file content with `id: F@4`.
+
+### TERMINAL_LEVEL Constant
+
+The terminal level is always 4. Items with `effectiveDepth < TERMINAL_LEVEL`
+produce `next_id`; items at `TERMINAL_LEVEL` produce `id`.
 
 ## Output Format
 
-The response is always a JSON array, even for a single file. A direct
-path selector that matches one file returns a 1-element array.
+### Normal Mode
 
-Items are ordered alphabetically by the `path` field. The `text` field
-is UTF-8 encoded; special characters are escaped per the JSON spec.
+The response is a JSON object with `items` and `truncated`:
 
-The `text` field is never empty for files with summary levels. An
-@summary tag with only whitespace content is treated as if it were
-absent.
+```json
+{
+  "items": [
+    {"next_id": "src/foo.ts@2", "text": "..."},
+    {"id": "src/bar.ts@4", "text": "..."}
+  ],
+  "truncated": false
+}
+```
+
+Items are ordered alphabetically by their key (`next_id` or `id`).
+The `text` field is UTF-8 encoded.
+
+An @summary tag with only whitespace content is treated as if it were
+absent (null).
+
+### Error Items in Glob Results
+
+If a file in a glob has a syntax error, it appears in the items array
+as an error entry:
+
+```json
+{"id": "broken.ts",
+ "error": {"code": "PARSE_ERROR", "message": "..."}}
+```
+
+Error items have no `text` field and no `next_id`. Other files are
+unaffected. For path selectors targeting a single file, PARSE_ERROR is
+returned as a fatal error on stderr (exit 1).
+
+### Truncation
+
+The `--limit N` option (default 100) caps the number of items returned.
+When the total exceeds the limit, `truncated` is true and items are
+sliced to the first `limit` entries.
 
 ## Barrel Gating
 
 ### Overview
 
 When a barrel file (index.ts or index.tsx) is reached through glob
-navigation, its drill-down sequence ends after summary levels. The next
-drill-down reveals the barrel's children rather than continuing into the
-barrel's additional levels.
+navigation and has a @summary, it gates its children for two depths.
+At depth 1, the barrel's @summary is shown. At depth 2, the barrel's
+description is shown (or null-skips to transition if no description).
+At depth 3+, the barrel transitions: it disappears from output and
+its children appear at `depth - 2`.
 
-The additional levels for a barrel file are accessible by targeting the
-file directly:
+### Barrel JSDoc Convention
 
-    jsdoczoom "src/foo/index.ts"      => barrel L0
-    jsdoczoom "src/foo/index.ts@0"    => barrel L1
-    jsdoczoom "src/foo/index.ts@1"    => JSDoc + type declarations
-    jsdoczoom "src/foo/index.ts@2"    => full file content
+Because a barrel gates its children for two depths, its @summary and
+description are the only things visible before children appear. This
+makes the barrel's JSDoc a navigation gateway.
 
-### Barrel Detection in Globs
+The barrel **@summary** follows the same rules as leaf files: state what
+the module *does* as a unit, not what it contains.
 
-When a barrel is reached via glob, the implementation must track this
-context because drill-down behaviour differs from direct path access.
+The barrel **description** should describe the module's capabilities and
+concerns in conceptual terms. An agent reading the description should be
+able to answer "Does this module contain what I'm looking for?" without
+needing to see child filenames. Avoid listing children by name — this
+couples documentation to file structure and duplicates what depth 3
+reveals automatically.
 
-A barrel detected in a glob result must:
-1. Suppress child files at depths where the barrel still has summary
-   levels to show.
-2. Reveal immediate children once the barrel's summary levels are
-   exhausted. Each child appears at its shallowest level.
-3. When children are revealed, the barrel itself does not appear in
-   the output — only its children do.
+### Barrel Display Path
 
-### `more` Field for Barrels
+Barrel files use their parent directory path in output ids instead of
+the index.ts filename. For example, `src/foo/index.ts` produces ids
+like `src/foo@1`, not `src/foo/index.ts@1`. A barrel at the CWD root
+uses `"."` as its path (e.g., `.@1`).
 
-When a barrel is reached via glob:
-- `more=true` while summary levels remain.
-- At the transition depth (where children are revealed), the barrel
-  is replaced by its children. Each child has its own `more` value.
+### Barrel Without @summary
 
-When a barrel is reached by direct path:
-- `more=true` through all levels until "full file content."
+A barrel without a @summary does not gate. It appears in glob results
+as a regular file alongside its children. Both the barrel and its
+children are processed normally. The barrel still uses its directory
+path for the id.
+
+### Barrel Gating Depth
+
+Gating spans two depths (based on @summary and description):
+
+- `depth < 3`: barrel's own level at the requested depth (gates children)
+- `depth >= 3`: barrel transitions, children appear at `childDepth = depth - 2`
+
+Null-skip: if `depth == 2` but barrel has no description, the barrel
+advances to transition depth (children appear immediately).
+
+### Direct Path Access
+
+When a barrel is targeted by direct path, it behaves like a leaf file:
+levels 1-4, no children revealed. The id still uses the directory path.
+To explore a barrel's children, use a glob targeting its directory.
+
+### Barrel Detection
+
+Only files named exactly `index.ts` or `index.tsx` are barrels. Files
+like `index.test.ts`, `index.d.ts`, or `index.stories.tsx` are not
+barrels.
+
+### Barrel Children
+
+A barrel's immediate children are:
+- child barrels: `<dir>/*/index.{ts,tsx}`
+- leaf files: `<dir>/*.{ts,tsx}`, excluding the barrel itself
+
+Children are one level deep only (non-recursive).
 
 ### Root-Level Barrel
 
-An `index.ts` at the CWD root (e.g., `./index.ts`) is a valid barrel.
-It represents the root directory. Its children are sibling `.ts`/`.tsx`
-files and child `*/index.{ts,tsx}` barrels, just like any other barrel.
-
-### Barrel With 0 or 1 Summary Levels
-
-A barrel with 0 summary levels is not a tree node. Its children are
-not gated; they appear directly in glob results at their own shallowest
-levels.
-
-A barrel with 1 summary level gates its children for one depth. The
-first drill-down reveals children.
+An `index.ts` at the CWD root is a valid barrel. Its children are
+sibling `.ts`/`.tsx` files and child `*/index.{ts,tsx}` barrels. Its
+id path is `"."`.
 
 ### Nested Barrels
 
-Barrels nest recursively. When a parent barrel reveals its children
-and one of those children is itself a barrel, that child barrel appears
-as a regular item. Since the child's id is a direct file path, further
-drill-downs on it follow direct-path rules (JSDoc + types, then full
-file). To explore the child barrel's own children, issue a new glob
-targeting its subdirectory.
+When a parent barrel reveals its children and one is itself a barrel,
+the child barrel appears as a regular item at its own shallowest level.
+Its id uses the child's directory path. To explore the child barrel's
+own children, issue a new glob targeting its subdirectory.
 
-Example:
+### Barrel With Zero Children
 
-    # Parent barrel (packages/app/src/index.ts, 2 summaries):
-    jsdoczoom "packages/app/src/**/*"     => parent L0
-    jsdoczoom "packages/app/src/**/*@0"   => parent L1
-    jsdoczoom "packages/app/src/**/*@1"   => children, including:
-      - packages/app/src/hooks/index.ts@0  (child barrel at L0)
-      - packages/app/src/utils.ts@0        (leaf at L0)
-
-    # Drill into child barrel by its id (direct path rules):
-    jsdoczoom "packages/app/src/hooks/index.ts@0"  => child barrel L1
-    jsdoczoom "packages/app/src/hooks/index.ts@1"  => JSDoc + type declarations
-    jsdoczoom "packages/app/src/hooks/index.ts@2"  => full file content
-
-    # To explore the child barrel's children instead, use a glob:
-    jsdoczoom "packages/app/src/hooks/**/*"    => child barrel L0 (gating)
-    jsdoczoom "packages/app/src/hooks/**/*@0"  => child barrel L1
-    jsdoczoom "packages/app/src/hooks/**/*@1"  => hooks/ children
+If a barrel's directory contains no other .ts or .tsx files, the barrel
+reveals an empty items array when children would normally be shown.
+This is not an error.
 
 ### Child Ordering
 
 When a barrel reveals its children, items are ordered alphabetically
-by path. Barrel children and leaf children are intermixed; there is
-no separate grouping.
+by their key (next_id or id).
+
+### Gated File Set
+
+A file that is a child of a barrel with a @summary is "gated" — it
+does not appear directly in glob results when the barrel is still
+showing its own summary or description. A barrel that is itself gated
+by a parent barrel is not processed independently.
 
 ## Glob Matching Details
 
 ### Which Files Appear
 
-A glob matches files by path pattern. Files without summary levels
-(no file-level JSDoc or no @summary tags / description) are silently
-excluded from results. The NO_FILES_MATCHED error fires only when the
-glob pattern itself matches no `.ts`/`.tsx` files on disk, or when
-every matched file lacks summary levels.
+A glob matches files by path pattern. All matched `.ts`/`.tsx` files
+are included in results, regardless of whether they have JSDoc or
+@summary tags. Files without summaries advance to their earliest
+available level (typically level 3, type declarations).
+
+The NO_FILES_MATCHED error fires only when the glob pattern matches
+no `.ts`/`.tsx` files on disk.
 
 ### Independent Depth Advancement
 
 When a glob includes a depth suffix, each matched file advances
-independently. A file with 1 summary level reaches "JSDoc + type
-declarations" at a lower depth than a file with 3 summary levels.
-Each file's `more` field reflects its own state.
+independently through its own levels. A file with no JSDoc reaches
+type declarations at level 3, while a file with @summary and
+description has two intermediate levels before type declarations.
 
 ## File Extension Rules
 
@@ -232,14 +316,7 @@ Each file's `more` field reflects its own state.
 
 If both index.ts and index.tsx exist in the same directory, index.ts
 takes priority as the barrel. index.tsx is treated as a regular leaf
-file in that directory.
-
-### Barrel Name Matching
-
-Only files named exactly `index.ts` or `index.tsx` are barrels. Files
-like `index.test.ts`, `index.d.ts`, or `index.stories.tsx` are not
-barrels — they are regular leaf files (or excluded entirely in the
-case of `.d.ts`).
+file.
 
 ### .d.ts Files
 
@@ -251,76 +328,105 @@ and glob matching. They are not tree nodes.
 Only `.ts` and `.tsx` files are processed. Other extensions (`.js`,
 `.json`, `.mjs`, etc.) are ignored even if matched by a glob.
 
-## PARSE_ERROR in Glob Context
+## Validation Details
 
-When a glob matches multiple files and one file has a syntax error,
-the request does not fail entirely. The file with the error appears
-in the JSON array with a PARSE_ERROR entry instead of normal text
-content. Other files in the result are unaffected. This allows
-partial results when exploring a codebase with some broken files.
+### Validation Checks
 
-For path selectors targeting a single file, PARSE_ERROR is returned
-as a fatal error on stderr (exit 1).
+Validation checks six conditions. Per-file checks are in priority order
+(first failing check wins). Directory checks run independently.
 
-## Validation and Depth Suffixes
+Per-file checks:
+1. **syntax_error** — File cannot be parsed as TypeScript
+2. **missing_jsdoc** — No file-level JSDoc block before first code statement
+3. **missing_summary** — JSDoc block exists but no @summary tag
+4. **multiple_summary** — More than one @summary tag in the JSDoc block
+5. **missing_description** — @summary exists but no description paragraph
 
-The `--validate` flag does not accept `@depth` suffixes. If a
-selector includes a depth suffix when used with `--validate`,
-INVALID_DEPTH is returned (exit 1). Validation always examines the
-file-level JSDoc block regardless of depth.
+Directory checks:
+6. **missing_barrel** — Directory has >3 .ts/.tsx files (excluding barrels) and no index.ts or index.tsx
+
+A file passes only when all per-file checks pass. Valid files are omitted
+from output. Missing barrel results list directory paths (e.g., `"."`,
+`"src/utils"`).
+
+### Validation Output
+
+Output is a JSON object with status groups. Each group contains
+guidance text and file paths:
+
+```json
+{
+  "missing_jsdoc": {"guidance": "...", "files": ["src/bar.ts"]},
+  "missing_summary": {"guidance": "...", "files": ["src/baz.ts"]},
+  "missing_barrel": {"guidance": "...", "files": ["src/utils"]}
+}
+```
+
+- Empty groups are omitted from output
+- Valid files are not shown
+- Groups are filled in priority order when applying the limit
+- missing_barrel files are directory paths, not file paths
+
+### Validation and Depth Suffixes
+
+The `--validate` flag silently ignores `@depth` suffixes. The depth
+is stripped and validation proceeds using only the pattern.
+
+### Validation Limit
+
+The `--limit N` parameter caps the total number of invalid file paths
+across all groups. Groups are filled in priority order (syntax_error,
+missing_jsdoc, missing_summary, multiple_summary, missing_description,
+missing_barrel) until the limit is reached.
 
 ## Error Conditions
 
 | Code              | When                                                 | Exit |
 |-------------------|------------------------------------------------------|------|
 | INVALID_SELECTOR  | Selector is not a valid glob or relative path        | 1    |
-| INVALID_DEPTH     | @depth is not a non-negative integer, or used with -v | 1    |
+| INVALID_DEPTH     | @depth is not a non-negative integer                  | 1   |
 | FILE_NOT_FOUND    | Relative path targets a file that does not exist     | 1    |
-| NO_FILES_MATCHED  | Glob matched no files with summary levels            | 1    |
-| NO_SUMMARY_FOUND  | File exists but has no summary levels                 | 1    |
+| NO_FILES_MATCHED  | Glob matched no .ts/.tsx files on disk               | 1    |
 | PARSE_ERROR       | File is not valid TypeScript                         | 1    |
 | VALIDATION_FAILED | --validate: one or more files failed checks          | 2    |
 | INTERNAL_ERROR    | Unexpected runtime failure                           | 1    |
 
 FILE_NOT_FOUND is only returned for relative path selectors. For globs,
-unmatched patterns produce NO_FILES_MATCHED. NO_SUMMARY_FOUND is only
-returned for relative path selectors targeting a specific file.
+unmatched patterns produce NO_FILES_MATCHED.
 
-## Validation Details
+Error output on stderr is always compact JSON regardless of `--pretty`.
 
-Validation is a linting check with stricter requirements than normal
-operation. A file with 1 summary level works in normal mode (it appears
-in glob results and supports drill-down) but fails validation.
+## Stdin Mode
 
-Validation (--validate) accepts both globs and relative path selectors.
-For each matched file, it checks:
+When stdin is piped (not a TTY), file paths are read one per line.
+Blank lines and leading/trailing whitespace are ignored.
 
-1. File parses as valid TypeScript (no syntax errors).
-2. A file-level `/** */` block exists before any code statements.
-3. The block contains at least two @summary tags.
-4. Each @summary has non-empty content after trimming.
+If a selector argument is also provided when stdin is active, only
+the `@depth` suffix is extracted from the selector (the pattern
+portion is ignored). This allows `find . | jsdoczoom @2` to apply
+depth 2 to all stdin paths.
 
-The output is a JSON object with `files` (per-file results) and
-`summary` (counts of passed/failed/total). Exit code 2 if any file
-fails; exit code 0 if all pass.
+Stdin paths are resolved to absolute paths relative to CWD. Only
+`.ts`/`.tsx` files are processed (other extensions are filtered out).
+Barrel gating is not applied in stdin mode — all paths are treated
+as leaf files.
 
 ## Whitespace-Only @summary Tags
 
 A @summary tag whose content is empty or whitespace-only after trimming
-is treated as absent. It does not create a summary level. For example:
+is treated as absent (null). It does not count as a valid summary. For
+example:
 
 ```
 /**
+ * Description text.
  * @summary Real summary.
  * @summary
- * @summary Another real summary.
  */
 ```
 
-This file has 2 summary levels (the whitespace-only tag is skipped).
-Validation also treats it as absent: if a file has 3 @summary tags but
-one is whitespace-only, validation sees 2 non-empty @summary tags and
-passes.
+This file has summary = "Real summary." (the whitespace-only tag is
+ignored).
 
 ## @summary Tag Recognition
 
@@ -329,90 +435,19 @@ Only the exact lowercase tag `@summary` is recognized. Variants like
 summary extraction.
 
 A line following `@summary` that does not itself begin a new `@tag`
-(matching `* @tagname`) is a continuation of the current summary,
-regardless of indentation.
-
-## JSDoc + Type Declarations Level
-
-The "JSDoc + type declarations" level is the equivalent of a `.d.ts`
-file with JSDoc. It contains:
-
-- All exported type aliases, interfaces, enums, and class declarations
-  (signatures only, no method bodies)
-- All exported function and const signatures (no implementation bodies)
-- All JSDoc blocks in the file (both file-level and symbol-level)
-
-Import statements and implementation bodies are excluded. Content is
-presented in source order. This is the same output a TypeScript
-compiler would produce for a `.d.ts` emit, but with JSDoc comments
-preserved.
-
-## Full File Content Level
-
-The "full file content" level returns the complete raw file text,
-including the file-level JSDoc block, all imports, all code, and all
-comments. No filtering or transformation is applied.
-
-## Barrel With Zero Children
-
-If a barrel's directory contains no other .ts or .tsx files (no child
-barrels or leaf files), the barrel reveals an empty JSON array `[]`
-when children would normally be shown. This is not an error.
-
-## Description-Only Files
-
-A file with a free-text description but no @summary tags has one
-summary level (the description). Its drill-down sequence:
-
-    jsdoczoom F        => description text,             id: F@0
-    jsdoczoom F@0      => JSDoc + type declarations,    id: F@1
-    jsdoczoom F@1      => full file content,             more: false
-
-This file is a valid tree node and appears in glob results, but it
-fails validation (which requires at least two @summary tags).
-
-## Validation Output Schema
-
-The --validate output is a JSON object:
-
-```json
-{
-  "files": [
-    {
-      "path": "packages/foo/src/bar.ts",
-      "passed": true,
-      "issues": []
-    },
-    {
-      "path": "packages/foo/src/baz.ts",
-      "passed": false,
-      "issues": [
-        "Missing file-level JSDoc block",
-        "Less than 2 @summary tags"
-      ]
-    }
-  ],
-  "summary": {
-    "total": 2,
-    "passed": 1,
-    "failed": 1
-  }
-}
-```
-
-Each file entry contains:
-- `path`: file path relative to working directory
-- `passed`: boolean
-- `issues`: array of human-readable failure reasons (empty if passed)
+(matching `* @tagname`) is a continuation of the summary, regardless
+of indentation.
 
 ## Path Traversal
 
 Paths with `../` segments are valid as long as they resolve to an
-existing file. The resolved path is used in output.
+existing file. The resolved path (relative to CWD) is used in output
+ids.
 
 ## Performance
 
 jsdoczoom parses files on every invocation (no caching). JSON output
-is buffered and returned as a complete array (not streamed). For large
-monorepos, use specific paths or narrow globs rather than `**/*.ts`
-across the entire tree.
+is buffered and returned as a complete object (not streamed). The
+`--limit` option (default 100) prevents excessive output for large
+codebases. Use specific paths or narrow globs rather than `**/*.ts`
+across an entire monorepo.

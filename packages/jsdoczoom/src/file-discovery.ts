@@ -1,8 +1,17 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { globSync } from "glob";
 import ignore, { type Ignore } from "ignore";
 import { JsdocError } from "./errors.js";
+
+/**
+ * Walks .gitignore files from cwd to filesystem root, building an ignore
+ * filter that glob results pass through. Direct-path lookups bypass the
+ * filter since the user explicitly named the file. The ignore instance is
+ * created per call -- no caching -- because cwd may differ between invocations.
+ *
+ * @summary Resolve selector patterns to absolute file paths with gitignore filtering
+ */
 
 /**
  * Walk from `cwd` up to the filesystem root, collecting .gitignore entries.
@@ -75,6 +84,9 @@ export function discoverFiles(
 	const resolved = resolve(cwd, pattern);
 	if (!existsSync(resolved)) {
 		throw new JsdocError("FILE_NOT_FOUND", `File not found: ${pattern}`);
+	}
+	if (statSync(resolved).isDirectory()) {
+		return discoverFiles(`${resolved}/**`, cwd, gitignore);
 	}
 	return [resolved];
 }

@@ -3,6 +3,14 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { getBarrelChildren, isBarrel } from "../src/barrel.js";
 
+/**
+ * Verifies that isBarrel correctly identifies index.ts/index.tsx files and
+ * that getBarrelChildren discovers sibling files and child barrels while
+ * respecting .d.ts exclusion and index.ts-over-index.tsx priority.
+ *
+ * @summary Tests for barrel detection and child discovery logic
+ */
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = resolve(__dirname, "fixtures");
 

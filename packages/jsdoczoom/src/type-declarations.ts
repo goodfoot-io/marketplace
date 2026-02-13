@@ -1,12 +1,15 @@
-/**
- * Type declarations generation for JSDoc Zoom
- *
- * @summary Generates TypeScript declaration output from source files
- */
-
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { JsdocError } from "./errors.js";
+
+/**
+ * Produces .d.ts-like output from a TypeScript source file using the
+ * TypeScript compiler's declaration emit. Preserves JSDoc comments and
+ * source order while stripping implementation bodies and non-exported
+ * internals.
+ *
+ * @summary Generate TypeScript declaration output from source files
+ */
 
 /**
  * Generates TypeScript declaration output from a source file.

@@ -1,9 +1,80 @@
 /**
- * Skill text output for the --skill flag.
- *
  * Combines the jsdoc skill guidelines with concrete guidance on writing
  * file-level @summary tags and description paragraphs that pass validation.
+ * SKILL_TEXT is emitted verbatim to stdout when the CLI receives `--skill` / `-s`.
+ * GUIDANCE maps each validation status to a markdown snippet used in validation
+ * output to explain how to fix that category.
+ *
+ * @summary Skill text and per-category guidance constants for JSDoc writing
  */
+
+import type { ValidationStatus } from "./types.js";
+
+/** Markdown guidance text for each validation status category */
+export const GUIDANCE: Record<ValidationStatus, string> = {
+	syntax_error: `### Syntax error
+
+The file has TypeScript parse errors that prevent analysis. Fix syntax errors first — no JSDoc validation can run until the file parses cleanly.`,
+
+	missing_jsdoc: `### Missing file-level JSDoc
+
+Add a \`/** ... */\` block before the first code statement (after imports). This block is what jsdoczoom reads for orientation and validation.
+
+\`\`\`typescript
+import { resolve } from "node:path";
+
+/**
+ * Description paragraph here.
+ *
+ * @summary One-line overview here
+ */
+
+export function example() { ... }
+\`\`\``,
+
+	missing_summary: `### The @summary tag
+
+The \`@summary\` tag provides a one-line overview — the first thing someone sees when scanning with jsdoczoom at the shallowest depth.
+
+**Important:** Only exact lowercase \`@summary\` is recognized. \`@Summary\`, \`@SUMMARY\`, and other case variants are ignored.
+
+**Good summaries:**
+- State what the file *does* or *is responsible for*, not what it contains
+- Are self-contained — understandable without reading other files
+- Use domain vocabulary consistently with the rest of the codebase
+- Fit on a single line (joined if multi-line in source)
+
+**Examples:**
+- \`@summary Barrel tree model for hierarchical gating in glob mode\`
+- \`@summary Resolve selector patterns to absolute file paths with gitignore filtering\`
+- \`@summary CLI entry point — argument parsing, mode dispatch, and exit code handling\`
+
+**Avoid:**
+- \`@summary This file contains utility functions\` — says what it *contains*, not what it *does*
+- \`@summary Helpers\` — too vague, no domain context
+- \`@summary The main module\` — no information about purpose or scope`,
+
+	multiple_summary: `### Multiple @summary tags
+
+Each file must have exactly one \`@summary\` tag. Remove the extra \`@summary\` tags and keep a single one-line overview.`,
+
+	missing_barrel: `### Missing barrel file
+
+Directories with more than 3 TypeScript files should have an \`index.ts\` barrel file. The barrel provides a module-level \`@summary\` and description that helps agents understand what the directory contains before drilling into individual files.
+
+Create an \`index.ts\` that re-exports the directory's public API and add a file-level JSDoc block describing the module's capabilities.`,
+
+	missing_description: `### The description paragraph
+
+The description is prose that appears before any \`@\` tags. It provides the deeper context that the summary cannot — responsibilities, invariants, trade-offs, and failure modes.
+
+**Good descriptions:**
+- Explain *why* this file exists and what problem it solves
+- State invariants and assumptions that callers or maintainers must know
+- Note trade-offs and design decisions
+- Mention failure modes and edge cases relevant to the file as a whole
+- Are 1–4 sentences, not an essay`,
+};
 
 export const SKILL_TEXT = `# World-Class JSDoc Guidelines for TypeScript
 
@@ -80,7 +151,7 @@ Every TypeScript file should have a file-level JSDoc block before the first code
 
 ### The @summary tag
 
-The \`@summary\` tag provides a one-line overview — the first thing someone sees when scanning with jsdoczoom at depth 0.
+The \`@summary\` tag provides a one-line overview — the first thing someone sees when scanning with jsdoczoom at the shallowest depth.
 
 **Good summaries:**
 - State what the file *does* or *is responsible for*, not what it contains
@@ -138,6 +209,30 @@ The description is prose that appears before any \`@\` tags. It provides the dee
 - Listing every function in the file
 - Implementation details that change frequently (line numbers, internal variable names)
 
+### Barrel files (index.ts / index.tsx)
+
+Barrel files represent their directory. The \`@summary\` and description describe the module, not individual files.
+
+- **\`@summary\`**: What the module does as a unit
+- **Description**: The module's capabilities and concerns — describe concepts, not child filenames
+
+\`\`\`typescript
+// packages/auth/src/index.ts
+/**
+ * Provides session lifecycle management, token validation and refresh,
+ * and middleware for route-level access control. OAuth2 provider
+ * integration is handled here; cryptographic primitives are delegated
+ * to the crypto package.
+ *
+ * @summary Authentication and authorization module
+ */
+\`\`\`
+
+**Avoid:**
+- Listing child filenames in the description
+- \`@summary Exports for the auth module\` — describes the mechanism, not the purpose
+- \`@summary Index file\` — no information about what the module does
+
 ### Placement
 
 The file-level JSDoc block must appear **before the first code statement** (imports are fine above it, but the block must precede any \`export\`, \`const\`, \`function\`, \`class\`, etc.). A common pattern is to place it immediately after imports:
@@ -155,14 +250,4 @@ import { globSync } from "glob";
 export function discoverFiles(...) { ... }
 \`\`\`
 
-### Validation checks
-
-jsdoczoom validates four things in priority order:
-
-1. **syntax_error** — The file cannot be parsed as TypeScript
-2. **missing_jsdoc** — No file-level JSDoc block found before the first code statement
-3. **missing_summary** — JSDoc block exists but has no \`@summary\` tag (or only whitespace after it)
-4. **missing_description** — JSDoc block has \`@summary\` but no prose paragraph before the tags
-
-A file passes validation when all four checks pass.
 `;

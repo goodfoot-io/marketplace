@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { JsdocError } from "../src/errors.js";
 import { parseSelector } from "../src/selector.js";
 
+/**
+ * Verifies glob detection, depth extraction, float rejection, empty-selector
+ * errors, and edge cases like email-like patterns and relative paths with
+ * depth suffixes.
+ *
+ * @summary Tests for selector string parsing and depth extraction
+ */
+
 describe("parseSelector", () => {
 	it("detects glob chars (*, ?, [, {) → type glob", () => {
 		expect(parseSelector("src/**/*.ts").type).toBe("glob");
