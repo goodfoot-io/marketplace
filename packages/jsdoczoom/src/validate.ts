@@ -1,15 +1,21 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import type { ESLint } from "eslint";
 import { isBarrel } from "./barrel.js";
 import { JsdocError } from "./errors.js";
+import {
+	createValidationLinter,
+	lintFileForValidation,
+	mapToValidationStatus,
+} from "./eslint-engine.js";
 import { discoverFiles } from "./file-discovery.js";
-import { parseFileSummaries } from "./jsdoc-parser.js";
 import { GUIDANCE } from "./skill-text.js";
 import type {
 	SelectorInfo,
 	ValidationResult,
 	ValidationStatus,
 } from "./types.js";
+import { VALIDATION_STATUS_PRIORITY } from "./types.js";
 
 /**
  * Each file is classified into exactly one status category: the first
@@ -32,42 +38,26 @@ interface FileStatus {
 /**
  * Classify a single file against validation requirements.
  *
- * Priority order (first failing check wins):
- * 1. syntax_error
- * 2. missing_jsdoc
- * 3. missing_summary
- * 4. multiple_summary
- * 5. missing_description
+ * Reads the file, lints it with the ESLint engine, and maps the
+ * resulting messages to a single ValidationStatus using priority order.
  */
-function classifyFile(filePath: string, cwd: string): FileStatus {
+async function classifyFile(
+	eslint: ESLint,
+	filePath: string,
+	cwd: string,
+): Promise<FileStatus> {
 	const relativePath = relative(cwd, filePath);
 
+	let sourceText: string;
 	try {
-		const info = parseFileSummaries(filePath);
-
-		if (!info.hasFileJsdoc) {
-			return { path: relativePath, status: "missing_jsdoc" };
-		}
-
-		if (info.summary === null) {
-			return { path: relativePath, status: "missing_summary" };
-		}
-
-		if (info.summaryCount > 1) {
-			return { path: relativePath, status: "multiple_summary" };
-		}
-
-		if (info.description === null) {
-			return { path: relativePath, status: "missing_description" };
-		}
-
-		return { path: relativePath, status: "valid" };
-	} catch (error) {
-		if (error instanceof JsdocError && error.code === "PARSE_ERROR") {
-			return { path: relativePath, status: "syntax_error" };
-		}
-		throw error;
+		sourceText = readFileSync(filePath, "utf-8");
+	} catch {
+		throw new JsdocError("FILE_NOT_FOUND", `File not found: ${filePath}`);
 	}
+
+	const messages = await lintFileForValidation(eslint, sourceText, filePath);
+	const status = mapToValidationStatus(messages);
+	return { path: relativePath, status };
 }
 
 /** Minimum number of .ts/.tsx files in a directory to require a barrel. */
@@ -100,16 +90,6 @@ function findMissingBarrels(filePaths: string[], cwd: string): string[] {
 	return missing.sort();
 }
 
-/** Priority order for filling groups when applying limit */
-const STATUS_PRIORITY: ValidationStatus[] = [
-	"syntax_error",
-	"missing_jsdoc",
-	"missing_summary",
-	"multiple_summary",
-	"missing_description",
-	"missing_barrel",
-];
-
 /**
  * Group file statuses into a ValidationResult, applying a limit
  * to the total number of invalid file paths shown.
@@ -137,7 +117,7 @@ function buildGroupedResult(
 	const result: ValidationResult = {};
 
 	let remaining = limit;
-	for (const status of STATUS_PRIORITY) {
+	for (const status of VALIDATION_STATUS_PRIORITY) {
 		const files = groups[status];
 		if (files.length === 0) continue;
 		if (remaining <= 0) break;
@@ -160,12 +140,12 @@ function buildGroupedResult(
  * @throws {JsdocError} NO_FILES_MATCHED if glob selector matches no files
  * @throws {JsdocError} FILE_NOT_FOUND if path selector targets nonexistent file
  */
-export function validate(
+export async function validate(
 	selector: SelectorInfo,
 	cwd: string,
 	limit = 100,
 	gitignore = true,
-): ValidationResult {
+): Promise<ValidationResult> {
 	const files = discoverFiles(selector.pattern, cwd, gitignore);
 	if (files.length === 0) {
 		throw new JsdocError(
@@ -174,7 +154,10 @@ export function validate(
 		);
 	}
 
-	const statuses = files.map((f) => classifyFile(f, cwd));
+	const eslint = createValidationLinter();
+	const statuses = await Promise.all(
+		files.map((f) => classifyFile(eslint, f, cwd)),
+	);
 	const missingBarrels = findMissingBarrels(files, cwd);
 	return buildGroupedResult(statuses, missingBarrels, limit);
 }
@@ -189,15 +172,19 @@ export function validate(
  * @param limit - Max number of invalid file paths to include (default 100)
  * @returns Grouped validation results
  */
-export function validateFiles(
+export async function validateFiles(
 	filePaths: string[],
 	cwd: string,
 	limit = 100,
-): ValidationResult {
+): Promise<ValidationResult> {
 	const tsFiles = filePaths.filter(
 		(f) => f.endsWith(".ts") || f.endsWith(".tsx"),
 	);
-	const statuses = tsFiles.map((f) => classifyFile(f, cwd));
+
+	const eslint = createValidationLinter();
+	const statuses = await Promise.all(
+		tsFiles.map((f) => classifyFile(eslint, f, cwd)),
+	);
 	const missingBarrels = findMissingBarrels(tsFiles, cwd);
 	return buildGroupedResult(statuses, missingBarrels, limit);
 }

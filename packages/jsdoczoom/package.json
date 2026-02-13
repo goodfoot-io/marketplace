@@ -34,6 +34,9 @@
 		"lint": "biome check --write --unsafe --max-diagnostics 500 ."
 	},
 	"dependencies": {
+		"@typescript-eslint/parser": "^8.21.0",
+		"eslint": "^9.20.0",
+		"eslint-plugin-jsdoc": "^50.6.4",
 		"glob": "^11.0.0",
 		"ignore": "^7.0.5",
 		"typescript": "^5.9.3"

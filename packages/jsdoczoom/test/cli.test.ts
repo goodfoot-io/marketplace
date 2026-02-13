@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import os from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -334,6 +336,147 @@ describe("cli", () => {
 			const errOutput = JSON.parse(capture.getStderr());
 			expect(errOutput.error.code).toBe("VALIDATION_FAILED");
 			expect(process.exitCode).toBe(2);
+		});
+	});
+
+	describe("lint mode", () => {
+		/** A fully valid file that passes all lint rules */
+		const VALID_LINT_FILE = [
+			"/**",
+			" * File description explaining the purpose of this module.",
+			" * @summary File summary for the module",
+			" */",
+			"",
+			"/** The primary numeric value used for calculations */",
+			"export const x = 1;",
+			"",
+		].join("\n");
+
+		/**
+		 * Create a temp dir with a valid file and mock cwd to it.
+		 * Returns the directory path.
+		 */
+		function setupCleanLintDir(): string {
+			const tmpDir = fs.mkdtempSync(
+				resolve(os.tmpdir(), "jsdoczoom-cli-lint-"),
+			);
+			fs.writeFileSync(resolve(tmpDir, "clean.ts"), VALID_LINT_FILE);
+			cwdSpy.mockReturnValue(tmpDir);
+			return tmpDir;
+		}
+
+		it("-l flag runs lint mode", async () => {
+			// two-summaries.ts has an export without JSDoc, so lint will find issues
+			await main(["-l", "two-summaries.ts"]);
+			const output = JSON.parse(capture.getStdout());
+			expect(output).toHaveProperty("files");
+			expect(output).toHaveProperty("summary");
+			expect(output.summary).toHaveProperty("totalFiles");
+			expect(output.summary).toHaveProperty("filesWithIssues");
+			expect(output.summary).toHaveProperty("totalDiagnostics");
+		});
+
+		it("--lint flag runs lint mode", async () => {
+			await main(["--lint", "two-summaries.ts"]);
+			const output = JSON.parse(capture.getStdout());
+			expect(output).toHaveProperty("files");
+			expect(output).toHaveProperty("summary");
+		});
+
+		it("lint success exits 0", async () => {
+			const tmpDir = setupCleanLintDir();
+			try {
+				await main(["-l", "clean.ts"]);
+				expect(process.exitCode).toBe(0);
+			} finally {
+				fs.rmSync(tmpDir, { recursive: true });
+			}
+		});
+
+		it("lint failure exits 2", async () => {
+			// description-only.ts has no @summary, which triggers lint rules
+			await main(["-l", "description-only.ts"]);
+			expect(process.exitCode).toBe(2);
+		});
+
+		it("-l output is valid JSON with files and summary", async () => {
+			await main(["-l", "description-only.ts"]);
+			const output = JSON.parse(capture.getStdout());
+			expect(Array.isArray(output.files)).toBe(true);
+			expect(typeof output.summary.totalFiles).toBe("number");
+			expect(typeof output.summary.filesWithIssues).toBe("number");
+			expect(typeof output.summary.totalDiagnostics).toBe("number");
+
+			// Should have diagnostics since export const value lacks JSDoc
+			expect(output.files.length).toBeGreaterThan(0);
+			expect(output.files[0]).toHaveProperty("filePath");
+			expect(output.files[0]).toHaveProperty("diagnostics");
+			expect(Array.isArray(output.files[0].diagnostics)).toBe(true);
+		});
+
+		it("-v and -l together produces error", async () => {
+			await main(["-v", "-l", "two-summaries.ts"]);
+			const errOutput = capture.getStderr();
+			const parsed = JSON.parse(errOutput);
+			expect(parsed.error.code).toBe("INVALID_SELECTOR");
+			expect(parsed.error.message).toContain("Cannot use -v and -l together");
+			expect(process.exitCode).toBe(1);
+		});
+
+		it("stdin piped paths with -l flag", async () => {
+			const stdin = "two-summaries.ts\none-summary.ts";
+			await main(["-l"], stdin);
+			const output = JSON.parse(capture.getStdout());
+			expect(output).toHaveProperty("files");
+			expect(output).toHaveProperty("summary");
+			expect(output.summary.totalFiles).toBe(2);
+		});
+
+		it("--pretty with -l flag outputs indented JSON", async () => {
+			await main(["--pretty", "-l", "two-summaries.ts"]);
+			const raw = capture.getStdout();
+			expect(raw).toContain("\n  ");
+			const parsed = JSON.parse(raw);
+			expect(raw.trimEnd()).toBe(JSON.stringify(parsed, null, 2));
+			expect(parsed).toHaveProperty("files");
+			expect(parsed).toHaveProperty("summary");
+		});
+
+		it("--no-gitignore with -l flag", async () => {
+			const tmpDir = setupCleanLintDir();
+			try {
+				await main(["-l", "--no-gitignore", "*.ts"]);
+				const output = JSON.parse(capture.getStdout());
+				expect(output).toHaveProperty("files");
+				expect(output).toHaveProperty("summary");
+				expect(process.exitCode).toBe(0);
+			} finally {
+				fs.rmSync(tmpDir, { recursive: true });
+			}
+		});
+
+		it("help text includes -l/--lint option", async () => {
+			await main(["--help"]);
+			const helpText = capture.getStdout();
+			expect(helpText).toContain("-l, --lint");
+			expect(helpText).toContain("comprehensive JSDoc quality");
+		});
+
+		it("lint clean result writes only to stdout, no stderr", async () => {
+			const tmpDir = setupCleanLintDir();
+			try {
+				await main(["-l", "clean.ts"]);
+				expect(capture.getStderr()).toBe("");
+				expect(process.exitCode).toBe(0);
+			} finally {
+				fs.rmSync(tmpDir, { recursive: true });
+			}
+		});
+
+		it("lint output always ends with a newline", async () => {
+			await main(["-l", "two-summaries.ts"]);
+			const raw = capture.getStdout();
+			expect(raw.endsWith("\n")).toBe(true);
 		});
 	});
 });

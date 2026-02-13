@@ -59,6 +59,16 @@ export type ValidationStatus =
 	| "missing_description"
 	| "missing_barrel";
 
+/** Priority order for validation status categories */
+export const VALIDATION_STATUS_PRIORITY: ValidationStatus[] = [
+	"syntax_error",
+	"missing_jsdoc",
+	"missing_summary",
+	"multiple_summary",
+	"missing_description",
+	"missing_barrel",
+];
+
 /** A validation group: guidance text and file paths */
 export interface ValidationGroup {
 	guidance: string;
@@ -89,4 +99,29 @@ export interface SelectorInfo {
 	type: "glob" | "path";
 	pattern: string;
 	depth: number | undefined;
+}
+
+/** A single lint diagnostic from ESLint */
+export interface LintDiagnostic {
+	line: number;
+	column: number;
+	rule: string;
+	message: string;
+	severity: "error" | "warning";
+}
+
+/** Lint result for a single file */
+export interface LintFileResult {
+	filePath: string;
+	diagnostics: LintDiagnostic[];
+}
+
+/** Overall lint result with summary statistics */
+export interface LintResult {
+	files: LintFileResult[];
+	summary: {
+		totalFiles: number;
+		filesWithIssues: number;
+		totalDiagnostics: number;
+	};
 }
