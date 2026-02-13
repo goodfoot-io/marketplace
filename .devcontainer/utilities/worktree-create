@@ -1,10 +1,10 @@
 #!/usr/bin/env zsh
 
-# Create a new git worktree with a new branch and launch Cursor with Claude Code
+# Create a new git worktree with a new branch and launch Claude
 # Usage: ./worktree-create <project-name>
 #
 # This script composes instant-worktree (fast worktree + symlinks) with additional
-# development setup (git config, MCP servers, VSCode configuration, IDE launch).
+# development setup (git config), then launches Claude with the implement-plan skill.
 
 set -e
 
@@ -27,6 +27,13 @@ for dir in projects/new projects/pending projects/active projects/ready-for-revi
         break
     fi
 done
+
+# Exit if project not found
+if [[ -z "${PROJECT_PATH}" ]]; then
+    echo "Error: Project '${PROJECT_NAME}' not found in project directories"
+    echo "Searched: projects/new, projects/pending, projects/active, projects/ready-for-review"
+    exit 1
+fi
 
 # Check if worktree already exists as a valid git worktree
 if git worktree list | grep -q "${WORKTREE_DIR}"; then
@@ -88,118 +95,39 @@ done
 git config core.hooksPath .githooks
 echo "  Configured: core.hooksPath = .githooks"
 
-# Copy MCP servers from main workspace to the worktree
-echo "Copying MCP servers..."
-MAIN_WORKSPACE="/workspace"
-cd "$MAIN_WORKSPACE"
-if /workspace/.devcontainer/utilities/claude-copy-mcp-servers "${WORKTREE_DIR}"; then
-    echo "  MCP servers copied successfully"
-else
-    echo "  Warning: Failed to copy some MCP servers"
-fi
-cd "${WORKTREE_DIR}"
-
-# Update Claude plugins
-claude plugin marketplace update
-
-# Create a .vscode directory with workspace settings
-mkdir -p "${WORKTREE_DIR}/.vscode"
-
-# Initialize the command file for Claude
-COMMAND_FILE="${WORKTREE_DIR}/.claude-next-command"
-if [[ -n "${PROJECT_PATH}" ]]; then
-    # Project found - write simple argument format for automatic selection
-    echo "/project:begin ${PROJECT_NAME}" > "${COMMAND_FILE}"
-else
-    # No project found - write basic command
-    echo "/project:begin" > "${COMMAND_FILE}"
-fi
-
-# Create tasks.json with Claude Code launcher
-cat > "${WORKTREE_DIR}/.vscode/tasks.json" << 'EOF'
-{
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Launch Claude Code",
-      "type": "shell",
-      "command": "while true; do claude \"$(cat .claude-next-command)\"; echo \"Claude exited. Restarting...\"; done",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": true,
-        "panel": "new",
-        "showReuseMessage": false,
-        "clear": false,
-        "group": "claude"
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
-      },
-      "problemMatcher": []
-    }
-  ]
-}
-EOF
-
-# Copy VSCode configuration files from parent workspace
-echo "Copying VSCode configuration..."
-
-# Copy settings.json - required for worktrees
-if [[ -f "/workspace/.vscode/settings.json" ]]; then
-    cp "/workspace/.vscode/settings.json" "${WORKTREE_DIR}/.vscode/settings.json"
-
-    # Ensure required worktree settings are present using node to merge JSON
-    node -e "
-const fs = require('fs');
-const settingsPath = '${WORKTREE_DIR}/.vscode/settings.json';
-const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-
-// Ensure required worktree settings
-settings['task.allowAutomaticTasks'] = 'on';
-settings['terminal.integrated.defaultLocation'] = 'editor';
-
-fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
-"
-    echo "  Copied and merged: settings.json"
-else
-    echo "  Creating default settings.json..."
-    cat > "${WORKTREE_DIR}/.vscode/settings.json" << EOF
-{
-  "task.allowAutomaticTasks": "on",
-  "terminal.integrated.defaultLocation": "editor",
-  "files.watcherExclude": {
-    "**/node_modules/**": true,
-    "**/.git/objects/**": true,
-    "**/.git/subtree-cache/**": true,
-    "**/dist/**": true,
-    "**/.yarn/**": true,
-    "**/coverage/**": true
-  }
-}
-EOF
-fi
-
-# Copy launch.json for debugging
-if [[ -f "/workspace/.vscode/launch.json" ]]; then
-    cp "/workspace/.vscode/launch.json" "${WORKTREE_DIR}/.vscode/launch.json"
-    echo "  Copied: launch.json"
-fi
-
-# Launch Cursor IDE in the new worktree
-# Since we're already in the devcontainer, just open the folder directly
-echo "Launching Cursor IDE..."
-code editor "${WORKTREE_DIR}"
-
 echo ""
 echo "Worktree setup complete!"
 echo "Branch: ${BRANCH_NAME}"
 echo "Location: ${WORKTREE_DIR}"
-if [[ -n "${PROJECT_PATH}" ]]; then
-    echo "Project: ${PROJECT_NAME} found at ${PROJECT_PATH}"
-else
-    echo "Project: ${PROJECT_NAME} not found in project directories"
-fi
+echo "Project: ${PROJECT_PATH}"
 echo ""
-echo "Note: Claude Code will launch automatically when Cursor opens."
-echo "The .claude-next-command file has been configured."
+
+# Create .vscode/tasks.json to auto-run Claude on folder open
+echo "Creating VSCode task to launch Claude..."
+mkdir -p "${WORKTREE_DIR}/.vscode"
+cat > "${WORKTREE_DIR}/.vscode/tasks.json" << EOF
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Launch Claude",
+      "type": "shell",
+      "command": "claude",
+      "args": ["/goodfoot:implement-plan ${PROJECT_PATH}/plan.md"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    }
+  ]
+}
+EOF
+echo "  Created: .vscode/tasks.json"
+
+# Open VSCode in new window at worktree location
+echo "Opening VSCode in new window..."
+code --new-window "${WORKTREE_DIR}"

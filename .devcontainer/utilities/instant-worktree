@@ -4,16 +4,20 @@
 #
 # This script provides a FAST alternative to worktree-create for ephemeral use cases.
 # It creates immediately functional worktrees by symlinking ignored directories
-# instead of installing them, accepting the trade-off of shared rather than isolated dependencies.
+# instead of installing them, accepting the trade-off of shared external dependencies.
+#
+# In Yarn monorepos, workspace package symlinks are automatically re-routed to point
+# to the worktree's packages (not the main workspace), ensuring type checking works
+# correctly even when branches are on different commits.
 #
 # Usage: instant-worktree <branch-name>
 #
 # Comparison with worktree-create:
-#   instant-worktree (~2s):  Symlinks ignored dirs, shared dependencies, ephemeral use
+#   instant-worktree (~3s):  Symlinks + reroutes, shared externals, works for type checking
 #   worktree-create  (~35s): Full yarn install, isolated dependencies, development use
 #
-# Use instant-worktree for: quick code review, parallel testing, temporary context switches
-# Use worktree-create for: feature development requiring isolated dependencies
+# Use instant-worktree for: quick code review, type checking, parallel testing, context switches
+# Use worktree-create for: feature development requiring fully isolated dependencies
 
 set -e
 
@@ -35,35 +39,48 @@ if ! printf '%s\n' "$BRANCH_NAME" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9/_-]*$'; the
     exit 2
 fi
 
-# Find workspace root by walking up directory tree looking for .git directory or file
-WORKSPACE_ROOT=""
+# Find both the source workspace (where we're running from) and repository root
+# SOURCE_ROOT: Current workspace (main or worktree) - used for discovering ignored files
+# REPO_ROOT: Main repository root - used for git worktree operations
+SOURCE_ROOT=""
+REPO_ROOT=""
 current_dir="$(pwd)"
+
 while [ "$current_dir" != "/" ]; do
     if [ -d "$current_dir/.git" ]; then
-        # .git directory means this is the main repository root
-        WORKSPACE_ROOT="$current_dir"
+        # Main repository - source and repo are the same
+        SOURCE_ROOT="$current_dir"
+        REPO_ROOT="$current_dir"
         break
     elif [ -f "$current_dir/.git" ]; then
-        # .git file means this is a worktree - resolve to main repository
-        # The file contains: gitdir: /path/to/main/.git/worktrees/<name>
+        # Worktree - source is here, repo root is main
+        SOURCE_ROOT="$current_dir"
         gitdir_line=$(cat "$current_dir/.git")
         gitdir_path="${gitdir_line#gitdir: }"
         # Strip /worktrees/<name> to get main .git dir, then get parent for repo root
         main_git_dir="${gitdir_path%/worktrees/*}"
-        WORKSPACE_ROOT="${main_git_dir%/.git}"
+        REPO_ROOT="${main_git_dir%/.git}"
         break
     fi
     current_dir="$(dirname "$current_dir")"
 done
 
-if [ -z "$WORKSPACE_ROOT" ]; then
+if [ -z "$SOURCE_ROOT" ] || [ -z "$REPO_ROOT" ]; then
     printf '%s\n' "Error: Could not find git repository root" >&2
     exit 2
 fi
 
-cd "$WORKSPACE_ROOT"
+# Capture current HEAD before changing directories (for branching from current context)
+ORIGINAL_HEAD=$(git rev-parse HEAD 2>/dev/null)
+if [ -z "$ORIGINAL_HEAD" ]; then
+    printf '%s\n' "Error: Could not determine current HEAD" >&2
+    exit 2
+fi
 
-WORKTREE_DIR="${WORKSPACE_ROOT}/.worktrees/${BRANCH_NAME}"
+# Change to repo root for git worktree operations
+cd "$REPO_ROOT"
+
+WORKTREE_DIR="${REPO_ROOT}/.worktrees/${BRANCH_NAME}"
 
 # Check git worktree list for existing worktree at target path
 if git worktree list | grep -q "${WORKTREE_DIR}"; then
@@ -88,58 +105,43 @@ if [ "$BRANCH_EXISTS" = "true" ]; then
         exit 2
     fi
 else
-    if ! git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" >/dev/null 2>&1; then
+    if ! git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR" "$ORIGINAL_HEAD" >/dev/null 2>&1; then
         printf '%s\n' "Error: Failed to create worktree" >&2
         exit 2
     fi
 fi
 
-# Discover ignored directories using git's built-in gitignore parsing
-# Get all ignored directories, filter nested redundancies
-all_dirs=$(git ls-files --ignored --exclude-standard --directory --others 2>/dev/null | \
-    grep '/$' | sed 's|/$||' | grep -v '^\.worktrees' | sort)
+# Discover ignored items using git's built-in gitignore parsing from SOURCE workspace
+# Note: git ls-files shows directories with trailing '/' but files without '/'
+# Separate directories and files
+all_ignored=$(git -C "$SOURCE_ROOT" ls-files --ignored --exclude-standard --directory --others 2>/dev/null | \
+    grep -v '^\.worktrees' | sort)
 
-# Discover ignored files efficiently using find + git check-ignore
-# Build prune patterns from ignored directories (use basenames for -name matching)
-prune_names=""
-while IFS= read -r d; do
-    [ -z "$d" ] && continue
-    # Get basename of directory for -name matching
-    base=$(basename "$d")
-    # Add to prune pattern if not already present
-    case "$prune_names" in
-        *"-name '$base'"*) ;;  # Already present
-        *) prune_names="$prune_names -name '$base' -o" ;;
-    esac
-done <<< "$all_dirs"
-# Add .worktrees explicitly (always skip)
-prune_names="$prune_names -name '.worktrees'"
+# Extract directories (those with trailing /)
+all_dirs=$(echo "$all_ignored" | grep '/$' | sed 's|/$||')
 
-# Find files, pruning ignored directories, then check which are ignored
-all_files=$(eval "find '$WORKSPACE_ROOT' \\( $prune_names \\) -prune -o -type f -print" 2>/dev/null | \
-    sed "s|^$WORKSPACE_ROOT/||" | \
-    xargs -r git check-ignore 2>/dev/null | \
-    grep -v '^\.git/' | \
-    sort || true)
+# Extract files (those without trailing /)
+all_files=$(echo "$all_ignored" | grep -v '/$')
 
 dir_symlink_count=0
 file_symlink_count=0
 
-# Also find existing symlinks in the workspace root (for worktree-to-worktree creation)
+# Also find existing symlinks in the source workspace root (for worktree-to-worktree creation)
 # These won't be detected by git ls-files --ignored since they're symlinks, not real directories
 # Exclude .git and .worktrees but include other dotfiles like .env
-existing_symlinks=$(find "$WORKSPACE_ROOT" -maxdepth 1 -type l 2>/dev/null | \
-    sed "s|^$WORKSPACE_ROOT/||" | grep -v '^\(\.git\|\.worktrees\)$' | sort || true)
+existing_symlinks=$(find "$SOURCE_ROOT" -maxdepth 1 -type l 2>/dev/null | \
+    sed "s|^$SOURCE_ROOT/||" | grep -v '^\(\.git\|\.worktrees\)$' | sort || true)
 
 # Copy existing top-level symlinks to the new worktree
+# Use ln -snf to create new symlinks pointing to SOURCE_ROOT rather than preserving original targets
 while IFS= read -r link; do
     [ -z "$link" ] && continue
-    [ -L "$WORKSPACE_ROOT/$link" ] || continue
+    [ -L "$SOURCE_ROOT/$link" ] || continue
 
     # Skip if already exists in worktree
     { [ -e "$WORKTREE_DIR/$link" ] || [ -L "$WORKTREE_DIR/$link" ]; } && continue
 
-    cp -P "$WORKSPACE_ROOT/$link" "$WORKTREE_DIR/$link"
+    ln -snf "$SOURCE_ROOT/$link" "$WORKTREE_DIR/$link"
     dir_symlink_count=$((dir_symlink_count + 1))
 done <<< "$existing_symlinks"
 
@@ -148,7 +150,7 @@ while IFS= read -r dir; do
     [ -z "$dir" ] && continue
 
     # Only process directories that actually exist on disk (including symlinks to directories)
-    [ -d "$WORKSPACE_ROOT/$dir" ] || [ -L "$WORKSPACE_ROOT/$dir" ] || continue
+    [ -d "$SOURCE_ROOT/$dir" ] || [ -L "$SOURCE_ROOT/$dir" ] || continue
 
     # Check if any parent directory is in the ignored list
     parent="$dir"
@@ -168,13 +170,10 @@ while IFS= read -r dir; do
             mkdir -p "$WORKTREE_DIR/$parent_dir"
         fi
 
-        # If source is already a symlink, copy it to preserve original target
-        # Otherwise create a new symlink to the source
-        if [ -L "$WORKSPACE_ROOT/$dir" ]; then
-            cp -P "$WORKSPACE_ROOT/$dir" "$WORKTREE_DIR/$dir"
-        else
-            ln -sf "$WORKSPACE_ROOT/$dir" "$WORKTREE_DIR/$dir"
-        fi
+        # Always create a new symlink to the source workspace
+        # This ensures worktrees inherit from their source, not from main
+        # Use -n to avoid following symlinks in the source
+        ln -snf "$SOURCE_ROOT/$dir" "$WORKTREE_DIR/$dir"
         dir_symlink_count=$((dir_symlink_count + 1))
     fi
 done <<< "$all_dirs"
@@ -184,7 +183,7 @@ while IFS= read -r file; do
     [ -z "$file" ] && continue
 
     # Only process files that actually exist on disk (including symlinks to files)
-    [ -f "$WORKSPACE_ROOT/$file" ] || [ -L "$WORKSPACE_ROOT/$file" ] || continue
+    [ -f "$SOURCE_ROOT/$file" ] || [ -L "$SOURCE_ROOT/$file" ] || continue
 
     # Create parent directory in worktree if needed for nested files
     parent_dir=$(dirname "$file")
@@ -192,15 +191,111 @@ while IFS= read -r file; do
         mkdir -p "$WORKTREE_DIR/$parent_dir"
     fi
 
-    # If source is already a symlink, copy it to preserve original target
-    # Otherwise create a new symlink to the source
-    if [ -L "$WORKSPACE_ROOT/$file" ]; then
-        cp -P "$WORKSPACE_ROOT/$file" "$WORKTREE_DIR/$file"
-    else
-        ln -sf "$WORKSPACE_ROOT/$file" "$WORKTREE_DIR/$file"
-    fi
+    # Always create a new symlink to the source workspace
+    # This ensures worktrees inherit from their source, not from main
+    # Use -n to avoid following symlinks in the source
+    ln -snf "$SOURCE_ROOT/$file" "$WORKTREE_DIR/$file"
     file_symlink_count=$((file_symlink_count + 1))
 done <<< "$all_files"
+
+# Re-route workspace package symlinks in Yarn monorepos
+# This prevents type errors when worktree and source are on different commits
+reroute_node_modules_count=0
+if [ -f "$REPO_ROOT/package.json" ]; then
+    if grep -q '"workspaces"' "$REPO_ROOT/package.json" 2>/dev/null; then
+        # Function to detect if symlink points to internal repository paths
+        is_internal_symlink() {
+            local target="$1"
+            case "$target" in
+                ../../packages/*|../packages/*) return 0 ;;  # Workspace packages
+                ../../.yarn/*|../.yarn/*)       return 0 ;;  # Yarn cache
+                ../../apps/*|../apps/*)         return 0 ;;  # Apps directory
+                ../../libs/*|../libs/*)         return 0 ;;  # Libs directory
+                *)                              return 1 ;;  # External
+            esac
+        }
+
+        # Function to reroute node_modules directory
+        reroute_node_modules() {
+            local src="$1"  # Source node_modules (from SOURCE_ROOT)
+            local dst="$2"  # Destination node_modules (in worktree)
+
+            [ -d "$src" ] || return 0
+
+            # If destination is a symlink, remove it first
+            [ -L "$dst" ] && rm "$dst"
+
+            # Create as real directory
+            mkdir -p "$dst"
+
+            # Process all top-level entries
+            # Note: Use ln -snf (not ln -sf) to avoid following existing symlinks
+            # This is critical when entries appear multiple times due to filesystem issues
+            for entry in "$src"/*; do
+                [ -e "$entry" ] || [ -L "$entry" ] || continue
+                name=$(basename "$entry")
+
+                if [ -L "$entry" ]; then
+                    # Entry is a symlink
+                    target=$(readlink "$entry")
+                    if is_internal_symlink "$target"; then
+                        # Internal - preserve relative path (auto-routes to worktree)
+                        ln -snf "$target" "$dst/$name"
+                        reroute_node_modules_count=$((reroute_node_modules_count + 1))
+                    else
+                        # External - link to original location
+                        ln -snf "$entry" "$dst/$name"
+                    fi
+                elif [ -d "$entry" ]; then
+                    # Entry is a directory
+                    if [[ "$name" == @* ]]; then
+                        # Scoped package directory - process contents
+                        mkdir -p "$dst/$name"
+                        for pkg in "$entry"/*; do
+                            [ -e "$pkg" ] || [ -L "$pkg" ] || continue
+                            pkg_name=$(basename "$pkg")
+
+                            if [ -L "$pkg" ]; then
+                                target=$(readlink "$pkg")
+                                if is_internal_symlink "$target"; then
+                                    ln -snf "$target" "$dst/$name/$pkg_name"
+                                    reroute_node_modules_count=$((reroute_node_modules_count + 1))
+                                else
+                                    ln -snf "$pkg" "$dst/$name/$pkg_name"
+                                fi
+                            else
+                                # Real directory - link whole thing
+                                ln -snf "$pkg" "$dst/$name/$pkg_name"
+                            fi
+                        done
+                    else
+                        # Non-scoped directory - link entire thing
+                        ln -snf "$entry" "$dst/$name"
+                    fi
+                else
+                    # File - link to original
+                    ln -snf "$entry" "$dst/$name"
+                fi
+            done
+        }
+
+        # Reroute root node_modules
+        if [ -d "$SOURCE_ROOT/node_modules" ]; then
+            reroute_node_modules "$SOURCE_ROOT/node_modules" "$WORKTREE_DIR/node_modules"
+        fi
+
+        # Reroute package-level node_modules (common in monorepos)
+        if [ -d "$SOURCE_ROOT/packages" ]; then
+            for pkg_dir in "$SOURCE_ROOT/packages"/*; do
+                [ -d "$pkg_dir" ] || continue
+                pkg_name=$(basename "$pkg_dir")
+                if [ -d "$pkg_dir/node_modules" ]; then
+                    reroute_node_modules "$pkg_dir/node_modules" "$WORKTREE_DIR/packages/$pkg_name/node_modules"
+                fi
+            done
+        fi
+    fi
+fi
 
 # Add symlinked paths to worktree's local exclude file
 # (Symlinks aren't matched by gitignore patterns with trailing slashes)
@@ -221,7 +316,7 @@ if [ -n "$worktree_git_dir" ]; then
     } >> "$exclude_file"
 
     # Enable worktree-specific config and set excludesFile for this worktree
-    git -C "$WORKSPACE_ROOT" config extensions.worktreeConfig true 2>/dev/null || true
+    git -C "$REPO_ROOT" config extensions.worktreeConfig true 2>/dev/null || true
     git -C "$WORKTREE_DIR" config --worktree core.excludesFile "$exclude_file" 2>/dev/null || true
 fi
 
@@ -242,4 +337,8 @@ fi
 BASE_SHA=$(git -C "$WORKTREE_DIR" rev-parse HEAD 2>/dev/null)
 
 # Output results as JSON
-printf '%s\n' "{\"branch\":\"$BRANCH_NAME\",\"worktree\":\"$WORKTREE_DIR\",\"baseSha\":\"$BASE_SHA\"}"
+if [ "$reroute_node_modules_count" -gt 0 ]; then
+    printf '%s\n' "{\"branch\":\"$BRANCH_NAME\",\"worktree\":\"$WORKTREE_DIR\",\"baseSha\":\"$BASE_SHA\",\"reroutedSymlinks\":$reroute_node_modules_count}"
+else
+    printf '%s\n' "{\"branch\":\"$BRANCH_NAME\",\"worktree\":\"$WORKTREE_DIR\",\"baseSha\":\"$BASE_SHA\"}"
+fi
