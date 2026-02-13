@@ -3,9 +3,11 @@
 import { resolve } from "node:path";
 import { drilldown, drilldownFiles } from "./drilldown.js";
 import { JsdocError } from "./errors.js";
+import { lint, lintFiles } from "./lint.js";
 import { parseSelector } from "./selector.js";
 import { SKILL_TEXT } from "./skill-text.js";
 import type {
+	LintResult,
 	SelectorInfo,
 	ValidationResult,
 	ValidationStatus,
@@ -13,10 +15,10 @@ import type {
 import { validate, validateFiles } from "./validate.js";
 
 /**
- * Parses argv flags (--help, --validate, --skill, --pretty, --limit,
- * --no-gitignore), dispatches to drilldown or validation mode, and handles
- * stdin piping. Errors are written to stderr as JSON; validation failures
- * use exit code 2 while other errors use exit code 1.
+ * Parses argv flags (--help, --validate, --lint, --skill, --pretty, --limit,
+ * --no-gitignore), dispatches to drilldown, validation, or lint mode, and
+ * handles stdin piping. Errors are written to stderr as JSON; validation and
+ * lint failures use exit code 2 while other errors use exit code 1.
  *
  * @summary CLI entry point -- argument parsing, mode dispatch, and exit code handling
  */
@@ -28,6 +30,7 @@ Progressively explore TypeScript codebase documentation.
 Options:
   -h, --help       Show this help text
   -v, --validate   Run validation mode
+  -l, --lint       Run lint mode (comprehensive JSDoc quality)
   -s, --skill      Print JSDoc writing guidelines
   --pretty         Format JSON output with 2-space indent
   --limit N        Max results shown (default 100)
@@ -53,6 +56,7 @@ Stdin:
 function parseArgs(args: string[]): {
 	help: boolean;
 	validateMode: boolean;
+	lintMode: boolean;
 	skillMode: boolean;
 	pretty: boolean;
 	limit: number;
@@ -61,6 +65,7 @@ function parseArgs(args: string[]): {
 } {
 	let help = false;
 	let validateMode = false;
+	let lintMode = false;
 	let skillMode = false;
 	let pretty = false;
 	let limit = 100;
@@ -73,6 +78,8 @@ function parseArgs(args: string[]): {
 			help = true;
 		} else if (arg === "-v" || arg === "--validate") {
 			validateMode = true;
+		} else if (arg === "-l" || arg === "--lint") {
+			lintMode = true;
 		} else if (arg === "-s" || arg === "--skill") {
 			skillMode = true;
 		} else if (arg === "--pretty") {
@@ -90,6 +97,7 @@ function parseArgs(args: string[]): {
 	return {
 		help,
 		validateMode,
+		lintMode,
 		skillMode,
 		pretty,
 		limit,
@@ -121,20 +129,24 @@ function extractDepthFromArg(selectorArg: string): number | undefined {
 /**
  * Process stdin mode: file paths piped in.
  */
-function processStdin(
+async function processStdin(
 	stdin: string,
 	selectorArg: string | undefined,
 	validateMode: boolean,
+	lintMode: boolean,
 	pretty: boolean,
 	limit: number,
 	cwd: string,
-): void {
+): Promise<void> {
 	const stdinPaths = parseStdinPaths(stdin, cwd);
 	const depth =
 		selectorArg !== undefined ? extractDepthFromArg(selectorArg) : undefined;
 
-	if (validateMode) {
-		const result = validateFiles(stdinPaths, cwd, limit);
+	if (lintMode) {
+		const result = await lintFiles(stdinPaths, cwd, limit);
+		writeLintResult(result, pretty);
+	} else if (validateMode) {
+		const result = await validateFiles(stdinPaths, cwd, limit);
 		writeValidationResult(result, pretty);
 	} else {
 		const result = drilldownFiles(stdinPaths, depth, cwd, limit);
@@ -145,20 +157,24 @@ function processStdin(
 /**
  * Process selector mode: glob or path argument.
  */
-function processSelector(
+async function processSelector(
 	selectorArg: string | undefined,
 	validateMode: boolean,
+	lintMode: boolean,
 	pretty: boolean,
 	limit: number,
 	gitignore: boolean,
 	cwd: string,
-): void {
+): Promise<void> {
 	const selector: SelectorInfo = selectorArg
 		? parseSelector(selectorArg)
 		: { type: "glob", pattern: "**/*.{ts,tsx}", depth: undefined };
 
-	if (validateMode) {
-		const result = validate(selector, cwd, limit, gitignore);
+	if (lintMode) {
+		const result = await lint(selector, cwd, limit, gitignore);
+		writeLintResult(result, pretty);
+	} else if (validateMode) {
+		const result = await validate(selector, cwd, limit, gitignore);
 		writeValidationResult(result, pretty);
 	} else {
 		const result = drilldown(selector, cwd, gitignore, limit);
@@ -190,6 +206,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 	const {
 		help,
 		validateMode,
+		lintMode,
 		skillMode,
 		pretty,
 		limit,
@@ -207,12 +224,35 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 		return;
 	}
 
+	if (validateMode && lintMode) {
+		writeError(
+			new JsdocError("INVALID_SELECTOR", "Cannot use -v and -l together"),
+		);
+		return;
+	}
+
 	try {
 		const cwd = process.cwd();
 		if (stdin !== undefined) {
-			processStdin(stdin, selectorArg, validateMode, pretty, limit, cwd);
+			await processStdin(
+				stdin,
+				selectorArg,
+				validateMode,
+				lintMode,
+				pretty,
+				limit,
+				cwd,
+			);
 		} else {
-			processSelector(selectorArg, validateMode, pretty, limit, gitignore, cwd);
+			await processSelector(
+				selectorArg,
+				validateMode,
+				lintMode,
+				pretty,
+				limit,
+				gitignore,
+				cwd,
+			);
 		}
 	} catch (error: unknown) {
 		writeError(error);
@@ -274,6 +314,16 @@ function writeValidationResult(
 				).toJSON(),
 			)}\n`,
 		);
+		process.exitCode = 2;
+	}
+}
+
+/**
+ * Write lint result to stdout and set exit code 2 if issues found.
+ */
+function writeLintResult(result: LintResult, pretty: boolean): void {
+	writeResult(result, pretty);
+	if (result.summary.filesWithIssues > 0) {
 		process.exitCode = 2;
 	}
 }
