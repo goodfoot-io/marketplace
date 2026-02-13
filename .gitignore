@@ -201,3 +201,5 @@ documentation/cloudflare-agents
 documentation/example-skills
 
 documentation/hook-libraries
+
+packages/jsdoczoom/types
