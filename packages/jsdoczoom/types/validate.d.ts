@@ -9,7 +9,10 @@ import type { SelectorInfo, ValidationResult } from "./types.js";
  * @throws {JsdocError} NO_FILES_MATCHED if glob selector matches no files
  * @throws {JsdocError} FILE_NOT_FOUND if path selector targets nonexistent file
  */
-export declare function validate(selector: SelectorInfo, cwd: string): ValidationResult;
+export declare function validate(
+	selector: SelectorInfo,
+	cwd: string,
+): ValidationResult;
 /**
  * Validate an explicit list of file paths.
  *
@@ -19,4 +22,7 @@ export declare function validate(selector: SelectorInfo, cwd: string): Validatio
  * @param cwd - Working directory for resolving relative paths
  * @returns Validation results with per-file details and summary
  */
-export declare function validateFiles(filePaths: string[], cwd: string): ValidationResult;
+export declare function validateFiles(
+	filePaths: string[],
+	cwd: string,
+): ValidationResult;

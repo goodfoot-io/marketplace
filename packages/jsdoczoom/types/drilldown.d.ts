@@ -13,7 +13,10 @@ import type { OutputEntry, SelectorInfo } from "./types.js";
  * @throws {JsdocError} NO_SUMMARY_FOUND for path selector targeting file without summaries
  * @throws {JsdocError} PARSE_ERROR for path selector targeting file with syntax errors
  */
-export declare function drilldown(selector: SelectorInfo, cwd: string): OutputEntry[];
+export declare function drilldown(
+	selector: SelectorInfo,
+	cwd: string,
+): OutputEntry[];
 /**
  * Process an explicit list of file paths at a given depth.
  *
@@ -26,4 +29,8 @@ export declare function drilldown(selector: SelectorInfo, cwd: string): OutputEn
  * @param cwd - Working directory for relative path output
  * @returns Array of output entries sorted alphabetically by path
  */
-export declare function drilldownFiles(filePaths: string[], depth: number | undefined, cwd: string): OutputEntry[];
+export declare function drilldownFiles(
+	filePaths: string[],
+	depth: number | undefined,
+	cwd: string,
+): OutputEntry[];

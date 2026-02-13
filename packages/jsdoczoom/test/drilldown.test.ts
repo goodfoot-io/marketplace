@@ -32,8 +32,8 @@ function isOutputErrorItem(entry: { id: string }): entry is OutputErrorItem {
 }
 
 describe("drilldown", () => {
-	// one-summary.ts has 2 levels: ["Single summary line", "Module description as free-text."]
-	// depth 0 → L0 (first summary), depth 1 → L1 (free-text), depth 2 → type decls, depth 3 → full file
+	// one-summary.ts has @summary + description → 4 levels:
+	// depth 0 → summary, depth 1 → description, depth 2 → type decls, depth 3 → full file
 
 	it("path selector returns L0 with id F@0 and more=true", () => {
 		const results = drilldown(pathSelector("one-summary.ts"), leafFilesDir);
@@ -48,28 +48,23 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("F@0 returns L1 with more=true (need file with 2+ summaries)", () => {
-		// two-summaries.ts has 3 levels:
-		// L0: "First summary - concise overview"
-		// L1: "Second summary - more detail about the module"
-		// L2: "This is the free-text description of the module."
-		const results = drilldown(
-			pathSelector("two-summaries.ts", 1),
-			leafFilesDir,
-		);
+	it("depth 1 returns description with more=true", () => {
+		// one-summary.ts has @summary + description:
+		// depth 0 = summary, depth 1 = description
+		const results = drilldown(pathSelector("one-summary.ts", 1), leafFilesDir);
 		expect(results).toHaveLength(1);
 		const entry = results[0];
 		expect(isOutputItem(entry)).toBe(true);
 		if (isOutputItem(entry)) {
-			expect(entry.id).toBe("two-summaries.ts@1");
-			expect(entry.path).toBe("two-summaries.ts");
+			expect(entry.id).toBe("one-summary.ts@1");
+			expect(entry.path).toBe("one-summary.ts");
 			expect(entry.more).toBe(true);
-			expect(entry.text).toBe("Second summary - more detail about the module");
+			expect(entry.text).toBe("Module description as free-text.");
 		}
 	});
 
 	it("after last summary level returns JSDoc+types with more=true", () => {
-		// one-summary.ts: 2 summary levels → type level is depth 2
+		// one-summary.ts: summary + description → type level is depth 2
 		const results = drilldown(pathSelector("one-summary.ts", 2), leafFilesDir);
 		expect(results).toHaveLength(1);
 		const entry = results[0];
@@ -83,7 +78,7 @@ describe("drilldown", () => {
 	});
 
 	it("next level returns full file content with more=false", () => {
-		// one-summary.ts: 2 summary levels → full content level is depth 3
+		// one-summary.ts: summary + description → full content level is depth 3
 		const results = drilldown(pathSelector("one-summary.ts", 3), leafFilesDir);
 		expect(results).toHaveLength(1);
 		const entry = results[0];
@@ -100,7 +95,7 @@ describe("drilldown", () => {
 	});
 
 	it("depth clamping (F@99 returns terminal with clamped id)", () => {
-		// one-summary.ts: 2 summary levels → terminal is depth 3
+		// one-summary.ts: summary + description → terminal is depth 3
 		// Requesting depth 99 should clamp to depth 3
 		const results = drilldown(pathSelector("one-summary.ts", 99), leafFilesDir);
 		expect(results).toHaveLength(1);
@@ -115,6 +110,69 @@ describe("drilldown", () => {
 				"utf-8",
 			);
 			expect(entry.text).toBe(expectedContent);
+		}
+	});
+
+	it("file without description skips to type declarations at depth 1", () => {
+		// summary-only.ts has @summary but no description → 3 levels:
+		// depth 0 = summary "Summary without description" (more=true)
+		// depth 1 = type declarations (more=true)
+		// depth 2 = full file (more=false, terminal)
+		const results0 = drilldown(
+			pathSelector("summary-only.ts", 0),
+			leafFilesDir,
+		);
+		expect(results0).toHaveLength(1);
+		const entry0 = results0[0];
+		expect(isOutputItem(entry0)).toBe(true);
+		if (isOutputItem(entry0)) {
+			expect(entry0.id).toBe("summary-only.ts@0");
+			expect(entry0.more).toBe(true);
+			expect(entry0.text).toBe("Summary without description");
+		}
+
+		const results1 = drilldown(
+			pathSelector("summary-only.ts", 1),
+			leafFilesDir,
+		);
+		expect(results1).toHaveLength(1);
+		const entry1 = results1[0];
+		expect(isOutputItem(entry1)).toBe(true);
+		if (isOutputItem(entry1)) {
+			expect(entry1.id).toBe("summary-only.ts@1");
+			expect(entry1.more).toBe(true);
+			// Type declarations level — description was skipped
+			expect(entry1.text).toBeDefined();
+		}
+
+		const results2 = drilldown(
+			pathSelector("summary-only.ts", 2),
+			leafFilesDir,
+		);
+		expect(results2).toHaveLength(1);
+		const entry2 = results2[0];
+		expect(isOutputItem(entry2)).toBe(true);
+		if (isOutputItem(entry2)) {
+			expect(entry2.id).toBe("summary-only.ts@2");
+			expect(entry2.more).toBe(false);
+			const expectedContent = readFileSync(
+				resolve(leafFilesDir, "summary-only.ts"),
+				"utf-8",
+			);
+			expect(entry2.text).toBe(expectedContent);
+		}
+
+		// Depth 99 clamps to terminal (depth 2)
+		const results99 = drilldown(
+			pathSelector("summary-only.ts", 99),
+			leafFilesDir,
+		);
+		expect(results99).toHaveLength(1);
+		const entry99 = results99[0];
+		expect(isOutputItem(entry99)).toBe(true);
+		if (isOutputItem(entry99)) {
+			expect(entry99.id).toBe("summary-only.ts@2");
+			expect(entry99.more).toBe(false);
 		}
 	});
 
@@ -133,11 +191,13 @@ describe("drilldown", () => {
 	});
 
 	it("glob excludes files with no summaries", () => {
-		// Use a glob that could match no-jsdoc.ts along with others
+		// Use a glob that could match no-jsdoc.ts and description-only.ts along with others
 		const results = drilldown(globSelector("*.ts", 0), leafFilesDir);
-		// no-jsdoc.ts has 0 summary levels, should be excluded
 		const paths = results.map((r) => r.path);
+		// no-jsdoc.ts has no JSDoc at all, should be excluded
 		expect(paths).not.toContain("no-jsdoc.ts");
+		// description-only.ts has no @summary tag (summary === null), should be excluded
+		expect(paths).not.toContain("description-only.ts");
 	});
 
 	it("glob NO_FILES_MATCHED when glob matches zero .ts/.tsx files on disk", () => {
@@ -218,11 +278,10 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("independent depth advancement (glob @2 with files having different summary counts reach different stages)", () => {
-		// depth-advancement/one-summary.ts: 2 levels (1 @summary + free-text)
-		//   at depth 2 → type declarations level (numSummaryLevels = 2, typeLevel = 2)
-		// depth-advancement/three-summaries.ts: 4 levels (3 @summary + free-text)
-		//   at depth 2 → L2 summary (third @summary: "Third summary")
+	it("independent depth advancement (glob @2 with files having same level structure)", () => {
+		// Both files now have 1 @summary + description → 4 levels each:
+		// depth 0 = summary, depth 1 = description, depth 2 = type decls, depth 3 = full file
+		// At depth 2, both reach type declarations level (more=true)
 		const results = drilldown(globSelector("*.ts", 2), depthDir);
 		expect(results).toHaveLength(2);
 
@@ -236,14 +295,12 @@ describe("drilldown", () => {
 		if (oneSum && isOutputItem(oneSum)) {
 			expect(oneSum.id).toBe("one-summary.ts@2");
 			expect(oneSum.more).toBe(true);
-			// This is the type declarations level, not a summary
 		}
 
-		// three-summaries.ts at depth 2 = L2 summary (more=true)
+		// three-summaries.ts at depth 2 = type declarations level (more=true)
 		if (threeSum && isOutputItem(threeSum)) {
 			expect(threeSum.id).toBe("three-summaries.ts@2");
 			expect(threeSum.more).toBe(true);
-			expect(threeSum.text).toBe("Third summary");
 		}
 	});
 
@@ -305,9 +362,8 @@ describe("drilldownFiles", () => {
 			resolve(depthDir, "one-summary.ts"),
 			resolve(depthDir, "three-summaries.ts"),
 		];
-		// At depth 2:
-		// one-summary.ts (2 levels) → type declarations level
-		// three-summaries.ts (4 levels) → L2 summary
+		// Both files now have 1 @summary + description → 4 levels each
+		// At depth 2, both reach type declarations level (more=true)
 		const results = drilldownFiles(files, 2, depthDir);
 		expect(results).toHaveLength(2);
 
@@ -325,7 +381,6 @@ describe("drilldownFiles", () => {
 		if (threeSum && isOutputItem(threeSum)) {
 			expect(threeSum.id).toBe("three-summaries.ts@2");
 			expect(threeSum.more).toBe(true);
-			expect(threeSum.text).toBe("Third summary");
 		}
 	});
 

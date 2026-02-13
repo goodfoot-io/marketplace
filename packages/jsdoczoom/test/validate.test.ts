@@ -13,7 +13,7 @@ function fixture(name: string): string {
 }
 
 describe("validate", () => {
-	it("passes file with ≥2 non-empty @summary tags", () => {
+	it("passes file with @summary and description", () => {
 		const selector: SelectorInfo = {
 			type: "path",
 			pattern: fixture("two-summaries.ts"),
@@ -29,10 +29,10 @@ describe("validate", () => {
 		expect(result.files[0].issues).toHaveLength(0);
 	});
 
-	it("fails file with 1 @summary tag (even with free-text)", () => {
+	it("fails file with @summary but no description", () => {
 		const selector: SelectorInfo = {
 			type: "path",
-			pattern: fixture("one-summary.ts"),
+			pattern: fixture("summary-only.ts"),
 			depth: undefined,
 		};
 		const result = validate(selector, fixturesDir);
@@ -43,11 +43,11 @@ describe("validate", () => {
 		expect(result.files).toHaveLength(1);
 		expect(result.files[0].passed).toBe(false);
 		expect(result.files[0].issues).toContain(
-			"Found 1 @summary tag(s), minimum is 2",
+			"Missing description. Add a prose paragraph at the top of the JSDoc block (before any @ tags) explaining the file's responsibilities, invariants, trade-offs, and failure modes — the deepest native documentation level.",
 		);
 	});
 
-	it("fails file with 0 @summary tags", () => {
+	it("fails file with no @summary", () => {
 		const selector: SelectorInfo = {
 			type: "path",
 			pattern: fixture("description-only.ts"),
@@ -61,7 +61,7 @@ describe("validate", () => {
 		expect(result.files).toHaveLength(1);
 		expect(result.files[0].passed).toBe(false);
 		expect(result.files[0].issues).toContain(
-			"Found 0 @summary tag(s), minimum is 2",
+			"Missing @summary tag. Add @summary followed by a concise one-line overview of what this file does — enough for quick orientation when scanning a codebase.",
 		);
 	});
 
@@ -78,7 +78,9 @@ describe("validate", () => {
 		expect(result.summary.failed).toBe(1);
 		expect(result.files).toHaveLength(1);
 		expect(result.files[0].passed).toBe(false);
-		expect(result.files[0].issues).toContain("Missing file-level JSDoc block");
+		expect(result.files[0].issues).toContain(
+			"Missing file-level JSDoc block. Add a /** ... */ comment before the first code statement with a @summary tag for concise orientation and a description paragraph explaining responsibilities, invariants, and trade-offs.",
+		);
 	});
 
 	it("fails file with syntax error", () => {
@@ -107,14 +109,10 @@ describe("validate", () => {
 		const result = validate(selector, fixturesDir);
 
 		expect(result.summary.total).toBe(1);
-		expect(result.summary.passed).toBe(0);
-		expect(result.summary.failed).toBe(1);
+		expect(result.summary.passed).toBe(1);
+		expect(result.summary.failed).toBe(0);
 		expect(result.files).toHaveLength(1);
-		expect(result.files[0].passed).toBe(false);
-		// Should only count 1 @summary (the non-empty one), not the whitespace one
-		expect(result.files[0].issues).toContain(
-			"Found 1 @summary tag(s), minimum is 2",
-		);
+		expect(result.files[0].passed).toBe(true);
 	});
 
 	it("rejects @depth suffix with INVALID_DEPTH error", () => {
@@ -245,8 +243,8 @@ describe("validateFiles", () => {
 		const result = validateFiles(files, fixturesDir);
 
 		expect(result.summary.total).toBe(3);
-		expect(result.summary.passed).toBe(1); // Only two-summaries.ts passes
-		expect(result.summary.failed).toBe(2);
+		expect(result.summary.passed).toBe(2); // two-summaries.ts and one-summary.ts pass
+		expect(result.summary.failed).toBe(1);
 		expect(result.files).toHaveLength(3);
 	});
 
@@ -294,8 +292,8 @@ describe("validateFiles", () => {
 
 	it("handles mixed pass/fail results", () => {
 		const files = [
-			fixture("two-summaries.ts"), // Pass
-			fixture("one-summary.ts"), // Fail
+			fixture("one-summary.ts"), // Pass
+			fixture("description-only.ts"), // Fail
 		];
 		const result = validateFiles(files, fixturesDir);
 

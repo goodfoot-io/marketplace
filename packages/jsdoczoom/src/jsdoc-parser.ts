@@ -159,19 +159,23 @@ function appendText(existing: string, addition: string): string {
 }
 
 /**
- * Parse @summary tags and free-text description from raw JSDoc inner text.
+ * Parse @summary tag and free-text description from raw JSDoc inner text.
  *
- * Returns an array of summary levels:
- * - L0..LN-1: @summary tags in source order
- * - LN: free-text description (always last, despite appearing first in JSDoc)
+ * Returns:
+ * - summary: First non-empty @summary tag content (or null if none)
+ * - description: Free-text before first @ tag (or null if none)
  *
+ * Additional @summary tags are silently ignored.
  * Whitespace-only @summary tags are skipped.
  */
-function parseSummaryLevels(jsdocText: string): string[] {
+function parseJsdocContent(jsdocText: string): {
+	summary: string | null;
+	description: string | null;
+} {
 	const lines = jsdocText.split("\n");
 
 	let freeText = "";
-	const summaries: string[] = [];
+	let firstSummary: string | null = null;
 	let currentTag: string | null = null;
 	let currentContent = "";
 
@@ -180,10 +184,12 @@ function parseSummaryLevels(jsdocText: string): string[] {
 		const tagMatch = stripped.match(/^@([a-zA-Z]+)(?:\s|$)/);
 
 		if (tagMatch) {
-			// Flush previous @summary tag content
-			if (currentTag === "summary") {
+			// Flush previous @summary tag content (only if we haven't captured one yet)
+			if (currentTag === "summary" && firstSummary === null) {
 				const trimmed = currentContent.trim();
-				if (trimmed.length > 0) summaries.push(trimmed);
+				if (trimmed.length > 0) {
+					firstSummary = trimmed;
+				}
 			}
 			currentTag = tagMatch[1];
 			currentContent = stripped.slice(tagMatch[0].length);
@@ -198,26 +204,27 @@ function parseSummaryLevels(jsdocText: string): string[] {
 		}
 	}
 
-	// Flush final tag
-	if (currentTag === "summary") {
+	// Flush final tag (only if it's @summary and we haven't captured one yet)
+	if (currentTag === "summary" && firstSummary === null) {
 		const trimmed = currentContent.trim();
-		if (trimmed.length > 0) summaries.push(trimmed);
+		if (trimmed.length > 0) {
+			firstSummary = trimmed;
+		}
 	}
 
-	// Build result: summaries first, then free-text last
 	const trimmedFreeText = freeText.trim();
-	if (trimmedFreeText.length > 0) {
-		summaries.push(trimmedFreeText);
-	}
 
-	return summaries;
+	return {
+		summary: firstSummary,
+		description: trimmedFreeText.length > 0 ? trimmedFreeText : null,
+	};
 }
 
 /**
- * Parse a TypeScript file and extract its summary levels from file-level JSDoc.
+ * Parse a TypeScript file and extract its summary and description from file-level JSDoc.
  *
- * Reads the file, extracts the first file-level JSDoc block, and parses @summary
- * tags and free-text into ordered summary levels.
+ * Reads the file, extracts the first file-level JSDoc block, and parses the first
+ * @summary tag and free-text description.
  */
 export function parseFileSummaries(filePath: string): ParsedFileInfo {
 	let sourceText: string;
@@ -232,16 +239,18 @@ export function parseFileSummaries(filePath: string): ParsedFileInfo {
 	if (jsdocText === null) {
 		return {
 			path: filePath,
-			summaryLevels: [],
+			summary: null,
+			description: null,
 			hasFileJsdoc: false,
 		};
 	}
 
-	const summaryLevels = parseSummaryLevels(jsdocText);
+	const { summary, description } = parseJsdocContent(jsdocText);
 
 	return {
 		path: filePath,
-		summaryLevels,
+		summary,
+		description,
 		hasFileJsdoc: true,
 	};
 }

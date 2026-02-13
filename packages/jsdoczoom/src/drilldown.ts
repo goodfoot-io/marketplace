@@ -10,11 +10,15 @@ import type { OutputEntry, OutputErrorItem, SelectorInfo } from "./types.js";
 /**
  * Process a single file at a given depth through the drill-down levels.
  *
- * Level model for a file with N summary levels:
- * - depth 0..N-1: summary text at that level, more=true
- * - depth N: JSDoc + type declarations, more=true
- * - depth N+1: full file content, more=false (terminal)
- * - depth > N+1: clamped to N+1 (terminal)
+ * Layer-skipping model — builds an ordered level list from non-empty layers:
+ * - Level 0: @summary text (always present — files with null summary are filtered before reaching here)
+ * - Level 1: description text (included only if non-null, otherwise skipped)
+ * - Next level: type declarations + JSDoc (more=true)
+ * - Last level: full file content (more=false, terminal)
+ *
+ * Files with description have 4 levels (depths 0–3).
+ * Files without description have 3 levels (depths 0–2).
+ * Depth is clamped to the terminal level.
  */
 function processFile(
 	filePath: string,
@@ -23,42 +27,33 @@ function processFile(
 ): OutputEntry {
 	const info = parseFileSummaries(filePath);
 	const relativePath = relative(cwd, filePath);
-	const numSummaryLevels = info.summaryLevels.length;
 
-	const typeLevel = numSummaryLevels;
-	const fullContentLevel = numSummaryLevels + 1;
+	// Build ordered level list, skipping empty layers
+	const levels: Array<{ text: () => string; more: boolean }> = [];
 
-	// Clamp depth to terminal level
-	const effectiveDepth = Math.min(depth, fullContentLevel);
+	// Level 0: summary (always present)
+	levels.push({ text: () => info.summary as string, more: true });
 
-	if (effectiveDepth < numSummaryLevels) {
-		// Return summary text at this level
-		return {
-			id: `${relativePath}@${effectiveDepth}`,
-			path: relativePath,
-			more: true,
-			text: info.summaryLevels[effectiveDepth],
-		};
+	// Level 1: description (only if non-null)
+	if (info.description !== null) {
+		levels.push({ text: () => info.description as string, more: true });
 	}
 
-	if (effectiveDepth === typeLevel) {
-		// Return JSDoc + type declarations
-		const typeDecls = generateTypeDeclarations(filePath);
-		return {
-			id: `${relativePath}@${effectiveDepth}`,
-			path: relativePath,
-			more: true,
-			text: typeDecls,
-		};
-	}
+	// Type declarations level (more=true)
+	levels.push({ text: () => generateTypeDeclarations(filePath), more: true });
 
-	// Full file content (terminal level)
-	const fullContent = readFileSync(filePath, "utf-8");
+	// Full file content level (terminal, more=false)
+	levels.push({ text: () => readFileSync(filePath, "utf-8"), more: false });
+
+	const terminalIndex = levels.length - 1;
+	const effectiveDepth = Math.min(depth, terminalIndex);
+
+	const level = levels[effectiveDepth];
 	return {
 		id: `${relativePath}@${effectiveDepth}`,
 		path: relativePath,
-		more: false,
-		text: fullContent,
+		more: level.more,
+		text: level.text(),
 	};
 }
 
@@ -98,7 +93,7 @@ function processFileSafe(
 ): OutputEntry | null {
 	try {
 		const info = parseFileSummaries(filePath);
-		if (info.summaryLevels.length === 0) return null;
+		if (info.summary === null) return null;
 		return processFile(filePath, depth, cwd);
 	} catch (error) {
 		if (isParseError(error)) return makeParseErrorItem(filePath, error, cwd);
@@ -111,7 +106,7 @@ function processFileSafe(
  */
 interface BarrelInfo {
 	path: string;
-	summaryCount: number;
+	hasSummary: boolean;
 	children: string[];
 }
 
@@ -132,7 +127,7 @@ function gatherBarrelInfos(
 			const children = getBarrelChildren(barrelPath, cwd);
 			infos.push({
 				path: barrelPath,
-				summaryCount: info.summaryLevels.length,
+				hasSummary: info.summary !== null,
 				children,
 			});
 		} catch (error) {
@@ -153,7 +148,7 @@ function gatherBarrelInfos(
 function buildGatedFileSet(barrelInfos: BarrelInfo[]): Set<string> {
 	const gated = new Set<string>();
 	for (const barrel of barrelInfos) {
-		if (barrel.summaryCount > 0) {
+		if (barrel.hasSummary) {
 			for (const child of barrel.children) {
 				gated.add(child);
 			}
@@ -172,15 +167,15 @@ function processBarrelAtDepth(
 	depth: number,
 	cwd: string,
 ): OutputEntry[] {
-	if (barrel.summaryCount === 0) return [];
+	if (!barrel.hasSummary) return [];
 
-	if (depth < barrel.summaryCount) {
+	if (depth < 1) {
 		const result = processFileSafe(barrel.path, depth, cwd);
 		return result ? [result] : [];
 	}
 
 	// Barrel transitions: barrel disappears, children appear
-	const childDepth = depth - barrel.summaryCount;
+	const childDepth = depth - 1;
 	return collectSafeResults(barrel.children, childDepth, cwd);
 }
 
@@ -274,7 +269,7 @@ export function drilldown(selector: SelectorInfo, cwd: string): OutputEntry[] {
 		const files = discoverFiles(selector.pattern, cwd);
 		const filePath = files[0];
 		const info = parseFileSummaries(filePath);
-		if (info.summaryLevels.length === 0) {
+		if (info.summary === null) {
 			throw new JsdocError(
 				"NO_SUMMARY_FOUND",
 				`No summary found: ${selector.pattern}`,

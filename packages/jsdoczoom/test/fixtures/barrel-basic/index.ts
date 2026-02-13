@@ -2,7 +2,6 @@
  * Basic barrel module.
  *
  * @summary Barrel overview
- * @summary Barrel detail
  */
 
 export { helper } from "./helper.js";

@@ -79,7 +79,6 @@ describe("generateTypeDeclarations", () => {
 			"Module for testing type declarations generation",
 		);
 		expect(declarations).toContain("Type declarations test module");
-		expect(declarations).toContain("Contains various export types");
 
 		// Symbol-level JSDoc
 		expect(declarations).toContain("A string type alias");

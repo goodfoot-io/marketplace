@@ -26,4 +26,7 @@ export declare function isBarrel(filePath: string): boolean;
  * @param _cwd - Working directory (unused, kept for API consistency)
  * @returns Sorted array of absolute paths to child files
  */
-export declare function getBarrelChildren(barrelPath: string, _cwd: string): string[];
+export declare function getBarrelChildren(
+	barrelPath: string,
+	_cwd: string,
+): string[];

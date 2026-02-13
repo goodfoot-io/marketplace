@@ -108,16 +108,11 @@ describe("extractFileJsdoc", () => {
 });
 
 describe("parseFileSummaries", () => {
-	it("extracts @summary tags in source order", () => {
+	it("extracts first @summary tag", () => {
 		const result = parseFileSummaries(fixture("two-summaries.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
-		expect(result.summaryLevels.length).toBe(3);
-		expect(result.summaryLevels[0]).toBe("First summary - concise overview");
-		expect(result.summaryLevels[1]).toBe(
-			"Second summary - more detail about the module",
-		);
-		// Free-text is last
-		expect(result.summaryLevels[2]).toBe(
+		expect(result.summary).toBe("First summary - concise overview");
+		expect(result.description).toBe(
 			"This is the free-text description of the module.",
 		);
 	});
@@ -125,46 +120,43 @@ describe("parseFileSummaries", () => {
 	it("joins multi-line @summary content with spaces", () => {
 		const result = parseFileSummaries(fixture("multi-line-summary.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
-		expect(result.summaryLevels.length).toBe(2); // 1 summary + 1 free-text
-		expect(result.summaryLevels[0]).toBe(
+		expect(result.summary).toBe(
 			"This is a multi-line summary that spans across multiple lines and should be joined with spaces",
 		);
-		expect(result.summaryLevels[1]).toBe("Module description.");
+		expect(result.description).toBe("Module description.");
 	});
 
-	it("skips whitespace-only @summary tags (not counted as levels)", () => {
+	it("skips whitespace-only @summary, uses next non-empty one", () => {
 		const result = parseFileSummaries(fixture("whitespace-summary.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
-		// Only the non-empty summary and free-text should be counted
-		expect(result.summaryLevels.length).toBe(2);
-		expect(result.summaryLevels[0]).toBe("Real summary here");
-		expect(result.summaryLevels[1]).toBe("Module with whitespace summaries.");
+		expect(result.summary).toBe("Real summary here");
+		expect(result.description).toBe("Module with whitespace summaries.");
 	});
 
-	it("places free-text description as last summary level", () => {
+	it("returns free-text as description field", () => {
 		const result = parseFileSummaries(fixture("one-summary.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
-		expect(result.summaryLevels.length).toBe(2);
-		expect(result.summaryLevels[0]).toBe("Single summary line");
-		expect(result.summaryLevels[1]).toBe("Module description as free-text.");
+		expect(result.summary).toBe("Single summary line");
+		expect(result.description).toBe("Module description as free-text.");
 	});
 
-	it("handles file with only free-text and no @summary tags (1 level)", () => {
+	it("summary is null, description is the free-text", () => {
 		const result = parseFileSummaries(fixture("description-only.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
-		expect(result.summaryLevels.length).toBe(1);
-		expect(result.summaryLevels[0]).toBe(
+		expect(result.summary).toBeNull();
+		expect(result.description).toBe(
 			"This module only has a free-text description with no @summary tags.",
 		);
 	});
 
-	it("handles file with no JSDoc at all (0 levels, hasFileJsdoc: false)", () => {
+	it("summary null, description null, hasFileJsdoc false", () => {
 		const result = parseFileSummaries(fixture("no-jsdoc.ts"));
 		expect(result.hasFileJsdoc).toBe(false);
-		expect(result.summaryLevels.length).toBe(0);
+		expect(result.summary).toBeNull();
+		expect(result.description).toBeNull();
 	});
 
-	it("only recognizes lowercase @summary (ignores @Summary, @SUMMARY, @desc, @description)", () => {
+	it("only recognizes lowercase @summary", () => {
 		const source = [
 			"/**",
 			" * Free text here.",
@@ -182,14 +174,8 @@ describe("parseFileSummaries", () => {
 		withTempFile(source, (tmpFile) => {
 			const result = parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
-			// Only the lowercase @summary should be picked up
-			expect(result.summaryLevels).toContain("Real summary");
-			// Free-text should be last
-			expect(result.summaryLevels[result.summaryLevels.length - 1]).toBe(
-				"Free text here.",
-			);
-			// Total: 1 summary + 1 free-text = 2 levels
-			expect(result.summaryLevels.length).toBe(2);
+			expect(result.summary).toBe("Real summary");
+			expect(result.description).toBe("Free text here.");
 		});
 	});
 
@@ -205,7 +191,7 @@ describe("parseFileSummaries", () => {
 		}
 	});
 
-	it("@param/@returns and other non-summary tags do not create summary levels", () => {
+	it("@param after @summary does not corrupt summary", () => {
 		const source = [
 			"/**",
 			" * Module with various tags.",
@@ -222,14 +208,12 @@ describe("parseFileSummaries", () => {
 		withTempFile(source, (tmpFile) => {
 			const result = parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
-			// Only @summary + free-text
-			expect(result.summaryLevels.length).toBe(2);
-			expect(result.summaryLevels[0]).toBe("The real summary");
-			expect(result.summaryLevels[1]).toBe("Module with various tags.");
+			expect(result.summary).toBe("The real summary");
+			expect(result.description).toBe("Module with various tags.");
 		});
 	});
 
-	it("@param between @summary tags does not interrupt summary extraction", () => {
+	it("ignores second @summary tag, uses only first", () => {
 		const source = [
 			"/**",
 			" * Module description.",
@@ -245,20 +229,23 @@ describe("parseFileSummaries", () => {
 		withTempFile(source, (tmpFile) => {
 			const result = parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
-			expect(result.summaryLevels.length).toBe(3);
-			expect(result.summaryLevels[0]).toBe("First summary");
-			expect(result.summaryLevels[1]).toBe("Second summary");
-			expect(result.summaryLevels[2]).toBe("Module description.");
+			expect(result.summary).toBe("First summary");
+			expect(result.description).toBe("Module description.");
 		});
+	});
+
+	it("file with @summary but no free-text has null description", () => {
+		const result = parseFileSummaries(fixture("summary-only.ts"));
+		expect(result.hasFileJsdoc).toBe(true);
+		expect(result.summary).toBe("Summary without description");
+		expect(result.description).toBeNull();
 	});
 
 	it("literal @ in prose does not start a new tag", () => {
 		const result = parseFileSummaries(fixture("email-in-prose.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
-		expect(result.summaryLevels.length).toBe(2);
-		expect(result.summaryLevels[0]).toBe("Email module summary");
-		// Free-text should contain the email as-is
-		expect(result.summaryLevels[1]).toBe(
+		expect(result.summary).toBe("Email module summary");
+		expect(result.description).toBe(
 			"Contact user@example.com for more info about this module.",
 		);
 	});

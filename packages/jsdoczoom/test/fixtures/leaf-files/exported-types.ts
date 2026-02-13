@@ -2,7 +2,6 @@
  * Module for testing type declarations generation.
  *
  * @summary Type declarations test module
- * @summary Contains various export types
  */
 
 /** A string type alias */

@@ -48,10 +48,11 @@ export interface ValidationResult {
 	};
 }
 
-/** Parsed summary levels from a file's JSDoc */
+/** Parsed summary and description from a file's JSDoc */
 export interface ParsedFileInfo {
 	path: string;
-	summaryLevels: string[];
+	summary: string | null;
+	description: string | null;
 	hasFileJsdoc: boolean;
 }
 

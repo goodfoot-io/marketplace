@@ -1,8 +1,7 @@
-import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import { JsdocError } from "./errors.js";
 import { discoverFiles } from "./file-discovery.js";
-import { extractFileJsdoc, parseFileSummaries } from "./jsdoc-parser.js";
+import { parseFileSummaries } from "./jsdoc-parser.js";
 import type {
 	SelectorInfo,
 	ValidationFileResult,
@@ -10,28 +9,13 @@ import type {
 } from "./types.js";
 
 /**
- * Check if the JSDoc text has free-text description before the first tag.
- *
- * Free-text is content that appears before any @ tags in the JSDoc block.
- */
-function hasFreeText(jsdocText: string): boolean {
-	const lines = jsdocText.split("\n");
-	for (const line of lines) {
-		const stripped = line.replace(/^\s*\*?\s?/, "").trim();
-		if (stripped === "") continue;
-		if (stripped.startsWith("@")) return false; // First content line is a tag
-		return true; // First content line is text = free-text exists
-	}
-	return false;
-}
-
-/**
  * Validate a single file against validation requirements.
  *
  * Validation checks:
  * 1. No syntax errors
  * 2. Has file-level JSDoc block
- * 3. Has at least 2 non-empty @summary tags
+ * 3. Has @summary tag
+ * 4. Has description
  */
 function validateFile(filePath: string, cwd: string): ValidationFileResult {
 	const relativePath = relative(cwd, filePath);
@@ -41,20 +25,23 @@ function validateFile(filePath: string, cwd: string): ValidationFileResult {
 		const info = parseFileSummaries(filePath);
 
 		if (!info.hasFileJsdoc) {
-			issues.push("Missing file-level JSDoc block");
+			issues.push(
+				"Missing file-level JSDoc block. Add a /** ... */ comment before the first code statement with a @summary tag for concise orientation and a description paragraph explaining responsibilities, invariants, and trade-offs.",
+			);
 			return { path: relativePath, passed: false, issues };
 		}
 
-		const sourceText = readFileSync(filePath, "utf-8");
-		const jsdocText = extractFileJsdoc(sourceText);
-
-		let summaryTagCount = info.summaryLevels.length;
-		if (jsdocText && hasFreeText(jsdocText)) {
-			summaryTagCount -= 1; // Remove free-text from count
+		if (info.summary === null) {
+			issues.push(
+				"Missing @summary tag. Add @summary followed by a concise one-line overview of what this file does — enough for quick orientation when scanning a codebase.",
+			);
+			return { path: relativePath, passed: false, issues };
 		}
 
-		if (summaryTagCount < 2) {
-			issues.push(`Found ${summaryTagCount} @summary tag(s), minimum is 2`);
+		if (info.description === null) {
+			issues.push(
+				"Missing description. Add a prose paragraph at the top of the JSDoc block (before any @ tags) explaining the file's responsibilities, invariants, trade-offs, and failure modes — the deepest native documentation level.",
+			);
 			return { path: relativePath, passed: false, issues };
 		}
 

@@ -218,8 +218,8 @@ describe("cli", () => {
 		});
 
 		it("exit code 2 on validation failure", async () => {
-			// one-summary.ts has only 1 @summary tag, which fails validation (needs 2)
-			await main(["-v", "one-summary.ts"]);
+			// description-only.ts has no @summary tag, which fails validation
+			await main(["-v", "description-only.ts"]);
 			expect(process.exitCode).toBe(2);
 
 			// Stderr should have VALIDATION_FAILED
@@ -293,7 +293,7 @@ describe("cli", () => {
 		});
 
 		it("validation failure writes result to stdout and error to stderr", async () => {
-			await main(["-v", "one-summary.ts"]);
+			await main(["-v", "description-only.ts"]);
 			// stdout has the validation result
 			const output = JSON.parse(capture.getStdout());
 			expect(output.summary.failed).toBe(1);

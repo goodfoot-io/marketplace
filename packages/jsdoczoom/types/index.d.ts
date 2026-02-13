@@ -5,5 +5,14 @@ export { discoverFiles } from "./file-discovery.js";
 export { extractFileJsdoc, parseFileSummaries } from "./jsdoc-parser.js";
 export { parseSelector } from "./selector.js";
 export { generateTypeDeclarations } from "./type-declarations.js";
-export type { ErrorCode, OutputEntry, OutputErrorItem, OutputItem, ParsedFileInfo, SelectorInfo, ValidationFileResult, ValidationResult, } from "./types.js";
+export type {
+	ErrorCode,
+	OutputEntry,
+	OutputErrorItem,
+	OutputItem,
+	ParsedFileInfo,
+	SelectorInfo,
+	ValidationFileResult,
+	ValidationResult,
+} from "./types.js";
 export { validate, validateFiles } from "./validate.js";
