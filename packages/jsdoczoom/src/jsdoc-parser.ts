@@ -57,8 +57,6 @@ function findFirstJsdocBlock(
 	start: number,
 	end: number,
 ): string | null {
-	// Get all comment ranges from the beginning of the search area
-	// We need to check leading comments for each statement, but simpler: scan text directly
 	const commentRanges = getAllBlockComments(sourceText, start, end);
 
 	for (const range of commentRanges) {
@@ -179,18 +177,21 @@ function parseJsdocContent(jsdocText: string): {
 	let currentTag: string | null = null;
 	let currentContent = "";
 
+	/** Flush a pending @summary tag if we haven't captured one yet. */
+	function flushSummary(): void {
+		if (currentTag !== "summary" || firstSummary !== null) return;
+		const trimmed = currentContent.trim();
+		if (trimmed.length > 0) {
+			firstSummary = trimmed;
+		}
+	}
+
 	for (const rawLine of lines) {
 		const stripped = rawLine.replace(/^\s*\*?\s?/, "");
 		const tagMatch = stripped.match(/^@([a-zA-Z]+)(?:\s|$)/);
 
 		if (tagMatch) {
-			// Flush previous @summary tag content (only if we haven't captured one yet)
-			if (currentTag === "summary" && firstSummary === null) {
-				const trimmed = currentContent.trim();
-				if (trimmed.length > 0) {
-					firstSummary = trimmed;
-				}
-			}
+			flushSummary();
 			currentTag = tagMatch[1];
 			currentContent = stripped.slice(tagMatch[0].length);
 			continue;
@@ -204,13 +205,7 @@ function parseJsdocContent(jsdocText: string): {
 		}
 	}
 
-	// Flush final tag (only if it's @summary and we haven't captured one yet)
-	if (currentTag === "summary" && firstSummary === null) {
-		const trimmed = currentContent.trim();
-		if (trimmed.length > 0) {
-			firstSummary = trimmed;
-		}
-	}
+	flushSummary();
 
 	const trimmedFreeText = freeText.trim();
 

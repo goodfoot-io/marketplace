@@ -5,50 +5,62 @@ import { JsdocError } from "./errors.js";
 import { discoverFiles } from "./file-discovery.js";
 import { parseFileSummaries } from "./jsdoc-parser.js";
 import { generateTypeDeclarations } from "./type-declarations.js";
-import type { OutputEntry, OutputErrorItem, SelectorInfo } from "./types.js";
+import type {
+	OutputEntry,
+	OutputErrorItem,
+	ParsedFileInfo,
+	SelectorInfo,
+} from "./types.js";
 
 /**
- * Process a single file at a given depth through the drill-down levels.
+ * Build the ordered drill-down level list for a file, skipping empty layers.
  *
- * Layer-skipping model — builds an ordered level list from non-empty layers:
  * - Level 0: @summary text (always present — files with null summary are filtered before reaching here)
  * - Level 1: description text (included only if non-null, otherwise skipped)
  * - Next level: type declarations + JSDoc (more=true)
  * - Last level: full file content (more=false, terminal)
  *
- * Files with description have 4 levels (depths 0–3).
- * Files without description have 3 levels (depths 0–2).
+ * Files with description have 4 levels (depths 0-3).
+ * Files without description have 3 levels (depths 0-2).
+ */
+function buildLevels(
+	info: ParsedFileInfo,
+): Array<{ text: () => string; more: boolean }> {
+	const levels: Array<{ text: () => string; more: boolean }> = [];
+
+	const summary = info.summary;
+	if (summary !== null) {
+		levels.push({ text: () => summary, more: true });
+	}
+
+	const description = info.description;
+	if (description !== null) {
+		levels.push({ text: () => description, more: true });
+	}
+
+	levels.push({
+		text: () => generateTypeDeclarations(info.path),
+		more: true,
+	});
+	levels.push({ text: () => readFileSync(info.path, "utf-8"), more: false });
+
+	return levels;
+}
+
+/**
+ * Process a single file at a given depth through the drill-down levels.
  * Depth is clamped to the terminal level.
  */
 function processFile(
-	filePath: string,
+	info: ParsedFileInfo,
 	depth: number,
 	cwd: string,
 ): OutputEntry {
-	const info = parseFileSummaries(filePath);
-	const relativePath = relative(cwd, filePath);
-
-	// Build ordered level list, skipping empty layers
-	const levels: Array<{ text: () => string; more: boolean }> = [];
-
-	// Level 0: summary (always present)
-	levels.push({ text: () => info.summary as string, more: true });
-
-	// Level 1: description (only if non-null)
-	if (info.description !== null) {
-		levels.push({ text: () => info.description as string, more: true });
-	}
-
-	// Type declarations level (more=true)
-	levels.push({ text: () => generateTypeDeclarations(filePath), more: true });
-
-	// Full file content level (terminal, more=false)
-	levels.push({ text: () => readFileSync(filePath, "utf-8"), more: false });
-
-	const terminalIndex = levels.length - 1;
-	const effectiveDepth = Math.min(depth, terminalIndex);
-
+	const relativePath = relative(cwd, info.path);
+	const levels = buildLevels(info);
+	const effectiveDepth = Math.min(depth, levels.length - 1);
 	const level = levels[effectiveDepth];
+
 	return {
 		id: `${relativePath}@${effectiveDepth}`,
 		path: relativePath,
@@ -94,7 +106,7 @@ function processFileSafe(
 	try {
 		const info = parseFileSummaries(filePath);
 		if (info.summary === null) return null;
-		return processFile(filePath, depth, cwd);
+		return processFile(info, depth, cwd);
 	} catch (error) {
 		if (isParseError(error)) return makeParseErrorItem(filePath, error, cwd);
 		throw error;
@@ -102,7 +114,7 @@ function processFileSafe(
 }
 
 /**
- * Information about a barrel file's summary levels and children.
+ * Information about a barrel file's summary status and children.
  */
 interface BarrelInfo {
 	path: string;
@@ -199,11 +211,9 @@ function collectSafeResults(
  * Process files discovered via glob with barrel gating.
  *
  * When a glob discovers an index.ts barrel:
- * 1. If the barrel has summaries and depth < barrel's summary count:
- *    show barrel summary (barrel gates its children)
- * 2. If depth >= barrel's summary count: barrel transitions -- barrel disappears
- *    and its children appear at depth - barrelSummaryCount
- * 3. If barrel has 0 summaries: not a tree node, children appear as leaves
+ * 1. If the barrel has a summary and depth < 1: show barrel summary (gates children)
+ * 2. If depth >= 1: barrel transitions -- barrel disappears and children appear at depth - 1
+ * 3. If barrel has no summary: not a tree node, children appear as leaves
  *
  * A barrel that is itself gated by a parent barrel is not processed independently.
  * Non-barrel files that are not gated by any barrel are processed normally.
@@ -275,7 +285,7 @@ export function drilldown(selector: SelectorInfo, cwd: string): OutputEntry[] {
 				`No summary found: ${selector.pattern}`,
 			);
 		}
-		return [processFile(filePath, depth, cwd)];
+		return [processFile(info, depth, cwd)];
 	}
 
 	// Glob selector — apply barrel gating

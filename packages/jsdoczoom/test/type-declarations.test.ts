@@ -7,8 +7,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { generateTypeDeclarations } from "../src/type-declarations.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const fixturesDir = join(__dirname, "fixtures", "leaf-files");
 

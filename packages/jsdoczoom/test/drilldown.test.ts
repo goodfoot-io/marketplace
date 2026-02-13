@@ -212,7 +212,7 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("glob NO_FILES_MATCHED when all matched files lack summary levels", () => {
+	it("glob NO_FILES_MATCHED when all matched files lack summaries", () => {
 		// no-jsdoc.ts is the only file that matches and has no summaries
 		// Create a glob that only matches no-jsdoc.ts
 		expect(() => drilldown(globSelector("no-jsdoc.ts"), leafFilesDir)).toThrow(
@@ -352,7 +352,7 @@ describe("drilldownFiles", () => {
 			resolve(leafFilesDir, "no-jsdoc.ts"),
 		];
 		const results = drilldownFiles(files, 0, leafFilesDir);
-		// no-jsdoc.ts has 0 summary levels, should be excluded
+		// no-jsdoc.ts has no summaries, should be excluded
 		expect(results).toHaveLength(1);
 		expect(results[0].path).toBe("one-summary.ts");
 	});

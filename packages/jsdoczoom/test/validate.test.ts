@@ -100,7 +100,7 @@ describe("validate", () => {
 		expect(result.files[0].issues[0]).toContain("Syntax error");
 	});
 
-	it("whitespace-only @summary not counted toward the 2-tag requirement", () => {
+	it("whitespace-only @summary is skipped, uses next non-empty one", () => {
 		const selector: SelectorInfo = {
 			type: "path",
 			pattern: fixture("whitespace-summary.ts"),
