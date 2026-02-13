@@ -10,6 +10,7 @@
 export interface OutputItemNext {
 	next_id: string;
 	text: string;
+	children?: string[];  // gated file/directory paths (barrel only)
 }
 
 /** Output item at terminal level — id represents the current (final) state */

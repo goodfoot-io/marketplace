@@ -68,6 +68,9 @@ describe("drilldown with barrels", () => {
 		if (hasNextId(entry)) {
 			expect(pathFromEntry(entry)).toBe(".");
 			expect(entry.text).toBe("Barrel overview");
+			expect(entry.children).toBeDefined();
+			expect(entry.children).toContain("helper.ts");
+			expect(entry.children).toContain("utils.ts");
 		}
 	});
 
@@ -153,6 +156,14 @@ describe("drilldown with barrels", () => {
 		const paths1 = results1.items.map((r) => pathFromEntry(r));
 		expect(paths1).toContain(".");
 		expect(paths1).not.toContain("sibling.ts");
+		const barrelEntry1 = results1.items.find(
+			(r) => hasNextId(r) && pathFromEntry(r) === ".",
+		);
+		expect(barrelEntry1).toBeDefined();
+		if (barrelEntry1 && hasNextId(barrelEntry1)) {
+			expect(barrelEntry1.children).toBeDefined();
+			expect(barrelEntry1.children).toContain("sibling.ts");
+		}
 
 		// At depth 2, barrel still gates: barrel description shown
 		const results2 = drilldown(globSelector("**/*.ts", 2), rootDir);
@@ -166,6 +177,8 @@ describe("drilldown with barrels", () => {
 		if (barrelEntry && hasNextId(barrelEntry)) {
 			expect(barrelEntry.next_id).toBe(".@3");
 			expect(barrelEntry.text).toBe("Root barrel.");
+			expect(barrelEntry.children).toBeDefined();
+			expect(barrelEntry.children).toContain("sibling.ts");
 		}
 
 		// At depth 3, barrel transitions: children appear
@@ -182,6 +195,10 @@ describe("drilldown with barrels", () => {
 		// At depth 1, the barrel summary is shown
 		const results1 = drilldown(globSelector("**/*.ts", 1), zeroChildDir);
 		expect(results1.items).toHaveLength(1);
+		const entry1 = results1.items[0];
+		if (entry1 && hasNextId(entry1)) {
+			expect(entry1.children).toEqual([]);
+		}
 
 		// At depth 2, barrel still gates: barrel description shown
 		const results2 = drilldown(globSelector("**/*.ts", 2), zeroChildDir);
@@ -190,6 +207,7 @@ describe("drilldown with barrels", () => {
 		if (barrelEntry && hasNextId(barrelEntry)) {
 			expect(barrelEntry.next_id).toBe(".@3");
 			expect(barrelEntry.text).toBe("Lonely barrel.");
+			expect(barrelEntry.children).toEqual([]);
 		}
 
 		// At depth 3 (transition), barrel disappears and there are no children
@@ -233,9 +251,11 @@ describe("drilldown with barrels", () => {
 		expect(results.items).toHaveLength(1);
 		const entry = results.items[0];
 		expect(isOutputItem(entry)).toBe(true);
-		if (isOutputItem(entry)) {
+		if (isOutputItem(entry) && hasNextId(entry)) {
 			expect(pathFromEntry(entry)).toBe(".");
 			expect(entry.text).toBe("Root overview");
+			expect(entry.children).toBeDefined();
+			expect(entry.children).toContain("sibling.ts");
 		}
 
 		// At transition depth (3), sibling and child barrel appear
@@ -259,6 +279,9 @@ describe("drilldown with barrels", () => {
 		if (hasNextId(entry)) {
 			expect(entry.next_id).toBe(".@3");
 			expect(entry.text).toBe("Basic barrel module.");
+			expect(entry.children).toBeDefined();
+			expect(entry.children).toContain("helper.ts");
+			expect(entry.children).toContain("utils.ts");
 		}
 	});
 
@@ -274,6 +297,8 @@ describe("drilldown with barrels", () => {
 		if (hasNextId(entry1)) {
 			expect(entry1.next_id).toBe(".@2");
 			expect(entry1.text).toBe("Summary-only barrel");
+			expect(entry1.children).toBeDefined();
+			expect(entry1.children).toContain("child.ts");
 		}
 
 		// At depth 2, no description → null-skip to transition, children appear

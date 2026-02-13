@@ -9,6 +9,7 @@ import type {
 	DrilldownResult,
 	OutputEntry,
 	OutputErrorItem,
+	OutputItemNext,
 	ParsedFileInfo,
 	SelectorInfo,
 } from "./types.js";
@@ -229,7 +230,13 @@ function processBarrelAtDepth(
 
 	if (effectiveDepth < 3) {
 		// Show barrel's own L1 (summary) or L2 (description)
-		return [processFileSafe(barrel.path, effectiveDepth, cwd)];
+		const entry = processFileSafe(barrel.path, effectiveDepth, cwd);
+		if ("next_id" in entry) {
+			(entry as OutputItemNext).children = barrel.children.map((c) =>
+				relative(cwd, c),
+			);
+		}
+		return [entry];
 	}
 
 	// Barrel transitions: barrel disappears, children appear

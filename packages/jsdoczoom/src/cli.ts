@@ -24,6 +24,8 @@ import { validate, validateFiles } from "./validate.js";
 const HELP_TEXT = `Usage: jsdoczoom [options] [selector]
 
 Progressively explore TypeScript codebase documentation.
+Each file has four detail levels (1-indexed): @1 summary, @2 description,
+@3 type declarations, @4 full source. Higher depth = more detail.
 
 Options:
   -h, --help       Show this help text
@@ -34,9 +36,9 @@ Options:
   --no-gitignore   Include files ignored by .gitignore
 
 Selector:
-  A glob pattern or file path, optionally with @depth suffix.
+  A glob pattern or file path, optionally with @depth suffix (1-4).
   Examples:
-    jsdoczoom src/**/*.ts       # All .ts files at shallowest level
+    jsdoczoom src/**/*.ts       # All .ts files at depth 1 (summary)
     jsdoczoom src/index.ts@2    # Single file at depth 2 (description)
     jsdoczoom **/*.ts@3         # All .ts files at depth 3 (type decls)
 
@@ -45,6 +47,25 @@ Stdin:
     find . -name "*.ts" | jsdoczoom
     find . -name "*.ts" | jsdoczoom @2
     find . -name "*.ts" | jsdoczoom -v
+
+Output:
+  JSON items. Items with "next_id" have more detail; use that value as the next
+  selector. Items with "id" (no next_id) are at terminal depth.
+
+Barrel gating (glob mode):
+  index.ts files with a @summary gate sibling files at depths 1-2.
+  At depth 3 the barrel disappears and its children appear at depth 1.
+
+Workflow:
+  $ jsdoczoom src/**/*.ts
+  { "items": [{ "next_id": "src/utils@2", "text": "..." }, ...] }
+
+  $ jsdoczoom src/utils@2                # use next_id from above
+  { "items": [{ "next_id": "src/utils@3", "text": "..." }] }
+
+  $ jsdoczoom src/utils@3                # use next_id again
+  { "items": [{ "id": "src/utils@3", "text": "..." }] }
+  # "id" instead of "next_id" means terminal depth — stop here
 `;
 
 /**
