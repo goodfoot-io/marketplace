@@ -4,8 +4,8 @@
  * @summary Bridge between ESLint API and jsdoczoom validation/lint formats
  */
 
-import { ESLint } from "eslint";
 import tsParser from "@typescript-eslint/parser";
+import { ESLint } from "eslint";
 import jsdocPlugin from "eslint-plugin-jsdoc";
 import plugin from "./eslint-plugin.js";
 import type { LintDiagnostic, ValidationStatus } from "./types.js";
@@ -95,7 +95,9 @@ export async function lintFileForValidation(
 	eslint: ESLint,
 	sourceText: string,
 	filePath: string,
-): Promise<Array<{ ruleId: string | null; messageId?: string; fatal?: boolean }>> {
+): Promise<
+	Array<{ ruleId: string | null; messageId?: string; fatal?: boolean }>
+> {
 	const results = await eslint.lintText(sourceText, { filePath });
 	if (results.length === 0) return [];
 	return results[0].messages.map((msg) => ({
@@ -144,7 +146,11 @@ export async function lintFileForLint(
  * @returns ValidationStatus or "valid"
  */
 export function mapToValidationStatus(
-	messages: Array<{ ruleId: string | null; messageId?: string; fatal?: boolean }>,
+	messages: Array<{
+		ruleId: string | null;
+		messageId?: string;
+		fatal?: boolean;
+	}>,
 ): ValidationStatus | "valid" {
 	// Priority 1: Parse errors
 	if (messages.some((msg) => msg.ruleId === null && msg.fatal)) {
@@ -179,7 +185,9 @@ export function mapToValidationStatus(
 	}
 
 	// Priority 5: Missing description
-	if (messages.some((msg) => msg.ruleId === "jsdoczoom/require-file-description")) {
+	if (
+		messages.some((msg) => msg.ruleId === "jsdoczoom/require-file-description")
+	) {
 		return "missing_description";
 	}
 

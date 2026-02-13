@@ -6,10 +6,10 @@
 
 import { describe, expect, it } from "vitest";
 import {
-	createValidationLinter,
 	createLintLinter,
-	lintFileForValidation,
+	createValidationLinter,
 	lintFileForLint,
+	lintFileForValidation,
 	mapToValidationStatus,
 } from "../src/eslint-engine.js";
 
@@ -33,7 +33,10 @@ describe("mapToValidationStatus", () => {
 
 	it("multiple summary maps to multiple_summary", () => {
 		const messages = [
-			{ ruleId: "jsdoczoom/require-file-summary", messageId: "multipleSummary" },
+			{
+				ruleId: "jsdoczoom/require-file-summary",
+				messageId: "multipleSummary",
+			},
 		];
 		expect(mapToValidationStatus(messages)).toBe("multiple_summary");
 	});
@@ -44,8 +47,11 @@ describe("mapToValidationStatus", () => {
 	});
 
 	it("valid file maps to valid", () => {
-		const messages: Array<{ ruleId: string | null; messageId?: string; fatal?: boolean }> =
-			[];
+		const messages: Array<{
+			ruleId: string | null;
+			messageId?: string;
+			fatal?: boolean;
+		}> = [];
 		expect(mapToValidationStatus(messages)).toBe("valid");
 	});
 
@@ -62,7 +68,8 @@ describe("ESLint integration tests", () => {
 	const validationLinter = createValidationLinter();
 	const lintLinter = createLintLinter();
 
-	const validFile = "/** Description here.\n * @summary File summary\n */\nexport const x = 1;\n";
+	const validFile =
+		"/** Description here.\n * @summary File summary\n */\nexport const x = 1;\n";
 	const missingJsdoc = "export const x = 1;\n";
 	const missingParam =
 		"/** Desc.\n * @summary S\n */\nexport function foo(x: string): void {}\n";
@@ -93,13 +100,25 @@ describe("ESLint integration tests", () => {
 	});
 
 	it("createLintLinter + lintFileForLint: missing @param gets lint diagnostic", async () => {
-		const diagnostics = await lintFileForLint(lintLinter, missingParam, "test.ts");
-		expect(diagnostics.some((d) => d.rule === "jsdoc/require-param")).toBe(true);
+		const diagnostics = await lintFileForLint(
+			lintLinter,
+			missingParam,
+			"test.ts",
+		);
+		expect(diagnostics.some((d) => d.rule === "jsdoc/require-param")).toBe(
+			true,
+		);
 	});
 
 	it("createLintLinter + lintFileForLint: file missing @returns gets lint diagnostic", async () => {
-		const diagnostics = await lintFileForLint(lintLinter, missingReturns, "test.ts");
-		expect(diagnostics.some((d) => d.rule === "jsdoc/require-returns")).toBe(true);
+		const diagnostics = await lintFileForLint(
+			lintLinter,
+			missingReturns,
+			"test.ts",
+		);
+		expect(diagnostics.some((d) => d.rule === "jsdoc/require-returns")).toBe(
+			true,
+		);
 	});
 
 	it("JSDoc-only constraint test: unused var produces zero diagnostics from BOTH validate and lint configs", async () => {
@@ -108,7 +127,11 @@ describe("ESLint integration tests", () => {
 			unusedVar,
 			"test.ts",
 		);
-		const lintDiagnostics = await lintFileForLint(lintLinter, unusedVar, "test.ts");
+		const lintDiagnostics = await lintFileForLint(
+			lintLinter,
+			unusedVar,
+			"test.ts",
+		);
 
 		expect(validationMessages).toEqual([]);
 		expect(lintDiagnostics).toEqual([]);
@@ -120,6 +143,8 @@ describe("ESLint integration tests", () => {
 			informativeDocs,
 			"test.ts",
 		);
-		expect(diagnostics.some((d) => d.rule === "jsdoc/informative-docs")).toBe(true);
+		expect(diagnostics.some((d) => d.rule === "jsdoc/informative-docs")).toBe(
+			true,
+		);
 	});
 });

@@ -165,10 +165,7 @@ const requireFileJsdoc: Rule.RuleModule = {
 		return {
 			Program(node) {
 				const sourceCode = context.sourceCode;
-				const jsdocComment = findFileJsdocComment(
-					sourceCode,
-					node.body,
-				);
+				const jsdocComment = findFileJsdocComment(sourceCode, node.body);
 
 				if (jsdocComment === null) {
 					context.report({
@@ -196,10 +193,7 @@ const requireFileSummary: Rule.RuleModule = {
 		return {
 			Program(node) {
 				const sourceCode = context.sourceCode;
-				const jsdocComment = findFileJsdocComment(
-					sourceCode,
-					node.body,
-				);
+				const jsdocComment = findFileJsdocComment(sourceCode, node.body);
 
 				// If no file-level JSDoc exists, that's rule 1's job to report
 				if (jsdocComment === null) {
@@ -237,10 +231,7 @@ const requireFileDescription: Rule.RuleModule = {
 		return {
 			Program(node) {
 				const sourceCode = context.sourceCode;
-				const jsdocComment = findFileJsdocComment(
-					sourceCode,
-					node.body,
-				);
+				const jsdocComment = findFileJsdocComment(sourceCode, node.body);
 
 				// If no file-level JSDoc exists, that's rule 1's job to report
 				if (jsdocComment === null) {

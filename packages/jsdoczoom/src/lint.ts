@@ -14,9 +14,9 @@ import { relative } from "node:path";
 import tsParser from "@typescript-eslint/parser";
 import { ESLint } from "eslint";
 import jsdocPlugin from "eslint-plugin-jsdoc";
+import { JsdocError } from "./errors.js";
 import { lintFileForLint } from "./eslint-engine.js";
 import plugin from "./eslint-plugin.js";
-import { JsdocError } from "./errors.js";
 import { discoverFiles } from "./file-discovery.js";
 import type { LintFileResult, LintResult, SelectorInfo } from "./types.js";
 
@@ -99,9 +99,7 @@ function buildLintResult(
 	totalFiles: number,
 	limit: number,
 ): LintResult {
-	const filesWithIssues = fileResults.filter(
-		(f) => f.diagnostics.length > 0,
-	);
+	const filesWithIssues = fileResults.filter((f) => f.diagnostics.length > 0);
 	const totalDiagnostics = filesWithIssues.reduce(
 		(sum, f) => sum + f.diagnostics.length,
 		0,
@@ -147,9 +145,7 @@ export async function lint(
 		);
 	}
 
-	const tsFiles = files.filter(
-		(f) => f.endsWith(".ts") || f.endsWith(".tsx"),
-	);
+	const tsFiles = files.filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"));
 
 	const eslint = createLinterForCwd(cwd);
 	const fileResults = await Promise.all(

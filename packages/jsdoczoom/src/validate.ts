@@ -2,12 +2,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import type { ESLint } from "eslint";
 import { isBarrel } from "./barrel.js";
+import { JsdocError } from "./errors.js";
 import {
 	createValidationLinter,
 	lintFileForValidation,
 	mapToValidationStatus,
 } from "./eslint-engine.js";
-import { JsdocError } from "./errors.js";
 import { discoverFiles } from "./file-discovery.js";
 import { GUIDANCE } from "./skill-text.js";
 import type {

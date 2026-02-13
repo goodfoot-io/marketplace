@@ -59,9 +59,7 @@ describe("jsdoczoom/require-file-jsdoc", () => {
 	it("missing JSDoc fails require-file-jsdoc", () => {
 		const code = "export const x = 1;";
 		const messages = verify(code);
-		expect(ruleIds(messages)).toContain(
-			"jsdoczoom/require-file-jsdoc",
-		);
+		expect(ruleIds(messages)).toContain("jsdoczoom/require-file-jsdoc");
 		expect(messageIds(messages)).toContain("missingFileJsdoc");
 	});
 
@@ -87,15 +85,11 @@ describe("jsdoczoom/require-file-jsdoc", () => {
 	});
 
 	it("/*** triple-asterisk block is ignored", () => {
-		const code = [
-			"/*** Desc",
-			" * @summary S */",
-			"export const x = 1;",
-		].join("\n");
-		const messages = verify(code);
-		expect(ruleIds(messages)).toContain(
-			"jsdoczoom/require-file-jsdoc",
+		const code = ["/*** Desc", " * @summary S */", "export const x = 1;"].join(
+			"\n",
 		);
+		const messages = verify(code);
+		expect(ruleIds(messages)).toContain("jsdoczoom/require-file-jsdoc");
 		expect(messageIds(messages)).toContain("missingFileJsdoc");
 	});
 });
@@ -106,14 +100,9 @@ describe("jsdoczoom/require-file-jsdoc", () => {
 
 describe("jsdoczoom/require-file-summary", () => {
 	it("missing @summary fails require-file-summary", () => {
-		const code = [
-			"/** Description only */",
-			"export const x = 1;",
-		].join("\n");
+		const code = ["/** Description only */", "export const x = 1;"].join("\n");
 		const messages = verify(code);
-		expect(ruleIds(messages)).toContain(
-			"jsdoczoom/require-file-summary",
-		);
+		expect(ruleIds(messages)).toContain("jsdoczoom/require-file-summary");
 		expect(messageIds(messages)).toContain("missingSummary");
 	});
 
@@ -125,9 +114,7 @@ describe("jsdoczoom/require-file-summary", () => {
 			"export const x = 1;",
 		].join("\n");
 		const messages = verify(code);
-		expect(ruleIds(messages)).toContain(
-			"jsdoczoom/require-file-summary",
-		);
+		expect(ruleIds(messages)).toContain("jsdoczoom/require-file-summary");
 		expect(messageIds(messages)).toContain("multipleSummary");
 	});
 
@@ -153,9 +140,7 @@ describe("jsdoczoom/require-file-summary", () => {
 			"export const x = 1;",
 		].join("\n");
 		const messages = verify(code);
-		expect(ruleIds(messages)).toContain(
-			"jsdoczoom/require-file-summary",
-		);
+		expect(ruleIds(messages)).toContain("jsdoczoom/require-file-summary");
 		expect(messageIds(messages)).toContain("missingSummary");
 	});
 
@@ -178,9 +163,7 @@ describe("jsdoczoom/require-file-summary", () => {
 		const code = "export const x = 1;";
 		const messages = verify(code);
 		// require-file-summary should NOT report — only require-file-jsdoc reports
-		expect(ruleIds(messages)).not.toContain(
-			"jsdoczoom/require-file-summary",
-		);
+		expect(ruleIds(messages)).not.toContain("jsdoczoom/require-file-summary");
 	});
 });
 
@@ -190,14 +173,11 @@ describe("jsdoczoom/require-file-summary", () => {
 
 describe("jsdoczoom/require-file-description", () => {
 	it("missing description fails require-file-description", () => {
-		const code = [
-			"/** @summary Summary only */",
-			"export const x = 1;",
-		].join("\n");
-		const messages = verify(code);
-		expect(ruleIds(messages)).toContain(
-			"jsdoczoom/require-file-description",
+		const code = ["/** @summary Summary only */", "export const x = 1;"].join(
+			"\n",
 		);
+		const messages = verify(code);
+		expect(ruleIds(messages)).toContain("jsdoczoom/require-file-description");
 		expect(messageIds(messages)).toContain("missingDescription");
 	});
 

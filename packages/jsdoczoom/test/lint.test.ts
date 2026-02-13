@@ -182,8 +182,7 @@ describe("lint", () => {
 			for (const file of result.files) {
 				for (const d of file.diagnostics) {
 					expect(
-						d.rule.startsWith("jsdoc/") ||
-							d.rule.startsWith("jsdoczoom/"),
+						d.rule.startsWith("jsdoc/") || d.rule.startsWith("jsdoczoom/"),
 					).toBe(true);
 				}
 			}
@@ -338,9 +337,7 @@ describe("lintFiles", () => {
 		expect(result.summary.totalFiles).toBe(1);
 		expect(result.summary.filesWithIssues).toBe(1);
 		expect(
-			result.files[0].diagnostics.some(
-				(d) => d.rule === "jsdoc/tag-lines",
-			),
+			result.files[0].diagnostics.some((d) => d.rule === "jsdoc/tag-lines"),
 		).toBe(true);
 	});
 
