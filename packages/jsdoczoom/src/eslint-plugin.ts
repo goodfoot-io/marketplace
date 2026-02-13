@@ -79,9 +79,8 @@ interface ParsedJsdoc {
  * Append non-empty text to an accumulator with space separation.
  */
 function appendText(existing: string, addition: string): string {
-	if (addition.length === 0) return existing;
-	if (existing.length === 0) return addition;
-	return `${existing} ${addition}`;
+	if (!addition) return existing;
+	return existing ? `${existing} ${addition}` : addition;
 }
 
 /**

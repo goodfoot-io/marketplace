@@ -11,59 +11,11 @@
 
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
-import tsParser from "@typescript-eslint/parser";
-import { ESLint } from "eslint";
-import jsdocPlugin from "eslint-plugin-jsdoc";
+import type { ESLint } from "eslint";
 import { JsdocError } from "./errors.js";
-import { lintFileForLint } from "./eslint-engine.js";
-import plugin from "./eslint-plugin.js";
+import { createLintLinter, lintFileForLint } from "./eslint-engine.js";
 import { discoverFiles } from "./file-discovery.js";
 import type { LintFileResult, LintResult, SelectorInfo } from "./types.js";
-
-/**
- * Create an ESLint instance configured for lint mode with the given cwd.
- *
- * Sets the ESLint base path to cwd so that files in that directory are
- * not ignored as "outside of base path".
- *
- * @param cwd - Working directory for ESLint base path resolution
- * @returns Configured ESLint instance for lint mode
- */
-function createLinterForCwd(cwd: string): ESLint {
-	return new ESLint({
-		cwd,
-		overrideConfigFile: true,
-		overrideConfig: [
-			{
-				files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
-				plugins: { jsdoczoom: plugin, jsdoc: jsdocPlugin },
-				rules: {
-					"jsdoczoom/require-file-jsdoc": "error",
-					"jsdoczoom/require-file-summary": "error",
-					"jsdoczoom/require-file-description": "error",
-					"jsdoc/require-jsdoc": ["error", { publicOnly: true }],
-					"jsdoc/require-param": "error",
-					"jsdoc/require-param-description": "error",
-					"jsdoc/require-returns": "error",
-					"jsdoc/require-returns-description": "error",
-					"jsdoc/require-throws": "error",
-					"jsdoc/check-param-names": "error",
-					"jsdoc/check-tag-names": "error",
-					"jsdoc/no-types": "error",
-					"jsdoc/informative-docs": "error",
-					"jsdoc/tag-lines": "error",
-					"jsdoc/no-blank-blocks": "error",
-					"jsdoc/require-description": "error",
-				},
-				languageOptions: {
-					parser: tsParser,
-					ecmaVersion: "latest" as const,
-					sourceType: "module" as const,
-				},
-			},
-		],
-	});
-}
 
 /**
  * Lint a single file and return per-file diagnostics.
@@ -147,7 +99,7 @@ export async function lint(
 
 	const tsFiles = files.filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"));
 
-	const eslint = createLinterForCwd(cwd);
+	const eslint = createLintLinter(cwd);
 	const fileResults = await Promise.all(
 		tsFiles.map((f) => lintSingleFile(eslint, f, cwd)),
 	);
@@ -175,7 +127,7 @@ export async function lintFiles(
 		(f) => f.endsWith(".ts") || f.endsWith(".tsx"),
 	);
 
-	const eslint = createLinterForCwd(cwd);
+	const eslint = createLintLinter(cwd);
 	const fileResults = await Promise.all(
 		tsFiles.map((f) => lintSingleFile(eslint, f, cwd)),
 	);

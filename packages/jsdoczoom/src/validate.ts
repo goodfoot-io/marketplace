@@ -15,6 +15,7 @@ import type {
 	ValidationResult,
 	ValidationStatus,
 } from "./types.js";
+import { VALIDATION_STATUS_PRIORITY } from "./types.js";
 
 /**
  * Each file is classified into exactly one status category: the first
@@ -89,16 +90,6 @@ function findMissingBarrels(filePaths: string[], cwd: string): string[] {
 	return missing.sort();
 }
 
-/** Priority order for filling groups when applying limit */
-const STATUS_PRIORITY: ValidationStatus[] = [
-	"syntax_error",
-	"missing_jsdoc",
-	"missing_summary",
-	"multiple_summary",
-	"missing_description",
-	"missing_barrel",
-];
-
 /**
  * Group file statuses into a ValidationResult, applying a limit
  * to the total number of invalid file paths shown.
@@ -126,7 +117,7 @@ function buildGroupedResult(
 	const result: ValidationResult = {};
 
 	let remaining = limit;
-	for (const status of STATUS_PRIORITY) {
+	for (const status of VALIDATION_STATUS_PRIORITY) {
 		const files = groups[status];
 		if (files.length === 0) continue;
 		if (remaining <= 0) break;

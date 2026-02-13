@@ -45,10 +45,12 @@ export function createValidationLinter(): ESLint {
  *
  * This linter runs both jsdoczoom rules and eslint-plugin-jsdoc rules for comprehensive JSDoc validation.
  *
+ * @param cwd - Optional working directory for ESLint base path resolution
  * @returns Configured ESLint instance for lint mode
  */
-export function createLintLinter(): ESLint {
+export function createLintLinter(cwd?: string): ESLint {
 	const eslint = new ESLint({
+		cwd,
 		overrideConfigFile: true,
 		overrideConfig: [
 			{

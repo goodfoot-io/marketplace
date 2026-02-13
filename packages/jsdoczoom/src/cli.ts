@@ -6,12 +6,8 @@ import { JsdocError } from "./errors.js";
 import { lint, lintFiles } from "./lint.js";
 import { parseSelector } from "./selector.js";
 import { SKILL_TEXT } from "./skill-text.js";
-import type {
-	LintResult,
-	SelectorInfo,
-	ValidationResult,
-	ValidationStatus,
-} from "./types.js";
+import type { LintResult, SelectorInfo, ValidationResult } from "./types.js";
+import { VALIDATION_STATUS_PRIORITY } from "./types.js";
 import { validate, validateFiles } from "./validate.js";
 
 /**
@@ -269,22 +265,12 @@ function writeResult(result: unknown, pretty: boolean): void {
 	process.stdout.write(`${json}\n`);
 }
 
-/** Status keys used to detect validation failures */
-const STATUS_KEYS: ValidationStatus[] = [
-	"syntax_error",
-	"missing_jsdoc",
-	"missing_summary",
-	"multiple_summary",
-	"missing_description",
-	"missing_barrel",
-];
-
 /**
  * Count invalid files across all validation groups.
  */
 function countInvalid(result: ValidationResult): number {
-	return STATUS_KEYS.reduce(
-		(sum, k) => sum + (result[k]?.files.length ?? 0),
+	return VALIDATION_STATUS_PRIORITY.reduce(
+		(sum, status) => sum + (result[status]?.files.length ?? 0),
 		0,
 	);
 }

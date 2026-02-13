@@ -58,6 +58,16 @@ export type ValidationStatus =
 	| "missing_description"
 	| "missing_barrel";
 
+/** Priority order for validation status categories */
+export const VALIDATION_STATUS_PRIORITY: ValidationStatus[] = [
+	"syntax_error",
+	"missing_jsdoc",
+	"missing_summary",
+	"multiple_summary",
+	"missing_description",
+	"missing_barrel",
+];
+
 /** A validation group: guidance text and file paths */
 export interface ValidationGroup {
 	guidance: string;
