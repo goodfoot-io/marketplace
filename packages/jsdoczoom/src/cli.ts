@@ -17,7 +17,7 @@ Options:
   -v, --validate   Run validation mode
   -s, --skill      Print JSDoc writing guidelines
   --pretty         Format JSON output with 2-space indent
-  --limit N        Max invalid file paths shown (default 100, validation only)
+  --limit N        Max results shown (default 100)
   --no-gitignore   Include files ignored by .gitignore
 
 Selector:
@@ -125,7 +125,7 @@ function processStdin(
 		writeResult(result, pretty);
 		handleValidationExitCode(result);
 	} else {
-		const result = drilldownFiles(stdinPaths, depth, cwd);
+		const result = drilldownFiles(stdinPaths, depth, cwd, limit);
 		writeResult(result, pretty);
 	}
 }
@@ -150,7 +150,7 @@ function processSelector(
 		writeResult(result, pretty);
 		handleValidationExitCode(result);
 	} else {
-		const result = drilldown(selector, cwd, gitignore);
+		const result = drilldown(selector, cwd, gitignore, limit);
 		writeResult(result, pretty);
 	}
 }

@@ -24,7 +24,7 @@ export interface DrilldownResult {
     };
 }
 /** All recognized error codes */
-export type ErrorCode = "INVALID_SELECTOR" | "INVALID_DEPTH" | "FILE_NOT_FOUND" | "NO_FILES_MATCHED" | "PARSE_ERROR" | "VALIDATION_FAILED" | "INTERNAL_ERROR";
+export type ErrorCode = "INVALID_SELECTOR" | "INVALID_DEPTH" | "FILE_NOT_FOUND" | "NO_FILES_MATCHED" | "NO_SUMMARY_FOUND" | "PARSE_ERROR" | "VALIDATION_FAILED" | "INTERNAL_ERROR";
 /** Validation status categories for invalid files */
 export type ValidationStatus = "syntax_error" | "missing_jsdoc" | "missing_summary" | "missing_description";
 /** Grouped validation result — only invalid-file groups appear */

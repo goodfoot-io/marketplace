@@ -18,13 +18,21 @@ export interface OutputErrorItem {
 /** Union of successful and error output entries */
 export type OutputEntry = OutputItem | OutputErrorItem;
 
+/** Drilldown result with items and summary */
+export interface DrilldownResult {
+	items: OutputEntry[];
+	summary: {
+		total: number;
+		truncated: boolean;
+	};
+}
+
 /** All recognized error codes */
 export type ErrorCode =
 	| "INVALID_SELECTOR"
 	| "INVALID_DEPTH"
 	| "FILE_NOT_FOUND"
 	| "NO_FILES_MATCHED"
-	| "NO_SUMMARY_FOUND"
 	| "PARSE_ERROR"
 	| "VALIDATION_FAILED"
 	| "INTERNAL_ERROR";

@@ -4,52 +4,44 @@ import { getBarrelChildren, isBarrel } from "./barrel.js";
 import { JsdocError } from "./errors.js";
 import { discoverFiles } from "./file-discovery.js";
 import { parseFileSummaries } from "./jsdoc-parser.js";
-import { generateTypeDeclarations } from "./type-declarations.js";
 import type {
+	DrilldownResult,
 	OutputEntry,
 	OutputErrorItem,
 	ParsedFileInfo,
 	SelectorInfo,
 } from "./types.js";
 
+/** Level content with a lazy text accessor. */
+type Level = { text: () => string } | null;
+
+/** Fixed 3-level structure: 0=summary, 1=description, 2=full file. */
+const TERMINAL_LEVEL = 2;
+
 /**
- * Build the ordered drill-down level list for a file, skipping empty layers.
+ * Build the fixed drill-down level array for a file.
  *
- * - Level 0: @summary text (always present — files with null summary are filtered before reaching here)
- * - Level 1: description text (included only if non-null, otherwise skipped)
- * - Next level: type declarations + JSDoc (more=true)
- * - Last level: full file content (more=false, terminal)
+ * - Level 0: @summary text (null if absent)
+ * - Level 1: description text (null if absent)
+ * - Level 2: full file content (always present, terminal)
  *
- * Files with description have 4 levels (depths 0-3).
- * Files without description have 3 levels (depths 0-2).
+ * The array always has 3 entries. Null entries are skipped during processing.
  */
-function buildLevels(
-	info: ParsedFileInfo,
-): Array<{ text: () => string; more: boolean }> {
-	const levels: Array<{ text: () => string; more: boolean }> = [];
-
-	const summary = info.summary;
-	if (summary !== null) {
-		levels.push({ text: () => summary, more: true });
-	}
-
-	const description = info.description;
-	if (description !== null) {
-		levels.push({ text: () => description, more: true });
-	}
-
-	levels.push({
-		text: () => generateTypeDeclarations(info.path),
-		more: true,
-	});
-	levels.push({ text: () => readFileSync(info.path, "utf-8"), more: false });
-
-	return levels;
+function buildLevels(info: ParsedFileInfo): [Level, Level, Level] {
+	const { summary, description } = info;
+	return [
+		summary !== null ? { text: () => summary } : null,
+		description !== null ? { text: () => description } : null,
+		{ text: () => readFileSync(info.path, "utf-8") },
+	];
 }
 
 /**
  * Process a single file at a given depth through the drill-down levels.
- * Depth is clamped to the terminal level.
+ *
+ * Levels are fixed: 0=summary, 1=description, 2=full file.
+ * If the requested depth is null (empty), advance to the next non-null level.
+ * The output id always reflects the actual level shown.
  */
 function processFile(
 	info: ParsedFileInfo,
@@ -58,12 +50,17 @@ function processFile(
 ): OutputEntry {
 	const relativePath = relative(cwd, info.path);
 	const levels = buildLevels(info);
-	const effectiveDepth = Math.min(depth, levels.length - 1);
-	const level = levels[effectiveDepth];
+
+	// Start at requested depth (clamped to terminal), advance past null levels
+	let effectiveDepth = Math.min(depth, TERMINAL_LEVEL);
+	while (effectiveDepth < TERMINAL_LEVEL && levels[effectiveDepth] === null) {
+		effectiveDepth++;
+	}
+	const level = levels[effectiveDepth] as { text: () => string };
 
 	return {
 		id: `${relativePath}@${effectiveDepth}`,
-		more: level.more,
+		more: effectiveDepth < TERMINAL_LEVEL,
 		text: level.text(),
 	};
 }
@@ -93,17 +90,15 @@ function isParseError(error: unknown): error is JsdocError {
 
 /**
  * Process a file safely, returning an OutputErrorItem on PARSE_ERROR.
- * Returns null if the file has no summaries.
  * Rethrows non-PARSE_ERROR exceptions.
  */
 function processFileSafe(
 	filePath: string,
 	depth: number,
 	cwd: string,
-): OutputEntry | null {
+): OutputEntry {
 	try {
 		const info = parseFileSummaries(filePath);
-		if (info.summary === null) return null;
 		return processFile(info, depth, cwd);
 	} catch (error) {
 		if (isParseError(error)) return makeParseErrorItem(filePath, error, cwd);
@@ -169,19 +164,18 @@ function buildGatedFileSet(barrelInfos: BarrelInfo[]): Set<string> {
 
 /**
  * Process a single barrel at the given depth.
- * Returns the barrel's own summary entry if still gating, or its children's entries
- * if the barrel has transitioned.
+ * Barrels without summaries appear as regular files (no gating).
+ * Barrels with summaries gate children until transition depth.
  */
 function processBarrelAtDepth(
 	barrel: BarrelInfo,
 	depth: number,
 	cwd: string,
 ): OutputEntry[] {
-	if (!barrel.hasSummary) return [];
+	if (!barrel.hasSummary) return [processFileSafe(barrel.path, depth, cwd)];
 
 	if (depth < 1) {
-		const result = processFileSafe(barrel.path, depth, cwd);
-		return result ? [result] : [];
+		return [processFileSafe(barrel.path, depth, cwd)];
 	}
 
 	// Barrel transitions: barrel disappears, children appear
@@ -190,19 +184,14 @@ function processBarrelAtDepth(
 }
 
 /**
- * Process a list of files through processFileSafe, collecting non-null results.
+ * Process a list of files through processFileSafe.
  */
 function collectSafeResults(
 	files: string[],
 	depth: number,
 	cwd: string,
 ): OutputEntry[] {
-	const results: OutputEntry[] = [];
-	for (const filePath of files) {
-		const result = processFileSafe(filePath, depth, cwd);
-		if (result) results.push(result);
-	}
-	return results;
+	return files.map((filePath) => processFileSafe(filePath, depth, cwd));
 }
 
 /**
@@ -266,14 +255,14 @@ function processGlobWithBarrels(
  * @returns Array of output entries sorted alphabetically by path
  * @throws {JsdocError} FILE_NOT_FOUND for missing path selector target
  * @throws {JsdocError} NO_FILES_MATCHED for empty glob results
- * @throws {JsdocError} NO_SUMMARY_FOUND for path selector targeting file without summaries
  * @throws {JsdocError} PARSE_ERROR for path selector targeting file with syntax errors
  */
 export function drilldown(
 	selector: SelectorInfo,
 	cwd: string,
 	gitignore = true,
-): OutputEntry[] {
+	limit = 100,
+): DrilldownResult {
 	const depth = selector.depth ?? 0;
 
 	if (selector.type === "path") {
@@ -281,13 +270,8 @@ export function drilldown(
 		const files = discoverFiles(selector.pattern, cwd, gitignore);
 		const filePath = files[0];
 		const info = parseFileSummaries(filePath);
-		if (info.summary === null) {
-			throw new JsdocError(
-				"NO_SUMMARY_FOUND",
-				`No summary found: ${selector.pattern}`,
-			);
-		}
-		return [processFile(info, depth, cwd)];
+		const items = [processFile(info, depth, cwd)];
+		return { items, summary: { total: 1, truncated: false } };
 	}
 
 	// Glob selector — apply barrel gating
@@ -301,23 +285,21 @@ export function drilldown(
 
 	const results = processGlobWithBarrels(files, depth, cwd);
 
-	if (results.length === 0) {
-		throw new JsdocError(
-			"NO_FILES_MATCHED",
-			`No files with summaries matched: ${selector.pattern}`,
-		);
-	}
-
 	// Sort alphabetically by id
-	return results.sort((a, b) => a.id.localeCompare(b.id));
+	const sorted = results.sort((a, b) => a.id.localeCompare(b.id));
+	const total = sorted.length;
+	const truncated = total > limit;
+	return {
+		items: sorted.slice(0, limit),
+		summary: { total, truncated },
+	};
 }
 
 /**
  * Process an explicit list of file paths at a given depth.
  *
  * Used for stdin input. Always treats paths as leaf files (no barrel gating).
- * Filters to .ts/.tsx only. Excludes files with no summaries.
- * Does NOT throw NO_FILES_MATCHED for empty results.
+ * Filters to .ts/.tsx only.
  *
  * @param filePaths - Array of absolute file paths
  * @param depth - Drill-down depth (defaults to 0 if undefined)
@@ -328,12 +310,19 @@ export function drilldownFiles(
 	filePaths: string[],
 	depth: number | undefined,
 	cwd: string,
-): OutputEntry[] {
+	limit = 100,
+): DrilldownResult {
 	const d = depth ?? 0;
 	const tsFiles = filePaths.filter(
 		(f) => f.endsWith(".ts") || f.endsWith(".tsx"),
 	);
 
 	const results = collectSafeResults(tsFiles, d, cwd);
-	return results.sort((a, b) => a.id.localeCompare(b.id));
+	const sorted = results.sort((a, b) => a.id.localeCompare(b.id));
+	const total = sorted.length;
+	const truncated = total > limit;
+	return {
+		items: sorted.slice(0, limit),
+		summary: { total, truncated },
+	};
 }

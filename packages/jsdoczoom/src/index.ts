@@ -6,6 +6,7 @@ export { extractFileJsdoc, parseFileSummaries } from "./jsdoc-parser.js";
 export { parseSelector } from "./selector.js";
 export { generateTypeDeclarations } from "./type-declarations.js";
 export type {
+	DrilldownResult,
 	ErrorCode,
 	OutputEntry,
 	OutputErrorItem,

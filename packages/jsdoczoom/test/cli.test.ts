@@ -89,11 +89,12 @@ describe("cli", () => {
 		it("--pretty outputs indented JSON (2-space indent)", async () => {
 			await main(["--pretty", "two-summaries.ts"]);
 			const raw = capture.getStdout();
-			// Pretty JSON starts with "[\n" and contains indented lines
+			// Pretty JSON starts with "{\n" and contains indented lines
 			expect(raw).toContain("\n  ");
 			const parsed = JSON.parse(raw);
-			// Verify it's valid JSON array
-			expect(Array.isArray(parsed)).toBe(true);
+			// Verify it's valid JSON object with items and summary
+			expect(parsed).toHaveProperty("items");
+			expect(parsed).toHaveProperty("summary");
 			// Verify the indentation matches 2-space indent
 			expect(raw.trimEnd()).toBe(JSON.stringify(parsed, null, 2));
 		});
@@ -121,10 +122,10 @@ describe("cli", () => {
 			cwdSpy.mockReturnValue(depthDir);
 			await main([]);
 			const output = JSON.parse(capture.getStdout());
-			expect(Array.isArray(output)).toBe(true);
+			expect(output).toHaveProperty("items");
 			// depth-advancement dir has one-summary.ts and three-summaries.ts
-			expect(output.length).toBeGreaterThanOrEqual(2);
-			const paths = output.map((e: { id: string }) => e.id.split("@")[0]);
+			expect(output.items.length).toBeGreaterThanOrEqual(2);
+			const paths = output.items.map((e: { id: string }) => e.id.split("@")[0]);
 			expect(paths).toContain("one-summary.ts");
 			expect(paths).toContain("three-summaries.ts");
 		});
@@ -132,9 +133,9 @@ describe("cli", () => {
 		it("selector argument is parsed and passed to drilldown", async () => {
 			await main(["two-summaries.ts@1"]);
 			const output = JSON.parse(capture.getStdout());
-			expect(Array.isArray(output)).toBe(true);
-			expect(output).toHaveLength(1);
-			expect(output[0].id).toBe("two-summaries.ts@1");
+			expect(output).toHaveProperty("items");
+			expect(output.items).toHaveLength(1);
+			expect(output.items[0].id).toBe("two-summaries.ts@1");
 		});
 	});
 
@@ -143,17 +144,17 @@ describe("cli", () => {
 			const stdin = "two-summaries.ts\none-summary.ts";
 			await main([], stdin);
 			const output = JSON.parse(capture.getStdout());
-			expect(Array.isArray(output)).toBe(true);
-			expect(output.length).toBe(2);
+			expect(output).toHaveProperty("items");
+			expect(output.items.length).toBe(2);
 		});
 
 		it("stdin paths are processed via drilldownFiles", async () => {
 			const stdin = "two-summaries.ts";
 			await main([], stdin);
 			const output = JSON.parse(capture.getStdout());
-			expect(Array.isArray(output)).toBe(true);
-			expect(output).toHaveLength(1);
-			expect(output[0].id.split("@")[0]).toBe("two-summaries.ts");
+			expect(output).toHaveProperty("items");
+			expect(output.items).toHaveLength(1);
+			expect(output.items[0].id.split("@")[0]).toBe("two-summaries.ts");
 		});
 
 		it("stdin with -v processes via validateFiles", async () => {
@@ -169,23 +170,23 @@ describe("cli", () => {
 			const stdin = "two-summaries.ts";
 			await main(["@1"], stdin);
 			const output = JSON.parse(capture.getStdout());
-			expect(Array.isArray(output)).toBe(true);
-			expect(output).toHaveLength(1);
-			expect(output[0].id).toBe("two-summaries.ts@1");
+			expect(output).toHaveProperty("items");
+			expect(output.items).toHaveLength(1);
+			expect(output.items[0].id).toBe("two-summaries.ts@1");
 		});
 
 		it("stdin ignores blank lines", async () => {
 			const stdin = "two-summaries.ts\n\n\none-summary.ts\n";
 			await main([], stdin);
 			const output = JSON.parse(capture.getStdout());
-			expect(output.length).toBe(2);
+			expect(output.items.length).toBe(2);
 		});
 
 		it("stdin trims whitespace from paths", async () => {
 			const stdin = "  two-summaries.ts  \n  one-summary.ts  ";
 			await main([], stdin);
 			const output = JSON.parse(capture.getStdout());
-			expect(output.length).toBe(2);
+			expect(output.items.length).toBe(2);
 		});
 
 		it("when both a full selector and stdin are provided, stdin takes priority (depth still extracted from arg)", async () => {
@@ -194,10 +195,10 @@ describe("cli", () => {
 			const stdin = "two-summaries.ts";
 			await main(["some-other-pattern.ts@1"], stdin);
 			const output = JSON.parse(capture.getStdout());
-			expect(Array.isArray(output)).toBe(true);
-			expect(output).toHaveLength(1);
+			expect(output).toHaveProperty("items");
+			expect(output.items).toHaveLength(1);
 			// Depth 1 should be applied from the selector argument
-			expect(output[0].id).toBe("two-summaries.ts@1");
+			expect(output.items[0].id).toBe("two-summaries.ts@1");
 		});
 	});
 
@@ -256,14 +257,15 @@ describe("cli", () => {
 	});
 
 	describe("output", () => {
-		it("normal mode output is valid JSON array on stdout", async () => {
+		it("normal mode output is valid JSON object on stdout", async () => {
 			await main(["two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
-			expect(Array.isArray(output)).toBe(true);
-			expect(output).toHaveLength(1);
-			expect(output[0]).toHaveProperty("id");
-			expect(output[0]).toHaveProperty("more");
-			expect(output[0]).toHaveProperty("text");
+			expect(output).toHaveProperty("items");
+			expect(output).toHaveProperty("summary");
+			expect(output.items).toHaveLength(1);
+			expect(output.items[0]).toHaveProperty("id");
+			expect(output.items[0]).toHaveProperty("more");
+			expect(output.items[0]).toHaveProperty("text");
 		});
 
 		it("validation mode output is valid JSON object on stdout", async () => {
