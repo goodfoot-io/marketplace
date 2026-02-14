@@ -1,12 +1,18 @@
 {
 	"name": "jsdoczoom",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "CLI tool for extracting JSDoc summaries at configurable depths",
 	"type": "module",
 	"sideEffects": false,
 	"engines": {
 		"node": ">=20.11.0"
 	},
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/jsdoczoom",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodfoot-io/marketplace.git",
+    "directory": "packages/jsdoczoom"
+  },
 	"files": [
 		"dist",
 		"types"
