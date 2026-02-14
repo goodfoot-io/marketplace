@@ -58,6 +58,7 @@ function buildLintResult(
 	);
 
 	const cappedFiles = filesWithIssues.slice(0, limit);
+	const truncated = filesWithIssues.length > limit;
 
 	return {
 		files: cappedFiles,
@@ -65,6 +66,7 @@ function buildLintResult(
 			totalFiles,
 			filesWithIssues: filesWithIssues.length,
 			totalDiagnostics,
+			...(truncated ? { truncated: true } : {}),
 		},
 	};
 }

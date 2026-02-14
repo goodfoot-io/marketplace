@@ -3,12 +3,12 @@
 import { resolve } from "node:path";
 import { drilldown, drilldownFiles } from "./drilldown.js";
 import { JsdocError } from "./errors.js";
-import { lint, lintFiles } from "./lint.js";
+import { lint } from "./lint.js";
 import { parseSelector } from "./selector.js";
 import { SKILL_TEXT } from "./skill-text.js";
 import type { LintResult, SelectorInfo, ValidationResult } from "./types.js";
 import { VALIDATION_STATUS_PRIORITY } from "./types.js";
-import { validate, validateFiles } from "./validate.js";
+import { validate } from "./validate.js";
 
 /**
  * Parses argv flags (--help, --validate, --lint, --skill, --pretty, --limit,
@@ -31,7 +31,7 @@ Options:
   -l, --lint       Run lint mode (comprehensive JSDoc quality)
   -s, --skill      Print JSDoc writing guidelines
   --pretty         Format JSON output with 2-space indent
-  --limit N        Max results shown (default 100)
+  --limit N        Max results shown (default 500)
   --no-gitignore   Include files ignored by .gitignore
 
 Selector:
@@ -54,6 +54,15 @@ Output:
 Barrel gating (glob mode):
   index.ts files with a @summary gate sibling files at depths 1-2.
   At depth 3 the barrel disappears and its children appear at depth 1.
+
+Modes:
+  -v  Validate file-level structure (has JSDoc block, @summary, description)
+  -l  Lint comprehensive JSDoc quality (file-level + function-level tags)
+
+Exit codes:
+  0  Success (all files pass)
+  1  Runtime error (invalid arguments, missing files)
+  2  Validation or lint failures found
 
 Workflow:
   $ jsdoczoom src/**/*.ts
@@ -85,7 +94,7 @@ function parseArgs(args: string[]): {
 	let lintMode = false;
 	let skillMode = false;
 	let pretty = false;
-	let limit = 100;
+	let limit = 500;
 	let gitignore = true;
 	let selectorArg: string | undefined;
 
@@ -107,10 +116,7 @@ function parseArgs(args: string[]): {
 		} else if (arg === "--no-gitignore") {
 			gitignore = false;
 		} else if (arg.startsWith("-")) {
-			throw new JsdocError(
-				"INVALID_SELECTOR",
-				`Unrecognized option: ${arg}`,
-			);
+			throw new JsdocError("INVALID_SELECTOR", `Unrecognized option: ${arg}`);
 		} else if (selectorArg === undefined) {
 			selectorArg = arg;
 		}
@@ -319,14 +325,16 @@ function writeValidationResult(
 			pretty,
 		);
 	} else {
-		writeResult({ ...result, success: false }, pretty);
-		process.stderr.write(
-			`${JSON.stringify(
-				new JsdocError(
-					"VALIDATION_FAILED",
-					`${invalidCount} file(s) failed validation`,
-				).toJSON(),
-			)}\n`,
+		writeResult(
+			{
+				...result,
+				success: false,
+				error: {
+					code: "VALIDATION_FAILED",
+					message: `${invalidCount} file(s) failed validation`,
+				},
+			},
+			pretty,
 		);
 		process.exitCode = 2;
 	}
@@ -339,6 +347,12 @@ function writeLintResult(result: LintResult, pretty: boolean): void {
 	writeResult(result, pretty);
 	if (result.summary.filesWithIssues > 0) {
 		process.exitCode = 2;
+		// Warn if output was truncated
+		if (result.summary.filesWithIssues > result.files.length) {
+			process.stderr.write(
+				`Warning: output truncated to ${result.files.length} of ${result.summary.filesWithIssues} files with issues. Use --limit to see more.\n`,
+			);
+		}
 	}
 }
 

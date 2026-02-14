@@ -10,6 +10,32 @@ import jsdocPlugin from "eslint-plugin-jsdoc";
 import plugin from "./eslint-plugin.js";
 import type { LintDiagnostic, ValidationStatus } from "./types.js";
 
+/** Common invalid JSDoc tags and their recommended replacements */
+const TAG_MIGRATION_HINTS: Record<string, string> = {
+	"@remarks": "Move content to the description paragraph (prose before tags)",
+	"@packageDocumentation": "Use @module instead",
+	"@concept": "Move content to the description paragraph",
+	"@constraint": "Move content to the description paragraph",
+	"@vitest-environment":
+		"Use a plain comment instead: // @vitest-environment node",
+};
+
+/**
+ * Enhance a check-tag-names diagnostic message with a migration hint
+ * if the invalid tag is a commonly encountered one.
+ *
+ * @param message - Original ESLint diagnostic message
+ * @returns Enhanced message with hint, or original message if no hint available
+ */
+function enhanceTagNameMessage(message: string): string {
+	for (const [tag, hint] of Object.entries(TAG_MIGRATION_HINTS)) {
+		if (message.includes(tag)) {
+			return `${message} (Hint: ${hint})`;
+		}
+	}
+	return message;
+}
+
 /**
  * Creates an ESLint instance configured for validation mode.
  *
@@ -110,6 +136,32 @@ export async function lintFileForValidation(
 }
 
 /**
+ * Extract the nearest symbol name from source text at a given line.
+ * Looks at lines from the diagnostic line downward (up to 3 lines)
+ * for function, class, method, or variable declarations.
+ *
+ * @param sourceText - Full file source text
+ * @param line - 1-based line number from the diagnostic
+ * @returns Symbol name if found, undefined otherwise
+ */
+function extractSymbolName(
+	sourceText: string,
+	line: number,
+): string | undefined {
+	const lines = sourceText.split("\n");
+	const searchEnd = Math.min(line + 2, lines.length);
+	const declarationPattern =
+		/(?:export\s+)?(?:async\s+)?(?:function\s+(\w+)|class\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=|(\w+)\s*\()/;
+	for (let i = line - 1; i <= searchEnd; i++) {
+		const match = lines[i]?.match(declarationPattern);
+		if (match) {
+			return match[1] ?? match[2] ?? match[3] ?? match[4];
+		}
+	}
+	return undefined;
+}
+
+/**
  * Lints source text for lint mode and returns detailed diagnostics.
  *
  * @param eslint - ESLint instance (typically from createLintLinter)
@@ -124,13 +176,23 @@ export async function lintFileForLint(
 ): Promise<LintDiagnostic[]> {
 	const results = await eslint.lintText(sourceText, { filePath });
 	if (results.length === 0) return [];
-	return results[0].messages.map((msg) => ({
-		line: msg.line,
-		column: msg.column,
-		rule: msg.ruleId ?? "unknown",
-		message: msg.message,
-		severity: msg.severity === 2 ? "error" : "warning",
-	}));
+	return results[0].messages.map((msg) => {
+		const diagnostic: LintDiagnostic = {
+			line: msg.line,
+			column: msg.column,
+			rule: msg.ruleId ?? "unknown",
+			message:
+				msg.ruleId === "jsdoc/check-tag-names"
+					? enhanceTagNameMessage(msg.message)
+					: msg.message,
+			severity: msg.severity === 2 ? "error" : "warning",
+		};
+		const symbol = extractSymbolName(sourceText, msg.line);
+		if (symbol) {
+			diagnostic.symbol = symbol;
+		}
+		return diagnostic;
+	});
 }
 
 /**

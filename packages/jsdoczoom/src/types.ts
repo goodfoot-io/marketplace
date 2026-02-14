@@ -10,7 +10,7 @@
 export interface OutputItemNext {
 	next_id: string;
 	text: string;
-	children?: string[];  // gated file/directory paths (barrel only)
+	children?: string[]; // gated file/directory paths (barrel only)
 }
 
 /** Output item at terminal level — id represents the current (final) state */
@@ -83,6 +83,7 @@ export interface ValidationResult {
 	multiple_summary?: ValidationGroup;
 	missing_description?: ValidationGroup;
 	missing_barrel?: ValidationGroup;
+	truncated?: boolean;
 }
 
 /** Parsed summary and description from a file's JSDoc */
@@ -108,6 +109,7 @@ export interface LintDiagnostic {
 	rule: string;
 	message: string;
 	severity: "error" | "warning";
+	symbol?: string;
 }
 
 /** Lint result for a single file */
@@ -123,5 +125,6 @@ export interface LintResult {
 		totalFiles: number;
 		filesWithIssues: number;
 		totalDiagnostics: number;
+		truncated?: boolean;
 	};
 }

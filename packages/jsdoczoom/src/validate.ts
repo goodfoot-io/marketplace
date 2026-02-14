@@ -117,14 +117,20 @@ function buildGroupedResult(
 	const result: ValidationResult = {};
 
 	let remaining = limit;
+	let totalInvalid = 0;
 	for (const status of VALIDATION_STATUS_PRIORITY) {
 		const files = groups[status];
+		totalInvalid += files.length;
 		if (files.length === 0) continue;
 		if (remaining <= 0) break;
 
 		const slice = files.slice(0, remaining);
 		result[status] = { guidance: GUIDANCE[status], files: slice };
 		remaining -= slice.length;
+	}
+
+	if (remaining <= 0 && totalInvalid > limit) {
+		result.truncated = true;
 	}
 
 	return result;

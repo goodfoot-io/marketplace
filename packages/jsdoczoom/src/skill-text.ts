@@ -250,4 +250,112 @@ import { globSync } from "glob";
 export function discoverFiles(...) { ... }
 \`\`\`
 
+### Common lint rules and examples
+
+These rules are enforced in lint mode (\`-l\`). Understanding what passes and fails reduces trial-and-rerun cycles.
+
+#### \`jsdoc/informative-docs\` — descriptions must add meaning
+
+This rule rejects descriptions that merely restate the parameter name, type, or containing symbol name. Descriptions must provide behavioral context.
+
+**Fails:**
+- \`@param id - The id\`
+- \`@param options - The options object\`
+- \`@returns The result\`
+- \`@param name - The name string\`
+
+**Passes:**
+- \`@param id - Unique identifier used for cache lookup and deduplication\`
+- \`@param options - Controls retry behavior, timeout, and error handling strategy\`
+- \`@returns Parsed configuration with defaults applied for missing fields\`
+- \`@param name - Display name shown in the navigation sidebar\`
+
+**Rule of thumb:** If removing the parameter name from the description leaves no useful information, the description is not informative enough.
+
+#### \`jsdoc/check-tag-names\` — allowed tags only
+
+The lint configuration rejects non-standard JSDoc tags. Common tags to **avoid in JSDoc blocks**:
+- \`@remarks\` — move content to the description paragraph (prose before tags)
+- \`@packageDocumentation\` — use \`@module\` instead
+- \`@concept\`, \`@constraint\` — move content to the description paragraph
+
+Framework directives that look like tags (e.g., \`@vitest-environment\`) should use plain comments instead:
+\`\`\`typescript
+// @vitest-environment node   ← correct (plain comment)
+/** @vitest-environment node */  ← incorrect (treated as JSDoc tag)
+\`\`\`
+
+#### \`jsdoc/require-throws\` — document throw conditions
+
+Include \`@throws\` for any function that can throw, including catch-and-rethrow patterns:
+\`\`\`typescript
+/**
+ * @param path - File path to read
+ * @returns Parsed configuration object
+ * @throws {ConfigError} When the file is missing or contains invalid YAML
+ */
+\`\`\`
+
+If a function catches errors and rethrows them (wrapped or unwrapped), it still needs \`@throws\`.
+
+### Nested object parameters
+
+When a function accepts an inline object parameter, document each property with a nested \`@param\` tag:
+
+\`\`\`typescript
+/**
+ * Create a new user account.
+ *
+ * @param data - Account creation payload
+ * @param data.email - Email address used for login and notifications
+ * @param data.displayName - Public-facing name shown in the UI
+ * @param data.role - Initial permission level assigned to the account
+ * @returns The created user record with generated ID
+ */
+function createUser(data: { email: string; displayName: string; role: Role }): User {
+\`\`\`
+
+For React component props, use \`props\` (or \`root0\` if destructured) as the root:
+
+\`\`\`typescript
+/**
+ * @param props - Component properties
+ * @param props.title - Page heading displayed at the top
+ * @param props.onSubmit - Callback invoked when the form is submitted
+ */
+function MyComponent(props: { title: string; onSubmit: () => void }) {
+\`\`\`
+
+### Overload documentation
+
+When a function has TypeScript overload signatures, document **both** the overload declarations and the implementation signature:
+
+\`\`\`typescript
+/**
+ * Parse a value from a string representation.
+ *
+ * @param input - Raw string to parse
+ * @returns Parsed numeric value
+ */
+function parse(input: string): number;
+/**
+ * Parse a value from a buffer.
+ *
+ * @param input - Binary buffer to parse
+ * @returns Parsed numeric value
+ */
+function parse(input: Buffer): number;
+/**
+ * Parse a value from string or buffer input. String inputs are decoded
+ * as UTF-8 before numeric parsing.
+ *
+ * @param input - String or buffer to parse
+ * @returns Parsed numeric value
+ * @throws {ParseError} When the input cannot be interpreted as a number
+ */
+function parse(input: string | Buffer): number {
+  // implementation
+}
+\`\`\`
+
 `;

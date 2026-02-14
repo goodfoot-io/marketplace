@@ -255,10 +255,9 @@ describe("cli", () => {
 			await main(["-v", "description-only.ts"]);
 			expect(process.exitCode).toBe(2);
 
-			// Stderr should have VALIDATION_FAILED
-			const errOutput = capture.getStderr();
-			const parsed = JSON.parse(errOutput);
-			expect(parsed.error.code).toBe("VALIDATION_FAILED");
+			// Stdout should have VALIDATION_FAILED error nested in the result
+			const output = JSON.parse(capture.getStdout());
+			expect(output.error.code).toBe("VALIDATION_FAILED");
 		});
 
 		it("exit code 0 on success", async () => {
@@ -325,16 +324,16 @@ describe("cli", () => {
 			expect(process.exitCode).toBe(0);
 		});
 
-		it("validation failure writes result to stdout and error to stderr", async () => {
+		it("validation failure writes single consolidated result to stdout", async () => {
 			await main(["-v", "description-only.ts"]);
-			// stdout has the validation result with groups and success: false
+			// stdout has the validation result with groups, success: false, and nested error
 			const output = JSON.parse(capture.getStdout());
 			expect(output.success).toBe(false);
 			expect(output.missing_summary).toBeDefined();
 			expect(output.missing_summary.files).toEqual(["description-only.ts"]);
-			// stderr has the VALIDATION_FAILED error
-			const errOutput = JSON.parse(capture.getStderr());
-			expect(errOutput.error.code).toBe("VALIDATION_FAILED");
+			// Error metadata is nested in the stdout result, not on stderr
+			expect(output.error.code).toBe("VALIDATION_FAILED");
+			expect(capture.getStderr()).toBe("");
 			expect(process.exitCode).toBe(2);
 		});
 	});
