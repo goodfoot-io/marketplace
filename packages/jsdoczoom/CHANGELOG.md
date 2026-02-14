@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.1
+- Added package homepage and repository metadata for improved discoverability on npm
+
 ## 0.2.0
 - Added `--explain-rule` CLI flag to display detailed explanations and examples for lint rules
 - Added `require-file-ordering` rule to enforce file-level JSDoc structure with validation for duplicate blocks and proper tag ordering
