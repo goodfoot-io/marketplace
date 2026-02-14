@@ -286,7 +286,7 @@ const requireFileOrdering: Rule.RuleModule = {
 
 				let fileJsdocComments: Comment[] = [];
 
-				if (firstNonImport && firstNonImport.loc) {
+				if (firstNonImport?.loc) {
 					// Find JSDoc blocks before the first non-import statement
 					const firstNonImportLine = firstNonImport.loc.start.line;
 

@@ -199,9 +199,19 @@ function extractSymbolName(
 			const name = methodMatch[1];
 			// Skip common control flow keywords
 			if (
-				!["if", "for", "while", "switch", "catch", "return", "import", "from", "new", "await", "throw"].includes(
-					name,
-				)
+				![
+					"if",
+					"for",
+					"while",
+					"switch",
+					"catch",
+					"return",
+					"import",
+					"from",
+					"new",
+					"await",
+					"throw",
+				].includes(name)
 			) {
 				return name;
 			}
