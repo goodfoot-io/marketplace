@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+- Added `--explain-rule` CLI flag to display detailed explanations and examples for lint rules
+- Added `require-file-ordering` rule to enforce file-level JSDoc structure with validation for duplicate blocks and proper tag ordering
+- Improved symbol detection with more robust pattern matching for functions, classes, interfaces, type aliases, variables, getters/setters, and class methods
+- Added skill-based prompt templates and interactive CLI features
+- Added schema and content validation
+
 ## 0.1.0
 - Initial release of `jsdoczoom` — a CLI tool for extracting JSDoc summaries at configurable depths
 - Progressive exploration of TypeScript codebases with four detail levels (summary, description, type declarations, full source)
@@ -12,4 +19,3 @@
 - `.gitignore`-aware file discovery with `--no-gitignore` escape hatch
 - JSON output with `--pretty` formatting and `--limit` result cap
 - Programmatic API for use as a library
-
