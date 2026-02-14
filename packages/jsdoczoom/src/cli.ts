@@ -5,7 +5,7 @@ import { drilldown, drilldownFiles } from "./drilldown.js";
 import { JsdocError } from "./errors.js";
 import { lint } from "./lint.js";
 import { parseSelector } from "./selector.js";
-import { SKILL_TEXT } from "./skill-text.js";
+import { RULE_EXPLANATIONS, SKILL_TEXT } from "./skill-text.js";
 import type { LintResult, SelectorInfo, ValidationResult } from "./types.js";
 import { VALIDATION_STATUS_PRIORITY } from "./types.js";
 import { validate } from "./validate.js";
@@ -33,6 +33,7 @@ Options:
   --pretty         Format JSON output with 2-space indent
   --limit N        Max results shown (default 500)
   --no-gitignore   Include files ignored by .gitignore
+  --explain-rule R  Explain a lint rule with examples (e.g. jsdoc/informative-docs)
 
 Selector:
   A glob pattern or file path, optionally with @depth suffix (1-4).
@@ -87,6 +88,7 @@ function parseArgs(args: string[]): {
 	pretty: boolean;
 	limit: number;
 	gitignore: boolean;
+	explainRule: string | undefined;
 	selectorArg: string | undefined;
 } {
 	let help = false;
@@ -96,6 +98,7 @@ function parseArgs(args: string[]): {
 	let pretty = false;
 	let limit = 500;
 	let gitignore = true;
+	let explainRule: string | undefined;
 	let selectorArg: string | undefined;
 
 	for (let i = 0; i < args.length; i++) {
@@ -115,6 +118,9 @@ function parseArgs(args: string[]): {
 			limit = Number(next);
 		} else if (arg === "--no-gitignore") {
 			gitignore = false;
+		} else if (arg === "--explain-rule") {
+			const next = args[++i];
+			explainRule = next;
 		} else if (arg.startsWith("-")) {
 			throw new JsdocError("INVALID_SELECTOR", `Unrecognized option: ${arg}`);
 		} else if (selectorArg === undefined) {
@@ -130,6 +136,7 @@ function parseArgs(args: string[]): {
 		pretty,
 		limit,
 		gitignore,
+		explainRule,
 		selectorArg,
 	};
 }
@@ -242,6 +249,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 			pretty,
 			limit,
 			gitignore,
+			explainRule,
 			selectorArg,
 		} = parseArgs(args);
 
@@ -252,6 +260,22 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 
 		if (skillMode) {
 			process.stdout.write(SKILL_TEXT);
+			return;
+		}
+
+		if (explainRule !== undefined) {
+			const explanation = RULE_EXPLANATIONS[explainRule];
+			if (explanation) {
+				process.stdout.write(explanation);
+			} else {
+				const available = Object.keys(RULE_EXPLANATIONS).join(", ");
+				writeError(
+					new JsdocError(
+						"INVALID_SELECTOR",
+						`Unknown rule: ${explainRule}. Available rules: ${available}`,
+					),
+				);
+			}
 			return;
 		}
 

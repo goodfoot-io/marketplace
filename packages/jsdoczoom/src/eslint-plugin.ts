@@ -250,11 +250,176 @@ const requireFileDescription: Rule.RuleModule = {
 	},
 };
 
+const requireFileOrdering: Rule.RuleModule = {
+	meta: {
+		type: "problem",
+		messages: {
+			duplicateFileJsdoc:
+				"File has multiple file-level JSDoc blocks. Keep exactly one.",
+			descriptionAfterTags:
+				"Description text appears after @tags. Place description paragraphs before the first @tag.",
+		},
+		schema: [],
+	},
+	create(context) {
+		return {
+			Program(node) {
+				const sourceCode = context.sourceCode;
+				const firstNonImport = node.body.find(
+					(n) => n.type !== "ImportDeclaration",
+				);
+
+				const allComments = sourceCode.getAllComments();
+
+				// Filter to JSDoc block comments (/** but not /***)
+				const jsdocComments = allComments.filter(
+					(c) =>
+						c.type === "Block" &&
+						c.value.startsWith("*") &&
+						!c.value.startsWith("**"),
+				);
+
+				// Check for duplicates: count consecutive JSDoc blocks before first non-import
+				// JSDoc blocks are consecutive if there's no code or blank lines between them
+				const sourceText = sourceCode.getText();
+				const sourceLines = sourceText.split("\n");
+
+				let fileJsdocComments: Comment[] = [];
+
+				if (firstNonImport && firstNonImport.loc) {
+					// Find JSDoc blocks before the first non-import statement
+					const firstNonImportLine = firstNonImport.loc.start.line;
+
+					for (const comment of jsdocComments) {
+						if (comment.loc && comment.loc.end.line < firstNonImportLine) {
+							fileJsdocComments.push(comment);
+						}
+					}
+
+					// Filter to only consecutive JSDoc blocks (no blank lines between them)
+					// Start from the first JSDoc and count consecutive ones
+					if (fileJsdocComments.length > 1) {
+						const consecutive: Comment[] = [fileJsdocComments[0]];
+						for (let i = 1; i < fileJsdocComments.length; i++) {
+							const prev = fileJsdocComments[i - 1];
+							const curr = fileJsdocComments[i];
+							if (prev.loc && curr.loc) {
+								// Check if there's a blank line between them
+								const prevEndLine = prev.loc.end.line;
+								const currStartLine = curr.loc.start.line;
+								let hasBlankLine = false;
+								for (let line = prevEndLine; line < currStartLine - 1; line++) {
+									if (sourceLines[line]?.trim() === "") {
+										hasBlankLine = true;
+										break;
+									}
+								}
+								if (!hasBlankLine) {
+									consecutive.push(curr);
+								} else {
+									// Stop counting after the first blank line
+									break;
+								}
+							}
+						}
+						fileJsdocComments = consecutive;
+					}
+				} else if (!firstNonImport) {
+					// If no non-import statements, count all consecutive JSDoc comments from start
+					for (const comment of jsdocComments) {
+						fileJsdocComments.push(comment);
+					}
+
+					// Filter to consecutive from the start
+					if (fileJsdocComments.length > 1) {
+						const consecutive: Comment[] = [fileJsdocComments[0]];
+						for (let i = 1; i < fileJsdocComments.length; i++) {
+							const prev = fileJsdocComments[i - 1];
+							const curr = fileJsdocComments[i];
+							if (prev.loc && curr.loc) {
+								const prevEndLine = prev.loc.end.line;
+								const currStartLine = curr.loc.start.line;
+								let hasBlankLine = false;
+								for (let line = prevEndLine; line < currStartLine - 1; line++) {
+									if (sourceLines[line]?.trim() === "") {
+										hasBlankLine = true;
+										break;
+									}
+								}
+								if (!hasBlankLine) {
+									consecutive.push(curr);
+								} else {
+									break;
+								}
+							}
+						}
+						fileJsdocComments = consecutive;
+					}
+				}
+
+				// Check for duplicates
+				if (fileJsdocComments.length > 1) {
+					context.report({
+						node,
+						messageId: "duplicateFileJsdoc",
+					});
+				}
+
+				// Check for description-after-tags ordering
+				const jsdocComment = findFileJsdocComment(sourceCode, node.body);
+				if (jsdocComment === null) {
+					return;
+				}
+
+				// Parse line by line to detect description after tags
+				const innerText = jsdocComment.value.slice(1);
+				const lines = innerText.split("\n");
+
+				let hasDescriptionBeforeTags = false;
+				let seenTag = false;
+
+				for (const rawLine of lines) {
+					const stripped = rawLine.replace(/^\s*\*?\s?/, "");
+
+					// Check if this line starts a new tag
+					const tagMatch = stripped.match(/^@([a-zA-Z]+)(?:\s|$)/);
+
+					if (tagMatch) {
+						seenTag = true;
+						continue;
+					}
+
+					// If we haven't seen a tag yet, check if this is description content
+					if (!seenTag && stripped.length > 0) {
+						hasDescriptionBeforeTags = true;
+						continue;
+					}
+
+					// After we've seen a tag, check if this is description content
+					if (seenTag && stripped.length > 0) {
+						// If there was description before tags, this is likely tag continuation (allowed)
+						// If there was NO description before tags, this is description-after-tags (violation)
+						if (!hasDescriptionBeforeTags) {
+							context.report({
+								node,
+								messageId: "descriptionAfterTags",
+							});
+							// Report once and stop
+							break;
+						}
+					}
+				}
+			},
+		};
+	},
+};
+
 const plugin = {
 	rules: {
 		"require-file-jsdoc": requireFileJsdoc,
 		"require-file-summary": requireFileSummary,
 		"require-file-description": requireFileDescription,
+		"require-file-ordering": requireFileOrdering,
 	},
 } as const;
 

@@ -18,6 +18,7 @@ const config: LinterType.Config = {
 		"jsdoczoom/require-file-jsdoc": "error",
 		"jsdoczoom/require-file-summary": "error",
 		"jsdoczoom/require-file-description": "error",
+		"jsdoczoom/require-file-ordering": "warn",
 	},
 	languageOptions: {
 		ecmaVersion: "latest" as const,
@@ -248,5 +249,78 @@ describe("jsdoczoom/require-file-description", () => {
 		expect(ruleIds(messages)).not.toContain(
 			"jsdoczoom/require-file-description",
 		);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// require-file-ordering
+// ---------------------------------------------------------------------------
+
+describe("jsdoczoom/require-file-ordering", () => {
+	it("valid: description before tags produces no ordering messages", () => {
+		const code = [
+			"/** Description here.",
+			" * @summary Summary */",
+			"export const x = 1;",
+		].join("\n");
+		const messages = verify(code);
+		const orderingMessages = messages.filter(
+			(m) => m.ruleId === "jsdoczoom/require-file-ordering",
+		);
+		expect(orderingMessages).toHaveLength(0);
+	});
+
+	it("invalid: description after tags produces descriptionAfterTags", () => {
+		const code = [
+			"/** @summary Summary",
+			" * Description after tag */",
+			"export const x = 1;",
+		].join("\n");
+		const messages = verify(code);
+		expect(ruleIds(messages)).toContain("jsdoczoom/require-file-ordering");
+		expect(messageIds(messages)).toContain("descriptionAfterTags");
+	});
+
+	it("invalid: duplicate file-level JSDoc blocks produces duplicateFileJsdoc", () => {
+		const code = [
+			"/** First block.",
+			" * @summary S1 */",
+			"/** Second block.",
+			" * @summary S2 */",
+			"export const x = 1;",
+		].join("\n");
+		const messages = verify(code);
+		expect(ruleIds(messages)).toContain("jsdoczoom/require-file-ordering");
+		expect(messageIds(messages)).toContain("duplicateFileJsdoc");
+	});
+
+	it("valid: tag continuation lines are not false positives", () => {
+		const code = [
+			"/** Description.",
+			" * @summary Multi-line",
+			" * summary continuation */",
+			"export const x = 1;",
+		].join("\n");
+		const messages = verify(code);
+		const orderingMessages = messages.filter(
+			(m) => m.ruleId === "jsdoczoom/require-file-ordering",
+		);
+		expect(orderingMessages).toHaveLength(0);
+	});
+
+	it("valid: single JSDoc block with correct ordering produces no messages", () => {
+		const code = [
+			"/** This file does something important.",
+			" *",
+			" * It has multiple description lines.",
+			" *",
+			" * @summary Important file */",
+			"export const x = 1;",
+		].join("\n");
+		const messages = verify(code);
+		const orderingMessages = messages.filter(
+			(m) => m.ruleId === "jsdoczoom/require-file-ordering",
+		);
+		expect(orderingMessages).toHaveLength(0);
 	});
 });

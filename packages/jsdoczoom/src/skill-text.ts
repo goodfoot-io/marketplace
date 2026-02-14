@@ -66,7 +66,25 @@ Create an \`index.ts\` that re-exports the directory's public API and add a file
 
 	missing_description: `### The description paragraph
 
-The description is prose that appears before any \`@\` tags. It provides the deeper context that the summary cannot — responsibilities, invariants, trade-offs, and failure modes.
+The description is prose that **must appear before the first \`@\` tag** in the file-level JSDoc block. Text placed after tags is not recognized as description content.
+
+**Correct ordering:**
+\`\`\`typescript
+/**
+ * Description paragraph goes here, before any tags.
+ *
+ * @summary One-line overview
+ */
+\`\`\`
+
+**Incorrect ordering (description will not be detected):**
+\`\`\`typescript
+/**
+ * @summary One-line overview
+ *
+ * Description paragraph after the tag — this will NOT be recognized.
+ */
+\`\`\`
 
 **Good descriptions:**
 - Explain *why* this file exists and what problem it solves
@@ -359,3 +377,374 @@ function parse(input: string | Buffer): number {
 \`\`\`
 
 `;
+
+/** Explanation text for each lint rule, used by --explain-rule */
+export const RULE_EXPLANATIONS: Record<string, string> = {
+	"jsdoc/require-jsdoc": `## jsdoc/require-jsdoc
+
+Requires JSDoc blocks on all public (exported) declarations: functions, classes, methods, and named exports.
+
+**Triggers on:**
+\`\`\`typescript
+export function process(data: Data): Result { ... }  // missing JSDoc
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/**
+ * Transform raw data into a normalized result.
+ *
+ * @param data - Input payload to process
+ * @returns Normalized result with defaults applied
+ */
+export function process(data: Data): Result { ... }
+\`\`\`
+
+Non-exported (private/internal) declarations do not require JSDoc.
+`,
+
+	"jsdoc/require-param": `## jsdoc/require-param
+
+Requires an \`@param\` tag for every parameter of a documented function.
+
+**Triggers on:**
+\`\`\`typescript
+/**
+ * Load a configuration file.
+ */
+function loadConfig(path: string, strict: boolean): Config { ... }
+// Missing @param path and @param strict
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/**
+ * Load a configuration file.
+ *
+ * @param path - Absolute path to the YAML config file
+ * @param strict - When true, unknown keys cause a validation error
+ */
+function loadConfig(path: string, strict: boolean): Config { ... }
+\`\`\`
+
+For inline object parameters, nested properties also require tags:
+\`\`\`typescript
+/**
+ * @param options - Request options
+ * @param options.timeout - Max wait time in milliseconds
+ * @param options.retries - Number of retry attempts on failure
+ */
+\`\`\`
+`,
+
+	"jsdoc/require-param-description": `## jsdoc/require-param-description
+
+Requires every \`@param\` tag to include a description, not just the parameter name.
+
+**Triggers on:**
+\`\`\`typescript
+/** @param path */
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/** @param path - Absolute filesystem path to the input file */
+\`\`\`
+`,
+
+	"jsdoc/require-returns": `## jsdoc/require-returns
+
+Requires an \`@returns\` tag for functions that return a value (non-void).
+
+**Triggers on:**
+\`\`\`typescript
+/**
+ * Parse the input string.
+ *
+ * @param input - Raw input text
+ */
+function parse(input: string): ParsedResult { ... }
+// Missing @returns
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/**
+ * Parse the input string.
+ *
+ * @param input - Raw input text
+ * @returns Parsed result with extracted tokens and metadata
+ */
+function parse(input: string): ParsedResult { ... }
+\`\`\`
+`,
+
+	"jsdoc/require-returns-description": `## jsdoc/require-returns-description
+
+Requires every \`@returns\` tag to include a description.
+
+**Triggers on:**
+\`\`\`typescript
+/** @returns */
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/** @returns The normalized configuration with defaults applied */
+\`\`\`
+`,
+
+	"jsdoc/require-throws": `## jsdoc/require-throws
+
+Requires \`@throws\` tags for functions that contain throw statements.
+
+**Triggers on:**
+\`\`\`typescript
+/**
+ * Read a config file.
+ *
+ * @param path - File path
+ * @returns Parsed config
+ */
+function readConfig(path: string): Config {
+  if (!existsSync(path)) throw new Error("not found");
+  // ...
+}
+// Missing @throws
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/**
+ * Read a config file.
+ *
+ * @param path - File path
+ * @returns Parsed config
+ * @throws {Error} When the file does not exist or contains invalid syntax
+ */
+\`\`\`
+
+Functions that catch and rethrow errors also need \`@throws\`.
+`,
+
+	"jsdoc/check-param-names": `## jsdoc/check-param-names
+
+Ensures \`@param\` tag names match actual parameter names and are in the correct order.
+
+**Triggers on:**
+\`\`\`typescript
+/**
+ * @param name - User name
+ * @param id - User ID
+ */
+function getUser(id: string, name: string) { ... }
+// Parameters are in the wrong order
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/**
+ * @param id - User ID
+ * @param name - User name
+ */
+function getUser(id: string, name: string) { ... }
+\`\`\`
+`,
+
+	"jsdoc/check-tag-names": `## jsdoc/check-tag-names
+
+Rejects non-standard or unsupported JSDoc tags. Only standard JSDoc tags are allowed.
+
+**Common invalid tags and fixes:**
+- \`@remarks\` — move content to the description paragraph (prose before tags)
+- \`@packageDocumentation\` — use \`@module\` instead
+- \`@concept\`, \`@constraint\` — move content to the description paragraph
+- \`@vitest-environment\` — use a plain comment: \`// @vitest-environment node\`
+
+**Triggers on:**
+\`\`\`typescript
+/** @remarks This is important context. */
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/**
+ * This is important context.
+ *
+ * @summary Overview line
+ */
+\`\`\`
+`,
+
+	"jsdoc/no-types": `## jsdoc/no-types
+
+Disallows type annotations in JSDoc tags. In TypeScript, types come from the type system.
+
+**Triggers on:**
+\`\`\`typescript
+/** @param {string} name - The user name */
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/** @param name - The user name */
+\`\`\`
+`,
+
+	"jsdoc/informative-docs": `## jsdoc/informative-docs
+
+Rejects JSDoc descriptions that merely restate the symbol name, type, or parameter name without adding meaning.
+
+**Triggers on (not informative):**
+- \`@param id - The id\`
+- \`@param options - The options object\`
+- \`@returns The result\`
+- \`@param name - The name string\`
+- \`@param data - Data to process\`
+
+**Passes with (adds behavioral context):**
+- \`@param id - Unique identifier used for cache lookup and deduplication\`
+- \`@param options - Controls retry behavior, timeout, and error handling strategy\`
+- \`@returns Parsed configuration with defaults applied for missing fields\`
+- \`@param name - Display name shown in the navigation sidebar\`
+- \`@param data - Raw sensor payload including timestamp and device metadata\`
+
+**Rule of thumb:** If removing the parameter name from the description leaves no useful information, the description is not informative enough.
+`,
+
+	"jsdoc/no-blank-blocks": `## jsdoc/no-blank-blocks
+
+Disallows empty JSDoc blocks with no content.
+
+**Triggers on:**
+\`\`\`typescript
+/** */
+function doSomething() { ... }
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/**
+ * Execute the primary processing pipeline.
+ */
+function doSomething() { ... }
+\`\`\`
+`,
+
+	"jsdoc/require-description": `## jsdoc/require-description
+
+Requires a text description in every JSDoc block (not just tags).
+
+**Triggers on:**
+\`\`\`typescript
+/**
+ * @param path - File path
+ * @returns Config object
+ */
+function loadConfig(path: string): Config { ... }
+// Has tags but no description text
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/**
+ * Load and parse a YAML configuration file with schema validation.
+ *
+ * @param path - File path
+ * @returns Config object
+ */
+function loadConfig(path: string): Config { ... }
+\`\`\`
+`,
+
+	"jsdoczoom/require-file-jsdoc": `## jsdoczoom/require-file-jsdoc
+
+Requires a file-level JSDoc block (\`/** ... */\`) before the first code statement.
+
+**Triggers on:** Files with no JSDoc block before the first export, const, function, class, etc.
+
+**Passes with:**
+\`\`\`typescript
+import { resolve } from "node:path";
+
+/**
+ * Description of what this file does.
+ *
+ * @summary One-line overview
+ */
+
+export function example() { ... }
+\`\`\`
+`,
+
+	"jsdoczoom/require-file-summary": `## jsdoczoom/require-file-summary
+
+Requires exactly one \`@summary\` tag (exact lowercase) in the file-level JSDoc block.
+
+**Important:** Only exact lowercase \`@summary\` is recognized. \`@Summary\`, \`@SUMMARY\`, and other case variants are ignored.
+
+**Triggers on:**
+- Files with no \`@summary\` tag in the file-level block
+- Files with multiple \`@summary\` tags
+
+**Passes with:**
+\`\`\`typescript
+/**
+ * Description of the module.
+ *
+ * @summary Concise one-line overview of what this file does
+ */
+\`\`\`
+`,
+
+	"jsdoczoom/require-file-description": `## jsdoczoom/require-file-description
+
+Requires description content in the file-level JSDoc block. The description must appear as free-text before \`@\` tags, or use a description-synonym tag (\`@desc\`, \`@description\`, \`@file\`, \`@fileoverview\`).
+
+**Triggers on:**
+\`\`\`typescript
+/** @summary Summary only */
+export const x = 1;
+// No description text before the tag
+\`\`\`
+
+**Passes with:**
+\`\`\`typescript
+/**
+ * This module handles user authentication and session management.
+ *
+ * @summary Auth module
+ */
+\`\`\`
+
+**Important:** Description text must appear **before** the first \`@\` tag. Text after tags is not recognized as description.
+`,
+
+	"jsdoczoom/require-file-ordering": `## jsdoczoom/require-file-ordering
+
+Warns when the file-level JSDoc block has structural issues:
+1. Multiple file-level JSDoc blocks before the first code statement
+2. Description text appearing after \`@\` tags instead of before them
+
+**Correct ordering:**
+\`\`\`typescript
+/**
+ * Description paragraph first.
+ *
+ * More description if needed.
+ *
+ * @summary Overview line
+ * @module my-module
+ */
+\`\`\`
+
+**Incorrect (description after tags):**
+\`\`\`typescript
+/**
+ * @summary Overview line
+ *
+ * Description paragraph after tags — will trigger a warning.
+ */
+\`\`\`
+`,
+};

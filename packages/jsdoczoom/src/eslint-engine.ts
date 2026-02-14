@@ -86,6 +86,7 @@ export function createLintLinter(cwd?: string): ESLint {
 					"jsdoczoom/require-file-jsdoc": "error",
 					"jsdoczoom/require-file-summary": "error",
 					"jsdoczoom/require-file-description": "error",
+					"jsdoczoom/require-file-ordering": "warn",
 					"jsdoc/require-jsdoc": ["error", { publicOnly: true }],
 					"jsdoc/require-param": "warn",
 					"jsdoc/require-param-description": "warn",
@@ -137,8 +138,10 @@ export async function lintFileForValidation(
 
 /**
  * Extract the nearest symbol name from source text at a given line.
- * Looks at lines from the diagnostic line downward (up to 3 lines)
- * for function, class, method, or variable declarations.
+ * Scans from the diagnostic line downward (up to 3 lines) for
+ * function, class, method, getter/setter, interface, type alias,
+ * or variable declarations. Skips lines that look like method calls
+ * (contain a dot before the identifier) to avoid false matches.
  *
  * @param sourceText - Full file source text
  * @param line - 1-based line number from the diagnostic
@@ -150,12 +153,58 @@ function extractSymbolName(
 ): string | undefined {
 	const lines = sourceText.split("\n");
 	const searchEnd = Math.min(line + 2, lines.length);
-	const declarationPattern =
-		/(?:export\s+)?(?:async\s+)?(?:function\s+(\w+)|class\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=|(\w+)\s*\()/;
 	for (let i = line - 1; i <= searchEnd; i++) {
-		const match = lines[i]?.match(declarationPattern);
-		if (match) {
-			return match[1] ?? match[2] ?? match[3] ?? match[4];
+		const text = lines[i];
+		if (text === undefined) continue;
+
+		// Skip lines that are clearly method calls (e.g., `obj.method(`)
+		if (/\.\w+\s*\(/.test(text)) continue;
+
+		// Function declarations: function foo(, async function foo(, export function foo(
+		const funcMatch = text.match(
+			/(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+(\w+)/,
+		);
+		if (funcMatch?.[1]) return funcMatch[1];
+
+		// Class declarations: class Foo, export class Foo, abstract class Foo
+		const classMatch = text.match(
+			/(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+(\w+)/,
+		);
+		if (classMatch?.[1]) return classMatch[1];
+
+		// Interface declarations: interface Foo, export interface Foo
+		const ifaceMatch = text.match(/(?:export\s+)?interface\s+(\w+)/);
+		if (ifaceMatch?.[1]) return ifaceMatch[1];
+
+		// Type alias declarations: type Foo =, export type Foo =
+		const typeMatch = text.match(/(?:export\s+)?type\s+(\w+)\s*[=<]/);
+		if (typeMatch?.[1]) return typeMatch[1];
+
+		// Variable declarations: const foo =, let foo =, var foo =
+		const varMatch = text.match(
+			/(?:export\s+)?(?:const|let|var)\s+(\w+)\s*[=:]/,
+		);
+		if (varMatch?.[1]) return varMatch[1];
+
+		// Getter/setter: get foo(), set foo()
+		const accessorMatch = text.match(/(?:get|set)\s+(\w+)\s*\(/);
+		if (accessorMatch?.[1]) return accessorMatch[1];
+
+		// Class method: identifier followed by ( but NOT preceded by a dot
+		// Only match if the line starts with optional whitespace + optional modifiers
+		const methodMatch = text.match(
+			/^\s*(?:(?:public|private|protected|static|readonly|async|override)\s+)*(\w+)\s*\(/,
+		);
+		if (methodMatch?.[1]) {
+			const name = methodMatch[1];
+			// Skip common control flow keywords
+			if (
+				!["if", "for", "while", "switch", "catch", "return", "import", "from", "new", "await", "throw"].includes(
+					name,
+				)
+			) {
+				return name;
+			}
 		}
 	}
 	return undefined;

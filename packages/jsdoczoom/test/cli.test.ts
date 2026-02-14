@@ -478,4 +478,22 @@ describe("cli", () => {
 			expect(raw.endsWith("\n")).toBe(true);
 		});
 	});
+
+	describe("--explain-rule", () => {
+		it("prints explanation for known rule", async () => {
+			await main(["--explain-rule", "jsdoc/informative-docs"]);
+			const output = capture.getStdout();
+			expect(output).toContain("jsdoc/informative-docs");
+			expect(output).toContain("Passes with");
+			expect(process.exitCode).toBe(0);
+		});
+
+		it("errors for unknown rule", async () => {
+			await main(["--explain-rule", "nonexistent/rule"]);
+			const errOutput = capture.getStderr();
+			expect(errOutput).toContain("Unknown rule");
+			expect(errOutput).toContain("nonexistent/rule");
+			expect(process.exitCode).toBe(1);
+		});
+	});
 });
