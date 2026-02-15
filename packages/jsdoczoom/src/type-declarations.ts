@@ -87,36 +87,12 @@ export function generateTypeDeclarations(filePath: string): string {
 		throw new JsdocError("PARSE_ERROR", `Failed to parse file: ${filePath}`);
 	}
 
-	const emitResult = program.emit(
+	program.emit(
 		sourceFile,
 		undefined,
 		undefined,
 		true, // emitOnlyDtsFiles
 	);
-
-	// Check for emit errors
-	const diagnostics = ts
-		.getPreEmitDiagnostics(program)
-		.concat(emitResult.diagnostics);
-
-	if (diagnostics.length > 0) {
-		const errors = diagnostics
-			.map((diagnostic) => {
-				if (diagnostic.file && diagnostic.start !== undefined) {
-					const { line, character } =
-						diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
-					const message = ts.flattenDiagnosticMessageText(
-						diagnostic.messageText,
-						"\n",
-					);
-					return `${diagnostic.file.fileName} (${line + 1},${character + 1}): ${message}`;
-				}
-				return ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
-			})
-			.join("\n");
-
-		throw new JsdocError("PARSE_ERROR", `TypeScript errors:\n${errors}`);
-	}
 
 	if (!declarationOutput) {
 		// If no output was generated, the file may have no exports

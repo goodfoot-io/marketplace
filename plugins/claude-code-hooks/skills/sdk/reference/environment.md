@@ -15,24 +15,22 @@ Returns the absolute path to the project root (where `.claude/` directory is loc
 - Reading project-specific rules or templates
 - Resolving relative paths in tool inputs
 
-## Persisting Environment Variables
+## Persisting Environment Variables into Bash Tools
 
-**Restriction:** You can ONLY persist environment variables during **SessionStart**.
-
-The `persistEnvVar` and `persistEnvVars` functions are available as context parameters in SessionStart hooks:
+`persistEnvVar` and `persistEnvVars` inject variables into **Bash tool invocations only**. They are callable in SessionStart hooks and write `export` statements to `$CLAUDE_ENV_FILE`, which Claude Code sources before each Bash tool shell. Other hooks (Stop, PostToolUse, etc.) run as separate subprocesses and **do not** receive these variables via `process.env`.
 
 ```typescript
 import { sessionStartHook, sessionStartOutput } from '@goodfoot/claude-code-hooks';
 
 export default sessionStartHook({ matcher: 'startup' }, (input, { logger, persistEnvVar }) => {
-  // Set NODE_ENV for the entire session
+  // Available in Bash tool shells for the rest of the session
   persistEnvVar('NODE_ENV', 'development');
 
   return sessionStartOutput({});
 });
 ```
 
-### Using `persistEnvVars` for Multiple Variables
+Use `persistEnvVars` for multiple variables:
 
 ```typescript
 export default sessionStartHook({ matcher: 'startup' }, (input, { logger, persistEnvVars }) => {
@@ -46,7 +44,9 @@ export default sessionStartHook({ matcher: 'startup' }, (input, { logger, persis
 });
 ```
 
-*Note: `persistEnvVar` and `persistEnvVars` are only available in SessionStart hooks.*
+### Sharing data between hooks
+
+To pass data from a SessionStart hook to a Stop or other hook, use file-based persistence keyed by `input.session_id` (available on every hook input). Do not rely on `persistEnvVar` for this — those values will be absent from `process.env` in non-Bash hook subprocesses.
 
 ## Hook Context
 
