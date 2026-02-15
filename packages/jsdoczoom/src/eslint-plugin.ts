@@ -1,5 +1,6 @@
 import type { Rule, SourceCode } from "eslint";
 import type { Comment, Node } from "estree";
+import { appendText, DESCRIPTION_TAGS } from "./types.js";
 
 /**
  * Custom ESLint plugin for jsdoczoom file-level JSDoc validation.
@@ -12,13 +13,6 @@ import type { Comment, Node } from "estree";
  * @summary Custom ESLint plugin with file-level JSDoc validation rules
  */
 
-/** Tags whose content is treated as description (free-text). */
-const DESCRIPTION_TAGS = new Set([
-	"desc",
-	"description",
-	"file",
-	"fileoverview",
-]);
 
 /**
  * Find the file-level JSDoc block comment from the source code.
@@ -75,13 +69,6 @@ interface ParsedJsdoc {
 	hasDescription: boolean;
 }
 
-/**
- * Append non-empty text to an accumulator with space separation.
- */
-function appendText(existing: string, addition: string): string {
-	if (!addition) return existing;
-	return existing ? `${existing} ${addition}` : addition;
-}
 
 /**
  * Parse the inner content of a JSDoc block comment.

@@ -102,6 +102,23 @@ export interface SelectorInfo {
 	depth: number | undefined;
 }
 
+/** Tags whose content is treated as description (free-text). */
+export const DESCRIPTION_TAGS = new Set([
+	"desc",
+	"description",
+	"file",
+	"fileoverview",
+]);
+
+/**
+ * Append non-empty text to an accumulator with space separation.
+ */
+export function appendText(existing: string, addition: string): string {
+	if (addition.length === 0) return existing;
+	if (existing.length === 0) return addition;
+	return `${existing} ${addition}`;
+}
+
 /** A single lint diagnostic from ESLint */
 export interface LintDiagnostic {
 	line: number;

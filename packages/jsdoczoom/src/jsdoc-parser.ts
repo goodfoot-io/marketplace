@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { JsdocError } from "./errors.js";
-import type { ParsedFileInfo } from "./types.js";
+import { appendText, DESCRIPTION_TAGS, type ParsedFileInfo } from "./types.js";
 
 /**
  * Uses the TypeScript compiler to locate the first JSDoc block before any
@@ -156,22 +156,6 @@ function getDiagnostics(sourceFile: ts.SourceFile): string[] {
 	return diags.map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n"));
 }
 
-/**
- * Append non-empty text to an accumulator with space separation.
- */
-function appendText(existing: string, addition: string): string {
-	if (addition.length === 0) return existing;
-	if (existing.length === 0) return addition;
-	return `${existing} ${addition}`;
-}
-
-/** Tags whose content is treated as description (free-text). */
-const DESCRIPTION_TAGS = new Set([
-	"desc",
-	"description",
-	"file",
-	"fileoverview",
-]);
 
 /**
  * Parse @summary tag and free-text description from raw JSDoc inner text.
