@@ -87,10 +87,8 @@ Workflow:
   # "id" instead of "next_id" means terminal depth — stop here
 `;
 
-/**
- * Parse CLI arguments into flags and positional args.
- */
-function parseArgs(args: string[]): {
+/** Parsed CLI arguments */
+interface ParsedArgs {
 	help: boolean;
 	version: boolean;
 	checkMode: boolean;
@@ -103,68 +101,107 @@ function parseArgs(args: string[]): {
 	cacheDirectory: string | undefined;
 	explainRule: string | undefined;
 	selectorArg: string | undefined;
-} {
-	let help = false;
-	let version = false;
-	let checkMode = false;
-	let lintMode = false;
-	let skillMode = false;
-	let pretty = false;
-	let limit = 500;
-	let gitignore = true;
-	let disableCache = false;
-	let cacheDirectory: string | undefined;
-	let explainRule: string | undefined;
-	let selectorArg: string | undefined;
+}
+
+/**
+ * Parse a flag that requires a value argument.
+ * @returns Updated index after consuming the value
+ */
+function parseValueFlag(
+	args: string[],
+	index: number,
+): { value: string; nextIndex: number } {
+	return { value: args[index + 1], nextIndex: index + 1 };
+}
+
+/**
+ * Parse CLI arguments into flags and positional args.
+ */
+function parseArgs(args: string[]): ParsedArgs {
+	const parsed: ParsedArgs = {
+		help: false,
+		version: false,
+		checkMode: false,
+		lintMode: false,
+		skillMode: false,
+		pretty: false,
+		limit: 500,
+		gitignore: true,
+		disableCache: false,
+		cacheDirectory: undefined,
+		explainRule: undefined,
+		selectorArg: undefined,
+	};
 
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];
+
+		// Boolean flags
 		if (arg === "-h" || arg === "--help") {
-			help = true;
-		} else if (arg === "-v" || arg === "--version") {
-			version = true;
-		} else if (arg === "-c" || arg === "--check") {
-			checkMode = true;
-		} else if (arg === "-l" || arg === "--lint") {
-			lintMode = true;
-		} else if (arg === "-s" || arg === "--skill") {
-			skillMode = true;
-		} else if (arg === "--pretty") {
-			pretty = true;
-		} else if (arg === "--limit") {
-			const next = args[++i];
-			limit = Number(next);
-		} else if (arg === "--no-gitignore") {
-			gitignore = false;
-		} else if (arg === "--disable-cache") {
-			disableCache = true;
-		} else if (arg === "--cache-directory") {
-			const next = args[++i];
-			cacheDirectory = next;
-		} else if (arg === "--explain-rule") {
-			const next = args[++i];
-			explainRule = next;
-		} else if (arg.startsWith("-")) {
+			parsed.help = true;
+			continue;
+		}
+		if (arg === "-v" || arg === "--version") {
+			parsed.version = true;
+			continue;
+		}
+		if (arg === "-c" || arg === "--check") {
+			parsed.checkMode = true;
+			continue;
+		}
+		if (arg === "-l" || arg === "--lint") {
+			parsed.lintMode = true;
+			continue;
+		}
+		if (arg === "-s" || arg === "--skill") {
+			parsed.skillMode = true;
+			continue;
+		}
+		if (arg === "--pretty") {
+			parsed.pretty = true;
+			continue;
+		}
+		if (arg === "--no-gitignore") {
+			parsed.gitignore = false;
+			continue;
+		}
+		if (arg === "--disable-cache") {
+			parsed.disableCache = true;
+			continue;
+		}
+
+		// Value flags
+		if (arg === "--limit") {
+			const { value, nextIndex } = parseValueFlag(args, i);
+			parsed.limit = Number(value);
+			i = nextIndex;
+			continue;
+		}
+		if (arg === "--cache-directory") {
+			const { value, nextIndex } = parseValueFlag(args, i);
+			parsed.cacheDirectory = value;
+			i = nextIndex;
+			continue;
+		}
+		if (arg === "--explain-rule") {
+			const { value, nextIndex } = parseValueFlag(args, i);
+			parsed.explainRule = value;
+			i = nextIndex;
+			continue;
+		}
+
+		// Unknown flag or positional arg
+		if (arg.startsWith("-")) {
 			throw new JsdocError("INVALID_SELECTOR", `Unrecognized option: ${arg}`);
-		} else if (selectorArg === undefined) {
-			selectorArg = arg;
+		}
+
+		// Positional selector arg
+		if (parsed.selectorArg === undefined) {
+			parsed.selectorArg = arg;
 		}
 	}
 
-	return {
-		help,
-		version,
-		checkMode,
-		lintMode,
-		skillMode,
-		pretty,
-		limit,
-		gitignore,
-		disableCache,
-		cacheDirectory,
-		explainRule,
-		selectorArg,
-	};
+	return parsed;
 }
 
 /**
@@ -264,16 +301,64 @@ async function processSelector(
  */
 function writeError(error: unknown): void {
 	if (error instanceof JsdocError) {
-		process.stderr.write(`${JSON.stringify(error.toJSON())}\n`);
+		void process.stderr.write(`${JSON.stringify(error.toJSON())}\n`);
 		process.exitCode = 1;
 		return;
 	}
 
 	const message = error instanceof Error ? error.message : String(error);
-	process.stderr.write(
+	void process.stderr.write(
 		`${JSON.stringify({ error: { code: "INTERNAL_ERROR", message } })}\n`,
 	);
 	process.exitCode = 1;
+}
+
+/**
+ * Handle --help flag by printing help text.
+ */
+function handleHelp(): void {
+	void process.stdout.write(HELP_TEXT);
+}
+
+/**
+ * Handle --version flag by reading and printing version from package.json.
+ */
+function handleVersion(): void {
+	const pkgPath = resolve(
+		dirname(fileURLToPath(import.meta.url)),
+		"..",
+		"package.json",
+	);
+	const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
+		version: string;
+	};
+	void process.stdout.write(`${pkg.version}\n`);
+}
+
+/**
+ * Handle --skill flag by printing JSDoc writing guidelines.
+ */
+function handleSkill(): void {
+	void process.stdout.write(SKILL_TEXT);
+}
+
+/**
+ * Handle --explain-rule flag by printing rule explanation.
+ */
+function handleExplainRule(ruleName: string): void {
+	const explanation = RULE_EXPLANATIONS[ruleName];
+	if (explanation) {
+		void process.stdout.write(explanation);
+		return;
+	}
+
+	const available = Object.keys(RULE_EXPLANATIONS).join(", ");
+	writeError(
+		new JsdocError(
+			"INVALID_SELECTOR",
+			`Unknown rule: ${ruleName}. Available rules: ${available}`,
+		),
+	);
 }
 
 /**
@@ -281,92 +366,60 @@ function writeError(error: unknown): void {
  */
 export async function main(args: string[], stdin?: string): Promise<void> {
 	try {
-		const {
-			help,
-			version,
-			checkMode,
-			lintMode,
-			skillMode,
-			pretty,
-			limit,
-			gitignore,
-			disableCache,
-			cacheDirectory,
-			explainRule,
-			selectorArg,
-		} = parseArgs(args);
+		const parsed = parseArgs(args);
 
-		const cacheConfig: CacheConfig = {
-			enabled: !disableCache,
-			directory: cacheDirectory ?? DEFAULT_CACHE_DIR,
-		};
-
-		if (help) {
-			process.stdout.write(HELP_TEXT);
+		// Handle early-exit flags
+		if (parsed.help) {
+			handleHelp();
+			return;
+		}
+		if (parsed.version) {
+			handleVersion();
+			return;
+		}
+		if (parsed.skillMode) {
+			handleSkill();
+			return;
+		}
+		if (parsed.explainRule !== undefined) {
+			handleExplainRule(parsed.explainRule);
 			return;
 		}
 
-		if (version) {
-			const pkgPath = resolve(
-				dirname(fileURLToPath(import.meta.url)),
-				"..",
-				"package.json",
-			);
-			const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
-				version: string;
-			};
-			process.stdout.write(`${pkg.version}\n`);
-			return;
-		}
-
-		if (skillMode) {
-			process.stdout.write(SKILL_TEXT);
-			return;
-		}
-
-		if (explainRule !== undefined) {
-			const explanation = RULE_EXPLANATIONS[explainRule];
-			if (explanation) {
-				process.stdout.write(explanation);
-			} else {
-				const available = Object.keys(RULE_EXPLANATIONS).join(", ");
-				writeError(
-					new JsdocError(
-						"INVALID_SELECTOR",
-						`Unknown rule: ${explainRule}. Available rules: ${available}`,
-					),
-				);
-			}
-			return;
-		}
-
-		if (checkMode && lintMode) {
+		// Validate mode combinations
+		if (parsed.checkMode && parsed.lintMode) {
 			writeError(
 				new JsdocError("INVALID_SELECTOR", "Cannot use -c and -l together"),
 			);
 			return;
 		}
 
+		// Build cache config and process files
+		const cacheConfig: CacheConfig = {
+			enabled: !parsed.disableCache,
+			directory: parsed.cacheDirectory ?? DEFAULT_CACHE_DIR,
+		};
+
 		const cwd = process.cwd();
 		if (stdin !== undefined) {
 			await processStdin(
 				stdin,
-				selectorArg,
-				checkMode,
-				lintMode,
-				pretty,
-				limit,
+				parsed.selectorArg,
+				parsed.checkMode,
+				parsed.lintMode,
+				parsed.pretty,
+				parsed.limit,
 				cwd,
 				cacheConfig,
 			);
 		} else {
 			await processSelector(
-				selectorArg,
-				checkMode,
-				lintMode,
-				pretty,
-				limit,
-				gitignore,
+				parsed.selectorArg,
+				parsed.checkMode,
+				parsed.lintMode,
+				parsed.pretty,
+				parsed.limit,
+				parsed.gitignore,
 				cwd,
 				cacheConfig,
 			);
@@ -383,7 +436,7 @@ function writeResult(result: unknown, pretty: boolean): void {
 	const json = pretty
 		? JSON.stringify(result, null, 2)
 		: JSON.stringify(result);
-	process.stdout.write(`${json}\n`);
+	void process.stdout.write(`${json}\n`);
 }
 
 /**
@@ -436,7 +489,7 @@ function writeLintResult(result: LintResult, pretty: boolean): void {
 		process.exitCode = 2;
 		// Warn if output was truncated
 		if (result.summary.filesWithIssues > result.files.length) {
-			process.stderr.write(
+			void process.stderr.write(
 				`Warning: output truncated to ${result.files.length} of ${result.summary.filesWithIssues} files with issues. Use --limit to see more.\n`,
 			);
 		}

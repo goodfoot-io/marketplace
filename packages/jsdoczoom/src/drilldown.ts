@@ -151,6 +151,39 @@ function isParseError(error: unknown): error is JsdocError {
 }
 
 /**
+ * Determine the effective depth after null-level advancement.
+ * Advances past null summary (L1) and null description (L2) levels.
+ */
+function computeEffectiveDepth(depth: number, info: ParsedFileInfo): number {
+	let effectiveDepth = Math.max(1, Math.min(depth, TERMINAL_LEVEL));
+	if (effectiveDepth < TERMINAL_LEVEL && info.summary === null) {
+		effectiveDepth = Math.max(effectiveDepth, 2);
+	}
+	if (effectiveDepth < TERMINAL_LEVEL && info.description === null) {
+		effectiveDepth = Math.max(effectiveDepth, 3);
+	}
+	return effectiveDepth;
+}
+
+/**
+ * Conditionally compute type declarations if effective depth requires it (L3+).
+ * Uses cache to avoid redundant TypeScript compilation.
+ */
+async function computeTypeDeclarationsIfNeeded(
+	content: string,
+	filePath: string,
+	effectiveDepth: number,
+	config: CacheConfig,
+): Promise<string> {
+	if (effectiveDepth < 3) {
+		return "";
+	}
+	return processWithCache(config, "drilldown", `${content}\0typedecl`, () =>
+		generateTypeDeclarations(filePath),
+	);
+}
+
+/**
  * Process a file safely, returning an OutputErrorItem on PARSE_ERROR.
  * Rethrows non-PARSE_ERROR exceptions. Uses cache for expensive operations
  * (parseFileSummaries and generateTypeDeclarations).
@@ -167,23 +200,13 @@ async function processFileSafe(
 			parseFileSummaries(filePath),
 		);
 
-		// Only compute type declarations when depth requires it (level 3+).
-		// Determine effective depth to check if we need type declarations.
-		let effectiveDepth = Math.max(1, Math.min(depth, TERMINAL_LEVEL));
-		if (effectiveDepth < TERMINAL_LEVEL && info.summary === null)
-			effectiveDepth = Math.max(effectiveDepth, 2);
-		if (effectiveDepth < TERMINAL_LEVEL && info.description === null)
-			effectiveDepth = Math.max(effectiveDepth, 3);
-
-		const typeDeclarations =
-			effectiveDepth >= 3
-				? await processWithCache(
-						config,
-						"drilldown",
-						`${content}\0typedecl`,
-						() => generateTypeDeclarations(filePath),
-					)
-				: "";
+		const effectiveDepth = computeEffectiveDepth(depth, info);
+		const typeDeclarations = await computeTypeDeclarationsIfNeeded(
+			content,
+			filePath,
+			effectiveDepth,
+			config,
+		);
 
 		return processFile(info, typeDeclarations, content, depth, cwd);
 	} catch (error) {
@@ -431,22 +454,13 @@ export async function drilldown(
 			parseFileSummaries(filePath),
 		);
 
-		// Compute type declarations only when needed
-		let effectiveDepth = Math.max(1, Math.min(depth, TERMINAL_LEVEL));
-		if (effectiveDepth < TERMINAL_LEVEL && info.summary === null)
-			effectiveDepth = Math.max(effectiveDepth, 2);
-		if (effectiveDepth < TERMINAL_LEVEL && info.description === null)
-			effectiveDepth = Math.max(effectiveDepth, 3);
-
-		const typeDeclarations =
-			effectiveDepth >= 3
-				? await processWithCache(
-						config,
-						"drilldown",
-						`${content}\0typedecl`,
-						() => generateTypeDeclarations(filePath),
-					)
-				: "";
+		const effectiveDepth = computeEffectiveDepth(depth, info);
+		const typeDeclarations = await computeTypeDeclarationsIfNeeded(
+			content,
+			filePath,
+			effectiveDepth,
+			config,
+		);
 
 		const items = [processFile(info, typeDeclarations, content, depth, cwd)];
 		return { items, truncated: false };
