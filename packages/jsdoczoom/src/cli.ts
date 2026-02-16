@@ -213,7 +213,13 @@ async function processStdin(
 		const result = await validateFiles(stdinPaths, cwd, limit, cacheConfig);
 		writeValidationResult(result, pretty);
 	} else {
-		const result = await drilldownFiles(stdinPaths, depth, cwd, limit, cacheConfig);
+		const result = await drilldownFiles(
+			stdinPaths,
+			depth,
+			cwd,
+			limit,
+			cacheConfig,
+		);
 		writeResult(result, pretty);
 	}
 }
@@ -242,7 +248,13 @@ async function processSelector(
 		const result = await validate(selector, cwd, limit, gitignore, cacheConfig);
 		writeValidationResult(result, pretty);
 	} else {
-		const result = await drilldown(selector, cwd, gitignore, limit, cacheConfig);
+		const result = await drilldown(
+			selector,
+			cwd,
+			gitignore,
+			limit,
+			cacheConfig,
+		);
 		writeResult(result, pretty);
 	}
 }

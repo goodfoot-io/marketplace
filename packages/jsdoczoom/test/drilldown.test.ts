@@ -447,13 +447,7 @@ describe("drilldown", () => {
 describe("drilldownFiles", () => {
 	it("processes explicit file list at given depth", async () => {
 		const files = [resolve(leafFilesDir, "one-summary.ts")];
-		const results = await drilldownFiles(
-			files,
-			1,
-			leafFilesDir,
-			100,
-			NO_CACHE,
-		);
+		const results = await drilldownFiles(files, 1, leafFilesDir, 100, NO_CACHE);
 		expect(results.items).toHaveLength(1);
 		const entry = results.items[0];
 		expect(isOutputItem(entry)).toBe(true);
@@ -469,13 +463,7 @@ describe("drilldownFiles", () => {
 			resolve(leafFilesDir, "one-summary.js"), // Non-existent .js file should be filtered
 			"/some/file.json",
 		];
-		const results = await drilldownFiles(
-			files,
-			1,
-			leafFilesDir,
-			100,
-			NO_CACHE,
-		);
+		const results = await drilldownFiles(files, 1, leafFilesDir, 100, NO_CACHE);
 		// Only the .ts file should be processed
 		expect(results.items).toHaveLength(1);
 		expect(pathFromEntry(results.items[0])).toBe("one-summary.ts");
@@ -486,13 +474,7 @@ describe("drilldownFiles", () => {
 			resolve(leafFilesDir, "one-summary.ts"),
 			resolve(leafFilesDir, "no-jsdoc.ts"),
 		];
-		const results = await drilldownFiles(
-			files,
-			1,
-			leafFilesDir,
-			100,
-			NO_CACHE,
-		);
+		const results = await drilldownFiles(files, 1, leafFilesDir, 100, NO_CACHE);
 		expect(results.items).toHaveLength(2);
 		const paths = results.items.map((r) => pathFromEntry(r));
 		expect(paths).toContain("one-summary.ts");
@@ -534,13 +516,7 @@ describe("drilldownFiles", () => {
 			resolve(leafFilesDir, "one-summary.ts"),
 			resolve(leafFilesDir, "exported-types.ts"),
 		];
-		const results = await drilldownFiles(
-			files,
-			1,
-			leafFilesDir,
-			100,
-			NO_CACHE,
-		);
+		const results = await drilldownFiles(files, 1, leafFilesDir, 100, NO_CACHE);
 		const paths = results.items.map((r) => pathFromEntry(r));
 		const sorted = [...paths].sort();
 		expect(paths).toEqual(sorted);

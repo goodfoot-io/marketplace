@@ -163,11 +163,8 @@ async function processFileSafe(
 ): Promise<OutputEntry> {
 	try {
 		const content = await readFile(filePath, "utf-8");
-		const info = await processWithCache(
-			config,
-			"drilldown",
-			content,
-			() => parseFileSummaries(filePath),
+		const info = await processWithCache(config, "drilldown", content, () =>
+			parseFileSummaries(filePath),
 		);
 
 		// Only compute type declarations when depth requires it (level 3+).
@@ -222,11 +219,8 @@ async function gatherBarrelInfos(
 		barrelPaths.map(async (barrelPath) => {
 			try {
 				const content = await readFile(barrelPath, "utf-8");
-				const info = await processWithCache(
-					config,
-					"drilldown",
-					content,
-					() => parseFileSummaries(barrelPath),
+				const info = await processWithCache(config, "drilldown", content, () =>
+					parseFileSummaries(barrelPath),
 				);
 				const children = getBarrelChildren(barrelPath, cwd);
 				return {
@@ -364,8 +358,11 @@ async function processGlobWithBarrels(
 		return collectSafeResults(nonBarrelPaths, depth, cwd, config);
 	}
 
-	const { infos: barrelInfos, errors: barrelErrors } =
-		await gatherBarrelInfos(barrelPaths, cwd, config);
+	const { infos: barrelInfos, errors: barrelErrors } = await gatherBarrelInfos(
+		barrelPaths,
+		cwd,
+		config,
+	);
 	const gatedFiles = buildGatedFileSet(barrelInfos);
 
 	const results: OutputEntry[] = [...barrelErrors];
@@ -415,12 +412,7 @@ export async function drilldown(
 
 		if (files.length > 1) {
 			// Directory expanded to multiple files — route through glob pipeline
-			const results = await processGlobWithBarrels(
-				files,
-				depth,
-				cwd,
-				config,
-			);
+			const results = await processGlobWithBarrels(files, depth, cwd, config);
 			const sorted = results.sort((a, b) =>
 				sortKey(a).localeCompare(sortKey(b)),
 			);
@@ -435,11 +427,8 @@ export async function drilldown(
 		// Single file path — errors are fatal, no barrel gating
 		const filePath = files[0];
 		const content = await readFile(filePath, "utf-8");
-		const info = await processWithCache(
-			config,
-			"drilldown",
-			content,
-			() => parseFileSummaries(filePath),
+		const info = await processWithCache(config, "drilldown", content, () =>
+			parseFileSummaries(filePath),
 		);
 
 		// Compute type declarations only when needed
@@ -459,9 +448,7 @@ export async function drilldown(
 					)
 				: "";
 
-		const items = [
-			processFile(info, typeDeclarations, content, depth, cwd),
-		];
+		const items = [processFile(info, typeDeclarations, content, depth, cwd)];
 		return { items, truncated: false };
 	}
 
