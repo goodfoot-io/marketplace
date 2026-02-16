@@ -6,10 +6,6 @@
 - Added missing barrel detection: directories with more than 3 TypeScript files lacking an `index.ts` are now flagged in both `--check` and `--lint` modes
 - Upgraded ESLint, eslint-plugin-jsdoc, and Biome dependencies
 
-## 0.3.1
-- Renamed `-v`/`--validate` to `-c`/`--check` for validation mode
-- Added `-v`/`--version` flag to print the package version
-
 ## 0.3.0
 - Improved type declaration generation performance with cached TypeScript language service
 - Added tsconfig.json awareness for project-specific compiler settings
