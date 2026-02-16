@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/jsdoc-drilldown.3b49de96.mjs"
+          }
+        ],
+        "matcher": "Grep|Glob"
+      }
+    ]
+  },
+  "__generated": {
+    "files": [
+      "jsdoc-drilldown.3b49de96.mjs"
+    ],
+    "timestamp": "2026-02-16T19:41:10.220Z"
+  }
+}

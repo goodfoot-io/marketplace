@@ -1,0 +1,9 @@
+{
+  "name": "jsdoczoom",
+  "description": "JSDoc documentation tools and workflows",
+  "version": "1.0.1",
+  "author": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io"
+  }
+}

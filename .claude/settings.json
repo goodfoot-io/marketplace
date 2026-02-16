@@ -29,11 +29,13 @@
     "project@goodfoot": false,
     "vscode@goodfoot": true,
     "goodfoot@goodfoot": true,
+    "jsdoczoom@goodfoot": true,
     "browser@goodfoot": false,
     "gmail@goodfoot": false,
     "github@goodfoot": false,
     "claude-code-hooks@goodfoot": true,
-    "code-simplifier@claude-plugins-official": false
+    "code-simplifier@claude-plugins-official": false,
+    "plugin-dev@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {

@@ -11252,6 +11252,7 @@ __metadata:
   resolution: "jsdoczoom@workspace:packages/jsdoczoom"
   dependencies:
     "@biomejs/biome": "npm:2.4.1"
+    "@goodfoot/claude-code-hooks": "workspace:*"
     "@types/node": "npm:^25.2.3"
     "@typescript-eslint/parser": "npm:^8.55.0"
     eslint: "npm:^10.0.0"

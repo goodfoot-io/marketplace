@@ -36,12 +36,14 @@
 	"scripts": {
 		"typecheck": "tsc --noEmit",
 		"build": "tsc --build tsconfig.build.json",
+		"build:hooks": "claude-code-hooks -i \"src/hooks/*.ts\" -o \"../../plugins/jsdoczoom/hooks/hooks.json\"",
 		"test": "vitest run",
 		"lint": "biome check --write --unsafe --max-diagnostics 500 .",
 		"release": "bash ../../scripts/release-package.sh jsdoczoom",
 		"release:dry-run": "bash ../../scripts/release-package.sh jsdoczoom --dry-run"
 	},
 	"dependencies": {
+		"@goodfoot/claude-code-hooks": "workspace:*",
 		"@typescript-eslint/parser": "^8.55.0",
 		"eslint": "^10.0.0",
 		"eslint-plugin-jsdoc": "^62.5.5",
