@@ -3,7 +3,7 @@ import { dirname, relative } from "node:path";
 import { getBarrelChildren, isBarrel } from "./barrel.js";
 import { processWithCache } from "./cache.js";
 import { JsdocError } from "./errors.js";
-import { discoverFiles } from "./file-discovery.js";
+import { discoverFiles, loadGitignore } from "./file-discovery.js";
 import { parseFileSummaries } from "./jsdoc-parser.js";
 import { generateTypeDeclarations } from "./type-declarations.js";
 import type {
@@ -506,8 +506,12 @@ export async function drilldownFiles(
 	config: CacheConfig = DEFAULT_CACHE_CONFIG,
 ): Promise<DrilldownResult> {
 	const d = depth ?? 1;
+	const ig = loadGitignore(cwd);
 	const tsFiles = filePaths.filter(
-		(f) => f.endsWith(".ts") || f.endsWith(".tsx"),
+		(f) =>
+			(f.endsWith(".ts") || f.endsWith(".tsx")) &&
+			!f.endsWith(".d.ts") &&
+			!ig.ignores(relative(cwd, f)),
 	);
 
 	const results = await collectSafeResults(tsFiles, d, cwd, config);

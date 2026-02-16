@@ -61,24 +61,31 @@ function extractTsFilePaths(toolResponse: unknown, cwd: string): string[] {
 	return [...paths];
 }
 
-/** Format a DrilldownResult into a readable string for context injection. */
+/** Extract the file identifier from an output entry. */
+function entryId(item: DrilldownResult["items"][number]): string {
+	if ("error" in item) return item.id;
+	return "next_id" in item ? item.next_id : item.id;
+}
+
+/** Strip the @depth suffix (e.g. "src/foo.ts@2" -> "src/foo.ts"). */
+function stripDepth(id: string): string {
+	const at = id.lastIndexOf("@");
+	return at > 0 ? id.slice(0, at) : id;
+}
+
+/** Format a DrilldownResult as a compact JSON string for context injection. */
 function formatDrilldownResult(result: DrilldownResult): string {
 	if (result.items.length === 0) return "";
 
-	const parts: string[] = [];
+	const entries: Array<{ file: string; summary: string }> = [];
 	for (const item of result.items) {
-		if ("error" in item) {
-			parts.push(`${item.id}: [${item.error.code}] ${item.error.message}`);
-		} else {
-			parts.push(item.text);
-		}
+		if ("error" in item) continue;
+		if (!item.text) continue;
+		entries.push({ file: stripDepth(entryId(item)), summary: item.text });
 	}
 
-	let output = parts.join("\n\n");
-	if (result.truncated) {
-		output += "\n\n[Results truncated]";
-	}
-	return output;
+	if (entries.length === 0) return "";
+	return JSON.stringify(result.truncated ? { entries, truncated: true } : { entries });
 }
 
 export default postToolUseHook(

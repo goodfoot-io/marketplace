@@ -17,7 +17,7 @@ import { JsdocError } from "./errors.js";
  * Walk from `cwd` up to the filesystem root, collecting .gitignore entries.
  * Returns an Ignore instance loaded with all discovered rules.
  */
-function loadGitignore(cwd: string): Ignore {
+export function loadGitignore(cwd: string): Ignore {
 	const ig = ignore();
 	let dir = resolve(cwd);
 
