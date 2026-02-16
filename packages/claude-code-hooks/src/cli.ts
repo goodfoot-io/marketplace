@@ -587,6 +587,18 @@ execute(hook);
     loader: "ts",
   };
 
+  // Banner to polyfill CJS globals for dependencies bundled into ESM.
+  // Some packages (e.g. typescript) use require(), __filename, and __dirname
+  // internally, which are unavailable in ESM scope.
+  const esmRequireBanner = [
+    `import { createRequire as __createRequire } from "node:module";`,
+    `import { fileURLToPath as __fileURLToPath } from "node:url";`,
+    `import { dirname as __pathDirname } from "node:path";`,
+    `const require = __createRequire(import.meta.url);`,
+    `const __filename = __fileURLToPath(import.meta.url);`,
+    `const __dirname = __pathDirname(__filename);`,
+  ].join("\n");
+
   // Common esbuild options
   const commonOptions: esbuild.BuildOptions = {
     stdin: stdinOptions,
@@ -596,6 +608,7 @@ execute(hook);
     bundle: true,
     minify: false,
     write: false, // Return content directly via outputFiles
+    banner: { js: esmRequireBanner },
     // Keep node built-ins external
     external: [
       "node:*",

@@ -5,7 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { drilldown, drilldownFiles } from "./drilldown.js";
 import { JsdocError } from "./errors.js";
-import { lint } from "./lint.js";
+import { lint, lintFiles } from "./lint.js";
 import { parseSelector } from "./selector.js";
 import { RULE_EXPLANATIONS, SKILL_TEXT } from "./skill-text.js";
 import type {
@@ -15,7 +15,7 @@ import type {
 	ValidationResult,
 } from "./types.js";
 import { DEFAULT_CACHE_DIR, VALIDATION_STATUS_PRIORITY } from "./types.js";
-import { validate } from "./validate.js";
+import { validate, validateFiles } from "./validate.js";
 
 /**
  * Parses argv flags (--help, --version, --check, --lint, --skill, --pretty,
@@ -244,11 +244,9 @@ async function processStdin(
 		selectorArg !== undefined ? extractDepthFromArg(selectorArg) : undefined;
 
 	if (lintMode) {
-		const { lintFiles } = await import("./lint.js");
 		const result = await lintFiles(stdinPaths, cwd, limit, cacheConfig);
 		writeLintResult(result, pretty);
 	} else if (checkMode) {
-		const { validateFiles } = await import("./validate.js");
 		const result = await validateFiles(stdinPaths, cwd, limit, cacheConfig);
 		writeValidationResult(result, pretty);
 	} else {
