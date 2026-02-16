@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.9
+- Updated build dependency to use pinned version of @goodfoot/claude-code-hooks for improved reliability
+
 ## 0.4.8
 - Minor improvements and bug fixes
 
