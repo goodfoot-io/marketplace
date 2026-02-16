@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.8
+- Minor improvements and bug fixes
+
 ## 0.4.7
 - Updated dependencies
 
