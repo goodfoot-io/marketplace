@@ -346,7 +346,7 @@ describe("getLanguageService", () => {
 		const program = service.getProgram();
 		expect(program).toBeDefined();
 
-		const sourceFiles = program?.getSourceFiles();
+		const sourceFiles = program?.getSourceFiles() ?? [];
 		const hasOurFile = sourceFiles.some((sf) => sf.fileName === sampleTsPath);
 		expect(hasOurFile).toBe(true);
 

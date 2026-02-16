@@ -96,18 +96,32 @@ describe("cli", () => {
 			expect(process.exitCode).toBe(0);
 		});
 
-		it("-v runs validation mode", async () => {
-			await main(["-v", "two-summaries.ts"]);
+		it("-c runs check (validation) mode", async () => {
+			await main(["-c", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output.success).toBe(true);
 			expect(output.message).toBe("All files passed validation");
 			expect(process.exitCode).toBe(0);
 		});
 
-		it("--validate runs validation mode", async () => {
-			await main(["--validate", "two-summaries.ts"]);
+		it("--check runs check (validation) mode", async () => {
+			await main(["--check", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output.success).toBe(true);
+		});
+
+		it("-v prints version number", async () => {
+			await main(["-v"]);
+			const output = capture.getStdout().trim();
+			expect(output).toMatch(/^\d+\.\d+\.\d+$/);
+			expect(process.exitCode).toBe(0);
+		});
+
+		it("--version prints version number", async () => {
+			await main(["--version"]);
+			const output = capture.getStdout().trim();
+			expect(output).toMatch(/^\d+\.\d+\.\d+$/);
+			expect(process.exitCode).toBe(0);
 		});
 
 		it("--pretty outputs indented JSON (2-space indent)", async () => {
@@ -131,8 +145,8 @@ describe("cli", () => {
 			expect(raw.trimEnd()).toBe(JSON.stringify(parsed));
 		});
 
-		it("--pretty works with validation mode", async () => {
-			await main(["--pretty", "-v", "two-summaries.ts"]);
+		it("--pretty works with check mode", async () => {
+			await main(["--pretty", "-c", "two-summaries.ts"]);
 			const raw = capture.getStdout();
 			const parsed = JSON.parse(raw);
 			expect(parsed.success).toBe(true);
@@ -191,9 +205,9 @@ describe("cli", () => {
 			expect(pathFromItem(output.items[0])).toBe("two-summaries.ts");
 		});
 
-		it("stdin with -v processes via validateFiles", async () => {
+		it("stdin with -c processes via validateFiles", async () => {
 			const stdin = "two-summaries.ts\none-summary.ts";
-			await main(["-v"], stdin);
+			await main(["-c"], stdin);
 			const output = JSON.parse(capture.getStdout());
 			expect(output.success).toBe(true);
 		});
@@ -252,7 +266,7 @@ describe("cli", () => {
 
 		it("exit code 2 on validation failure", async () => {
 			// description-only.ts has no @summary tag, which fails validation
-			await main(["-v", "description-only.ts"]);
+			await main(["-c", "description-only.ts"]);
 			expect(process.exitCode).toBe(2);
 
 			// Stdout should have VALIDATION_FAILED error nested in the result
@@ -302,7 +316,7 @@ describe("cli", () => {
 		});
 
 		it("validation mode output is valid JSON object on stdout", async () => {
-			await main(["-v", "two-summaries.ts"]);
+			await main(["-c", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(typeof output).toBe("object");
 			expect(Array.isArray(output)).toBe(false);
@@ -317,7 +331,7 @@ describe("cli", () => {
 		});
 
 		it("validation success writes result to stdout only, no stderr", async () => {
-			await main(["-v", "two-summaries.ts"]);
+			await main(["-c", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output.success).toBe(true);
 			expect(capture.getStderr()).toBe("");
@@ -325,7 +339,7 @@ describe("cli", () => {
 		});
 
 		it("validation failure writes single consolidated result to stdout", async () => {
-			await main(["-v", "description-only.ts"]);
+			await main(["-c", "description-only.ts"]);
 			// stdout has the validation result with groups, success: false, and nested error
 			const output = JSON.parse(capture.getStdout());
 			expect(output.success).toBe(false);
@@ -413,12 +427,12 @@ describe("cli", () => {
 			expect(Array.isArray(output.files[0].diagnostics)).toBe(true);
 		});
 
-		it("-v and -l together produces error", async () => {
-			await main(["-v", "-l", "two-summaries.ts"]);
+		it("-c and -l together produces error", async () => {
+			await main(["-c", "-l", "two-summaries.ts"]);
 			const errOutput = capture.getStderr();
 			const parsed = JSON.parse(errOutput);
 			expect(parsed.error.code).toBe("INVALID_SELECTOR");
-			expect(parsed.error.message).toContain("Cannot use -v and -l together");
+			expect(parsed.error.message).toContain("Cannot use -c and -l together");
 			expect(process.exitCode).toBe(1);
 		});
 
@@ -454,9 +468,10 @@ describe("cli", () => {
 			}
 		});
 
-		it("help text includes -l/--lint option", async () => {
+		it("help text includes -c/--check and -l/--lint options", async () => {
 			await main(["--help"]);
 			const helpText = capture.getStdout();
+			expect(helpText).toContain("-c, --check");
 			expect(helpText).toContain("-l, --lint");
 			expect(helpText).toContain("comprehensive JSDoc quality");
 		});

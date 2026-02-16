@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-import { resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { drilldown, drilldownFiles } from "./drilldown.js";
 import { JsdocError } from "./errors.js";
 import { lint } from "./lint.js";
@@ -11,10 +13,10 @@ import { VALIDATION_STATUS_PRIORITY } from "./types.js";
 import { validate } from "./validate.js";
 
 /**
- * Parses argv flags (--help, --validate, --lint, --skill, --pretty, --limit,
- * --no-gitignore), dispatches to drilldown, validation, or lint mode, and
- * handles stdin piping. Errors are written to stderr as JSON; validation and
- * lint failures use exit code 2 while other errors use exit code 1.
+ * Parses argv flags (--help, --version, --check, --lint, --skill, --pretty,
+ * --limit, --no-gitignore), dispatches to drilldown, validation, or lint mode,
+ * and handles stdin piping. Errors are written to stderr as JSON; validation
+ * and lint failures use exit code 2 while other errors use exit code 1.
  *
  * @summary CLI entry point -- argument parsing, mode dispatch, and exit code handling
  */
@@ -27,7 +29,8 @@ Each file has four detail levels (1-indexed): @1 summary, @2 description,
 
 Options:
   -h, --help       Show this help text
-  -v, --validate   Run validation mode
+  -v, --version    Show version number
+  -c, --check      Run validation mode
   -l, --lint       Run lint mode (comprehensive JSDoc quality)
   -s, --skill      Print JSDoc writing guidelines
   --pretty         Format JSON output with 2-space indent
@@ -46,7 +49,7 @@ Stdin:
   Pipe file paths one per line:
     find . -name "*.ts" | jsdoczoom
     find . -name "*.ts" | jsdoczoom @2
-    find . -name "*.ts" | jsdoczoom -v
+    find . -name "*.ts" | jsdoczoom -c
 
 Output:
   JSON items. Items with "next_id" have more detail; use that value as the next
@@ -57,7 +60,7 @@ Barrel gating (glob mode):
   At depth 3 the barrel disappears and its children appear at depth 1.
 
 Modes:
-  -v  Validate file-level structure (has JSDoc block, @summary, description)
+  -c  Validate file-level structure (has JSDoc block, @summary, description)
   -l  Lint comprehensive JSDoc quality (file-level + function-level tags)
 
 Exit codes:
@@ -82,7 +85,8 @@ Workflow:
  */
 function parseArgs(args: string[]): {
 	help: boolean;
-	validateMode: boolean;
+	version: boolean;
+	checkMode: boolean;
 	lintMode: boolean;
 	skillMode: boolean;
 	pretty: boolean;
@@ -92,7 +96,8 @@ function parseArgs(args: string[]): {
 	selectorArg: string | undefined;
 } {
 	let help = false;
-	let validateMode = false;
+	let version = false;
+	let checkMode = false;
 	let lintMode = false;
 	let skillMode = false;
 	let pretty = false;
@@ -105,8 +110,10 @@ function parseArgs(args: string[]): {
 		const arg = args[i];
 		if (arg === "-h" || arg === "--help") {
 			help = true;
-		} else if (arg === "-v" || arg === "--validate") {
-			validateMode = true;
+		} else if (arg === "-v" || arg === "--version") {
+			version = true;
+		} else if (arg === "-c" || arg === "--check") {
+			checkMode = true;
 		} else if (arg === "-l" || arg === "--lint") {
 			lintMode = true;
 		} else if (arg === "-s" || arg === "--skill") {
@@ -130,7 +137,8 @@ function parseArgs(args: string[]): {
 
 	return {
 		help,
-		validateMode,
+		version,
+		checkMode,
 		lintMode,
 		skillMode,
 		pretty,
@@ -167,7 +175,7 @@ function extractDepthFromArg(selectorArg: string): number | undefined {
 async function processStdin(
 	stdin: string,
 	selectorArg: string | undefined,
-	validateMode: boolean,
+	checkMode: boolean,
 	lintMode: boolean,
 	pretty: boolean,
 	limit: number,
@@ -181,7 +189,7 @@ async function processStdin(
 		const { lintFiles } = await import("./lint.js");
 		const result = await lintFiles(stdinPaths, cwd, limit);
 		writeLintResult(result, pretty);
-	} else if (validateMode) {
+	} else if (checkMode) {
 		const { validateFiles } = await import("./validate.js");
 		const result = await validateFiles(stdinPaths, cwd, limit);
 		writeValidationResult(result, pretty);
@@ -196,7 +204,7 @@ async function processStdin(
  */
 async function processSelector(
 	selectorArg: string | undefined,
-	validateMode: boolean,
+	checkMode: boolean,
 	lintMode: boolean,
 	pretty: boolean,
 	limit: number,
@@ -210,7 +218,7 @@ async function processSelector(
 	if (lintMode) {
 		const result = await lint(selector, cwd, limit, gitignore);
 		writeLintResult(result, pretty);
-	} else if (validateMode) {
+	} else if (checkMode) {
 		const result = await validate(selector, cwd, limit, gitignore);
 		writeValidationResult(result, pretty);
 	} else {
@@ -243,7 +251,8 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 	try {
 		const {
 			help,
-			validateMode,
+			version,
+			checkMode,
 			lintMode,
 			skillMode,
 			pretty,
@@ -255,6 +264,19 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 
 		if (help) {
 			process.stdout.write(HELP_TEXT);
+			return;
+		}
+
+		if (version) {
+			const pkgPath = resolve(
+				dirname(fileURLToPath(import.meta.url)),
+				"..",
+				"package.json",
+			);
+			const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
+				version: string;
+			};
+			process.stdout.write(`${pkg.version}\n`);
 			return;
 		}
 
@@ -279,9 +301,9 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 			return;
 		}
 
-		if (validateMode && lintMode) {
+		if (checkMode && lintMode) {
 			writeError(
-				new JsdocError("INVALID_SELECTOR", "Cannot use -v and -l together"),
+				new JsdocError("INVALID_SELECTOR", "Cannot use -c and -l together"),
 			);
 			return;
 		}
@@ -291,7 +313,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 			await processStdin(
 				stdin,
 				selectorArg,
-				validateMode,
+				checkMode,
 				lintMode,
 				pretty,
 				limit,
@@ -300,7 +322,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 		} else {
 			await processSelector(
 				selectorArg,
-				validateMode,
+				checkMode,
 				lintMode,
 				pretty,
 				limit,

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+- Renamed `-v`/`--validate` to `-c`/`--check` for validation mode
+- Added `-v`/`--version` flag to print the package version
+
 ## 0.3.0
 - Improved type declaration generation performance with cached TypeScript language service
 - Added tsconfig.json awareness for project-specific compiler settings
@@ -19,7 +23,7 @@
 - Progressive exploration of TypeScript codebases with four detail levels (summary, description, type declarations, full source)
 - Glob and file path selectors with `@depth` suffix for controlling output detail
 - Barrel file gating: `index.ts` files with `@summary` automatically gate sibling files at lower depths
-- Validation mode (`--validate`) to check JSDoc quality across files
+- Validation mode (`--check`) to check JSDoc quality across files
 - Lint mode (`--lint`) for comprehensive JSDoc quality analysis powered by ESLint
 - Skill mode (`--skill`) to print JSDoc writing guidelines
 - Stdin piping support for integration with other tools
