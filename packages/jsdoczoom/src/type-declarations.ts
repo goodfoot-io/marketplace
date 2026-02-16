@@ -1,3 +1,4 @@
+import { dirname } from "node:path";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { JsdocError } from "./errors.js";
@@ -10,6 +11,178 @@ import { JsdocError } from "./errors.js";
  *
  * @summary Generate TypeScript declaration output from source files
  */
+
+// Cache for resolved compiler options, keyed by tsconfig path
+const compilerOptionsCache = new Map<
+	string,
+	{ tsconfigPath: string | null; options: ts.CompilerOptions }
+>();
+
+// Shared document registry for caching parsed source files across language services
+const documentRegistry: ts.DocumentRegistry = ts.createDocumentRegistry();
+
+// Cache for language services, keyed by tsconfig path
+const serviceCache = new Map<
+	string,
+	{ service: ts.LanguageService; files: Set<string> }
+>();
+
+/**
+ * Resolves compiler options for a given file path by finding and parsing
+ * the nearest tsconfig.json file.
+ *
+ * @internal
+ * @param filePath - Absolute path to the TypeScript source file
+ * @returns Object containing the tsconfig path and resolved compiler options
+ */
+export function resolveCompilerOptions(filePath: string): {
+	tsconfigPath: string | null;
+	options: ts.CompilerOptions;
+} {
+	// Required overrides that must always be present
+	const requiredOverrides: ts.CompilerOptions = {
+		declaration: true,
+		emitDeclarationOnly: true,
+		removeComments: false,
+		skipLibCheck: true,
+	};
+
+	// Fallback defaults when no tsconfig is found
+	const fallbackDefaults: ts.CompilerOptions = {
+		...requiredOverrides,
+		target: ts.ScriptTarget.Latest,
+		module: ts.ModuleKind.NodeNext,
+		moduleResolution: ts.ModuleResolutionKind.NodeNext,
+	};
+
+	// Try to find the nearest tsconfig.json
+	const tsconfigPath = ts.findConfigFile(
+		dirname(filePath),
+		ts.sys.fileExists,
+		"tsconfig.json",
+	);
+
+	// Use cache key based on tsconfig path (or "__default__" if none found)
+	const cacheKey = tsconfigPath ?? "__default__";
+
+	if (compilerOptionsCache.has(cacheKey)) {
+		return compilerOptionsCache.get(cacheKey)!;
+	}
+
+	let result: { tsconfigPath: string | null; options: ts.CompilerOptions };
+
+	if (!tsconfigPath) {
+		// No tsconfig found - use fallback defaults
+		result = {
+			tsconfigPath: null,
+			options: fallbackDefaults,
+		};
+	} else {
+		// Try to parse the tsconfig
+		try {
+			const configFile = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
+
+			if (configFile.error) {
+				// Malformed JSON - fall back to defaults
+				result = {
+					tsconfigPath: null,
+					options: fallbackDefaults,
+				};
+			} else {
+				// Parse the config content
+				const parsedConfig = ts.parseJsonConfigFileContent(
+					configFile.config,
+					ts.sys,
+					dirname(tsconfigPath),
+				);
+
+				// Merge parsed options with required overrides
+				result = {
+					tsconfigPath,
+					options: {
+						...parsedConfig.options,
+						...requiredOverrides,
+					},
+				};
+			}
+		} catch (_error) {
+			// Error reading or parsing tsconfig - fall back to defaults
+			result = {
+				tsconfigPath: null,
+				options: fallbackDefaults,
+			};
+		}
+	}
+
+	compilerOptionsCache.set(cacheKey, result);
+	return result;
+}
+
+/**
+ * Gets or creates a cached language service for the given tsconfig and compiler options.
+ * Language services are shared across files in the same project (same tsconfig path) and
+ * reuse parsed source files via the document registry.
+ *
+ * @internal
+ * @param tsconfigPath - Path to the tsconfig.json file, or null if using defaults
+ * @param compilerOptions - Resolved compiler options for this project
+ * @returns Object containing the language service and mutable set of files
+ */
+export function getLanguageService(
+	tsconfigPath: string | null,
+	compilerOptions: ts.CompilerOptions,
+): { service: ts.LanguageService; files: Set<string> } {
+	const cacheKey = tsconfigPath ?? "__default__";
+
+	if (serviceCache.has(cacheKey)) {
+		return serviceCache.get(cacheKey)!;
+	}
+
+	// Create a mutable set to track files for this service
+	const files = new Set<string>();
+
+	// Create a language service host
+	const host: ts.LanguageServiceHost = {
+		getScriptFileNames: () => Array.from(files),
+		getScriptVersion: (_fileName: string) => "0", // Static version - no watch mode
+		getScriptSnapshot: (fileName: string) => {
+			const content = ts.sys.readFile(fileName);
+			if (content === undefined) {
+				return undefined;
+			}
+			return ts.ScriptSnapshot.fromString(content);
+		},
+		getCompilationSettings: () => compilerOptions,
+		getCurrentDirectory: () => ts.sys.getCurrentDirectory(),
+		getDefaultLibFileName: (options: ts.CompilerOptions) =>
+			ts.getDefaultLibFilePath(options),
+		fileExists: ts.sys.fileExists,
+		readFile: ts.sys.readFile,
+		readDirectory: ts.sys.readDirectory,
+		directoryExists: ts.sys.directoryExists,
+		getDirectories: ts.sys.getDirectories,
+	};
+
+	// Create the language service with the document registry for caching
+	const service = ts.createLanguageService(host, documentRegistry);
+
+	const cacheEntry = { service, files };
+	serviceCache.set(cacheKey, cacheEntry);
+	return cacheEntry;
+}
+
+/**
+ * Resets all caches (compiler options, language services, and document registry).
+ * Used for test isolation to ensure a clean state between test runs.
+ *
+ * @internal
+ */
+export function resetCache(): void {
+	compilerOptionsCache.clear();
+	serviceCache.clear();
+	// Note: Document registry doesn't have a clear method, but clearing serviceCache
+	// effectively invalidates all services using the registry
+}
 
 /**
  * Generates TypeScript declaration output from a source file.
@@ -31,80 +204,48 @@ import { JsdocError } from "./errors.js";
  * @throws {JsdocError} If the file cannot be read or parsed
  */
 export function generateTypeDeclarations(filePath: string): string {
-	let sourceText: string;
+	// Verify the file exists (preserve FILE_NOT_FOUND error)
 	try {
-		sourceText = readFileSync(filePath, "utf-8");
+		readFileSync(filePath, "utf-8");
 	} catch (_error) {
 		throw new JsdocError("FILE_NOT_FOUND", `Failed to read file: ${filePath}`);
 	}
 
-	// Create compiler options matching the project setup
-	const compilerOptions: ts.CompilerOptions = {
-		declaration: true,
-		emitDeclarationOnly: true,
-		target: ts.ScriptTarget.Latest,
-		module: ts.ModuleKind.NodeNext,
-		moduleResolution: ts.ModuleResolutionKind.NodeNext,
-		skipLibCheck: true,
-		removeComments: false, // Preserve JSDoc comments
-	};
+	// Resolve compiler options from nearest tsconfig.json
+	const { tsconfigPath, options } = resolveCompilerOptions(filePath);
 
-	// Create a custom compiler host that provides our file
-	const host = ts.createCompilerHost(compilerOptions);
-	const originalGetSourceFile = host.getSourceFile;
+	// Get or create a cached language service for this project
+	const { service, files } = getLanguageService(tsconfigPath, options);
 
-	host.getSourceFile = (
-		fileName: string,
-		languageVersion: ts.ScriptTarget,
-		onError?: (message: string) => void,
-		shouldCreateNewSourceFile?: boolean,
-	): ts.SourceFile | undefined => {
-		if (fileName === filePath) {
-			return ts.createSourceFile(fileName, sourceText, languageVersion, true);
-		}
-		return originalGetSourceFile.call(
-			host,
-			fileName,
-			languageVersion,
-			onError,
-			shouldCreateNewSourceFile,
-		);
-	};
+	// Register the file with the language service
+	files.add(filePath);
 
-	// Capture emitted output
-	let declarationOutput = "";
-	host.writeFile = (fileName: string, data: string): void => {
-		if (fileName.endsWith(".d.ts")) {
-			declarationOutput = data;
-		}
-	};
-
-	// Create program and emit declarations
-	const program = ts.createProgram([filePath], compilerOptions, host);
-	const sourceFile = program.getSourceFile(filePath);
-
-	if (!sourceFile) {
+	// Check for parse errors first
+	const diagnostics = service.getSyntacticDiagnostics(filePath);
+	if (diagnostics.length > 0) {
 		throw new JsdocError("PARSE_ERROR", `Failed to parse file: ${filePath}`);
 	}
 
-	program.emit(
-		sourceFile,
-		undefined,
-		undefined,
-		true, // emitOnlyDtsFiles
+	// Get emit output using the language service
+	const emitOutput = service.getEmitOutput(filePath, true); // true = emitOnlyDtsFiles
+
+	// Find the .d.ts output file
+	const dtsFile = emitOutput.outputFiles.find((file) =>
+		file.name.endsWith(".d.ts"),
 	);
 
-	if (!declarationOutput) {
-		// If no output was generated, the file may have no exports
-		// Return empty string in this case
+	if (!dtsFile) {
+		// No declaration output - file has no exports
 		return "";
 	}
 
 	// Clean up the output
-	let cleaned = declarationOutput;
+	let cleaned = dtsFile.text;
 
 	// Remove empty export statement if present and no other exports
-	if (cleaned.trim() === "export {};") {
+	// Strip out any leading comments first to check if the only actual code is "export {};"
+	const withoutComments = cleaned.replace(/\/\*\*[\s\S]*?\*\//g, "").trim();
+	if (withoutComments === "export {};") {
 		cleaned = "";
 	}
 
