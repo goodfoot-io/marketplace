@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.3
+- Fixed a build issue that could prevent the package from being published correctly
+
 ## 0.4.2
 - Fixed `.d.ts` files being incorrectly included in drilldown results
 - Fixed gitignore rules not being applied when using `drilldownFiles` directly
