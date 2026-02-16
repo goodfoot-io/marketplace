@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/implement-plan-reloader.f73a8bff.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/implement-plan-reloader.aa66fb75.mjs"
           }
         ],
         "matcher": "compact"
@@ -14,8 +14,8 @@
   },
   "__generated": {
     "files": [
-      "implement-plan-reloader.f73a8bff.mjs"
+      "implement-plan-reloader.aa66fb75.mjs"
     ],
-    "timestamp": "2026-02-06T19:31:26.939Z"
+    "timestamp": "2026-02-16T20:46:19.485Z"
   }
 }
