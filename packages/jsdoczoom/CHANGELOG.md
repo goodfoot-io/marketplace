@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2
+- Fixed `.d.ts` files being incorrectly included in drilldown results
+- Fixed gitignore rules not being applied when using `drilldownFiles` directly
+- Improved hook output format to compact JSON for cleaner context injection
+- Improved hook file path extraction to use structured tool responses instead of string parsing
+- Fixed dynamic imports in CLI stdin processing
+
 ## 0.4.0
 - Added Claude Code plugin hook that automatically enriches Grep and Glob search results with JSDoc summaries
 - Added content-hash-based disk caching for faster repeated runs across drilldown, validate, and lint operations
