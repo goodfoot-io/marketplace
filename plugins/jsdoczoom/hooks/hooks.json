@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/jsdoc-drilldown.db552de8.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/jsdoc-drilldown.758b152a.mjs"
           }
         ],
         "matcher": "Grep|Glob"
@@ -14,8 +14,8 @@
   },
   "__generated": {
     "files": [
-      "jsdoc-drilldown.db552de8.mjs"
+      "jsdoc-drilldown.758b152a.mjs"
     ],
-    "timestamp": "2026-02-16T21:29:13.280Z"
+    "timestamp": "2026-02-16T21:37:12.942Z"
   }
 }

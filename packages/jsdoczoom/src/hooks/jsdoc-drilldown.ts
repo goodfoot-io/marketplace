@@ -51,7 +51,9 @@ function extractTsFilePaths(toolResponse: unknown, cwd: string): string[] {
 			const colonIdx = trimmed.indexOf(":");
 			if (colonIdx <= 0) continue;
 			const candidate = trimmed.slice(0, colonIdx);
-			const resolved = candidate.startsWith("/") ? candidate : `${cwd}/${candidate}`;
+			const resolved = candidate.startsWith("/")
+				? candidate
+				: `${cwd}/${candidate}`;
 			if (isTsFile(resolved)) {
 				paths.add(resolved);
 			}
@@ -85,7 +87,9 @@ function formatDrilldownResult(result: DrilldownResult): string {
 	}
 
 	if (entries.length === 0) return "";
-	return JSON.stringify(result.truncated ? { entries, truncated: true } : { entries });
+	return JSON.stringify(
+		result.truncated ? { entries, truncated: true } : { entries },
+	);
 }
 
 export default postToolUseHook(

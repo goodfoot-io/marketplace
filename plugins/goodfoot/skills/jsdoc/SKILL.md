@@ -3,7 +3,6 @@ name: jsdoc
 description: Guidelines for JSDoc annotation in TypeScript projects.
 ---
 
-<guide>
 # World-Class JSDoc Guidelines for TypeScript
 
 These guidelines describe the *properties* of excellent inline JSDoc in TypeScript repositories. They are a target to aim for, not a checklist. Use judgment; clarity beats volume.
@@ -23,7 +22,6 @@ TypeScript projects already have explicit types. JSDoc should add **intent, beha
 - **Consistency with existing style**: Matches the formatting conventions already established in the codebase (multi-line descriptions, bullet lists where helpful).
 - **Future-proof hints**: Notes invariants and assumptions that must hold if the code evolves.
 - **LLM-friendly structure**: Uses short, self-contained paragraphs written in clear International Business English. Avoids prescriptive headers (e.g., "Why:", "Constraint:") in favor of natural prose that states context, purpose, and caveats directly.
-- **Self-demonstrating humor**: Uses self-demonstrating humor as described in the `<humor>` section.
 
 ## Would not have (low-signal or risky properties)
 
@@ -40,21 +38,17 @@ TypeScript projects already have explicit types. JSDoc should add **intent, beha
 
 ### IntelliSense tags (always include)
 
-These tags power IDE hover tooltips, autocomplete, and signature help. Always include them for public APIs, constructors, and functions with non-trivial signatures:
+These tags power IDE hover tooltips, autocomplete, and signature help. Always include them for public APIs, constructors, and functions:
 
-- **`@param`**: Include for every parameter. Describe the parameter's purpose, valid ranges, or constraints—not just its type. Even a brief phrase like "Git executor for running commands" helps users understand intent at a glance.
-- **`@returns`**: Include when the function returns a value. Describe what the return value represents, especially for edge cases (e.g., "Returns null if the ref cannot be resolved").
+- **`@param`**: Include for every parameter. Describe the parameter's purpose, valid ranges, or constraints—not just its type.
+- **`@returns`**: Include when the function returns a value. Describe what the return value represents, especially for edge cases.
 - **`@throws`**: Include when the function can throw. Describe the conditions that cause the error.
-- **`@template`**: Include for generic functions and types. Describe what the type parameter represents (e.g., `@template T - The entity type to be cached`).
+- **`@template`**: Include for generic functions and types. Describe what the type parameter represents.
 
 ### Cross-reference tags (use to aid navigation)
 
-These tags create clickable links in the IDE, helping users discover related code:
-
-- **`@see`**: Link to related functions, types, or external documentation. Use when another symbol provides context or an alternative approach.
-- **`{@link Symbol}`**: Inline reference within descriptions. Creates a clickable link to another symbol (e.g., "Similar to {@link parseRef} but handles symbolic refs").
-
-The goal is not to eliminate these tags but to make each description meaningful rather than redundant with the type signature.
+- **`@see`**: Link to related functions, types, or external documentation.
+- **`{@link Symbol}`**: Inline reference within descriptions. Creates a clickable link to another symbol.
 
 ### Structural tags (use when appropriate)
 
@@ -63,68 +57,232 @@ The goal is not to eliminate these tags but to make each description meaningful 
 - Use `@deprecated` on exports that are retained for compatibility.
 - Prefer short description + bullets for concepts with multiple facets.
 
-## Why this matters (evidence and research)
+---
 
-- **JSDoc is a structured doc language** and supports standardized tags that tooling understands (JSDoc project docs: https://jsdoc.app/).
-- **TypeScript only supports documentation tags in `.ts` files**, so type-oriented JSDoc tags are not effective here (TypeScript handbook: https://www.typescriptlang.org/docs/handbook/jsdoc-supported-types.html).
-- **Docstrings/comments are used as natural-language queries for code search**, which implies high-quality inline documentation improves retrieval and navigation (CodeSearchNet dataset README: https://github.com/github/CodeSearchNet/blob/master/README.md).
-- **LLM-focused studies show that docstring quality and reformulation can affect code generation**; even when performance gains are limited, docstrings are treated as prompt inputs (Dainese et al., EACL 2024: https://aclanthology.org/2024.eacl-srw.24.pdf).
-- **Concise docstrings can preserve code-generation quality while reducing noise**, implying that shorter, higher-signal comments are preferable for both humans and AI tools ("Less is More: DocString Compression in Code Generation": https://arxiv.org/html/2410.22793v3).
-- **TypeScript style guidance distinguishes documentation comments from implementation comments** and advises avoiding restating names/types (TS Style Guide: https://ts.dev/style/).
+## Writing file-level @summary and description
 
-## What this looks like in practice
+Every TypeScript file should have a file-level JSDoc block before the first code statement. This block is what jsdoczoom reads for orientation and validation.
 
-- When documenting a parser, emphasize the parsing strategy, delimiter assumptions, and how tokenization or state transitions work.
-- For schema/type definitions, use JSDoc to define domain meaning, constraints, and example payloads rather than enumerating property types.
-- For services with background watchers or temporal behavior, note the time dependency and the operational mode (polling vs. event-driven).
-- For utility functions, focus on edge cases and boundary conditions that the type signature alone doesn't convey.
-</guide>
+### Structure
 
+```typescript
+/**
+ * Description paragraph goes here. It explains the file's responsibilities,
+ * invariants, trade-offs, and failure modes. This is the deepest level of
+ * native documentation — enough for someone to understand why this file
+ * exists and how it fits into the broader system.
+ *
+ * @summary Concise one-line overview for quick orientation when scanning a codebase.
+ */
+```
 
+### The @summary tag
 
-<humor>
-**Using Self-Demonstrating Humor in JSDoc**
+The `@summary` tag provides a one-line overview — the first thing someone sees when scanning with jsdoczoom at the shallowest depth.
 
-Add brief, self-demonstrating humor to JSDoc annotations **only when it improves clarity or intuition**, not for decoration.
+**Good summaries:**
+- State what the file *does* or *is responsible for*, not what it contains
+- Are self-contained — understandable without reading other files
+- Use domain vocabulary consistently with the rest of the codebase
+- Fit on a single line (joined if multi-line in source)
 
-Use humor when:
-- A concept is **abstract, non-obvious, or counterintuitive**.
-- A behavior is easier to grasp **experientially** than formally (e.g., timing, verbosity, strictness).
-- A light sentence can **anchor memory** without reducing precision.
+**Examples:**
+- `@summary Barrel tree model for hierarchical gating in glob mode`
+- `@summary Resolve selector patterns to absolute file paths with gitignore filtering`
+- `@summary CLI entry point — argument parsing, mode dispatch, and exit code handling`
 
-Do **not** add humor when:
-- The behavior is safety-critical, contractual, or compliance-sensitive.
-- Precision would be diluted or ambiguity introduced.
-- The comment is already short and self-explanatory.
+**Avoid:**
+- `@summary This file contains utility functions` — says what it *contains*, not what it *does*
+- `@summary Helpers` — too vague, no domain context
+- `@summary The main module` — no information about purpose or scope
 
-Style rules:
-- Use natural-language sentences only.
-- Do not explain the joke; the sentence structure should perform the meaning.
-- Keep it short, readable, and technically accurate.
-- Prefer clarity first, humor second.
+### The description paragraph
 
-Examples of *when humor helps* and how to write it:
+The description is prose that appears before any `@` tags. It provides the deeper context that the summary cannot — responsibilities, invariants, trade-offs, and failure modes.
 
-- **Asynchrony or delayed effects (JavaScript):**  
-  “This callback runs later, not now, and possibly after something unrelated finishes first.”
+**Good descriptions:**
+- Explain *why* this file exists and what problem it solves
+- State invariants and assumptions that callers or maintainers must know
+- Note trade-offs and design decisions (e.g., "uses priority-order fill to keep the limit algorithm simple")
+- Mention failure modes and edge cases relevant to the file as a whole
+- Are 1-4 sentences, not an essay
 
-- **Verbosity or ceremony (Java):**  
-  “This method requires several steps of setup and explanation before it does anything interesting.”
+**Examples:**
+```typescript
+/**
+ * Walks .gitignore files from cwd to filesystem root, building an ignore
+ * filter that glob results pass through. Direct-path lookups bypass the
+ * filter since the user explicitly named the file. The ignore instance is
+ * created per call — no caching — because cwd may differ between invocations.
+ *
+ * @summary Resolve selector patterns to absolute file paths with gitignore filtering
+ */
+```
 
-- **Strict correctness or safety (Rust):**  
-  “This function refuses to proceed until it can prove that nothing unsafe will occur.”
+```typescript
+/**
+ * Each file is classified into exactly one status category: the first
+ * failing check wins (syntax_error > missing_jsdoc > missing_summary >
+ * missing_description). Valid files are omitted from output entirely.
+ * The limit parameter caps the total number of invalid paths shown,
+ * filled in priority order across groups.
+ *
+ * @summary Validate file-level JSDoc and group results by status category
+ */
+```
 
-- **Implicit behavior or surprise (JavaScript):**  
-  “This value may quietly change its type and still insist that everything is fine.”
+**Avoid:**
+- Restating the summary in longer words
+- Listing every function in the file
+- Implementation details that change frequently (line numbers, internal variable names)
 
-- **Manual responsibility (C):**  
-  “This function allocates resources explicitly and expects you to remember to clean them up.”
+### Barrel files (index.ts / index.tsx)
 
-**Use humor as a **clarifying lens**, not as decoration. If removing the joke would make the behavior harder to remember or intuit, it likely belongs.**
-</humor>
+Barrel files represent their directory. Their `@summary` and description should describe the **cumulative functionality of the directory's children**, not the barrel file itself.
 
-<tips>
-Note that you do not need to run tests or linting if you only added JSDoc documentation as it will not affect function of the code.
+- **`@summary`**: The collective purpose of the files in this directory
+- **Description**: The combined capabilities and responsibilities of child modules — what they do together, not their filenames or the re-export mechanism
 
-Make sure you understand the full meaning of the code before adding or updating documentation. Don't guess.
-</tips>
+```typescript
+// packages/auth/src/index.ts
+/**
+ * Provides session lifecycle management, token validation and refresh,
+ * and middleware for route-level access control. OAuth2 provider
+ * integration is handled here; cryptographic primitives are delegated
+ * to the crypto package.
+ *
+ * @summary Authentication and authorization module
+ */
+```
+
+**Avoid:**
+- `@summary Re-exports all functions and types` — describes the barrel mechanism, not what the children do
+- `@summary Exports for the auth module` — describes the mechanism, not the purpose
+- `@summary Public API barrel` — names the pattern rather than describing functionality
+- Listing child filenames or saying "This is the entry point"
+
+### Placement
+
+The file-level JSDoc block must appear **before the first code statement** (imports are fine above it, but the block must precede any `export`, `const`, `function`, `class`, etc.). A common pattern is to place it immediately after imports:
+
+```typescript
+import { resolve } from "node:path";
+import { globSync } from "glob";
+
+/**
+ * Description paragraph here.
+ *
+ * @summary One-line overview here
+ */
+
+export function discoverFiles(...) { ... }
+```
+
+### Common lint rules and examples
+
+These rules are enforced in lint mode (`-l`). Understanding what passes and fails reduces trial-and-rerun cycles.
+
+#### `jsdoc/informative-docs` — descriptions must add meaning
+
+This rule rejects descriptions that merely restate the parameter name, type, or containing symbol name. Descriptions must provide behavioral context.
+
+**Fails:**
+- `@param id - The id`
+- `@param options - The options object`
+- `@returns The result`
+- `@param name - The name string`
+
+**Passes:**
+- `@param id - Unique identifier used for cache lookup and deduplication`
+- `@param options - Controls retry behavior, timeout, and error handling strategy`
+- `@returns Parsed configuration with defaults applied for missing fields`
+- `@param name - Display name shown in the navigation sidebar`
+
+**Rule of thumb:** If removing the parameter name from the description leaves no useful information, the description is not informative enough.
+
+#### `jsdoc/check-tag-names` — allowed tags only
+
+The lint configuration rejects non-standard JSDoc tags. Common tags to **avoid in JSDoc blocks**:
+- `@remarks` — move content to the description paragraph (prose before tags)
+- `@packageDocumentation` — use `@module` instead
+- `@concept`, `@constraint` — move content to the description paragraph
+
+Framework directives that look like tags (e.g., `@vitest-environment`) should use plain comments instead:
+```typescript
+// @vitest-environment node   ← correct (plain comment)
+/** @vitest-environment node */  ← incorrect (treated as JSDoc tag)
+```
+
+#### `jsdoc/require-throws` — document throw conditions
+
+Include `@throws` for any function that can throw, including catch-and-rethrow patterns:
+```typescript
+/**
+ * @param path - File path to read
+ * @returns Parsed configuration object
+ * @throws {ConfigError} When the file is missing or contains invalid YAML
+ */
+```
+
+If a function catches errors and rethrows them (wrapped or unwrapped), it still needs `@throws`.
+
+### Nested object parameters
+
+When a function accepts an inline object parameter, document each property with a nested `@param` tag:
+
+```typescript
+/**
+ * Create a new user account.
+ *
+ * @param data - Account creation payload
+ * @param data.email - Email address used for login and notifications
+ * @param data.displayName - Public-facing name shown in the UI
+ * @param data.role - Initial permission level assigned to the account
+ * @returns The created user record with generated ID
+ */
+function createUser(data: { email: string; displayName: string; role: Role }): User {
+```
+
+For React component props, use `props` (or `root0` if destructured) as the root:
+
+```typescript
+/**
+ * @param props - Component properties
+ * @param props.title - Page heading displayed at the top
+ * @param props.onSubmit - Callback invoked when the form is submitted
+ */
+function MyComponent(props: { title: string; onSubmit: () => void }) {
+```
+
+### Overload documentation
+
+When a function has TypeScript overload signatures, document **both** the overload declarations and the implementation signature:
+
+```typescript
+/**
+ * Parse a value from a string representation.
+ *
+ * @param input - Raw string to parse
+ * @returns Parsed numeric value
+ */
+function parse(input: string): number;
+/**
+ * Parse a value from a buffer.
+ *
+ * @param input - Binary buffer to parse
+ * @returns Parsed numeric value
+ */
+function parse(input: Buffer): number;
+/**
+ * Parse a value from string or buffer input. String inputs are decoded
+ * as UTF-8 before numeric parsing.
+ *
+ * @param input - String or buffer to parse
+ * @returns Parsed numeric value
+ * @throws {ParseError} When the input cannot be interpreted as a number
+ */
+function parse(input: string | Buffer): number {
+  // implementation
+}
+```
+
