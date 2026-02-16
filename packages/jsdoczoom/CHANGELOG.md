@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.11
+- Updated eslint dependency to support a broader range of versions
+
 ## 0.4.10
 - Reduced package size by extracting hooks into a separate package
 
