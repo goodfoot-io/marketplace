@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.12
+- Fixed build process that could cause incorrect package output
+
 ## 0.4.11
 - Updated eslint dependency to support a broader range of versions
 
