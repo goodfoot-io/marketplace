@@ -9,6 +9,7 @@
  */
 
 import {
+	isTsFile,
 	postToolUseHook,
 	postToolUseOutput,
 } from "@goodfoot/claude-code-hooks";
@@ -16,29 +17,44 @@ import { drilldownFiles } from "../drilldown.js";
 import type { DrilldownResult } from "../types.js";
 
 /**
- * Extract unique absolute .ts/.tsx file paths from a tool response string.
+ * Extract unique absolute .ts/.tsx file paths from a structured tool response.
  *
- * Handles both Glob output (bare file paths) and Grep output
- * (files_with_matches paths or content-mode "path:line:content" lines).
+ * Handles both Glob responses (filenames array with absolute paths) and
+ * Grep responses (filenames array for files_with_matches mode, or content
+ * string with "path:line:content" lines for content mode).
+ *
+ * @param toolResponse - The structured tool_response object from PostToolUse
+ * @param cwd - The working directory, used to resolve relative paths
  */
-function extractTsFilePaths(toolResponse: unknown): string[] {
-	const raw = String(toolResponse ?? "");
-	if (!raw.trim()) return [];
+function extractTsFilePaths(toolResponse: unknown, cwd: string): string[] {
+	if (!toolResponse || typeof toolResponse !== "object") return [];
 
-	const lines = raw.split("\n");
+	const resp = toolResponse as Record<string, unknown>;
 	const paths = new Set<string>();
 
-	for (const line of lines) {
-		const trimmed = line.trim();
-		if (!trimmed || !trimmed.startsWith("/")) continue;
+	// Both Glob and Grep include a filenames array
+	if (Array.isArray(resp.filenames)) {
+		for (const f of resp.filenames) {
+			if (typeof f !== "string") continue;
+			const resolved = f.startsWith("/") ? f : `${cwd}/${f}`;
+			if (isTsFile(resolved)) {
+				paths.add(resolved);
+			}
+		}
+	}
 
-		// Absolute path, possibly with :line:content suffix from Grep content mode.
-		// Extract everything up to the first colon after the leading slash.
-		const colonIdx = trimmed.indexOf(":", 1);
-		const candidate = colonIdx > 0 ? trimmed.slice(0, colonIdx) : trimmed;
-
-		if (candidate.endsWith(".ts") || candidate.endsWith(".tsx")) {
-			paths.add(candidate);
+	// Grep content mode: "path:line:content" lines in the content string
+	if (typeof resp.content === "string" && resp.content) {
+		for (const line of resp.content.split("\n")) {
+			const trimmed = line.trim();
+			if (!trimmed) continue;
+			const colonIdx = trimmed.indexOf(":");
+			if (colonIdx <= 0) continue;
+			const candidate = trimmed.slice(0, colonIdx);
+			const resolved = candidate.startsWith("/") ? candidate : `${cwd}/${candidate}`;
+			if (isTsFile(resolved)) {
+				paths.add(resolved);
+			}
 		}
 	}
 
@@ -68,7 +84,7 @@ function formatDrilldownResult(result: DrilldownResult): string {
 export default postToolUseHook(
 	{ matcher: "Grep|Glob" },
 	async (input, { logger }) => {
-		const filePaths = extractTsFilePaths(input.tool_response);
+		const filePaths = extractTsFilePaths(input.tool_response, input.cwd);
 
 		if (filePaths.length === 0) {
 			logger.debug("No .ts/.tsx files found in tool response");

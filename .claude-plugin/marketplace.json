@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "goodfoot",
   "displayName": "Goodfoot",
-  "version": "1.0.119",
+  "version": "1.0.120",
   "metadata": {
     "description": "Professional development workflows, MCP servers, and productivity tools from Goodfoot. Includes project management, browser automation, VSCode integration, code quality enforcement, and comprehensive development utilities."
   },
@@ -54,7 +54,7 @@
     },
     {
       "name": "goodfoot",
-      "version": "1.0.67",
+      "version": "1.0.68",
       "source": "./plugins/goodfoot",
       "tags": [
         "testing",
@@ -68,7 +68,7 @@
     },
     {
       "name": "typescript-hooks",
-      "version": "0.1.12",
+      "version": "0.1.13",
       "source": "./plugins/typescript-hooks",
       "tags": [
         "typescript",
@@ -165,7 +165,7 @@
     },
     {
       "name": "jsdoczoom",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "source": "./plugins/jsdoczoom",
       "tags": [
         "jsdoc",

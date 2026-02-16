@@ -307547,9 +307547,9 @@ var require_is_glob = __commonJS({
   }
 });
 
-// ../../node_modules/glob-parent/index.js
+// ../../node_modules/fast-glob/node_modules/glob-parent/index.js
 var require_glob_parent = __commonJS({
-  "../../node_modules/glob-parent/index.js"(exports2, module2) {
+  "../../node_modules/fast-glob/node_modules/glob-parent/index.js"(exports2, module2) {
     "use strict";
     var isGlob = require_is_glob();
     var pathPosixDirname = __require("path").posix.dirname;
