@@ -1,7 +1,8 @@
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { relative } from "node:path";
 import type { ESLint } from "eslint";
 import { findMissingBarrels } from "./barrel.js";
+import { processWithCache } from "./cache.js";
 import { JsdocError } from "./errors.js";
 import {
 	createValidationLinter,
@@ -11,11 +12,12 @@ import {
 import { discoverFiles } from "./file-discovery.js";
 import { GUIDANCE } from "./skill-text.js";
 import type {
+	CacheConfig,
 	SelectorInfo,
 	ValidationResult,
 	ValidationStatus,
 } from "./types.js";
-import { VALIDATION_STATUS_PRIORITY } from "./types.js";
+import { DEFAULT_CACHE_DIR, VALIDATION_STATUS_PRIORITY } from "./types.js";
 
 /**
  * Each file is classified into exactly one status category: the first
@@ -40,24 +42,28 @@ interface FileStatus {
  *
  * Reads the file, lints it with the ESLint engine, and maps the
  * resulting messages to a single ValidationStatus using priority order.
+ * Results are cached by file content hash.
  */
 async function classifyFile(
 	eslint: ESLint,
 	filePath: string,
 	cwd: string,
+	config: CacheConfig,
 ): Promise<FileStatus> {
 	const relativePath = relative(cwd, filePath);
 
 	let sourceText: string;
 	try {
-		sourceText = readFileSync(filePath, "utf-8");
+		sourceText = await readFile(filePath, "utf-8");
 	} catch {
 		throw new JsdocError("FILE_NOT_FOUND", `File not found: ${filePath}`);
 	}
 
-	const messages = await lintFileForValidation(eslint, sourceText, filePath);
-	const status = mapToValidationStatus(messages);
-	return { path: relativePath, status };
+	return processWithCache(config, "validate", sourceText, async () => {
+		const messages = await lintFileForValidation(eslint, sourceText, filePath);
+		const status = mapToValidationStatus(messages);
+		return { path: relativePath, status };
+	});
 }
 
 /**
@@ -112,6 +118,8 @@ function buildGroupedResult(
  * @param selector - Selector information (glob or path)
  * @param cwd - Working directory for resolving paths
  * @param limit - Max number of invalid file paths to include (default 100)
+ * @param gitignore - Whether to respect .gitignore (default true)
+ * @param config - Cache configuration (default: enabled with system temp dir)
  * @returns Grouped validation results
  * @throws {JsdocError} NO_FILES_MATCHED if glob selector matches no files
  * @throws {JsdocError} FILE_NOT_FOUND if path selector targets nonexistent file
@@ -121,6 +129,7 @@ export async function validate(
 	cwd: string,
 	limit = 100,
 	gitignore = true,
+	config: CacheConfig = { enabled: true, directory: DEFAULT_CACHE_DIR },
 ): Promise<ValidationResult> {
 	const files = discoverFiles(selector.pattern, cwd, gitignore);
 	if (files.length === 0) {
@@ -132,7 +141,7 @@ export async function validate(
 
 	const eslint = createValidationLinter();
 	const statuses = await Promise.all(
-		files.map((f) => classifyFile(eslint, f, cwd)),
+		files.map((f) => classifyFile(eslint, f, cwd, config)),
 	);
 	const missingBarrels = findMissingBarrels(files, cwd);
 	return buildGroupedResult(statuses, missingBarrels, limit);
@@ -146,12 +155,14 @@ export async function validate(
  * @param filePaths - List of file paths to validate
  * @param cwd - Working directory for resolving relative paths
  * @param limit - Max number of invalid file paths to include (default 100)
+ * @param config - Cache configuration (default: enabled with system temp dir)
  * @returns Grouped validation results
  */
 export async function validateFiles(
 	filePaths: string[],
 	cwd: string,
 	limit = 100,
+	config: CacheConfig = { enabled: true, directory: DEFAULT_CACHE_DIR },
 ): Promise<ValidationResult> {
 	const tsFiles = filePaths.filter(
 		(f) => f.endsWith(".ts") || f.endsWith(".tsx"),
@@ -159,7 +170,7 @@ export async function validateFiles(
 
 	const eslint = createValidationLinter();
 	const statuses = await Promise.all(
-		tsFiles.map((f) => classifyFile(eslint, f, cwd)),
+		tsFiles.map((f) => classifyFile(eslint, f, cwd, config)),
 	);
 	const missingBarrels = findMissingBarrels(tsFiles, cwd);
 	return buildGroupedResult(statuses, missingBarrels, limit);

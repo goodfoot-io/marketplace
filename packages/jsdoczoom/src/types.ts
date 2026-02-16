@@ -6,6 +6,9 @@
  * @summary Shared type definitions for output shapes, error codes, and parsed structures
  */
 
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 /** Output item with more detail available — next_id points to the next level */
 export interface OutputItemNext {
 	next_id: string;
@@ -146,3 +149,15 @@ export interface LintResult {
 		truncated?: boolean;
 	};
 }
+
+/** Configuration for the disk cache layer */
+export interface CacheConfig {
+	enabled: boolean;
+	directory: string;
+}
+
+/** Operation modes that produce cacheable results */
+export type CacheOperationMode = "drilldown" | "validate" | "lint";
+
+/** Default cache directory under os.tmpdir() */
+export const DEFAULT_CACHE_DIR = join(tmpdir(), ".jsdoczoom-cache");

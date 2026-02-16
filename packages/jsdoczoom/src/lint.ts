@@ -9,14 +9,21 @@
  * @summary Lint files for comprehensive JSDoc quality using ESLint engine
  */
 
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { relative } from "node:path";
 import type { ESLint } from "eslint";
 import { findMissingBarrels } from "./barrel.js";
+import { processWithCache } from "./cache.js";
 import { JsdocError } from "./errors.js";
 import { createLintLinter, lintFileForLint } from "./eslint-engine.js";
 import { discoverFiles } from "./file-discovery.js";
-import type { LintFileResult, LintResult, SelectorInfo } from "./types.js";
+import type {
+	CacheConfig,
+	LintFileResult,
+	LintResult,
+	SelectorInfo,
+} from "./types.js";
+import { DEFAULT_CACHE_DIR } from "./types.js";
 
 /**
  * Lint a single file and return per-file diagnostics.
@@ -24,19 +31,23 @@ import type { LintFileResult, LintResult, SelectorInfo } from "./types.js";
  * @param eslint - Reusable ESLint instance with correct cwd
  * @param filePath - Absolute path to the file
  * @param cwd - Working directory for computing relative paths
+ * @param config - Cache configuration
  * @returns File result with relative path and diagnostics array
  */
 async function lintSingleFile(
 	eslint: ESLint,
 	filePath: string,
 	cwd: string,
+	config: CacheConfig,
 ): Promise<LintFileResult> {
-	const sourceText = readFileSync(filePath, "utf-8");
-	const diagnostics = await lintFileForLint(eslint, sourceText, filePath);
-	return {
-		filePath: relative(cwd, filePath),
-		diagnostics,
-	};
+	const sourceText = await readFile(filePath, "utf-8");
+	return processWithCache(config, "lint", sourceText, async () => {
+		const diagnostics = await lintFileForLint(eslint, sourceText, filePath);
+		return {
+			filePath: relative(cwd, filePath),
+			diagnostics,
+		};
+	});
 }
 
 /**
@@ -86,6 +97,7 @@ function buildLintResult(
  * @param cwd - Working directory for resolving paths
  * @param limit - Max number of files with issues to include (default 100)
  * @param gitignore - Whether to respect .gitignore rules (default true)
+ * @param config - Cache configuration (default enabled with DEFAULT_CACHE_DIR)
  * @returns Lint result with per-file diagnostics and summary
  * @throws {JsdocError} NO_FILES_MATCHED if glob selector matches no files
  */
@@ -94,6 +106,7 @@ export async function lint(
 	cwd: string,
 	limit = 100,
 	gitignore = true,
+	config: CacheConfig = { enabled: true, directory: DEFAULT_CACHE_DIR },
 ): Promise<LintResult> {
 	const files = discoverFiles(selector.pattern, cwd, gitignore);
 	if (files.length === 0 && selector.type === "glob") {
@@ -107,7 +120,7 @@ export async function lint(
 
 	const eslint = createLintLinter(cwd);
 	const fileResults = await Promise.all(
-		tsFiles.map((f) => lintSingleFile(eslint, f, cwd)),
+		tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config)),
 	);
 	const missingBarrels = findMissingBarrels(tsFiles, cwd);
 
@@ -123,12 +136,14 @@ export async function lint(
  * @param filePaths - List of absolute file paths to lint
  * @param cwd - Working directory for computing relative paths
  * @param limit - Max number of files with issues to include (default 100)
+ * @param config - Cache configuration (default enabled with DEFAULT_CACHE_DIR)
  * @returns Lint result with per-file diagnostics and summary
  */
 export async function lintFiles(
 	filePaths: string[],
 	cwd: string,
 	limit = 100,
+	config: CacheConfig = { enabled: true, directory: DEFAULT_CACHE_DIR },
 ): Promise<LintResult> {
 	const tsFiles = filePaths.filter(
 		(f) => f.endsWith(".ts") || f.endsWith(".tsx"),
@@ -136,7 +151,7 @@ export async function lintFiles(
 
 	const eslint = createLintLinter(cwd);
 	const fileResults = await Promise.all(
-		tsFiles.map((f) => lintSingleFile(eslint, f, cwd)),
+		tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config)),
 	);
 	const missingBarrels = findMissingBarrels(tsFiles, cwd);
 

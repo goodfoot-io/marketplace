@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { JsdocError } from "../src/errors.js";
-import type { SelectorInfo } from "../src/types.js";
+import type { CacheConfig, SelectorInfo } from "../src/types.js";
 import { validate, validateFiles } from "../src/validate.js";
 
 /**
@@ -391,5 +391,24 @@ describe("validateFiles", () => {
 		const result = await validateFiles(files, fixturesDir);
 
 		expect(result.missing_summary?.files).toEqual(["description-only.ts"]);
+	});
+});
+
+describe("cache integration", () => {
+	it("validate returns cached classification for unchanged files", async () => {
+		// Run validate twice on same file, second time should be cached
+		// (we can't directly verify caching without mocking, but verify correctness)
+		const files = [fixture("two-summaries.ts")];
+		const result1 = await validateFiles(files, fixturesDir);
+		const result2 = await validateFiles(files, fixturesDir);
+		expect(result1).toEqual(result2);
+	});
+
+	it("validate works with cache disabled", async () => {
+		const files = [fixture("two-summaries.ts")];
+		const disabledConfig: CacheConfig = { enabled: false, directory: "" };
+		const result = await validateFiles(files, fixturesDir, 100, disabledConfig);
+		expect(result.syntax_error).toBeUndefined();
+		expect(result.missing_jsdoc).toBeUndefined();
 	});
 });

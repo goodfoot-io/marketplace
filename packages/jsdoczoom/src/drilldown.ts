@@ -1,11 +1,13 @@
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { dirname, relative } from "node:path";
 import { getBarrelChildren, isBarrel } from "./barrel.js";
+import { processWithCache } from "./cache.js";
 import { JsdocError } from "./errors.js";
 import { discoverFiles } from "./file-discovery.js";
 import { parseFileSummaries } from "./jsdoc-parser.js";
 import { generateTypeDeclarations } from "./type-declarations.js";
 import type {
+	CacheConfig,
 	DrilldownResult,
 	OutputEntry,
 	OutputErrorItem,
@@ -13,6 +15,7 @@ import type {
 	ParsedFileInfo,
 	SelectorInfo,
 } from "./types.js";
+import { DEFAULT_CACHE_DIR } from "./types.js";
 
 /**
  * Each file has a fixed 4-level structure: summary (L1), description (L2),
@@ -28,11 +31,17 @@ import type {
  * @summary Progressive drill-down through file documentation with barrel gating in glob mode
  */
 
-/** Level content with a lazy text accessor. */
-type Level = { text: () => string } | null;
+/** Level content with a text value. */
+type Level = { text: string } | null;
 
 /** Terminal level (1-indexed): 1=summary, 2=description, 3=type declarations, 4=full file. */
 const TERMINAL_LEVEL = 4;
+
+/** Default cache configuration used when no config is provided. */
+const DEFAULT_CACHE_CONFIG: CacheConfig = {
+	enabled: true,
+	directory: DEFAULT_CACHE_DIR,
+};
 
 /**
  * Build the fixed drill-down level array for a file.
@@ -43,14 +52,20 @@ const TERMINAL_LEVEL = 4;
  * - Level 4 (index 3): full file content (always present, terminal)
  *
  * The array always has 4 entries. Null entries are skipped during processing.
+ * Type declarations and file content are pre-computed and passed in to support
+ * async cache integration.
  */
-function buildLevels(info: ParsedFileInfo): [Level, Level, Level, Level] {
+function buildLevels(
+	info: ParsedFileInfo,
+	typeDeclarations: string,
+	fileContent: string,
+): [Level, Level, Level, Level] {
 	const { summary, description } = info;
 	return [
-		summary !== null ? { text: () => summary } : null,
-		description !== null ? { text: () => description } : null,
-		{ text: () => generateTypeDeclarations(info.path) },
-		{ text: () => readFileSync(info.path, "utf-8") },
+		summary !== null ? { text: summary } : null,
+		description !== null ? { text: description } : null,
+		{ text: typeDeclarations },
+		{ text: fileContent },
 	];
 }
 
@@ -84,11 +99,13 @@ function sortKey(entry: OutputEntry): string {
  */
 function processFile(
 	info: ParsedFileInfo,
+	typeDeclarations: string,
+	fileContent: string,
 	depth: number,
 	cwd: string,
 ): OutputEntry {
 	const idPath = displayPath(info.path, cwd);
-	const levels = buildLevels(info);
+	const levels = buildLevels(info, typeDeclarations, fileContent);
 
 	// Clamp depth to [1, TERMINAL_LEVEL], advance past null levels
 	let effectiveDepth = Math.max(1, Math.min(depth, TERMINAL_LEVEL));
@@ -98,17 +115,17 @@ function processFile(
 	) {
 		effectiveDepth++;
 	}
-	const level = levels[effectiveDepth - 1] as { text: () => string };
+	const level = levels[effectiveDepth - 1] as { text: string };
 
 	if (effectiveDepth < TERMINAL_LEVEL) {
 		return {
 			next_id: `${idPath}@${effectiveDepth + 1}`,
-			text: level.text(),
+			text: level.text,
 		};
 	}
 	return {
 		id: `${idPath}@${effectiveDepth}`,
-		text: level.text(),
+		text: level.text,
 	};
 }
 
@@ -135,16 +152,43 @@ function isParseError(error: unknown): error is JsdocError {
 
 /**
  * Process a file safely, returning an OutputErrorItem on PARSE_ERROR.
- * Rethrows non-PARSE_ERROR exceptions.
+ * Rethrows non-PARSE_ERROR exceptions. Uses cache for expensive operations
+ * (parseFileSummaries and generateTypeDeclarations).
  */
-function processFileSafe(
+async function processFileSafe(
 	filePath: string,
 	depth: number,
 	cwd: string,
-): OutputEntry {
+	config: CacheConfig,
+): Promise<OutputEntry> {
 	try {
-		const info = parseFileSummaries(filePath);
-		return processFile(info, depth, cwd);
+		const content = await readFile(filePath, "utf-8");
+		const info = await processWithCache(
+			config,
+			"drilldown",
+			content,
+			() => parseFileSummaries(filePath),
+		);
+
+		// Only compute type declarations when depth requires it (level 3+).
+		// Determine effective depth to check if we need type declarations.
+		let effectiveDepth = Math.max(1, Math.min(depth, TERMINAL_LEVEL));
+		if (effectiveDepth < TERMINAL_LEVEL && info.summary === null)
+			effectiveDepth = Math.max(effectiveDepth, 2);
+		if (effectiveDepth < TERMINAL_LEVEL && info.description === null)
+			effectiveDepth = Math.max(effectiveDepth, 3);
+
+		const typeDeclarations =
+			effectiveDepth >= 3
+				? await processWithCache(
+						config,
+						"drilldown",
+						`${content}\0typedecl`,
+						() => generateTypeDeclarations(filePath),
+					)
+				: "";
+
+		return processFile(info, typeDeclarations, content, depth, cwd);
 	} catch (error) {
 		if (isParseError(error)) return makeParseErrorItem(filePath, error, cwd);
 		throw error;
@@ -164,30 +208,53 @@ interface BarrelInfo {
 /**
  * Gather barrel info and error entries from a list of barrel file paths.
  * Returns successfully parsed barrel infos and error entries for unparseable barrels.
+ * Uses cache for parseFileSummaries calls.
  */
-function gatherBarrelInfos(
+async function gatherBarrelInfos(
 	barrelPaths: string[],
 	cwd: string,
-): { infos: BarrelInfo[]; errors: OutputEntry[] } {
+	config: CacheConfig,
+): Promise<{ infos: BarrelInfo[]; errors: OutputEntry[] }> {
 	const infos: BarrelInfo[] = [];
 	const errors: OutputEntry[] = [];
 
-	for (const barrelPath of barrelPaths) {
-		try {
-			const info = parseFileSummaries(barrelPath);
-			const children = getBarrelChildren(barrelPath, cwd);
-			infos.push({
-				path: barrelPath,
-				hasSummary: info.summary !== null,
-				hasDescription: info.description !== null,
-				children,
-			});
-		} catch (error) {
-			if (isParseError(error)) {
-				errors.push(makeParseErrorItem(barrelPath, error, cwd));
-				continue;
+	const results = await Promise.all(
+		barrelPaths.map(async (barrelPath) => {
+			try {
+				const content = await readFile(barrelPath, "utf-8");
+				const info = await processWithCache(
+					config,
+					"drilldown",
+					content,
+					() => parseFileSummaries(barrelPath),
+				);
+				const children = getBarrelChildren(barrelPath, cwd);
+				return {
+					type: "info" as const,
+					data: {
+						path: barrelPath,
+						hasSummary: info.summary !== null,
+						hasDescription: info.description !== null,
+						children,
+					},
+				};
+			} catch (error) {
+				if (isParseError(error)) {
+					return {
+						type: "error" as const,
+						data: makeParseErrorItem(barrelPath, error, cwd),
+					};
+				}
+				throw error;
 			}
-			throw error;
+		}),
+	);
+
+	for (const result of results) {
+		if (result.type === "info") {
+			infos.push(result.data);
+		} else {
+			errors.push(result.data);
 		}
 	}
 
@@ -215,12 +282,14 @@ function buildGatedFileSet(barrelInfos: BarrelInfo[]): Set<string> {
  * Barrels with summaries gate children for two depths (L1 summary, L2 description),
  * then transition at depth 3 where the barrel disappears and children appear.
  */
-function processBarrelAtDepth(
+async function processBarrelAtDepth(
 	barrel: BarrelInfo,
 	depth: number,
 	cwd: string,
-): OutputEntry[] {
-	if (!barrel.hasSummary) return [processFileSafe(barrel.path, depth, cwd)];
+	config: CacheConfig,
+): Promise<OutputEntry[]> {
+	if (!barrel.hasSummary)
+		return [await processFileSafe(barrel.path, depth, cwd, config)];
 
 	// Null-skip: if depth 2 but no description, advance to transition depth
 	let effectiveDepth = depth;
@@ -230,7 +299,12 @@ function processBarrelAtDepth(
 
 	if (effectiveDepth < 3) {
 		// Show barrel's own L1 (summary) or L2 (description)
-		const entry = processFileSafe(barrel.path, effectiveDepth, cwd);
+		const entry = await processFileSafe(
+			barrel.path,
+			effectiveDepth,
+			cwd,
+			config,
+		);
 		if ("next_id" in entry) {
 			(entry as OutputItemNext).children = barrel.children.map((c) =>
 				relative(cwd, c),
@@ -241,18 +315,21 @@ function processBarrelAtDepth(
 
 	// Barrel transitions: barrel disappears, children appear
 	const childDepth = effectiveDepth - 2;
-	return collectSafeResults(barrel.children, childDepth, cwd);
+	return collectSafeResults(barrel.children, childDepth, cwd, config);
 }
 
 /**
- * Process a list of files through processFileSafe.
+ * Process a list of files through processFileSafe in parallel.
  */
-function collectSafeResults(
+async function collectSafeResults(
 	files: string[],
 	depth: number,
 	cwd: string,
-): OutputEntry[] {
-	return files.map((filePath) => processFileSafe(filePath, depth, cwd));
+	config: CacheConfig,
+): Promise<OutputEntry[]> {
+	return Promise.all(
+		files.map((filePath) => processFileSafe(filePath, depth, cwd, config)),
+	);
 }
 
 /**
@@ -266,11 +343,12 @@ function collectSafeResults(
  * A barrel that is itself gated by a parent barrel is not processed independently.
  * Non-barrel files that are not gated by any barrel are processed normally.
  */
-function processGlobWithBarrels(
+async function processGlobWithBarrels(
 	files: string[],
 	depth: number,
 	cwd: string,
-): OutputEntry[] {
+	config: CacheConfig,
+): Promise<OutputEntry[]> {
 	const barrelPaths: string[] = [];
 	const nonBarrelPaths: string[] = [];
 
@@ -283,24 +361,28 @@ function processGlobWithBarrels(
 	}
 
 	if (barrelPaths.length === 0) {
-		return collectSafeResults(nonBarrelPaths, depth, cwd);
+		return collectSafeResults(nonBarrelPaths, depth, cwd, config);
 	}
 
-	const { infos: barrelInfos, errors: barrelErrors } = gatherBarrelInfos(
-		barrelPaths,
-		cwd,
-	);
+	const { infos: barrelInfos, errors: barrelErrors } =
+		await gatherBarrelInfos(barrelPaths, cwd, config);
 	const gatedFiles = buildGatedFileSet(barrelInfos);
 
 	const results: OutputEntry[] = [...barrelErrors];
 
-	for (const barrel of barrelInfos) {
-		if (gatedFiles.has(barrel.path)) continue;
-		results.push(...processBarrelAtDepth(barrel, depth, cwd));
+	const barrelResults = await Promise.all(
+		barrelInfos
+			.filter((barrel) => !gatedFiles.has(barrel.path))
+			.map((barrel) => processBarrelAtDepth(barrel, depth, cwd, config)),
+	);
+	for (const entries of barrelResults) {
+		results.push(...entries);
 	}
 
 	const ungatedNonBarrels = nonBarrelPaths.filter((f) => !gatedFiles.has(f));
-	results.push(...collectSafeResults(ungatedNonBarrels, depth, cwd));
+	results.push(
+		...(await collectSafeResults(ungatedNonBarrels, depth, cwd, config)),
+	);
 
 	return results;
 }
@@ -319,12 +401,13 @@ function processGlobWithBarrels(
  * @throws {JsdocError} NO_FILES_MATCHED for empty glob results
  * @throws {JsdocError} PARSE_ERROR for path selector targeting file with syntax errors
  */
-export function drilldown(
+export async function drilldown(
 	selector: SelectorInfo,
 	cwd: string,
 	gitignore = true,
 	limit = 100,
-): DrilldownResult {
+	config: CacheConfig = DEFAULT_CACHE_CONFIG,
+): Promise<DrilldownResult> {
 	const depth = selector.depth ?? 1;
 
 	if (selector.type === "path") {
@@ -332,7 +415,12 @@ export function drilldown(
 
 		if (files.length > 1) {
 			// Directory expanded to multiple files — route through glob pipeline
-			const results = processGlobWithBarrels(files, depth, cwd);
+			const results = await processGlobWithBarrels(
+				files,
+				depth,
+				cwd,
+				config,
+			);
 			const sorted = results.sort((a, b) =>
 				sortKey(a).localeCompare(sortKey(b)),
 			);
@@ -346,8 +434,34 @@ export function drilldown(
 
 		// Single file path — errors are fatal, no barrel gating
 		const filePath = files[0];
-		const info = parseFileSummaries(filePath);
-		const items = [processFile(info, depth, cwd)];
+		const content = await readFile(filePath, "utf-8");
+		const info = await processWithCache(
+			config,
+			"drilldown",
+			content,
+			() => parseFileSummaries(filePath),
+		);
+
+		// Compute type declarations only when needed
+		let effectiveDepth = Math.max(1, Math.min(depth, TERMINAL_LEVEL));
+		if (effectiveDepth < TERMINAL_LEVEL && info.summary === null)
+			effectiveDepth = Math.max(effectiveDepth, 2);
+		if (effectiveDepth < TERMINAL_LEVEL && info.description === null)
+			effectiveDepth = Math.max(effectiveDepth, 3);
+
+		const typeDeclarations =
+			effectiveDepth >= 3
+				? await processWithCache(
+						config,
+						"drilldown",
+						`${content}\0typedecl`,
+						() => generateTypeDeclarations(filePath),
+					)
+				: "";
+
+		const items = [
+			processFile(info, typeDeclarations, content, depth, cwd),
+		];
 		return { items, truncated: false };
 	}
 
@@ -360,7 +474,7 @@ export function drilldown(
 		);
 	}
 
-	const results = processGlobWithBarrels(files, depth, cwd);
+	const results = await processGlobWithBarrels(files, depth, cwd, config);
 
 	// Sort alphabetically by key
 	const sorted = results.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
@@ -383,18 +497,19 @@ export function drilldown(
  * @param cwd - Working directory for relative path output
  * @returns Array of output entries sorted alphabetically by path
  */
-export function drilldownFiles(
+export async function drilldownFiles(
 	filePaths: string[],
 	depth: number | undefined,
 	cwd: string,
 	limit = 100,
-): DrilldownResult {
+	config: CacheConfig = DEFAULT_CACHE_CONFIG,
+): Promise<DrilldownResult> {
 	const d = depth ?? 1;
 	const tsFiles = filePaths.filter(
 		(f) => f.endsWith(".ts") || f.endsWith(".tsx"),
 	);
 
-	const results = collectSafeResults(tsFiles, d, cwd);
+	const results = await collectSafeResults(tsFiles, d, cwd, config);
 	const sorted = results.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
 	const total = sorted.length;
 	const truncated = total > limit;

@@ -8,8 +8,13 @@ import { JsdocError } from "./errors.js";
 import { lint } from "./lint.js";
 import { parseSelector } from "./selector.js";
 import { RULE_EXPLANATIONS, SKILL_TEXT } from "./skill-text.js";
-import type { LintResult, SelectorInfo, ValidationResult } from "./types.js";
-import { VALIDATION_STATUS_PRIORITY } from "./types.js";
+import type {
+	CacheConfig,
+	LintResult,
+	SelectorInfo,
+	ValidationResult,
+} from "./types.js";
+import { DEFAULT_CACHE_DIR, VALIDATION_STATUS_PRIORITY } from "./types.js";
 import { validate } from "./validate.js";
 
 /**
@@ -36,6 +41,8 @@ Options:
   --pretty         Format JSON output with 2-space indent
   --limit N        Max results shown (default 500)
   --no-gitignore   Include files ignored by .gitignore
+  --disable-cache    Skip all cache operations
+  --cache-directory  Override cache directory (default: system temp)
   --explain-rule R  Explain a lint rule with examples (e.g. jsdoc/informative-docs)
 
 Selector:
@@ -92,6 +99,8 @@ function parseArgs(args: string[]): {
 	pretty: boolean;
 	limit: number;
 	gitignore: boolean;
+	disableCache: boolean;
+	cacheDirectory: string | undefined;
 	explainRule: string | undefined;
 	selectorArg: string | undefined;
 } {
@@ -103,6 +112,8 @@ function parseArgs(args: string[]): {
 	let pretty = false;
 	let limit = 500;
 	let gitignore = true;
+	let disableCache = false;
+	let cacheDirectory: string | undefined;
 	let explainRule: string | undefined;
 	let selectorArg: string | undefined;
 
@@ -125,6 +136,11 @@ function parseArgs(args: string[]): {
 			limit = Number(next);
 		} else if (arg === "--no-gitignore") {
 			gitignore = false;
+		} else if (arg === "--disable-cache") {
+			disableCache = true;
+		} else if (arg === "--cache-directory") {
+			const next = args[++i];
+			cacheDirectory = next;
 		} else if (arg === "--explain-rule") {
 			const next = args[++i];
 			explainRule = next;
@@ -144,6 +160,8 @@ function parseArgs(args: string[]): {
 		pretty,
 		limit,
 		gitignore,
+		disableCache,
+		cacheDirectory,
 		explainRule,
 		selectorArg,
 	};
@@ -180,6 +198,7 @@ async function processStdin(
 	pretty: boolean,
 	limit: number,
 	cwd: string,
+	cacheConfig: CacheConfig,
 ): Promise<void> {
 	const stdinPaths = parseStdinPaths(stdin, cwd);
 	const depth =
@@ -187,14 +206,14 @@ async function processStdin(
 
 	if (lintMode) {
 		const { lintFiles } = await import("./lint.js");
-		const result = await lintFiles(stdinPaths, cwd, limit);
+		const result = await lintFiles(stdinPaths, cwd, limit, cacheConfig);
 		writeLintResult(result, pretty);
 	} else if (checkMode) {
 		const { validateFiles } = await import("./validate.js");
-		const result = await validateFiles(stdinPaths, cwd, limit);
+		const result = await validateFiles(stdinPaths, cwd, limit, cacheConfig);
 		writeValidationResult(result, pretty);
 	} else {
-		const result = drilldownFiles(stdinPaths, depth, cwd, limit);
+		const result = await drilldownFiles(stdinPaths, depth, cwd, limit, cacheConfig);
 		writeResult(result, pretty);
 	}
 }
@@ -210,19 +229,20 @@ async function processSelector(
 	limit: number,
 	gitignore: boolean,
 	cwd: string,
+	cacheConfig: CacheConfig,
 ): Promise<void> {
 	const selector: SelectorInfo = selectorArg
 		? parseSelector(selectorArg)
 		: { type: "glob", pattern: "**/*.{ts,tsx}", depth: undefined };
 
 	if (lintMode) {
-		const result = await lint(selector, cwd, limit, gitignore);
+		const result = await lint(selector, cwd, limit, gitignore, cacheConfig);
 		writeLintResult(result, pretty);
 	} else if (checkMode) {
-		const result = await validate(selector, cwd, limit, gitignore);
+		const result = await validate(selector, cwd, limit, gitignore, cacheConfig);
 		writeValidationResult(result, pretty);
 	} else {
-		const result = drilldown(selector, cwd, gitignore, limit);
+		const result = await drilldown(selector, cwd, gitignore, limit, cacheConfig);
 		writeResult(result, pretty);
 	}
 }
@@ -258,9 +278,16 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 			pretty,
 			limit,
 			gitignore,
+			disableCache,
+			cacheDirectory,
 			explainRule,
 			selectorArg,
 		} = parseArgs(args);
+
+		const cacheConfig: CacheConfig = {
+			enabled: !disableCache,
+			directory: cacheDirectory ?? DEFAULT_CACHE_DIR,
+		};
 
 		if (help) {
 			process.stdout.write(HELP_TEXT);
@@ -318,6 +345,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 				pretty,
 				limit,
 				cwd,
+				cacheConfig,
 			);
 		} else {
 			await processSelector(
@@ -328,6 +356,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 				limit,
 				gitignore,
 				cwd,
+				cacheConfig,
 			);
 		}
 	} catch (error: unknown) {
