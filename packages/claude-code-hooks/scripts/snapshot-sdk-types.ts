@@ -77,9 +77,14 @@ const TARGET_TYPES = [
   "SubagentStopHookInput",
   "PreCompactHookInput",
   "PermissionRequestHookInput",
+  "SetupHookInput",
+  "TeammateIdleHookInput",
+  "TaskCompletedHookInput",
   "HookInput",
+  "ExitReason",
   "PermissionMode",
   "HookEvent",
+  "NotificationHookSpecificOutput",
 ] as const;
 
 interface PropertyInfo {
@@ -366,6 +371,12 @@ function main(): void {
     console.log("SDK types unchanged.");
     console.log(`Baseline SDK: ${existingBaseline.sdkPackage}`);
     console.log(`Current SDK: @anthropic-ai/claude-agent-sdk@${sdkVersion}`);
+
+    if (updateMode && existingBaseline.sdkPackage !== `@anthropic-ai/claude-agent-sdk@${sdkVersion}`) {
+      fs.writeFileSync(baselinePath, `${JSON.stringify(currentBaseline, null, 2)}\n`);
+      console.log("Baseline updated (SDK version changed).");
+    }
+
     process.exit(0);
   }
 

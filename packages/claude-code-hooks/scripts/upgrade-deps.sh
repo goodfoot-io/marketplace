@@ -218,23 +218,21 @@ if [[ "$SDK_CHANGED" == "true" ]]; then
 - node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts
 
 **Package Source Files:**
-- packages/claude-code-hooks/src/types.ts - Type definitions (hook inputs, tool types)
-- packages/claude-code-hooks/src/hooks.ts - Hook factory functions
-- packages/claude-code-hooks/src/outputs.ts - Output builder functions
-- packages/claude-code-hooks/src/constants.ts - Hook name mappings
-- packages/claude-code-hooks/src/scaffold.ts - Project scaffolding
-- packages/claude-code-hooks/src/index.ts - Public exports
+- packages/claude-code-hooks/src/*
 
 **Instructions:**
-1. Read the SDK type definitions to identify:
+
+1. Run 'yarn snapshot:sdk-types' to identify changes since the last snapshot
+
+2. Read the SDK type definitions to identify:
    - New hook event types (e.g., new *HookInput types)
    - New tool input types (e.g., new *Input types for tools)
    - Changed or renamed types
    - New fields on existing types
 
-2. Compare with the current package types in src/types.ts to find gaps
+3. Compare with the current package types in src/types.ts to find gaps
 
-3. For any new hook types found:
+4. For any new hook types found:
    - Add the input type to src/types.ts
    - Add the output type and builder to src/outputs.ts
    - Add the hook factory to src/hooks.ts
@@ -242,17 +240,25 @@ if [[ "$SDK_CHANGED" == "true" ]]; then
    - Update src/scaffold.ts if needed
    - Export from src/index.ts
 
-4. For any new tool types found:
+5. For any new tool types found:
    - Add imports and re-exports in src/types.ts
    - Add type guards if appropriate
 
-5. Update tests if you add new functionality:
+6. Update tests if you add new functionality:
    - tests/types/inputs.test.ts
    - tests/hooks.test.ts
 
-6. Run validation after changes:
+7. Run validation after changes:
    - yarn typecheck
    - yarn test
+
+8. Run 'yarn snapshot:sdk-types --update' to store a new snapshot
+
+9. Run 'yarn update:docs' to update the docs
+
+10. Bump the version number
+
+11. Commit the changes
 
 If no new functionality needs to be added, explain what you found and confirm the package is up to date.
 

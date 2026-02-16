@@ -9,6 +9,7 @@
  */
 
 import type {
+  NotificationHookSpecificOutput as SDKNotificationHookSpecificOutput,
   PermissionRequestHookSpecificOutput as SDKPermissionRequestHookSpecificOutput,
   PostToolUseFailureHookSpecificOutput as SDKPostToolUseFailureHookSpecificOutput,
   PostToolUseHookSpecificOutput as SDKPostToolUseHookSpecificOutput,
@@ -60,6 +61,7 @@ export type { SDKSyncHookJSONOutput };
  * Re-export SDK hook-specific output types (includes hookEventName discriminator).
  */
 export type {
+  SDKNotificationHookSpecificOutput,
   SDKPreToolUseHookSpecificOutput,
   SDKPostToolUseHookSpecificOutput,
   SDKPostToolUseFailureHookSpecificOutput,
@@ -149,12 +151,9 @@ export type PermissionRequestDecision = SDKPermissionRequestHookSpecificOutput["
 
 /**
  * Notification hook-specific output fields.
- * Note: Not in SDK, defined here for completeness.
+ * Omits `hookEventName` which is added automatically by the builder.
  */
-export interface NotificationHookSpecificOutput {
-  /** Additional context to add about the notification. */
-  additionalContext?: string;
-}
+export type NotificationHookSpecificOutput = Omit<SDKNotificationHookSpecificOutput, "hookEventName">;
 
 // ============================================================================
 // Wire Format Output Types
@@ -172,7 +171,7 @@ export type HookSpecificOutput =
   | SDKSetupHookSpecificOutput
   | SDKSubagentStartHookSpecificOutput
   | SDKPermissionRequestHookSpecificOutput
-  | ({ hookEventName: "Notification" } & NotificationHookSpecificOutput);
+  | SDKNotificationHookSpecificOutput;
 
 /**
  * The JSON output format expected by Claude Code (sync hooks only).

@@ -220,9 +220,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@anthropic-ai/claude-agent-sdk@npm:^0.2.39":
-  version: 0.2.39
-  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.2.39"
+"@anthropic-ai/claude-agent-sdk@npm:^0.2.42":
+  version: 0.2.42
+  resolution: "@anthropic-ai/claude-agent-sdk@npm:0.2.42"
   dependencies:
     "@img/sharp-darwin-arm64": "npm:^0.33.5"
     "@img/sharp-darwin-x64": "npm:^0.33.5"
@@ -251,7 +251,7 @@ __metadata:
       optional: true
     "@img/sharp-win32-x64":
       optional: true
-  checksum: 10c0/5dfcc17d9662b342e2a54bb728c2b1178f2b01bf164710553613be0b96f27d51c484bd80c59a0fd8cda98a067eabe9bd7b8611e8a155c0da31fc427e9e761879
+  checksum: 10c0/e6d08f4660a2ce8d472d6b3294d41ee2819877bd199b438ffbdecf5135df2f643fd773471ded77d3bd785100924eb6658eb2cc1d6f87b9cdda23db3907e1677f
   languageName: node
   linkType: hard
 
@@ -737,41 +737,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/biome@npm:2.3.14":
-  version: 2.3.14
-  resolution: "@biomejs/biome@npm:2.3.14"
-  dependencies:
-    "@biomejs/cli-darwin-arm64": "npm:2.3.14"
-    "@biomejs/cli-darwin-x64": "npm:2.3.14"
-    "@biomejs/cli-linux-arm64": "npm:2.3.14"
-    "@biomejs/cli-linux-arm64-musl": "npm:2.3.14"
-    "@biomejs/cli-linux-x64": "npm:2.3.14"
-    "@biomejs/cli-linux-x64-musl": "npm:2.3.14"
-    "@biomejs/cli-win32-arm64": "npm:2.3.14"
-    "@biomejs/cli-win32-x64": "npm:2.3.14"
-  dependenciesMeta:
-    "@biomejs/cli-darwin-arm64":
-      optional: true
-    "@biomejs/cli-darwin-x64":
-      optional: true
-    "@biomejs/cli-linux-arm64":
-      optional: true
-    "@biomejs/cli-linux-arm64-musl":
-      optional: true
-    "@biomejs/cli-linux-x64":
-      optional: true
-    "@biomejs/cli-linux-x64-musl":
-      optional: true
-    "@biomejs/cli-win32-arm64":
-      optional: true
-    "@biomejs/cli-win32-x64":
-      optional: true
-  bin:
-    biome: bin/biome
-  checksum: 10c0/7dc4c0354c59046a24cc23e69465e0d7def81ba85e2039268b828461c5f0978693c68d917e08c554474392314a9b7039fed50487e8fc4b96d039f2f63b1b829a
-  languageName: node
-  linkType: hard
-
 "@biomejs/biome@npm:2.4.1":
   version: 2.4.1
   resolution: "@biomejs/biome@npm:2.4.1"
@@ -856,13 +821,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-darwin-arm64@npm:2.3.14":
-  version: 2.3.14
-  resolution: "@biomejs/cli-darwin-arm64@npm:2.3.14"
-  conditions: os=darwin & cpu=arm64
-  languageName: node
-  linkType: hard
-
 "@biomejs/cli-darwin-arm64@npm:2.4.1":
   version: 2.4.1
   resolution: "@biomejs/cli-darwin-arm64@npm:2.4.1"
@@ -880,13 +838,6 @@ __metadata:
 "@biomejs/cli-darwin-x64@npm:2.3.11":
   version: 2.3.11
   resolution: "@biomejs/cli-darwin-x64@npm:2.3.11"
-  conditions: os=darwin & cpu=x64
-  languageName: node
-  linkType: hard
-
-"@biomejs/cli-darwin-x64@npm:2.3.14":
-  version: 2.3.14
-  resolution: "@biomejs/cli-darwin-x64@npm:2.3.14"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
@@ -912,13 +863,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-linux-arm64-musl@npm:2.3.14":
-  version: 2.3.14
-  resolution: "@biomejs/cli-linux-arm64-musl@npm:2.3.14"
-  conditions: os=linux & cpu=arm64 & libc=musl
-  languageName: node
-  linkType: hard
-
 "@biomejs/cli-linux-arm64-musl@npm:2.4.1":
   version: 2.4.1
   resolution: "@biomejs/cli-linux-arm64-musl@npm:2.4.1"
@@ -936,13 +880,6 @@ __metadata:
 "@biomejs/cli-linux-arm64@npm:2.3.11":
   version: 2.3.11
   resolution: "@biomejs/cli-linux-arm64@npm:2.3.11"
-  conditions: os=linux & cpu=arm64 & libc=glibc
-  languageName: node
-  linkType: hard
-
-"@biomejs/cli-linux-arm64@npm:2.3.14":
-  version: 2.3.14
-  resolution: "@biomejs/cli-linux-arm64@npm:2.3.14"
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
@@ -968,13 +905,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-linux-x64-musl@npm:2.3.14":
-  version: 2.3.14
-  resolution: "@biomejs/cli-linux-x64-musl@npm:2.3.14"
-  conditions: os=linux & cpu=x64 & libc=musl
-  languageName: node
-  linkType: hard
-
 "@biomejs/cli-linux-x64-musl@npm:2.4.1":
   version: 2.4.1
   resolution: "@biomejs/cli-linux-x64-musl@npm:2.4.1"
@@ -992,13 +922,6 @@ __metadata:
 "@biomejs/cli-linux-x64@npm:2.3.11":
   version: 2.3.11
   resolution: "@biomejs/cli-linux-x64@npm:2.3.11"
-  conditions: os=linux & cpu=x64 & libc=glibc
-  languageName: node
-  linkType: hard
-
-"@biomejs/cli-linux-x64@npm:2.3.14":
-  version: 2.3.14
-  resolution: "@biomejs/cli-linux-x64@npm:2.3.14"
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
@@ -1024,13 +947,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@biomejs/cli-win32-arm64@npm:2.3.14":
-  version: 2.3.14
-  resolution: "@biomejs/cli-win32-arm64@npm:2.3.14"
-  conditions: os=win32 & cpu=arm64
-  languageName: node
-  linkType: hard
-
 "@biomejs/cli-win32-arm64@npm:2.4.1":
   version: 2.4.1
   resolution: "@biomejs/cli-win32-arm64@npm:2.4.1"
@@ -1048,13 +964,6 @@ __metadata:
 "@biomejs/cli-win32-x64@npm:2.3.11":
   version: 2.3.11
   resolution: "@biomejs/cli-win32-x64@npm:2.3.11"
-  conditions: os=win32 & cpu=x64
-  languageName: node
-  linkType: hard
-
-"@biomejs/cli-win32-x64@npm:2.3.14":
-  version: 2.3.14
-  resolution: "@biomejs/cli-win32-x64@npm:2.3.14"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
@@ -2238,8 +2147,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/claude-code-hooks@workspace:packages/claude-code-hooks"
   dependencies:
-    "@anthropic-ai/claude-agent-sdk": "npm:^0.2.39"
-    "@biomejs/biome": "npm:2.3.14"
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.2.42"
+    "@biomejs/biome": "npm:2.4.1"
     "@types/node": "npm:^24"
     esbuild: "npm:^0.24.0"
     glob: "npm:^11.0.0"

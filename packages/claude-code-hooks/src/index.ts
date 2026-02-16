@@ -72,6 +72,7 @@ export type {
   HookOutput,
   // Hook-specific output types
   HookSpecificOutput,
+  NotificationHookSpecificOutput,
   NotificationOptions,
   PermissionRequestAllowDecision,
   PermissionRequestDecision,

@@ -122,10 +122,11 @@ export type PreCompactTrigger = "manual" | "auto";
  * - `'logout'` - User logged out
  * - `'prompt_input_exit'` - User exited at prompt input
  * - `'other'` - Other reasons
+ * - `'bypass_permissions_disabled'` - Session ended because bypass permissions was disabled
  *
  * Note: SDK's ExitReason resolves to string. This type provides concrete literals for better DX.
  */
-export type SessionEndReason = "clear" | "logout" | "prompt_input_exit" | "other";
+export type SessionEndReason = "clear" | "logout" | "prompt_input_exit" | "other" | "bypass_permissions_disabled";
 
 /**
  * Common fields present in all hook inputs.
