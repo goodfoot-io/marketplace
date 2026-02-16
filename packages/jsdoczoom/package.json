@@ -1,6 +1,6 @@
 {
 	"name": "jsdoczoom",
-	"version": "0.4.3",
+	"version": "0.4.4",
 	"description": "CLI tool for extracting JSDoc summaries at configurable depths",
 	"type": "module",
 	"sideEffects": false,
@@ -37,7 +37,7 @@
 		"typecheck": "tsc --noEmit",
 		"build": "yarn build:cli && yarn build:hooks",
 		"build:cli": "tsc --build tsconfig.build.json",
-		"build:hooks": "claude-code-hooks -i \"src/hooks/*.ts\" -o \"../../plugins/jsdoczoom/hooks/hooks.json\"",
+		"build:hooks": "test -n \"${CI:-}\" && echo 'Skipping hooks build in CI' || claude-code-hooks -i \"src/hooks/*.ts\" -o \"../../plugins/jsdoczoom/hooks/hooks.json\"",
 		"test": "vitest run",
 		"lint": "biome check --write --unsafe --max-diagnostics 500 .",
 		"release": "bash ../../scripts/release-package.sh jsdoczoom",
