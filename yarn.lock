@@ -2143,7 +2143,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@goodfoot/claude-code-hooks@workspace:*, @goodfoot/claude-code-hooks@workspace:packages/claude-code-hooks":
+"@goodfoot/claude-code-hooks@npm:*, @goodfoot/claude-code-hooks@workspace:*, @goodfoot/claude-code-hooks@workspace:packages/claude-code-hooks":
   version: 0.0.0-use.local
   resolution: "@goodfoot/claude-code-hooks@workspace:packages/claude-code-hooks"
   dependencies:
@@ -11161,7 +11161,7 @@ __metadata:
   resolution: "jsdoczoom@workspace:packages/jsdoczoom"
   dependencies:
     "@biomejs/biome": "npm:2.4.1"
-    "@goodfoot/claude-code-hooks": "workspace:*"
+    "@goodfoot/claude-code-hooks": "npm:*"
     "@types/node": "npm:^25.2.3"
     "@typescript-eslint/parser": "npm:^8.55.0"
     eslint: "npm:^10.0.0"
