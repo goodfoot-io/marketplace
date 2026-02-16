@@ -12,6 +12,7 @@
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import type { ESLint } from "eslint";
+import { findMissingBarrels } from "./barrel.js";
 import { JsdocError } from "./errors.js";
 import { createLintLinter, lintFileForLint } from "./eslint-engine.js";
 import { discoverFiles } from "./file-discovery.js";
@@ -44,12 +45,14 @@ async function lintSingleFile(
  * @param fileResults - All per-file lint results
  * @param totalFiles - Total number of files that were linted
  * @param limit - Maximum number of files with issues to include
+ * @param missingBarrels - Directories missing barrel files
  * @returns Aggregated lint result with summary statistics
  */
 function buildLintResult(
 	fileResults: LintFileResult[],
 	totalFiles: number,
 	limit: number,
+	missingBarrels: string[],
 ): LintResult {
 	const filesWithIssues = fileResults.filter((f) => f.diagnostics.length > 0);
 	const totalDiagnostics = filesWithIssues.reduce(
@@ -62,6 +65,7 @@ function buildLintResult(
 
 	return {
 		files: cappedFiles,
+		...(missingBarrels.length > 0 ? { missingBarrels } : {}),
 		summary: {
 			totalFiles,
 			filesWithIssues: filesWithIssues.length,
@@ -105,8 +109,9 @@ export async function lint(
 	const fileResults = await Promise.all(
 		tsFiles.map((f) => lintSingleFile(eslint, f, cwd)),
 	);
+	const missingBarrels = findMissingBarrels(tsFiles, cwd);
 
-	return buildLintResult(fileResults, tsFiles.length, limit);
+	return buildLintResult(fileResults, tsFiles.length, limit, missingBarrels);
 }
 
 /**
@@ -133,6 +138,7 @@ export async function lintFiles(
 	const fileResults = await Promise.all(
 		tsFiles.map((f) => lintSingleFile(eslint, f, cwd)),
 	);
+	const missingBarrels = findMissingBarrels(tsFiles, cwd);
 
-	return buildLintResult(fileResults, tsFiles.length, limit);
+	return buildLintResult(fileResults, tsFiles.length, limit, missingBarrels);
 }

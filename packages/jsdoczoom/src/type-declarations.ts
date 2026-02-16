@@ -1,5 +1,5 @@
-import { dirname } from "node:path";
 import { readFileSync } from "node:fs";
+import { dirname } from "node:path";
 import ts from "typescript";
 import { JsdocError } from "./errors.js";
 
@@ -65,8 +65,9 @@ export function resolveCompilerOptions(filePath: string): {
 	// Use cache key based on tsconfig path (or "__default__" if none found)
 	const cacheKey = tsconfigPath ?? "__default__";
 
-	if (compilerOptionsCache.has(cacheKey)) {
-		return compilerOptionsCache.get(cacheKey)!;
+	const cached = compilerOptionsCache.get(cacheKey);
+	if (cached) {
+		return cached;
 	}
 
 	let result: { tsconfigPath: string | null; options: ts.CompilerOptions };
@@ -105,7 +106,7 @@ export function resolveCompilerOptions(filePath: string): {
 					},
 				};
 			}
-		} catch (error) {
+		} catch (_error) {
 			// Error reading or parsing tsconfig - fall back to defaults
 			// Note: This catches file system errors (EACCES, ENOENT) and any unexpected
 			// errors from ts.readConfigFile or ts.parseJsonConfigFileContent
@@ -136,8 +137,9 @@ export function getLanguageService(
 ): { service: ts.LanguageService; files: Set<string> } {
 	const cacheKey = tsconfigPath ?? "__default__";
 
-	if (serviceCache.has(cacheKey)) {
-		return serviceCache.get(cacheKey)!;
+	const cachedService = serviceCache.get(cacheKey);
+	if (cachedService) {
+		return cachedService;
 	}
 
 	// Create a mutable set to track files for this service
@@ -207,7 +209,7 @@ export function generateTypeDeclarations(filePath: string): string {
 	// Verify the file exists and throw FILE_NOT_FOUND for any read errors
 	try {
 		readFileSync(filePath, "utf-8");
-	} catch (error) {
+	} catch (_error) {
 		throw new JsdocError("FILE_NOT_FOUND", `Failed to read file: ${filePath}`);
 	}
 

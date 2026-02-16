@@ -1,7 +1,7 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { readFileSync } from "node:fs";
+import { relative } from "node:path";
 import type { ESLint } from "eslint";
-import { isBarrel } from "./barrel.js";
+import { findMissingBarrels } from "./barrel.js";
 import { JsdocError } from "./errors.js";
 import {
 	createValidationLinter,
@@ -58,36 +58,6 @@ async function classifyFile(
 	const messages = await lintFileForValidation(eslint, sourceText, filePath);
 	const status = mapToValidationStatus(messages);
 	return { path: relativePath, status };
-}
-
-/** Minimum number of .ts/.tsx files in a directory to require a barrel. */
-const BARREL_THRESHOLD = 3;
-
-/**
- * Find directories with more than BARREL_THRESHOLD .ts/.tsx files
- * that lack a barrel file (index.ts or index.tsx).
- */
-function findMissingBarrels(filePaths: string[], cwd: string): string[] {
-	const dirCounts = new Map<string, number>();
-
-	for (const filePath of filePaths) {
-		if (isBarrel(filePath)) continue;
-		const dir = dirname(filePath);
-		dirCounts.set(dir, (dirCounts.get(dir) ?? 0) + 1);
-	}
-
-	const missing: string[] = [];
-	for (const [dir, count] of dirCounts) {
-		if (count <= BARREL_THRESHOLD) continue;
-		const hasBarrel =
-			existsSync(join(dir, "index.ts")) || existsSync(join(dir, "index.tsx"));
-		if (!hasBarrel) {
-			const rel = relative(cwd, dir) || ".";
-			missing.push(rel);
-		}
-	}
-
-	return missing.sort();
 }
 
 /**

@@ -13,7 +13,6 @@ import { appendText, DESCRIPTION_TAGS } from "./types.js";
  * @summary Custom ESLint plugin with file-level JSDoc validation rules
  */
 
-
 /**
  * Find the file-level JSDoc block comment from the source code.
  *
@@ -68,7 +67,6 @@ interface ParsedJsdoc {
 	summaryTags: ParsedJsdocTag[];
 	hasDescription: boolean;
 }
-
 
 /**
  * Parse the inner content of a JSDoc block comment.

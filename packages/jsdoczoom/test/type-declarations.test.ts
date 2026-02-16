@@ -1,14 +1,14 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import ts from "typescript";
+import { beforeEach, describe, expect, it } from "vitest";
+import { JsdocError } from "../src/errors.js";
 import {
 	generateTypeDeclarations,
 	getLanguageService,
 	resetCache,
 	resolveCompilerOptions,
 } from "../src/type-declarations.js";
-import { JsdocError } from "../src/errors.js";
 
 /**
  * Verifies that generateTypeDeclarations produces .d.ts-like output
@@ -298,7 +298,7 @@ describe("getLanguageService", () => {
 			file.name.endsWith(".d.ts"),
 		);
 		expect(dtsFile).toBeDefined();
-		expect(dtsFile!.text).toContain("export");
+		expect(dtsFile?.text).toContain("export");
 	});
 
 	it("reuses the same language service instance for files sharing a tsconfig", () => {
@@ -346,7 +346,7 @@ describe("getLanguageService", () => {
 		const program = service.getProgram();
 		expect(program).toBeDefined();
 
-		const sourceFiles = program!.getSourceFiles();
+		const sourceFiles = program?.getSourceFiles();
 		const hasOurFile = sourceFiles.some((sf) => sf.fileName === sampleTsPath);
 		expect(hasOurFile).toBe(true);
 

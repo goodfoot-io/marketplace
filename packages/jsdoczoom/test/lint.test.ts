@@ -279,6 +279,80 @@ describe("lint", () => {
 	});
 });
 
+describe("lint barrel detection", () => {
+	it("flags directories with >3 files and no barrel as missingBarrels", async () => {
+		// leaf-files has 13 .ts files and no index.ts
+		const selector: SelectorInfo = {
+			type: "glob",
+			pattern: "*.ts",
+			depth: undefined,
+		};
+		const result = await lint(selector, fixturesDir);
+		expect(result.missingBarrels).toBeDefined();
+		expect(result.missingBarrels).toContain(".");
+	});
+
+	it("does not flag directories with <=3 files", async () => {
+		// depth-advancement has only 2 files
+		const depthDir = path.resolve(__dirname, "fixtures", "depth-advancement");
+		const selector: SelectorInfo = {
+			type: "glob",
+			pattern: "*.ts",
+			depth: undefined,
+		};
+		const result = await lint(selector, depthDir);
+		expect(result.missingBarrels).toBeUndefined();
+	});
+
+	it("does not flag directories that have a barrel", async () => {
+		// barrel-basic has index.ts + helper.ts + utils.ts
+		const barrelDir = path.resolve(__dirname, "fixtures", "barrel-basic");
+		const selector: SelectorInfo = {
+			type: "glob",
+			pattern: "*.ts",
+			depth: undefined,
+		};
+		const result = await lint(selector, barrelDir);
+		expect(result.missingBarrels).toBeUndefined();
+	});
+});
+
+describe("lintFiles barrel detection", () => {
+	it("flags directories with >3 files and no barrel via lintFiles", async () => {
+		await withTempDir(async (dir) => {
+			const files = [];
+			for (let i = 0; i < 4; i++) {
+				files.push(writeFile(dir, `file${i}.ts`, VALID_FILE));
+			}
+			const result = await lintFiles(files, dir);
+			expect(result.missingBarrels).toBeDefined();
+			expect(result.missingBarrels).toContain(".");
+		});
+	});
+
+	it("does not flag directories with <=3 files via lintFiles", async () => {
+		await withTempDir(async (dir) => {
+			const files = [];
+			for (let i = 0; i < 3; i++) {
+				files.push(writeFile(dir, `file${i}.ts`, VALID_FILE));
+			}
+			const result = await lintFiles(files, dir);
+			expect(result.missingBarrels).toBeUndefined();
+		});
+	});
+
+	it("does not flag directories that have a barrel via lintFiles", async () => {
+		await withTempDir(async (dir) => {
+			const files = [writeFile(dir, "index.ts", VALID_FILE)];
+			for (let i = 0; i < 4; i++) {
+				files.push(writeFile(dir, `file${i}.ts`, VALID_FILE));
+			}
+			const result = await lintFiles(files, dir);
+			expect(result.missingBarrels).toBeUndefined();
+		});
+	});
+});
+
 describe("lintFiles", () => {
 	it("lints an explicit list of file paths", async () => {
 		await withTempDir(async (dir) => {

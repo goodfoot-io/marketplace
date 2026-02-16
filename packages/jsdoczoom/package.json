@@ -7,12 +7,12 @@
 	"engines": {
 		"node": ">=20.11.0"
 	},
-  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/jsdoczoom",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/goodfoot-io/marketplace.git",
-    "directory": "packages/jsdoczoom"
-  },
+	"homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/jsdoczoom",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/goodfoot-io/marketplace.git",
+		"directory": "packages/jsdoczoom"
+	},
 	"files": [
 		"dist",
 		"types"
@@ -42,16 +42,16 @@
 		"release:dry-run": "bash ../../scripts/release-package.sh jsdoczoom --dry-run"
 	},
 	"dependencies": {
-		"@typescript-eslint/parser": "^8.21.0",
-		"eslint": "^9.20.0",
-		"eslint-plugin-jsdoc": "^50.6.4",
-		"glob": "^11.0.0",
+		"@typescript-eslint/parser": "^8.55.0",
+		"eslint": "^10.0.0",
+		"eslint-plugin-jsdoc": "^62.5.5",
+		"glob": "^13.0.3",
 		"ignore": "^7.0.5",
 		"typescript": "^5.9.3"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.3.14",
-		"@types/node": "^24",
-		"vitest": "4.0.13"
+		"@biomejs/biome": "2.4.1",
+		"@types/node": "^25.2.3",
+		"vitest": "4.0.18"
 	}
 }

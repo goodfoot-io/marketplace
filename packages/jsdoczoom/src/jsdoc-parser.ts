@@ -156,7 +156,6 @@ function getDiagnostics(sourceFile: ts.SourceFile): string[] {
 	return diags.map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n"));
 }
 
-
 /**
  * Parse @summary tag and free-text description from raw JSDoc inner text.
  *

@@ -138,6 +138,7 @@ export interface LintFileResult {
 /** Overall lint result with summary statistics */
 export interface LintResult {
 	files: LintFileResult[];
+	missingBarrels?: string[];
 	summary: {
 		totalFiles: number;
 		filesWithIssues: number;

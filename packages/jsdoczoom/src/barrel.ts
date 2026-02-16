@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from "node:fs";
-import { basename, dirname, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 
 /**
  * Barrel detection and child discovery for index.ts/index.tsx files.
@@ -89,4 +89,34 @@ function findChildBarrel(subdirPath: string): string | null {
 		return tsxPath;
 	}
 	return null;
+}
+
+/** Minimum number of .ts/.tsx files in a directory to require a barrel. */
+export const BARREL_THRESHOLD = 3;
+
+/**
+ * Find directories with more than BARREL_THRESHOLD .ts/.tsx files
+ * that lack a barrel file (index.ts or index.tsx).
+ */
+export function findMissingBarrels(filePaths: string[], cwd: string): string[] {
+	const dirCounts = new Map<string, number>();
+
+	for (const filePath of filePaths) {
+		if (isBarrel(filePath)) continue;
+		const dir = dirname(filePath);
+		dirCounts.set(dir, (dirCounts.get(dir) ?? 0) + 1);
+	}
+
+	const missing: string[] = [];
+	for (const [dir, count] of dirCounts) {
+		if (count <= BARREL_THRESHOLD) continue;
+		const hasBarrel =
+			existsSync(join(dir, "index.ts")) || existsSync(join(dir, "index.tsx"));
+		if (!hasBarrel) {
+			const rel = relative(cwd, dir) || ".";
+			missing.push(rel);
+		}
+	}
+
+	return missing.sort();
 }
