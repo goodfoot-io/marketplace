@@ -511,4 +511,31 @@ describe("cli", () => {
 			expect(process.exitCode).toBe(1);
 		});
 	});
+
+	describe("cache flags", () => {
+		it("--disable-cache flag is accepted without error", async () => {
+			await main(["--disable-cache", "two-summaries.ts"]);
+			const output = JSON.parse(capture.getStdout());
+			expect(output).toHaveProperty("items");
+			expect(process.exitCode).toBe(0);
+		});
+
+		it("--cache-directory flag is accepted without error", async () => {
+			await main([
+				"--cache-directory",
+				"/tmp/custom-cache",
+				"two-summaries.ts",
+			]);
+			const output = JSON.parse(capture.getStdout());
+			expect(output).toHaveProperty("items");
+			expect(process.exitCode).toBe(0);
+		});
+
+		it("help text includes cache flags", async () => {
+			await main(["--help"]);
+			const helpText = capture.getStdout();
+			expect(helpText).toContain("--disable-cache");
+			expect(helpText).toContain("--cache-directory");
+		});
+	});
 });

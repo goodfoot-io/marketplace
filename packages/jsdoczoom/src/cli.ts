@@ -8,8 +8,13 @@ import { JsdocError } from "./errors.js";
 import { lint } from "./lint.js";
 import { parseSelector } from "./selector.js";
 import { RULE_EXPLANATIONS, SKILL_TEXT } from "./skill-text.js";
-import type { LintResult, SelectorInfo, ValidationResult } from "./types.js";
-import { VALIDATION_STATUS_PRIORITY } from "./types.js";
+import type {
+	CacheConfig,
+	LintResult,
+	SelectorInfo,
+	ValidationResult,
+} from "./types.js";
+import { DEFAULT_CACHE_DIR, VALIDATION_STATUS_PRIORITY } from "./types.js";
 import { validate } from "./validate.js";
 
 /**
@@ -36,6 +41,8 @@ Options:
   --pretty         Format JSON output with 2-space indent
   --limit N        Max results shown (default 500)
   --no-gitignore   Include files ignored by .gitignore
+  --disable-cache    Skip all cache operations
+  --cache-directory  Override cache directory (default: system temp)
   --explain-rule R  Explain a lint rule with examples (e.g. jsdoc/informative-docs)
 
 Selector:
@@ -82,10 +89,8 @@ Workflow:
   # "id" instead of "next_id" means terminal depth — stop here
 `;
 
-/**
- * Parse CLI arguments into flags and positional args.
- */
-function parseArgs(args: string[]): {
+/** Parsed CLI arguments */
+interface ParsedArgs {
 	help: boolean;
 	version: boolean;
 	checkMode: boolean;
@@ -94,61 +99,111 @@ function parseArgs(args: string[]): {
 	pretty: boolean;
 	limit: number;
 	gitignore: boolean;
+	disableCache: boolean;
+	cacheDirectory: string | undefined;
 	explainRule: string | undefined;
 	selectorArg: string | undefined;
-} {
-	let help = false;
-	let version = false;
-	let checkMode = false;
-	let lintMode = false;
-	let skillMode = false;
-	let pretty = false;
-	let limit = 500;
-	let gitignore = true;
-	let explainRule: string | undefined;
-	let selectorArg: string | undefined;
+}
+
+/**
+ * Parse a flag that requires a value argument.
+ * @returns Updated index after consuming the value
+ */
+function parseValueFlag(
+	args: string[],
+	index: number,
+): { value: string; nextIndex: number } {
+	return { value: args[index + 1], nextIndex: index + 1 };
+}
+
+/**
+ * Parse CLI arguments into flags and positional args.
+ */
+function parseArgs(args: string[]): ParsedArgs {
+	const parsed: ParsedArgs = {
+		help: false,
+		version: false,
+		checkMode: false,
+		lintMode: false,
+		skillMode: false,
+		pretty: false,
+		limit: 500,
+		gitignore: true,
+		disableCache: false,
+		cacheDirectory: undefined,
+		explainRule: undefined,
+		selectorArg: undefined,
+	};
 
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];
+
+		// Boolean flags
 		if (arg === "-h" || arg === "--help") {
-			help = true;
-		} else if (arg === "-v" || arg === "--version") {
-			version = true;
-		} else if (arg === "-c" || arg === "--check") {
-			checkMode = true;
-		} else if (arg === "-l" || arg === "--lint") {
-			lintMode = true;
-		} else if (arg === "-s" || arg === "--skill") {
-			skillMode = true;
-		} else if (arg === "--pretty") {
-			pretty = true;
-		} else if (arg === "--limit") {
-			const next = args[++i];
-			limit = Number(next);
-		} else if (arg === "--no-gitignore") {
-			gitignore = false;
-		} else if (arg === "--explain-rule") {
-			const next = args[++i];
-			explainRule = next;
-		} else if (arg.startsWith("-")) {
+			parsed.help = true;
+			continue;
+		}
+		if (arg === "-v" || arg === "--version") {
+			parsed.version = true;
+			continue;
+		}
+		if (arg === "-c" || arg === "--check") {
+			parsed.checkMode = true;
+			continue;
+		}
+		if (arg === "-l" || arg === "--lint") {
+			parsed.lintMode = true;
+			continue;
+		}
+		if (arg === "-s" || arg === "--skill") {
+			parsed.skillMode = true;
+			continue;
+		}
+		if (arg === "--pretty") {
+			parsed.pretty = true;
+			continue;
+		}
+		if (arg === "--no-gitignore") {
+			parsed.gitignore = false;
+			continue;
+		}
+		if (arg === "--disable-cache") {
+			parsed.disableCache = true;
+			continue;
+		}
+
+		// Value flags
+		if (arg === "--limit") {
+			const { value, nextIndex } = parseValueFlag(args, i);
+			parsed.limit = Number(value);
+			i = nextIndex;
+			continue;
+		}
+		if (arg === "--cache-directory") {
+			const { value, nextIndex } = parseValueFlag(args, i);
+			parsed.cacheDirectory = value;
+			i = nextIndex;
+			continue;
+		}
+		if (arg === "--explain-rule") {
+			const { value, nextIndex } = parseValueFlag(args, i);
+			parsed.explainRule = value;
+			i = nextIndex;
+			continue;
+		}
+
+		// Unknown flag or positional arg
+		if (arg.startsWith("-")) {
 			throw new JsdocError("INVALID_SELECTOR", `Unrecognized option: ${arg}`);
-		} else if (selectorArg === undefined) {
-			selectorArg = arg;
+		}
+
+		// Positional selector arg
+		if (parsed.selectorArg === undefined) {
+			parsed.selectorArg = arg;
 		}
 	}
 
-	return {
-		help,
-		version,
-		checkMode,
-		lintMode,
-		skillMode,
-		pretty,
-		limit,
-		gitignore,
-		explainRule,
-		selectorArg,
-	};
+	return parsed;
 }
 
 /**
@@ -182,6 +237,7 @@ async function processStdin(
 	pretty: boolean,
 	limit: number,
 	cwd: string,
+	cacheConfig: CacheConfig,
 ): Promise<void> {
 	const stdinPaths = parseStdinPaths(stdin, cwd);
 	const depth =
@@ -189,14 +245,20 @@ async function processStdin(
 
 	if (lintMode) {
 		const { lintFiles } = await import("./lint.js");
-		const result = await lintFiles(stdinPaths, cwd, limit);
+		const result = await lintFiles(stdinPaths, cwd, limit, cacheConfig);
 		writeLintResult(result, pretty);
 	} else if (checkMode) {
 		const { validateFiles } = await import("./validate.js");
-		const result = await validateFiles(stdinPaths, cwd, limit);
+		const result = await validateFiles(stdinPaths, cwd, limit, cacheConfig);
 		writeValidationResult(result, pretty);
 	} else {
-		const result = drilldownFiles(stdinPaths, depth, cwd, limit);
+		const result = await drilldownFiles(
+			stdinPaths,
+			depth,
+			cwd,
+			limit,
+			cacheConfig,
+		);
 		writeResult(result, pretty);
 	}
 }
@@ -212,19 +274,26 @@ async function processSelector(
 	limit: number,
 	gitignore: boolean,
 	cwd: string,
+	cacheConfig: CacheConfig,
 ): Promise<void> {
 	const selector: SelectorInfo = selectorArg
 		? parseSelector(selectorArg)
 		: { type: "glob", pattern: "**/*.{ts,tsx}", depth: undefined };
 
 	if (lintMode) {
-		const result = await lint(selector, cwd, limit, gitignore);
+		const result = await lint(selector, cwd, limit, gitignore, cacheConfig);
 		writeLintResult(result, pretty);
 	} else if (checkMode) {
-		const result = await validate(selector, cwd, limit, gitignore);
+		const result = await validate(selector, cwd, limit, gitignore, cacheConfig);
 		writeValidationResult(result, pretty);
 	} else {
-		const result = drilldown(selector, cwd, gitignore, limit);
+		const result = await drilldown(
+			selector,
+			cwd,
+			gitignore,
+			limit,
+			cacheConfig,
+		);
 		writeResult(result, pretty);
 	}
 }
@@ -234,16 +303,64 @@ async function processSelector(
  */
 function writeError(error: unknown): void {
 	if (error instanceof JsdocError) {
-		process.stderr.write(`${JSON.stringify(error.toJSON())}\n`);
+		void process.stderr.write(`${JSON.stringify(error.toJSON())}\n`);
 		process.exitCode = 1;
 		return;
 	}
 
 	const message = error instanceof Error ? error.message : String(error);
-	process.stderr.write(
+	void process.stderr.write(
 		`${JSON.stringify({ error: { code: "INTERNAL_ERROR", message } })}\n`,
 	);
 	process.exitCode = 1;
+}
+
+/**
+ * Handle --help flag by printing help text.
+ */
+function handleHelp(): void {
+	void process.stdout.write(HELP_TEXT);
+}
+
+/**
+ * Handle --version flag by reading and printing version from package.json.
+ */
+function handleVersion(): void {
+	const pkgPath = resolve(
+		dirname(fileURLToPath(import.meta.url)),
+		"..",
+		"package.json",
+	);
+	const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
+		version: string;
+	};
+	void process.stdout.write(`${pkg.version}\n`);
+}
+
+/**
+ * Handle --skill flag by printing JSDoc writing guidelines.
+ */
+function handleSkill(): void {
+	void process.stdout.write(SKILL_TEXT);
+}
+
+/**
+ * Handle --explain-rule flag by printing rule explanation.
+ */
+function handleExplainRule(ruleName: string): void {
+	const explanation = RULE_EXPLANATIONS[ruleName];
+	if (explanation) {
+		void process.stdout.write(explanation);
+		return;
+	}
+
+	const available = Object.keys(RULE_EXPLANATIONS).join(", ");
+	writeError(
+		new JsdocError(
+			"INVALID_SELECTOR",
+			`Unknown rule: ${ruleName}. Available rules: ${available}`,
+		),
+	);
 }
 
 /**
@@ -251,85 +368,62 @@ function writeError(error: unknown): void {
  */
 export async function main(args: string[], stdin?: string): Promise<void> {
 	try {
-		const {
-			help,
-			version,
-			checkMode,
-			lintMode,
-			skillMode,
-			pretty,
-			limit,
-			gitignore,
-			explainRule,
-			selectorArg,
-		} = parseArgs(args);
+		const parsed = parseArgs(args);
 
-		if (help) {
-			process.stdout.write(HELP_TEXT);
+		// Handle early-exit flags
+		if (parsed.help) {
+			handleHelp();
+			return;
+		}
+		if (parsed.version) {
+			handleVersion();
+			return;
+		}
+		if (parsed.skillMode) {
+			handleSkill();
+			return;
+		}
+		if (parsed.explainRule !== undefined) {
+			handleExplainRule(parsed.explainRule);
 			return;
 		}
 
-		if (version) {
-			const pkgPath = resolve(
-				dirname(fileURLToPath(import.meta.url)),
-				"..",
-				"package.json",
-			);
-			const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
-				version: string;
-			};
-			process.stdout.write(`${pkg.version}\n`);
-			return;
-		}
-
-		if (skillMode) {
-			process.stdout.write(SKILL_TEXT);
-			return;
-		}
-
-		if (explainRule !== undefined) {
-			const explanation = RULE_EXPLANATIONS[explainRule];
-			if (explanation) {
-				process.stdout.write(explanation);
-			} else {
-				const available = Object.keys(RULE_EXPLANATIONS).join(", ");
-				writeError(
-					new JsdocError(
-						"INVALID_SELECTOR",
-						`Unknown rule: ${explainRule}. Available rules: ${available}`,
-					),
-				);
-			}
-			return;
-		}
-
-		if (checkMode && lintMode) {
+		// Validate mode combinations
+		if (parsed.checkMode && parsed.lintMode) {
 			writeError(
 				new JsdocError("INVALID_SELECTOR", "Cannot use -c and -l together"),
 			);
 			return;
 		}
 
+		// Build cache config and process files
+		const cacheConfig: CacheConfig = {
+			enabled: !parsed.disableCache,
+			directory: parsed.cacheDirectory ?? DEFAULT_CACHE_DIR,
+		};
+
 		const cwd = process.cwd();
 		if (stdin !== undefined) {
 			await processStdin(
 				stdin,
-				selectorArg,
-				checkMode,
-				lintMode,
-				pretty,
-				limit,
+				parsed.selectorArg,
+				parsed.checkMode,
+				parsed.lintMode,
+				parsed.pretty,
+				parsed.limit,
 				cwd,
+				cacheConfig,
 			);
 		} else {
 			await processSelector(
-				selectorArg,
-				checkMode,
-				lintMode,
-				pretty,
-				limit,
-				gitignore,
+				parsed.selectorArg,
+				parsed.checkMode,
+				parsed.lintMode,
+				parsed.pretty,
+				parsed.limit,
+				parsed.gitignore,
 				cwd,
+				cacheConfig,
 			);
 		}
 	} catch (error: unknown) {
@@ -344,7 +438,7 @@ function writeResult(result: unknown, pretty: boolean): void {
 	const json = pretty
 		? JSON.stringify(result, null, 2)
 		: JSON.stringify(result);
-	process.stdout.write(`${json}\n`);
+	void process.stdout.write(`${json}\n`);
 }
 
 /**
@@ -397,7 +491,7 @@ function writeLintResult(result: LintResult, pretty: boolean): void {
 		process.exitCode = 2;
 		// Warn if output was truncated
 		if (result.summary.filesWithIssues > result.files.length) {
-			process.stderr.write(
+			void process.stderr.write(
 				`Warning: output truncated to ${result.files.length} of ${result.summary.filesWithIssues} files with issues. Use --limit to see more.\n`,
 			);
 		}

@@ -17,6 +17,9 @@ export { lint, lintFiles } from "./lint.js";
 export { parseSelector } from "./selector.js";
 export { generateTypeDeclarations } from "./type-declarations.js";
 export {
+	type CacheConfig,
+	type CacheOperationMode,
+	DEFAULT_CACHE_DIR,
 	type DrilldownResult,
 	type ErrorCode,
 	type LintDiagnostic,

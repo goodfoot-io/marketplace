@@ -28,6 +28,9 @@ const fixturesDir = resolve(__dirname, "fixtures");
 const leafFilesDir = resolve(fixturesDir, "leaf-files");
 const depthDir = resolve(fixturesDir, "depth-advancement");
 
+/** Cache disabled for test isolation. */
+const NO_CACHE = { enabled: false, directory: "" };
+
 function pathSelector(pattern: string, depth?: number): SelectorInfo {
 	return { type: "path", pattern, depth };
 }
@@ -70,8 +73,14 @@ describe("drilldown", () => {
 	// Fixed levels (1-indexed): 1=summary, 2=description, 3=type declarations, 4=full file
 	// one-summary.ts has @summary + description → all 4 levels populated
 
-	it("path selector returns summary with next_id pointing to level 2", () => {
-		const results = drilldown(pathSelector("one-summary.ts"), leafFilesDir);
+	it("path selector returns summary with next_id pointing to level 2", async () => {
+		const results = await drilldown(
+			pathSelector("one-summary.ts"),
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		expect(results.items).toHaveLength(1);
 		const entry = results.items[0];
 		expect(isOutputItem(entry)).toBe(true);
@@ -82,10 +91,16 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("depth 2 returns description with next_id pointing to level 3", () => {
+	it("depth 2 returns description with next_id pointing to level 3", async () => {
 		// one-summary.ts has @summary + description:
 		// depth 1 = summary, depth 2 = description
-		const results = drilldown(pathSelector("one-summary.ts", 2), leafFilesDir);
+		const results = await drilldown(
+			pathSelector("one-summary.ts", 2),
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		expect(results.items).toHaveLength(1);
 		const entry = results.items[0];
 		expect(isOutputItem(entry)).toBe(true);
@@ -96,9 +111,15 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("depth 3 returns type declarations with next_id pointing to level 4", () => {
+	it("depth 3 returns type declarations with next_id pointing to level 4", async () => {
 		// one-summary.ts: summary + description → type declarations is depth 3
-		const results = drilldown(pathSelector("one-summary.ts", 3), leafFilesDir);
+		const results = await drilldown(
+			pathSelector("one-summary.ts", 3),
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		expect(results.items).toHaveLength(1);
 		const entry = results.items[0];
 		expect(isOutputItem(entry)).toBe(true);
@@ -112,9 +133,15 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("depth 4 returns full file content (terminal, has id)", () => {
+	it("depth 4 returns full file content (terminal, has id)", async () => {
 		// one-summary.ts: terminal level is 4
-		const results = drilldown(pathSelector("one-summary.ts", 4), leafFilesDir);
+		const results = await drilldown(
+			pathSelector("one-summary.ts", 4),
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		expect(results.items).toHaveLength(1);
 		const entry = results.items[0];
 		expect(isOutputItem(entry)).toBe(true);
@@ -129,8 +156,14 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("depth clamping (F@99 returns terminal level 4)", () => {
-		const results = drilldown(pathSelector("one-summary.ts", 99), leafFilesDir);
+	it("depth clamping (F@99 returns terminal level 4)", async () => {
+		const results = await drilldown(
+			pathSelector("one-summary.ts", 99),
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		expect(results.items).toHaveLength(1);
 		const entry = results.items[0];
 		expect(isOutputItem(entry)).toBe(true);
@@ -145,12 +178,15 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("file without description skips level 2, advancing to type declarations", () => {
+	it("file without description skips level 2, advancing to type declarations", async () => {
 		// summary-only.ts has @summary but no description
 		// Level 1 = summary, Level 2 = null (no description), Level 3 = type decls, Level 4 = full file
-		const results1 = drilldown(
+		const results1 = await drilldown(
 			pathSelector("summary-only.ts", 1),
 			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
 		);
 		expect(results1.items).toHaveLength(1);
 		const entry1 = results1.items[0];
@@ -162,9 +198,12 @@ describe("drilldown", () => {
 		}
 
 		// Depth 2 has no description, advances to level 3 (type declarations)
-		const results2 = drilldown(
+		const results2 = await drilldown(
 			pathSelector("summary-only.ts", 2),
 			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
 		);
 		expect(results2.items).toHaveLength(1);
 		const entry2 = results2.items[0];
@@ -175,9 +214,12 @@ describe("drilldown", () => {
 		}
 
 		// Depth 99 clamps to terminal (level 4)
-		const results99 = drilldown(
+		const results99 = await drilldown(
 			pathSelector("summary-only.ts", 99),
 			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
 		);
 		expect(results99.items).toHaveLength(1);
 		const entry99 = results99.items[0];
@@ -188,9 +230,15 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("glob returns all matching files at requested depth independently", () => {
+	it("glob returns all matching files at requested depth independently", async () => {
 		// Use a glob that matches multiple files in leaf-files with summaries
-		const results = drilldown(globSelector("*-summary.ts"), leafFilesDir);
+		const results = await drilldown(
+			globSelector("*-summary.ts"),
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		// Should match one-summary.ts and two-summaries.ts (both have summaries)
 		expect(results.items.length).toBeGreaterThanOrEqual(2);
 		for (const entry of results.items) {
@@ -203,8 +251,14 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("glob includes files without summaries", () => {
-		const results = drilldown(globSelector("*.ts"), leafFilesDir);
+	it("glob includes files without summaries", async () => {
+		const results = await drilldown(
+			globSelector("*.ts"),
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		const paths = results.items.map((r) => pathFromEntry(r));
 		// no-jsdoc.ts has no JSDoc — still included (starts at type decls)
 		expect(paths).toContain("no-jsdoc.ts");
@@ -212,20 +266,38 @@ describe("drilldown", () => {
 		expect(paths).toContain("description-only.ts");
 	});
 
-	it("glob NO_FILES_MATCHED when glob matches zero .ts/.tsx files on disk", () => {
-		expect(() =>
-			drilldown(globSelector("nonexistent/**/*.ts"), leafFilesDir),
-		).toThrow(JsdocError);
+	it("glob NO_FILES_MATCHED when glob matches zero .ts/.tsx files on disk", async () => {
+		await expect(
+			drilldown(
+				globSelector("nonexistent/**/*.ts"),
+				leafFilesDir,
+				true,
+				100,
+				NO_CACHE,
+			),
+		).rejects.toThrow(JsdocError);
 		try {
-			drilldown(globSelector("nonexistent/**/*.ts"), leafFilesDir);
+			await drilldown(
+				globSelector("nonexistent/**/*.ts"),
+				leafFilesDir,
+				true,
+				100,
+				NO_CACHE,
+			);
 		} catch (error) {
 			expect(error).toBeInstanceOf(JsdocError);
 			expect((error as JsdocError).code).toBe("NO_FILES_MATCHED");
 		}
 	});
 
-	it("file without summaries advances from level 1 to level 3 (type declarations)", () => {
-		const results = drilldown(globSelector("no-jsdoc.ts"), leafFilesDir);
+	it("file without summaries advances from level 1 to level 3 (type declarations)", async () => {
+		const results = await drilldown(
+			globSelector("no-jsdoc.ts"),
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		expect(results.items).toHaveLength(1);
 		const entry = results.items[0];
 		expect(isOutputItem(entry)).toBe(true);
@@ -236,8 +308,14 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("path selector on file without summaries advances to level 3", () => {
-		const results = drilldown(pathSelector("no-jsdoc.ts"), leafFilesDir);
+	it("path selector on file without summaries advances to level 3", async () => {
+		const results = await drilldown(
+			pathSelector("no-jsdoc.ts"),
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		expect(results.items).toHaveLength(1);
 		const entry = results.items[0];
 		expect(isOutputItem(entry)).toBe(true);
@@ -247,16 +325,28 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("alphabetical ordering by path", () => {
-		const results = drilldown(globSelector("*.ts"), leafFilesDir);
+	it("alphabetical ordering by path", async () => {
+		const results = await drilldown(
+			globSelector("*.ts"),
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		const paths = results.items.map((r) => pathFromEntry(r));
 		const sorted = [...paths].sort();
 		expect(paths).toEqual(sorted);
 	});
 
-	it("PARSE_ERROR in glob context produces OutputErrorItem (partial results)", () => {
+	it("PARSE_ERROR in glob context produces OutputErrorItem (partial results)", async () => {
 		// Use a glob that matches both syntax-error.ts and valid files
-		const results = drilldown(globSelector("*.ts"), leafFilesDir);
+		const results = await drilldown(
+			globSelector("*.ts"),
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 
 		// Should have results (some valid files + the error entry for syntax-error.ts)
 		expect(results.items.length).toBeGreaterThan(1);
@@ -276,22 +366,40 @@ describe("drilldown", () => {
 		expect(validEntries.length).toBeGreaterThan(0);
 	});
 
-	it("PARSE_ERROR for path selector throws fatal error", () => {
-		expect(() =>
-			drilldown(pathSelector("syntax-error.ts"), leafFilesDir),
-		).toThrow(JsdocError);
+	it("PARSE_ERROR for path selector throws fatal error", async () => {
+		await expect(
+			drilldown(
+				pathSelector("syntax-error.ts"),
+				leafFilesDir,
+				true,
+				100,
+				NO_CACHE,
+			),
+		).rejects.toThrow(JsdocError);
 		try {
-			drilldown(pathSelector("syntax-error.ts"), leafFilesDir);
+			await drilldown(
+				pathSelector("syntax-error.ts"),
+				leafFilesDir,
+				true,
+				100,
+				NO_CACHE,
+			);
 		} catch (error) {
 			expect(error).toBeInstanceOf(JsdocError);
 			expect((error as JsdocError).code).toBe("PARSE_ERROR");
 		}
 	});
 
-	it("independent depth advancement (glob @2 returns description for both files)", () => {
+	it("independent depth advancement (glob @2 returns description for both files)", async () => {
 		// Both files have @summary + description
 		// At depth 2, both show description (next_id → @3)
-		const results = drilldown(globSelector("*.ts", 2), depthDir);
+		const results = await drilldown(
+			globSelector("*.ts", 2),
+			depthDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		expect(results.items).toHaveLength(2);
 
 		const oneSum = results.items.find(
@@ -313,10 +421,16 @@ describe("drilldown", () => {
 		}
 	});
 
-	it("../ path resolution uses resolved path in output", () => {
+	it("../ path resolution uses resolved path in output", async () => {
 		// From leaf-files, use ../ to access depth-advancement/one-summary.ts
 		const selector = pathSelector("../depth-advancement/one-summary.ts", 1);
-		const results = drilldown(selector, leafFilesDir);
+		const results = await drilldown(
+			selector,
+			leafFilesDir,
+			true,
+			100,
+			NO_CACHE,
+		);
 		expect(results.items).toHaveLength(1);
 		const entry = results.items[0];
 		expect(isOutputItem(entry)).toBe(true);
@@ -331,9 +445,9 @@ describe("drilldown", () => {
 });
 
 describe("drilldownFiles", () => {
-	it("processes explicit file list at given depth", () => {
+	it("processes explicit file list at given depth", async () => {
 		const files = [resolve(leafFilesDir, "one-summary.ts")];
-		const results = drilldownFiles(files, 1, leafFilesDir);
+		const results = await drilldownFiles(files, 1, leafFilesDir, 100, NO_CACHE);
 		expect(results.items).toHaveLength(1);
 		const entry = results.items[0];
 		expect(isOutputItem(entry)).toBe(true);
@@ -343,38 +457,38 @@ describe("drilldownFiles", () => {
 		}
 	});
 
-	it("filters to .ts/.tsx only", () => {
+	it("filters to .ts/.tsx only", async () => {
 		const files = [
 			resolve(leafFilesDir, "one-summary.ts"),
 			resolve(leafFilesDir, "one-summary.js"), // Non-existent .js file should be filtered
 			"/some/file.json",
 		];
-		const results = drilldownFiles(files, 1, leafFilesDir);
+		const results = await drilldownFiles(files, 1, leafFilesDir, 100, NO_CACHE);
 		// Only the .ts file should be processed
 		expect(results.items).toHaveLength(1);
 		expect(pathFromEntry(results.items[0])).toBe("one-summary.ts");
 	});
 
-	it("includes files without summaries", () => {
+	it("includes files without summaries", async () => {
 		const files = [
 			resolve(leafFilesDir, "one-summary.ts"),
 			resolve(leafFilesDir, "no-jsdoc.ts"),
 		];
-		const results = drilldownFiles(files, 1, leafFilesDir);
+		const results = await drilldownFiles(files, 1, leafFilesDir, 100, NO_CACHE);
 		expect(results.items).toHaveLength(2);
 		const paths = results.items.map((r) => pathFromEntry(r));
 		expect(paths).toContain("one-summary.ts");
 		expect(paths).toContain("no-jsdoc.ts");
 	});
 
-	it("each file advances independently through its own levels", () => {
+	it("each file advances independently through its own levels", async () => {
 		const files = [
 			resolve(depthDir, "one-summary.ts"),
 			resolve(depthDir, "three-summaries.ts"),
 		];
 		// Both files have @summary + description
 		// At depth 2, both show description (next_id → @3)
-		const results = drilldownFiles(files, 2, depthDir);
+		const results = await drilldownFiles(files, 2, depthDir, 100, NO_CACHE);
 		expect(results.items).toHaveLength(2);
 
 		const oneSum = results.items.find(
@@ -396,13 +510,13 @@ describe("drilldownFiles", () => {
 		}
 	});
 
-	it("alphabetical ordering by path", () => {
+	it("alphabetical ordering by path", async () => {
 		const files = [
 			resolve(leafFilesDir, "two-summaries.ts"),
 			resolve(leafFilesDir, "one-summary.ts"),
 			resolve(leafFilesDir, "exported-types.ts"),
 		];
-		const results = drilldownFiles(files, 1, leafFilesDir);
+		const results = await drilldownFiles(files, 1, leafFilesDir, 100, NO_CACHE);
 		const paths = results.items.map((r) => pathFromEntry(r));
 		const sorted = [...paths].sort();
 		expect(paths).toEqual(sorted);

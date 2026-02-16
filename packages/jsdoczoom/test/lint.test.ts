@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { JsdocError } from "../src/errors.js";
 import { lint, lintFiles } from "../src/lint.js";
-import type { SelectorInfo } from "../src/types.js";
+import type { CacheConfig, SelectorInfo } from "../src/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.resolve(__dirname, "fixtures", "leaf-files");
@@ -431,6 +431,36 @@ describe("lintFiles", () => {
 			expect(result.files.length).toBe(2);
 			expect(result.summary.filesWithIssues).toBe(3);
 			expect(result.summary.totalFiles).toBe(3);
+		});
+	});
+});
+
+describe("cache integration", () => {
+	it("lint returns cached diagnostics for unchanged files", async () => {
+		await withTempDir(async (dir) => {
+			writeFile(dir, "test.ts", MISSING_PARAM_FILE);
+			const selector: SelectorInfo = {
+				type: "glob",
+				pattern: "*.ts",
+				depth: undefined,
+			};
+			const result1 = await lint(selector, dir);
+			const result2 = await lint(selector, dir);
+			expect(result1).toEqual(result2);
+		});
+	});
+
+	it("lint works with cache disabled", async () => {
+		await withTempDir(async (dir) => {
+			writeFile(dir, "test.ts", VALID_FILE);
+			const selector: SelectorInfo = {
+				type: "glob",
+				pattern: "*.ts",
+				depth: undefined,
+			};
+			const disabledConfig: CacheConfig = { enabled: false, directory: "" };
+			const result = await lint(selector, dir, 100, true, disabledConfig);
+			expect(result.summary.filesWithIssues).toBe(0);
 		});
 	});
 });
