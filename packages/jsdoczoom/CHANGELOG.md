@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+- Improved type declaration generation performance with cached TypeScript language service
+- Added tsconfig.json awareness for project-specific compiler settings
+
 ## 0.2.1
 - Added package homepage and repository metadata for improved discoverability on npm
 
