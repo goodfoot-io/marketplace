@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.5
+- Minor improvements and bug fixes
+
 ## 0.4.4
 - Skip hooks build in CI where claude-code-hooks CLI is unavailable
 
