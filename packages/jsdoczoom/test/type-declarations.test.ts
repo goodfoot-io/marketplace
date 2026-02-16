@@ -172,9 +172,12 @@ describe("generateTypeDeclarations", () => {
 
 	it("throws PARSE_ERROR for files with syntax errors", () => {
 		const syntaxErrorPath = join(fixturesDir, "syntax-error.ts");
+
 		expect(() => generateTypeDeclarations(syntaxErrorPath)).toThrow(JsdocError);
+
 		try {
 			generateTypeDeclarations(syntaxErrorPath);
+			expect.fail("Should have thrown JsdocError");
 		} catch (e) {
 			expect(e).toBeInstanceOf(JsdocError);
 			expect((e as JsdocError).code).toBe("PARSE_ERROR");
@@ -242,7 +245,6 @@ describe("resolveCompilerOptions", () => {
 	});
 
 	it("returns the same result object for the same tsconfig path (caching)", () => {
-		// Clear any existing cache first by calling with a different path
 		const firstResult = resolveCompilerOptions(sampleTsPath);
 		const secondResult = resolveCompilerOptions(sampleTsPath);
 

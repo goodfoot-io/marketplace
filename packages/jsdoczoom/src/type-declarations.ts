@@ -105,8 +105,10 @@ export function resolveCompilerOptions(filePath: string): {
 					},
 				};
 			}
-		} catch (_error) {
+		} catch (error) {
 			// Error reading or parsing tsconfig - fall back to defaults
+			// Note: This catches file system errors (EACCES, ENOENT) and any unexpected
+			// errors from ts.readConfigFile or ts.parseJsonConfigFileContent
 			result = {
 				tsconfigPath: null,
 				options: fallbackDefaults,
@@ -180,8 +182,6 @@ export function getLanguageService(
 export function resetCache(): void {
 	compilerOptionsCache.clear();
 	serviceCache.clear();
-	// Note: Document registry doesn't have a clear method, but clearing serviceCache
-	// effectively invalidates all services using the registry
 }
 
 /**
@@ -204,10 +204,10 @@ export function resetCache(): void {
  * @throws {JsdocError} If the file cannot be read or parsed
  */
 export function generateTypeDeclarations(filePath: string): string {
-	// Verify the file exists (preserve FILE_NOT_FOUND error)
+	// Verify the file exists and throw FILE_NOT_FOUND for any read errors
 	try {
 		readFileSync(filePath, "utf-8");
-	} catch (_error) {
+	} catch (error) {
 		throw new JsdocError("FILE_NOT_FOUND", `Failed to read file: ${filePath}`);
 	}
 
