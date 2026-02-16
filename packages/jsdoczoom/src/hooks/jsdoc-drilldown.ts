@@ -67,7 +67,7 @@ function formatDrilldownResult(result: DrilldownResult): string {
 
 export default postToolUseHook(
 	{ matcher: "Grep|Glob" },
-	(input, { logger }) => {
+	async (input, { logger }) => {
 		const filePaths = extractTsFilePaths(input.tool_response);
 
 		if (filePaths.length === 0) {
@@ -79,7 +79,7 @@ export default postToolUseHook(
 			fileCount: filePaths.length,
 		});
 
-		const result = drilldownFiles(filePaths, 1, input.cwd);
+		const result = await drilldownFiles(filePaths, 1, input.cwd);
 		const formatted = formatDrilldownResult(result);
 
 		if (!formatted) {
