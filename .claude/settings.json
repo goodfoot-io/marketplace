@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo -e '\\a'"
+            "command": "printf '\\a'"
           }
         ]
       }
