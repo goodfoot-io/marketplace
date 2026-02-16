@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.10
+- Reduced package size by extracting hooks into a separate package
+
 ## 0.4.9
 - Updated build dependency to use pinned version of @goodfoot/claude-code-hooks for improved reliability
 
