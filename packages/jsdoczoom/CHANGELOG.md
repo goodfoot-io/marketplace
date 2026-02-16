@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+- Added Claude Code plugin hook that automatically enriches Grep and Glob search results with JSDoc summaries
+- Added content-hash-based disk caching for faster repeated runs across drilldown, validate, and lint operations
+- Added `--disable-cache` and `--cache-directory` CLI flags for cache control
+- Improved barrel file documentation guidance to emphasize describing child module functionality rather than the re-export mechanism
+- Fixed async `drilldownFiles` handling in the plugin hook
+
 ## 0.3.1
 - Renamed `-v`/`--validate` to `-c`/`--check` for validation mode
 - Added `-v`/`--version` flag to print the package version
