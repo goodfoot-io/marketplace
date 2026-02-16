@@ -1,9 +1,11 @@
 /**
- * Re-exports all public functions, classes, and types from internal modules.
- * This is the sole entry point for programmatic consumers of the jsdoczoom
- * package.
+ * Progressively explores TypeScript codebase documentation through a 4-level
+ * drill-down (summary, description, type declarations, full source), validates
+ * file-level JSDoc structure, and lints comprehensive JSDoc quality using
+ * ESLint. Barrel files gate their children at shallow depths, revealing
+ * individual files only at deeper levels.
  *
- * @summary Public API barrel re-exporting all functions, types, and classes
+ * @summary Progressive JSDoc exploration, validation, and linting for TypeScript codebases
  */
 
 export { getBarrelChildren, isBarrel } from "./barrel.js";

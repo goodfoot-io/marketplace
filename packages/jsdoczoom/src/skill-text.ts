@@ -62,7 +62,7 @@ Each file must have exactly one \`@summary\` tag. Remove the extra \`@summary\` 
 
 Directories with more than 3 TypeScript files should have an \`index.ts\` barrel file. The barrel provides a module-level \`@summary\` and description that helps agents understand what the directory contains before drilling into individual files.
 
-Create an \`index.ts\` that re-exports the directory's public API and add a file-level JSDoc block describing the module's capabilities.`,
+Create an \`index.ts\` that re-exports the directory's public API and add a file-level JSDoc block describing what the child files collectively accomplish — not the re-export mechanism itself.`,
 
 	missing_description: `### The description paragraph
 
@@ -229,10 +229,10 @@ The description is prose that appears before any \`@\` tags. It provides the dee
 
 ### Barrel files (index.ts / index.tsx)
 
-Barrel files represent their directory. The \`@summary\` and description describe the module, not individual files.
+Barrel files represent their directory. Their \`@summary\` and description should describe the **cumulative functionality of the directory's children**, not the barrel file itself.
 
-- **\`@summary\`**: What the module does as a unit
-- **Description**: The module's capabilities and concerns — describe concepts, not child filenames
+- **\`@summary\`**: The collective purpose of the files in this directory
+- **Description**: The combined capabilities and responsibilities of child modules — what they do together, not their filenames or the re-export mechanism
 
 \`\`\`typescript
 // packages/auth/src/index.ts
@@ -247,9 +247,10 @@ Barrel files represent their directory. The \`@summary\` and description describ
 \`\`\`
 
 **Avoid:**
-- Listing child filenames in the description
+- \`@summary Re-exports all functions and types\` — describes the barrel mechanism, not what the children do
 - \`@summary Exports for the auth module\` — describes the mechanism, not the purpose
-- \`@summary Index file\` — no information about what the module does
+- \`@summary Public API barrel\` — names the pattern rather than describing functionality
+- Listing child filenames or saying "This is the entry point"
 
 ### Placement
 

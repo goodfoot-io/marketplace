@@ -56,8 +56,10 @@ Output:
   selector. Items with "id" (no next_id) are at terminal depth.
 
 Barrel gating (glob mode):
-  index.ts files with a @summary gate sibling files at depths 1-2.
-  At depth 3 the barrel disappears and its children appear at depth 1.
+  A barrel's @summary and description reflect the cumulative functionality
+  of its directory's children, not the barrel file itself. Barrels with a
+  @summary gate sibling files at depths 1-2. At depth 3 the barrel
+  disappears and its children appear at depth 1.
 
 Modes:
   -c  Validate file-level structure (has JSDoc block, @summary, description)
