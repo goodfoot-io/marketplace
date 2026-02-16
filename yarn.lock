@@ -2143,7 +2143,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@goodfoot/claude-code-hooks@npm:*, @goodfoot/claude-code-hooks@workspace:*, @goodfoot/claude-code-hooks@workspace:packages/claude-code-hooks":
+"@goodfoot/claude-code-hooks@npm:^1.0.9, @goodfoot/claude-code-hooks@workspace:*, @goodfoot/claude-code-hooks@workspace:packages/claude-code-hooks":
   version: 0.0.0-use.local
   resolution: "@goodfoot/claude-code-hooks@workspace:packages/claude-code-hooks"
   dependencies:
@@ -11156,12 +11156,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsdoczoom@workspace:packages/jsdoczoom":
+"jsdoczoom-hooks@workspace:packages/jsdoczoom-hooks":
+  version: 0.0.0-use.local
+  resolution: "jsdoczoom-hooks@workspace:packages/jsdoczoom-hooks"
+  dependencies:
+    "@biomejs/biome": "npm:2.4.1"
+    "@goodfoot/claude-code-hooks": "npm:^1.0.9"
+    "@types/node": "npm:^22.0.0"
+    jsdoczoom: "workspace:*"
+    typescript: "npm:^5.9.3"
+    vitest: "npm:^4.0.16"
+  languageName: unknown
+  linkType: soft
+
+"jsdoczoom@workspace:*, jsdoczoom@workspace:packages/jsdoczoom":
   version: 0.0.0-use.local
   resolution: "jsdoczoom@workspace:packages/jsdoczoom"
   dependencies:
     "@biomejs/biome": "npm:2.4.1"
-    "@goodfoot/claude-code-hooks": "npm:*"
     "@types/node": "npm:^25.2.3"
     "@typescript-eslint/parser": "npm:^8.55.0"
     eslint: "npm:^10.0.0"

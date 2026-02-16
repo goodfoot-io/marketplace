@@ -1,6 +1,6 @@
 {
 	"name": "jsdoczoom",
-	"version": "0.4.9",
+	"version": "0.4.10",
 	"description": "CLI tool for extracting JSDoc summaries at configurable depths",
 	"type": "module",
 	"sideEffects": false,
@@ -35,16 +35,13 @@
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit",
-		"build": "yarn build:cli && yarn build:hooks",
-		"build:cli": "tsc --build tsconfig.build.json",
-		"build:hooks": "claude-code-hooks -i \"src/hooks/*.ts\" -o \"../../plugins/jsdoczoom/hooks/hooks.json\"",
+		"build": "tsc --build",
 		"test": "vitest run",
 		"lint": "biome check --write --unsafe --max-diagnostics 500 .",
 		"release": "bash ../../scripts/release-package.sh jsdoczoom",
 		"release:dry-run": "bash ../../scripts/release-package.sh jsdoczoom --dry-run"
 	},
 	"dependencies": {
-		"@goodfoot/claude-code-hooks": "^1.0.23",
 		"@typescript-eslint/parser": "^8.55.0",
 		"eslint": "^10.0.0",
 		"eslint-plugin-jsdoc": "^62.5.5",
