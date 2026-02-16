@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.23
+- Added `bypass_permissions_disabled` to `SessionEndReason` type for detecting when sessions end due to bypass permissions being disabled
+- Fixed compiled hooks failing when bundled dependencies use CommonJS globals (`require`, `__filename`, `__dirname`) in ESM output
+- Added `NotificationHookSpecificOutput` type export, now derived from the official SDK for better type accuracy
+- Updated underlying Claude Agent SDK to 0.2.42
+
 ## 1.0.21
 - Improved IDE hover tooltips to show expanded type properties for better discoverability
 - Added type guards for MCP tools: `isListMcpResourcesTool`, `isMcpTool`, `isReadMcpResourceTool`
