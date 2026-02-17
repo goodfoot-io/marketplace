@@ -12,6 +12,7 @@ import {
   preToolUseOutput,
   sessionStartOutput,
   stopOutput,
+  teammateIdleOutput,
   userPromptSubmitOutput,
 } from "../src/outputs.js";
 import { convertToHookOutput } from "../src/runtime.js";
@@ -203,6 +204,20 @@ describe("convertToHookOutput", () => {
       const hookSpecific = getHookSpecific(result);
 
       expect(hookSpecific.additionalContext).toBe("Project: my-app");
+    });
+  });
+
+  describe("stderr passthrough", () => {
+    it("passes through stderr when present in specific output", () => {
+      const specificOutput = teammateIdleOutput({ stderr: "feedback" });
+      const result = convertToHookOutput(specificOutput);
+      expect(result.stderr).toBe("feedback");
+    });
+
+    it("omits stderr when absent in specific output", () => {
+      const specificOutput = teammateIdleOutput({});
+      const result = convertToHookOutput(specificOutput);
+      expect(result.stderr).toBeUndefined();
     });
   });
 

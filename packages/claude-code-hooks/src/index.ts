@@ -68,6 +68,7 @@ export type {
   // Options types for output builders
   CommonOptions,
   ExitCode,
+  ExitCodeOptions,
   // Core output types
   HookOutput,
   // Hook-specific output types

@@ -124,8 +124,8 @@ function handleHandlerError(error: unknown): never {
 /**
  * Converts a SpecificHookOutput to HookOutput for wire format.
  *
- * SpecificHookOutput types have: { _type, exitCode, stdout, stderr? }
- * HookOutput has: { exitCode, stdout, stderr? }
+ * SpecificHookOutput types have: { _type, stdout, stderr? }
+ * HookOutput has: { stdout, stderr? }
  *
  * Since output builders now produce wire-format directly, this function
  * simply strips the `_type` discriminator field.
@@ -140,7 +140,11 @@ function handleHandlerError(error: unknown): never {
  * ```
  */
 export function convertToHookOutput(specificOutput: SpecificHookOutput): HookOutput {
-  return { stdout: specificOutput.stdout };
+  const result: HookOutput = { stdout: specificOutput.stdout };
+  if (specificOutput.stderr !== undefined) {
+    result.stderr = specificOutput.stderr;
+  }
+  return result;
 }
 
 // ============================================================================
@@ -246,9 +250,17 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
       writeStdout(output.stdout);
     }
 
-    // Clear logger context
+    // Clean up logger (single cleanup path)
     logger.clearContext();
     logger.close();
+
+    // Exit-code BLOCK: unlike handler throw (no stdout), this path still writes
+    // structured JSON to stdout (as empty {}) alongside the stderr message.
+    // The caller controls stderr formatting (no appended newline).
+    if (output?.stderr !== undefined) {
+      process.stderr.write(output.stderr);
+      process.exit(EXIT_CODES.BLOCK);
+    }
 
     // Exit with success (handler errors exit via handleHandlerError with code 2)
     process.exit(EXIT_CODES.SUCCESS);

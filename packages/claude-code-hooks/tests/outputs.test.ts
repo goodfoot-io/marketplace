@@ -23,6 +23,7 @@ import {
   stopOutput,
   subagentStartOutput,
   subagentStopOutput,
+  teammateIdleOutput,
   userPromptSubmitOutput,
 } from "../src/outputs.js";
 
@@ -474,4 +475,41 @@ describe("CommonOptions handling across all builders", () => {
       });
     });
   }
+});
+
+describe("createExitCodeOutputBuilder (via teammateIdleOutput)", () => {
+  it("returns correct _type for empty options", () => {
+    const result = teammateIdleOutput({});
+    expect(result._type).toBe("TeammateIdle");
+  });
+
+  it("does not set stderr when stderr option is absent", () => {
+    const result = teammateIdleOutput({});
+    expect(result.stderr).toBeUndefined();
+  });
+
+  it("sets stderr on output when stderr option is present", () => {
+    const result = teammateIdleOutput({ stderr: "feedback" });
+    expect(result.stderr).toBe("feedback");
+  });
+
+  it("outputs empty stdout when no stderr", () => {
+    const result = teammateIdleOutput({});
+    expect(result.stdout).toEqual({});
+  });
+
+  it("outputs empty stdout even with stderr", () => {
+    const result = teammateIdleOutput({ stderr: "x" });
+    expect(result.stdout).toEqual({});
+  });
+
+  it("handles empty string stderr", () => {
+    const result = teammateIdleOutput({ stderr: "" });
+    expect(result.stderr).toBe("");
+  });
+
+  it("works with zero arguments (default options)", () => {
+    const result = teammateIdleOutput();
+    expect(result._type).toBe("TeammateIdle");
+  });
 });

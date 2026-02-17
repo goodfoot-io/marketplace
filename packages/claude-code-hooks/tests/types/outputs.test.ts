@@ -20,6 +20,8 @@ import {
   stopOutput,
   subagentStartOutput,
   subagentStopOutput,
+  taskCompletedOutput,
+  teammateIdleOutput,
   userPromptSubmitOutput,
 } from "../../src/outputs.js";
 
@@ -357,5 +359,23 @@ describe("EXIT_CODES constants", () => {
 
   it("BLOCK is 2", () => {
     expect(EXIT_CODES.BLOCK).toBe(2);
+  });
+});
+
+describe("ExitCodeOptions type constraints", () => {
+  it("teammateIdleOutput accepts stderr option", () => {
+    const _output = teammateIdleOutput({ stderr: "Continue working." });
+  });
+
+  it("taskCompletedOutput accepts stderr option", () => {
+    const _output = taskCompletedOutput({ stderr: "Tests are failing." });
+  });
+
+  it("teammateIdleOutput accepts empty options", () => {
+    const _output = teammateIdleOutput({});
+  });
+
+  it("taskCompletedOutput accepts empty options", () => {
+    const _output = taskCompletedOutput({});
   });
 });

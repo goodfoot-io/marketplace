@@ -201,6 +201,8 @@ export interface SyncHookJSONOutput {
 export interface HookOutput {
   /** JSON-serializable output to write to stdout. */
   stdout: SyncHookJSONOutput;
+  /** Optional message to write to stderr. When present, the runtime exits with code 2 (BLOCK). */
+  stderr?: string;
 }
 
 // ============================================================================
@@ -222,6 +224,18 @@ export interface CommonOptions {
   stopReason?: string;
 }
 
+/**
+ * Options for exit-code-based hooks (TeammateIdle, TaskCompleted).
+ *
+ * These hooks use exit codes only, not JSON decision control.
+ * When `stderr` is provided, the runtime writes it to stderr and exits with code 2 (BLOCK).
+ * When absent, the hook exits with code 0 (SUCCESS).
+ */
+export interface ExitCodeOptions {
+  /** Message to write to stderr. When present, exits with code 2 (BLOCK). */
+  stderr?: string;
+}
+
 // ============================================================================
 // Specific Output Types (returned by output builders)
 // ============================================================================
@@ -232,6 +246,7 @@ export interface CommonOptions {
 interface BaseSpecificOutput<T extends string> {
   readonly _type: T;
   stdout: SyncHookJSONOutput;
+  stderr?: string;
 }
 
 /**
@@ -371,6 +386,24 @@ function createDecisionOutputBuilder<T extends string>(hookType: T) {
   return (options: DecisionOptions = {}): { readonly _type: T; stdout: SyncHookJSONOutput } => ({
     _type: hookType,
     stdout: options,
+  });
+}
+
+/**
+ * Factory for exit-code-based hooks (TeammateIdle, TaskCompleted).
+ *
+ * These hooks don't use JSON decision control (no CommonOptions).
+ * The only option is `stderr` — when present, it triggers exit code 2 (BLOCK).
+ * Stdout always receives `{}` (empty JSON object).
+ * @param hookType - The hook type name used as the _type discriminator
+ * @returns A builder function that creates the output object
+ * @internal
+ */
+function createExitCodeOutputBuilder<T extends string>(hookType: T) {
+  return ({ stderr }: ExitCodeOptions = {}): { readonly _type: T; stdout: SyncHookJSONOutput; stderr?: string } => ({
+    _type: hookType,
+    stdout: {},
+    ...(stderr !== undefined ? { stderr } : {}),
   });
 }
 
@@ -802,9 +835,9 @@ export const setupOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<"Setu
 
 /**
  * Options for the TeammateIdle output builder.
- * TeammateIdle hooks only support common options.
+ * TeammateIdle hooks use exit codes only, not JSON decision control.
  */
-export type TeammateIdleOptions = CommonOptions;
+export type TeammateIdleOptions = ExitCodeOptions;
 
 /**
  * Creates an output for TeammateIdle hooks.
@@ -812,10 +845,14 @@ export type TeammateIdleOptions = CommonOptions;
  * @returns A TeammateIdleOutput object ready for the runtime
  * @example
  * ```typescript
+ * // Allow teammate to go idle
  * teammateIdleOutput({});
+ *
+ * // Block with feedback
+ * teammateIdleOutput({ stderr: 'Continue working: unfinished tasks remain.' });
  * ```
  */
-export const teammateIdleOutput = /* @__PURE__ */ createSimpleOutputBuilder<"TeammateIdle">("TeammateIdle");
+export const teammateIdleOutput = /* @__PURE__ */ createExitCodeOutputBuilder<"TeammateIdle">("TeammateIdle");
 
 // ============================================================================
 // TaskCompleted Output Builder
@@ -823,9 +860,9 @@ export const teammateIdleOutput = /* @__PURE__ */ createSimpleOutputBuilder<"Tea
 
 /**
  * Options for the TaskCompleted output builder.
- * TaskCompleted hooks only support common options.
+ * TaskCompleted hooks use exit codes only, not JSON decision control.
  */
-export type TaskCompletedOptions = CommonOptions;
+export type TaskCompletedOptions = ExitCodeOptions;
 
 /**
  * Creates an output for TaskCompleted hooks.
@@ -833,10 +870,14 @@ export type TaskCompletedOptions = CommonOptions;
  * @returns A TaskCompletedOutput object ready for the runtime
  * @example
  * ```typescript
+ * // Allow task completion
  * taskCompletedOutput({});
+ *
+ * // Block with feedback
+ * taskCompletedOutput({ stderr: 'Cannot complete: tests are failing.' });
  * ```
  */
-export const taskCompletedOutput = /* @__PURE__ */ createSimpleOutputBuilder<"TaskCompleted">("TaskCompleted");
+export const taskCompletedOutput = /* @__PURE__ */ createExitCodeOutputBuilder<"TaskCompleted">("TaskCompleted");
 
 // ============================================================================
 // Legacy type aliases for backwards compatibility
