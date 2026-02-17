@@ -19,9 +19,12 @@ import { appendText, DESCRIPTION_TAGS, type ParsedFileInfo } from "./types.js";
  * Returns the raw JSDoc text without the leading `/**` and trailing `*​/` delimiters,
  * or null if no file-level JSDoc is found.
  */
-export function extractFileJsdoc(sourceText: string): string | null {
+export function extractFileJsdoc(
+	sourceText: string,
+	fileName = "input.tsx",
+): string | null {
 	const sourceFile = ts.createSourceFile(
-		"input.ts",
+		fileName,
 		sourceText,
 		ts.ScriptTarget.Latest,
 		true,
@@ -270,7 +273,7 @@ export function parseFileSummaries(filePath: string): ParsedFileInfo {
 		throw new JsdocError("FILE_NOT_FOUND", `File not found: ${filePath}`);
 	}
 
-	const jsdocText = extractFileJsdoc(sourceText);
+	const jsdocText = extractFileJsdoc(sourceText, filePath);
 
 	if (jsdocText === null) {
 		return {
