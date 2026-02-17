@@ -521,4 +521,14 @@ describe("drilldownFiles", () => {
 		const sorted = [...paths].sort();
 		expect(paths).toEqual(sorted);
 	});
+
+	it("handles files outside cwd without throwing (monorepo cross-package paths)", async () => {
+		// Simulate monorepo scenario: cwd is a subdirectory but files are in sibling packages.
+		// relative(depthDir, leafFile) produces a "../leaf-files/..." path.
+		const files = [resolve(leafFilesDir, "one-summary.ts")];
+		const results = await drilldownFiles(files, 1, depthDir, 100, NO_CACHE);
+		expect(results.items).toHaveLength(1);
+		const entry = results.items[0];
+		expect(isOutputItem(entry)).toBe(true);
+	});
 });

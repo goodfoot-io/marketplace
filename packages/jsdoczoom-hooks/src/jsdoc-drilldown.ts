@@ -22,7 +22,7 @@ import { drilldownFiles } from "jsdoczoom";
  * @param toolResponse - The structured tool_response object from PostToolUse
  * @param cwd - The working directory, used to resolve relative paths
  */
-function extractTsFilePaths(toolResponse: unknown, cwd: string): string[] {
+export function extractTsFilePaths(toolResponse: unknown, cwd: string): string[] {
   if (!toolResponse || typeof toolResponse !== "object") return [];
 
   const resp = toolResponse as Record<string, unknown>;
@@ -57,31 +57,15 @@ function extractTsFilePaths(toolResponse: unknown, cwd: string): string[] {
   return [...paths];
 }
 
-/** Extract the file identifier from an output entry. */
-function entryId(item: DrilldownResult["items"][number]): string {
-  if ("error" in item) return item.id;
-  return "next_id" in item ? item.next_id : item.id;
-}
-
-/** Strip the @depth suffix (e.g. "src/foo.ts@2" -> "src/foo.ts"). */
-function stripDepth(id: string): string {
-  const at = id.lastIndexOf("@");
-  return at > 0 ? id.slice(0, at) : id;
-}
-
-/** Format a DrilldownResult as a compact JSON string for context injection. */
-function formatDrilldownResult(result: DrilldownResult): string {
+/**
+ * Format a DrilldownResult as JSON identical to `jsdoczoom` CLI output,
+ * followed by an instruction to drill deeper with `npx jsdoczoom [next_id]`.
+ */
+export function formatDrilldownResult(result: DrilldownResult): string {
   if (result.items.length === 0) return "";
 
-  const entries: Array<{ file: string; summary: string }> = [];
-  for (const item of result.items) {
-    if ("error" in item) continue;
-    if (!item.text) continue;
-    entries.push({ file: stripDepth(entryId(item)), summary: item.text });
-  }
-
-  if (entries.length === 0) return "";
-  return JSON.stringify(result.truncated ? { entries, truncated: true } : { entries });
+  const json = JSON.stringify(result);
+  return `${json}\nRun \`npx jsdoczoom [next_id]\` for more details on the file.`;
 }
 
 export default postToolUseHook({ matcher: "Grep|Glob" }, async (input, { logger }) => {

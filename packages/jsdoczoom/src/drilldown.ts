@@ -507,12 +507,15 @@ export async function drilldownFiles(
 ): Promise<DrilldownResult> {
 	const d = depth ?? 1;
 	const ig = loadGitignore(cwd);
-	const tsFiles = filePaths.filter(
-		(f) =>
-			(f.endsWith(".ts") || f.endsWith(".tsx")) &&
-			!f.endsWith(".d.ts") &&
-			!ig.ignores(relative(cwd, f)),
-	);
+	const tsFiles = filePaths.filter((f) => {
+		if (!(f.endsWith(".ts") || f.endsWith(".tsx")) || f.endsWith(".d.ts")) {
+			return false;
+		}
+		const rel = relative(cwd, f);
+		// Files outside cwd (traversal paths) are beyond the gitignore scope
+		if (rel.startsWith("..")) return true;
+		return !ig.ignores(rel);
+	});
 
 	const results = await collectSafeResults(tsFiles, d, cwd, config);
 	const sorted = results.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
