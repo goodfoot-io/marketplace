@@ -37,9 +37,11 @@ export function extractFileJsdoc(sourceText: string): string | null {
 	}
 
 	// Find the first non-import top-level statement
+	let firstImport: ts.Statement | undefined;
 	let firstNonImportStatement: ts.Statement | undefined;
 	for (const statement of sourceFile.statements) {
 		if (ts.isImportDeclaration(statement)) {
+			firstImport ??= statement;
 			continue;
 		}
 		firstNonImportStatement = statement;
@@ -51,7 +53,25 @@ export function extractFileJsdoc(sourceText: string): string | null {
 		return findFirstJsdocBlock(sourceText, 0, sourceText.length);
 	}
 
-	// The JSDoc block sits in the leading trivia of the first non-import statement.
+	// When imports exist, the file-level JSDoc lives in the leading trivia of
+	// the first import (before any imports), not the first non-import statement.
+	// Check there first; fall back to the first non-import statement's trivia
+	// for the "JSDoc after imports" pattern.
+	if (firstImport) {
+		const importFullStart = firstImport.getFullStart();
+		const importNodeStart = firstImport.getStart(sourceFile);
+		const preImportJsdoc = findFirstJsdocBlock(
+			sourceText,
+			importFullStart,
+			importNodeStart,
+		);
+		if (preImportJsdoc !== null) {
+			return preImportJsdoc;
+		}
+	}
+
+	// JSDoc in the leading trivia of the first non-import statement
+	// (handles "JSDoc after imports but before code" pattern).
 	const fullStart = firstNonImportStatement.getFullStart();
 	const nodeStart = firstNonImportStatement.getStart(sourceFile);
 
