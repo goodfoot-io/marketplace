@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.16
+- Fixed parsing of `.tsx` files that contain JSX syntax (previously caused false `PARSE_ERROR`)
+
 ## 0.4.13
 - Fixed file filtering to correctly handle files outside the working directory (e.g., cross-package paths in monorepos)
 
