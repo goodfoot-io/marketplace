@@ -31,6 +31,7 @@ interface BaseHookInput {
 | Notification | `message`, `title?`, `notification_type` |
 | PreCompact | `trigger` ('manual' \| 'auto'), `custom_instructions` |
 | PermissionRequest | `tool_name`, `tool_input`, `tool_use_id`, `permission_suggestions?` |
+| Setup | `trigger` ('init' \| 'maintenance') |
 
 ## Tool Input Overview
 

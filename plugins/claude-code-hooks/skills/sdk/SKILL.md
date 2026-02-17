@@ -142,6 +142,10 @@ Different hooks have different capabilities. This table clarifies what each hook
 | UserPromptSubmit | No | No | Yes (`additionalContext`) | No |
 | SessionStart | No | No | Yes (`additionalContext`) | No |
 | SubagentStart | No | No | Yes (`additionalContext`) | No |
+| SessionEnd | No | No | No | No |
+| Notification | No | No | Yes (`additionalContext`) | No |
+| PreCompact | No | No | No | No |
+| Setup | No | No | Yes (`additionalContext`) | No |
 
 **Key distinction**: Only `Stop` and `SubagentStop` hooks can use `decision: 'block'`. Other hooks signal issues through `additionalContext`, `systemMessage`, or `permissionDecision`.
 

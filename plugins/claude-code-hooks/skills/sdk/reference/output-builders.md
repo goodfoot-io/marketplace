@@ -226,6 +226,174 @@ export default postToolUseHook({ matcher: 'Write|Edit|MultiEdit', timeout: 60000
 - Set subprocess `timeout` slightly lower than hook timeout
 - Return empty `postToolUseOutput({})` for silent success
 
+### Provide Context on Tool Failure (PostToolUseFailure)
+
+Use `postToolUseFailureHook` to add diagnostic context when a tool fails:
+
+```typescript
+import { postToolUseFailureHook, postToolUseFailureOutput } from '@goodfoot/claude-code-hooks';
+
+export default postToolUseFailureHook({ matcher: 'Bash' }, (input, { logger }) => {
+  logger.warn('Bash command failed', { error: input.error });
+
+  return postToolUseFailureOutput({
+    systemMessage: 'A command failed. Review the error before retrying.',
+    hookSpecificOutput: {
+      additionalContext: `Command failed with error: ${input.error}. Check permissions and paths before retrying.`
+    }
+  });
+});
+```
+
+### Clean Up on Session End (SessionEnd)
+
+Use `sessionEndHook` for cleanup, logging, or metrics when a session ends:
+
+```typescript
+import { sessionEndHook, sessionEndOutput } from '@goodfoot/claude-code-hooks';
+import { appendFile } from 'fs/promises';
+
+export default sessionEndHook({ matcher: 'logout' }, async (input, { logger }) => {
+  logger.info('Session ending', { reason: input.reason, session: input.session_id });
+
+  await appendFile('/tmp/session-log.txt',
+    `${new Date().toISOString()} session=${input.session_id} reason=${input.reason}\n`
+  );
+
+  return sessionEndOutput({
+    systemMessage: 'Session cleanup completed.'
+  });
+});
+```
+
+### Inject Context for Subagents (SubagentStart)
+
+Use `subagentStartHook` to provide additional context when a subagent is spawned:
+
+```typescript
+import { subagentStartHook, subagentStartOutput } from '@goodfoot/claude-code-hooks';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+
+export default subagentStartHook({}, async (input, { logger }) => {
+  logger.info('Subagent starting', { agent: input.agent_type, id: input.agent_id });
+
+  try {
+    const guidelines = await readFile(join(input.cwd, '.coding-standards.md'), 'utf-8');
+    return subagentStartOutput({
+      systemMessage: 'Coding standards injected for subagent.',
+      hookSpecificOutput: {
+        additionalContext: `Project coding standards:\n${guidelines.slice(0, 500)}`
+      }
+    });
+  } catch {
+    return subagentStartOutput({});
+  }
+});
+```
+
+### Block Subagent Stop on Condition (SubagentStop)
+
+Use `subagentStopHook` to prevent a subagent from finishing if criteria aren't met:
+
+```typescript
+import { subagentStopHook, subagentStopOutput } from '@goodfoot/claude-code-hooks';
+import { existsSync } from 'fs';
+import { join } from 'path';
+
+export default subagentStopHook({}, (input, { logger }) => {
+  // Require a summary file before allowing explore agents to stop
+  if (input.agent_type === 'explore') {
+    const summaryExists = existsSync(join(input.cwd, '.explore-summary.md'));
+    if (!summaryExists) {
+      logger.info('Blocking subagent stop: missing summary');
+      return subagentStopOutput({
+        decision: 'block',
+        reason: 'Please write a .explore-summary.md before finishing.',
+        systemMessage: 'Subagent stop blocked: summary file required.'
+      });
+    }
+  }
+
+  return subagentStopOutput({
+    decision: 'approve',
+    systemMessage: 'Subagent completed.'
+  });
+});
+```
+
+### Send Custom Notifications (Notification)
+
+Use `notificationHook` to react to notifications, e.g., for custom logging or forwarding:
+
+```typescript
+import { notificationHook, notificationOutput } from '@goodfoot/claude-code-hooks';
+
+export default notificationHook({}, (input, { logger }) => {
+  logger.info('Notification received', {
+    type: input.notification_type,
+    title: input.title,
+    message: input.message
+  });
+
+  return notificationOutput({
+    suppressOutput: true  // Handle silently without showing to user
+  });
+});
+```
+
+### Preserve Context Before Compaction (PreCompact)
+
+Use `preCompactHook` to inject important context that should survive compaction:
+
+```typescript
+import { preCompactHook, preCompactOutput } from '@goodfoot/claude-code-hooks';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+
+export default preCompactHook({}, async (input, { logger }) => {
+  logger.info('Context compaction triggered', { trigger: input.trigger });
+
+  // Inject critical project state so it survives compaction
+  return preCompactOutput({
+    systemMessage: [
+      'IMPORTANT: Preserve these project constraints after compaction:',
+      '- All tests must pass before committing',
+      '- Use strict TypeScript (no `any`)',
+      '- Follow existing code patterns'
+    ].join('\n')
+  });
+});
+```
+
+### Run Initial Setup Tasks (Setup)
+
+Use `setupHook` to perform one-time initialization or maintenance:
+
+```typescript
+import { setupHook, setupOutput } from '@goodfoot/claude-code-hooks';
+import { execSync } from 'child_process';
+
+export default setupHook({ matcher: 'init' }, (input, { logger }) => {
+  logger.info('Running setup', { trigger: input.trigger });
+
+  try {
+    execSync('npm install', { cwd: input.cwd, encoding: 'utf-8', timeout: 60000 });
+    return setupOutput({
+      systemMessage: 'Setup completed: dependencies installed.',
+      hookSpecificOutput: {
+        additionalContext: 'Project dependencies are up to date.'
+      }
+    });
+  } catch (error) {
+    const stderr = (error as { stderr?: string }).stderr ?? '';
+    return setupOutput({
+      systemMessage: `Setup warning: npm install failed. ${stderr}`
+    });
+  }
+});
+```
+
 ## Async and Filesystem Operations
 
 Hooks support `async/await` out of the box. This is critical for checking file state or reading configs.
@@ -356,6 +524,23 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
     additionalContext: string  // Added to Claude's context
   }
 }
+```
+
+### userPromptSubmitOutput / sessionStartOutput / subagentStartOutput / notificationOutput / setupOutput
+
+```typescript
+{
+  hookSpecificOutput: {
+    additionalContext: string  // Added to Claude's context
+  }
+}
+```
+
+### sessionEndOutput / preCompactOutput
+
+```typescript
+// No hook-specific output — only common options (systemMessage, etc.)
+{}
 ```
 
 ### Common Options (All Builders)
