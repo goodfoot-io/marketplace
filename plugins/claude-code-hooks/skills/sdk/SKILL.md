@@ -119,7 +119,7 @@ npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,Subage
 3.  `npm run build` (Compiles hooks to the specified output path)
 4.  `npm test` (Runs the generated tests)
 
-**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`, `Setup`
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`, `Setup`, `TeammateIdle`, `TaskCompleted`
 
 **Monorepo?** Use `-o` to output directly to a plugin directory:
 ```bash
@@ -146,8 +146,10 @@ Different hooks have different capabilities. This table clarifies what each hook
 | Notification | No | No | Yes (`additionalContext`) | No |
 | PreCompact | No | No | No | No |
 | Setup | No | No | Yes (`additionalContext`) | No |
+| TeammateIdle | Yes (`stderr`) | No | No | No |
+| TaskCompleted | Yes (`stderr`) | No | No | No |
 
-**Key distinction**: Only `Stop` and `SubagentStop` hooks can use `decision: 'block'`. Other hooks signal issues through `additionalContext`, `systemMessage`, or `permissionDecision`.
+**Key distinction**: `Stop` and `SubagentStop` hooks use `decision: 'block'`. `TeammateIdle` and `TaskCompleted` hooks use `stderr` for exit-code-based blocking (no Common Options). Other hooks signal issues through `additionalContext`, `systemMessage`, or `permissionDecision`.
 
 ## 5. Common Patterns
 
@@ -261,7 +263,7 @@ For hooks in a separate package that output to a plugin directory, see [Monorepo
 ## 9. Reference Links
 
 *   **[Installation & Setup](reference/installation.md)**: Setup guide (Scaffolding vs Manual).
-*   **[All 13 Hook Types](reference/output-builders.md)**: Factories, builders, and inputs.
+*   **[All 15 Hook Types](reference/output-builders.md)**: Factories, builders, and inputs.
 *   **[Tool Input Types](reference/input-types.md)**: Type guards, helpers, and typed overloads.
 *   **[Porting from Bash](reference/porting.md)**: Migration guide.
 *   **[Logging & Debugging](reference/logging.md)**: How to see what's happening.

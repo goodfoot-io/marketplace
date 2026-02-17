@@ -460,7 +460,47 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 });
 ```
 
-## All 13 Hook Types Reference
+### Block Teammate from Going Idle (TeammateIdle)
+
+```typescript
+import { teammateIdleHook, teammateIdleOutput } from '@goodfoot/claude-code-hooks';
+
+export default teammateIdleHook({}, (input, { logger }) => {
+  // Check if teammate should continue working
+  const hasUnfinishedWork = true; // Replace with real check
+
+  if (hasUnfinishedWork) {
+    logger.info('Preventing idle', { teammate: input.teammate_name });
+    return teammateIdleOutput({
+      stderr: `Continue working: there are unfinished tasks for ${input.teammate_name}.`
+    });
+  }
+
+  // Allow teammate to go idle
+  return teammateIdleOutput({});
+});
+```
+
+### Validate Before Task Completion (TaskCompleted)
+
+```typescript
+import { taskCompletedHook, taskCompletedOutput } from '@goodfoot/claude-code-hooks';
+import { execSync } from 'child_process';
+
+export default taskCompletedHook({}, (input, { logger }) => {
+  try {
+    execSync('npm test', { cwd: input.cwd, encoding: 'utf-8', timeout: 30000 });
+    return taskCompletedOutput({});
+  } catch {
+    logger.warn('Tests failing, blocking task completion');
+    return taskCompletedOutput({
+      stderr: `Cannot complete task "${input.task_subject}": tests are failing. Fix tests first.`
+    });
+  }
+});
+```
+
+## All 15 Hook Types Reference
 
 | Hook Type | Factory | Builder | Input Key |
 |-----------|---------|---------|-----------|
@@ -477,6 +517,8 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 | PreCompact | `preCompactHook` | `preCompactOutput` | `trigger` |
 | PermissionRequest | `permissionRequestHook` | `permissionRequestOutput` | `tool_name` |
 | Setup | `setupHook` | `setupOutput` | `trigger` |
+| TeammateIdle | `teammateIdleHook` | `teammateIdleOutput` | `teammate_name` |
+| TaskCompleted | `taskCompletedHook` | `taskCompletedOutput` | `task_subject` |
 
 ## Builder Options Cheat Sheet
 
@@ -543,6 +585,16 @@ export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => 
 {}
 ```
 
+### teammateIdleOutput / taskCompletedOutput
+
+```typescript
+{
+  stderr: string  // When present, exits with code 2 (BLOCK) and feeds message back to model
+}
+```
+
+**Note:** These hooks do NOT support Common Options (`systemMessage`, `stopReason`, etc.). They use exit codes only.
+
 ### Common Options (All Builders)
 
 These options are available on ALL output builders:
@@ -556,6 +608,8 @@ These options are available on ALL output builders:
 
 **Clarification on `continue`**: This field is only meaningful when used alongside `stopReason`. PostToolUse hooks always continue by default since the tool has already run. Use `additionalContext` to inform Claude about issues.
 
+> **Note:** `teammateIdleOutput` and `taskCompletedOutput` do NOT support Common Options. They use a standalone `{ stderr?: string }` interface. See the cheat sheet above.
+
 **When to use which mechanism:**
 
 | Goal | Hook Type | Use This |
@@ -565,6 +619,8 @@ These options are available on ALL output builders:
 | Deny permission request | PermissionRequest | `decision: { behavior: 'deny' }` |
 | Provide feedback after tool | PostToolUse | `additionalContext` and/or `systemMessage` |
 | Critical error (any hook) | Any | `stopReason` (last resort) |
+| Prevent teammate from idling | TeammateIdle | `stderr: 'message'` |
+| Block task completion | TaskCompleted | `stderr: 'message'` |
 
 **Important**: PostToolUse hooks **cannot block execution** — the tool has already run. Use `additionalContext` and `systemMessage` to inform Claude of issues.
 
