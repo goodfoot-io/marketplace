@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.13
+- Fixed file filtering to correctly handle files outside the working directory (e.g., cross-package paths in monorepos)
+
 ## 0.4.12
 - Fixed build process that could cause incorrect package output
 
