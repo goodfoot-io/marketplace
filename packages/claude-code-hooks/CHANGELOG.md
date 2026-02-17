@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+- Added exit-code-based output builders for `TeammateIdle` and `TaskCompleted` hooks, enabling hooks to block these events by writing to stderr
+- Added `stderr` support to hook outputs, allowing handlers to signal blocking behavior with a custom message alongside structured JSON output
+
 ## 1.0.23
 - Added `bypass_permissions_disabled` to `SessionEndReason` type for detecting when sessions end due to bypass permissions being disabled
 - Fixed compiled hooks failing when bundled dependencies use CommonJS globals (`require`, `__filename`, `__dirname`) in ESM output
