@@ -136,15 +136,12 @@ function handleHandlerError(error: unknown): never {
  * ```typescript
  * const specificOutput = preToolUseOutput({ hookSpecificOutput: { permissionDecision: 'allow' } });
  * const hookOutput = convertToHookOutput(specificOutput);
- * // hookOutput: { exitCode: 0, stdout: { hookSpecificOutput: { ... } } }
+ * // hookOutput: { stdout: { hookSpecificOutput: { ... } } }
  * ```
  */
 export function convertToHookOutput(specificOutput: SpecificHookOutput): HookOutput {
-  const result: HookOutput = { stdout: specificOutput.stdout };
-  if (specificOutput.stderr !== undefined) {
-    result.stderr = specificOutput.stderr;
-  }
-  return result;
+  const { stdout, stderr } = specificOutput;
+  return stderr !== undefined ? { stdout, stderr } : { stdout };
 }
 
 // ============================================================================
