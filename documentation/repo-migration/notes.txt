@@ -1,0 +1,16 @@
+dotenv claude --add-dir /home/node/repos --resume 6cda52f8-e271-45f4-849b-6f2e5d3b4b53 "Continue"
+
+❯ /hook-repo-team Begin the hook migration by coordinating the team to implement @documentation/hook-migration-plan.md 
+
+❯ Launch a team of the following agents:                                                                             
+  - integration-engineer                                                                                             
+  - outreach-coordinator                                                                                                 
+  - quality-reviewer                                                                                                 
+  - repository-scout                                                                                                     
+  - technical-writer                                                                                                   
+  - thought-leader-and-hater                                                                                         
+                                                                                                                     
+  **Your job is to guide and push these agents on your team.**                                                       
+                                                                                                                     
+                                                                                                                     
+  ARGUMENTS: Begin the hook migration by coordinating the team to implement @documentation/hook-migration-plan.md
