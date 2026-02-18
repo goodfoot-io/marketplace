@@ -1,7 +1,9 @@
 ---
+name: remind
 description: Register files to be re-injected into context after every compaction
 argument-hint: <file-path> [file-path...]
 disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
 ---
 
 ```!
@@ -14,8 +16,8 @@ touch "$PATHS_FILE"
 
 ARGS="$ARGUMENTS"
 if [ -z "$ARGS" ]; then
-  echo "ERROR: No file paths provided."
-  echo "Usage: /remind <file-path> [file-path...]"
+  echo "ERROR: No file paths provided." >&2
+  echo "Usage: /remind <file-path> [file-path...]" >&2
   exit 1
 fi
 
@@ -65,9 +67,9 @@ if [ ${#SKIPPED[@]} -gt 0 ]; then
 fi
 
 if [ ${#ERRORS[@]} -gt 0 ]; then
-  echo "ERROR: ${#ERRORS[@]} file(s) not found:"
+  echo "ERROR: ${#ERRORS[@]} file(s) not found:" >&2
   for f in "${ERRORS[@]}"; do
-    echo "  ! $f"
+    echo "  ! $f" >&2
   done
 fi
 
@@ -75,9 +77,6 @@ echo ""
 echo "Total files tracked: $(wc -l < "$PATHS_FILE" | tr -d ' ')"
 ```
 
-## Remind Files Registered
+## Remind
 
-The files listed above will be re-injected into your context after every future compaction. This is **not** one-shot: the files persist across multiple compactions.
-
-- Run `/remind` again with additional paths to add more files.
-- Files are resolved to absolute paths and deduplicated.
+Unless you received an error message above, confirm to the user that their files have been stored and will be re-injected into context after every future compaction. Remind the user that they can run `/remind` again to add more files.
