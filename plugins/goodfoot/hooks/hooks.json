@@ -5,7 +5,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/implement-plan-reloader.aa66fb75.mjs"
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/remind-reloader.abe2b31b.mjs"
+          },
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/implement-plan-reloader.99d8ab39.mjs"
           }
         ],
         "matcher": "compact"
@@ -14,8 +18,9 @@
   },
   "__generated": {
     "files": [
-      "implement-plan-reloader.aa66fb75.mjs"
+      "remind-reloader.abe2b31b.mjs",
+      "implement-plan-reloader.99d8ab39.mjs"
     ],
-    "timestamp": "2026-02-16T20:46:19.485Z"
+    "timestamp": "2026-02-18T00:51:40.554Z"
   }
 }
