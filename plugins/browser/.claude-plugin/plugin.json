@@ -1,5 +1,5 @@
 {
   "name": "browser",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Browser automation using Puppeteer and Chrome DevTools Protocol"
 }
