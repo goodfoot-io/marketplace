@@ -1,6 +1,7 @@
 {
   "env": {
-    "MAX_MCP_OUTPUT_TOKENS": "100000"
+    "MAX_MCP_OUTPUT_TOKENS": "100000",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
     "allow": [],
@@ -31,7 +32,7 @@
     "jsdoczoom@goodfoot": true,
     "browser@goodfoot": false,
     "gmail@goodfoot": false,
-    "github@goodfoot": false,
+    "github@goodfoot": true,
     "claude-code-hooks@goodfoot": true,
     "code-simplifier@claude-plugins-official": false,
     "plugin-dev@claude-plugins-official": true
