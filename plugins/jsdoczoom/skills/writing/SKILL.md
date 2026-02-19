@@ -1,6 +1,6 @@
 ---
 name: writing
-description: Guidance for writing world-class JSDoc documentation designed for use with `jsdoczoom`
+description: Write world-class JSDoc documentation
 ---
 
 ```!

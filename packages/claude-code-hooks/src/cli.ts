@@ -1129,8 +1129,7 @@ async function main(): Promise<void> {
     log("info", `Discovered ${hookFiles.length} hook files`, { files: hookFiles });
 
     if (hookFiles.length === 0) {
-      process.stderr.write(`No hook files found matching pattern: ${args.input}\n`);
-      process.exit(1);
+      process.stdout.write(`No hook files found matching pattern: ${args.input}\n`);
     }
 
     // Read existing hooks.json to preserve non-generated hooks
@@ -1156,9 +1155,8 @@ async function main(): Promise<void> {
     // Compile all hooks
     const compiledHooks = await compileAllHooks({ hookFiles, outputDir: buildDir, logFilePath });
 
-    if (compiledHooks.length === 0) {
-      process.stderr.write("No valid hooks found in discovered files.\n");
-      process.exit(1);
+    if (compiledHooks.length === 0 && hookFiles.length > 0) {
+      process.stdout.write("No valid hooks found in discovered files.\n");
     }
 
     // Auto-detect hook context based on output path

@@ -1,21 +1,7 @@
 {
-  "hooks": {
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/jsdoc-drilldown.46902691.mjs"
-          }
-        ],
-        "matcher": "Grep|Glob"
-      }
-    ]
-  },
+  "hooks": {},
   "__generated": {
-    "files": [
-      "jsdoc-drilldown.46902691.mjs"
-    ],
-    "timestamp": "2026-02-17T20:47:52.330Z"
+    "files": [],
+    "timestamp": "2026-02-19T22:15:15.733Z"
   }
 }
