@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.17
+- Fixed barrel files producing empty output when targeted directly at depth 3
+
 ## 0.4.16
 - Fixed parsing of `.tsx` files that contain JSX syntax (previously caused false `PARSE_ERROR`)
 
