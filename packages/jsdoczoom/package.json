@@ -1,6 +1,6 @@
 {
 	"name": "jsdoczoom",
-	"version": "0.4.16",
+	"version": "0.4.17",
 	"description": "CLI tool for extracting JSDoc summaries at configurable depths",
 	"type": "module",
 	"sideEffects": false,

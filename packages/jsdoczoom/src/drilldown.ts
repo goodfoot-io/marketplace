@@ -447,12 +447,36 @@ export async function drilldown(
 			};
 		}
 
-		// Single file path — errors are fatal, no barrel gating
+		// Single file path — errors are fatal
 		const filePath = files[0];
 		const content = await readFile(filePath, "utf-8");
 		const info = await processWithCache(config, "drilldown", content, () =>
 			parseFileSummaries(filePath),
 		);
+
+		// Barrel transition: when a barrel with a summary is targeted directly
+		// at depth >= 3, apply the same transition as the glob pipeline —
+		// barrel disappears and children appear at depth - 2.
+		if (isBarrel(filePath) && info.summary !== null) {
+			let barrelEffectiveDepth = depth;
+			if (barrelEffectiveDepth === 2 && info.description === null) {
+				barrelEffectiveDepth = 3;
+			}
+			if (barrelEffectiveDepth >= 3) {
+				const children = getBarrelChildren(filePath, cwd);
+				const childDepth = barrelEffectiveDepth - 2;
+				const results = await collectSafeResults(
+					children,
+					childDepth,
+					cwd,
+					config,
+				);
+				const sorted = results.sort((a, b) =>
+					sortKey(a).localeCompare(sortKey(b)),
+				);
+				return { items: sorted, truncated: false };
+			}
+		}
 
 		const effectiveDepth = computeEffectiveDepth(depth, info);
 		const typeDeclarations = await computeTypeDeclarationsIfNeeded(
