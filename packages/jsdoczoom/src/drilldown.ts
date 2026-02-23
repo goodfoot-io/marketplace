@@ -98,13 +98,14 @@ function sortKey(entry: OutputEntry): string {
  * Output contains next_id when more detail is available, or id at terminal level.
  */
 function processFile(
+	filePath: string,
 	info: ParsedFileInfo,
 	typeDeclarations: string,
 	fileContent: string,
 	depth: number,
 	cwd: string,
 ): OutputEntry {
-	const idPath = displayPath(info.path, cwd);
+	const idPath = displayPath(filePath, cwd);
 	const levels = buildLevels(info, typeDeclarations, fileContent);
 
 	// Clamp depth to [1, TERMINAL_LEVEL], advance past null levels
@@ -208,7 +209,7 @@ async function processFileSafe(
 			config,
 		);
 
-		return processFile(info, typeDeclarations, content, depth, cwd);
+		return processFile(filePath, info, typeDeclarations, content, depth, cwd);
 	} catch (error) {
 		if (isParseError(error)) return makeParseErrorItem(filePath, error, cwd);
 		throw error;
@@ -486,7 +487,9 @@ export async function drilldown(
 			config,
 		);
 
-		const items = [processFile(info, typeDeclarations, content, depth, cwd)];
+		const items = [
+			processFile(filePath, info, typeDeclarations, content, depth, cwd),
+		];
 		return { items, truncated: false };
 	}
 

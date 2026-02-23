@@ -277,7 +277,6 @@ export function parseFileSummaries(filePath: string): ParsedFileInfo {
 
 	if (jsdocText === null) {
 		return {
-			path: filePath,
 			summary: null,
 			description: null,
 			summaryCount: 0,
@@ -288,7 +287,6 @@ export function parseFileSummaries(filePath: string): ParsedFileInfo {
 	const { summary, description, summaryCount } = parseJsdocContent(jsdocText);
 
 	return {
-		path: filePath,
 		summary,
 		description,
 		summaryCount,

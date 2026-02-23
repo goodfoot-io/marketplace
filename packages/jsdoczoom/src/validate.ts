@@ -59,11 +59,21 @@ async function classifyFile(
 		throw new JsdocError("FILE_NOT_FOUND", `File not found: ${filePath}`);
 	}
 
-	return processWithCache(config, "validate", sourceText, async () => {
-		const messages = await lintFileForValidation(eslint, sourceText, filePath);
-		const status = mapToValidationStatus(messages);
-		return { path: relativePath, status };
-	});
+	const { status } = await processWithCache(
+		config,
+		"validate",
+		sourceText,
+		async () => {
+			const messages = await lintFileForValidation(
+				eslint,
+				sourceText,
+				filePath,
+			);
+			const status = mapToValidationStatus(messages);
+			return { status };
+		},
+	);
+	return { path: relativePath, status };
 }
 
 /**

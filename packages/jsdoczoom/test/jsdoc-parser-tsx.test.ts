@@ -2,7 +2,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { JsdocError } from "../src/errors.js";
 import { extractFileJsdoc, parseFileSummaries } from "../src/jsdoc-parser.js";
 
 /**
@@ -28,10 +27,7 @@ const TSX_SOURCE = [
 ].join("\n");
 
 /** Write source to a temp .tsx file, run the callback, then clean up. */
-function withTempTsxFile(
-	source: string,
-	fn: (filePath: string) => void,
-): void {
+function withTempTsxFile(source: string, fn: (filePath: string) => void): void {
 	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "jsdoczoom-test-"));
 	const tmpFile = path.join(tmpDir, "temp.tsx");
 	fs.writeFileSync(tmpFile, source);

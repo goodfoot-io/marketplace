@@ -91,7 +91,6 @@ export interface ValidationResult {
 
 /** Parsed summary and description from a file's JSDoc */
 export interface ParsedFileInfo {
-	path: string;
 	summary: string | null;
 	description: string | null;
 	summaryCount: number;

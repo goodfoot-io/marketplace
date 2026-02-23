@@ -41,13 +41,16 @@ async function lintSingleFile(
 	config: CacheConfig,
 ): Promise<LintFileResult> {
 	const sourceText = await readFile(filePath, "utf-8");
-	return processWithCache(config, "lint", sourceText, async () => {
-		const diagnostics = await lintFileForLint(eslint, sourceText, filePath);
-		return {
-			filePath: relative(cwd, filePath),
-			diagnostics,
-		};
-	});
+	const { diagnostics } = await processWithCache(
+		config,
+		"lint",
+		sourceText,
+		async () => {
+			const diagnostics = await lintFileForLint(eslint, sourceText, filePath);
+			return { diagnostics };
+		},
+	);
+	return { filePath: relative(cwd, filePath), diagnostics };
 }
 
 /**
