@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.18
+- Suppressed stdout output from `--lint` mode when no issues are found
+
 ## 0.4.17
 - Fixed barrel files producing empty output when targeted directly at depth 3
 
