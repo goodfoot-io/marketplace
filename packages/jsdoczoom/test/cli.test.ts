@@ -379,8 +379,8 @@ describe("cli", () => {
 		}
 
 		it("-l flag runs lint mode", async () => {
-			// two-summaries.ts has an export without JSDoc, so lint will find issues
-			await main(["-l", "two-summaries.ts"]);
+			// description-only.ts has no @summary, which triggers lint rules
+			await main(["-l", "description-only.ts"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("files");
 			expect(output).toHaveProperty("summary");
@@ -390,7 +390,7 @@ describe("cli", () => {
 		});
 
 		it("--lint flag runs lint mode", async () => {
-			await main(["--lint", "two-summaries.ts"]);
+			await main(["--lint", "description-only.ts"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("files");
 			expect(output).toHaveProperty("summary");
@@ -437,7 +437,7 @@ describe("cli", () => {
 		});
 
 		it("stdin piped paths with -l flag", async () => {
-			const stdin = "two-summaries.ts\none-summary.ts";
+			const stdin = "description-only.ts\ntwo-summaries.ts";
 			await main(["-l"], stdin);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("files");
@@ -446,7 +446,7 @@ describe("cli", () => {
 		});
 
 		it("--pretty with -l flag outputs indented JSON", async () => {
-			await main(["--pretty", "-l", "two-summaries.ts"]);
+			await main(["--pretty", "-l", "description-only.ts"]);
 			const raw = capture.getStdout();
 			expect(raw).toContain("\n  ");
 			const parsed = JSON.parse(raw);
@@ -459,9 +459,7 @@ describe("cli", () => {
 			const tmpDir = setupCleanLintDir();
 			try {
 				await main(["-l", "--no-gitignore", "*.ts"]);
-				const output = JSON.parse(capture.getStdout());
-				expect(output).toHaveProperty("files");
-				expect(output).toHaveProperty("summary");
+				expect(capture.getStdout()).toBe("");
 				expect(process.exitCode).toBe(0);
 			} finally {
 				fs.rmSync(tmpDir, { recursive: true });
@@ -476,10 +474,11 @@ describe("cli", () => {
 			expect(helpText).toContain("comprehensive JSDoc quality");
 		});
 
-		it("lint clean result writes only to stdout, no stderr", async () => {
+		it("lint clean result produces no output", async () => {
 			const tmpDir = setupCleanLintDir();
 			try {
 				await main(["-l", "clean.ts"]);
+				expect(capture.getStdout()).toBe("");
 				expect(capture.getStderr()).toBe("");
 				expect(process.exitCode).toBe(0);
 			} finally {
@@ -488,7 +487,8 @@ describe("cli", () => {
 		});
 
 		it("lint output always ends with a newline", async () => {
-			await main(["-l", "two-summaries.ts"]);
+			// description-only.ts triggers lint rules, so output is produced
+			await main(["-l", "description-only.ts"]);
 			const raw = capture.getStdout();
 			expect(raw.endsWith("\n")).toBe(true);
 		});

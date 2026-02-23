@@ -484,6 +484,7 @@ function writeValidationResult(
  * Write lint result to stdout and set exit code 2 if issues found.
  */
 function writeLintResult(result: LintResult, pretty: boolean): void {
+	if (result.summary.filesWithIssues === 0) return;
 	writeResult(result, pretty);
 	if (result.summary.filesWithIssues > 0) {
 		process.exitCode = 2;
