@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.19
+- Minor internal improvements and code cleanup
+
 ## 0.4.18
 - Suppressed stdout output from `--lint` mode when no issues are found
 
