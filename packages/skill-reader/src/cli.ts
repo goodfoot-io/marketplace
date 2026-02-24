@@ -181,11 +181,9 @@ export async function main(args: string[]): Promise<void> {
 
 			// If not found and marketplace provided, try marketplace resolution
 			if (!location && parsed.marketplace && pluginName) {
+				const marketplace = parsed.marketplace;
 				location = withTempDir((tempDir) => {
-					const marketplacePath = resolveMarketplace(
-						parsed.marketplace as MarketplaceSource,
-						tempDir,
-					);
+					const marketplacePath = resolveMarketplace(marketplace, tempDir);
 					return findSkillInMarketplace(marketplacePath, pluginName, skillName);
 				});
 			}
@@ -222,15 +220,10 @@ export async function main(args: string[]): Promise<void> {
 // Auto-invoke when run as CLI
 function isDirectRun(): boolean {
 	if (!process.argv[1]) return false;
-	try {
-		const scriptPath = process.argv[1].replace(/\\/g, "/");
-		return (
-			import.meta.url.endsWith(scriptPath) ||
-			import.meta.url.endsWith("/cli.js")
-		);
-	} catch {
-		return false;
-	}
+	const scriptPath = process.argv[1].replace(/\\/g, "/");
+	return (
+		import.meta.url.endsWith(scriptPath) || import.meta.url.endsWith("/cli.js")
+	);
 }
 
 if (isDirectRun()) {
