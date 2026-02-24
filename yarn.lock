@@ -2130,7 +2130,7 @@ __metadata:
     "@types/node": "npm:^25.2.3"
     vitest: "npm:4.0.18"
   bin:
-    claude-code-skill-reader: ./dist/cli.js
+    claude-code-skill-reader: dist/cli.js
   languageName: unknown
   linkType: soft
 
