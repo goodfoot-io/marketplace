@@ -39,7 +39,9 @@ export function discoverSkill(
 ): SkillLocation | undefined {
 	const searchPaths = [
 		join(cwd, ".claude", "skills", name, "SKILL.md"),
+		join(cwd, ".claude", "commands", `${name}.md`),
 		join(homedir(), ".claude", "skills", name, "SKILL.md"),
+		join(homedir(), ".claude", "commands", `${name}.md`),
 	];
 
 	for (const skillPath of searchPaths) {
@@ -88,18 +90,18 @@ export function discoverPluginSkill(
 			continue;
 		}
 		for (const record of records) {
-			const skillPath = join(
-				record.installPath,
-				"skills",
-				skillName,
-				"SKILL.md",
-			);
-			if (existsSync(skillPath)) {
-				return {
-					path: skillPath,
-					baseDir: dirname(skillPath),
-					pluginRoot: record.installPath,
-				};
+			const candidates = [
+				join(record.installPath, "skills", skillName, "SKILL.md"),
+				join(record.installPath, "commands", `${skillName}.md`),
+			];
+			for (const candidatePath of candidates) {
+				if (existsSync(candidatePath)) {
+					return {
+						path: candidatePath,
+						baseDir: dirname(candidatePath),
+						pluginRoot: record.installPath,
+					};
+				}
 			}
 		}
 	}

@@ -242,4 +242,28 @@ describe("findSkillInMarketplace", () => {
 			findSkillInMarketplace(tempDir, "myplugin", "myskill");
 		}).toThrow(SkillReaderError);
 	});
+
+	it("finds command in marketplace plugin commands directory", () => {
+		const pluginDir = join(tempDir, "myplugin");
+		const commandsDir = join(pluginDir, "commands");
+		mkdirSync(commandsDir, { recursive: true });
+		writeFileSync(join(commandsDir, "mycmd.md"), "# My Command");
+
+		const manifest = {
+			name: "test-marketplace",
+			plugins: [{ name: "myplugin", version: "1.0.0", source: "myplugin" }],
+		};
+		const claudePluginDir = join(tempDir, ".claude-plugin");
+		mkdirSync(claudePluginDir);
+		writeFileSync(
+			join(claudePluginDir, "marketplace.json"),
+			JSON.stringify(manifest),
+		);
+
+		const result = findSkillInMarketplace(tempDir, "myplugin", "mycmd");
+		expect(result).toBeDefined();
+		expect(result?.path).toBe(join(commandsDir, "mycmd.md"));
+		expect(result?.baseDir).toBe(commandsDir);
+		expect(result?.pluginRoot).toBe(pluginDir);
+	});
 });

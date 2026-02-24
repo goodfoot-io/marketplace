@@ -171,15 +171,20 @@ export function findSkillInMarketplace(
 
 	// Resolve the skill file path
 	const pluginRoot = resolve(marketplacePath, pluginEntry.source);
-	const skillPath = join(pluginRoot, "skills", skillName, "SKILL.md");
+	const candidates = [
+		join(pluginRoot, "skills", skillName, "SKILL.md"),
+		join(pluginRoot, "commands", `${skillName}.md`),
+	];
 
-	if (!existsSync(skillPath)) {
-		return undefined;
+	for (const candidatePath of candidates) {
+		if (existsSync(candidatePath)) {
+			return {
+				path: candidatePath,
+				baseDir: dirname(candidatePath),
+				pluginRoot,
+			};
+		}
 	}
 
-	return {
-		path: skillPath,
-		baseDir: dirname(skillPath),
-		pluginRoot,
-	};
+	return undefined;
 }

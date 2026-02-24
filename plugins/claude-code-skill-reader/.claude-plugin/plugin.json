@@ -1,0 +1,9 @@
+{
+  "name": "claude-code-skill-reader",
+  "description": "Read and process Claude Code skills and commands with full fidelity",
+  "version": "0.1.1",
+  "author": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io"
+  }
+}

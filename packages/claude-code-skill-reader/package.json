@@ -1,7 +1,13 @@
 {
-	"name": "skill-reader",
+	"name": "@goodfoot/claude-code-skill-reader",
 	"version": "0.1.0",
-	"description": "CLI tool for reading and processing Claude Code skills",
+	"description": "CLI tool for reading and processing Claude Code skills and commands",
+	"homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/claude-code-skill-reader",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/goodfoot-io/marketplace.git",
+		"directory": "packages/claude-code-skill-reader"
+	},
 	"type": "module",
 	"sideEffects": false,
 	"engines": {
@@ -14,7 +20,7 @@
 	"bin": "./dist/cli.js",
 	"publishConfig": {
 		"bin": {
-			"skill-reader": "./dist/cli.js"
+			"claude-code-skill-reader": "./dist/cli.js"
 		}
 	},
 	"exports": {
@@ -32,8 +38,8 @@
 		"build": "tsc --build tsconfig.build.json",
 		"test": "vitest run",
 		"lint": "biome check --write --unsafe --max-diagnostics 500 .",
-		"release": "bash ../../scripts/release-package.sh skill-reader",
-		"release:dry-run": "bash ../../scripts/release-package.sh skill-reader --dry-run"
+		"release": "bash ../../scripts/release-package.sh claude-code-skill-reader",
+		"release:dry-run": "bash ../../scripts/release-package.sh claude-code-skill-reader --dry-run"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.1",

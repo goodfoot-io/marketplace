@@ -92,6 +92,43 @@ describe("discoverSkill", () => {
 		expect(result?.path).toBe(join(projectSkillDir, "SKILL.md"));
 	});
 
+	it("finds command in project .claude/commands/{name}.md", () => {
+		const commandsDir = join(tmpDir, ".claude", "commands");
+		mkdirSync(commandsDir, { recursive: true });
+		writeFileSync(join(commandsDir, "my-cmd.md"), "# My Command");
+
+		const result = discoverSkill("my-cmd", tmpDir);
+		expect(result).toBeDefined();
+		expect(result?.path).toBe(join(commandsDir, "my-cmd.md"));
+		expect(result?.baseDir).toBe(commandsDir);
+		expect(result?.pluginRoot).toBeUndefined();
+	});
+
+	it("finds command in user ~/.claude/commands/{name}.md", () => {
+		const commandsDir = join(homeDirStub, ".claude", "commands");
+		mkdirSync(commandsDir, { recursive: true });
+		writeFileSync(join(commandsDir, "my-cmd.md"), "# My Command");
+
+		const result = discoverSkill("my-cmd", tmpDir);
+		expect(result).toBeDefined();
+		expect(result?.path).toBe(join(commandsDir, "my-cmd.md"));
+		expect(result?.baseDir).toBe(commandsDir);
+		expect(result?.pluginRoot).toBeUndefined();
+	});
+
+	it("skills take priority over commands", () => {
+		const skillDir = join(tmpDir, ".claude", "skills", "my-name");
+		mkdirSync(skillDir, { recursive: true });
+		writeFileSync(join(skillDir, "SKILL.md"), "# Skill");
+
+		const commandsDir = join(tmpDir, ".claude", "commands");
+		mkdirSync(commandsDir, { recursive: true });
+		writeFileSync(join(commandsDir, "my-name.md"), "# Command");
+
+		const result = discoverSkill("my-name", tmpDir);
+		expect(result?.path).toBe(join(skillDir, "SKILL.md"));
+	});
+
 	it("returns undefined for non-existent skill", () => {
 		const result = discoverSkill("does-not-exist", tmpDir);
 		expect(result).toBeUndefined();
@@ -159,5 +196,38 @@ describe("discoverPluginSkill", () => {
 
 		const result = discoverPluginSkill("my-plugin", "my-skill");
 		expect(result).toBeUndefined();
+	});
+
+	it("resolves plugin command from commands/{name}.md", () => {
+		const pluginInstallPath = join(homeDirStub, "plugin-cache", "my-plugin");
+		const commandsDir = join(pluginInstallPath, "commands");
+		mkdirSync(commandsDir, { recursive: true });
+		writeFileSync(join(commandsDir, "my-cmd.md"), "# Plugin Command");
+
+		const registry = {
+			version: 2,
+			plugins: {
+				"my-plugin@marketplace": [
+					{
+						scope: "user",
+						installPath: pluginInstallPath,
+						version: "1.0.0",
+					},
+				],
+			},
+		};
+
+		const pluginsDir = join(homeDirStub, ".claude", "plugins");
+		mkdirSync(pluginsDir, { recursive: true });
+		writeFileSync(
+			join(pluginsDir, "installed_plugins.json"),
+			JSON.stringify(registry),
+		);
+
+		const result = discoverPluginSkill("my-plugin", "my-cmd");
+		expect(result).toBeDefined();
+		expect(result?.path).toBe(join(commandsDir, "my-cmd.md"));
+		expect(result?.baseDir).toBe(commandsDir);
+		expect(result?.pluginRoot).toBe(pluginInstallPath);
 	});
 });

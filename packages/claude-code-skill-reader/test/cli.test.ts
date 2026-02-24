@@ -67,7 +67,7 @@ describe("cli", () => {
 
 	it("--help prints usage text to stdout", async () => {
 		await main(["--help"]);
-		expect(capture.getStdout()).toContain("Usage: skill-reader");
+		expect(capture.getStdout()).toContain("Usage: claude-code-skill-reader");
 		expect(process.exitCode).toBe(0);
 	});
 
@@ -275,6 +275,26 @@ describe("cli", () => {
 			// Both patterns should remain unprocessed
 			expect(stdout).toContain("${CLAUDE_PLUGIN_ROOT}");
 			expect(stdout).toContain("!`echo hello`");
+			expect(process.exitCode).toBe(0);
+		} finally {
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	});
+
+	it("reads a local command file and writes processed body to stdout", async () => {
+		const tmpDir = mkdtempSync(join(tmpdir(), "skill-reader-cli-"));
+		try {
+			const commandsDir = join(tmpDir, ".claude", "commands");
+			mkdirSync(commandsDir, { recursive: true });
+			writeFileSync(
+				join(commandsDir, "test-cmd.md"),
+				"---\nname: test\n---\nHello from test command",
+			);
+
+			cwdSpy.mockReturnValue(tmpDir);
+			await main(["test-cmd"]);
+
+			expect(capture.getStdout()).toContain("Hello from test command");
 			expect(process.exitCode).toBe(0);
 		} finally {
 			rmSync(tmpDir, { recursive: true, force: true });

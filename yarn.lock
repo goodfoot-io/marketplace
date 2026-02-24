@@ -2122,6 +2122,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@goodfoot/claude-code-skill-reader@workspace:packages/claude-code-skill-reader":
+  version: 0.0.0-use.local
+  resolution: "@goodfoot/claude-code-skill-reader@workspace:packages/claude-code-skill-reader"
+  dependencies:
+    "@biomejs/biome": "npm:2.4.1"
+    "@types/node": "npm:^25.2.3"
+    vitest: "npm:4.0.18"
+  bin:
+    claude-code-skill-reader: ./dist/cli.js
+  languageName: unknown
+  linkType: soft
+
 "@goodfoot/codebase-mcp-server@workspace:packages/mcp/codebase":
   version: 0.0.0-use.local
   resolution: "@goodfoot/codebase-mcp-server@workspace:packages/mcp/codebase"
@@ -13664,18 +13676,6 @@ __metadata:
   checksum: 10c0/230ac975cca485b7f6fe2b96a711aa62a6a26ead3e6fb8ba17c5a00d61b8bed0d7adc21f5626b70d7c33c62ff4e63933017a6462942c719d1980bb0b1207ad46
   languageName: node
   linkType: hard
-
-"skill-reader@workspace:packages/skill-reader":
-  version: 0.0.0-use.local
-  resolution: "skill-reader@workspace:packages/skill-reader"
-  dependencies:
-    "@biomejs/biome": "npm:2.4.1"
-    "@types/node": "npm:^25.2.3"
-    vitest: "npm:4.0.18"
-  bin:
-    skill-reader: ./dist/cli.js
-  languageName: unknown
-  linkType: soft
 
 "slash@npm:^3.0.0":
   version: 3.0.0

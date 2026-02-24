@@ -203,3 +203,4 @@ documentation/example-skills
 documentation/hook-libraries
 
 packages/jsdoczoom/types
+packages/claude-code-skill-reader/types

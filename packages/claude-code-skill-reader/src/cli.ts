@@ -18,7 +18,7 @@ import {
 import { processContent } from "./processor.js";
 import type { MarketplaceSource } from "./types.js";
 
-const HELP_TEXT = `Usage: skill-reader [options] <skill-name> [skill-name...]
+const HELP_TEXT = `Usage: claude-code-skill-reader [options] <skill-name> [skill-name...]
 
 Read and process Claude Code skills with full fidelity.
 
@@ -30,8 +30,8 @@ Options:
   --marketplace <json-string>  Resolve skills from a marketplace source
 
 Skill Names:
-  Plain name:     my-skill        (searches .claude/skills/ directories)
-  Plugin name:    plugin:skill    (searches installed plugins)
+  Plain name:     my-skill        (searches .claude/skills/ and .claude/commands/)
+  Plugin name:    plugin:skill    (searches installed plugin skills and commands)
 
 Exit codes:
   0  Success
