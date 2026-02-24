@@ -13665,6 +13665,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"skill-reader@workspace:packages/skill-reader":
+  version: 0.0.0-use.local
+  resolution: "skill-reader@workspace:packages/skill-reader"
+  dependencies:
+    "@biomejs/biome": "npm:2.4.1"
+    "@types/node": "npm:^25.2.3"
+    vitest: "npm:4.0.18"
+  bin:
+    skill-reader: ./dist/cli.js
+  languageName: unknown
+  linkType: soft
+
 "slash@npm:^3.0.0":
   version: 3.0.0
   resolution: "slash@npm:3.0.0"
