@@ -17,7 +17,9 @@
 		"dist",
 		"types"
 	],
-	"bin": "./dist/cli.js",
+	"bin": {
+		"claude-code-skill-reader": "dist/cli.js"
+	},
 	"publishConfig": {
 		"bin": {
 			"claude-code-skill-reader": "./dist/cli.js"
