@@ -146,6 +146,16 @@ function getAllBlockComments(
 			continue;
 		}
 
+		// Skip shebang line (e.g. #!/usr/bin/env node) — only valid at position 0
+		if (
+			pos === 0 &&
+			sourceText[0] === "#" &&
+			sourceText[1] === "!"
+		) {
+			pos = findLineCommentEnd(sourceText, pos + 2);
+			continue;
+		}
+
 		const nextChar = sourceText[pos + 1];
 		if (sourceText[pos] !== "/" || pos + 1 >= end) break;
 
