@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.20
+- Fixed JSDoc extraction failing on files with shebang lines (e.g., `#!/usr/bin/env node`)
+
 ## 0.4.19
 - Minor internal improvements and code cleanup
 
