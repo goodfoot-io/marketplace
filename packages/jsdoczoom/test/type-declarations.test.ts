@@ -217,6 +217,7 @@ describe("resolveCompilerOptions", () => {
 
 		expect(result.tsconfigPath).toBe(null);
 		expect(result.options).toEqual({
+			noEmit: false,
 			declaration: true,
 			emitDeclarationOnly: true,
 			target: ts.ScriptTarget.Latest,
@@ -259,6 +260,7 @@ describe("resolveCompilerOptions", () => {
 		// Should fall back to defaults when tsconfig is malformed
 		expect(result.tsconfigPath).toBe(null);
 		expect(result.options).toEqual({
+			noEmit: false,
 			declaration: true,
 			emitDeclarationOnly: true,
 			target: ts.ScriptTarget.Latest,

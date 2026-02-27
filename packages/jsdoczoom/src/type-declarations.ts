@@ -41,6 +41,7 @@ export function resolveCompilerOptions(filePath: string): {
 } {
 	// Required overrides that must always be present
 	const requiredOverrides: ts.CompilerOptions = {
+		noEmit: false,
 		declaration: true,
 		emitDeclarationOnly: true,
 		removeComments: false,
