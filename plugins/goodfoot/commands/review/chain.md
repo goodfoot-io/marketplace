@@ -15,7 +15,7 @@ Systematically analyze interconnected components to map their inputs and outputs
 <additional-resources>
 - Slash Commands: @documentation/claude-code-slash-commands.md in @.claude/commands
 - Subagents: @documentation/claude-code-subagents.md in @.claude/agents
-- Plugin Utilities: !`echo "${CLAUDE_PLUGIN_ROOT}"`/**/*
+- Plugin Utilities: ${CLAUDE_PLUGIN_ROOT}/**/*
 - Dev Container Configuration: @.devcontainer
 </additional-resources>
 
@@ -39,7 +39,7 @@ Use the Task tool function to invoke a `general-purpose` subagent to map the int
 <invoke name="Task">
 <parameter name="description">Map integration chain components and relationships</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
-<parameter name="prompt">Follow the instructions in @!`echo "${CLAUDE_PLUGIN_ROOT}"`/commands/utilities/map-integration-chain.md replacing !`echo '$AR''GUMENTS'` with: "!`echo $("${CLAUDE_PLUGIN_ROOT}"/bin/wait-for-arguments)`"</parameter>
+<parameter name="prompt">Follow the instructions in @${CLAUDE_PLUGIN_ROOT}/commands/utilities/map-integration-chain.md replacing !`echo '$AR''GUMENTS'` with: "!`echo $("${CLAUDE_PLUGIN_ROOT}"/bin/wait-for-arguments)`"</parameter>
 </invoke>
 ```
 
@@ -63,7 +63,7 @@ For each utility script in the integration chain:
 5. Note any format conversions or adaptations
 6. Identify integration gaps the utility resolves
 
-Focus on: utilities in !`echo "${CLAUDE_PLUGIN_ROOT}"`/**/* and any bash utilities invoked in the chain.
+Focus on: utilities in ${CLAUDE_PLUGIN_ROOT}/**/* and any bash utilities invoked in the chain.
 
 Output format:
 ### Utility: [script-name]
@@ -89,7 +89,7 @@ When analyzing multiple pairs, combine all Task tool function calls into a singl
 <invoke name="Task">
 <parameter name="description">[PRODUCER_FILE] -> [CONSUMER_FILE] (context-aware)</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
-<parameter name="prompt">Follow the instructions in @!`echo "${CLAUDE_PLUGIN_ROOT}"`/commands/review/producer-consumer.md replacing !`echo '$AR''GUMENTS'` with: "
+<parameter name="prompt">Follow the instructions in @${CLAUDE_PLUGIN_ROOT}/commands/review/producer-consumer.md replacing !`echo '$AR''GUMENTS'` with: "
   - Producer: @[PRODUCER_FILE]
   - Consumer: @[CONSUMER_FILE]
   - Relationship: [RELATIONSHIP]

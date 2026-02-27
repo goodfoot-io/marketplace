@@ -361,7 +361,7 @@ File count: !`ls -1 | wc -l`
 
 **File reference with embedded bash** (reading file contents):
 ````markdown
-Review the documentation: @!`echo "${CLAUDE_PLUGIN_ROOT}"`/docs/guide.md
+Review the documentation: @${CLAUDE_PLUGIN_ROOT}/docs/guide.md
 ````
 
 **When to use each**:
@@ -447,8 +447,8 @@ Are you writing code that will execute?
 │
 └─ NO, showing examples to users?
    ├─ In a command/skill file (commands/*.md or skills/*.md)
-   │  └─ Use: !`echo "${CLAUDE_PLUGIN_ROOT}"`
-   │     Example: !`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/tool
+   │  └─ Use: ${CLAUDE_PLUGIN_ROOT}
+   │     Example: ${CLAUDE_PLUGIN_ROOT}/bin/tool
    │
    └─ In a regular documentation file (README.md, etc.)
       └─ Use: "${CLAUDE_PLUGIN_ROOT}" (literal)
@@ -461,9 +461,9 @@ Are you writing code that will execute?
 |---------|--------|--------|
 | Embedded bash block (````!`) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Variable expanded at runtime ✓ |
 | Command file docs (````bash`) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Shows literal string ✗ |
-| Command file docs (````bash`) | `!`echo "${CLAUDE_PLUGIN_ROOT}"``/bin/tool` | Shows expanded path ✓ |
+| Command file docs (````bash`) | `${CLAUDE_PLUGIN_ROOT}`/bin/tool` | Shows expanded path ✓ |
 | Regular files (README.md) | `"${CLAUDE_PLUGIN_ROOT}"/bin/tool` | Shows what users type ✓ |
-| File reference | `@!`echo "${CLAUDE_PLUGIN_ROOT}"``/file.md` | Reads file at expanded path ✓ |
+| File reference | `@${CLAUDE_PLUGIN_ROOT}`/file.md` | Reads file at expanded path ✓ |
 
 #### In Embedded Bash Blocks (Executes Code) ✓
 
@@ -479,15 +479,15 @@ PROJECT_DIR=$("${CLAUDE_PLUGIN_ROOT}"/bin/initialize-project "my-project")
 
 #### In Command Files - Documentation Code Blocks (Shows Examples)
 
-Use `!`echo "${CLAUDE_PLUGIN_ROOT}"`` syntax - this expands the path when rendered so users see the actual path:
+Use `${CLAUDE_PLUGIN_ROOT}` syntax - this expands the path when rendered so users see the actual path:
 
 **✓ Correct - Shows actual path to users**:
 ````markdown
 **Usage:**
 ```bash
 # Users will see "plugins/project/bin/initialize-project" (actual path)
-PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "my-project")
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/my-script.sh
+PROJECT_DIR=$(${CLAUDE_PLUGIN_ROOT}/bin/initialize-project "my-project")
+${CLAUDE_PLUGIN_ROOT}/bin/my-script.sh
 ```
 ````
 
@@ -503,7 +503,7 @@ PROJECT_DIR=$("${CLAUDE_PLUGIN_ROOT}"/bin/initialize-project "my-project")
 **Why this matters**:
 - Regular markdown code blocks (````bash`) in command files don't execute - they're just formatted text
 - If you use `"${CLAUDE_PLUGIN_ROOT}"` in command documentation, users will see the literal string instead of the actual path
-- The `!`echo "${CLAUDE_PLUGIN_ROOT}"`` syntax runs the echo command and substitutes the result when the documentation is rendered
+- The `${CLAUDE_PLUGIN_ROOT}` syntax runs the echo command and substitutes the result when the documentation is rendered
 - **IMPORTANT**: This only works in command/skill files (`.md` files in `commands/` or `skills/` directories)
 
 #### In Regular Documentation Files (README.md, etc.) ✓
@@ -541,7 +541,7 @@ RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 **Usage:**
 ```bash
 # Users will see "plugins/project/bin/process-data" or the actual path
-RESULT=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/process-data)
+RESULT=$(${CLAUDE_PLUGIN_ROOT}/bin/process-data)
 ```
 ````
 
@@ -567,14 +567,14 @@ RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 ```bash
 # In a command file's ```bash block
 # Users see actual path like "plugins/project/bin/my-tool" - helpful!
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/my-tool
+${CLAUDE_PLUGIN_ROOT}/bin/my-tool
 ```
 
 **❌ Mistake #2: Using embedded bash in README.md files**
 ```bash
 # In README.md (regular documentation file)
 # Problem: Won't expand - README files don't process embedded bash
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/my-tool
+${CLAUDE_PLUGIN_ROOT}/bin/my-tool
 ```
 
 **✓ Fix: Use literal syntax in regular docs**
@@ -594,7 +594,7 @@ RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 **✓ Fix: Include backticks around the command**
 ```bash
 # Correct syntax with backticks
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/my-tool
+${CLAUDE_PLUGIN_ROOT}/bin/my-tool
 ```
 
 ### Skills vs Commands

@@ -14,7 +14,7 @@ $ARGUMENTS
 
 Create a structured project plan for the user's request, then assess its quality. If issues exist, revise the plan.
 
-Review the plan skill immediately to access plan structure and requirements: @!`echo "${CLAUDE_PLUGIN_ROOT}"`/skills/plan/SKILL.md
+Review the plan skill immediately to access plan structure and requirements: @${CLAUDE_PLUGIN_ROOT}/skills/plan/SKILL.md
 
 <core-constraints>
 1. **YAGNI (You Aren't Gonna Need It)**: Include only what directly solves the problem
@@ -28,7 +28,7 @@ Review the plan skill immediately to access plan structure and requirements: @!`
 <command-reference>
 ```bash
 # Initialize new project (using plugin binary)
-PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "[PROJECT_NAME]")
+PROJECT_DIR=$(${CLAUDE_PLUGIN_ROOT}/bin/initialize-project "[PROJECT_NAME]")
 
 # To append to project log (never edit existing content), use the Bash tool with heredoc:
 # Note: Use $PROJECT_DIR if available from bash context, otherwise substitute [PROJECT_PATH]
@@ -37,7 +37,7 @@ cat >> "[PROJECT_PATH]/log.md" <<'EOF'
 EOF
 
 # Create or update plan (auto-versioned, using plugin binary)
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/create-plan-version "[PROJECT_NAME]" "[PLAN_CONTENT]"
+${CLAUDE_PLUGIN_ROOT}/bin/create-plan-version "[PROJECT_NAME]" "[PLAN_CONTENT]"
 ```
 
 **Path Placeholder Convention:**
@@ -327,7 +327,7 @@ Use these thresholds to assess risk:
 </dependency-analysis-requirements>
 
 <plan-structure-requirements>
-Create your plan following the EXACT structure defined in @!`echo "${CLAUDE_PLUGIN_ROOT}"`/skills/plan/SKILL.md, which provides:
+Create your plan following the EXACT structure defined in @${CLAUDE_PLUGIN_ROOT}/skills/plan/SKILL.md, which provides:
 - Complete section structure and order
 - Required subsections (especially Scope's Include/Exclude)
 - Formatting requirements for each section
@@ -541,7 +541,7 @@ When the assessor flags unvalidated assumptions, conduct technical spikes follow
 ```bash
 # Replace "add-user-auth" with your actual project name
 # Project name must be kebab-case (lowercase letters, numbers, hyphens only), max 50 characters
-PROJECT_DIR=$(!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/initialize-project "add-user-auth") && echo "Project directory: $PROJECT_DIR" && echo "Project name: $(basename "$PROJECT_DIR")"
+PROJECT_DIR=$(${CLAUDE_PLUGIN_ROOT}/bin/initialize-project "add-user-auth") && echo "Project directory: $PROJECT_DIR" && echo "Project name: $(basename "$PROJECT_DIR")"
 ```
 
 This command will:
@@ -726,7 +726,7 @@ EOF
 ## Phase 2: Plan Creation
 
 ### Step 1: Verify Plan Structure
-Create your plan following the EXACT structure defined in @!`echo "${CLAUDE_PLUGIN_ROOT}"`/skills/plan/SKILL.md 
+Create your plan following the EXACT structure defined in @${CLAUDE_PLUGIN_ROOT}/skills/plan/SKILL.md 
 
 ### Step 2: Pre-Creation Checklist
 Before running create-plan-version, verify ALL checklist items in the pre-plan-creation-checklist section above.
@@ -735,10 +735,10 @@ Before running create-plan-version, verify ALL checklist items in the pre-plan-c
 
 ```bash
 # This creates plan-v1.md, plan-v2.md, etc. automatically
-!`echo "${CLAUDE_PLUGIN_ROOT}"`/bin/create-plan-version "add-user-auth" "[PLAN_CONTENT]"
+${CLAUDE_PLUGIN_ROOT}/bin/create-plan-version "add-user-auth" "[PLAN_CONTENT]"
 ```
 
-[PLAN_CONTENT] must follow the structure defined in @!`echo "${CLAUDE_PLUGIN_ROOT}"`/skills/plan/SKILL.md
+[PLAN_CONTENT] must follow the structure defined in @${CLAUDE_PLUGIN_ROOT}/skills/plan/SKILL.md
 
 ## Phase 3: Quality Assessment
 

@@ -204,3 +204,5 @@ documentation/hook-libraries
 
 packages/jsdoczoom/types
 packages/claude-code-skill-reader/types
+
+documentation/PageIndex
