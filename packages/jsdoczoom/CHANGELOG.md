@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.21
+- Fixed type extraction failing for projects with `noEmit: true` in their tsconfig.json
+
 ## 0.4.20
 - Fixed JSDoc extraction failing on files with shebang lines (e.g., `#!/usr/bin/env node`)
 
