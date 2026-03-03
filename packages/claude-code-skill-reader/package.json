@@ -1,6 +1,6 @@
 {
 	"name": "@goodfoot/claude-code-skill-reader",
-	"version": "0.1.2",
+	"version": "0.2.0",
 	"description": "CLI tool for reading and processing Claude Code skills and commands",
 	"homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/claude-code-skill-reader",
 	"repository": {
