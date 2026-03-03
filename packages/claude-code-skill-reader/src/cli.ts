@@ -17,7 +17,7 @@ import {
 	withTempDir,
 } from "./marketplace.js";
 import { processContent } from "./processor.js";
-import type { MarketplaceSource } from "./types.js";
+import type { MarketplaceSource, SkillLocation } from "./types.js";
 
 const HELP_TEXT = `Usage: claude-code-skill-reader [options] <skill-name> [skill-name...]
 
@@ -49,6 +49,20 @@ interface ParsedArgs {
 	useCached: boolean;
 	marketplace: MarketplaceSource | undefined;
 	skillNames: string[];
+}
+
+/**
+ * Parses the --marketplace flag with JSON validation.
+ */
+function parseMarketplaceArg(jsonStr: string): MarketplaceSource {
+	try {
+		return JSON.parse(jsonStr) as MarketplaceSource;
+	} catch (err) {
+		throw new SkillReaderError(
+			"INVALID_ARGS",
+			`Invalid marketplace JSON: ${err instanceof Error ? err.message : String(err)}`,
+		);
+	}
 }
 
 /**
@@ -89,16 +103,8 @@ function parseArgs(args: string[]): ParsedArgs {
 			continue;
 		}
 		if (arg === "--marketplace") {
-			const jsonStr = args[i + 1];
+			parsed.marketplace = parseMarketplaceArg(args[i + 1]);
 			i++;
-			try {
-				parsed.marketplace = JSON.parse(jsonStr) as MarketplaceSource;
-			} catch (err) {
-				throw new SkillReaderError(
-					"INVALID_ARGS",
-					`Invalid marketplace JSON: ${err instanceof Error ? err.message : String(err)}`,
-				);
-			}
 			continue;
 		}
 
@@ -154,6 +160,58 @@ function handleVersion(): void {
 }
 
 /**
+ * Attempts to resolve a skill through all discovery strategies.
+ */
+function resolveSkill(
+	pluginName: string | undefined,
+	skillName: string,
+	parsed: ParsedArgs,
+): SkillLocation | undefined {
+	// Try local discovery
+	let location = pluginName
+		? discoverPluginSkill(pluginName, skillName)
+		: discoverSkill(skillName, process.cwd());
+
+	// If not found and --use-cached, try cache fallback
+	if (!location && parsed.useCached) {
+		location = discoverCachedSkill(pluginName, skillName);
+	}
+
+	// If not found and marketplace provided, try marketplace resolution
+	if (!location && parsed.marketplace && pluginName) {
+		const marketplace = parsed.marketplace;
+		location = withTempDir((tempDir) => {
+			const marketplacePath = resolveMarketplace(marketplace, tempDir);
+			return findSkillInMarketplace(marketplacePath, pluginName, skillName);
+		});
+	}
+
+	return location;
+}
+
+/**
+ * Outputs a skill with optional frontmatter parsing and content processing.
+ */
+function outputSkill(
+	skillPath: string,
+	pluginRoot: string | undefined,
+	options: { raw: boolean; executeBash: boolean },
+): void {
+	const content = readFileSync(skillPath, "utf-8");
+	const { body } = parseFrontmatter(content);
+
+	if (options.raw) {
+		void process.stdout.write(`${body}\n`);
+	} else {
+		const processed = processContent(body, {
+			pluginRoot,
+			executeBash: options.executeBash,
+		});
+		void process.stdout.write(`${processed}\n`);
+	}
+}
+
+/**
  * Main CLI entry point. Exported for testability.
  */
 export async function main(args: string[]): Promise<void> {
@@ -182,26 +240,7 @@ export async function main(args: string[]): Promise<void> {
 		for (const name of parsed.skillNames) {
 			const { pluginName, skillName } = splitSkillName(name);
 
-			// Try local discovery
-			let location = pluginName
-				? discoverPluginSkill(pluginName, skillName)
-				: discoverSkill(skillName, process.cwd());
-
-			// If not found and --use-cached, try cache fallback
-			if (!location && parsed.useCached) {
-				location = discoverCachedSkill(pluginName, skillName);
-			}
-
-			// If not found and marketplace provided, try marketplace resolution
-			if (!location && parsed.marketplace && pluginName) {
-				const marketplace = parsed.marketplace;
-				location = withTempDir((tempDir) => {
-					const marketplacePath = resolveMarketplace(marketplace, tempDir);
-					return findSkillInMarketplace(marketplacePath, pluginName, skillName);
-				});
-			}
-
-			// Still not found
+			const location = resolveSkill(pluginName, skillName, parsed);
 			if (!location) {
 				throw new SkillReaderError(
 					"SKILL_NOT_FOUND",
@@ -209,21 +248,10 @@ export async function main(args: string[]): Promise<void> {
 				);
 			}
 
-			// Read and process the skill file
-			const content = readFileSync(location.path, "utf-8");
-			const { body } = parseFrontmatter(content);
-
-			if (parsed.raw) {
-				// Output body as-is
-				void process.stdout.write(`${body}\n`);
-			} else {
-				// Process content (bash execution + CLAUDE_PLUGIN_ROOT replacement)
-				const processed = processContent(body, {
-					pluginRoot: location.pluginRoot,
-					executeBash: !parsed.noExecuteBash,
-				});
-				void process.stdout.write(`${processed}\n`);
-			}
+			outputSkill(location.path, location.pluginRoot, {
+				raw: parsed.raw,
+				executeBash: !parsed.noExecuteBash,
+			});
 		}
 	} catch (error: unknown) {
 		writeError(error);
@@ -240,5 +268,9 @@ function isDirectRun(): boolean {
 }
 
 if (isDirectRun()) {
-	main(process.argv.slice(2)).catch(() => {});
+	main(process.argv.slice(2)).catch((error: unknown) => {
+		const message = error instanceof Error ? error.message : String(error);
+		void process.stderr.write(`Fatal error: ${message}\n`);
+		process.exitCode = 1;
+	});
 }

@@ -110,6 +110,26 @@ export function discoverPluginSkill(
 }
 
 /**
+ * Checks if a directory name is a valid semver string (X.Y.Z format with numeric parts).
+ */
+function isSemverDir(dir: string): boolean {
+	const parts = dir.split(".");
+	return parts.length === 3 && parts.every((p) => /^\d+$/.test(p));
+}
+
+/**
+ * Compares two semver version strings (major.minor.patch).
+ * Returns negative if a < b, positive if a > b, zero if equal.
+ */
+function compareSemverVersions(a: string, b: string): number {
+	const [aMaj, aMin, aPat] = a.split(".").map(Number);
+	const [bMaj, bMin, bPat] = b.split(".").map(Number);
+	if (aMaj !== bMaj) return bMaj - aMaj;
+	if (aMin !== bMin) return bMin - aMin;
+	return bPat - aPat;
+}
+
+/**
  * Picks the highest semver version directory from a list of directory names.
  * Returns the highest semver version, or the first non-semver entry if no semver found, or undefined if empty.
  */
@@ -118,25 +138,57 @@ function pickHighestSemverDir(dirs: string[]): string | undefined {
 		return undefined;
 	}
 
-	const isSemver = (dir: string): boolean => {
-		const parts = dir.split(".");
-		return parts.length === 3 && parts.every((p) => /^\d+$/.test(p));
-	};
-
-	const semverDirs = dirs.filter(isSemver);
+	const semverDirs = dirs.filter(isSemverDir);
 	if (semverDirs.length === 0) {
 		return dirs[0];
 	}
 
-	semverDirs.sort((a, b) => {
-		const [aMaj, aMin, aPat] = a.split(".").map(Number);
-		const [bMaj, bMin, bPat] = b.split(".").map(Number);
-		if (aMaj !== bMaj) return bMaj - aMaj;
-		if (aMin !== bMin) return bMin - aMin;
-		return bPat - aPat;
-	});
-
+	semverDirs.sort(compareSemverVersions);
 	return semverDirs[0];
+}
+
+/**
+ * Orders version directories with semver versions first (highest first), then non-semver.
+ */
+function orderVersionDirs(versionDirNames: string[]): string[] {
+	const highest = pickHighestSemverDir(versionDirNames);
+	if (highest === undefined) {
+		return versionDirNames;
+	}
+
+	const ordered: string[] = [highest];
+	for (const v of versionDirNames) {
+		if (v !== highest) {
+			ordered.push(v);
+		}
+	}
+	return ordered;
+}
+
+/**
+ * Checks if a skill exists in the given version directory.
+ * Returns the SkillLocation if found, or undefined.
+ */
+function findSkillInVersion(
+	versionDir: string,
+	skillName: string,
+): SkillLocation | undefined {
+	const candidates = [
+		join(versionDir, "skills", skillName, "SKILL.md"),
+		join(versionDir, "commands", `${skillName}.md`),
+	];
+
+	for (const candidatePath of candidates) {
+		if (existsSync(candidatePath)) {
+			return {
+				path: candidatePath,
+				baseDir: dirname(candidatePath),
+				pluginRoot: versionDir,
+			};
+		}
+	}
+
+	return undefined;
 }
 
 /**
@@ -165,32 +217,13 @@ export function discoverCachedSkill(
 
 			const pluginDir = join(marketplaceDir, plugin);
 			const versionDirNames = readdirSync(pluginDir);
-			const orderedVersions: string[] = [];
-
-			const highest = pickHighestSemverDir(versionDirNames);
-			if (highest !== undefined) {
-				orderedVersions.push(highest);
-				for (const v of versionDirNames) {
-					if (v !== highest) {
-						orderedVersions.push(v);
-					}
-				}
-			}
+			const orderedVersions = orderVersionDirs(versionDirNames);
 
 			for (const version of orderedVersions) {
 				const versionDir = join(pluginDir, version);
-				const candidates = [
-					join(versionDir, "skills", skillName, "SKILL.md"),
-					join(versionDir, "commands", `${skillName}.md`),
-				];
-				for (const candidatePath of candidates) {
-					if (existsSync(candidatePath)) {
-						return {
-							path: candidatePath,
-							baseDir: dirname(candidatePath),
-							pluginRoot: versionDir,
-						};
-					}
+				const location = findSkillInVersion(versionDir, skillName);
+				if (location !== undefined) {
+					return location;
 				}
 			}
 		}
