@@ -1,4 +1,5 @@
 export {
+	discoverCachedSkill,
 	discoverPluginSkill,
 	discoverSkill,
 	splitSkillName,

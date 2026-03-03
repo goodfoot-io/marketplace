@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	discoverCachedSkill,
 	discoverPluginSkill,
 	discoverSkill,
 	splitSkillName,
@@ -229,5 +230,209 @@ describe("discoverPluginSkill", () => {
 		expect(result?.path).toBe(join(commandsDir, "my-cmd.md"));
 		expect(result?.baseDir).toBe(commandsDir);
 		expect(result?.pluginRoot).toBe(pluginInstallPath);
+	});
+});
+
+describe("discoverCachedSkill", () => {
+	let homeDirStub: string;
+
+	beforeEach(() => {
+		homeDirStub = mkdtempSync(join(tmpdir(), "skill-reader-home-"));
+		_mockHomeDir = homeDirStub;
+	});
+
+	afterEach(() => {
+		_mockHomeDir = tmpdir();
+		rmSync(homeDirStub, { recursive: true, force: true });
+	});
+
+	it("finds plugin skill in cache at {marketplace}/{pluginName}/{version}/skills/{skillName}/SKILL.md", () => {
+		const versionDir = join(
+			homeDirStub,
+			".claude",
+			"plugins",
+			"cache",
+			"goodfoot",
+			"my-plugin",
+			"1.0.0",
+		);
+		const skillDir = join(versionDir, "skills", "my-skill");
+		mkdirSync(skillDir, { recursive: true });
+		writeFileSync(join(skillDir, "SKILL.md"), "# Plugin Skill");
+
+		const result = discoverCachedSkill("my-plugin", "my-skill");
+		expect(result).toBeDefined();
+		expect(result?.path).toBe(join(skillDir, "SKILL.md"));
+		expect(result?.baseDir).toBe(skillDir);
+		expect(result?.pluginRoot).toBe(versionDir);
+	});
+
+	it("finds plugin command in cache at {marketplace}/{pluginName}/{version}/commands/{skillName}.md", () => {
+		const versionDir = join(
+			homeDirStub,
+			".claude",
+			"plugins",
+			"cache",
+			"goodfoot",
+			"my-plugin",
+			"1.0.0",
+		);
+		const commandsDir = join(versionDir, "commands");
+		mkdirSync(commandsDir, { recursive: true });
+		writeFileSync(join(commandsDir, "my-cmd.md"), "# Plugin Command");
+
+		const result = discoverCachedSkill("my-plugin", "my-cmd");
+		expect(result).toBeDefined();
+		expect(result?.path).toBe(join(commandsDir, "my-cmd.md"));
+		expect(result?.baseDir).toBe(commandsDir);
+		expect(result?.pluginRoot).toBe(versionDir);
+	});
+
+	it("selects highest semver version when multiple versions exist", () => {
+		const cacheBase = join(
+			homeDirStub,
+			".claude",
+			"plugins",
+			"cache",
+			"goodfoot",
+			"my-plugin",
+		);
+		for (const version of ["1.0.4", "1.0.71", "1.0.72"]) {
+			const skillDir = join(cacheBase, version, "skills", "my-skill");
+			mkdirSync(skillDir, { recursive: true });
+			writeFileSync(join(skillDir, "SKILL.md"), `# Skill ${version}`);
+		}
+
+		const result = discoverCachedSkill("my-plugin", "my-skill");
+		expect(result).toBeDefined();
+		expect(result?.pluginRoot).toBe(join(cacheBase, "1.0.72"));
+	});
+
+	it("prefers semver versions over non-semver (git hash) directories", () => {
+		const cacheBase = join(
+			homeDirStub,
+			".claude",
+			"plugins",
+			"cache",
+			"goodfoot",
+			"my-plugin",
+		);
+		const gitHash = "abc1234def5678";
+		for (const version of [gitHash, "1.0.5"]) {
+			const skillDir = join(cacheBase, version, "skills", "my-skill");
+			mkdirSync(skillDir, { recursive: true });
+			writeFileSync(join(skillDir, "SKILL.md"), `# Skill ${version}`);
+		}
+
+		const result = discoverCachedSkill("my-plugin", "my-skill");
+		expect(result).toBeDefined();
+		expect(result?.pluginRoot).toBe(join(cacheBase, "1.0.5"));
+	});
+
+	it("returns undefined when cache directory doesn't exist", () => {
+		const result = discoverCachedSkill("my-plugin", "my-skill");
+		expect(result).toBeUndefined();
+	});
+
+	it("finds plain skill (no pluginName) by scanning all {marketplace}/{plugin}/{version}/ directories", () => {
+		const versionDir = join(
+			homeDirStub,
+			".claude",
+			"plugins",
+			"cache",
+			"goodfoot",
+			"some-plugin",
+			"2.1.0",
+		);
+		const skillDir = join(versionDir, "skills", "plain-skill");
+		mkdirSync(skillDir, { recursive: true });
+		writeFileSync(join(skillDir, "SKILL.md"), "# Plain Skill");
+
+		const result = discoverCachedSkill(undefined, "plain-skill");
+		expect(result).toBeDefined();
+		expect(result?.path).toBe(join(skillDir, "SKILL.md"));
+		expect(result?.baseDir).toBe(skillDir);
+		expect(result?.pluginRoot).toBe(versionDir);
+	});
+
+	it("returns undefined when no match found in cache", () => {
+		const versionDir = join(
+			homeDirStub,
+			".claude",
+			"plugins",
+			"cache",
+			"goodfoot",
+			"my-plugin",
+			"1.0.0",
+		);
+		const skillDir = join(versionDir, "skills", "other-skill");
+		mkdirSync(skillDir, { recursive: true });
+		writeFileSync(join(skillDir, "SKILL.md"), "# Other Skill");
+
+		const result = discoverCachedSkill("my-plugin", "missing-skill");
+		expect(result).toBeUndefined();
+	});
+
+	it("scans across multiple marketplace directories", () => {
+		const cacheBase = join(homeDirStub, ".claude", "plugins", "cache");
+		// Put skill in second marketplace
+		const versionDir = join(
+			cacheBase,
+			"marketplace-b",
+			"their-plugin",
+			"3.0.0",
+		);
+		const skillDir = join(versionDir, "skills", "shared-skill");
+		mkdirSync(skillDir, { recursive: true });
+		writeFileSync(join(skillDir, "SKILL.md"), "# Shared Skill");
+
+		// Also create an empty marketplace-a directory
+		mkdirSync(join(cacheBase, "marketplace-a"), { recursive: true });
+
+		const result = discoverCachedSkill("their-plugin", "shared-skill");
+		expect(result).toBeDefined();
+		expect(result?.path).toBe(join(skillDir, "SKILL.md"));
+		expect(result?.baseDir).toBe(skillDir);
+		expect(result?.pluginRoot).toBe(versionDir);
+	});
+
+	it("returns a result when all versions are non-semver (git hashes only)", () => {
+		const cacheBase = join(
+			homeDirStub,
+			".claude",
+			"plugins",
+			"cache",
+			"goodfoot",
+			"my-plugin",
+		);
+		const gitHash = "deadbeefcafe1234";
+		const skillDir = join(cacheBase, gitHash, "skills", "my-skill");
+		mkdirSync(skillDir, { recursive: true });
+		writeFileSync(join(skillDir, "SKILL.md"), "# Git Hash Skill");
+
+		const result = discoverCachedSkill("my-plugin", "my-skill");
+		expect(result).toBeDefined();
+		expect(result?.pluginRoot).toBe(join(cacheBase, gitHash));
+	});
+
+	it("skips version directories that don't contain the requested skill", () => {
+		const cacheBase = join(
+			homeDirStub,
+			".claude",
+			"plugins",
+			"cache",
+			"goodfoot",
+			"my-plugin",
+		);
+		// Only 1.0.1 has the skill, 1.0.2 does not
+		const skillDir = join(cacheBase, "1.0.1", "skills", "my-skill");
+		mkdirSync(skillDir, { recursive: true });
+		writeFileSync(join(skillDir, "SKILL.md"), "# My Skill 1.0.1");
+		// 1.0.2 exists but doesn't have the skill
+		mkdirSync(join(cacheBase, "1.0.2"), { recursive: true });
+
+		const result = discoverCachedSkill("my-plugin", "my-skill");
+		expect(result).toBeDefined();
+		expect(result?.pluginRoot).toBe(join(cacheBase, "1.0.1"));
 	});
 });

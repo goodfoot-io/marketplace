@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+	discoverCachedSkill,
 	discoverPluginSkill,
 	discoverSkill,
 	splitSkillName,
@@ -28,6 +29,7 @@ Options:
   --no-bash                    Skip bash execution
   --raw                        Output unprocessed SKILL.md body
   --marketplace <json-string>  Resolve skills from a marketplace source
+  --use-cached                 Fall back to cached plugin downloads when skill is not found locally
 
 Skill Names:
   Plain name:     my-skill        (searches .claude/skills/ and .claude/commands/)
@@ -44,6 +46,7 @@ interface ParsedArgs {
 	version: boolean;
 	noExecuteBash: boolean;
 	raw: boolean;
+	useCached: boolean;
 	marketplace: MarketplaceSource | undefined;
 	skillNames: string[];
 }
@@ -57,6 +60,7 @@ function parseArgs(args: string[]): ParsedArgs {
 		version: false,
 		noExecuteBash: false,
 		raw: false,
+		useCached: false,
 		marketplace: undefined,
 		skillNames: [],
 	};
@@ -78,6 +82,10 @@ function parseArgs(args: string[]): ParsedArgs {
 		}
 		if (arg === "--raw") {
 			parsed.raw = true;
+			continue;
+		}
+		if (arg === "--use-cached") {
+			parsed.useCached = true;
 			continue;
 		}
 		if (arg === "--marketplace") {
@@ -178,6 +186,11 @@ export async function main(args: string[]): Promise<void> {
 			let location = pluginName
 				? discoverPluginSkill(pluginName, skillName)
 				: discoverSkill(skillName, process.cwd());
+
+			// If not found and --use-cached, try cache fallback
+			if (!location && parsed.useCached) {
+				location = discoverCachedSkill(pluginName, skillName);
+			}
 
 			// If not found and marketplace provided, try marketplace resolution
 			if (!location && parsed.marketplace && pluginName) {

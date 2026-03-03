@@ -316,4 +316,194 @@ describe("cli", () => {
 			rmSync(tmpDir, { recursive: true, force: true });
 		}
 	});
+
+	it("--use-cached flag is accepted without error", async () => {
+		const tmpDir = mkdtempSync(join(tmpdir(), "skill-reader-cli-"));
+		try {
+			const skillDir = join(tmpDir, ".claude", "skills", "cached-skill");
+			mkdirSync(skillDir, { recursive: true });
+			writeFileSync(join(skillDir, "SKILL.md"), "Locally found skill");
+
+			cwdSpy.mockReturnValue(tmpDir);
+			await main(["--use-cached", "cached-skill"]);
+
+			expect(capture.getStdout()).toContain("Locally found skill");
+			expect(process.exitCode).toBe(0);
+		} finally {
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	});
+
+	it("--use-cached resolves a plugin skill from cache when not in installed_plugins.json", async () => {
+		const homeDirStub = mkdtempSync(join(tmpdir(), "skill-reader-home-"));
+		const prevHomeDir = _mockHomeDir;
+		_mockHomeDir = homeDirStub;
+		try {
+			// Set up cache dir structure: ~/.claude/plugins/cache/{marketplace}/{plugin}/{version}/skills/{skillName}/SKILL.md
+			const cacheSkillDir = join(
+				homeDirStub,
+				".claude",
+				"plugins",
+				"cache",
+				"test-marketplace",
+				"my-plugin",
+				"1.0.0",
+				"skills",
+				"my-skill",
+			);
+			mkdirSync(cacheSkillDir, { recursive: true });
+			writeFileSync(join(cacheSkillDir, "SKILL.md"), "Cached plugin skill body");
+
+			// No installed_plugins.json — plugin is only in cache
+			const tmpCwd = mkdtempSync(join(tmpdir(), "skill-reader-cwd-"));
+			cwdSpy.mockReturnValue(tmpCwd);
+
+			await main(["--use-cached", "my-plugin:my-skill"]);
+
+			expect(capture.getStdout()).toContain("Cached plugin skill body");
+			expect(process.exitCode).toBe(0);
+
+			rmSync(tmpCwd, { recursive: true, force: true });
+		} finally {
+			_mockHomeDir = prevHomeDir;
+			rmSync(homeDirStub, { recursive: true, force: true });
+		}
+	});
+
+	it("--use-cached resolves a plain skill from cache when not in local .claude/ dirs", async () => {
+		const homeDirStub = mkdtempSync(join(tmpdir(), "skill-reader-home-"));
+		const prevHomeDir = _mockHomeDir;
+		_mockHomeDir = homeDirStub;
+		try {
+			// Set up cache dir structure for a plain skill (no pluginName filter)
+			const cacheSkillDir = join(
+				homeDirStub,
+				".claude",
+				"plugins",
+				"cache",
+				"test-marketplace",
+				"some-plugin",
+				"2.0.0",
+				"skills",
+				"plain-skill",
+			);
+			mkdirSync(cacheSkillDir, { recursive: true });
+			writeFileSync(join(cacheSkillDir, "SKILL.md"), "Cached plain skill body");
+
+			// cwd has no local skills
+			const tmpCwd = mkdtempSync(join(tmpdir(), "skill-reader-cwd-"));
+			cwdSpy.mockReturnValue(tmpCwd);
+
+			await main(["--use-cached", "plain-skill"]);
+
+			expect(capture.getStdout()).toContain("Cached plain skill body");
+			expect(process.exitCode).toBe(0);
+
+			rmSync(tmpCwd, { recursive: true, force: true });
+		} finally {
+			_mockHomeDir = prevHomeDir;
+			rmSync(homeDirStub, { recursive: true, force: true });
+		}
+	});
+
+	it("without --use-cached, cache is NOT searched (skill-not-found error)", async () => {
+		const homeDirStub = mkdtempSync(join(tmpdir(), "skill-reader-home-"));
+		const prevHomeDir = _mockHomeDir;
+		_mockHomeDir = homeDirStub;
+		try {
+			// Same cache setup as above
+			const cacheSkillDir = join(
+				homeDirStub,
+				".claude",
+				"plugins",
+				"cache",
+				"test-marketplace",
+				"some-plugin",
+				"2.0.0",
+				"skills",
+				"cached-only-skill",
+			);
+			mkdirSync(cacheSkillDir, { recursive: true });
+			writeFileSync(join(cacheSkillDir, "SKILL.md"), "Cached only");
+
+			// cwd has no local skills, no --use-cached flag
+			const tmpCwd = mkdtempSync(join(tmpdir(), "skill-reader-cwd-"));
+			cwdSpy.mockReturnValue(tmpCwd);
+
+			await main(["cached-only-skill"]);
+
+			const errOutput = capture.getStderr();
+			const parsed = JSON.parse(errOutput);
+			expect(parsed.error.code).toBe("SKILL_NOT_FOUND");
+			expect(process.exitCode).toBe(1);
+
+			rmSync(tmpCwd, { recursive: true, force: true });
+		} finally {
+			_mockHomeDir = prevHomeDir;
+			rmSync(homeDirStub, { recursive: true, force: true });
+		}
+	});
+
+	it("--help output includes --use-cached documentation", async () => {
+		await main(["--help"]);
+		expect(capture.getStdout()).toContain("--use-cached");
+		expect(process.exitCode).toBe(0);
+	});
+
+	it("--use-cached combined with --marketplace uses cache when only cache has the skill", async () => {
+		const homeDirStub = mkdtempSync(join(tmpdir(), "skill-reader-home-"));
+		const prevHomeDir = _mockHomeDir;
+		_mockHomeDir = homeDirStub;
+		try {
+			// Skill exists in cache
+			const cacheSkillDir = join(
+				homeDirStub,
+				".claude",
+				"plugins",
+				"cache",
+				"test-marketplace",
+				"combo-plugin",
+				"1.2.3",
+				"skills",
+				"combo-skill",
+			);
+			mkdirSync(cacheSkillDir, { recursive: true });
+			writeFileSync(join(cacheSkillDir, "SKILL.md"), "Combo cache skill body");
+
+			// Set up a marketplace dir that does NOT have the skill
+			const tmpDir = mkdtempSync(join(tmpdir(), "skill-reader-cli-"));
+			const marketplaceDir = join(tmpDir, "marketplace");
+			const claudePluginDir = join(marketplaceDir, ".claude-plugin");
+			mkdirSync(claudePluginDir, { recursive: true });
+			writeFileSync(
+				join(claudePluginDir, "marketplace.json"),
+				JSON.stringify({
+					name: "test-marketplace",
+					plugins: [],
+				}),
+			);
+
+			cwdSpy.mockReturnValue(tmpDir);
+
+			const marketplaceJson = JSON.stringify({
+				source: "directory",
+				path: marketplaceDir,
+			});
+
+			await main([
+				"--use-cached",
+				"--marketplace",
+				marketplaceJson,
+				"combo-plugin:combo-skill",
+			]);
+
+			expect(capture.getStdout()).toContain("Combo cache skill body");
+			expect(process.exitCode).toBe(0);
+
+			rmSync(tmpDir, { recursive: true, force: true });
+		} finally {
+			_mockHomeDir = prevHomeDir;
+			rmSync(homeDirStub, { recursive: true, force: true });
+		}
+	});
 });
