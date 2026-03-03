@@ -352,7 +352,10 @@ describe("cli", () => {
 				"my-skill",
 			);
 			mkdirSync(cacheSkillDir, { recursive: true });
-			writeFileSync(join(cacheSkillDir, "SKILL.md"), "Cached plugin skill body");
+			writeFileSync(
+				join(cacheSkillDir, "SKILL.md"),
+				"Cached plugin skill body",
+			);
 
 			// No installed_plugins.json — plugin is only in cache
 			const tmpCwd = mkdtempSync(join(tmpdir(), "skill-reader-cwd-"));
