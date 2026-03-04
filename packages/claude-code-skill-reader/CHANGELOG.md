@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0
+- Improved code structure and maintainability through internal refactoring
+- Improved error reporting for unhandled fatal errors
+
 ## 0.1.2
 - Minor internal maintenance updates
 
