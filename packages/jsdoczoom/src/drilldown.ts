@@ -70,7 +70,7 @@ function buildLevels(
 					? `\`\`\`typescript\n${typeDeclarations}\n\`\`\``
 					: typeDeclarations,
 		},
-		{ text: fileContent },
+		{ text: `\`\`\`typescript\n${fileContent}\n\`\`\`` },
 	];
 }
 

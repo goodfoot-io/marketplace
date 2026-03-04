@@ -110,7 +110,7 @@ async function processFileSafe(
 		};
 	}
 	if (regex.test(content)) {
-		return { id: `${idPath}@4`, text: content };
+		return { id: `${idPath}@4`, text: `\`\`\`typescript\n${content}\n\`\`\`` };
 	}
 
 	return null; // no match

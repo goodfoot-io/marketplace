@@ -152,7 +152,7 @@ describe("drilldown", () => {
 				resolve(leafFilesDir, "one-summary.ts"),
 				"utf-8",
 			);
-			expect(entry.text).toBe(expectedContent);
+			expect(entry.text).toBe(`\`\`\`typescript\n${expectedContent}\n\`\`\``);
 		}
 	});
 
@@ -174,7 +174,7 @@ describe("drilldown", () => {
 				resolve(leafFilesDir, "one-summary.ts"),
 				"utf-8",
 			);
-			expect(entry.text).toBe(expectedContent);
+			expect(entry.text).toBe(`\`\`\`typescript\n${expectedContent}\n\`\`\``);
 		}
 	});
 
