@@ -18,8 +18,8 @@ Review the `<user-request>`. If empty or incomplete, infer intent from the conve
 
 Analyze the request and determine which research method(s) will help you understand the user's intent:
 
-- **Code changes, bugs, or features involving this codebase**: Filesystem exploration — Task with `subagent_type=Explore`
-- **Technical questions, API behavior, or library capabilities**: Technical spike — Task with `subagent_type=general-purpose`
+- **Code changes, bugs, or features involving this codebase**: Filesystem trace
+- **Technical questions, API behavior, or library capabilities**: Technical spike
 - **Current events, documentation, or external information**: Web search — Task with `subagent_type=general-purpose` using WebSearch
 - **Conceptual or design questions**: May not need research — Proceed to Step 2
 
