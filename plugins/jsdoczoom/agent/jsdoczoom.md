@@ -13,7 +13,7 @@ tools: ["Bash", "Read"]
 jsdoczoom . --search "CacheKey|buildIndex|TreeNode"
 ```
 
-Use `|` to combine terms; `--search` finds files at the shallowest matching level before you read anything.
+Use `|` to combine terms; `--search` finds files at the shallowest matching level before you read anything. It is equivalent to `find . -name "*.ts" | xargs grep -ril "pattern"` but returns summaries instead of raw matches.
 
 **Depths:** `@1` one-line · `@2` description · `@3` type declarations + `// LN` line numbers · `@4` full source. Each output header is the next drill-down selector. After `@3`, use `// LN` annotations with `Read` `offset`/`limit` — never read an entire file when you can range-read.
 

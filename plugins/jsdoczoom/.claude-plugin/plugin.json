@@ -1,7 +1,7 @@
 {
   "name": "jsdoczoom",
   "description": "JSDoc documentation tools and workflows",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "author": {
     "name": "Goodfoot",
     "email": "contact@goodfoot.io"
