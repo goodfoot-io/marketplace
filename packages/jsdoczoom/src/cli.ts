@@ -356,20 +356,29 @@ async function processSelector(
 }
 
 /**
- * Write an error to stderr as JSON and set exit code.
+ * Write an error to stderr as JSON or plain text depending on the json flag.
  */
-function writeError(error: unknown): void {
-	if (error instanceof JsdocError) {
-		void process.stderr.write(`${JSON.stringify(error.toJSON())}\n`);
-		process.exitCode = 1;
+function writeError(error: unknown, json: boolean): void {
+	process.exitCode = 1;
+
+	if (json) {
+		if (error instanceof JsdocError) {
+			void process.stderr.write(`${JSON.stringify(error.toJSON())}\n`);
+			return;
+		}
+		const message = error instanceof Error ? error.message : String(error);
+		void process.stderr.write(
+			`${JSON.stringify({ error: { code: "INTERNAL_ERROR", message } })}\n`,
+		);
 		return;
 	}
 
+	if (error instanceof JsdocError) {
+		void process.stderr.write(`Error [${error.code}]: ${error.message}\n`);
+		return;
+	}
 	const message = error instanceof Error ? error.message : String(error);
-	void process.stderr.write(
-		`${JSON.stringify({ error: { code: "INTERNAL_ERROR", message } })}\n`,
-	);
-	process.exitCode = 1;
+	void process.stderr.write(`Error: ${message}\n`);
 }
 
 /**
@@ -404,7 +413,7 @@ function handleSkill(): void {
 /**
  * Handle --explain-rule flag by printing rule explanation.
  */
-function handleExplainRule(ruleName: string): void {
+function handleExplainRule(ruleName: string, json: boolean): void {
 	const explanation = RULE_EXPLANATIONS[ruleName];
 	if (explanation) {
 		void process.stdout.write(explanation);
@@ -417,6 +426,7 @@ function handleExplainRule(ruleName: string): void {
 			"INVALID_SELECTOR",
 			`Unknown rule: ${ruleName}. Available rules: ${available}`,
 		),
+		json,
 	);
 }
 
@@ -424,7 +434,10 @@ function handleExplainRule(ruleName: string): void {
  * Handle early-exit flags that print output and return without processing files.
  * Returns true if an early-exit flag was handled.
  */
-async function handleEarlyExitFlags(parsed: ParsedArgs): Promise<boolean> {
+async function handleEarlyExitFlags(
+	parsed: ParsedArgs,
+	json: boolean,
+): Promise<boolean> {
 	if (parsed.help) {
 		handleHelp();
 		return true;
@@ -438,7 +451,7 @@ async function handleEarlyExitFlags(parsed: ParsedArgs): Promise<boolean> {
 		return true;
 	}
 	if (parsed.explainRule !== undefined) {
-		handleExplainRule(parsed.explainRule);
+		handleExplainRule(parsed.explainRule, json);
 		return true;
 	}
 	return false;
@@ -448,10 +461,11 @@ async function handleEarlyExitFlags(parsed: ParsedArgs): Promise<boolean> {
  * Validate that mode flags are not used in incompatible combinations.
  * Returns true if validation passed (no conflicts), false if an error was written.
  */
-function validateModeCombinations(parsed: ParsedArgs): boolean {
+function validateModeCombinations(parsed: ParsedArgs, json: boolean): boolean {
 	if (parsed.checkMode && parsed.lintMode) {
 		writeError(
 			new JsdocError("INVALID_SELECTOR", "Cannot use -c and -l together"),
+			json,
 		);
 		return false;
 	}
@@ -461,6 +475,7 @@ function validateModeCombinations(parsed: ParsedArgs): boolean {
 	) {
 		writeError(
 			new JsdocError("INVALID_SELECTOR", "Cannot use --search with -c or -l"),
+			json,
 		);
 		return false;
 	}
@@ -471,11 +486,12 @@ function validateModeCombinations(parsed: ParsedArgs): boolean {
  * Main CLI entry point. Exported for testability.
  */
 export async function main(args: string[], stdin?: string): Promise<void> {
+	const json = args.includes("--json");
 	try {
 		const parsed = parseArgs(args);
 
-		if (await handleEarlyExitFlags(parsed)) return;
-		if (!validateModeCombinations(parsed)) return;
+		if (await handleEarlyExitFlags(parsed, json)) return;
+		if (!validateModeCombinations(parsed, json)) return;
 
 		const cacheConfig: CacheConfig = {
 			enabled: !parsed.disableCache,
@@ -511,7 +527,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 			);
 		}
 	} catch (error: unknown) {
-		writeError(error);
+		writeError(error, json);
 	}
 }
 

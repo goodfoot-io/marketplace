@@ -259,8 +259,15 @@ describe("cli", () => {
 	});
 
 	describe("errors", () => {
-		it("error JSON { error: { code, message } } written to stderr on failure", async () => {
+		it("error written to stderr as plain text by default", async () => {
 			await main(["nonexistent-file-that-does-not-exist.ts"]);
+			const errOutput = capture.getStderr();
+			expect(errOutput).toMatch(/^Error \[/);
+			expect(() => JSON.parse(errOutput)).toThrow();
+		});
+
+		it("error written to stderr as JSON when --json flag is set", async () => {
+			await main(["--json", "nonexistent-file-that-does-not-exist.ts"]);
 			const errOutput = capture.getStderr();
 			const parsed = JSON.parse(errOutput);
 			expect(parsed).toHaveProperty("error");
@@ -288,12 +295,23 @@ describe("cli", () => {
 			expect(process.exitCode).toBe(0);
 		});
 
-		it("unexpected exceptions caught as INTERNAL_ERROR", async () => {
+		it("unexpected exceptions caught as INTERNAL_ERROR (plain text by default)", async () => {
 			// Mock drilldown to throw a non-JsdocError
 			cwdSpy.mockImplementation(() => {
 				throw new TypeError("something unexpected");
 			});
 			await main(["two-summaries.ts"]);
+			const errOutput = capture.getStderr();
+			expect(errOutput).toContain("something unexpected");
+			expect(errOutput).toMatch(/^Error:/);
+			expect(process.exitCode).toBe(1);
+		});
+
+		it("unexpected exceptions caught as INTERNAL_ERROR (JSON with --json)", async () => {
+			cwdSpy.mockImplementation(() => {
+				throw new TypeError("something unexpected");
+			});
+			await main(["--json", "two-summaries.ts"]);
 			const errOutput = capture.getStderr();
 			const parsed = JSON.parse(errOutput);
 			expect(parsed.error.code).toBe("INTERNAL_ERROR");
@@ -301,8 +319,12 @@ describe("cli", () => {
 			expect(process.exitCode).toBe(1);
 		});
 
-		it("error output on stderr is always compact JSON regardless of --pretty", async () => {
-			await main(["--pretty", "nonexistent-file-that-does-not-exist.ts"]);
+		it("JSON error output on stderr is always compact regardless of --pretty", async () => {
+			await main([
+				"--json",
+				"--pretty",
+				"nonexistent-file-that-does-not-exist.ts",
+			]);
 			const errOutput = capture.getStderr();
 			// Should be compact (single line, no indentation)
 			expect(errOutput.trimEnd().split("\n")).toHaveLength(1);
@@ -467,9 +489,8 @@ describe("cli", () => {
 		it("-c and -l together produces error", async () => {
 			await main(["-c", "-l", "two-summaries.ts"]);
 			const errOutput = capture.getStderr();
-			const parsed = JSON.parse(errOutput);
-			expect(parsed.error.code).toBe("INVALID_SELECTOR");
-			expect(parsed.error.message).toContain("Cannot use -c and -l together");
+			expect(errOutput).toContain("INVALID_SELECTOR");
+			expect(errOutput).toContain("Cannot use -c and -l together");
 			expect(process.exitCode).toBe(1);
 		});
 
