@@ -4,8 +4,9 @@ import { processWithCache } from "./cache.js";
 import { JsdocError } from "./errors.js";
 import { discoverFiles, loadGitignore } from "./file-discovery.js";
 import { parseFileSummaries } from "./jsdoc-parser.js";
+import type { SourceBlock } from "./type-declarations.js";
 import {
-	extractSourceBlocks,
+	extractAllSourceBlocks,
 	generateTypeDeclarations,
 	splitDeclarations,
 } from "./type-declarations.js";
@@ -101,13 +102,24 @@ async function processFileSafe(
 		}
 	}
 
-	// Level 4: source match — prefer extracted blocks, fall back to full file
-	const sourceBlocks = extractSourceBlocks(filePath, regex);
-	if (sourceBlocks !== null) {
-		return {
-			id: `${idPath}@4`,
-			text: `\`\`\`typescript\n${sourceBlocks}\n\`\`\``,
-		};
+	// Level 4: source match — cache block extraction, filter by regex
+	const allBlocks = await processWithCache(
+		config,
+		"drilldown",
+		`${content}\0sourceblocks`,
+		() => extractAllSourceBlocks(filePath, content),
+	);
+	const matchingBlocks = allBlocks.filter((b: SourceBlock) =>
+		regex.test(b.blockText),
+	);
+	if (matchingBlocks.length > 0) {
+		const fenced = matchingBlocks
+			.map(
+				(b: SourceBlock) =>
+					`\`\`\`typescript\n${b.annotation}\n${b.blockText}\n\`\`\``,
+			)
+			.join("\n\n");
+		return { id: `${idPath}@4`, text: fenced };
 	}
 	if (regex.test(content)) {
 		return { id: `${idPath}@4`, text: `\`\`\`typescript\n${content}\n\`\`\`` };

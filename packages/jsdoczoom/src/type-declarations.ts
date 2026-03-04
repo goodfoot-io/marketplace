@@ -394,24 +394,28 @@ function findJsdocStart(lines: string[], statementLine: number): number {
 	return statementLine;
 }
 
+/** A single top-level source block with its line annotation. */
+export interface SourceBlock {
+	annotation: string; // e.g. "// L10" or "// L10-L25"
+	blockText: string; // the source text (including leading JSDoc if any)
+}
+
 /**
- * Extracts top-level source blocks from a file that match a regex.
+ * Extracts all top-level source blocks from a TypeScript file.
+ * Walks all top-level statements (not just exported), includes leading
+ * JSDoc comments, and annotates each block with source line references.
+ * Import declarations are excluded.
  *
- * Walks all top-level statements (not just exported ones), includes leading
- * JSDoc comments, and tests the regex against each block's source text.
- * Matching blocks are annotated with `// LN` or `// LN-LM` and joined with
- * blank line separators.
+ * Returns an empty array for empty files.
  *
  * @param filePath - Absolute path to the TypeScript source file
- * @param regex - Regular expression to test against each block's source text
- * @returns Annotated matching blocks joined with blank lines, or null if no match
+ * @param content - Pre-read file content (avoids redundant disk read)
  */
-export function extractSourceBlocks(
+export function extractAllSourceBlocks(
 	filePath: string,
-	regex: RegExp,
-): string | null {
-	const content = readFileSync(filePath, "utf-8");
-	if (content.trim() === "") return null;
+	content: string,
+): SourceBlock[] {
+	if (content.trim() === "") return [];
 
 	const lines = content.split("\n");
 	const sourceFile = ts.createSourceFile(
@@ -421,7 +425,7 @@ export function extractSourceBlocks(
 		true,
 	);
 
-	const matchedBlocks: string[] = [];
+	const blocks: SourceBlock[] = [];
 	const seen = new Set<number>();
 
 	for (const statement of sourceFile.statements) {
@@ -438,20 +442,41 @@ export function extractSourceBlocks(
 
 		// Skip if we've already included this block (deduplication by start position)
 		if (seen.has(jsdocStartLine)) continue;
+		seen.add(jsdocStartLine);
 
 		// Extract the source text for this block (lines are 0-based, endLine is 1-based)
 		const blockText = lines.slice(jsdocStartLine, endLine).join("\n");
 
-		if (!regex.test(blockText)) continue;
-
-		seen.add(jsdocStartLine);
-
 		const startLine1based = jsdocStartLine + 1; // 1-based
 		const annotation = formatLineRef({ start: startLine1based, end: endLine });
-		matchedBlocks.push(`${annotation}\n${blockText}`);
+		blocks.push({ annotation, blockText });
 	}
 
-	return matchedBlocks.length === 0 ? null : matchedBlocks.join("\n\n");
+	return blocks;
+}
+
+/**
+ * Extracts top-level source blocks from a file that match a regex.
+ *
+ * Walks all top-level statements (not just exported ones), includes leading
+ * JSDoc comments, and tests the regex against each block's source text.
+ * Matching blocks are annotated with `// LN` or `// LN-LM` and joined with
+ * blank line separators.
+ *
+ * @param filePath - Absolute path to the TypeScript source file
+ * @param content - Pre-read file content (avoids redundant disk read)
+ * @param regex - Regular expression to test against each block's source text
+ * @returns Annotated matching blocks joined with blank lines, or null if no match
+ */
+export function extractSourceBlocks(
+	filePath: string,
+	content: string,
+	regex: RegExp,
+): string | null {
+	const allBlocks = extractAllSourceBlocks(filePath, content);
+	const matching = allBlocks.filter((b) => regex.test(b.blockText));
+	if (matching.length === 0) return null;
+	return matching.map((b) => `${b.annotation}\n${b.blockText}`).join("\n\n");
 }
 
 /**

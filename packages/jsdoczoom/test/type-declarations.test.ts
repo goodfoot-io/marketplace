@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
@@ -139,7 +140,10 @@ describe("splitDeclarations", () => {
 describe("extractSourceBlocks", () => {
 	const sourceBlocksPath = join(fixturesDir, "source-blocks.ts");
 	const exportedTypesPath = join(fixturesDir, "exported-types.ts");
-	const _noExportsPath = join(fixturesDir, "no-exports.ts");
+	const noExportsPath = join(fixturesDir, "no-exports.ts");
+	const sourceBlocksContent = readFileSync(sourceBlocksPath, "utf-8");
+	const exportedTypesContent = readFileSync(exportedTypesPath, "utf-8");
+	const noExportsContent = readFileSync(noExportsPath, "utf-8");
 
 	// source-blocks.ts line reference:
 	// L1:     import { readFileSync } from "node:fs";
@@ -155,7 +159,11 @@ describe("extractSourceBlocks", () => {
 	// L34:    export const MAX_RETRIES = 3;
 
 	it("returns only matching function when regex matches function name", () => {
-		const result = extractSourceBlocks(sourceBlocksPath, /\bgreet\b/);
+		const result = extractSourceBlocks(
+			sourceBlocksPath,
+			sourceBlocksContent,
+			/\bgreet\b/,
+		);
 
 		expect(result).not.toBeNull();
 		// Should include the exported greet function block
@@ -166,7 +174,11 @@ describe("extractSourceBlocks", () => {
 	});
 
 	it("returns only matching class when regex matches class method or property", () => {
-		const result = extractSourceBlocks(sourceBlocksPath, /\bProcessor\b/);
+		const result = extractSourceBlocks(
+			sourceBlocksPath,
+			sourceBlocksContent,
+			/\bProcessor\b/,
+		);
 
 		expect(result).not.toBeNull();
 		expect(result).toContain("export class Processor");
@@ -176,7 +188,11 @@ describe("extractSourceBlocks", () => {
 
 	it("returns multiple blocks when regex matches in two different top-level statements", () => {
 		// /\bOptions\b/ matches in the interface definition AND in Processor.run's parameter
-		const result = extractSourceBlocks(sourceBlocksPath, /\bOptions\b/);
+		const result = extractSourceBlocks(
+			sourceBlocksPath,
+			sourceBlocksContent,
+			/\bOptions\b/,
+		);
 
 		expect(result).not.toBeNull();
 		expect(result).toContain("export interface Options");
@@ -184,7 +200,11 @@ describe("extractSourceBlocks", () => {
 	});
 
 	it("annotates each block with // LN or // LN-LM before it", () => {
-		const result = extractSourceBlocks(sourceBlocksPath, /\bProcessor\b/);
+		const result = extractSourceBlocks(
+			sourceBlocksPath,
+			sourceBlocksContent,
+			/\bProcessor\b/,
+		);
 
 		expect(result).not.toBeNull();
 		// Processor class starts at L24 (JSDoc) through L30
@@ -193,7 +213,11 @@ describe("extractSourceBlocks", () => {
 
 	it("returns null when match is only in import statements", () => {
 		// readFileSync only appears in the import statement
-		const result = extractSourceBlocks(sourceBlocksPath, /readFileSync/);
+		const result = extractSourceBlocks(
+			sourceBlocksPath,
+			sourceBlocksContent,
+			/readFileSync/,
+		);
 
 		expect(result).toBeNull();
 	});
@@ -203,6 +227,7 @@ describe("extractSourceBlocks", () => {
 		// That text only appears in the leading comment, not in any statement
 		const result = extractSourceBlocks(
 			exportedTypesPath,
+			exportedTypesContent,
 			/Module for testing type declarations generation/,
 		);
 
@@ -210,7 +235,11 @@ describe("extractSourceBlocks", () => {
 	});
 
 	it("includes JSDoc comments that precede the top-level statement in the extracted block", () => {
-		const result = extractSourceBlocks(sourceBlocksPath, /formatGreeting/);
+		const result = extractSourceBlocks(
+			sourceBlocksPath,
+			sourceBlocksContent,
+			/formatGreeting/,
+		);
 
 		expect(result).not.toBeNull();
 		// JSDoc comment for formatGreeting should be included
@@ -219,24 +248,32 @@ describe("extractSourceBlocks", () => {
 	});
 
 	it("handles non-exported functions and variables", () => {
-		const result = extractSourceBlocks(sourceBlocksPath, /internalConst/);
+		const result = extractSourceBlocks(
+			sourceBlocksPath,
+			sourceBlocksContent,
+			/internalConst/,
+		);
 
 		expect(result).not.toBeNull();
 		expect(result).toContain("internalConst");
 	});
 
 	it("handles variable statements (const/let/var)", () => {
-		const result = extractSourceBlocks(sourceBlocksPath, /MAX_RETRIES/);
+		const result = extractSourceBlocks(
+			sourceBlocksPath,
+			sourceBlocksContent,
+			/MAX_RETRIES/,
+		);
 
 		expect(result).not.toBeNull();
 		expect(result).toContain("export const MAX_RETRIES");
 	});
 
 	it("returns null for empty file", () => {
-		// no-jsdoc.ts has only `export const value = "no docs";`
 		// Use a pattern that won't match anything
 		const result = extractSourceBlocks(
-			join(fixturesDir, "no-exports.ts"),
+			noExportsPath,
+			noExportsContent,
 			/NONEXISTENT_PATTERN_xyz/,
 		);
 
