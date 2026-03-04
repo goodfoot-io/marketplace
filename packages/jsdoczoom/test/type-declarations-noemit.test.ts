@@ -1,10 +1,10 @@
-import { join, dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
 	generateTypeDeclarations,
-	resolveCompilerOptions,
 	resetCache,
+	resolveCompilerOptions,
 } from "../src/type-declarations.js";
 
 /**

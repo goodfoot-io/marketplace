@@ -120,9 +120,7 @@ describe("parseFileSummaries with shebang", () => {
 			const result = parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
 			expect(result.summary).toBe("Shebang module summary");
-			expect(result.description).toBe(
-				"Module with shebang before imports.",
-			);
+			expect(result.description).toBe("Module with shebang before imports.");
 		});
 	});
 });

@@ -187,12 +187,16 @@ describe("generateTypeDeclarations", () => {
 	describe("line annotations", () => {
 		it("annotates single-line declaration with source line", () => {
 			const decl = generateTypeDeclarations(exportedTypesPath);
-			expect(decl).toContain("// L8\n/** A string type alias */\nexport type Name = string;");
+			expect(decl).toContain(
+				"// L8\n/** A string type alias */\nexport type Name = string;",
+			);
 		});
 
 		it("annotates multi-line interface with source range", () => {
 			const decl = generateTypeDeclarations(exportedTypesPath);
-			expect(decl).toContain("// L11-L15\n/** A user interface */\nexport interface User {");
+			expect(decl).toContain(
+				"// L11-L15\n/** A user interface */\nexport interface User {",
+			);
 		});
 
 		it("annotates function with source range", () => {
@@ -203,12 +207,16 @@ describe("generateTypeDeclarations", () => {
 
 		it("annotates exported const with source line", () => {
 			const decl = generateTypeDeclarations(exportedTypesPath);
-			expect(decl).toContain("// L27\n/** The default timeout value */\nexport declare const DEFAULT_TIMEOUT");
+			expect(decl).toContain(
+				"// L27\n/** The default timeout value */\nexport declare const DEFAULT_TIMEOUT",
+			);
 		});
 
 		it("annotates exported class with source range", () => {
 			const decl = generateTypeDeclarations(exportedTypesPath);
-			expect(decl).toContain("// L30-L42\n/** A simple utility class */\nexport declare class UserService {");
+			expect(decl).toContain(
+				"// L30-L42\n/** A simple utility class */\nexport declare class UserService {",
+			);
 		});
 
 		it("separates chunks with blank lines", () => {
