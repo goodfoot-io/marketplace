@@ -64,7 +64,12 @@ function buildLevels(
 	return [
 		summary !== null ? { text: summary } : null,
 		description !== null ? { text: description } : null,
-		{ text: typeDeclarations },
+		{
+			text:
+				typeDeclarations.length > 0
+					? `\`\`\`typescript\n${typeDeclarations}\n\`\`\``
+					: typeDeclarations,
+		},
 		{ text: fileContent },
 	];
 }

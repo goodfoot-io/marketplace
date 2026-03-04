@@ -94,14 +94,20 @@ async function processFileSafe(
 		const chunks = splitDeclarations(dts);
 		const matching = chunks.filter((c) => regex.test(c));
 		if (matching.length > 0) {
-			return { next_id: `${idPath}@3`, text: matching.join("\n\n") };
+			return {
+				next_id: `${idPath}@3`,
+				text: `\`\`\`typescript\n${matching.join("\n\n")}\n\`\`\``,
+			};
 		}
 	}
 
 	// Level 4: source match — prefer extracted blocks, fall back to full file
 	const sourceBlocks = extractSourceBlocks(filePath, regex);
 	if (sourceBlocks !== null) {
-		return { id: `${idPath}@4`, text: sourceBlocks };
+		return {
+			id: `${idPath}@4`,
+			text: `\`\`\`typescript\n${sourceBlocks}\n\`\`\``,
+		};
 	}
 	if (regex.test(content)) {
 		return { id: `${idPath}@4`, text: content };
