@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { drilldown, drilldownFiles } from "./drilldown.js";
 import { JsdocError } from "./errors.js";
+import { discoverFiles } from "./file-discovery.js";
 import { lint, lintFiles } from "./lint.js";
 import { search, searchFiles } from "./search.js";
 import { parseSelector } from "./selector.js";
@@ -112,6 +113,7 @@ interface ParsedArgs {
 	cacheDirectory: string | undefined;
 	explainRule: string | undefined;
 	selectorArg: string | undefined;
+	extraArgs: string[];
 	searchQuery: string | undefined;
 }
 
@@ -144,6 +146,7 @@ function parseArgs(args: string[]): ParsedArgs {
 		cacheDirectory: undefined,
 		explainRule: undefined,
 		selectorArg: undefined,
+		extraArgs: [],
 		searchQuery: undefined,
 	};
 
@@ -226,10 +229,7 @@ function parseArgs(args: string[]): ParsedArgs {
 		if (parsed.selectorArg === undefined) {
 			parsed.selectorArg = arg;
 		} else {
-			throw new JsdocError(
-				"INVALID_SELECTOR",
-				`Unexpected extra argument: "${arg}" (only one selector is allowed — did you forget to quote the glob?)`,
-			);
+			parsed.extraArgs.push(arg);
 		}
 	}
 
@@ -257,6 +257,54 @@ function extractDepthFromArg(selectorArg: string): number | undefined {
 }
 
 /**
+ * Process an explicit list of resolved file paths.
+ */
+async function processFileList(
+	filePaths: string[],
+	selectorArg: string | undefined,
+	checkMode: boolean,
+	lintMode: boolean,
+	json: boolean,
+	pretty: boolean,
+	limit: number,
+	cwd: string,
+	cacheConfig: CacheConfig,
+	searchQuery: string | undefined,
+): Promise<void> {
+	const depth =
+		selectorArg !== undefined ? extractDepthFromArg(selectorArg) : undefined;
+
+	if (searchQuery !== undefined) {
+		const result = await searchFiles(
+			filePaths,
+			searchQuery,
+			cwd,
+			limit,
+			cacheConfig,
+		);
+		writeDrilldownResult(result, json, pretty);
+		return;
+	}
+
+	if (lintMode) {
+		const result = await lintFiles(filePaths, cwd, limit, cacheConfig);
+		writeLintResult(result, pretty);
+	} else if (checkMode) {
+		const result = await validateFiles(filePaths, cwd, limit, cacheConfig);
+		writeValidationResult(result, pretty);
+	} else {
+		const result = await drilldownFiles(
+			filePaths,
+			depth,
+			cwd,
+			limit,
+			cacheConfig,
+		);
+		writeDrilldownResult(result, json, pretty);
+	}
+}
+
+/**
  * Process stdin mode: file paths piped in.
  */
 async function processStdin(
@@ -272,37 +320,18 @@ async function processStdin(
 	searchQuery: string | undefined,
 ): Promise<void> {
 	const stdinPaths = parseStdinPaths(stdin, cwd);
-	const depth =
-		selectorArg !== undefined ? extractDepthFromArg(selectorArg) : undefined;
-
-	if (searchQuery !== undefined) {
-		const result = await searchFiles(
-			stdinPaths,
-			searchQuery,
-			cwd,
-			limit,
-			cacheConfig,
-		);
-		writeDrilldownResult(result, json, pretty);
-		return;
-	}
-
-	if (lintMode) {
-		const result = await lintFiles(stdinPaths, cwd, limit, cacheConfig);
-		writeLintResult(result, pretty);
-	} else if (checkMode) {
-		const result = await validateFiles(stdinPaths, cwd, limit, cacheConfig);
-		writeValidationResult(result, pretty);
-	} else {
-		const result = await drilldownFiles(
-			stdinPaths,
-			depth,
-			cwd,
-			limit,
-			cacheConfig,
-		);
-		writeDrilldownResult(result, json, pretty);
-	}
+	await processFileList(
+		stdinPaths,
+		selectorArg,
+		checkMode,
+		lintMode,
+		json,
+		pretty,
+		limit,
+		cwd,
+		cacheConfig,
+		searchQuery,
+	);
 }
 
 /**
@@ -502,6 +531,29 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 		if (stdin !== undefined) {
 			await processStdin(
 				stdin,
+				parsed.selectorArg,
+				parsed.checkMode,
+				parsed.lintMode,
+				parsed.json,
+				parsed.pretty,
+				parsed.limit,
+				cwd,
+				cacheConfig,
+				parsed.searchQuery,
+			);
+		} else if (parsed.extraArgs.length > 0) {
+			// Multiple positional args (e.g. shell-expanded glob): expand each to
+			// .ts/.tsx files via discoverFiles (handles directories recursively)
+			const allArgPaths = [
+				...(parsed.selectorArg ? [parsed.selectorArg] : []),
+				...parsed.extraArgs,
+			];
+			const fileLists = await Promise.all(
+				allArgPaths.map((p) => discoverFiles(p, cwd, parsed.gitignore)),
+			);
+			const filePaths = [...new Set(fileLists.flat())];
+			await processFileList(
+				filePaths,
 				parsed.selectorArg,
 				parsed.checkMode,
 				parsed.lintMode,
