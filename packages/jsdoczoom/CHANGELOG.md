@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0
+- **Breaking:** Changed default output from JSON to plain text, optimized for interactive CLI use
+- Added `--json` flag for machine-readable output
+- Added `# path@depth` headers to each result, serving as the next selector for iterative drilling
+- Added source line annotations (`// LN` or `// LN-LM`) to type declarations at depth 3
+
 ## 0.4.21
 - Fixed type extraction failing for projects with `noEmit: true` in their tsconfig.json
 
