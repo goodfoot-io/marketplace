@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { drilldown, drilldownFiles } from "./drilldown.js";
 import { JsdocError } from "./errors.js";
 import { lint, lintFiles } from "./lint.js";
+import { search, searchFiles } from "./search.js";
 import { parseSelector } from "./selector.js";
 import { RULE_EXPLANATIONS, SKILL_TEXT } from "./skill-text.js";
 import { formatTextOutput } from "./text-format.js";
@@ -43,6 +44,7 @@ Options:
   --pretty         Format JSON output with 2-space indent (use with --json)
   --limit N        Max results shown (default 500)
   --no-gitignore   Include files ignored by .gitignore
+  --search <query>   Search files by regex pattern
   --disable-cache    Skip all cache operations
   --cache-directory  Override cache directory (default: system temp)
   --explain-rule R  Explain a lint rule with examples (e.g. jsdoc/informative-docs)
@@ -110,6 +112,7 @@ interface ParsedArgs {
 	cacheDirectory: string | undefined;
 	explainRule: string | undefined;
 	selectorArg: string | undefined;
+	searchQuery: string | undefined;
 }
 
 /**
@@ -141,6 +144,7 @@ function parseArgs(args: string[]): ParsedArgs {
 		cacheDirectory: undefined,
 		explainRule: undefined,
 		selectorArg: undefined,
+		searchQuery: undefined,
 	};
 
 	for (let i = 0; i < args.length; i++) {
@@ -203,6 +207,15 @@ function parseArgs(args: string[]): ParsedArgs {
 			i = nextIndex;
 			continue;
 		}
+		if (arg === "--search") {
+			const { value, nextIndex } = parseValueFlag(args, i);
+			if (value === undefined) {
+				throw new JsdocError("INVALID_SELECTOR", "--search requires a value");
+			}
+			parsed.searchQuery = value;
+			i = nextIndex;
+			continue;
+		}
 
 		// Unknown flag or positional arg
 		if (arg.startsWith("-")) {
@@ -251,10 +264,23 @@ async function processStdin(
 	limit: number,
 	cwd: string,
 	cacheConfig: CacheConfig,
+	searchQuery: string | undefined,
 ): Promise<void> {
 	const stdinPaths = parseStdinPaths(stdin, cwd);
 	const depth =
 		selectorArg !== undefined ? extractDepthFromArg(selectorArg) : undefined;
+
+	if (searchQuery !== undefined) {
+		const result = await searchFiles(
+			stdinPaths,
+			searchQuery,
+			cwd,
+			limit,
+			cacheConfig,
+		);
+		writeDrilldownResult(result, json, pretty);
+		return;
+	}
 
 	if (lintMode) {
 		const result = await lintFiles(stdinPaths, cwd, limit, cacheConfig);
@@ -287,10 +313,24 @@ async function processSelector(
 	gitignore: boolean,
 	cwd: string,
 	cacheConfig: CacheConfig,
+	searchQuery: string | undefined,
 ): Promise<void> {
 	const selector: SelectorInfo = selectorArg
 		? parseSelector(selectorArg)
 		: { type: "glob", pattern: "**/*.{ts,tsx}", depth: undefined };
+
+	if (searchQuery !== undefined) {
+		const result = await search(
+			{ type: selector.type, pattern: selector.pattern, depth: undefined },
+			searchQuery,
+			cwd,
+			gitignore,
+			limit,
+			cacheConfig,
+		);
+		writeDrilldownResult(result, json, pretty);
+		return;
+	}
 
 	if (lintMode) {
 		const result = await lint(selector, cwd, limit, gitignore, cacheConfig);
@@ -407,6 +447,15 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 			);
 			return;
 		}
+		if (
+			parsed.searchQuery !== undefined &&
+			(parsed.checkMode || parsed.lintMode)
+		) {
+			writeError(
+				new JsdocError("INVALID_SELECTOR", "Cannot use --search with -c or -l"),
+			);
+			return;
+		}
 
 		// Build cache config and process files
 		const cacheConfig: CacheConfig = {
@@ -426,6 +475,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 				parsed.limit,
 				cwd,
 				cacheConfig,
+				parsed.searchQuery,
 			);
 		} else {
 			await processSelector(
@@ -438,6 +488,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 				parsed.gitignore,
 				cwd,
 				cacheConfig,
+				parsed.searchQuery,
 			);
 		}
 	} catch (error: unknown) {

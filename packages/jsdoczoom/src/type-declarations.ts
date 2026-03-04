@@ -318,6 +318,141 @@ function annotateWithSourceLines(dtsText: string, filePath: string): string {
 }
 
 /**
+ * Splits annotated .d.ts text into individual declaration chunks.
+ *
+ * Splits on blank-line boundaries that precede a line annotation (`// L`)
+ * or a declaration keyword (`export`, `declare`). Each chunk is a complete
+ * declaration including its preceding JSDoc comment and line annotation.
+ * Trailing whitespace is trimmed from each chunk. Empty chunks are filtered out.
+ *
+ * @param dtsText - The annotated .d.ts text to split
+ * @returns Array of declaration chunks
+ */
+export function splitDeclarations(dtsText: string): string[] {
+	if (dtsText === "") return [];
+
+	const lines = dtsText.split("\n");
+	const chunks: string[] = [];
+	let start = 0;
+
+	for (let i = 1; i < lines.length; i++) {
+		// A split point is a blank line followed by a line annotation or declaration keyword
+		if (lines[i - 1].trim() === "") {
+			const nextLine = lines[i].trimStart();
+			const isAnnotation = nextLine.startsWith("// L");
+			const isDeclaration =
+				nextLine.startsWith("export") || nextLine.startsWith("declare");
+			if (isAnnotation || isDeclaration) {
+				const chunk = lines
+					.slice(start, i - 1)
+					.join("\n")
+					.trimEnd();
+				if (chunk !== "") chunks.push(chunk);
+				start = i;
+			}
+		}
+	}
+
+	// Push final chunk
+	const last = lines.slice(start).join("\n").trimEnd();
+	if (last !== "") chunks.push(last);
+
+	return chunks;
+}
+
+/**
+ * Extracts top-level source blocks from a file that match a regex.
+ *
+ * Walks all top-level statements (not just exported ones), includes leading
+ * JSDoc comments, and tests the regex against each block's source text.
+ * Matching blocks are annotated with `// LN` or `// LN-LM` and joined with
+ * blank line separators.
+ *
+ * @param filePath - Absolute path to the TypeScript source file
+ * @param regex - Regular expression to test against each block's source text
+ * @returns Annotated matching blocks joined with blank lines, or null if no match
+ */
+export function extractSourceBlocks(
+	filePath: string,
+	regex: RegExp,
+): string | null {
+	const content = readFileSync(filePath, "utf-8");
+	const lines = content.split("\n");
+
+	if (lines.length === 0 || content.trim() === "") return null;
+
+	const sourceFile = ts.createSourceFile(
+		filePath,
+		content,
+		ts.ScriptTarget.Latest,
+		true,
+	);
+
+	/** Find the 0-based line index where a leading JSDoc block starts above statementLine. */
+	function findJsdocStart(statementLine: number): number {
+		// Walk back from the line before the statement to find a leading /** ... */
+		let line = statementLine - 1;
+		// Skip blank lines immediately before the statement
+		while (line >= 0 && lines[line].trim() === "") line--;
+		if (line < 0) return statementLine;
+		const trimmed = lines[line].trimEnd();
+		if (trimmed === "*/" || trimmed.endsWith("*/")) {
+			// Multi-line JSDoc: walk back to find opening /**
+			for (let j = line; j >= 0; j--) {
+				if (lines[j].trimStart().startsWith("/**")) return j;
+			}
+		} else if (trimmed.trimStart().startsWith("/**")) {
+			// Single-line JSDoc: /** comment */
+			return line;
+		}
+		return statementLine;
+	}
+
+	const matchedBlocks: string[] = [];
+	const seen = new Set<number>();
+
+	for (const statement of sourceFile.statements) {
+		// Skip import declarations - callers fall back to full file for import matches
+		if (ts.isImportDeclaration(statement)) continue;
+
+		// Compute 1-based end line from statement end position
+		const endLine =
+			sourceFile.getLineAndCharacterOfPosition(statement.getEnd()).line + 1;
+
+		// Compute 1-based start line of the statement itself (without JSDoc)
+		const stmtStartLine = sourceFile.getLineAndCharacterOfPosition(
+			statement.getStart(sourceFile),
+		).line; // 0-based
+
+		// Walk back to include any leading JSDoc comment
+		const jsdocStartLine = findJsdocStart(stmtStartLine); // 0-based
+		const startLine1based = jsdocStartLine + 1; // 1-based
+
+		// Skip if we've already included this block (deduplication by start position)
+		if (seen.has(jsdocStartLine)) continue;
+
+		// Extract the source text for this block (lines are 0-based, endLine is 1-based)
+		const blockLines = lines.slice(jsdocStartLine, endLine);
+		const blockText = blockLines.join("\n");
+
+		// Test the regex against the block text
+		if (!regex.test(blockText)) continue;
+
+		seen.add(jsdocStartLine);
+
+		// Build annotation
+		const range: SourceRange = { start: startLine1based, end: endLine };
+		const annotation = formatLineRef(range);
+
+		matchedBlocks.push(`${annotation}\n${blockText}`);
+	}
+
+	if (matchedBlocks.length === 0) return null;
+
+	return matchedBlocks.join("\n\n");
+}
+
+/**
  * Generates TypeScript declaration output from a source file.
  *
  * Produces .d.ts-like output containing:

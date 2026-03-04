@@ -578,3 +578,80 @@ describe("cli", () => {
 		});
 	});
 });
+
+describe("--search flag", () => {
+	let capture: ReturnType<typeof captureOutput>;
+	let cwdSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		process.exitCode = 0;
+		capture = captureOutput();
+		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(leafFilesDir);
+	});
+
+	afterEach(() => {
+		capture.restore();
+		cwdSpy.mockRestore();
+		process.exitCode = 0;
+	});
+
+	it("--search dispatches to search and outputs matching file", async () => {
+		cwdSpy.mockReturnValue(leafFilesDir);
+		await main(["--search", "UserService"]);
+		const out = capture.getStdout();
+		// UserService appears in exported-types.ts - should get output
+		expect(out.length).toBeGreaterThan(0);
+		expect(process.exitCode).toBe(0);
+	});
+
+	it("--search with --json outputs JSON", async () => {
+		cwdSpy.mockReturnValue(leafFilesDir);
+		await main(["--search", "UserService", "--json"]);
+		const out = capture.getStdout();
+		const result = JSON.parse(out);
+		expect(result).toHaveProperty("items");
+		expect(result).toHaveProperty("truncated");
+	});
+
+	it("--search combined with -c writes error and sets exit code 1", async () => {
+		await main(["--search", "foo", "-c"]);
+		const err = capture.getStderr();
+		expect(err.length).toBeGreaterThan(0);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("--search combined with -l writes error and sets exit code 1", async () => {
+		await main(["--search", "foo", "-l"]);
+		const err = capture.getStderr();
+		expect(err.length).toBeGreaterThan(0);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("--search via stdin piping works", async () => {
+		const exportedTypesPath = resolve(leafFilesDir, "exported-types.ts");
+		cwdSpy.mockReturnValue(leafFilesDir);
+		await main(["--search", "UserService"], `${exportedTypesPath}\n`);
+		const out = capture.getStdout();
+		expect(out.length).toBeGreaterThan(0);
+	});
+
+	it("--search as last arg without value writes error and sets exit code 1", async () => {
+		await main(["--search"]);
+		const err = capture.getStderr();
+		expect(err.length).toBeGreaterThan(0);
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("help text includes --search", async () => {
+		await main(["--help"]);
+		const out = capture.getStdout();
+		expect(out).toContain("--search");
+	});
+
+	it("--search with @depth on selector ignores the depth", async () => {
+		cwdSpy.mockReturnValue(leafFilesDir);
+		// Should not throw even with @depth suffix
+		await main(["exported-types.ts@3", "--search", "UserService"]);
+		expect(process.exitCode).toBe(0);
+	});
+});

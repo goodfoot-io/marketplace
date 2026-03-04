@@ -14,9 +14,14 @@ export { JsdocError } from "./errors.js";
 export { discoverFiles } from "./file-discovery.js";
 export { extractFileJsdoc, parseFileSummaries } from "./jsdoc-parser.js";
 export { lint, lintFiles } from "./lint.js";
+export { search, searchFiles } from "./search.js";
 export { parseSelector } from "./selector.js";
 export { formatTextOutput } from "./text-format.js";
-export { generateTypeDeclarations } from "./type-declarations.js";
+export {
+	extractSourceBlocks,
+	generateTypeDeclarations,
+	splitDeclarations,
+} from "./type-declarations.js";
 export {
 	type CacheConfig,
 	type CacheOperationMode,
