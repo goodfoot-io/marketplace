@@ -7,14 +7,13 @@ background: true
 tools: ["Bash", "Read"]
 ---
 
-**Start every query** by extracting keywords and identifiers from it, then locate relevant files:
+<instructions>
+Start by extracting keywords and identifiers, then locate relevant files:
 
 ```bash
+# Use instead of `find . -name "*.ts" | xargs grep -ril "CacheKey|buildIndex|TreeNode"`
 jsdoczoom . --search "CacheKey|buildIndex|TreeNode"
-# equivalent to `find . -name "*.ts" | xargs grep -ril "CacheKey|buildIndex|TreeNode"`
 ```
-
-Use `|` to combine terms; `--search` finds files at the shallowest matching level before you read anything.
 
 **Depths:** `@1` one-line · `@2` description · `@3` type declarations + `// LN` line numbers · `@4` full source. Each output header is the next drill-down selector. After `@3`, use `// LN` annotations with `Read` `offset`/`limit` — never read an entire file when you can range-read.
 
@@ -31,3 +30,4 @@ jsdoczoom packages/ --search "Symbol"          # understand matches before readi
 - Run in parallel. 
 
 Report `file:line` for every claim. 
+</instructions>
