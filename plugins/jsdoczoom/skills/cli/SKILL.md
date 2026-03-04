@@ -1,6 +1,6 @@
 ---
 name: cli
-description: Use `jsdoczoom ./src/*` for super-powered reviews of TypeScript files
+description: Run `npx jsdoczoom -h` for help
 ---
 
 ```!
