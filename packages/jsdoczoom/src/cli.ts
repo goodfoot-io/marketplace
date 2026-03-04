@@ -225,6 +225,11 @@ function parseArgs(args: string[]): ParsedArgs {
 		// Positional selector arg
 		if (parsed.selectorArg === undefined) {
 			parsed.selectorArg = arg;
+		} else {
+			throw new JsdocError(
+				"INVALID_SELECTOR",
+				`Unexpected extra argument: "${arg}" (only one selector is allowed — did you forget to quote the glob?)`,
+			);
 		}
 	}
 
