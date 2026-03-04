@@ -24,13 +24,13 @@ function formatEntry(entry: OutputEntry): string {
 		if (children) {
 			lines.push(`## children: ${children.join(", ")}`);
 		}
-		if (text) lines.push(text);
+		if (text) lines.push("", text);
 		return lines.join("\n");
 	}
 
 	// Terminal item
 	if (!text) return `# ${entry.id}`;
-	return `# ${entry.id}\n${text}`;
+	return `# ${entry.id}\n\n${text}`;
 }
 
 /**
@@ -39,7 +39,7 @@ function formatEntry(entry: OutputEntry): string {
  */
 export function formatTextOutput(result: DrilldownResult): string {
 	const blocks = result.items.map(formatEntry);
-	let output = blocks.join("\n\n");
+	let output = blocks.join("\n\n\n");
 
 	if (result.truncated && result.total !== undefined) {
 		output += `\n\n# truncated (showing ${result.items.length} of ${result.total})`;
