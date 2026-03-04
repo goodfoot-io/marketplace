@@ -14,12 +14,15 @@ import { extractFileJsdoc, parseFileSummaries } from "../src/jsdoc-parser.js";
  */
 
 /** Write source to a temp .ts file, run the callback, then clean up. */
-function withTempFile(source: string, fn: (filePath: string) => void): void {
+async function withTempFile(
+	source: string,
+	fn: (filePath: string) => Promise<void>,
+): Promise<void> {
 	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "jsdoczoom-test-"));
 	const tmpFile = path.join(tmpDir, "temp.ts");
 	fs.writeFileSync(tmpFile, source);
 	try {
-		fn(tmpFile);
+		await fn(tmpFile);
 	} finally {
 		fs.rmSync(tmpDir, { recursive: true });
 	}
@@ -82,7 +85,7 @@ describe("extractFileJsdoc with shebang", () => {
 });
 
 describe("parseFileSummaries with shebang", () => {
-	it("parses summary and description from file with shebang", () => {
+	it("parses summary and description from file with shebang", async () => {
 		const source = [
 			"#!/usr/bin/env node",
 			"/**",
@@ -94,15 +97,15 @@ describe("parseFileSummaries with shebang", () => {
 			"export const main = () => {};",
 		].join("\n");
 
-		withTempFile(source, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempFile(source, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
 			expect(result.summary).toBe("CLI tool summary");
 			expect(result.description).toBe("CLI tool description.");
 		});
 	});
 
-	it("parses summary from file with shebang and imports", () => {
+	it("parses summary from file with shebang and imports", async () => {
 		const source = [
 			"#!/usr/bin/env node",
 			"import { existsSync } from 'fs';",
@@ -116,8 +119,8 @@ describe("parseFileSummaries with shebang", () => {
 			"export function check(): boolean { return existsSync('/tmp'); }",
 		].join("\n");
 
-		withTempFile(source, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempFile(source, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
 			expect(result.summary).toBe("Shebang module summary");
 			expect(result.description).toBe("Module with shebang before imports.");

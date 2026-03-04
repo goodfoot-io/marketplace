@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { access, readdir } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve } from "node:path";
 
 /**
@@ -37,30 +37,39 @@ export function isBarrel(filePath: string): boolean {
  * @param _cwd - Working directory (unused, kept for API consistency)
  * @returns Sorted array of absolute paths to child files
  */
-export function getBarrelChildren(barrelPath: string, _cwd: string): string[] {
+export async function getBarrelChildren(
+	barrelPath: string,
+	_cwd: string,
+): Promise<string[]> {
 	const dir = dirname(barrelPath);
 	const barrelName = basename(barrelPath);
 
-	let entries: string[];
+	let rawEntries: { name: string; isDirectory: boolean }[];
 	try {
-		entries = readdirSync(dir, { withFileTypes: true })
-			.map((e) => ({ name: e.name, isDirectory: e.isDirectory() }))
-			.flatMap((entry) => {
-				if (entry.isDirectory) {
-					// Check for child barrel in this subdirectory
-					const childBarrel = findChildBarrel(resolve(dir, entry.name));
-					return childBarrel ? [childBarrel] : [];
-				}
-				// Sibling file: must be .ts/.tsx, not .d.ts, not the barrel itself
-				if (isTsFile(entry.name) && entry.name !== barrelName) {
-					return [resolve(dir, entry.name)];
-				}
-				return [];
-			});
+		const dirents = await readdir(dir, { withFileTypes: true });
+		rawEntries = dirents.map((e) => ({
+			name: e.name,
+			isDirectory: e.isDirectory(),
+		}));
 	} catch {
 		// Directory unreadable (permissions, deleted, etc.) — no children discoverable
 		return [];
 	}
+
+	const entries = (
+		await Promise.all(
+			rawEntries.map(async (entry) => {
+				if (entry.isDirectory) {
+					const childBarrel = await findChildBarrel(resolve(dir, entry.name));
+					return childBarrel ? [childBarrel] : [];
+				}
+				if (isTsFile(entry.name) && entry.name !== barrelName) {
+					return [resolve(dir, entry.name)];
+				}
+				return [];
+			}),
+		)
+	).flat();
 
 	return entries.sort();
 }
@@ -79,16 +88,21 @@ function isTsFile(name: string): boolean {
  * index.ts takes priority over index.tsx.
  * Returns the absolute path to the barrel, or null if none found.
  */
-function findChildBarrel(subdirPath: string): string | null {
+async function findChildBarrel(subdirPath: string): Promise<string | null> {
 	const tsPath = resolve(subdirPath, "index.ts");
-	if (existsSync(tsPath)) {
+	try {
+		await access(tsPath);
 		return tsPath;
+	} catch {
+		// no index.ts
 	}
 	const tsxPath = resolve(subdirPath, "index.tsx");
-	if (existsSync(tsxPath)) {
+	try {
+		await access(tsxPath);
 		return tsxPath;
+	} catch {
+		return null;
 	}
-	return null;
 }
 
 /** Minimum number of .ts/.tsx files in a directory to require a barrel. */
@@ -98,7 +112,10 @@ export const BARREL_THRESHOLD = 3;
  * Find directories with more than BARREL_THRESHOLD .ts/.tsx files
  * that lack a barrel file (index.ts or index.tsx).
  */
-export function findMissingBarrels(filePaths: string[], cwd: string): string[] {
+export async function findMissingBarrels(
+	filePaths: string[],
+	cwd: string,
+): Promise<string[]> {
 	const dirCounts = new Map<string, number>();
 
 	for (const filePath of filePaths) {
@@ -108,15 +125,24 @@ export function findMissingBarrels(filePaths: string[], cwd: string): string[] {
 	}
 
 	const missing: string[] = [];
-	for (const [dir, count] of dirCounts) {
-		if (count <= BARREL_THRESHOLD) continue;
-		const hasBarrel =
-			existsSync(join(dir, "index.ts")) || existsSync(join(dir, "index.tsx"));
-		if (!hasBarrel) {
-			const rel = relative(cwd, dir) || ".";
-			missing.push(rel);
-		}
-	}
+	await Promise.all(
+		[...dirCounts.entries()].map(async ([dir, count]) => {
+			if (count <= BARREL_THRESHOLD) return;
+			const [tsExists, tsxExists] = await Promise.all([
+				access(join(dir, "index.ts")).then(
+					() => true,
+					() => false,
+				),
+				access(join(dir, "index.tsx")).then(
+					() => true,
+					() => false,
+				),
+			]);
+			if (!tsExists && !tsxExists) {
+				missing.push(relative(cwd, dir) || ".");
+			}
+		}),
+	);
 
 	return missing.sort();
 }

@@ -27,12 +27,15 @@ const TSX_SOURCE = [
 ].join("\n");
 
 /** Write source to a temp .tsx file, run the callback, then clean up. */
-function withTempTsxFile(source: string, fn: (filePath: string) => void): void {
+async function withTempTsxFile(
+	source: string,
+	fn: (filePath: string) => Promise<void>,
+): Promise<void> {
 	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "jsdoczoom-test-"));
 	const tmpFile = path.join(tmpDir, "temp.tsx");
 	fs.writeFileSync(tmpFile, source);
 	try {
-		fn(tmpFile);
+		await fn(tmpFile);
 	} finally {
 		fs.rmSync(tmpDir, { recursive: true });
 	}
@@ -51,12 +54,12 @@ describe("extractFileJsdoc with TSX content", () => {
 });
 
 describe("parseFileSummaries with TSX file", () => {
-	it("parses a .tsx file and extracts summary without throwing PARSE_ERROR", () => {
+	it("parses a .tsx file and extracts summary without throwing PARSE_ERROR", async () => {
 		// parseFileSummaries calls extractFileJsdoc(sourceText) without passing
 		// the filename, so the hardcoded "input.ts" is used regardless of the
 		// actual .tsx extension. This causes the same JSX parse failure.
-		withTempTsxFile(TSX_SOURCE, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempTsxFile(TSX_SOURCE, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
 			expect(result.summary).toBe("Example TSX component");
 			expect(result.description).toBe("A React component.");

@@ -33,22 +33,22 @@ describe("generateTypeDeclarations with noEmit tsconfig", () => {
 		expect(result.options.noEmit).toBe(false);
 	});
 
-	it("produces non-empty declaration output when tsconfig has noEmit: true", () => {
-		const declarations = generateTypeDeclarations(samplePath);
+	it("produces non-empty declaration output when tsconfig has noEmit: true", async () => {
+		const declarations = await generateTypeDeclarations(samplePath);
 
 		// The file has exports, so declarations should NOT be empty
 		expect(declarations).not.toBe("");
 		expect(declarations.length).toBeGreaterThan(0);
 	});
 
-	it("includes exported type alias from noEmit project", () => {
-		const declarations = generateTypeDeclarations(samplePath);
+	it("includes exported type alias from noEmit project", async () => {
+		const declarations = await generateTypeDeclarations(samplePath);
 
 		expect(declarations).toContain("export type Greeting");
 	});
 
-	it("includes exported interface from noEmit project", () => {
-		const declarations = generateTypeDeclarations(samplePath);
+	it("includes exported interface from noEmit project", async () => {
+		const declarations = await generateTypeDeclarations(samplePath);
 
 		expect(declarations).toContain("export interface Config");
 		expect(declarations).toContain("host: string");
@@ -56,16 +56,16 @@ describe("generateTypeDeclarations with noEmit tsconfig", () => {
 		expect(declarations).toContain("debug?: boolean");
 	});
 
-	it("includes exported function signature from noEmit project", () => {
-		const declarations = generateTypeDeclarations(samplePath);
+	it("includes exported function signature from noEmit project", async () => {
+		const declarations = await generateTypeDeclarations(samplePath);
 
 		expect(declarations).toContain("export declare function greet");
 		expect(declarations).toContain("name: string");
 		expect(declarations).toContain(": Greeting");
 	});
 
-	it("preserves JSDoc comments from noEmit project", () => {
-		const declarations = generateTypeDeclarations(samplePath);
+	it("preserves JSDoc comments from noEmit project", async () => {
+		const declarations = await generateTypeDeclarations(samplePath);
 
 		expect(declarations).toContain("A simple string type alias");
 		expect(declarations).toContain("A configuration interface");

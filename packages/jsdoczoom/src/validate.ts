@@ -141,7 +141,7 @@ export async function validate(
 	gitignore = true,
 	config: CacheConfig = { enabled: true, directory: DEFAULT_CACHE_DIR },
 ): Promise<ValidationResult> {
-	const files = discoverFiles(selector.pattern, cwd, gitignore);
+	const files = await discoverFiles(selector.pattern, cwd, gitignore);
 	if (files.length === 0) {
 		throw new JsdocError(
 			"NO_FILES_MATCHED",
@@ -153,7 +153,7 @@ export async function validate(
 	const statuses = await Promise.all(
 		files.map((f) => classifyFile(eslint, f, cwd, config)),
 	);
-	const missingBarrels = findMissingBarrels(files, cwd);
+	const missingBarrels = await findMissingBarrels(files, cwd);
 	return buildGroupedResult(statuses, missingBarrels, limit);
 }
 
@@ -182,6 +182,6 @@ export async function validateFiles(
 	const statuses = await Promise.all(
 		tsFiles.map((f) => classifyFile(eslint, f, cwd, config)),
 	);
-	const missingBarrels = findMissingBarrels(tsFiles, cwd);
+	const missingBarrels = await findMissingBarrels(tsFiles, cwd);
 	return buildGroupedResult(statuses, missingBarrels, limit);
 }

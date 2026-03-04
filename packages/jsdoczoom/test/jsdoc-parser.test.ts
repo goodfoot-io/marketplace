@@ -22,12 +22,15 @@ function fixture(name: string): string {
 }
 
 /** Write source to a temp .ts file, run the callback, then clean up. */
-function withTempFile(source: string, fn: (filePath: string) => void): void {
+async function withTempFile(
+	source: string,
+	fn: (filePath: string) => Promise<void>,
+): Promise<void> {
 	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "jsdoczoom-test-"));
 	const tmpFile = path.join(tmpDir, "temp.ts");
 	fs.writeFileSync(tmpFile, source);
 	try {
-		fn(tmpFile);
+		await fn(tmpFile);
 	} finally {
 		fs.rmSync(tmpDir, { recursive: true });
 	}
@@ -116,8 +119,8 @@ describe("extractFileJsdoc", () => {
 });
 
 describe("parseFileSummaries", () => {
-	it("extracts first @summary tag", () => {
-		const result = parseFileSummaries(fixture("two-summaries.ts"));
+	it("extracts first @summary tag", async () => {
+		const result = await parseFileSummaries(fixture("two-summaries.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
 		expect(result.summary).toBe("First summary - concise overview");
 		expect(result.description).toBe(
@@ -125,8 +128,8 @@ describe("parseFileSummaries", () => {
 		);
 	});
 
-	it("joins multi-line @summary content with spaces", () => {
-		const result = parseFileSummaries(fixture("multi-line-summary.ts"));
+	it("joins multi-line @summary content with spaces", async () => {
+		const result = await parseFileSummaries(fixture("multi-line-summary.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
 		expect(result.summary).toBe(
 			"This is a multi-line summary that spans across multiple lines and should be joined with spaces",
@@ -134,22 +137,22 @@ describe("parseFileSummaries", () => {
 		expect(result.description).toBe("Module description.");
 	});
 
-	it("skips whitespace-only @summary, uses next non-empty one", () => {
-		const result = parseFileSummaries(fixture("whitespace-summary.ts"));
+	it("skips whitespace-only @summary, uses next non-empty one", async () => {
+		const result = await parseFileSummaries(fixture("whitespace-summary.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
 		expect(result.summary).toBe("Real summary here");
 		expect(result.description).toBe("Module with whitespace summaries.");
 	});
 
-	it("returns free-text as description field", () => {
-		const result = parseFileSummaries(fixture("one-summary.ts"));
+	it("returns free-text as description field", async () => {
+		const result = await parseFileSummaries(fixture("one-summary.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
 		expect(result.summary).toBe("Single summary line");
 		expect(result.description).toBe("Module description as free-text.");
 	});
 
-	it("summary is null, description is the free-text", () => {
-		const result = parseFileSummaries(fixture("description-only.ts"));
+	it("summary is null, description is the free-text", async () => {
+		const result = await parseFileSummaries(fixture("description-only.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
 		expect(result.summary).toBeNull();
 		expect(result.description).toBe(
@@ -157,14 +160,14 @@ describe("parseFileSummaries", () => {
 		);
 	});
 
-	it("summary null, description null, hasFileJsdoc false", () => {
-		const result = parseFileSummaries(fixture("no-jsdoc.ts"));
+	it("summary null, description null, hasFileJsdoc false", async () => {
+		const result = await parseFileSummaries(fixture("no-jsdoc.ts"));
 		expect(result.hasFileJsdoc).toBe(false);
 		expect(result.summary).toBeNull();
 		expect(result.description).toBeNull();
 	});
 
-	it("only recognizes exact lowercase @summary", () => {
+	it("only recognizes exact lowercase @summary", async () => {
 		const source = [
 			"/**",
 			" * Free text here.",
@@ -177,8 +180,8 @@ describe("parseFileSummaries", () => {
 			"export const x = 1;",
 		].join("\n");
 
-		withTempFile(source, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempFile(source, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
 			expect(result.summary).toBe("Real summary");
 			expect(result.summaryCount).toBe(1);
@@ -186,7 +189,7 @@ describe("parseFileSummaries", () => {
 		});
 	});
 
-	it("@Summary without lowercase @summary results in missing summary", () => {
+	it("@Summary without lowercase @summary results in missing summary", async () => {
 		const source = [
 			"/**",
 			" * Description.",
@@ -197,15 +200,15 @@ describe("parseFileSummaries", () => {
 			"export const x = 1;",
 		].join("\n");
 
-		withTempFile(source, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempFile(source, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
 			expect(result.summary).toBeNull();
 			expect(result.summaryCount).toBe(0);
 		});
 	});
 
-	it("@desc tag content is included in description", () => {
+	it("@desc tag content is included in description", async () => {
 		const source = [
 			"/**",
 			" * @desc Module description via desc tag.",
@@ -216,14 +219,14 @@ describe("parseFileSummaries", () => {
 			"export const x = 1;",
 		].join("\n");
 
-		withTempFile(source, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempFile(source, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.summary).toBe("My summary");
 			expect(result.description).toBe("Module description via desc tag.");
 		});
 	});
 
-	it("@description tag content is included in description", () => {
+	it("@description tag content is included in description", async () => {
 		const source = [
 			"/**",
 			" * @description Full description tag content.",
@@ -234,14 +237,14 @@ describe("parseFileSummaries", () => {
 			"export const x = 1;",
 		].join("\n");
 
-		withTempFile(source, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempFile(source, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.summary).toBe("My summary");
 			expect(result.description).toBe("Full description tag content.");
 		});
 	});
 
-	it("@file and @fileoverview tags are included in description", () => {
+	it("@file and @fileoverview tags are included in description", async () => {
 		const source = [
 			"/**",
 			" * @file File-level overview.",
@@ -252,14 +255,14 @@ describe("parseFileSummaries", () => {
 			"export const x = 1;",
 		].join("\n");
 
-		withTempFile(source, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempFile(source, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.summary).toBe("My summary");
 			expect(result.description).toBe("File-level overview.");
 		});
 	});
 
-	it("free-text and @description tag are combined in description", () => {
+	it("free-text and @description tag are combined in description", async () => {
 		const source = [
 			"/**",
 			" * Free text first.",
@@ -272,8 +275,8 @@ describe("parseFileSummaries", () => {
 			"export const x = 1;",
 		].join("\n");
 
-		withTempFile(source, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempFile(source, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.summary).toBe("My summary");
 			expect(result.description).toBe(
 				"Free text first. Additional description.",
@@ -281,7 +284,7 @@ describe("parseFileSummaries", () => {
 		});
 	});
 
-	it("@description continuation lines are included in description", () => {
+	it("@description continuation lines are included in description", async () => {
 		const source = [
 			"/**",
 			" * @description First line of description",
@@ -293,8 +296,8 @@ describe("parseFileSummaries", () => {
 			"export const x = 1;",
 		].join("\n");
 
-		withTempFile(source, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempFile(source, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.summary).toBe("My summary");
 			expect(result.description).toBe(
 				"First line of description continues on this line.",
@@ -302,35 +305,35 @@ describe("parseFileSummaries", () => {
 		});
 	});
 
-	it("summaryCount is 1 for single @summary", () => {
-		const result = parseFileSummaries(fixture("one-summary.ts"));
+	it("summaryCount is 1 for single @summary", async () => {
+		const result = await parseFileSummaries(fixture("one-summary.ts"));
 		expect(result.summaryCount).toBe(1);
 	});
 
-	it("summaryCount is 0 for no @summary", () => {
-		const result = parseFileSummaries(fixture("description-only.ts"));
+	it("summaryCount is 0 for no @summary", async () => {
+		const result = await parseFileSummaries(fixture("description-only.ts"));
 		expect(result.summaryCount).toBe(0);
 	});
 
-	it("summaryCount tracks multiple @summary tags", () => {
-		const result = parseFileSummaries(fixture("multiple-summaries.ts"));
+	it("summaryCount tracks multiple @summary tags", async () => {
+		const result = await parseFileSummaries(fixture("multiple-summaries.ts"));
 		expect(result.summaryCount).toBe(2);
 		expect(result.summary).toBe("First summary tag");
 	});
 
-	it("handles TypeScript syntax errors (throws PARSE_ERROR)", () => {
-		expect(() => parseFileSummaries(fixture("syntax-error.ts"))).toThrow(
-			JsdocError,
-		);
+	it("handles TypeScript syntax errors (throws PARSE_ERROR)", async () => {
+		await expect(
+			parseFileSummaries(fixture("syntax-error.ts")),
+		).rejects.toThrow(JsdocError);
 		try {
-			parseFileSummaries(fixture("syntax-error.ts"));
+			await parseFileSummaries(fixture("syntax-error.ts"));
 		} catch (e) {
 			expect(e).toBeInstanceOf(JsdocError);
 			expect((e as JsdocError).code).toBe("PARSE_ERROR");
 		}
 	});
 
-	it("@param after @summary does not corrupt summary", () => {
+	it("@param after @summary does not corrupt summary", async () => {
 		const source = [
 			"/**",
 			" * Module with various tags.",
@@ -344,15 +347,15 @@ describe("parseFileSummaries", () => {
 			"export const x = 1;",
 		].join("\n");
 
-		withTempFile(source, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempFile(source, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
 			expect(result.summary).toBe("The real summary");
 			expect(result.description).toBe("Module with various tags.");
 		});
 	});
 
-	it("ignores second @summary tag, uses only first", () => {
+	it("ignores second @summary tag, uses only first", async () => {
 		const source = [
 			"/**",
 			" * Module description.",
@@ -365,23 +368,23 @@ describe("parseFileSummaries", () => {
 			"export const x = 1;",
 		].join("\n");
 
-		withTempFile(source, (tmpFile) => {
-			const result = parseFileSummaries(tmpFile);
+		await withTempFile(source, async (tmpFile) => {
+			const result = await parseFileSummaries(tmpFile);
 			expect(result.hasFileJsdoc).toBe(true);
 			expect(result.summary).toBe("First summary");
 			expect(result.description).toBe("Module description.");
 		});
 	});
 
-	it("file with @summary but no free-text has null description", () => {
-		const result = parseFileSummaries(fixture("summary-only.ts"));
+	it("file with @summary but no free-text has null description", async () => {
+		const result = await parseFileSummaries(fixture("summary-only.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
 		expect(result.summary).toBe("Summary without description");
 		expect(result.description).toBeNull();
 	});
 
-	it("literal @ in prose does not start a new tag", () => {
-		const result = parseFileSummaries(fixture("email-in-prose.ts"));
+	it("literal @ in prose does not start a new tag", async () => {
+		const result = await parseFileSummaries(fixture("email-in-prose.ts"));
 		expect(result.hasFileJsdoc).toBe(true);
 		expect(result.summary).toBe("Email module summary");
 		expect(result.description).toBe(

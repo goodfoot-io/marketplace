@@ -288,15 +288,15 @@ describe("generateTypeDeclarations", () => {
 		resetCache();
 	});
 
-	it("includes exported type aliases", () => {
-		const declarations = generateTypeDeclarations(exportedTypesPath);
+	it("includes exported type aliases", async () => {
+		const declarations = await generateTypeDeclarations(exportedTypesPath);
 
 		expect(declarations).toContain("export type Name");
 		expect(declarations).toContain("string");
 	});
 
-	it("includes exported interfaces", () => {
-		const declarations = generateTypeDeclarations(exportedTypesPath);
+	it("includes exported interfaces", async () => {
+		const declarations = await generateTypeDeclarations(exportedTypesPath);
 
 		expect(declarations).toContain("export interface User");
 		expect(declarations).toContain("id: number");
@@ -304,8 +304,8 @@ describe("generateTypeDeclarations", () => {
 		expect(declarations).toContain("email?: string");
 	});
 
-	it("includes exported function signatures (no bodies)", () => {
-		const declarations = generateTypeDeclarations(exportedTypesPath);
+	it("includes exported function signatures (no bodies)", async () => {
+		const declarations = await generateTypeDeclarations(exportedTypesPath);
 
 		// Should include the function signature (TypeScript uses 'declare' keyword)
 		expect(declarations).toContain("export declare function getUser");
@@ -316,16 +316,16 @@ describe("generateTypeDeclarations", () => {
 		expect(declarations).not.toContain("return { id, name: 'test' }");
 	});
 
-	it("includes exported const signatures", () => {
-		const declarations = generateTypeDeclarations(exportedTypesPath);
+	it("includes exported const signatures", async () => {
+		const declarations = await generateTypeDeclarations(exportedTypesPath);
 
 		expect(declarations).toContain("export declare const DEFAULT_TIMEOUT");
 		// TypeScript declaration emit includes the literal value for const declarations
 		expect(declarations).toContain("5000");
 	});
 
-	it("includes exported class declarations (signatures only, no method bodies)", () => {
-		const declarations = generateTypeDeclarations(exportedTypesPath);
+	it("includes exported class declarations (signatures only, no method bodies)", async () => {
+		const declarations = await generateTypeDeclarations(exportedTypesPath);
 
 		// Should include the class declaration
 		expect(declarations).toContain("export declare class UserService");
@@ -344,8 +344,8 @@ describe("generateTypeDeclarations", () => {
 		expect(declarations).toContain("private users");
 	});
 
-	it("preserves all JSDoc comments (file-level and symbol-level)", () => {
-		const declarations = generateTypeDeclarations(exportedTypesPath);
+	it("preserves all JSDoc comments (file-level and symbol-level)", async () => {
+		const declarations = await generateTypeDeclarations(exportedTypesPath);
 
 		// File-level JSDoc
 		expect(declarations).toContain(
@@ -365,16 +365,16 @@ describe("generateTypeDeclarations", () => {
 		expect(declarations).toContain("Get all users");
 	});
 
-	it("excludes import statements", () => {
-		const declarations = generateTypeDeclarations(exportedTypesPath);
+	it("excludes import statements", async () => {
+		const declarations = await generateTypeDeclarations(exportedTypesPath);
 
 		// The fixture doesn't have imports, but we can verify no import statements appear
 		expect(declarations).not.toContain("import ");
 		expect(declarations).not.toContain("from ");
 	});
 
-	it("excludes non-exported internals", () => {
-		const declarations = generateTypeDeclarations(exportedTypesPath);
+	it("excludes non-exported internals", async () => {
+		const declarations = await generateTypeDeclarations(exportedTypesPath);
 
 		// Should NOT include internal helper function
 		expect(declarations).not.toContain("internalHelper");
@@ -383,8 +383,8 @@ describe("generateTypeDeclarations", () => {
 		expect(declarations).not.toContain("privateConst");
 	});
 
-	it("maintains source order of declarations", () => {
-		const declarations = generateTypeDeclarations(exportedTypesPath);
+	it("maintains source order of declarations", async () => {
+		const declarations = await generateTypeDeclarations(exportedTypesPath);
 
 		// Get positions of each export in the declarations
 		const namePos = declarations.indexOf("export type Name");
@@ -403,13 +403,13 @@ describe("generateTypeDeclarations", () => {
 		expect(classPos).toBeGreaterThan(timeoutPos);
 	});
 
-	it("reuses language service across calls for files sharing the same tsconfig", () => {
+	it("reuses language service across calls for files sharing the same tsconfig", async () => {
 		// Get the resolved compiler options and language service for the first call
 		const { tsconfigPath, options } = resolveCompilerOptions(exportedTypesPath);
 		const firstService = getLanguageService(tsconfigPath, options);
 
 		// First call
-		generateTypeDeclarations(exportedTypesPath);
+		await generateTypeDeclarations(exportedTypesPath);
 
 		// Second call should return the same service instance
 		const secondService = getLanguageService(tsconfigPath, options);
@@ -417,24 +417,26 @@ describe("generateTypeDeclarations", () => {
 		expect(secondService.service).toBe(firstService.service);
 
 		// Second call to generateTypeDeclarations should not create a new service
-		generateTypeDeclarations(exportedTypesPath);
+		await generateTypeDeclarations(exportedTypesPath);
 		const thirdService = getLanguageService(tsconfigPath, options);
 		expect(thirdService).toBe(firstService);
 	});
 
-	it("returns empty string for files with no exports", () => {
+	it("returns empty string for files with no exports", async () => {
 		const noExportsPath = join(fixturesDir, "no-exports.ts");
-		const result = generateTypeDeclarations(noExportsPath);
+		const result = await generateTypeDeclarations(noExportsPath);
 		expect(result).toBe("");
 	});
 
-	it("throws PARSE_ERROR for files with syntax errors", () => {
+	it("throws PARSE_ERROR for files with syntax errors", async () => {
 		const syntaxErrorPath = join(fixturesDir, "syntax-error.ts");
 
-		expect(() => generateTypeDeclarations(syntaxErrorPath)).toThrow(JsdocError);
+		await expect(generateTypeDeclarations(syntaxErrorPath)).rejects.toThrow(
+			JsdocError,
+		);
 
 		try {
-			generateTypeDeclarations(syntaxErrorPath);
+			await generateTypeDeclarations(syntaxErrorPath);
 			expect.fail("Should have thrown JsdocError");
 		} catch (e) {
 			expect(e).toBeInstanceOf(JsdocError);
@@ -443,58 +445,58 @@ describe("generateTypeDeclarations", () => {
 	});
 
 	describe("line annotations", () => {
-		it("annotates single-line declaration with source line", () => {
-			const decl = generateTypeDeclarations(exportedTypesPath);
+		it("annotates single-line declaration with source line", async () => {
+			const decl = await generateTypeDeclarations(exportedTypesPath);
 			expect(decl).toContain(
 				"// L8\n/** A string type alias */\nexport type Name = string;",
 			);
 		});
 
-		it("annotates multi-line interface with source range", () => {
-			const decl = generateTypeDeclarations(exportedTypesPath);
+		it("annotates multi-line interface with source range", async () => {
+			const decl = await generateTypeDeclarations(exportedTypesPath);
 			expect(decl).toContain(
 				"// L11-L15\n/** A user interface */\nexport interface User {",
 			);
 		});
 
-		it("annotates function with source range", () => {
-			const decl = generateTypeDeclarations(exportedTypesPath);
+		it("annotates function with source range", async () => {
+			const decl = await generateTypeDeclarations(exportedTypesPath);
 			expect(decl).toContain("// L22-L24");
 			expect(decl).toContain("// L22-L24\n/**\n * Gets a user by ID");
 		});
 
-		it("annotates exported const with source line", () => {
-			const decl = generateTypeDeclarations(exportedTypesPath);
+		it("annotates exported const with source line", async () => {
+			const decl = await generateTypeDeclarations(exportedTypesPath);
 			expect(decl).toContain(
 				"// L27\n/** The default timeout value */\nexport declare const DEFAULT_TIMEOUT",
 			);
 		});
 
-		it("annotates exported class with source range", () => {
-			const decl = generateTypeDeclarations(exportedTypesPath);
+		it("annotates exported class with source range", async () => {
+			const decl = await generateTypeDeclarations(exportedTypesPath);
 			expect(decl).toContain(
 				"// L30-L42\n/** A simple utility class */\nexport declare class UserService {",
 			);
 		});
 
-		it("separates chunks with blank lines", () => {
-			const decl = generateTypeDeclarations(exportedTypesPath);
+		it("separates chunks with blank lines", async () => {
+			const decl = await generateTypeDeclarations(exportedTypesPath);
 			// Each annotation should be preceded by a blank line (except the first)
 			const lines = decl.split("\n");
 			const annotationIndices = lines
-				.map((l, i) => (l.startsWith("// L") ? i : -1))
-				.filter((i) => i >= 0);
+				.map((l: string, i: number) => (l.startsWith("// L") ? i : -1))
+				.filter((i: number) => i >= 0);
 			// All annotations after the first should have a blank line above
 			for (const idx of annotationIndices.slice(1)) {
 				expect(lines[idx - 1]?.trim()).toBe("");
 			}
 		});
 
-		it("does not annotate file-level JSDoc", () => {
-			const decl = generateTypeDeclarations(exportedTypesPath);
+		it("does not annotate file-level JSDoc", async () => {
+			const decl = await generateTypeDeclarations(exportedTypesPath);
 			const lines = decl.split("\n");
 			const fileJsdocLines = lines.filter(
-				(l) =>
+				(l: string) =>
 					l.includes("Module for testing") ||
 					l.includes("Type declarations test module"),
 			);
@@ -503,9 +505,9 @@ describe("generateTypeDeclarations", () => {
 			}
 		});
 
-		it("returns empty string unchanged for files with no exports", () => {
+		it("returns empty string unchanged for files with no exports", async () => {
 			const noExportsPath = join(fixturesDir, "no-exports.ts");
-			const result = generateTypeDeclarations(noExportsPath);
+			const result = await generateTypeDeclarations(noExportsPath);
 			expect(result).toBe("");
 		});
 	});

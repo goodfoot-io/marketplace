@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { drilldown, drilldownFiles } from "./drilldown.js";
@@ -37,8 +37,8 @@ Each file has four detail levels (1-indexed): @1 summary, @2 description,
 Options:
   -h, --help       Show this help text
   -v, --version    Show version number
-  -c, --check      Run validation mode
-  -l, --lint       Run lint mode (comprehensive JSDoc quality)
+  -c, --check      Validate file-level structure (has JSDoc block, @summary, description)
+  -l, --lint       Lint comprehensive JSDoc quality (file-level + function-level tags)
   -s, --skill      Print JSDoc writing guidelines
   --json           Output as JSON (default is plain text)
   --pretty         Format JSON output with 2-space indent (use with --json)
@@ -51,47 +51,39 @@ Options:
 
 Selector:
   A glob pattern or file path, optionally with @depth suffix (1-4).
+	
   Examples:
     jsdoczoom src/**/*.ts       # All .ts files at depth 1 (summary)
-    jsdoczoom src/index.ts@2    # Single file at depth 2 (description)
+    jsdoczoom src/foo.ts@2      # Single file at depth 2 (description)
     jsdoczoom **/*.ts@3         # All .ts files at depth 3 (type decls)
+
+Search (--search):
+  Searches all **/*.{ts,tsx} files (or a selector's file set) by regex.
+
+  Examples:
+    jsdoczoom --search "CacheConfig"          # find where CacheConfig is used
+    jsdoczoom --search "auth-loader"          # searches file name
+    jsdoczoom src/*.ts --search "TODO|FIXME"  # restrict to a file subset
+
+Output:
+  Plain text by default. Each item has a "# path@depth" header followed by
+  content. Use the header value as the next selector to drill deeper.
+
+  Use --json for machine-parseable JSON output, use "next_id" to drill deeper.
+
+  Type declarations (@3) include source line annotations (// LN or // LN-LM)
+  so you can locate the implementation in the source file.
 
 Stdin:
   Pipe file paths one per line (useful with -c/-l for targeted validation):
     git diff --name-only | jsdoczoom -c    # validate changed files
     cat filelist.txt | jsdoczoom -l        # lint a specific set of files
 
-Output:
-  Plain text by default. Each item has a "# path@depth" header followed by
-  content. Use the header value as the next selector to drill deeper.
-  Use --json for machine-parseable JSON output.
-
-  Type declarations (@3) include source line annotations (// LN or // LN-LM)
-  so you can locate the implementation in the source file.
-
 Barrel gating (glob mode):
   A barrel's @summary and description reflect the cumulative functionality
   of its directory's children, not the barrel file itself. Barrels with a
   @summary gate sibling files at depths 1-2. At depth 3 the barrel
   disappears and its children appear at depth 1.
-
-Search (--search):
-  Searches all **/*.{ts,tsx} files (or a selector's file set) by regex,
-  returning each match at the shallowest informative depth:
-    filename/summary match  → @2 (description available next)
-    description match       → @3 (type declarations available next)
-    type declaration match  → @3 (shows only matching declarations)
-    source match            → @4 (shows only matching source blocks)
-
-  Examples:
-    jsdoczoom --search "CacheConfig"          # find where CacheConfig is used
-    jsdoczoom --search "parser|lexer"         # regex alternation across files
-    jsdoczoom --search "cache" src/**/*.ts    # restrict to a file subset
-    jsdoczoom --search "TODO|FIXME"           # find files with inline notes
-
-Modes:
-  -c  Validate file-level structure (has JSDoc block, @summary, description)
-  -l  Lint comprehensive JSDoc quality (file-level + function-level tags)
 
 Exit codes:
   0  Success (all files pass)
@@ -385,13 +377,13 @@ function handleHelp(): void {
 /**
  * Handle --version flag by reading and printing version from package.json.
  */
-function handleVersion(): void {
+async function handleVersion(): Promise<void> {
 	const pkgPath = resolve(
 		dirname(fileURLToPath(import.meta.url)),
 		"..",
 		"package.json",
 	);
-	const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
+	const pkg = JSON.parse(await readFile(pkgPath, "utf-8")) as {
 		version: string;
 	};
 	void process.stdout.write(`${pkg.version}\n`);
@@ -427,13 +419,13 @@ function handleExplainRule(ruleName: string): void {
  * Handle early-exit flags that print output and return without processing files.
  * Returns true if an early-exit flag was handled.
  */
-function handleEarlyExitFlags(parsed: ParsedArgs): boolean {
+async function handleEarlyExitFlags(parsed: ParsedArgs): Promise<boolean> {
 	if (parsed.help) {
 		handleHelp();
 		return true;
 	}
 	if (parsed.version) {
-		handleVersion();
+		await handleVersion();
 		return true;
 	}
 	if (parsed.skillMode) {
@@ -477,7 +469,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 	try {
 		const parsed = parseArgs(args);
 
-		if (handleEarlyExitFlags(parsed)) return;
+		if (await handleEarlyExitFlags(parsed)) return;
 		if (!validateModeCombinations(parsed)) return;
 
 		const cacheConfig: CacheConfig = {

@@ -36,9 +36,9 @@ describe("isBarrel", () => {
 });
 
 describe("getBarrelChildren", () => {
-	it("returns leaf children from barrel directory", () => {
+	it("returns leaf children from barrel directory", async () => {
 		const barrelPath = resolve(fixturesDir, "barrel-basic", "index.ts");
-		const children = getBarrelChildren(barrelPath, fixturesDir);
+		const children = await getBarrelChildren(barrelPath, fixturesDir);
 
 		const childNames = children.map((c) => c.split("/").pop());
 		expect(childNames).toContain("helper.ts");
@@ -46,9 +46,9 @@ describe("getBarrelChildren", () => {
 		expect(childNames).not.toContain("index.ts");
 	});
 
-	it("returns child barrel from subdirectory", () => {
+	it("returns child barrel from subdirectory", async () => {
 		const barrelPath = resolve(fixturesDir, "barrel-nested", "index.ts");
-		const children = getBarrelChildren(barrelPath, fixturesDir);
+		const children = await getBarrelChildren(barrelPath, fixturesDir);
 
 		const childPaths = children.map((c) => c.replace(`${fixturesDir}/`, ""));
 		expect(childPaths).toContain("barrel-nested/leaf.ts");
@@ -56,13 +56,13 @@ describe("getBarrelChildren", () => {
 		expect(childPaths).not.toContain("barrel-nested/index.ts");
 	});
 
-	it("index.ts takes priority over index.tsx in same directory", () => {
+	it("index.ts takes priority over index.tsx in same directory", async () => {
 		const barrelPath = resolve(
 			fixturesDir,
 			"barrel-ts-tsx-priority",
 			"index.ts",
 		);
-		const children = getBarrelChildren(barrelPath, fixturesDir);
+		const children = await getBarrelChildren(barrelPath, fixturesDir);
 
 		const childNames = children.map((c) => c.split("/").pop());
 		// index.tsx should be included as a leaf (sibling, not the barrel)
@@ -72,16 +72,16 @@ describe("getBarrelChildren", () => {
 		expect(childNames).not.toContain("index.ts");
 	});
 
-	it("barrel with zero children returns empty array", () => {
+	it("barrel with zero children returns empty array", async () => {
 		const barrelPath = resolve(fixturesDir, "barrel-zero-children", "index.ts");
-		const children = getBarrelChildren(barrelPath, fixturesDir);
+		const children = await getBarrelChildren(barrelPath, fixturesDir);
 		expect(children).toEqual([]);
 	});
 
-	it("excludes .d.ts files", () => {
+	it("excludes .d.ts files", async () => {
 		// Use barrel-basic which has no .d.ts files; verify none appear
 		const barrelPath = resolve(fixturesDir, "barrel-basic", "index.ts");
-		const children = getBarrelChildren(barrelPath, fixturesDir);
+		const children = await getBarrelChildren(barrelPath, fixturesDir);
 		for (const child of children) {
 			expect(child).not.toMatch(/\.d\.ts$/);
 		}

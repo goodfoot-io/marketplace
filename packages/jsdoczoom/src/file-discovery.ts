@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
-import { globSync } from "glob";
+import { glob } from "glob";
 import ignore, { type Ignore } from "ignore";
 import { JsdocError } from "./errors.js";
 
@@ -17,25 +17,27 @@ import { JsdocError } from "./errors.js";
  * Walk from `cwd` up to the filesystem root, collecting .gitignore entries.
  * Returns an Ignore instance loaded with all discovered rules.
  */
-export function loadGitignore(cwd: string): Ignore {
+export async function loadGitignore(cwd: string): Promise<Ignore> {
 	const ig = ignore();
 	let dir = resolve(cwd);
 
 	while (true) {
 		const gitignorePath = join(dir, ".gitignore");
-		if (existsSync(gitignorePath)) {
-			const content = readFileSync(gitignorePath, "utf-8");
+		try {
+			const content = await readFile(gitignorePath, "utf-8");
 			const prefix = relative(cwd, dir);
 			const lines = content
 				.split("\n")
-				.map((l) => l.trim())
-				.filter((l) => l && !l.startsWith("#"));
+				.map((l: string) => l.trim())
+				.filter((l: string) => l && !l.startsWith("#"));
 
 			for (const line of lines) {
 				// Prefix rules from ancestor .gitignore files so paths are
 				// relative to `cwd`, which is where glob results are anchored.
 				ig.add(prefix ? `${prefix}/${line}` : line);
 			}
+		} catch {
+			// No .gitignore at this level, continue walking up
 		}
 
 		const parent = dirname(dir);
@@ -59,22 +61,25 @@ export function loadGitignore(cwd: string): Ignore {
  * @returns Array of absolute file paths
  * @throws {JsdocError} FILE_NOT_FOUND when a direct path does not exist
  */
-export function discoverFiles(
+export async function discoverFiles(
 	pattern: string,
 	cwd: string,
 	gitignore = true,
-): string[] {
+): Promise<string[]> {
 	const hasGlobChars = /[*?[\]{]/.test(pattern);
 
 	if (hasGlobChars) {
-		const matches = globSync(pattern, { cwd, absolute: true });
+		const matches = await glob(pattern, { cwd, absolute: true });
 		let filtered = matches.filter(
-			(f) => (f.endsWith(".ts") || f.endsWith(".tsx")) && !f.endsWith(".d.ts"),
+			(f: string) =>
+				(f.endsWith(".ts") || f.endsWith(".tsx")) && !f.endsWith(".d.ts"),
 		);
 
 		if (gitignore) {
-			const ig = loadGitignore(cwd);
-			filtered = filtered.filter((abs) => !ig.ignores(relative(cwd, abs)));
+			const ig = await loadGitignore(cwd);
+			filtered = filtered.filter(
+				(abs: string) => !ig.ignores(relative(cwd, abs)),
+			);
 		}
 
 		return filtered.sort();
@@ -82,10 +87,13 @@ export function discoverFiles(
 
 	// Direct path
 	const resolved = resolve(cwd, pattern);
-	if (!existsSync(resolved)) {
+	let statResult: Awaited<ReturnType<typeof stat>>;
+	try {
+		statResult = await stat(resolved);
+	} catch {
 		throw new JsdocError("FILE_NOT_FOUND", `File not found: ${pattern}`);
 	}
-	if (statSync(resolved).isDirectory()) {
+	if (statResult.isDirectory()) {
 		return discoverFiles(`${resolved}/**`, cwd, gitignore);
 	}
 	return [resolved];

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import ts from "typescript";
 import { JsdocError } from "./errors.js";
 import { appendText, DESCRIPTION_TAGS, type ParsedFileInfo } from "./types.js";
@@ -271,10 +271,12 @@ function parseJsdocContent(jsdocText: string): {
  * Reads the file, extracts the first file-level JSDoc block, and parses the first
  * @summary tag and free-text description.
  */
-export function parseFileSummaries(filePath: string): ParsedFileInfo {
+export async function parseFileSummaries(
+	filePath: string,
+): Promise<ParsedFileInfo> {
 	let sourceText: string;
 	try {
-		sourceText = readFileSync(filePath, "utf-8");
+		sourceText = await readFile(filePath, "utf-8");
 	} catch {
 		throw new JsdocError("FILE_NOT_FOUND", `File not found: ${filePath}`);
 	}

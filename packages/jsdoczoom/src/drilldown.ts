@@ -251,7 +251,7 @@ async function gatherBarrelInfos(
 				const info = await processWithCache(config, "drilldown", content, () =>
 					parseFileSummaries(barrelPath),
 				);
-				const children = getBarrelChildren(barrelPath, cwd);
+				const children = await getBarrelChildren(barrelPath, cwd);
 				return {
 					type: "info" as const,
 					data: {
@@ -437,7 +437,7 @@ export async function drilldown(
 	const depth = selector.depth ?? 1;
 
 	if (selector.type === "path") {
-		const files = discoverFiles(selector.pattern, cwd, gitignore);
+		const files = await discoverFiles(selector.pattern, cwd, gitignore);
 
 		if (files.length > 1) {
 			// Directory expanded to multiple files — route through glob pipeline
@@ -470,7 +470,7 @@ export async function drilldown(
 				barrelEffectiveDepth = 3;
 			}
 			if (barrelEffectiveDepth >= 3) {
-				const children = getBarrelChildren(filePath, cwd);
+				const children = await getBarrelChildren(filePath, cwd);
 				const childDepth = barrelEffectiveDepth - 2;
 				const results = await collectSafeResults(
 					children,
@@ -500,7 +500,7 @@ export async function drilldown(
 	}
 
 	// Glob selector — apply barrel gating
-	const files = discoverFiles(selector.pattern, cwd, gitignore);
+	const files = await discoverFiles(selector.pattern, cwd, gitignore);
 	if (files.length === 0) {
 		throw new JsdocError(
 			"NO_FILES_MATCHED",
@@ -540,7 +540,7 @@ export async function drilldownFiles(
 	config: CacheConfig = DEFAULT_CACHE_CONFIG,
 ): Promise<DrilldownResult> {
 	const d = depth ?? 1;
-	const ig = loadGitignore(cwd);
+	const ig = await loadGitignore(cwd);
 	const tsFiles = filePaths.filter((f) => {
 		if (!(f.endsWith(".ts") || f.endsWith(".tsx")) || f.endsWith(".d.ts")) {
 			return false;

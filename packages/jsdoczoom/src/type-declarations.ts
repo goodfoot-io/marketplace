@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import ts from "typescript";
 import { JsdocError } from "./errors.js";
@@ -230,8 +230,10 @@ function isExportedStatement(statement: ts.Statement): boolean {
  * Build a map of exported symbol names to their source line ranges.
  * Walks top-level statements looking for export modifiers.
  */
-function buildSourceLineMap(filePath: string): Map<string, SourceRange> {
-	const content = readFileSync(filePath, "utf-8");
+async function buildSourceLineMap(
+	filePath: string,
+): Promise<Map<string, SourceRange>> {
+	const content = await readFile(filePath, "utf-8");
 	const sourceFile = ts.createSourceFile(
 		filePath,
 		content,
@@ -293,8 +295,11 @@ function findChunkStart(lines: string[], declLine: number): number {
  * Inserts GitHub-style `// LN` or `// LN-LM` on a separate line before each
  * declaration chunk, with a blank line above for visual separation.
  */
-function annotateWithSourceLines(dtsText: string, filePath: string): string {
-	const lineMap = buildSourceLineMap(filePath);
+async function annotateWithSourceLines(
+	dtsText: string,
+	filePath: string,
+): Promise<string> {
+	const lineMap = await buildSourceLineMap(filePath);
 	if (lineMap.size === 0) return dtsText;
 
 	const lines = dtsText.split("\n");
@@ -498,10 +503,12 @@ export function extractSourceBlocks(
  * @returns The declaration output as a string
  * @throws {JsdocError} If the file cannot be read or parsed
  */
-export function generateTypeDeclarations(filePath: string): string {
+export async function generateTypeDeclarations(
+	filePath: string,
+): Promise<string> {
 	// Verify the file exists and throw FILE_NOT_FOUND for any read errors
 	try {
-		readFileSync(filePath, "utf-8");
+		await readFile(filePath, "utf-8");
 	} catch (_error) {
 		throw new JsdocError("FILE_NOT_FOUND", `Failed to read file: ${filePath}`);
 	}
@@ -545,7 +552,7 @@ export function generateTypeDeclarations(filePath: string): string {
 	}
 
 	if (cleaned.length > 0) {
-		cleaned = annotateWithSourceLines(cleaned, filePath);
+		cleaned = await annotateWithSourceLines(cleaned, filePath);
 	}
 
 	return cleaned;

@@ -111,7 +111,7 @@ export async function lint(
 	gitignore = true,
 	config: CacheConfig = { enabled: true, directory: DEFAULT_CACHE_DIR },
 ): Promise<LintResult> {
-	const files = discoverFiles(selector.pattern, cwd, gitignore);
+	const files = await discoverFiles(selector.pattern, cwd, gitignore);
 	if (files.length === 0 && selector.type === "glob") {
 		throw new JsdocError(
 			"NO_FILES_MATCHED",
@@ -125,7 +125,7 @@ export async function lint(
 	const fileResults = await Promise.all(
 		tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config)),
 	);
-	const missingBarrels = findMissingBarrels(tsFiles, cwd);
+	const missingBarrels = await findMissingBarrels(tsFiles, cwd);
 
 	return buildLintResult(fileResults, tsFiles.length, limit, missingBarrels);
 }
@@ -156,7 +156,7 @@ export async function lintFiles(
 	const fileResults = await Promise.all(
 		tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config)),
 	);
-	const missingBarrels = findMissingBarrels(tsFiles, cwd);
+	const missingBarrels = await findMissingBarrels(tsFiles, cwd);
 
 	return buildLintResult(fileResults, tsFiles.length, limit, missingBarrels);
 }
