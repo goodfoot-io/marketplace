@@ -187,6 +187,136 @@ export function resetCache(): void {
 	serviceCache.clear();
 }
 
+interface SourceRange {
+	start: number;
+	end: number;
+}
+
+/**
+ * Build a map of exported symbol names to their source line ranges.
+ * Walks top-level statements looking for export modifiers.
+ */
+function buildSourceLineMap(filePath: string): Map<string, SourceRange> {
+	const content = readFileSync(filePath, "utf-8");
+	const sourceFile = ts.createSourceFile(
+		filePath,
+		content,
+		ts.ScriptTarget.Latest,
+		true,
+	);
+	const map = new Map<string, SourceRange>();
+
+	for (const statement of sourceFile.statements) {
+		// Only process exported declarations
+		const modifiers = ts.canHaveModifiers(statement)
+			? ts.getModifiers(statement)
+			: undefined;
+		const isExported = modifiers?.some(
+			(m) => m.kind === ts.SyntaxKind.ExportKeyword,
+		);
+		if (!isExported) continue;
+
+		const start =
+			sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile))
+				.line + 1;
+		const end =
+			sourceFile.getLineAndCharacterOfPosition(statement.getEnd()).line + 1;
+
+		const addName = (name: string) => map.set(name, { start, end });
+
+		if (ts.isTypeAliasDeclaration(statement)) {
+			addName(statement.name.text);
+		} else if (ts.isInterfaceDeclaration(statement)) {
+			addName(statement.name.text);
+		} else if (ts.isFunctionDeclaration(statement) && statement.name) {
+			addName(statement.name.text);
+		} else if (ts.isClassDeclaration(statement) && statement.name) {
+			addName(statement.name.text);
+		} else if (ts.isEnumDeclaration(statement)) {
+			addName(statement.name.text);
+		} else if (ts.isVariableStatement(statement)) {
+			for (const decl of statement.declarationList.declarations) {
+				if (ts.isIdentifier(decl.name)) {
+					addName(decl.name.text);
+				}
+			}
+		}
+	}
+
+	return map;
+}
+
+/** Regex matching the start of a top-level export declaration in .d.ts output. */
+const DECL_PATTERN =
+	/^export\s+(?:default\s+)?(?:declare\s+)?(?:abstract\s+)?(?:type|interface|function|const|let|var|class|enum)\s+(\w+)/;
+
+/**
+ * Format a source range as a GitHub-style line annotation.
+ */
+function formatLineRef(range: SourceRange): string {
+	return range.start === range.end
+		? `// L${range.start}`
+		: `// L${range.start}-L${range.end}`;
+}
+
+/**
+ * Find the start of the JSDoc block above a declaration line.
+ * Returns the declaration line index itself if no JSDoc is found.
+ */
+function findChunkStart(lines: string[], declLine: number): number {
+	if (declLine === 0) return 0;
+	const prev = lines[declLine - 1]?.trimEnd();
+	if (prev === "*/" || prev?.endsWith("*/")) {
+		for (let j = declLine - 1; j >= 0; j--) {
+			if (lines[j].trimStart().startsWith("/**")) return j;
+		}
+	} else if (prev?.trimStart().startsWith("/**")) {
+		// Single-line JSDoc: /** comment */
+		return declLine - 1;
+	}
+	return declLine;
+}
+
+/**
+ * Annotate .d.ts text with source line references for each top-level declaration.
+ * Inserts GitHub-style `// LN` or `// LN-LM` on a separate line before each
+ * declaration chunk, with a blank line above for visual separation.
+ */
+function annotateWithSourceLines(dtsText: string, filePath: string): string {
+	const lineMap = buildSourceLineMap(filePath);
+	if (lineMap.size === 0) return dtsText;
+
+	const lines = dtsText.split("\n");
+
+	// First pass: map chunk start lines to their annotations
+	const annotations = new Map<number, string>();
+	for (let i = 0; i < lines.length; i++) {
+		const match = lines[i].match(DECL_PATTERN);
+		if (!match) continue;
+		const range = lineMap.get(match[1]);
+		if (!range) continue;
+		annotations.set(findChunkStart(lines, i), formatLineRef(range));
+	}
+
+	if (annotations.size === 0) return dtsText;
+
+	// Second pass: build output with annotations inserted
+	const result: string[] = [];
+	for (let i = 0; i < lines.length; i++) {
+		const annotation = annotations.get(i);
+		if (annotation) {
+			// Blank line separator before annotation (if there's content above)
+			if (result.length > 0 && result[result.length - 1]?.trim() !== "") {
+				result.push("");
+			}
+			result.push(annotation);
+		}
+		result.push(lines[i]);
+	}
+
+	return result.join("\n");
+}
+
 /**
  * Generates TypeScript declaration output from a source file.
  *
@@ -250,6 +380,10 @@ export function generateTypeDeclarations(filePath: string): string {
 	const withoutComments = cleaned.replace(/\/\*\*[\s\S]*?\*\//g, "").trim();
 	if (withoutComments === "export {};") {
 		cleaned = "";
+	}
+
+	if (cleaned.length > 0) {
+		cleaned = annotateWithSourceLines(cleaned, filePath);
 	}
 
 	return cleaned;

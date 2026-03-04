@@ -8,6 +8,7 @@ import { JsdocError } from "./errors.js";
 import { lint, lintFiles } from "./lint.js";
 import { parseSelector } from "./selector.js";
 import { RULE_EXPLANATIONS, SKILL_TEXT } from "./skill-text.js";
+import { formatTextOutput } from "./text-format.js";
 import type {
 	CacheConfig,
 	LintResult,
@@ -38,7 +39,8 @@ Options:
   -c, --check      Run validation mode
   -l, --lint       Run lint mode (comprehensive JSDoc quality)
   -s, --skill      Print JSDoc writing guidelines
-  --pretty         Format JSON output with 2-space indent
+  --json           Output as JSON (default is plain text)
+  --pretty         Format JSON output with 2-space indent (use with --json)
   --limit N        Max results shown (default 500)
   --no-gitignore   Include files ignored by .gitignore
   --disable-cache    Skip all cache operations
@@ -59,8 +61,12 @@ Stdin:
     find . -name "*.ts" | jsdoczoom -c
 
 Output:
-  JSON items. Items with "next_id" have more detail; use that value as the next
-  selector. Items with "id" (no next_id) are at terminal depth.
+  Plain text by default. Each item has a "# path@depth" header followed by
+  content. Use the header value as the next selector to drill deeper.
+  Use --json for machine-parseable JSON output.
+
+  Type declarations (@3) include source line annotations (// LN or // LN-LM)
+  so you can locate the implementation in the source file.
 
 Barrel gating (glob mode):
   A barrel's @summary and description reflect the cumulative functionality
@@ -78,15 +84,15 @@ Exit codes:
   2  Validation or lint failures found
 
 Workflow:
-  $ jsdoczoom src/**/*.ts
-  { "items": [{ "next_id": "src/utils@2", "text": "..." }, ...] }
+  $ jsdoczoom src/**/*.ts                # list summaries
+  $ jsdoczoom src/utils@2                # drill into description
+  $ jsdoczoom src/utils@3                # see type declarations
 
-  $ jsdoczoom src/utils@2                # use next_id from above
-  { "items": [{ "next_id": "src/utils@3", "text": "..." }] }
-
-  $ jsdoczoom src/utils@3                # use next_id again
-  { "items": [{ "id": "src/utils@3", "text": "..." }] }
-  # "id" instead of "next_id" means terminal depth — stop here
+Pipe examples:
+  $ jsdoczoom src/utils.ts@3 | grep "functionName"     # find symbol + source line
+  $ jsdoczoom src/utils.ts@3 | grep "// L"              # list all declarations with lines
+  $ jsdoczoom src/**/*.ts | grep "^#"                   # list all file headers
+  $ grep -rl "term" src/ --include="*.ts" | jsdoczoom   # describe matching files
 `;
 
 /** Parsed CLI arguments */
@@ -96,6 +102,7 @@ interface ParsedArgs {
 	checkMode: boolean;
 	lintMode: boolean;
 	skillMode: boolean;
+	json: boolean;
 	pretty: boolean;
 	limit: number;
 	gitignore: boolean;
@@ -126,6 +133,7 @@ function parseArgs(args: string[]): ParsedArgs {
 		checkMode: false,
 		lintMode: false,
 		skillMode: false,
+		json: false,
 		pretty: false,
 		limit: 500,
 		gitignore: true,
@@ -157,6 +165,10 @@ function parseArgs(args: string[]): ParsedArgs {
 		}
 		if (arg === "-s" || arg === "--skill") {
 			parsed.skillMode = true;
+			continue;
+		}
+		if (arg === "--json") {
+			parsed.json = true;
 			continue;
 		}
 		if (arg === "--pretty") {
@@ -234,6 +246,7 @@ async function processStdin(
 	selectorArg: string | undefined,
 	checkMode: boolean,
 	lintMode: boolean,
+	json: boolean,
 	pretty: boolean,
 	limit: number,
 	cwd: string,
@@ -257,7 +270,7 @@ async function processStdin(
 			limit,
 			cacheConfig,
 		);
-		writeResult(result, pretty);
+		writeDrilldownResult(result, json, pretty);
 	}
 }
 
@@ -268,6 +281,7 @@ async function processSelector(
 	selectorArg: string | undefined,
 	checkMode: boolean,
 	lintMode: boolean,
+	json: boolean,
 	pretty: boolean,
 	limit: number,
 	gitignore: boolean,
@@ -292,7 +306,7 @@ async function processSelector(
 			limit,
 			cacheConfig,
 		);
-		writeResult(result, pretty);
+		writeDrilldownResult(result, json, pretty);
 	}
 }
 
@@ -407,6 +421,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 				parsed.selectorArg,
 				parsed.checkMode,
 				parsed.lintMode,
+				parsed.json,
 				parsed.pretty,
 				parsed.limit,
 				cwd,
@@ -417,6 +432,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 				parsed.selectorArg,
 				parsed.checkMode,
 				parsed.lintMode,
+				parsed.json,
 				parsed.pretty,
 				parsed.limit,
 				parsed.gitignore,
@@ -426,6 +442,21 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 		}
 	} catch (error: unknown) {
 		writeError(error);
+	}
+}
+
+/**
+ * Write a drilldown result to stdout as text (default) or JSON.
+ */
+function writeDrilldownResult(
+	result: import("./types.js").DrilldownResult,
+	json: boolean,
+	pretty: boolean,
+): void {
+	if (json) {
+		writeResult(result, pretty);
+	} else {
+		void process.stdout.write(formatTextOutput(result));
 	}
 }
 

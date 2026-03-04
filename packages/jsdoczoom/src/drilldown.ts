@@ -440,11 +440,12 @@ export async function drilldown(
 			const sorted = results.sort((a, b) =>
 				sortKey(a).localeCompare(sortKey(b)),
 			);
-			const total = sorted.length;
-			const truncated = total > limit;
+			const count = sorted.length;
+			const isTruncated = count > limit;
 			return {
 				items: sorted.slice(0, limit),
-				truncated,
+				truncated: isTruncated,
+				...(isTruncated ? { total: count } : {}),
 			};
 		}
 
@@ -506,11 +507,12 @@ export async function drilldown(
 
 	// Sort alphabetically by key
 	const sorted = results.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
-	const total = sorted.length;
-	const truncated = total > limit;
+	const count = sorted.length;
+	const isTruncated = count > limit;
 	return {
 		items: sorted.slice(0, limit),
-		truncated,
+		truncated: isTruncated,
+		...(isTruncated ? { total: count } : {}),
 	};
 }
 
@@ -546,10 +548,11 @@ export async function drilldownFiles(
 
 	const results = await collectSafeResults(tsFiles, d, cwd, config);
 	const sorted = results.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
-	const total = sorted.length;
-	const truncated = total > limit;
+	const count = sorted.length;
+	const isTruncated = count > limit;
 	return {
 		items: sorted.slice(0, limit),
-		truncated,
+		truncated: isTruncated,
+		...(isTruncated ? { total: count } : {}),
 	};
 }

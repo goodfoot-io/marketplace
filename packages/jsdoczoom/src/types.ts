@@ -41,6 +41,7 @@ export type OutputEntry = OutputItem | OutputErrorItem;
 export interface DrilldownResult {
 	items: OutputEntry[];
 	truncated: boolean;
+	total?: number;
 }
 
 /** All recognized error codes */

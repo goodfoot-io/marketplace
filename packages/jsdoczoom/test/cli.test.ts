@@ -124,8 +124,8 @@ describe("cli", () => {
 			expect(process.exitCode).toBe(0);
 		});
 
-		it("--pretty outputs indented JSON (2-space indent)", async () => {
-			await main(["--pretty", "two-summaries.ts"]);
+		it("--json --pretty outputs indented JSON (2-space indent)", async () => {
+			await main(["--json", "--pretty", "two-summaries.ts"]);
 			const raw = capture.getStdout();
 			// Pretty JSON starts with "{\n" and contains indented lines
 			expect(raw).toContain("\n  ");
@@ -137,12 +137,21 @@ describe("cli", () => {
 			expect(raw.trimEnd()).toBe(JSON.stringify(parsed, null, 2));
 		});
 
-		it("default output is compact JSON (no extra whitespace)", async () => {
-			await main(["two-summaries.ts"]);
+		it("--json output is compact JSON (no extra whitespace)", async () => {
+			await main(["--json", "two-summaries.ts"]);
 			const raw = capture.getStdout();
 			const parsed = JSON.parse(raw);
 			// Compact JSON: single line, no indentation
 			expect(raw.trimEnd()).toBe(JSON.stringify(parsed));
+		});
+
+		it("default output is plain text", async () => {
+			await main(["two-summaries.ts"]);
+			const raw = capture.getStdout();
+			// Text output starts with # header
+			expect(raw).toMatch(/^# /);
+			// Should not be valid JSON
+			expect(() => JSON.parse(raw)).toThrow();
 		});
 
 		it("--pretty works with check mode", async () => {
@@ -157,7 +166,7 @@ describe("cli", () => {
 	describe("selectors", () => {
 		it("bare invocation (no args, no stdin) uses default selector", async () => {
 			cwdSpy.mockReturnValue(depthDir);
-			await main([]);
+			await main(["--json"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			// depth-advancement dir has one-summary.ts and three-summaries.ts
@@ -171,14 +180,14 @@ describe("cli", () => {
 
 		it("directory path discovers files and produces drilldown output", async () => {
 			cwdSpy.mockReturnValue(fixturesDir);
-			await main(["leaf-files"]);
+			await main(["--json", "leaf-files"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(output.items.length).toBeGreaterThan(0);
 		});
 
 		it("selector argument is parsed and passed to drilldown", async () => {
-			await main(["two-summaries.ts@2"]);
+			await main(["--json", "two-summaries.ts@2"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(output.items).toHaveLength(1);
@@ -190,7 +199,7 @@ describe("cli", () => {
 	describe("stdin", () => {
 		it("when stdin is provided, file paths are read one per line", async () => {
 			const stdin = "two-summaries.ts\none-summary.ts";
-			await main([], stdin);
+			await main(["--json"], stdin);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(output.items.length).toBe(2);
@@ -198,7 +207,7 @@ describe("cli", () => {
 
 		it("stdin paths are processed via drilldownFiles", async () => {
 			const stdin = "two-summaries.ts";
-			await main([], stdin);
+			await main(["--json"], stdin);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(output.items).toHaveLength(1);
@@ -214,7 +223,7 @@ describe("cli", () => {
 
 		it("stdin combined with @depth suffix applies depth to all paths", async () => {
 			const stdin = "two-summaries.ts";
-			await main(["@2"], stdin);
+			await main(["--json", "@2"], stdin);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(output.items).toHaveLength(1);
@@ -224,14 +233,14 @@ describe("cli", () => {
 
 		it("stdin ignores blank lines", async () => {
 			const stdin = "two-summaries.ts\n\n\none-summary.ts\n";
-			await main([], stdin);
+			await main(["--json"], stdin);
 			const output = JSON.parse(capture.getStdout());
 			expect(output.items.length).toBe(2);
 		});
 
 		it("stdin trims whitespace from paths", async () => {
 			const stdin = "  two-summaries.ts  \n  one-summary.ts  ";
-			await main([], stdin);
+			await main(["--json"], stdin);
 			const output = JSON.parse(capture.getStdout());
 			expect(output.items.length).toBe(2);
 		});
@@ -240,7 +249,7 @@ describe("cli", () => {
 			// Provide a selector with a pattern and depth; stdin takes priority for file list
 			// but depth should be extracted from the selector argument
 			const stdin = "two-summaries.ts";
-			await main(["some-other-pattern.ts@2"], stdin);
+			await main(["--json", "some-other-pattern.ts@2"], stdin);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(output.items).toHaveLength(1);
@@ -303,8 +312,8 @@ describe("cli", () => {
 	});
 
 	describe("output", () => {
-		it("normal mode output is valid JSON object on stdout", async () => {
-			await main(["two-summaries.ts"]);
+		it("--json mode output is valid JSON object on stdout", async () => {
+			await main(["--json", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(output).toHaveProperty("truncated");
@@ -328,6 +337,34 @@ describe("cli", () => {
 			await main(["two-summaries.ts"]);
 			const raw = capture.getStdout();
 			expect(raw.endsWith("\n")).toBe(true);
+		});
+
+		it("text output contains header and content for single file", async () => {
+			await main(["two-summaries.ts"]);
+			const raw = capture.getStdout();
+			// Header is the next_id value (path@depth)
+			expect(raw).toContain("# two-summaries.ts@2");
+			// Content follows header
+			expect(raw).toContain("First summary");
+		});
+
+		it("text output for multiple files separates items with blank lines", async () => {
+			cwdSpy.mockReturnValue(depthDir);
+			await main([]);
+			const raw = capture.getStdout();
+			// Should have headers for both files
+			expect(raw).toContain("# one-summary.ts@2");
+			expect(raw).toContain("# three-summaries.ts@2");
+			// Items separated by blank lines
+			expect(raw).toContain("\n\n#");
+		});
+
+		it("text output for stdin pipes", async () => {
+			const stdin = "two-summaries.ts\none-summary.ts";
+			await main([], stdin);
+			const raw = capture.getStdout();
+			expect(raw).toContain("# one-summary.ts");
+			expect(raw).toContain("# two-summaries.ts");
 		});
 
 		it("validation success writes result to stdout only, no stderr", async () => {
@@ -466,12 +503,13 @@ describe("cli", () => {
 			}
 		});
 
-		it("help text includes -c/--check and -l/--lint options", async () => {
+		it("help text includes -c/--check, -l/--lint, and --json options", async () => {
 			await main(["--help"]);
 			const helpText = capture.getStdout();
 			expect(helpText).toContain("-c, --check");
 			expect(helpText).toContain("-l, --lint");
 			expect(helpText).toContain("comprehensive JSDoc quality");
+			expect(helpText).toContain("--json");
 		});
 
 		it("lint clean result produces no output", async () => {
@@ -514,7 +552,7 @@ describe("cli", () => {
 
 	describe("cache flags", () => {
 		it("--disable-cache flag is accepted without error", async () => {
-			await main(["--disable-cache", "two-summaries.ts"]);
+			await main(["--json", "--disable-cache", "two-summaries.ts"]);
 			const output = JSON.parse(capture.getStdout());
 			expect(output).toHaveProperty("items");
 			expect(process.exitCode).toBe(0);
@@ -522,6 +560,7 @@ describe("cli", () => {
 
 		it("--cache-directory flag is accepted without error", async () => {
 			await main([
+				"--json",
 				"--cache-directory",
 				"/tmp/custom-cache",
 				"two-summaries.ts",

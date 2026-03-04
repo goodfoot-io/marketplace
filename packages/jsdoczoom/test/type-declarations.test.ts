@@ -183,6 +183,66 @@ describe("generateTypeDeclarations", () => {
 			expect((e as JsdocError).code).toBe("PARSE_ERROR");
 		}
 	});
+
+	describe("line annotations", () => {
+		it("annotates single-line declaration with source line", () => {
+			const decl = generateTypeDeclarations(exportedTypesPath);
+			expect(decl).toContain("// L8\n/** A string type alias */\nexport type Name = string;");
+		});
+
+		it("annotates multi-line interface with source range", () => {
+			const decl = generateTypeDeclarations(exportedTypesPath);
+			expect(decl).toContain("// L11-L15\n/** A user interface */\nexport interface User {");
+		});
+
+		it("annotates function with source range", () => {
+			const decl = generateTypeDeclarations(exportedTypesPath);
+			expect(decl).toContain("// L22-L24");
+			expect(decl).toContain("// L22-L24\n/**\n * Gets a user by ID");
+		});
+
+		it("annotates exported const with source line", () => {
+			const decl = generateTypeDeclarations(exportedTypesPath);
+			expect(decl).toContain("// L27\n/** The default timeout value */\nexport declare const DEFAULT_TIMEOUT");
+		});
+
+		it("annotates exported class with source range", () => {
+			const decl = generateTypeDeclarations(exportedTypesPath);
+			expect(decl).toContain("// L30-L42\n/** A simple utility class */\nexport declare class UserService {");
+		});
+
+		it("separates chunks with blank lines", () => {
+			const decl = generateTypeDeclarations(exportedTypesPath);
+			// Each annotation should be preceded by a blank line (except the first)
+			const lines = decl.split("\n");
+			const annotationIndices = lines
+				.map((l, i) => (l.startsWith("// L") ? i : -1))
+				.filter((i) => i >= 0);
+			// All annotations after the first should have a blank line above
+			for (const idx of annotationIndices.slice(1)) {
+				expect(lines[idx - 1]?.trim()).toBe("");
+			}
+		});
+
+		it("does not annotate file-level JSDoc", () => {
+			const decl = generateTypeDeclarations(exportedTypesPath);
+			const lines = decl.split("\n");
+			const fileJsdocLines = lines.filter(
+				(l) =>
+					l.includes("Module for testing") ||
+					l.includes("Type declarations test module"),
+			);
+			for (const line of fileJsdocLines) {
+				expect(line).not.toMatch(/\/\/ L\d+/);
+			}
+		});
+
+		it("returns empty string unchanged for files with no exports", () => {
+			const noExportsPath = join(fixturesDir, "no-exports.ts");
+			const result = generateTypeDeclarations(noExportsPath);
+			expect(result).toBe("");
+		});
+	});
 });
 
 describe("resolveCompilerOptions", () => {

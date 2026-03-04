@@ -377,6 +377,24 @@ function parse(input: string | Buffer): number {
 }
 \`\`\`
 
+## Text output and piping
+
+jsdoczoom outputs human-readable text by default. Each item has a \`# path\` header followed by content. This makes it composable with standard Unix tools:
+
+\`\`\`sh
+jsdoczoom src/utils.ts@3 | grep "functionName"      # find symbol + source line
+jsdoczoom src/utils.ts@3 | grep "// L"              # list all declarations with lines
+jsdoczoom src/**/*.ts | grep "^#"                    # list all file summaries
+grep -rl "term" src/ --include="*.ts" | jsdoczoom    # describe matching files
+\`\`\`
+
+Type declarations include source line annotations (\`// LN\` or \`// LN-LM\` for ranges), so you can locate implementations in the source file without a separate search step.
+
+For machine-parseable output, use \`--json\`:
+
+\`\`\`sh
+jsdoczoom --json src/**/*.ts | jq '.items[].text'
+\`\`\`
 `;
 
 /** Explanation text for each lint rule, used by --explain-rule */
