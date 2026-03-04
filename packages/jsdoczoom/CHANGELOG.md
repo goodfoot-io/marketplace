@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+- Added support for multiple file/directory arguments in a single command
+- Fixed error formatting to plain text by default (use `--json` for JSON output)
+- Fixed: extra positional arguments now raise an error instead of being silently ignored
+
 ## 1.2.0
 - Added TypeScript syntax highlighting for `@3` declarations and `@4` source blocks in output
 - Fixed filename matching to correctly fall back through null depth levels
