@@ -193,6 +193,40 @@ interface SourceRange {
 }
 
 /**
+ * Extract exported symbol names from a top-level statement.
+ * Returns an array of names (variable statements may have multiple).
+ */
+function exportedNamesOf(statement: ts.Statement): string[] {
+	if (ts.isTypeAliasDeclaration(statement)) return [statement.name.text];
+	if (ts.isInterfaceDeclaration(statement)) return [statement.name.text];
+	if (ts.isFunctionDeclaration(statement) && statement.name) {
+		return [statement.name.text];
+	}
+	if (ts.isClassDeclaration(statement) && statement.name) {
+		return [statement.name.text];
+	}
+	if (ts.isEnumDeclaration(statement)) return [statement.name.text];
+	if (ts.isVariableStatement(statement)) {
+		return statement.declarationList.declarations
+			.filter((d) => ts.isIdentifier(d.name))
+			.map((d) => (d.name as ts.Identifier).text);
+	}
+	return [];
+}
+
+/**
+ * Return true if the statement has an `export` modifier.
+ */
+function isExportedStatement(statement: ts.Statement): boolean {
+	if (!ts.canHaveModifiers(statement)) return false;
+	return (
+		ts
+			.getModifiers(statement)
+			?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false
+	);
+}
+
+/**
  * Build a map of exported symbol names to their source line ranges.
  * Walks top-level statements looking for export modifiers.
  */
@@ -207,14 +241,7 @@ function buildSourceLineMap(filePath: string): Map<string, SourceRange> {
 	const map = new Map<string, SourceRange>();
 
 	for (const statement of sourceFile.statements) {
-		// Only process exported declarations
-		const modifiers = ts.canHaveModifiers(statement)
-			? ts.getModifiers(statement)
-			: undefined;
-		const isExported = modifiers?.some(
-			(m) => m.kind === ts.SyntaxKind.ExportKeyword,
-		);
-		if (!isExported) continue;
+		if (!isExportedStatement(statement)) continue;
 
 		const start =
 			sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile))
@@ -222,24 +249,8 @@ function buildSourceLineMap(filePath: string): Map<string, SourceRange> {
 		const end =
 			sourceFile.getLineAndCharacterOfPosition(statement.getEnd()).line + 1;
 
-		const addName = (name: string) => map.set(name, { start, end });
-
-		if (ts.isTypeAliasDeclaration(statement)) {
-			addName(statement.name.text);
-		} else if (ts.isInterfaceDeclaration(statement)) {
-			addName(statement.name.text);
-		} else if (ts.isFunctionDeclaration(statement) && statement.name) {
-			addName(statement.name.text);
-		} else if (ts.isClassDeclaration(statement) && statement.name) {
-			addName(statement.name.text);
-		} else if (ts.isEnumDeclaration(statement)) {
-			addName(statement.name.text);
-		} else if (ts.isVariableStatement(statement)) {
-			for (const decl of statement.declarationList.declarations) {
-				if (ts.isIdentifier(decl.name)) {
-					addName(decl.name.text);
-				}
-			}
+		for (const name of exportedNamesOf(statement)) {
+			map.set(name, { start, end });
 		}
 	}
 
@@ -361,6 +372,29 @@ export function splitDeclarations(dtsText: string): string[] {
 }
 
 /**
+ * Find the 0-based line index where a leading JSDoc block starts above a statement.
+ * Skips blank lines above the statement, then looks for a `/** ... * /` block.
+ * Returns `statementLine` itself when no leading JSDoc is found.
+ */
+function findJsdocStart(lines: string[], statementLine: number): number {
+	let line = statementLine - 1;
+	// Skip blank lines immediately before the statement
+	while (line >= 0 && lines[line].trim() === "") line--;
+	if (line < 0) return statementLine;
+	const trimmed = lines[line].trimEnd();
+	if (trimmed === "*/" || trimmed.endsWith("*/")) {
+		// Multi-line JSDoc: walk back to find opening /**
+		for (let j = line; j >= 0; j--) {
+			if (lines[j].trimStart().startsWith("/**")) return j;
+		}
+	} else if (trimmed.trimStart().startsWith("/**")) {
+		// Single-line JSDoc: /** comment */
+		return line;
+	}
+	return statementLine;
+}
+
+/**
  * Extracts top-level source blocks from a file that match a regex.
  *
  * Walks all top-level statements (not just exported ones), includes leading
@@ -377,10 +411,9 @@ export function extractSourceBlocks(
 	regex: RegExp,
 ): string | null {
 	const content = readFileSync(filePath, "utf-8");
+	if (content.trim() === "") return null;
+
 	const lines = content.split("\n");
-
-	if (lines.length === 0 || content.trim() === "") return null;
-
 	const sourceFile = ts.createSourceFile(
 		filePath,
 		content,
@@ -388,68 +421,37 @@ export function extractSourceBlocks(
 		true,
 	);
 
-	/** Find the 0-based line index where a leading JSDoc block starts above statementLine. */
-	function findJsdocStart(statementLine: number): number {
-		// Walk back from the line before the statement to find a leading /** ... */
-		let line = statementLine - 1;
-		// Skip blank lines immediately before the statement
-		while (line >= 0 && lines[line].trim() === "") line--;
-		if (line < 0) return statementLine;
-		const trimmed = lines[line].trimEnd();
-		if (trimmed === "*/" || trimmed.endsWith("*/")) {
-			// Multi-line JSDoc: walk back to find opening /**
-			for (let j = line; j >= 0; j--) {
-				if (lines[j].trimStart().startsWith("/**")) return j;
-			}
-		} else if (trimmed.trimStart().startsWith("/**")) {
-			// Single-line JSDoc: /** comment */
-			return line;
-		}
-		return statementLine;
-	}
-
 	const matchedBlocks: string[] = [];
 	const seen = new Set<number>();
 
 	for (const statement of sourceFile.statements) {
-		// Skip import declarations - callers fall back to full file for import matches
+		// Skip import declarations — callers fall back to full file for import matches
 		if (ts.isImportDeclaration(statement)) continue;
 
-		// Compute 1-based end line from statement end position
 		const endLine =
 			sourceFile.getLineAndCharacterOfPosition(statement.getEnd()).line + 1;
-
-		// Compute 1-based start line of the statement itself (without JSDoc)
 		const stmtStartLine = sourceFile.getLineAndCharacterOfPosition(
 			statement.getStart(sourceFile),
 		).line; // 0-based
 
-		// Walk back to include any leading JSDoc comment
-		const jsdocStartLine = findJsdocStart(stmtStartLine); // 0-based
-		const startLine1based = jsdocStartLine + 1; // 1-based
+		const jsdocStartLine = findJsdocStart(lines, stmtStartLine); // 0-based
 
 		// Skip if we've already included this block (deduplication by start position)
 		if (seen.has(jsdocStartLine)) continue;
 
 		// Extract the source text for this block (lines are 0-based, endLine is 1-based)
-		const blockLines = lines.slice(jsdocStartLine, endLine);
-		const blockText = blockLines.join("\n");
+		const blockText = lines.slice(jsdocStartLine, endLine).join("\n");
 
-		// Test the regex against the block text
 		if (!regex.test(blockText)) continue;
 
 		seen.add(jsdocStartLine);
 
-		// Build annotation
-		const range: SourceRange = { start: startLine1based, end: endLine };
-		const annotation = formatLineRef(range);
-
+		const startLine1based = jsdocStartLine + 1; // 1-based
+		const annotation = formatLineRef({ start: startLine1based, end: endLine });
 		matchedBlocks.push(`${annotation}\n${blockText}`);
 	}
 
-	if (matchedBlocks.length === 0) return null;
-
-	return matchedBlocks.join("\n\n");
+	return matchedBlocks.length === 0 ? null : matchedBlocks.join("\n\n");
 }
 
 /**

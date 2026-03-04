@@ -63,18 +63,15 @@ async function processFileSafe(
 	const content = await readFile(filePath, "utf-8");
 	const idPath = displayPath(filePath, cwd);
 
-	// Level 1: filename/path match
-	if (regex.test(idPath)) {
-		const info = await processWithCache(config, "drilldown", content, () =>
-			parseFileSummaries(filePath),
-		);
-		return { next_id: `${idPath}@2`, text: info.summary ?? idPath };
-	}
-
-	// Parse summaries for levels 2-3
+	// Parse summaries once for levels 1-3a
 	const info = await processWithCache(config, "drilldown", content, () =>
 		parseFileSummaries(filePath),
 	);
+
+	// Level 1: filename/path match
+	if (regex.test(idPath)) {
+		return { next_id: `${idPath}@2`, text: info.summary ?? idPath };
+	}
 
 	// Level 2: summary match
 	if (info.summary !== null && regex.test(info.summary)) {
@@ -101,17 +98,28 @@ async function processFileSafe(
 		}
 	}
 
-	// Level 4: source match
+	// Level 4: source match — prefer extracted blocks, fall back to full file
 	const sourceBlocks = extractSourceBlocks(filePath, regex);
 	if (sourceBlocks !== null) {
 		return { id: `${idPath}@4`, text: sourceBlocks };
 	}
-	// Fall back: test full file content
 	if (regex.test(content)) {
 		return { id: `${idPath}@4`, text: content };
 	}
 
 	return null; // no match
+}
+
+/**
+ * Compile a query string into a case-insensitive regex.
+ * Throws INVALID_SELECTOR if the query is not a valid regex pattern.
+ */
+function compileRegex(query: string): RegExp {
+	try {
+		return new RegExp(query, "i");
+	} catch (_error) {
+		throw new JsdocError("INVALID_SELECTOR", `Invalid regex: ${query}`);
+	}
 }
 
 /**
@@ -125,6 +133,35 @@ function applyLimit(sorted: OutputEntry[], limit: number): DrilldownResult {
 		truncated: isTruncated,
 		...(isTruncated ? { total: count } : {}),
 	};
+}
+
+/**
+ * Process a list of file paths through the search hierarchy and return sorted results.
+ * Files with parse errors are silently skipped.
+ */
+async function searchFileList(
+	files: string[],
+	regex: RegExp,
+	cwd: string,
+	limit: number,
+	config: CacheConfig,
+): Promise<DrilldownResult> {
+	const results = await Promise.all(
+		files.map(async (filePath) => {
+			try {
+				return await processFileSafe(filePath, regex, cwd, config);
+			} catch (error) {
+				if (error instanceof JsdocError && error.code === "PARSE_ERROR") {
+					return null;
+				}
+				throw error;
+			}
+		}),
+	);
+
+	const matched = results.filter((r): r is OutputEntry => r !== null);
+	const sorted = matched.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+	return applyLimit(sorted, limit);
 }
 
 /**
@@ -150,31 +187,9 @@ export async function search(
 	limit = 100,
 	config: CacheConfig = DEFAULT_CACHE_CONFIG,
 ): Promise<DrilldownResult> {
-	let regex: RegExp;
-	try {
-		regex = new RegExp(query, "i");
-	} catch (_error) {
-		throw new JsdocError("INVALID_SELECTOR", `Invalid regex: ${query}`);
-	}
-
+	const regex = compileRegex(query);
 	const files = discoverFiles(selector.pattern, cwd, gitignore);
-
-	const results = await Promise.all(
-		files.map(async (filePath) => {
-			try {
-				return await processFileSafe(filePath, regex, cwd, config);
-			} catch (error) {
-				if (error instanceof JsdocError && error.code === "PARSE_ERROR") {
-					return null;
-				}
-				throw error;
-			}
-		}),
-	);
-
-	const matched = results.filter((r): r is OutputEntry => r !== null);
-	const sorted = matched.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
-	return applyLimit(sorted, limit);
+	return searchFileList(files, regex, cwd, limit, config);
 }
 
 /**
@@ -197,12 +212,7 @@ export async function searchFiles(
 	limit = 100,
 	config: CacheConfig = DEFAULT_CACHE_CONFIG,
 ): Promise<DrilldownResult> {
-	let regex: RegExp;
-	try {
-		regex = new RegExp(query, "i");
-	} catch (_error) {
-		throw new JsdocError("INVALID_SELECTOR", `Invalid regex: ${query}`);
-	}
+	const regex = compileRegex(query);
 
 	const ig = loadGitignore(cwd);
 	const tsFiles = filePaths.filter((f) => {
@@ -215,20 +225,5 @@ export async function searchFiles(
 		return !ig.ignores(rel);
 	});
 
-	const results = await Promise.all(
-		tsFiles.map(async (filePath) => {
-			try {
-				return await processFileSafe(filePath, regex, cwd, config);
-			} catch (error) {
-				if (error instanceof JsdocError && error.code === "PARSE_ERROR") {
-					return null;
-				}
-				throw error;
-			}
-		}),
-	);
-
-	const matched = results.filter((r): r is OutputEntry => r !== null);
-	const sorted = matched.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
-	return applyLimit(sorted, limit);
+	return searchFileList(tsFiles, regex, cwd, limit, config);
 }

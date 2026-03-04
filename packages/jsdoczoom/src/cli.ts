@@ -416,48 +416,62 @@ function handleExplainRule(ruleName: string): void {
 }
 
 /**
+ * Handle early-exit flags that print output and return without processing files.
+ * Returns true if an early-exit flag was handled.
+ */
+function handleEarlyExitFlags(parsed: ParsedArgs): boolean {
+	if (parsed.help) {
+		handleHelp();
+		return true;
+	}
+	if (parsed.version) {
+		handleVersion();
+		return true;
+	}
+	if (parsed.skillMode) {
+		handleSkill();
+		return true;
+	}
+	if (parsed.explainRule !== undefined) {
+		handleExplainRule(parsed.explainRule);
+		return true;
+	}
+	return false;
+}
+
+/**
+ * Validate that mode flags are not used in incompatible combinations.
+ * Returns true if validation passed (no conflicts), false if an error was written.
+ */
+function validateModeCombinations(parsed: ParsedArgs): boolean {
+	if (parsed.checkMode && parsed.lintMode) {
+		writeError(
+			new JsdocError("INVALID_SELECTOR", "Cannot use -c and -l together"),
+		);
+		return false;
+	}
+	if (
+		parsed.searchQuery !== undefined &&
+		(parsed.checkMode || parsed.lintMode)
+	) {
+		writeError(
+			new JsdocError("INVALID_SELECTOR", "Cannot use --search with -c or -l"),
+		);
+		return false;
+	}
+	return true;
+}
+
+/**
  * Main CLI entry point. Exported for testability.
  */
 export async function main(args: string[], stdin?: string): Promise<void> {
 	try {
 		const parsed = parseArgs(args);
 
-		// Handle early-exit flags
-		if (parsed.help) {
-			handleHelp();
-			return;
-		}
-		if (parsed.version) {
-			handleVersion();
-			return;
-		}
-		if (parsed.skillMode) {
-			handleSkill();
-			return;
-		}
-		if (parsed.explainRule !== undefined) {
-			handleExplainRule(parsed.explainRule);
-			return;
-		}
+		if (handleEarlyExitFlags(parsed)) return;
+		if (!validateModeCombinations(parsed)) return;
 
-		// Validate mode combinations
-		if (parsed.checkMode && parsed.lintMode) {
-			writeError(
-				new JsdocError("INVALID_SELECTOR", "Cannot use -c and -l together"),
-			);
-			return;
-		}
-		if (
-			parsed.searchQuery !== undefined &&
-			(parsed.checkMode || parsed.lintMode)
-		) {
-			writeError(
-				new JsdocError("INVALID_SELECTOR", "Cannot use --search with -c or -l"),
-			);
-			return;
-		}
-
-		// Build cache config and process files
 		const cacheConfig: CacheConfig = {
 			enabled: !parsed.disableCache,
 			directory: parsed.cacheDirectory ?? DEFAULT_CACHE_DIR,
