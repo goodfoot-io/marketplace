@@ -29,23 +29,51 @@ function pathSelector(filename: string) {
 }
 
 describe("search", () => {
-	it("filename match returns OutputItemNext with next_id ending @2", async () => {
-		// "exported-types" matches the filename "exported-types.ts"
+	it("filename match with summary: next_id ends @2, text is summary", async () => {
+		// exported-types.ts has @summary — filename match should show the summary at @2
 		const result = await search(
-			leafSelector(`${leafFilesDir}/**`),
+			pathSelector("exported-types.ts"),
 			"exported-types",
 			leafFilesDir,
 		);
-		expect(result.items.length).toBeGreaterThan(0);
-		const item = result.items.find(
-			(i) => "next_id" in i && i.next_id.includes("exported-types"),
-		);
-		expect(item).toBeDefined();
-		if (item !== undefined && "next_id" in item) {
+		expect(result.items).toHaveLength(1);
+		const item = result.items[0];
+		expect("next_id" in item).toBe(true);
+		if ("next_id" in item) {
 			expect(item.next_id).toMatch(/@2$/);
-		} else {
-			expect.fail("Expected item with next_id");
+			expect(item.text).toBe("Type declarations test module");
 		}
+	});
+
+	it("filename match with description but no summary: next_id ends @3, text is description", async () => {
+		// description-only.ts has a description but no @summary
+		// Filename match should fall through to description at @3
+		const result = await search(
+			pathSelector("description-only.ts"),
+			"description-only",
+			leafFilesDir,
+		);
+		expect(result.items).toHaveLength(1);
+		const item = result.items[0];
+		expect("next_id" in item).toBe(true);
+		if ("next_id" in item) {
+			expect(item.next_id).toMatch(/@3$/);
+			expect(item.text).toContain("free-text description");
+		}
+	});
+
+	it("filename match with no summary and no description: falls through to @4", async () => {
+		// no-jsdoc.ts has neither summary nor description
+		// Filename match should fall all the way through to type declarations or full source
+		const result = await search(
+			pathSelector("no-jsdoc.ts"),
+			"no-jsdoc",
+			leafFilesDir,
+		);
+		expect(result.items).toHaveLength(1);
+		const item = result.items[0];
+		const key = "next_id" in item ? item.next_id : "id" in item ? item.id : "";
+		expect(key).toMatch(/@4$/);
 	});
 
 	it("summary match returns OutputItemNext with next_id ending @2", async () => {

@@ -69,9 +69,28 @@ async function processFileSafe(
 		parseFileSummaries(filePath),
 	);
 
-	// Level 1: filename/path match
+	// Level 1: filename/path match — fall back through levels like drilldown
 	if (regex.test(idPath)) {
-		return { next_id: `${idPath}@2`, text: info.summary ?? idPath };
+		if (info.summary !== null) {
+			return { next_id: `${idPath}@2`, text: info.summary };
+		}
+		if (info.description !== null) {
+			return { next_id: `${idPath}@3`, text: info.description };
+		}
+		const dts = await processWithCache(
+			config,
+			"drilldown",
+			`${content}\0typedecl`,
+			() => generateTypeDeclarations(filePath),
+		);
+		if (dts.length > 0) {
+			const chunks = splitDeclarations(dts);
+			return {
+				next_id: `${idPath}@4`,
+				text: chunks.map((c) => `\`\`\`typescript\n${c}\n\`\`\``).join("\n\n"),
+			};
+		}
+		return { id: `${idPath}@4`, text: `\`\`\`typescript\n${content}\n\`\`\`` };
 	}
 
 	// Level 2: summary match
@@ -208,7 +227,7 @@ export async function search(
 	config: CacheConfig = DEFAULT_CACHE_CONFIG,
 ): Promise<DrilldownResult> {
 	const regex = compileRegex(query);
-	const files = discoverFiles(selector.pattern, cwd, gitignore);
+	const files = await discoverFiles(selector.pattern, cwd, gitignore);
 	return searchFileList(files, regex, cwd, limit, config);
 }
 
@@ -234,7 +253,7 @@ export async function searchFiles(
 ): Promise<DrilldownResult> {
 	const regex = compileRegex(query);
 
-	const ig = loadGitignore(cwd);
+	const ig = await loadGitignore(cwd);
 	const tsFiles = filePaths.filter((f) => {
 		if (!(f.endsWith(".ts") || f.endsWith(".tsx")) || f.endsWith(".d.ts")) {
 			return false;
