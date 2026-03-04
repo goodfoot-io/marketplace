@@ -57,10 +57,9 @@ Selector:
     jsdoczoom **/*.ts@3         # All .ts files at depth 3 (type decls)
 
 Stdin:
-  Pipe file paths one per line:
-    find . -name "*.ts" | jsdoczoom
-    find . -name "*.ts" | jsdoczoom @2
-    find . -name "*.ts" | jsdoczoom -c
+  Pipe file paths one per line (useful with -c/-l for targeted validation):
+    git diff --name-only | jsdoczoom -c    # validate changed files
+    cat filelist.txt | jsdoczoom -l        # lint a specific set of files
 
 Output:
   Plain text by default. Each item has a "# path@depth" header followed by
@@ -76,6 +75,20 @@ Barrel gating (glob mode):
   @summary gate sibling files at depths 1-2. At depth 3 the barrel
   disappears and its children appear at depth 1.
 
+Search (--search):
+  Searches all **/*.{ts,tsx} files (or a selector's file set) by regex,
+  returning each match at the shallowest informative depth:
+    filename/summary match  → @2 (description available next)
+    description match       → @3 (type declarations available next)
+    type declaration match  → @3 (shows only matching declarations)
+    source match            → @4 (shows only matching source blocks)
+
+  Examples:
+    jsdoczoom --search "CacheConfig"          # find where CacheConfig is used
+    jsdoczoom --search "parser|lexer"         # regex alternation across files
+    jsdoczoom --search "cache" src/**/*.ts    # restrict to a file subset
+    jsdoczoom --search "TODO|FIXME"           # find files with inline notes
+
 Modes:
   -c  Validate file-level structure (has JSDoc block, @summary, description)
   -l  Lint comprehensive JSDoc quality (file-level + function-level tags)
@@ -89,12 +102,7 @@ Workflow:
   $ jsdoczoom src/**/*.ts                # list summaries
   $ jsdoczoom src/utils@2                # drill into description
   $ jsdoczoom src/utils@3                # see type declarations
-
-Pipe examples:
-  $ jsdoczoom src/utils.ts@3 | grep "functionName"     # find symbol + source line
-  $ jsdoczoom src/utils.ts@3 | grep "// L"              # list all declarations with lines
-  $ jsdoczoom src/**/*.ts | grep "^#"                   # list all file headers
-  $ grep -rl "term" src/ --include="*.ts" | jsdoczoom   # describe matching files
+  $ jsdoczoom src/**/*.ts | grep "^#"   # list all file headers
 `;
 
 /** Parsed CLI arguments */

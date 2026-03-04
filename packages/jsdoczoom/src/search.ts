@@ -97,7 +97,9 @@ async function processFileSafe(
 		if (matching.length > 0) {
 			return {
 				next_id: `${idPath}@3`,
-				text: matching.map((c) => `\`\`\`typescript\n${c}\n\`\`\``).join("\n\n"),
+				text: matching
+					.map((c) => `\`\`\`typescript\n${c}\n\`\`\``)
+					.join("\n\n"),
 			};
 		}
 	}
