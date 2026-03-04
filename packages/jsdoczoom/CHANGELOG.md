@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+- Added TypeScript syntax highlighting for `@3` declarations and `@4` source blocks in output
+- Fixed filename matching to correctly fall back through null depth levels
+- Fixed formatting to include blank lines after headers and between code blocks
+- Improved performance by caching source block extraction and eliminating redundant file reads
+- Expanded `--search` documentation in help text
+
 ## 1.0.0
 - **Breaking:** Changed default output from JSON to plain text, optimized for interactive CLI use
 - Added `--json` flag for machine-readable output
