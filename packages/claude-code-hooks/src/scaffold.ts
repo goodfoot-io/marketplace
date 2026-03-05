@@ -79,6 +79,12 @@ const EVENT_TO_OUTPUT_FUNCTION: Record<HookEventName, string> = {
   Setup: "setupOutput",
   TeammateIdle: "teammateIdleOutput",
   TaskCompleted: "taskCompletedOutput",
+  Elicitation: "elicitationOutput",
+  ElicitationResult: "elicitationResultOutput",
+  ConfigChange: "configChangeOutput",
+  InstructionsLoaded: "instructionsLoadedOutput",
+  WorktreeCreate: "worktreeCreateOutput",
+  WorktreeRemove: "worktreeRemoveOutput",
 };
 
 // ============================================================================
@@ -155,7 +161,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
       "@goodfoot/claude-code-hooks": "^1.0.9",
     },
     devDependencies: {
-      "@biomejs/biome": "2.4.1",
+      "@biomejs/biome": "2.4.6",
       "@types/node": "^22.0.0",
       typescript: "^5.9.3",
       vitest: "^4.0.16",
@@ -202,7 +208,7 @@ function generateTsConfig(): string {
  */
 function generateBiomeConfig(): string {
   return `{
-  "$schema": "https://biomejs.dev/schemas/2.4.1/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -358,6 +364,20 @@ function generateHookTemplate(eventName: HookEventName): string {
       returnStatement = `return ${outputName}({
     systemMessage: "Permission request processed.",
   });`;
+      break;
+    case "Elicitation":
+      returnStatement = `return ${outputName}({
+    hookSpecificOutput: { action: "accept" },
+  });`;
+      break;
+    case "ElicitationResult":
+      returnStatement = `return ${outputName}({});`;
+      break;
+    case "ConfigChange":
+    case "InstructionsLoaded":
+    case "WorktreeCreate":
+    case "WorktreeRemove":
+      returnStatement = `return ${outputName}({});`;
       break;
     default:
       // SessionEnd, Notification, SubagentStart use simple output with systemMessage

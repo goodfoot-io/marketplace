@@ -20,6 +20,10 @@ import type {
   SyncHookJSONOutput as SDKSyncHookJSONOutput,
   UserPromptSubmitHookSpecificOutput as SDKUserPromptSubmitHookSpecificOutput,
 } from "@anthropic-ai/claude-agent-sdk/sdk.js";
+import type {
+  ElicitationHookSpecificOutput as SDKElicitationHookSpecificOutput,
+  ElicitationResultHookSpecificOutput as SDKElicitationResultHookSpecificOutput,
+} from "@anthropic-ai/claude-agent-sdk";
 
 // ============================================================================
 // Exit Code Constants
@@ -61,6 +65,8 @@ export type { SDKSyncHookJSONOutput };
  * Re-export SDK hook-specific output types (includes hookEventName discriminator).
  */
 export type {
+  SDKElicitationHookSpecificOutput,
+  SDKElicitationResultHookSpecificOutput,
   SDKNotificationHookSpecificOutput,
   SDKPreToolUseHookSpecificOutput,
   SDKPostToolUseHookSpecificOutput,
@@ -126,6 +132,18 @@ export type PermissionRequestHookSpecificOutput = Omit<SDKPermissionRequestHookS
 export type SetupHookSpecificOutput = Omit<SDKSetupHookSpecificOutput, "hookEventName">;
 
 /**
+ * Elicitation hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
+ */
+export type ElicitationHookSpecificOutput = Omit<SDKElicitationHookSpecificOutput, "hookEventName">;
+
+/**
+ * ElicitationResult hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
+ */
+export type ElicitationResultHookSpecificOutput = Omit<SDKElicitationResultHookSpecificOutput, "hookEventName">;
+
+/**
  * Allow decision for permission requests.
  * Derived from SDK's PermissionRequestHookSpecificOutput.
  */
@@ -171,7 +189,9 @@ export type HookSpecificOutput =
   | SDKSetupHookSpecificOutput
   | SDKSubagentStartHookSpecificOutput
   | SDKPermissionRequestHookSpecificOutput
-  | SDKNotificationHookSpecificOutput;
+  | SDKNotificationHookSpecificOutput
+  | SDKElicitationHookSpecificOutput
+  | SDKElicitationResultHookSpecificOutput;
 
 /**
  * The JSON output format expected by Claude Code (sync hooks only).
@@ -309,6 +329,30 @@ export type TeammateIdleOutput = BaseSpecificOutput<"TeammateIdle">;
  *
  */
 export type TaskCompletedOutput = BaseSpecificOutput<"TaskCompleted">;
+/**
+ *
+ */
+export type ElicitationOutput = BaseSpecificOutput<"Elicitation">;
+/**
+ *
+ */
+export type ElicitationResultOutput = BaseSpecificOutput<"ElicitationResult">;
+/**
+ *
+ */
+export type ConfigChangeOutput = BaseSpecificOutput<"ConfigChange">;
+/**
+ *
+ */
+export type InstructionsLoadedOutput = BaseSpecificOutput<"InstructionsLoaded">;
+/**
+ *
+ */
+export type WorktreeCreateOutput = BaseSpecificOutput<"WorktreeCreate">;
+/**
+ *
+ */
+export type WorktreeRemoveOutput = BaseSpecificOutput<"WorktreeRemove">;
 
 /**
  * Union of all specific output types.
@@ -328,7 +372,13 @@ export type SpecificHookOutput =
   | PermissionRequestOutput
   | SetupOutput
   | TeammateIdleOutput
-  | TaskCompletedOutput;
+  | TaskCompletedOutput
+  | ElicitationOutput
+  | ElicitationResultOutput
+  | ConfigChangeOutput
+  | InstructionsLoadedOutput
+  | WorktreeCreateOutput
+  | WorktreeRemoveOutput;
 
 // ============================================================================
 // Output Builder Factories
@@ -878,6 +928,151 @@ export type TaskCompletedOptions = ExitCodeOptions;
  * ```
  */
 export const taskCompletedOutput = /* @__PURE__ */ createExitCodeOutputBuilder<"TaskCompleted">("TaskCompleted");
+
+// ============================================================================
+// Elicitation Output Builder
+// ============================================================================
+
+/**
+ * Options for the Elicitation output builder.
+ */
+export type ElicitationOptions = CommonOptions & {
+  /** Hook-specific output matching the wire format. */
+  hookSpecificOutput?: ElicitationHookSpecificOutput;
+};
+
+/**
+ * Creates an output for Elicitation hooks.
+ * @param options - Configuration options for the hook output
+ * @returns An ElicitationOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * // Accept the elicitation
+ * elicitationOutput({
+ *   hookSpecificOutput: { action: 'accept', content: { username: 'alice' } }
+ * });
+ *
+ * // Decline the elicitation
+ * elicitationOutput({
+ *   hookSpecificOutput: { action: 'decline' }
+ * });
+ * ```
+ */
+export const elicitationOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  "Elicitation",
+  ElicitationHookSpecificOutput
+>("Elicitation");
+
+// ============================================================================
+// ElicitationResult Output Builder
+// ============================================================================
+
+/**
+ * Options for the ElicitationResult output builder.
+ */
+export type ElicitationResultOptions = CommonOptions & {
+  /** Hook-specific output matching the wire format. */
+  hookSpecificOutput?: ElicitationResultHookSpecificOutput;
+};
+
+/**
+ * Creates an output for ElicitationResult hooks.
+ * @param options - Configuration options for the hook output
+ * @returns An ElicitationResultOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * elicitationResultOutput({});
+ * ```
+ */
+export const elicitationResultOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  "ElicitationResult",
+  ElicitationResultHookSpecificOutput
+>("ElicitationResult");
+
+// ============================================================================
+// ConfigChange Output Builder
+// ============================================================================
+
+/**
+ * Options for the ConfigChange output builder.
+ * ConfigChange hooks only support common options.
+ */
+export type ConfigChangeOptions = CommonOptions;
+
+/**
+ * Creates an output for ConfigChange hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A ConfigChangeOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * configChangeOutput({});
+ * ```
+ */
+export const configChangeOutput = /* @__PURE__ */ createSimpleOutputBuilder<"ConfigChange">("ConfigChange");
+
+// ============================================================================
+// InstructionsLoaded Output Builder
+// ============================================================================
+
+/**
+ * Options for the InstructionsLoaded output builder.
+ * InstructionsLoaded hooks only support common options.
+ */
+export type InstructionsLoadedOptions = CommonOptions;
+
+/**
+ * Creates an output for InstructionsLoaded hooks.
+ * @param options - Configuration options for the hook output
+ * @returns An InstructionsLoadedOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * instructionsLoadedOutput({});
+ * ```
+ */
+export const instructionsLoadedOutput =
+  /* @__PURE__ */ createSimpleOutputBuilder<"InstructionsLoaded">("InstructionsLoaded");
+
+// ============================================================================
+// WorktreeCreate Output Builder
+// ============================================================================
+
+/**
+ * Options for the WorktreeCreate output builder.
+ * WorktreeCreate hooks only support common options.
+ */
+export type WorktreeCreateOptions = CommonOptions;
+
+/**
+ * Creates an output for WorktreeCreate hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A WorktreeCreateOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * worktreeCreateOutput({});
+ * ```
+ */
+export const worktreeCreateOutput = /* @__PURE__ */ createSimpleOutputBuilder<"WorktreeCreate">("WorktreeCreate");
+
+// ============================================================================
+// WorktreeRemove Output Builder
+// ============================================================================
+
+/**
+ * Options for the WorktreeRemove output builder.
+ * WorktreeRemove hooks only support common options.
+ */
+export type WorktreeRemoveOptions = CommonOptions;
+
+/**
+ * Creates an output for WorktreeRemove hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A WorktreeRemoveOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * worktreeRemoveOutput({});
+ * ```
+ */
+export const worktreeRemoveOutput = /* @__PURE__ */ createSimpleOutputBuilder<"WorktreeRemove">("WorktreeRemove");
 
 // ============================================================================
 // Legacy type aliases for backwards compatibility

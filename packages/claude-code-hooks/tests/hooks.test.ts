@@ -8,6 +8,10 @@
  */
 
 import type {
+  ConfigChangeHookInput,
+  ElicitationHookInput,
+  ElicitationResultHookInput,
+  InstructionsLoadedHookInput,
   NotificationHookInput,
   PostToolUseFailureHookInput,
   PostToolUseHookInput,
@@ -18,10 +22,16 @@ import type {
   SubagentStartHookInput,
   SubagentStopHookInput,
   UserPromptSubmitHookInput,
+  WorktreeCreateHookInput,
+  WorktreeRemoveHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { HookContext, SessionStartContext } from "../src/hooks.js";
 import {
+  configChangeHook,
+  elicitationHook,
+  elicitationResultHook,
+  instructionsLoadedHook,
   notificationHook,
   permissionRequestHook,
   postToolUseFailureHook,
@@ -34,9 +44,15 @@ import {
   subagentStartHook,
   subagentStopHook,
   userPromptSubmitHook,
+  worktreeCreateHook,
+  worktreeRemoveHook,
 } from "../src/hooks.js";
 import { Logger } from "../src/logger.js";
 import {
+  configChangeOutput,
+  elicitationOutput,
+  elicitationResultOutput,
+  instructionsLoadedOutput,
   notificationOutput,
   permissionRequestOutput,
   postToolUseFailureOutput,
@@ -49,6 +65,8 @@ import {
   subagentStartOutput,
   subagentStopOutput,
   userPromptSubmitOutput,
+  worktreeCreateOutput,
+  worktreeRemoveOutput,
 } from "../src/outputs.js";
 import type { PermissionRequestInput, SessionEndInput } from "../src/types.js";
 
@@ -199,6 +217,70 @@ function createPermissionRequestInput(): PermissionRequestInput {
     tool_name: "Bash",
     tool_input: { command: "rm -rf /" },
     tool_use_id: "tool_use_123",
+  };
+}
+
+function createElicitationHookInput(): ElicitationHookInput {
+  return {
+    hook_event_name: "Elicitation",
+    session_id: "test-session",
+    transcript_path: "/path/to/transcript",
+    cwd: "/workspace",
+    mcp_server_name: "test-server",
+    message: "Please provide your username",
+  };
+}
+
+function createElicitationResultHookInput(): ElicitationResultHookInput {
+  return {
+    hook_event_name: "ElicitationResult",
+    session_id: "test-session",
+    transcript_path: "/path/to/transcript",
+    cwd: "/workspace",
+    mcp_server_name: "test-server",
+    action: "accept",
+  };
+}
+
+function createConfigChangeHookInput(): ConfigChangeHookInput {
+  return {
+    hook_event_name: "ConfigChange",
+    session_id: "test-session",
+    transcript_path: "/path/to/transcript",
+    cwd: "/workspace",
+    source: "user_settings",
+  };
+}
+
+function createInstructionsLoadedHookInput(): InstructionsLoadedHookInput {
+  return {
+    hook_event_name: "InstructionsLoaded",
+    session_id: "test-session",
+    transcript_path: "/path/to/transcript",
+    cwd: "/workspace",
+    file_path: "/workspace/CLAUDE.md",
+    memory_type: "Project",
+    load_reason: "session_start",
+  };
+}
+
+function createWorktreeCreateHookInput(): WorktreeCreateHookInput {
+  return {
+    hook_event_name: "WorktreeCreate",
+    session_id: "test-session",
+    transcript_path: "/path/to/transcript",
+    cwd: "/workspace",
+    name: "feature-branch",
+  };
+}
+
+function createWorktreeRemoveHookInput(): WorktreeRemoveHookInput {
+  return {
+    hook_event_name: "WorktreeRemove",
+    session_id: "test-session",
+    transcript_path: "/path/to/transcript",
+    cwd: "/workspace",
+    worktree_path: "/workspace/.worktrees/feature-branch",
   };
 }
 
@@ -631,6 +713,124 @@ describe("Hook Factory Functions", () => {
         const resolved = await result;
         expect(resolved).toHaveProperty("stdout");
       });
+    });
+  });
+
+  describe("elicitationHook", () => {
+    it("returns a HookFunction with correct hookEventName", () => {
+      const hook = elicitationHook({}, () => elicitationOutput({}));
+      expect(hook.hookEventName).toBe("Elicitation");
+    });
+
+    it("handler receives mcp_server_name and message fields", async () => {
+      let receivedInput: ElicitationHookInput | undefined;
+      const hook = elicitationHook({}, (input) => {
+        receivedInput = input;
+        return elicitationOutput({});
+      });
+      await hook(createElicitationHookInput(), { logger: testLogger });
+      expect(receivedInput?.mcp_server_name).toBe("test-server");
+      expect(receivedInput?.message).toBe("Please provide your username");
+    });
+
+    it("returns hookSpecificOutput with action", async () => {
+      const hook = elicitationHook({}, () =>
+        elicitationOutput({ hookSpecificOutput: { action: "accept", content: { username: "alice" } } }),
+      );
+      const result = await hook(createElicitationHookInput(), { logger: testLogger });
+      expect(result.stdout.hookSpecificOutput?.hookEventName).toBe("Elicitation");
+    });
+  });
+
+  describe("elicitationResultHook", () => {
+    it("returns a HookFunction with correct hookEventName", () => {
+      const hook = elicitationResultHook({}, () => elicitationResultOutput({}));
+      expect(hook.hookEventName).toBe("ElicitationResult");
+    });
+
+    it("handler receives action field", async () => {
+      let receivedInput: ElicitationResultHookInput | undefined;
+      const hook = elicitationResultHook({}, (input) => {
+        receivedInput = input;
+        return elicitationResultOutput({});
+      });
+      await hook(createElicitationResultHookInput(), { logger: testLogger });
+      expect(receivedInput?.action).toBe("accept");
+    });
+  });
+
+  describe("configChangeHook", () => {
+    it("returns a HookFunction with correct hookEventName", () => {
+      const hook = configChangeHook({}, () => configChangeOutput({}));
+      expect(hook.hookEventName).toBe("ConfigChange");
+    });
+
+    it("supports matcher for source field", () => {
+      const hook = configChangeHook({ matcher: "user_settings" }, () => configChangeOutput({}));
+      expect(hook.matcher).toBe("user_settings");
+    });
+
+    it("handler receives source field", async () => {
+      let receivedInput: ConfigChangeHookInput | undefined;
+      const hook = configChangeHook({}, (input) => {
+        receivedInput = input;
+        return configChangeOutput({});
+      });
+      await hook(createConfigChangeHookInput(), { logger: testLogger });
+      expect(receivedInput?.source).toBe("user_settings");
+    });
+  });
+
+  describe("instructionsLoadedHook", () => {
+    it("returns a HookFunction with correct hookEventName", () => {
+      const hook = instructionsLoadedHook({}, () => instructionsLoadedOutput({}));
+      expect(hook.hookEventName).toBe("InstructionsLoaded");
+    });
+
+    it("handler receives file_path and memory_type fields", async () => {
+      let receivedInput: InstructionsLoadedHookInput | undefined;
+      const hook = instructionsLoadedHook({}, (input) => {
+        receivedInput = input;
+        return instructionsLoadedOutput({});
+      });
+      await hook(createInstructionsLoadedHookInput(), { logger: testLogger });
+      expect(receivedInput?.file_path).toBe("/workspace/CLAUDE.md");
+      expect(receivedInput?.memory_type).toBe("Project");
+      expect(receivedInput?.load_reason).toBe("session_start");
+    });
+  });
+
+  describe("worktreeCreateHook", () => {
+    it("returns a HookFunction with correct hookEventName", () => {
+      const hook = worktreeCreateHook({}, () => worktreeCreateOutput({}));
+      expect(hook.hookEventName).toBe("WorktreeCreate");
+    });
+
+    it("handler receives name field", async () => {
+      let receivedInput: WorktreeCreateHookInput | undefined;
+      const hook = worktreeCreateHook({}, (input) => {
+        receivedInput = input;
+        return worktreeCreateOutput({});
+      });
+      await hook(createWorktreeCreateHookInput(), { logger: testLogger });
+      expect(receivedInput?.name).toBe("feature-branch");
+    });
+  });
+
+  describe("worktreeRemoveHook", () => {
+    it("returns a HookFunction with correct hookEventName", () => {
+      const hook = worktreeRemoveHook({}, () => worktreeRemoveOutput({}));
+      expect(hook.hookEventName).toBe("WorktreeRemove");
+    });
+
+    it("handler receives worktree_path field", async () => {
+      let receivedInput: WorktreeRemoveHookInput | undefined;
+      const hook = worktreeRemoveHook({}, (input) => {
+        receivedInput = input;
+        return worktreeRemoveOutput({});
+      });
+      await hook(createWorktreeRemoveHookInput(), { logger: testLogger });
+      expect(receivedInput?.worktree_path).toBe("/workspace/.worktrees/feature-branch");
     });
   });
 });

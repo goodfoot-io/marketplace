@@ -24,4 +24,10 @@ export const HOOK_FACTORY_TO_EVENT: Record<string, HookEventName> = {
   setupHook: "Setup",
   teammateIdleHook: "TeammateIdle",
   taskCompletedHook: "TaskCompleted",
+  elicitationHook: "Elicitation",
+  elicitationResultHook: "ElicitationResult",
+  configChangeHook: "ConfigChange",
+  instructionsLoadedHook: "InstructionsLoaded",
+  worktreeCreateHook: "WorktreeCreate",
+  worktreeRemoveHook: "WorktreeRemove",
 };

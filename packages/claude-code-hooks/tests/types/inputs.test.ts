@@ -62,6 +62,18 @@ describe("HookInput discriminated union", () => {
             return input.teammate_name;
           case "TaskCompleted":
             return input.task_id;
+          case "Elicitation":
+            return input.mcp_server_name;
+          case "ElicitationResult":
+            return input.mcp_server_name;
+          case "ConfigChange":
+            return input.source;
+          case "InstructionsLoaded":
+            return input.file_path;
+          case "WorktreeCreate":
+            return input.name;
+          case "WorktreeRemove":
+            return input.worktree_path;
           default: {
             // Exhaustiveness check
             const _exhaustive: never = input;

@@ -70,6 +70,10 @@ export function readHooksJson(hooksJsonPath: string): HooksJson {
  * ```
  */
 export function isClaudeBinaryAvailable(): boolean {
+  // If CLAUDECODE is set, we're inside a Claude Code session and can't launch nested sessions
+  if (process.env.CLAUDECODE) {
+    return false;
+  }
   try {
     execSync("which claude", { stdio: "ignore" });
     return true;

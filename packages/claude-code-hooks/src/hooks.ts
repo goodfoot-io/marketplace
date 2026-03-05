@@ -24,6 +24,10 @@
 
 import type { Logger } from "./logger.js";
 import type {
+  ConfigChangeOutput,
+  ElicitationOutput,
+  ElicitationResultOutput,
+  InstructionsLoadedOutput,
   NotificationOutput,
   PermissionRequestOutput,
   PostToolUseFailureOutput,
@@ -40,9 +44,15 @@ import type {
   TaskCompletedOutput,
   TeammateIdleOutput,
   UserPromptSubmitOutput,
+  WorktreeCreateOutput,
+  WorktreeRemoveOutput,
 } from "./outputs.js";
 import type {
+  ConfigChangeInput,
+  ElicitationInput,
+  ElicitationResultInput,
   HookEventName,
+  InstructionsLoadedInput,
   KnownToolName,
   NotificationInput,
   PermissionRequestInput,
@@ -60,6 +70,8 @@ import type {
   TeammateIdleInput,
   ToolInputMap,
   UserPromptSubmitInput,
+  WorktreeCreateInput,
+  WorktreeRemoveInput,
 } from "./types.js";
 
 // ============================================================================
@@ -1162,4 +1174,211 @@ export function taskCompletedHook(
   handler: HookHandler<TaskCompletedInput, TaskCompletedOutput>,
 ): HookFunction<TaskCompletedInput, TaskCompletedOutput> {
   return createHookFunction("TaskCompleted", config, handler);
+}
+
+// ============================================================================
+// Elicitation Hook Factory
+// ============================================================================
+
+/**
+ * Creates an Elicitation hook handler.
+ *
+ * Elicitation hooks fire when an MCP server requests user input, allowing you to:
+ * - Accept, decline, or cancel elicitation requests programmatically
+ * - Provide structured form input or URL-based auth responses
+ * - Log or audit elicitation requests
+ *
+ * **Matcher**: No matcher support - fires on all elicitation events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { elicitationHook, elicitationOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default elicitationHook({}, async (input, { logger }) => {
+ *   logger.info('Elicitation request', { server: input.mcp_server_name });
+ *   return elicitationOutput({
+ *     hookSpecificOutput: { action: 'accept', content: { approved: true } }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#elicitation
+ */
+export function elicitationHook(
+  config: HookConfig,
+  handler: HookHandler<ElicitationInput, ElicitationOutput>,
+): HookFunction<ElicitationInput, ElicitationOutput> {
+  return createHookFunction("Elicitation", config, handler);
+}
+
+// ============================================================================
+// ElicitationResult Hook Factory
+// ============================================================================
+
+/**
+ * Creates an ElicitationResult hook handler.
+ *
+ * ElicitationResult hooks fire with the result of an MCP elicitation request,
+ * allowing you to:
+ * - Observe elicitation outcomes
+ * - Modify the result before it is returned to the MCP server
+ * - Log elicitation completions
+ *
+ * **Matcher**: No matcher support - fires on all elicitation result events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { elicitationResultHook, elicitationResultOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default elicitationResultHook({}, async (input, { logger }) => {
+ *   logger.info('Elicitation result', { action: input.action });
+ *   return elicitationResultOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#elicitationresult
+ */
+export function elicitationResultHook(
+  config: HookConfig,
+  handler: HookHandler<ElicitationResultInput, ElicitationResultOutput>,
+): HookFunction<ElicitationResultInput, ElicitationResultOutput> {
+  return createHookFunction("ElicitationResult", config, handler);
+}
+
+// ============================================================================
+// ConfigChange Hook Factory
+// ============================================================================
+
+/**
+ * Creates a ConfigChange hook handler.
+ *
+ * ConfigChange hooks fire when Claude Code configuration changes, allowing you to:
+ * - React to settings file changes
+ * - Log or audit configuration changes
+ * - Apply custom logic when settings are updated
+ *
+ * **Matcher**: Matches against `source` ('user_settings', 'project_settings', etc.)
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { configChangeHook, configChangeOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default configChangeHook({}, async (input, { logger }) => {
+ *   logger.info('Config changed', { source: input.source, file: input.file_path });
+ *   return configChangeOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#configchange
+ */
+export function configChangeHook(
+  config: HookConfig,
+  handler: HookHandler<ConfigChangeInput, ConfigChangeOutput>,
+): HookFunction<ConfigChangeInput, ConfigChangeOutput> {
+  return createHookFunction("ConfigChange", config, handler);
+}
+
+// ============================================================================
+// InstructionsLoaded Hook Factory
+// ============================================================================
+
+/**
+ * Creates an InstructionsLoaded hook handler.
+ *
+ * InstructionsLoaded hooks fire when a CLAUDE.md or similar instructions file
+ * is loaded, allowing you to:
+ * - React to instructions being applied
+ * - Log which instruction files are active
+ * - Observe the instruction loading hierarchy
+ *
+ * **Matcher**: No matcher support - fires on all instruction load events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { instructionsLoadedHook, instructionsLoadedOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default instructionsLoadedHook({}, async (input, { logger }) => {
+ *   logger.info('Instructions loaded', { file: input.file_path, type: input.memory_type });
+ *   return instructionsLoadedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#instructionsloaded
+ */
+export function instructionsLoadedHook(
+  config: HookConfig,
+  handler: HookHandler<InstructionsLoadedInput, InstructionsLoadedOutput>,
+): HookFunction<InstructionsLoadedInput, InstructionsLoadedOutput> {
+  return createHookFunction("InstructionsLoaded", config, handler);
+}
+
+// ============================================================================
+// WorktreeCreate Hook Factory
+// ============================================================================
+
+/**
+ * Creates a WorktreeCreate hook handler.
+ *
+ * WorktreeCreate hooks fire when a git worktree is created, allowing you to:
+ * - Set up worktree-specific configuration
+ * - Log worktree creation events
+ * - Initialize worktree resources
+ *
+ * **Matcher**: No matcher support - fires on all worktree creation events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { worktreeCreateHook, worktreeCreateOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default worktreeCreateHook({}, async (input, { logger }) => {
+ *   logger.info('Worktree created', { name: input.name });
+ *   return worktreeCreateOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#worktreecreate
+ */
+export function worktreeCreateHook(
+  config: HookConfig,
+  handler: HookHandler<WorktreeCreateInput, WorktreeCreateOutput>,
+): HookFunction<WorktreeCreateInput, WorktreeCreateOutput> {
+  return createHookFunction("WorktreeCreate", config, handler);
+}
+
+// ============================================================================
+// WorktreeRemove Hook Factory
+// ============================================================================
+
+/**
+ * Creates a WorktreeRemove hook handler.
+ *
+ * WorktreeRemove hooks fire when a git worktree is removed, allowing you to:
+ * - Clean up worktree-specific resources
+ * - Log worktree removal events
+ *
+ * **Matcher**: No matcher support - fires on all worktree removal events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { worktreeRemoveHook, worktreeRemoveOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default worktreeRemoveHook({}, async (input, { logger }) => {
+ *   logger.info('Worktree removed', { path: input.worktree_path });
+ *   return worktreeRemoveOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#worktreeremove
+ */
+export function worktreeRemoveHook(
+  config: HookConfig,
+  handler: HookHandler<WorktreeRemoveInput, WorktreeRemoveOutput>,
+): HookFunction<WorktreeRemoveInput, WorktreeRemoveOutput> {
+  return createHookFunction("WorktreeRemove", config, handler);
 }

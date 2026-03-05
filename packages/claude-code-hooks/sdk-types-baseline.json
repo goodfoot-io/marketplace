@@ -1,11 +1,21 @@
 {
   "version": "1.0",
-  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.42",
-  "extractedAt": "2026-02-16T20:35:57.265Z",
+  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.69",
+  "extractedAt": "2026-03-05T23:19:05.193Z",
   "types": {
     "BaseHookInput": {
       "kind": "type-alias",
       "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
         {
           "name": "cwd",
           "type": "string",
@@ -31,6 +41,16 @@
     "PreToolUseHookInput": {
       "kind": "type-alias",
       "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
         {
           "name": "cwd",
           "type": "string",
@@ -76,6 +96,16 @@
     "PostToolUseHookInput": {
       "kind": "type-alias",
       "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
         {
           "name": "cwd",
           "type": "string",
@@ -126,6 +156,16 @@
     "PostToolUseFailureHookInput": {
       "kind": "type-alias",
       "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
         {
           "name": "cwd",
           "type": "string",
@@ -182,6 +222,16 @@
       "kind": "type-alias",
       "properties": [
         {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
+        {
           "name": "cwd",
           "type": "string",
           "optional": false
@@ -227,6 +277,16 @@
       "kind": "type-alias",
       "properties": [
         {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
+        {
           "name": "cwd",
           "type": "string",
           "optional": false
@@ -262,9 +322,14 @@
       "kind": "type-alias",
       "properties": [
         {
-          "name": "agent_type",
+          "name": "agent_id",
           "type": "string",
           "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string | undefined",
+          "optional": false
         },
         {
           "name": "cwd",
@@ -307,6 +372,16 @@
       "kind": "type-alias",
       "properties": [
         {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
+        {
           "name": "cwd",
           "type": "string",
           "optional": false
@@ -342,6 +417,16 @@
       "kind": "type-alias",
       "properties": [
         {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
+        {
           "name": "cwd",
           "type": "string",
           "optional": false
@@ -350,6 +435,11 @@
           "name": "hook_event_name",
           "type": "'Stop'",
           "optional": false
+        },
+        {
+          "name": "last_assistant_message",
+          "type": "string",
+          "optional": true
         },
         {
           "name": "permission_mode",
@@ -442,6 +532,11 @@
           "optional": false
         },
         {
+          "name": "last_assistant_message",
+          "type": "string",
+          "optional": true
+        },
+        {
           "name": "permission_mode",
           "type": "string",
           "optional": true
@@ -466,6 +561,16 @@
     "PreCompactHookInput": {
       "kind": "type-alias",
       "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
         {
           "name": "custom_instructions",
           "type": "string | null",
@@ -506,6 +611,16 @@
     "PermissionRequestHookInput": {
       "kind": "type-alias",
       "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
         {
           "name": "cwd",
           "type": "string",
@@ -552,6 +667,16 @@
       "kind": "type-alias",
       "properties": [
         {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
+        {
           "name": "cwd",
           "type": "string",
           "optional": false
@@ -586,6 +711,16 @@
     "TeammateIdleHookInput": {
       "kind": "type-alias",
       "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
         {
           "name": "cwd",
           "type": "string",
@@ -626,6 +761,16 @@
     "TaskCompletedHookInput": {
       "kind": "type-alias",
       "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
         {
           "name": "cwd",
           "type": "string",
@@ -695,7 +840,13 @@
         "PermissionRequestHookInput",
         "SetupHookInput",
         "TeammateIdleHookInput",
-        "TaskCompletedHookInput"
+        "TaskCompletedHookInput",
+        "ElicitationHookInput",
+        "ElicitationResultHookInput",
+        "ConfigChangeHookInput",
+        "InstructionsLoadedHookInput",
+        "WorktreeCreateHookInput",
+        "WorktreeRemoveHookInput"
       ]
     },
     "ExitReason": {
@@ -704,11 +855,11 @@
     },
     "PermissionMode": {
       "kind": "literal",
-      "literalType": "\"default\" | \"acceptEdits\" | \"bypassPermissions\" | \"plan\" | \"delegate\" | \"dontAsk\""
+      "literalType": "\"default\" | \"acceptEdits\" | \"bypassPermissions\" | \"plan\" | \"dontAsk\""
     },
     "HookEvent": {
       "kind": "literal",
-      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PermissionRequest\" | \"Setup\" | \"TeammateIdle\" | \"TaskCompleted\""
+      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PermissionRequest\" | \"Setup\" | \"TeammateIdle\" | \"TaskCompleted\" | \"Elicitation\" | \"ElicitationResult\" | \"ConfigChange\" | \"WorktreeCreate\" | \"WorktreeRemove\" | \"InstructionsLoaded\""
     },
     "NotificationHookSpecificOutput": {
       "kind": "type-alias",

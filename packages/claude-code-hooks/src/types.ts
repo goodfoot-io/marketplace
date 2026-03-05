@@ -19,8 +19,12 @@
  */
 export type {
   BaseHookInput as SDKBaseHookInput,
+  ConfigChangeHookInput as SDKConfigChangeHookInput,
+  ElicitationHookInput as SDKElicitationHookInput,
+  ElicitationResultHookInput as SDKElicitationResultHookInput,
   HookEvent as SDKHookEvent,
   HookInput as SDKHookInput,
+  InstructionsLoadedHookInput as SDKInstructionsLoadedHookInput,
   NotificationHookInput as SDKNotificationHookInput,
   PermissionMode as SDKPermissionMode,
   PermissionRequestHookInput as SDKPermissionRequestHookInput,
@@ -38,10 +42,16 @@ export type {
   TaskCompletedHookInput as SDKTaskCompletedHookInput,
   TeammateIdleHookInput as SDKTeammateIdleHookInput,
   UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
+  WorktreeCreateHookInput as SDKWorktreeCreateHookInput,
+  WorktreeRemoveHookInput as SDKWorktreeRemoveHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 
 import type {
   BaseHookInput as SDKBaseHookInput,
+  ConfigChangeHookInput as SDKConfigChangeHookInput,
+  ElicitationHookInput as SDKElicitationHookInput,
+  ElicitationResultHookInput as SDKElicitationResultHookInput,
+  InstructionsLoadedHookInput as SDKInstructionsLoadedHookInput,
   NotificationHookInput as SDKNotificationHookInput,
   PermissionMode as SDKPermissionMode,
   PermissionRequestHookInput as SDKPermissionRequestHookInput,
@@ -59,6 +69,8 @@ import type {
   TaskCompletedHookInput as SDKTaskCompletedHookInput,
   TeammateIdleHookInput as SDKTeammateIdleHookInput,
   UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
+  WorktreeCreateHookInput as SDKWorktreeCreateHookInput,
+  WorktreeRemoveHookInput as SDKWorktreeRemoveHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 
 // Import tool input types from SDK's sdk-tools declaration file.
@@ -242,6 +254,72 @@ export type TeammateIdleInput = { [K in keyof SDKTeammateIdleHookInput]: SDKTeam
 export type TaskCompletedInput = { [K in keyof SDKTaskCompletedHookInput]: SDKTaskCompletedHookInput[K] } & {};
 
 /**
+ * Input for Elicitation hooks.
+ *
+ * Fires when an MCP server requests user input (elicitation), allowing you to:
+ * - Intercept and handle MCP server prompts programmatically
+ * - Accept, decline, or cancel elicitation requests
+ * - Provide structured form input or URL-based auth responses
+ * @see https://code.claude.com/docs/en/hooks#elicitation
+ */
+export type ElicitationInput = { [K in keyof SDKElicitationHookInput]: SDKElicitationHookInput[K] } & {};
+
+/**
+ * Input for ElicitationResult hooks.
+ *
+ * Fires with the result of an elicitation request, allowing you to:
+ * - Observe and log elicitation outcomes
+ * - Modify the result before it is returned to the MCP server
+ * @see https://code.claude.com/docs/en/hooks#elicitationresult
+ */
+export type ElicitationResultInput = {
+  [K in keyof SDKElicitationResultHookInput]: SDKElicitationResultHookInput[K];
+} & {};
+
+/**
+ * Input for ConfigChange hooks.
+ *
+ * Fires when Claude Code configuration changes (settings files, skills), allowing you to:
+ * - React to configuration changes
+ * - Log or audit configuration changes
+ * - Apply custom logic when settings are updated
+ * @see https://code.claude.com/docs/en/hooks#configchange
+ */
+export type ConfigChangeInput = { [K in keyof SDKConfigChangeHookInput]: SDKConfigChangeHookInput[K] } & {};
+
+/**
+ * Input for InstructionsLoaded hooks.
+ *
+ * Fires when a CLAUDE.md (or similar instructions file) is loaded, allowing you to:
+ * - React to instructions being loaded
+ * - Log which instruction files are active for the session
+ * @see https://code.claude.com/docs/en/hooks#instructionsloaded
+ */
+export type InstructionsLoadedInput = {
+  [K in keyof SDKInstructionsLoadedHookInput]: SDKInstructionsLoadedHookInput[K];
+} & {};
+
+/**
+ * Input for WorktreeCreate hooks.
+ *
+ * Fires when a git worktree is created, allowing you to:
+ * - React to new worktree creation
+ * - Set up worktree-specific configuration
+ * @see https://code.claude.com/docs/en/hooks#worktreecreate
+ */
+export type WorktreeCreateInput = { [K in keyof SDKWorktreeCreateHookInput]: SDKWorktreeCreateHookInput[K] } & {};
+
+/**
+ * Input for WorktreeRemove hooks.
+ *
+ * Fires when a git worktree is removed, allowing you to:
+ * - React to worktree removal
+ * - Clean up worktree-specific resources
+ * @see https://code.claude.com/docs/en/hooks#worktreeremove
+ */
+export type WorktreeRemoveInput = { [K in keyof SDKWorktreeRemoveHookInput]: SDKWorktreeRemoveHookInput[K] } & {};
+
+/**
  * Input for SessionEnd hooks.
  *
  * Fires when a Claude Code session ends, allowing you to:
@@ -353,7 +431,13 @@ export type HookInput =
   | PermissionRequestInput
   | SetupInput
   | TeammateIdleInput
-  | TaskCompletedInput;
+  | TaskCompletedInput
+  | ElicitationInput
+  | ElicitationResultInput
+  | ConfigChangeInput
+  | InstructionsLoadedInput
+  | WorktreeCreateInput
+  | WorktreeRemoveInput;
 
 /**
  * Hook event name literal union.
@@ -389,6 +473,12 @@ export const HOOK_EVENT_NAMES = [
   "Setup",
   "TeammateIdle",
   "TaskCompleted",
+  "Elicitation",
+  "ElicitationResult",
+  "ConfigChange",
+  "InstructionsLoaded",
+  "WorktreeCreate",
+  "WorktreeRemove",
 ] as const satisfies readonly HookEventName[];
 
 // Re-export PermissionUpdate from SDK for convenience

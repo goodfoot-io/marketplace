@@ -37,8 +37,12 @@ export type {
   TypedPostToolUseHookInput,
   TypedPreToolUseHookInput,
 } from "./hooks.js";
-// Hook factory functions - all 15 hook types
+// Hook factory functions - all 21 hook types
 export {
+  configChangeHook,
+  elicitationHook,
+  elicitationResultHook,
+  instructionsLoadedHook,
   notificationHook,
   permissionRequestHook,
   postToolUseFailureHook,
@@ -54,6 +58,8 @@ export {
   taskCompletedHook,
   teammateIdleHook,
   userPromptSubmitHook,
+  worktreeCreateHook,
+  worktreeRemoveHook,
 } from "./hooks.js";
 
 // Logger types
@@ -67,12 +73,18 @@ export type {
   BaseOptions,
   // Options types for output builders
   CommonOptions,
+  ConfigChangeOptions,
+  ElicitationHookSpecificOutput,
+  ElicitationOptions,
+  ElicitationResultHookSpecificOutput,
+  ElicitationResultOptions,
   ExitCode,
   ExitCodeOptions,
   // Core output types
   HookOutput,
   // Hook-specific output types
   HookSpecificOutput,
+  InstructionsLoadedOptions,
   NotificationHookSpecificOutput,
   NotificationOptions,
   PermissionRequestAllowDecision,
@@ -101,17 +113,23 @@ export type {
   TeammateIdleOptions,
   UserPromptSubmitHookSpecificOutput,
   UserPromptSubmitOptions,
+  WorktreeCreateOptions,
+  WorktreeRemoveOptions,
 } from "./outputs.js";
 // Output builder functions
 export {
   // Exit codes
   EXIT_CODES,
+  configChangeOutput,
+  elicitationOutput,
+  elicitationResultOutput,
+  instructionsLoadedOutput,
   notificationOutput,
   permissionRequestOutput,
   postToolUseFailureOutput,
   postToolUseOutput,
   preCompactOutput,
-  // All 15 output builder functions
+  // All 21 output builder functions
   preToolUseOutput,
   sessionEndOutput,
   sessionStartOutput,
@@ -122,6 +140,8 @@ export {
   taskCompletedOutput,
   teammateIdleOutput,
   userPromptSubmitOutput,
+  worktreeCreateOutput,
+  worktreeRemoveOutput,
 } from "./outputs.js";
 
 // Runtime exports - execute function
@@ -174,13 +194,17 @@ export {
 export type {
   // Base type
   BaseHookInput,
+  ConfigChangeInput,
   ConfigInput,
+  ElicitationInput,
+  ElicitationResultInput,
   FileModifyingToolInput,
   FileModifyingToolName,
   // Supporting types
   HookEventName,
   // Discriminated union
   HookInput,
+  InstructionsLoadedInput,
   KnownToolInput,
   KnownToolName,
   ListMcpResourcesInput,
@@ -212,6 +236,8 @@ export type {
   TeammateIdleInput,
   ToolInputMap,
   UserPromptSubmitInput,
+  WorktreeCreateInput,
+  WorktreeRemoveInput,
 } from "./types.js";
 // Hook event names constant
 export { HOOK_EVENT_NAMES } from "./types.js";

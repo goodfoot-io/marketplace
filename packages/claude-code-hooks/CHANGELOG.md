@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0
+- Added 6 new hook types from Claude Agent SDK 0.2.69: `Elicitation`, `ElicitationResult`, `ConfigChange`, `InstructionsLoaded`, `WorktreeCreate`, `WorktreeRemove`
+- Added corresponding input types: `ElicitationInput`, `ElicitationResultInput`, `ConfigChangeInput`, `InstructionsLoadedInput`, `WorktreeCreateInput`, `WorktreeRemoveInput`
+- Added output builders: `elicitationOutput`, `elicitationResultOutput`, `configChangeOutput`, `instructionsLoadedOutput`, `worktreeCreateOutput`, `worktreeRemoveOutput`
+- Added hook factory functions: `elicitationHook`, `elicitationResultHook`, `configChangeHook`, `instructionsLoadedHook`, `worktreeCreateHook`, `worktreeRemoveHook`
+- All existing hook input types now include new optional `agent_id` and `agent_type` fields from `BaseHookInput`
+- `StopInput` and `SubagentStopInput` now include new optional `last_assistant_message` field
+- Updated `HOOK_EVENT_NAMES` constant and `HookInput` union to include all 21 hook types
+- Updated SDK type snapshot baseline to `@anthropic-ai/claude-agent-sdk@0.2.69`
+
 ## 1.1.0
 - Added exit-code-based output builders for `TeammateIdle` and `TaskCompleted` hooks, enabling hooks to block these events by writing to stderr
 - Added `stderr` support to hook outputs, allowing handlers to signal blocking behavior with a custom message alongside structured JSON output
