@@ -14,6 +14,7 @@ import { relative } from "node:path";
 import type { ESLint } from "eslint";
 import { findMissingBarrels } from "./barrel.js";
 import { processWithCache } from "./cache.js";
+import { debugLint, flushCacheSummary, time } from "./debug.js";
 import { JsdocError } from "./errors.js";
 import { createLintLinter, lintFileForLint } from "./eslint-engine.js";
 import { discoverFiles } from "./file-discovery.js";
@@ -122,9 +123,11 @@ export async function lint(
 	const tsFiles = files.filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"));
 
 	const eslint = createLintLinter(cwd);
-	const fileResults = await Promise.all(
-		tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config)),
+	debugLint("lint start files=%d pattern=%s", tsFiles.length, selector.pattern);
+	const fileResults = await time(debugLint, `lint ${tsFiles.length} files`, () =>
+		Promise.all(tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config))),
 	);
+	flushCacheSummary(`lint ${tsFiles.length} files`);
 	const missingBarrels = await findMissingBarrels(tsFiles, cwd);
 
 	return buildLintResult(fileResults, tsFiles.length, limit, missingBarrels);
@@ -153,9 +156,11 @@ export async function lintFiles(
 	);
 
 	const eslint = createLintLinter(cwd);
-	const fileResults = await Promise.all(
-		tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config)),
+	debugLint("lintFiles start files=%d", tsFiles.length);
+	const fileResults = await time(debugLint, `lintFiles ${tsFiles.length} files`, () =>
+		Promise.all(tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config))),
 	);
+	flushCacheSummary(`lintFiles ${tsFiles.length} files`);
 	const missingBarrels = await findMissingBarrels(tsFiles, cwd);
 
 	return buildLintResult(fileResults, tsFiles.length, limit, missingBarrels);

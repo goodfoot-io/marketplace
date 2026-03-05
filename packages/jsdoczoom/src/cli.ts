@@ -3,6 +3,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createDebug, debugDiscovery, flushCacheSummary, time } from "./debug.js";
 import { drilldown, drilldownFiles } from "./drilldown.js";
 import { JsdocError } from "./errors.js";
 import { discoverFiles } from "./file-discovery.js";
@@ -49,6 +50,7 @@ Options:
   --disable-cache    Skip all cache operations
   --cache-directory  Override cache directory (default: system temp)
   --explain-rule R  Explain a lint rule with examples (e.g. jsdoc/informative-docs)
+  --debug            Enable debug timing output (stderr). Equivalent to DEBUG=jsdoczoom:*
 
 Selector:
   A glob pattern or file path, optionally with @depth suffix (1-4).
@@ -115,6 +117,7 @@ interface ParsedArgs {
 	selectorArg: string | undefined;
 	extraArgs: string[];
 	searchQuery: string | undefined;
+	debug: boolean;
 }
 
 /**
@@ -148,6 +151,7 @@ function parseArgs(args: string[]): ParsedArgs {
 		selectorArg: undefined,
 		extraArgs: [],
 		searchQuery: undefined,
+		debug: false,
 	};
 
 	for (let i = 0; i < args.length; i++) {
@@ -188,6 +192,10 @@ function parseArgs(args: string[]): ParsedArgs {
 		}
 		if (arg === "--disable-cache") {
 			parsed.disableCache = true;
+			continue;
+		}
+		if (arg === "--debug") {
+			parsed.debug = true;
 			continue;
 		}
 
@@ -267,6 +275,7 @@ async function processFileList(
 	json: boolean,
 	pretty: boolean,
 	limit: number,
+	gitignore: boolean,
 	cwd: string,
 	cacheConfig: CacheConfig,
 	searchQuery: string | undefined,
@@ -279,6 +288,7 @@ async function processFileList(
 			filePaths,
 			searchQuery,
 			cwd,
+			gitignore,
 			limit,
 			cacheConfig,
 		);
@@ -300,6 +310,7 @@ async function processFileList(
 			limit,
 			cacheConfig,
 		);
+		flushCacheSummary(`drilldown ${filePaths.length} files`);
 		writeDrilldownResult(result, json, pretty);
 	}
 }
@@ -315,6 +326,7 @@ async function processStdin(
 	json: boolean,
 	pretty: boolean,
 	limit: number,
+	gitignore: boolean,
 	cwd: string,
 	cacheConfig: CacheConfig,
 	searchQuery: string | undefined,
@@ -328,6 +340,7 @@ async function processStdin(
 		json,
 		pretty,
 		limit,
+		gitignore,
 		cwd,
 		cacheConfig,
 		searchQuery,
@@ -516,6 +529,9 @@ function validateModeCombinations(parsed: ParsedArgs, json: boolean): boolean {
  */
 export async function main(args: string[], stdin?: string): Promise<void> {
 	const json = args.includes("--json");
+	if (args.includes("--debug")) {
+		createDebug.enable("jsdoczoom:*");
+	}
 	try {
 		const parsed = parseArgs(args);
 
@@ -537,6 +553,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 				parsed.json,
 				parsed.pretty,
 				parsed.limit,
+				parsed.gitignore,
 				cwd,
 				cacheConfig,
 				parsed.searchQuery,
@@ -548,10 +565,13 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 				...(parsed.selectorArg ? [parsed.selectorArg] : []),
 				...parsed.extraArgs,
 			];
-			const fileLists = await Promise.all(
-				allArgPaths.map((p) => discoverFiles(p, cwd, parsed.gitignore)),
+			const fileLists = await time(
+				debugDiscovery,
+				`discover ${allArgPaths.length} paths`,
+				() => Promise.all(allArgPaths.map((p) => discoverFiles(p, cwd, parsed.gitignore))),
 			);
 			const filePaths = [...new Set(fileLists.flat())];
+			debugDiscovery("discover total=%d unique files", filePaths.length);
 			await processFileList(
 				filePaths,
 				parsed.selectorArg,
@@ -560,6 +580,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 				parsed.json,
 				parsed.pretty,
 				parsed.limit,
+				parsed.gitignore,
 				cwd,
 				cacheConfig,
 				parsed.searchQuery,

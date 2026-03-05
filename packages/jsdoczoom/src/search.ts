@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { relative } from "node:path";
 import { processWithCache } from "./cache.js";
+import { debugSearch, flushCacheSummary, time } from "./debug.js";
 import { JsdocError } from "./errors.js";
 import { discoverFiles, loadGitignore } from "./file-discovery.js";
 import { parseFileSummaries } from "./jsdoc-parser.js";
@@ -71,6 +72,7 @@ async function processFileSafe(
 
 	// Level 1: filename/path match — fall back through levels like drilldown
 	if (regex.test(idPath)) {
+		debugSearch("depth=1 path match file=%s", idPath);
 		if (info.summary !== null) {
 			return { next_id: `${idPath}@2`, text: info.summary };
 		}
@@ -95,11 +97,13 @@ async function processFileSafe(
 
 	// Level 2: summary match
 	if (info.summary !== null && regex.test(info.summary)) {
+		debugSearch("depth=2 summary match file=%s", idPath);
 		return { next_id: `${idPath}@2`, text: info.summary };
 	}
 
 	// Level 3a: description match
 	if (info.description !== null && regex.test(info.description)) {
+		debugSearch("depth=3a description match file=%s", idPath);
 		return { next_id: `${idPath}@3`, text: info.description };
 	}
 
@@ -114,6 +118,7 @@ async function processFileSafe(
 		const chunks = splitDeclarations(dts);
 		const matching = chunks.filter((c) => regex.test(c));
 		if (matching.length > 0) {
+			debugSearch("depth=3b type-decl match file=%s chunks=%d", idPath, matching.length);
 			return {
 				next_id: `${idPath}@3`,
 				text: matching
@@ -134,6 +139,7 @@ async function processFileSafe(
 		regex.test(b.blockText),
 	);
 	if (matchingBlocks.length > 0) {
+		debugSearch("depth=4 source-block match file=%s blocks=%d", idPath, matchingBlocks.length);
 		const fenced = matchingBlocks
 			.map(
 				(b: SourceBlock) =>
@@ -143,6 +149,7 @@ async function processFileSafe(
 		return { id: `${idPath}@4`, text: fenced };
 	}
 	if (regex.test(content)) {
+		debugSearch("depth=4 full-source match file=%s", idPath);
 		return { id: `${idPath}@4`, text: `\`\`\`typescript\n${content}\n\`\`\`` };
 	}
 
@@ -185,21 +192,28 @@ async function searchFileList(
 	limit: number,
 	config: CacheConfig,
 ): Promise<DrilldownResult> {
-	const results = await Promise.all(
-		files.map(async (filePath) => {
-			try {
-				return await processFileSafe(filePath, regex, cwd, config);
-			} catch (error) {
-				if (error instanceof JsdocError && error.code === "PARSE_ERROR") {
-					return null;
-				}
-				throw error;
-			}
-		}),
+	const results = await time(
+		debugSearch,
+		`search ${files.length} files query=${regex.source}`,
+		() =>
+			Promise.all(
+				files.map(async (filePath) => {
+					try {
+						return await processFileSafe(filePath, regex, cwd, config);
+					} catch (error) {
+						if (error instanceof JsdocError && error.code === "PARSE_ERROR") {
+							return null;
+						}
+						throw error;
+					}
+				}),
+			),
 	);
 
+	flushCacheSummary(`search ${files.length} files`);
 	const matched = results.filter((r): r is OutputEntry => r !== null);
 	const sorted = matched.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+	debugSearch("matches=%d", matched.length);
 	return applyLimit(sorted, limit);
 }
 
@@ -240,6 +254,7 @@ export async function search(
  * @param filePaths - Array of absolute file paths
  * @param query - Regex query string (case-insensitive)
  * @param cwd - Working directory for relative path output
+ * @param gitignore - Whether to respect .gitignore rules (default true)
  * @param limit - Maximum number of results to return (default 100)
  * @param config - Cache configuration
  * @throws {JsdocError} INVALID_SELECTOR for invalid regex
@@ -248,21 +263,26 @@ export async function searchFiles(
 	filePaths: string[],
 	query: string,
 	cwd: string,
+	gitignore = true,
 	limit = 100,
 	config: CacheConfig = DEFAULT_CACHE_CONFIG,
 ): Promise<DrilldownResult> {
 	const regex = compileRegex(query);
 
-	const ig = await loadGitignore(cwd);
-	const tsFiles = filePaths.filter((f) => {
-		if (!(f.endsWith(".ts") || f.endsWith(".tsx")) || f.endsWith(".d.ts")) {
-			return false;
-		}
-		const rel = relative(cwd, f);
-		// Files outside cwd (traversal paths) are beyond the gitignore scope
-		if (rel.startsWith("..")) return true;
-		return !ig.ignores(rel);
-	});
+	let tsFiles = filePaths.filter(
+		(f) =>
+			(f.endsWith(".ts") || f.endsWith(".tsx")) && !f.endsWith(".d.ts"),
+	);
+
+	if (gitignore) {
+		const ig = await loadGitignore(cwd);
+		tsFiles = tsFiles.filter((f) => {
+			const rel = relative(cwd, f);
+			// Files outside cwd (traversal paths) are beyond the gitignore scope
+			if (rel.startsWith("..")) return true;
+			return !ig.ignores(rel);
+		});
+	}
 
 	return searchFileList(tsFiles, regex, cwd, limit, config);
 }

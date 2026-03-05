@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, relative } from "node:path";
 import { getBarrelChildren, isBarrel } from "./barrel.js";
 import { processWithCache } from "./cache.js";
+import { debugDrilldown } from "./debug.js";
 import { JsdocError } from "./errors.js";
 import { discoverFiles, loadGitignore } from "./file-discovery.js";
 import { parseFileSummaries } from "./jsdoc-parser.js";
@@ -119,6 +120,12 @@ function processFile(
 		effectiveDepth < TERMINAL_LEVEL &&
 		levels[effectiveDepth - 1] === null
 	) {
+		debugDrilldown(
+			"depth advance: depth=%d → %d (null level) file=%s",
+			effectiveDepth,
+			effectiveDepth + 1,
+			idPath,
+		);
 		effectiveDepth++;
 	}
 	const level = levels[effectiveDepth - 1] as { text: string };
@@ -317,6 +324,10 @@ async function processBarrelAtDepth(
 	// Null-skip: if depth 2 but no description, advance to transition depth
 	let effectiveDepth = depth;
 	if (effectiveDepth === 2 && !barrel.hasDescription) {
+		debugDrilldown(
+			"barrel depth advance: depth=2 → 3 (no description) barrel=%s",
+			relative(cwd, barrel.path),
+		);
 		effectiveDepth = 3;
 	}
 
@@ -338,6 +349,13 @@ async function processBarrelAtDepth(
 
 	// Barrel transitions: barrel disappears, children appear
 	const childDepth = effectiveDepth - 2;
+	debugDrilldown(
+		"barrel transition: barrel=%s depth=%d → children=%d at childDepth=%d",
+		relative(cwd, barrel.path),
+		effectiveDepth,
+		barrel.children.length,
+		childDepth,
+	);
 	return collectSafeResults(barrel.children, childDepth, cwd, config);
 }
 
@@ -393,6 +411,13 @@ async function processGlobWithBarrels(
 		config,
 	);
 	const gatedFiles = buildGatedFileSet(barrelInfos);
+	debugDrilldown(
+		"barrel gating: barrels=%d non-barrels=%d gated=%d depth=%d",
+		barrelPaths.length,
+		nonBarrelPaths.length,
+		gatedFiles.size,
+		depth,
+	);
 
 	const results: OutputEntry[] = [...barrelErrors];
 

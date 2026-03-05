@@ -3,6 +3,7 @@ import { relative } from "node:path";
 import type { ESLint } from "eslint";
 import { findMissingBarrels } from "./barrel.js";
 import { processWithCache } from "./cache.js";
+import { debugValidate, flushCacheSummary, time } from "./debug.js";
 import { JsdocError } from "./errors.js";
 import {
 	createValidationLinter,
@@ -150,9 +151,11 @@ export async function validate(
 	}
 
 	const eslint = createValidationLinter();
-	const statuses = await Promise.all(
-		files.map((f) => classifyFile(eslint, f, cwd, config)),
+	debugValidate("validate start files=%d pattern=%s", files.length, selector.pattern);
+	const statuses = await time(debugValidate, `validate ${files.length} files`, () =>
+		Promise.all(files.map((f) => classifyFile(eslint, f, cwd, config))),
 	);
+	flushCacheSummary(`validate ${files.length} files`);
 	const missingBarrels = await findMissingBarrels(files, cwd);
 	return buildGroupedResult(statuses, missingBarrels, limit);
 }
@@ -179,9 +182,11 @@ export async function validateFiles(
 	);
 
 	const eslint = createValidationLinter();
-	const statuses = await Promise.all(
-		tsFiles.map((f) => classifyFile(eslint, f, cwd, config)),
+	debugValidate("validateFiles start files=%d", tsFiles.length);
+	const statuses = await time(debugValidate, `validateFiles ${tsFiles.length} files`, () =>
+		Promise.all(tsFiles.map((f) => classifyFile(eslint, f, cwd, config))),
 	);
+	flushCacheSummary(`validateFiles ${tsFiles.length} files`);
 	const missingBarrels = await findMissingBarrels(tsFiles, cwd);
 	return buildGroupedResult(statuses, missingBarrels, limit);
 }

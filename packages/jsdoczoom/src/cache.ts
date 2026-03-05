@@ -11,6 +11,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { debugCache, recordCacheHit, recordCacheMiss } from "./debug.js";
 import type { CacheConfig, CacheOperationMode } from "./types.js";
 
 /**
@@ -115,9 +116,12 @@ export async function processWithCache<T>(
 
 	const cached = await readCacheEntry<T>(config, mode, hash);
 	if (cached !== null) {
+		recordCacheHit();
 		return cached;
 	}
 
+	recordCacheMiss();
+	debugCache("[MISS] mode=%s hash=%s", mode, hash.slice(0, 8));
 	const result = await compute();
 	await writeCacheEntry(config, mode, hash, result);
 	return result;

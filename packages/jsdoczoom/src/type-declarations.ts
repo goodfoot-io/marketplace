@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import ts from "typescript";
+import { debugTs, time } from "./debug.js";
 import { JsdocError } from "./errors.js";
 
 /**
@@ -529,7 +530,9 @@ export async function generateTypeDeclarations(
 	}
 
 	// Get emit output using the language service
-	const emitOutput = service.getEmitOutput(filePath, true); // true = emitOnlyDtsFiles
+	const emitOutput = await time(debugTs, `getEmitOutput ${filePath}`, async () =>
+		service.getEmitOutput(filePath, true), // true = emitOnlyDtsFiles
+	);
 
 	// Find the .d.ts output file
 	const dtsFile = emitOutput.outputFiles.find((file) =>

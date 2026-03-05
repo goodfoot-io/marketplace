@@ -7,6 +7,7 @@
 import tsParser from "@typescript-eslint/parser";
 import { ESLint } from "eslint";
 import jsdocPlugin from "eslint-plugin-jsdoc";
+import { debugEslint, time } from "./debug.js";
 import plugin from "./eslint-plugin.js";
 import type { LintDiagnostic, ValidationStatus } from "./types.js";
 
@@ -127,7 +128,9 @@ export async function lintFileForValidation(
 ): Promise<
 	Array<{ ruleId: string | null; messageId?: string; fatal?: boolean }>
 > {
-	const results = await eslint.lintText(sourceText, { filePath });
+	const results = await time(debugEslint, `validate ${filePath}`, () =>
+		eslint.lintText(sourceText, { filePath }),
+	);
 	if (results.length === 0) return [];
 	return results[0].messages.map((msg) => ({
 		ruleId: msg.ruleId,
@@ -233,7 +236,9 @@ export async function lintFileForLint(
 	sourceText: string,
 	filePath: string,
 ): Promise<LintDiagnostic[]> {
-	const results = await eslint.lintText(sourceText, { filePath });
+	const results = await time(debugEslint, `lint ${filePath}`, () =>
+		eslint.lintText(sourceText, { filePath }),
+	);
 	if (results.length === 0) return [];
 	return results[0].messages.map((msg) => {
 		const diagnostic: LintDiagnostic = {
