@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.2
+- Added `--debug` flag to enable timing and diagnostic output to stderr (equivalent to `DEBUG=jsdoczoom:*`)
+
 ## 1.2.1
 - Added support for multiple file/directory arguments in a single command
 - Fixed error formatting to plain text by default (use `--json` for JSON output)
