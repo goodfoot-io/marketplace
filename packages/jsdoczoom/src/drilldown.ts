@@ -6,7 +6,10 @@ import { debugDrilldown } from "./debug.js";
 import { JsdocError } from "./errors.js";
 import { discoverFiles, loadGitignore } from "./file-discovery.js";
 import { parseFileSummaries } from "./jsdoc-parser.js";
-import { generateTypeDeclarations } from "./type-declarations.js";
+import {
+	generateTypeDeclarations,
+	splitDeclarations,
+} from "./type-declarations.js";
 import type {
 	CacheConfig,
 	DrilldownResult,
@@ -56,6 +59,28 @@ const DEFAULT_CACHE_CONFIG: CacheConfig = {
  * Type declarations and file content are pre-computed and passed in to support
  * async cache integration.
  */
+/**
+ * Build the text for level 3 (type declarations).
+ * Description is rendered as plain markdown prose; declaration blocks
+ * (those starting with a `// L` annotation) are each wrapped in a
+ * typescript code fence. The module-level chunk (JSDoc + imports) is dropped.
+ */
+function buildLevel3Text(
+	description: string | null,
+	typeDeclarations: string,
+): string {
+	const parts: string[] = [];
+	if (description !== null) parts.push(description);
+	if (typeDeclarations.length > 0) {
+		const fenced = splitDeclarations(typeDeclarations)
+			.filter((chunk) => chunk.startsWith("// L"))
+			.map((chunk) => `\`\`\`typescript\n${chunk}\n\`\`\``)
+			.join("\n\n");
+		if (fenced) parts.push(fenced);
+	}
+	return parts.join("\n\n");
+}
+
 function buildLevels(
 	info: ParsedFileInfo,
 	typeDeclarations: string,
@@ -66,10 +91,7 @@ function buildLevels(
 		summary !== null ? { text: summary } : null,
 		description !== null ? { text: description } : null,
 		{
-			text:
-				typeDeclarations.length > 0
-					? `\`\`\`typescript\n${typeDeclarations}\n\`\`\``
-					: typeDeclarations,
+			text: buildLevel3Text(description, typeDeclarations),
 		},
 		{ text: `\`\`\`typescript\n${fileContent}\n\`\`\`` },
 	];

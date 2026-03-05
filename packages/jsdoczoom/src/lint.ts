@@ -124,8 +124,11 @@ export async function lint(
 
 	const eslint = createLintLinter(cwd);
 	debugLint("lint start files=%d pattern=%s", tsFiles.length, selector.pattern);
-	const fileResults = await time(debugLint, `lint ${tsFiles.length} files`, () =>
-		Promise.all(tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config))),
+	const fileResults = await time(
+		debugLint,
+		`lint ${tsFiles.length} files`,
+		() =>
+			Promise.all(tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config))),
 	);
 	flushCacheSummary(`lint ${tsFiles.length} files`);
 	const missingBarrels = await findMissingBarrels(tsFiles, cwd);
@@ -157,8 +160,11 @@ export async function lintFiles(
 
 	const eslint = createLintLinter(cwd);
 	debugLint("lintFiles start files=%d", tsFiles.length);
-	const fileResults = await time(debugLint, `lintFiles ${tsFiles.length} files`, () =>
-		Promise.all(tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config))),
+	const fileResults = await time(
+		debugLint,
+		`lintFiles ${tsFiles.length} files`,
+		() =>
+			Promise.all(tsFiles.map((f) => lintSingleFile(eslint, f, cwd, config))),
 	);
 	flushCacheSummary(`lintFiles ${tsFiles.length} files`);
 	const missingBarrels = await findMissingBarrels(tsFiles, cwd);

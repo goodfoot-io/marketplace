@@ -3,7 +3,12 @@
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createDebug, debugDiscovery, flushCacheSummary, time } from "./debug.js";
+import {
+	createDebug,
+	debugDiscovery,
+	flushCacheSummary,
+	time,
+} from "./debug.js";
 import { drilldown, drilldownFiles } from "./drilldown.js";
 import { JsdocError } from "./errors.js";
 import { discoverFiles } from "./file-discovery.js";
@@ -568,7 +573,10 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 			const fileLists = await time(
 				debugDiscovery,
 				`discover ${allArgPaths.length} paths`,
-				() => Promise.all(allArgPaths.map((p) => discoverFiles(p, cwd, parsed.gitignore))),
+				() =>
+					Promise.all(
+						allArgPaths.map((p) => discoverFiles(p, cwd, parsed.gitignore)),
+					),
 			);
 			const filePaths = [...new Set(fileLists.flat())];
 			debugDiscovery("discover total=%d unique files", filePaths.length);

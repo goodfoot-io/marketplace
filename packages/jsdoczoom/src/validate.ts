@@ -151,9 +151,15 @@ export async function validate(
 	}
 
 	const eslint = createValidationLinter();
-	debugValidate("validate start files=%d pattern=%s", files.length, selector.pattern);
-	const statuses = await time(debugValidate, `validate ${files.length} files`, () =>
-		Promise.all(files.map((f) => classifyFile(eslint, f, cwd, config))),
+	debugValidate(
+		"validate start files=%d pattern=%s",
+		files.length,
+		selector.pattern,
+	);
+	const statuses = await time(
+		debugValidate,
+		`validate ${files.length} files`,
+		() => Promise.all(files.map((f) => classifyFile(eslint, f, cwd, config))),
 	);
 	flushCacheSummary(`validate ${files.length} files`);
 	const missingBarrels = await findMissingBarrels(files, cwd);
@@ -183,8 +189,10 @@ export async function validateFiles(
 
 	const eslint = createValidationLinter();
 	debugValidate("validateFiles start files=%d", tsFiles.length);
-	const statuses = await time(debugValidate, `validateFiles ${tsFiles.length} files`, () =>
-		Promise.all(tsFiles.map((f) => classifyFile(eslint, f, cwd, config))),
+	const statuses = await time(
+		debugValidate,
+		`validateFiles ${tsFiles.length} files`,
+		() => Promise.all(tsFiles.map((f) => classifyFile(eslint, f, cwd, config))),
 	);
 	flushCacheSummary(`validateFiles ${tsFiles.length} files`);
 	const missingBarrels = await findMissingBarrels(tsFiles, cwd);

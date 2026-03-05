@@ -10,8 +10,8 @@
  */
 
 import { performance } from "node:perf_hooks";
-import createDebug from "debug";
 import type { Debugger } from "debug";
+import createDebug from "debug";
 
 export const debugDiscovery = createDebug("jsdoczoom:discovery");
 export const debugSearch = createDebug("jsdoczoom:search");
@@ -48,12 +48,7 @@ export function recordCacheMiss(): void {
  */
 export function flushCacheSummary(label: string): void {
 	if (_cacheHits === 0 && _cacheMisses === 0) return;
-	debugCache(
-		"[SUMMARY] %s hits=%d misses=%d",
-		label,
-		_cacheHits,
-		_cacheMisses,
-	);
+	debugCache("[SUMMARY] %s hits=%d misses=%d", label, _cacheHits, _cacheMisses);
 	_cacheHits = 0;
 	_cacheMisses = 0;
 }

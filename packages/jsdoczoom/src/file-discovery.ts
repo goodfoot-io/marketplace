@@ -69,7 +69,10 @@ async function loadGitignoreUncached(cwd: string): Promise<Ignore> {
 
 		const parent = dirname(dir);
 		if (parent === dir) {
-			debugDiscovery("gitignore walk complete at depth=%d (reached root)", walkDepth);
+			debugDiscovery(
+				"gitignore walk complete at depth=%d (reached root)",
+				walkDepth,
+			);
 			break;
 		}
 		dir = parent;
@@ -120,7 +123,11 @@ export async function discoverFiles(
 				filtered.length,
 			);
 		} else {
-			debugDiscovery("glob done pattern=%s matched=%d", pattern, filtered.length);
+			debugDiscovery(
+				"glob done pattern=%s matched=%d",
+				pattern,
+				filtered.length,
+			);
 		}
 
 		// Deduplicate by realpath so symlinks to the same physical file are
@@ -136,7 +143,11 @@ export async function discoverFiles(
 		const deduped: string[] = [];
 		for (const { abs, real } of withRealpaths) {
 			if (seen.has(real)) {
-				debugDiscovery("symlink dedup: skipping %s (same realpath as earlier entry %s)", abs, real);
+				debugDiscovery(
+					"symlink dedup: skipping %s (same realpath as earlier entry %s)",
+					abs,
+					real,
+				);
 				continue;
 			}
 			seen.add(real);
@@ -155,7 +166,10 @@ export async function discoverFiles(
 		throw new JsdocError("FILE_NOT_FOUND", `File not found: ${pattern}`);
 	}
 	if (statResult.isDirectory()) {
-		debugDiscovery("discoverFiles recursing: directory path=%s → glob", resolved);
+		debugDiscovery(
+			"discoverFiles recursing: directory path=%s → glob",
+			resolved,
+		);
 		return discoverFiles(`${resolved}/**`, cwd, gitignore);
 	}
 	return [resolved];

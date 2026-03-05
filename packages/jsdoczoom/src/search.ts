@@ -118,7 +118,11 @@ async function processFileSafe(
 		const chunks = splitDeclarations(dts);
 		const matching = chunks.filter((c) => regex.test(c));
 		if (matching.length > 0) {
-			debugSearch("depth=3b type-decl match file=%s chunks=%d", idPath, matching.length);
+			debugSearch(
+				"depth=3b type-decl match file=%s chunks=%d",
+				idPath,
+				matching.length,
+			);
 			return {
 				next_id: `${idPath}@3`,
 				text: matching
@@ -139,7 +143,11 @@ async function processFileSafe(
 		regex.test(b.blockText),
 	);
 	if (matchingBlocks.length > 0) {
-		debugSearch("depth=4 source-block match file=%s blocks=%d", idPath, matchingBlocks.length);
+		debugSearch(
+			"depth=4 source-block match file=%s blocks=%d",
+			idPath,
+			matchingBlocks.length,
+		);
 		const fenced = matchingBlocks
 			.map(
 				(b: SourceBlock) =>
@@ -270,8 +278,7 @@ export async function searchFiles(
 	const regex = compileRegex(query);
 
 	let tsFiles = filePaths.filter(
-		(f) =>
-			(f.endsWith(".ts") || f.endsWith(".tsx")) && !f.endsWith(".d.ts"),
+		(f) => (f.endsWith(".ts") || f.endsWith(".tsx")) && !f.endsWith(".d.ts"),
 	);
 
 	if (gitignore) {

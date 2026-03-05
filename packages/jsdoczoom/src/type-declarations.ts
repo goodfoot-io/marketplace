@@ -530,8 +530,10 @@ export async function generateTypeDeclarations(
 	}
 
 	// Get emit output using the language service
-	const emitOutput = await time(debugTs, `getEmitOutput ${filePath}`, async () =>
-		service.getEmitOutput(filePath, true), // true = emitOnlyDtsFiles
+	const emitOutput = await time(
+		debugTs,
+		`getEmitOutput ${filePath}`,
+		async () => service.getEmitOutput(filePath, true), // true = emitOnlyDtsFiles
 	);
 
 	// Find the .d.ts output file
