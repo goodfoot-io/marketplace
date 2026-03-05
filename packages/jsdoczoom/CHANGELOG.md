@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.2.3
+- Level-3 type declarations output now renders each declaration block in its own TypeScript code fence, with the module description as plain markdown prose; the module-level import chunk is omitted
+
+## 1.2.3
 - Level 3 (type declarations) now renders the module description as plain markdown prose, with each declaration block in its own typescript code fence; the module-level import chunk is omitted
 
 ## 1.2.2
