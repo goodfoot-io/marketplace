@@ -1,6 +1,12 @@
 # Changelog
 
 ## 1.2.0
+- Added 6 new hook types: `Elicitation`, `ElicitationResult`, `ConfigChange`, `InstructionsLoaded`, `WorktreeCreate`, and `WorktreeRemove` — each with input types, output builders, and factory functions
+- Added `agent_id` and `agent_type` fields to `BaseHookInput` (available in all hooks)
+- Added `last_assistant_message` field to `StopInput` and `SubagentStopInput`
+- Fixed CLI to exit with code 1 when no input hook files are found
+
+## 1.2.0
 - Added 6 new hook types from Claude Agent SDK 0.2.69: `Elicitation`, `ElicitationResult`, `ConfigChange`, `InstructionsLoaded`, `WorktreeCreate`, `WorktreeRemove`
 - Added corresponding input types: `ElicitationInput`, `ElicitationResultInput`, `ConfigChangeInput`, `InstructionsLoadedInput`, `WorktreeCreateInput`, `WorktreeRemoveInput`
 - Added output builders: `elicitationOutput`, `elicitationResultOutput`, `configChangeOutput`, `instructionsLoadedOutput`, `worktreeCreateOutput`, `worktreeRemoveOutput`
