@@ -9,6 +9,10 @@
  */
 
 import type {
+  ElicitationHookSpecificOutput as SDKElicitationHookSpecificOutput,
+  ElicitationResultHookSpecificOutput as SDKElicitationResultHookSpecificOutput,
+} from "@anthropic-ai/claude-agent-sdk";
+import type {
   NotificationHookSpecificOutput as SDKNotificationHookSpecificOutput,
   PermissionRequestHookSpecificOutput as SDKPermissionRequestHookSpecificOutput,
   PostToolUseFailureHookSpecificOutput as SDKPostToolUseFailureHookSpecificOutput,
@@ -20,10 +24,6 @@ import type {
   SyncHookJSONOutput as SDKSyncHookJSONOutput,
   UserPromptSubmitHookSpecificOutput as SDKUserPromptSubmitHookSpecificOutput,
 } from "@anthropic-ai/claude-agent-sdk/sdk.js";
-import type {
-  ElicitationHookSpecificOutput as SDKElicitationHookSpecificOutput,
-  ElicitationResultHookSpecificOutput as SDKElicitationResultHookSpecificOutput,
-} from "@anthropic-ai/claude-agent-sdk";
 
 // ============================================================================
 // Exit Code Constants

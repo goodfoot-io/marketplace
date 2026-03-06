@@ -118,9 +118,9 @@ export type {
 } from "./outputs.js";
 // Output builder functions
 export {
+  configChangeOutput,
   // Exit codes
   EXIT_CODES,
-  configChangeOutput,
   elicitationOutput,
   elicitationResultOutput,
   instructionsLoadedOutput,

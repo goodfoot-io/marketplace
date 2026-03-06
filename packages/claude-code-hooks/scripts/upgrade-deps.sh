@@ -169,8 +169,15 @@ echo "✓ Type checking passed"
 
 echo ""
 echo "=== Running tests ==="
-yarn test
-echo "✓ Tests passed"
+TEST_FAILED=false
+yarn test || TEST_FAILED=true
+if [[ "$TEST_FAILED" == "true" ]]; then
+  echo ""
+  echo "⚠️  Tests are failing — continuing with upgrade process anyway."
+  echo "   Review test failures above and fix them after the upgrade completes."
+else
+  echo "✓ Tests passed"
+fi
 
 echo ""
 echo "=== Running SDK type snapshot ==="
@@ -205,12 +212,22 @@ if [[ "$SDK_CHANGED" == "true" ]]; then
   echo ""
   echo "=== Analyzing SDK Changes with Claude ==="
   echo "Invoking Claude to detect new hooks, tool types, or functionality..."
+  if [[ "$TEST_FAILED" == "true" ]]; then
+    echo "⚠️  Note: Tests were failing before Claude analysis — Claude will need to fix them."
+  fi
   echo ""
 
   WORKSPACE_ROOT="$(cd "$PACKAGE_DIR/../.." && pwd)"
   cd "$WORKSPACE_ROOT"
 
-  CLAUDE_PROMPT="The @anthropic-ai/claude-agent-sdk package has been upgraded from version $CURRENT_SDK_CLEAN to $LATEST_SDK in the @goodfoot/claude-code-hooks package.
+  TEST_FAILURE_NOTE=""
+  if [[ "$TEST_FAILED" == "true" ]]; then
+    TEST_FAILURE_NOTE="
+
+**⚠️ Note: Tests were already failing before this analysis.** As part of your work, you must also identify and fix the failing tests. Run 'yarn test' in packages/claude-code-hooks to see the current failures."
+  fi
+
+  CLAUDE_PROMPT="The @anthropic-ai/claude-agent-sdk package has been upgraded from version $CURRENT_SDK_CLEAN to $LATEST_SDK in the @goodfoot/claude-code-hooks package.$TEST_FAILURE_NOTE
 
 **Your Task:** Analyze the SDK changes and update the claude-code-hooks package to support any new functionality.
 
@@ -271,4 +288,8 @@ Start by reading the SDK type definitions."
   echo "Review any changes made and run validation:"
   echo "  cd packages/claude-code-hooks"
   echo "  yarn typecheck && yarn test"
+  if [[ "$TEST_FAILED" == "true" ]]; then
+    echo ""
+    echo "⚠️  Tests were failing at the start of this run — confirm they are now fixed."
+  fi
 fi
