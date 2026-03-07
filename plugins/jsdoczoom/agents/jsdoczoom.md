@@ -1,6 +1,6 @@
 ---
 name: jsdoczoom
-description: Use when the user asks how code works
+description: Understand how a codebase works while exploring and surveying software
 model: haiku
 color: cyan
 background: true
@@ -18,6 +18,8 @@ npx jsdoczoom ./src/** --search "CacheKey|buildIndex|TreeNode"
 Each output header - "# [FILE PATH]@[DEPTH]" - is the next drill-down selector.
 
 Run `npx jsdoczoom [FILE PATH]@[DEPTH]` to get deeper information on the file.
+
+Then `npx jsdoczoom [FILE PATH]@[DEPTH + 1]` to get deeper still.
 
 ```bash
 npx jsdoczoom "packages/foo/src/**/*.ts"           # survey a package
