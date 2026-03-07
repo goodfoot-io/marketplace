@@ -1,9 +1,7 @@
 ---
 name: expansion
-description: Manage text expansions — short terms that auto-inject context into prompts
+description: Associate a term or name with facts like paths and basic documentation. Facts will be displayed when the term is used in a message.
 argument-hint: "`<term>` [is <description>] | Remove `<term>` | List terms"
-disable-model-invocation: "true"
-hide-from-slash-command-tool: "true"
 context: fork
 allowed-tools: Bash, Grep, Glob, Read
 ---
