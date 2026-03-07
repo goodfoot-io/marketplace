@@ -185,6 +185,18 @@
         "reader",
         "discovery"
       ]
+    },
+    {
+      "name": "expansion",
+      "version": "1.0.3",
+      "source": "./plugins/expansion",
+      "tags": [
+        "expansion",
+        "context",
+        "prompts",
+        "productivity",
+        "hooks"
+      ]
     }
   ]
 }
