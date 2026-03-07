@@ -25,7 +25,7 @@ export function run(args: CliArgs): string {
     case "view": {
       const facts = getExpansion(args.key);
       if (facts === undefined) {
-        process.stderr.write(`Error: term "${args.key}" not found\n`);
+        void process.stderr.write(`Error: term "${args.key}" not found\n`);
         process.exit(1);
       }
       return formatExpansion(args.key, facts);
@@ -37,13 +37,13 @@ export function run(args: CliArgs): string {
     case "remove": {
       const found = removeExpansion(args.key);
       if (!found) {
-        process.stderr.write(`Error: term "${args.key}" not found\n`);
+        void process.stderr.write(`Error: term "${args.key}" not found\n`);
         process.exit(1);
       }
       return "";
     }
     case "usage": {
-      process.stderr.write(
+      void process.stderr.write(
         "Usage:\n" +
           "  expansion --list\n" +
           "  expansion <key>\n" +
@@ -61,5 +61,5 @@ const scriptArg = process.argv[1];
 if (scriptArg && (currentFile === scriptArg || currentFile.endsWith(scriptArg))) {
   const cliArgs = parseArgs(process.argv.slice(2));
   const output = run(cliArgs);
-  if (output) process.stdout.write(`${output}\n`);
+  if (output) void process.stdout.write(`${output}\n`);
 }

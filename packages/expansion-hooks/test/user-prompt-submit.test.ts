@@ -33,11 +33,11 @@ function getAdditionalContext(result: { stdout: { hookSpecificOutput?: unknown }
   return (result.stdout.hookSpecificOutput as UserPromptSubmitHookSpecificOutput | undefined)?.additionalContext;
 }
 
-function createMockInput(prompt = "test prompt", sessionId = "test-session-123"): UserPromptSubmitInput {
+function createMockInput(prompt = "test prompt"): UserPromptSubmitInput {
   return {
     hook_event_name: "UserPromptSubmit",
     prompt,
-    session_id: sessionId,
+    session_id: "test-session-123",
     transcript_path: "/tmp/test-transcript.jsonl",
     cwd: "/workspace",
   };
@@ -45,12 +45,8 @@ function createMockInput(prompt = "test prompt", sessionId = "test-session-123")
 
 function cleanupSeenFile(sessionId: string): void {
   const path = getSeenFilePath(sessionId);
-  try {
-    if (existsSync(path)) {
-      rmSync(path);
-    }
-  } catch {
-    // ignore
+  if (existsSync(path)) {
+    rmSync(path);
   }
 }
 
