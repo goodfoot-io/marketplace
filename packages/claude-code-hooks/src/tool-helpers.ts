@@ -243,11 +243,11 @@ export function isGrepTool<T extends ToolUseInput>(
 }
 
 /**
- * Type guard for Task tool inputs.
+ * Type guard for Agent tool inputs.
  *
  * Narrows the input type to include a typed AgentInput.
  * @param input - The hook input to check
- * @returns True if the input is for a Task tool
+ * @returns True if the input is for an Agent tool
  * @example
  * ```typescript
  * if (isTaskTool(input)) {
@@ -258,8 +258,8 @@ export function isGrepTool<T extends ToolUseInput>(
  */
 export function isTaskTool<T extends ToolUseInput>(
   input: T,
-): input is T & { tool_name: "Task"; tool_input: AgentInput } {
-  return input.tool_name === "Task";
+): input is T & { tool_name: "Agent"; tool_input: AgentInput } {
+  return input.tool_name === "Agent";
 }
 
 /**

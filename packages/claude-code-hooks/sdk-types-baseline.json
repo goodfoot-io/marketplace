@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.69",
-  "extractedAt": "2026-03-05T23:19:05.193Z",
+  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.71",
+  "extractedAt": "2026-03-07T23:47:37.532Z",
   "types": {
     "BaseHookInput": {
       "kind": "type-alias",

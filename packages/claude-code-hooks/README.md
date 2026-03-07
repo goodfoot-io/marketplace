@@ -119,8 +119,8 @@ The `--hooks` argument accepts a comma-separated list of any of these 13 event t
 | `SessionStart`       | When session begins                        |
 | `SessionEnd`         | When session terminates                    |
 | `Stop`               | After main agent finishes                  |
-| `SubagentStart`      | When a Task tool starts                    |
-| `SubagentStop`       | When a Task tool completes                 |
+| `SubagentStart`      | When an Agent tool starts                   |
+| `SubagentStop`       | When an Agent tool completes                |
 | `PreCompact`         | Before context compaction                  |
 | `PermissionRequest`  | When permission is requested               |
 | `Setup`              | On init, install, or update events         |

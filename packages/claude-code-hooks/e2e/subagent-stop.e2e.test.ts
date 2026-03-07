@@ -6,7 +6,7 @@
  * - Process subagent results
  * - Clean up resources
  *
- * Note: SubagentStop hooks only fire when Claude's Task tool completes.
+ * Note: SubagentStop hooks only fire when Claude's Agent tool completes.
  */
 
 import * as fs from "node:fs";
@@ -25,13 +25,13 @@ describe("E2E: SubagentStop Hooks", () => {
     cleanOutputDir(pluginDir);
   });
 
-  it.skipIf(!CLAUDE_AVAILABLE)("fires when Task tool completes", () => {
+  it.skipIf(!CLAUDE_AVAILABLE)("fires when Agent tool completes", () => {
     // Use haiku model for subagent and a trivial task to minimize API latency
     const result = runClaude({
       prompt:
-        'Use the Task tool with subagent_type "general-purpose", model "haiku", and prompt "Reply with exactly: done". Do not do anything else.',
+        'Use the Agent tool with subagent_type "general-purpose", model "haiku", and prompt "Reply with exactly: done". Do not do anything else.',
       pluginDir,
-      tools: ["Task"],
+      tools: ["Agent"],
     });
 
     const combinedOutput = result.stdout + result.stderr;

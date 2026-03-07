@@ -847,7 +847,7 @@ export function stopHook(
 /**
  * Creates a SubagentStart hook handler.
  *
- * SubagentStart hooks fire when a subagent (Task tool) starts, allowing you to:
+ * SubagentStart hooks fire when a subagent (Agent tool) starts, allowing you to:
  * - Inject context for the subagent
  * - Log subagent invocations
  * - Configure subagent behavior

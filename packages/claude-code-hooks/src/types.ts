@@ -587,7 +587,7 @@ export type KnownToolName =
   | "Bash"
   | "Glob"
   | "Grep"
-  | "Task"
+  | "Agent"
   | "TaskOutput"
   | "ExitPlanMode"
   | "KillShell"
@@ -618,7 +618,7 @@ export interface ToolInputMap {
   Bash: BashInput;
   Glob: GlobInput;
   Grep: GrepInput;
-  Task: AgentInput;
+  Agent: AgentInput;
   TaskOutput: TaskOutputInput;
   ExitPlanMode: ExitPlanModeInput;
   KillShell: KillShellInput;

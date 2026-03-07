@@ -1,12 +1,12 @@
 /**
  * E2E tests for SubagentStart hooks.
  *
- * SubagentStart hooks run when a subagent (Task tool) starts and can:
+ * SubagentStart hooks run when a subagent (Agent tool) starts and can:
  * - Inject context for the subagent
  * - Log subagent invocations
  * - Configure subagent behavior
  *
- * Note: SubagentStart hooks only fire when Claude uses the Task tool.
+ * Note: SubagentStart hooks only fire when Claude uses the Agent tool.
  */
 
 import * as fs from "node:fs";
@@ -25,13 +25,13 @@ describe("E2E: SubagentStart Hooks", () => {
     cleanOutputDir(pluginDir);
   });
 
-  it.skipIf(!CLAUDE_AVAILABLE)("fires when Task tool is used", () => {
+  it.skipIf(!CLAUDE_AVAILABLE)("fires when Agent tool is used", () => {
     // Use haiku model for subagent and a trivial task to minimize API latency
     const result = runClaude({
       prompt:
-        'Use the Task tool with subagent_type "general-purpose", model "haiku", and prompt "Reply with exactly: done". Do not do anything else.',
+        'Use the Agent tool with subagent_type "general-purpose", model "haiku", and prompt "Reply with exactly: done". Do not do anything else.',
       pluginDir,
-      tools: ["Task"],
+      tools: ["Agent"],
     });
 
     const combinedOutput = result.stdout + result.stderr;
