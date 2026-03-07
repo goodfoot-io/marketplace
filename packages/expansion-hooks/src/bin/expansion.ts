@@ -61,5 +61,5 @@ const scriptArg = process.argv[1];
 if (scriptArg && (currentFile === scriptArg || currentFile.endsWith(scriptArg))) {
   const cliArgs = parseArgs(process.argv.slice(2));
   const output = run(cliArgs);
-  if (output) process.stdout.write(output + "\n");
+  if (output) process.stdout.write(`${output}\n`);
 }

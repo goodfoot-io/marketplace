@@ -3,7 +3,11 @@
  */
 
 import { existsSync, rmSync, writeFileSync } from "node:fs";
-import { Logger, type UserPromptSubmitHookSpecificOutput, type UserPromptSubmitInput } from "@goodfoot/claude-code-hooks";
+import {
+  Logger,
+  type UserPromptSubmitHookSpecificOutput,
+  type UserPromptSubmitInput,
+} from "@goodfoot/claude-code-hooks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import hook, { findNewTerms, getSeenFilePath, loadSeen, saveSeen } from "../src/user-prompt-submit.js";
 
