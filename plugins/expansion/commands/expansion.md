@@ -1,37 +1,48 @@
 ---
 name: expansion
 description: Manage text expansions — short terms that auto-inject context into prompts
-argument-hint: "`<term>` [is <description>] | Remove `<term>` | --list"
+argument-hint: "`<term>` [is <description>] | Remove `<term>` | List terms"
+disable-model-invocation: "true"
+hide-from-slash-command-tool: "true"
+context: fork
+allowed-tools: Bash, Grep, Glob, Read
 ---
 
-```!
-if [ -f ~/.expansion.json ]; then
-  COUNT=$(node -e "console.log(Object.keys(JSON.parse(require('fs').readFileSync(process.env.HOME+'/.expansion.json','utf8'))).length)" 2>/dev/null || echo "0")
-  echo "Current expansions: $COUNT term(s) stored"
-  node "${CLAUDE_PLUGIN_ROOT}/bin/expansion.mjs" --list 2>/dev/null || true
-else
-  echo "No expansions stored yet (~/.expansion.json does not exist)"
-fi
+<user-message>
+$ARGUMENTS
+</user-message>
+
+<placeholder-variables>
+[TERM] — Short term associated with [FACTS] to the expansion database
+[FACTS] - Array of facts related to the term
+[SHOULD_REMOVE_TERM] - `<user-message>` indicates [TERM] should be removed from the expansion database
+[SHOULD_LIST_TERMS] - `<user-message>` indicates a list of the terms stored in the expansion database is requested.
+[SHOULD_LIST_FACTS] - `<user-message>` indicates the [FACTS] about [TERM] stored in the expansion database are requested.
+</placeholder-variables>
+
+
+**If [SHOULD_LIST_TERMS]:**
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/bin/expansion.mjs --list
 ```
 
-You are managing text expansions. Parse `$ARGUMENTS` to detect the operation:
+**If [SHOULD_LIST_FACTS]:**
 
-**Detecting operation:**
-- Starts with `Remove` or `remove` → remove operation
-- Contains a backtick-quoted term and additional description → set operation
-- Contains only a backtick-quoted term alone → view operation
-- `--list` or `list` → list operation
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/bin/expansion.mjs "TERM"
+```
 
-**Set operation:**
-1. Extract the key (text between backticks) and parse the remaining description into individual facts (split on natural sentence boundaries: "stored at", "is a", "located at", etc.)
-2. Call `AskUserQuestion` with `multiSelect: true` where each proposed fact is a separate option, asking the user to confirm which facts to store
-3. Call `node ${CLAUDE_PLUGIN_ROOT}/bin/expansion.mjs "key" "fact1" "fact2" ...` with only the confirmed facts
+**If [SHOULD_REMOVE_TERM]:**
 
-**View operation:**
-Call `node ${CLAUDE_PLUGIN_ROOT}/bin/expansion.mjs "key"` and display the output.
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/bin/expansion.mjs "[TERM]" -d
+```
 
-**Remove operation:**
-Call `node ${CLAUDE_PLUGIN_ROOT}/bin/expansion.mjs "key" -d` and confirm to user.
+**Else:**
 
-**List operation:**
-Call `node ${CLAUDE_PLUGIN_ROOT}/bin/expansion.mjs --list` and display the output.
+1. Extract the [TERM] and parse the remaining description into [FACTS]
+2. Call `AskUserQuestion` with `multiSelect: true` where each proposed fact in [FACTS] is a separate option, asking the user to confirm which facts to store
+3. ```bash
+   node ${CLAUDE_PLUGIN_ROOT}/bin/expansion.mjs "[TERM]" "[FACTS][0]" "[FACTS][1]"
+   ```

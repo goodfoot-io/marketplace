@@ -1,6 +1,6 @@
 {
   "name": "expansion",
   "description": "Text expansion plugin — define short terms that automatically inject multi-line context into Claude prompts",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": { "name": "Goodfoot", "email": "contact@goodfoot.io" }
 }
