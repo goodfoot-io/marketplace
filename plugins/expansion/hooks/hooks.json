@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/user-prompt-submit.26510a0d.mjs"
+          }
+        ]
+      }
+    ]
+  },
+  "__generated": {
+    "files": [
+      "user-prompt-submit.26510a0d.mjs"
+    ],
+    "timestamp": "2026-03-07T20:21:32.333Z"
+  }
+}
