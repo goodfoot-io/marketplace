@@ -38,19 +38,19 @@ For each file specified by the user:
 
 1. **Analyze for negative complexity drivers** by invoking multiple agents simultaneously:
    ```xml
-   <invoke name="Task">
+   <invoke name="Agent">
    <parameter name="description">Identify negative complexity drivers in [filename]</parameter>
    <parameter name="subagent_type">general-purpose</parameter>
    <parameter name="prompt">Follow the instructions in \@.claude/commands/review/complexity.md replacing !`echo '$AR''GUMENTS'` with: "@[full-path-to-file]"</parameter>
    </invoke>
 
-   <invoke name="Task">
+   <invoke name="Agent">
    <parameter name="description">Identify negative complexity drivers in [filename]</parameter>
    <parameter name="subagent_type">general-purpose</parameter>
    <parameter name="prompt">Follow the instructions in \@.claude/commands/review/complexity.md replacing !`echo '$AR''GUMENTS'` with: "@[full-path-to-file]"</parameter>
    </invoke>
 
-   <invoke name="Task">
+   <invoke name="Agent">
    <parameter name="description">Identify negative complexity drivers in [filename]</parameter>
    <parameter name="subagent_type">general-purpose</parameter>
    <parameter name="prompt">Follow the instructions in \@.claude/commands/review/complexity.md replacing !`echo '$AR''GUMENTS'` with: "@[full-path-to-file]"</parameter>

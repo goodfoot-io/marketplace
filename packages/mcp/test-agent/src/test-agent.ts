@@ -279,26 +279,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request, meta) => {
           // "*" means all tools are allowed
           // Don't set allowedTools or disallowedTools - use default behavior
           // But still prevent recursive calls
-          queryOptions.disallowedTools = ['Task', 'mcp__test-agent__task'];
+          queryOptions.disallowedTools = ['Agent', 'mcp__test-agent__task'];
         } else if (toolsList.length > 0) {
           // Specific tools are allowed
           queryOptions.allowedTools = toolsList;
           // Also ensure Task and mcp__test-agent__task are never allowed to prevent recursion
           // unless explicitly specified
-          if (!toolsList.includes('Task') && !toolsList.includes('mcp__test-agent__task')) {
+          if (!toolsList.includes('Agent') && !toolsList.includes('mcp__test-agent__task')) {
             // The allowedTools list already restricts to only the specified tools
             // No need to also set disallowedTools
           }
         }
       } else {
         // No tools specified in front matter, use default behavior
-        // Prevent recursive calls and Task tool usage (like subagents)
-        queryOptions.disallowedTools = ['Task', 'mcp__test-agent__task'];
+        // Prevent recursive calls and Agent tool usage (like subagents)
+        queryOptions.disallowedTools = ['Agent', 'mcp__test-agent__task'];
       }
     } else {
       // No front matter, use default behavior
-      // Prevent recursive calls and Task tool usage (like subagents)
-      queryOptions.disallowedTools = ['Task', 'mcp__test-agent__task'];
+      // Prevent recursive calls and Agent tool usage (like subagents)
+      queryOptions.disallowedTools = ['Agent', 'mcp__test-agent__task'];
     }
 
     console.error('[DEBUG] Final query options:', queryOptions);

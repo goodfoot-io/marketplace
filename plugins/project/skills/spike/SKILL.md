@@ -201,7 +201,7 @@ Existing system uses Express.js v4.18.2 in `packages/api/src/server.ts`. Product
 Use the `Task()` tool to launch the spike investigation:
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">realtime-comparison-spike</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="model">sonnet</parameter>
@@ -311,7 +311,7 @@ Production environment uses Redis v7.0. Target deployment has 5 Node.js instance
 Use the `Task()` tool to launch the spike investigation:
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">redis-compatibility-check</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="model">sonnet</parameter>
@@ -370,7 +370,7 @@ Document findings using the Validation Result Template.
 When multiple independent spike questions need investigation, launch all spikes in parallel by combining all `Task()` calls into a single message:
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">spike-question-1</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="model">sonnet</parameter>
@@ -383,7 +383,7 @@ When multiple independent spike questions need investigation, launch all spikes 
 </parameter>
 </invoke>
 
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">spike-question-2</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="model">sonnet</parameter>
@@ -396,7 +396,7 @@ When multiple independent spike questions need investigation, launch all spikes 
 </parameter>
 </invoke>
 
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">spike-question-3</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="model">sonnet</parameter>

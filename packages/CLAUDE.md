@@ -34,7 +34,7 @@ Do not avoid linting, tests, or writing full implementations.
 <useful_cli_commands>
 ## Code Analysis
 
-For comprehensive code analysis (dependencies, types, patterns, relationships), use the Task tool with codebase-analysis subagent:
+For comprehensive code analysis (dependencies, types, patterns, relationships), use the Agent tool with codebase-analysis subagent:
 
 <invoke name="mcp__plugin_vscode_codebase__ask">
 <parameter name="question">[Your analysis question]</parameter>

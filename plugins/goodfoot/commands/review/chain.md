@@ -33,10 +33,10 @@ Analyze integration compatibility between components.
 
 **Purpose**: Identify all components and their relationships in the integration chain by tracing actual execution flow and explicit references.
 
-Use the Task tool function to invoke a `general-purpose` subagent to map the integration chain.
+Use the Agent tool function to invoke a `general-purpose` subagent to map the integration chain.
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Map integration chain components and relationships</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="prompt">Follow the instructions in @${CLAUDE_PLUGIN_ROOT}/commands/utilities/map-integration-chain.md replacing !`echo '$AR''GUMENTS'` with: "!`echo $("${CLAUDE_PLUGIN_ROOT}"/bin/wait-for-arguments)`"</parameter>
@@ -47,10 +47,10 @@ Use the Task tool function to invoke a `general-purpose` subagent to map the int
 
 **Purpose**: Understand how utility scripts transform data and resolve integration gaps that might appear as incompatibilities.
 
-Use the Task tool function to invoke a `general-purpose` subagent to analyze utility script behavior.
+Use the Agent tool function to invoke a `general-purpose` subagent to analyze utility script behavior.
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Analyze utility scripts in integration chain</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="prompt">Analyze utility scripts identified in Phase 1:
@@ -79,14 +79,14 @@ Output format:
 
 **Purpose**: Compare files to determine genuine integration incompatibilities while recognizing Claude Code design patterns.
 
-For each producer-consumer pair identified in Phase 1, use the Task tool function to invoke a `general-purpose` subagent to identify inconsistencies or incompatibilities.
+For each producer-consumer pair identified in Phase 1, use the Agent tool function to invoke a `general-purpose` subagent to identify inconsistencies or incompatibilities.
 
 Replace `[PRODUCER_FILE]` with the file path of the producer, `[CONSUMER_FILE]` with the file path of the consumer, and `[RELATIONSHIP]` with a brief description of how the producer interacts with the consumer.
 
-When analyzing multiple pairs, combine all Task tool function calls into a single message to run them in parallel.
+When analyzing multiple pairs, combine all Agent tool function calls into a single message to run them in parallel.
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">[PRODUCER_FILE] -> [CONSUMER_FILE] (context-aware)</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="prompt">Follow the instructions in @${CLAUDE_PLUGIN_ROOT}/commands/review/producer-consumer.md replacing !`echo '$AR''GUMENTS'` with: "
@@ -127,10 +127,10 @@ When analyzing multiple pairs, combine all Task tool function calls into a singl
 
 **Purpose**: Validate identified incompatibilities and classify them by severity and evidence strength before reporting.
 
-Use the Task tool function to verify and classify findings:
+Use the Agent tool function to verify and classify findings:
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Verify and classify integration issues</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="prompt">Review all incompatibilities identified in Phase 2.

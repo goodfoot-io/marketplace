@@ -15,7 +15,7 @@ Use the `Task()` tool to launch subagents.
 The `<user-message>` will describe the following inputs:
 - [TASKS]: Array of distinct tasks for subagents to perform. Each [TASKS][i] represents one distinct piece of work. (required)
 - [SUBAGENT_COUNT]: The number of subagents to perform the [TASKS]. (optional, default 3)
-- [SUBAGENT_TYPE]: The `subagent_type` to use when invoking the Task tool function. (optional, default "goodfoot:simple")
+- [SUBAGENT_TYPE]: The `subagent_type` to use when invoking the Agent tool function. (optional, default "goodfoot:simple")
 - [SUBAGENT_MODEL]: The model to use for the subagents. (optional, auto-detected if not specified)
 
 You should derive the following from the provided inputs:
@@ -267,7 +267,7 @@ Combine all `Task()` calls into a single message to execute simultaneously:
 
 ```xml
 <!-- For each i from 1 to [SUBAGENT_COUNT]: -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">[SUBAGENT_DESCRIPTION][1]</parameter>
 <parameter name="subagent_type">[SUBAGENT_TYPE]</parameter>
 <parameter name="model">[SUBAGENT_MODEL]</parameter>
@@ -279,7 +279,7 @@ Combine all `Task()` calls into a single message to execute simultaneously:
 </parameter>
 </invoke>
 
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">[SUBAGENT_DESCRIPTION][2]</parameter>
 <parameter name="subagent_type">[SUBAGENT_TYPE]</parameter>
 <parameter name="model">[SUBAGENT_MODEL]</parameter>

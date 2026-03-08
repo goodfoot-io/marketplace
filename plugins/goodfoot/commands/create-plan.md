@@ -49,7 +49,7 @@ Launch Explore subagents in parallel. Provide full paths.
 
 ```xml
 <!-- PATTERN DISCOVERY -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Discover patterns</parameter>
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
@@ -57,7 +57,7 @@ Launch Explore subagents in parallel. Provide full paths.
 </invoke>
 
 <!-- IMPACT ANALYSIS -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Analyze impact</parameter>
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
@@ -65,7 +65,7 @@ Launch Explore subagents in parallel. Provide full paths.
 </invoke>
 
 <!-- TEST DISCOVERY -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Discover tests</parameter>
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
@@ -73,7 +73,7 @@ Launch Explore subagents in parallel. Provide full paths.
 </invoke>
 
 <!-- INTERFACE DISCOVERY -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Discover interfaces</parameter>
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
@@ -220,7 +220,7 @@ This step has two phases: **Plan Review** and **Gap Analysis**. Both must pass b
 Launch a Plan subagent to evaluate the plan's structure and TDD compliance.
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Review [PROJECT_NAME] plan</parameter>
 <parameter name="subagent_type">Plan</parameter>
 <parameter name="prompt"><task>
@@ -257,7 +257,7 @@ After Plan Review passes (READY or MINOR_CHANGES), launch Tracer agents to ident
 
 ```xml
 <!-- COMPLETENESS CHECK -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Trace plan completeness</parameter>
 <parameter name="subagent_type">goodfoot:Tracer</parameter>
 <parameter name="prompt">Trace the components being modified in [FULL_PLAN_PATH]:
@@ -272,7 +272,7 @@ Report gaps in your response message as: file:line - description of missing work
 </invoke>
 
 <!-- CONSUMER COVERAGE -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Trace consumer coverage</parameter>
 <parameter name="subagent_type">goodfoot:Tracer</parameter>
 <parameter name="prompt">For each exported interface, function, or type being modified in [FULL_PLAN_PATH]:

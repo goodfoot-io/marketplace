@@ -32,7 +32,7 @@ Find **implementation gaps** where user documentation promises capabilities that
 Invoke `Alice` to describe what users expect based on [USER_PERSPECTIVE].
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">goodfoot:Alice</parameter>
 <parameter name="prompt">
 Describe the user journey for [FOCUS_AREA] using: [USER_PERSPECTIVE]
@@ -46,7 +46,7 @@ Write to [ALICE_REPORT_FILE].
 Invoke `Bob` to trace Alice's journey through [SYSTEM_PERSPECTIVE], marking gaps.
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">goodfoot:Bob</parameter>
 <parameter name="prompt">
 Trace @[ALICE_REPORT_FILE] through: [SYSTEM_PERSPECTIVE]

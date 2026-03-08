@@ -387,7 +387,7 @@ ls -la packages/website/app/hooks/
 </invoke>
 
 <!-- Use Explore agent for simple location queries -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">What files import AuthUser type from packages/api/src/types/auth.ts?</parameter>
@@ -533,7 +533,7 @@ ls -la packages/api/src/services/database.ts
 </invoke>
 
 <!-- Use Explore agent for simple location queries -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Are there existing Repository pattern implementations in packages/api/src/repositories/? List all repository files found.</parameter>

@@ -84,7 +84,7 @@ Rules are grouped by category: Identity (1-3), Structure (4-6), Language Style (
    ```
 
 2. **Preserve and enhance triggering conditions**
-    *Maintain clear activation patterns with Task tool invocation examples.*
+    *Maintain clear activation patterns with Agent tool invocation examples.*
     **Why** — Enables proper agent selection and autonomous system operation.
     **Required format for agents:**
     ```yaml
@@ -331,7 +331,7 @@ Rules are grouped by category: Identity (1-3), Structure (4-6), Language Style (
 6. **Validate and refine**
    - Check against quality checklist
    - Verify technical accuracy
-   - Ensure examples use Task tool
+   - Ensure examples use Agent tool
    - Confirm all source content preserved
 
 ### System Instruction Type Guidelines
@@ -339,7 +339,7 @@ Rules are grouped by category: Identity (1-3), Structure (4-6), Language Style (
 **Agent Instructions:**
 - Start with "You are [expertise]"
 - Include "Use this agent when..." in description
-- Provide Task tool invocation examples
+- Provide Agent tool invocation examples
 - Define proactive behaviors
 - Specify tool usage patterns
 
@@ -364,7 +364,7 @@ Rules are grouped by category: Identity (1-3), Structure (4-6), Language Style (
 - [ ] Second-person perspective used throughout ("You are/do/will")
 - [ ] YAML frontmatter complete with all required fields
 - [ ] Description starts with "Use this agent when..." (for agents)
-- [ ] Examples show Task tool invocation pattern
+- [ ] Examples show Agent tool invocation pattern
 - [ ] Tool names are valid and in CamelCase
 - [ ] Constraints integrated within operational context
 - [ ] Proactive behaviors explicitly defined
@@ -379,7 +379,7 @@ Rules are grouped by category: Identity (1-3), Structure (4-6), Language Style (
    *Right*: Consistent second-person throughout
 
 2. **Missing invocation examples**
-   *Wrong*: Description without Task tool examples
+   *Wrong*: Description without Agent tool examples
    *Right*: Clear examples showing when and how to invoke
 
 3. **Over-condensing complex behaviors**
@@ -439,6 +439,6 @@ Rules are grouped by category: Identity (1-3), Structure (4-6), Language Style (
 - Behavior: "You [action verb] [object] [method]"
 - Proactive: "You automatically [action] when [trigger]"
 - Constraint: "When [context], you [limitation]"
-- Example: Shows Task tool invocation
+- Example: Shows Agent tool invocation
 
 Remember: System instructions define persistent behavioral frameworks. Every transformation should produce instructions that enable consistent, autonomous operation while preserving all source content and maintaining appropriate complexity for the role.

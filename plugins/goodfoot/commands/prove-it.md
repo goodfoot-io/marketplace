@@ -16,7 +16,7 @@ The user message provides optional guidance on the response format or style.
 You should infer the following from the conversation context:
 - [TASKS]: Description of the tasks for agents to perform, typically involving critical evaluation of a previously presented plan or work. Inferred from recent discussion, code changes, or work being done. Default: "Critically evaluate the presented plan or work. Aim for collaborative improvement—this may mean small adjustments if that's all that's necessary, but remain open to larger ideas or complete rewrites if they better serve the goals. Other agents are performing the same evaluation. The coordinator will synthesize your input, and the user makes final decisions."
 - [AGENT_COUNT]: The number of agents to perform the [TASKS], inferred from the complexity and scope of work or explicitly specified by the user (default: 3)
-- [SUBAGENT_TYPE]: The `subagent_type` to use when invoking the Task tool function, inferred from the type of work being done (optional, default "general-purpose")
+- [SUBAGENT_TYPE]: The `subagent_type` to use when invoking the Agent tool function, inferred from the type of work being done (optional, default "general-purpose")
 
 You should derive the following from the inferred inputs:
 - [TASK]: A task for an agent to perform derived from [TASKS]. MUST include all necessary context with FULL ABSOLUTE PATHS (e.g., `/workspace/packages/api/src/file.ts`, never relative paths like `./src/file.ts`). Agents have no knowledge of this conversation or working directory.
@@ -27,7 +27,7 @@ You should derive the following from the inferred inputs:
 - Subdivision triggers: "each", "all", "every", plural references ("files", "components"), or explicit subdivision instructions
 - Singular references ("file", "plan") without subdivision keywords → redundancy (multiple agents on same task)
 - Natural subdivisions take priority over [AGENT_COUNT]
-- Investigate as needed: read files, use Task tool with "codebase-analysis" subagent, run tests, search codebase to discover items
+- Investigate as needed: read files, use Agent tool with "codebase-analysis" subagent, run tests, search codebase to discover items
 - Total `Task()` invocations = (number of distinct [TASK]s × [REDUNDANCY_LEVEL])
 
 **REDUNDANCY_LEVEL Derivation:**
@@ -100,7 +100,7 @@ Total Task() calls = (number of distinct tasks) × [REDUNDANCY_LEVEL]
 Example: 3 subdivided tasks with REDUNDANCY_LEVEL=2 requires 6 Task() calls
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">[TASK_NAME]-1</parameter>
 <parameter name="subagent_type">[SUBAGENT_TYPE]</parameter>
 <parameter name="prompt"><task>
@@ -117,7 +117,7 @@ Critically evaluate this work. Think intensely about the problem and aim for col
 ```
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">[TASK_NAME]-2</parameter>
 <parameter name="subagent_type">[SUBAGENT_TYPE]</parameter>
 <parameter name="prompt"><task>

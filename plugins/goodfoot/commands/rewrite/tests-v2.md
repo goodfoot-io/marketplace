@@ -35,7 +35,7 @@ Extract the following from `<user-message>` using best effort parsing:
 
 ### Invoke a `general-purpose` Agent to Analyze Test Failures and Type Issues
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Analyze test failures and type issues in [TARGET_DIRECTORY]</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="prompt">Follow the instructions in \@.claude/commands/review/tests-v2.md replacing !`echo '$AR''GUMENTS'` with: "Analyze test failures and type issues in @[TARGET_DIRECTORY] using '[TYPE_CHECK_COMMAND]' and '[TEST_COMMANDS]' then output the report as a message"</parameter>

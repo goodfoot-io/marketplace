@@ -19,7 +19,7 @@ When you determine failure analysis is needed, invoke a general-purpose agent to
 **Invocation Template:**
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Analyze implementation failure</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="prompt">

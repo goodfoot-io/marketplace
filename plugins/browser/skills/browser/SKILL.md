@@ -510,7 +510,7 @@ When you need to understand what's in a screenshot, use the `browser:screenshot-
 ### Example: Ask Agent First
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">browser:screenshot-description</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Path: /workspace/screenshot.png

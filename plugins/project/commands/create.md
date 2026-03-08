@@ -216,21 +216,21 @@ When investigating multiple independent aspects, execute in parallel using a sin
 </invoke>
 
 <!-- Simple location - use Explore agent for finding files by pattern -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Find all auth-related test files in packages/api/tests/ and packages/api/src/**/*.test.ts</parameter>
 </invoke>
 
 <!-- Simple location - find where types are defined -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Where are the User and AuthUser types defined in packages/api/src/? List all files containing these type definitions.</parameter>
 </invoke>
 
 <!-- Simple location - list middleware files -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">List all middleware files in packages/api/src/middleware/ and packages/api/src/**/middleware.ts</parameter>
@@ -421,7 +421,7 @@ Provides:
    ```
 2. Generate a description for the approved plan, where description-v[N].md correlates to the plan version, i.e. `plan-v2.md` would have `description-v2.md`:
    ```xml
-   <invoke name="Task">
+   <invoke name="Agent">
    <parameter name="description">Describe Plan</parameter>
    <parameter name="subagent_type">project:codebase-explainer</parameter>
    <parameter name="prompt"><project>
@@ -495,14 +495,14 @@ Address issues identified by BOTH assessors (plan-assessor and plan-refactor) or
 <!-- PARALLEL EXECUTION: Address multiple issues simultaneously -->
 
 <!-- Simple location - find where a class is defined -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Where is the UserService class located in packages/api/src/? Are there any duplicate classes with that name?</parameter>
 </invoke>
 
 <!-- Simple location - find repository implementations -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Find all files containing "Repository" in packages/api/src/repositories/ and packages/api/src/**/*repository*.ts</parameter>
@@ -597,21 +597,21 @@ Execute parallel investigations to understand different aspects of the codebase 
 </invoke>
 
 <!-- Simple location - find test files -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Find all authentication-related test files in packages/api/tests/ and packages/api/src/**/*.test.ts</parameter>
 </invoke>
 
 <!-- Simple location - find existing auth implementations -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">List all files in packages/api/src/auth/ including subdirectories. Show the directory structure.</parameter>
 </invoke>
 
 <!-- Simple location - find config files -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Find OAuth or authentication config files in packages/api/ (e.g., oauth.config.ts, auth.config.ts, passport.ts)</parameter>
@@ -750,7 +750,7 @@ Run BOTH assessors in parallel by sending both Task invocations in a SINGLE mess
 <!-- PARALLEL EXECUTION: Send both assessments in ONE message -->
 
 <!-- Assessment 1: Structural & Technical (plan-assessor) -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Structural Assessment - add-user-auth</parameter>
 <parameter name="subagent_type">project:plan-assessor</parameter>
 <parameter name="prompt"><project>
@@ -765,7 +765,7 @@ Verify it follows the structure from the project:plan skill</parameter>
 </invoke>
 
 <!-- Assessment 2: Strategic & Design (plan-refactor) - runs in parallel -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Strategic Assessment - add-user-auth</parameter>
 <parameter name="subagent_type">project:plan-refactor</parameter>
 <parameter name="prompt"><project>

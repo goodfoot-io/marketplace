@@ -51,7 +51,7 @@ CRITICAL: The orchestrator ONLY coordinates - it does NOT implement.
 ### Golden Rule
 If the user asks you to implement something → Create todo → Delegate to project:implementer
 Never use Read/Write/Edit/MultiEdit for feature implementation.
-Only use TodoWrite and Task tools for coordination.
+Only use TodoWrite and Agent tools for coordination.
 
 ### Investigation Before Delegation
 
@@ -129,7 +129,7 @@ If investigation is needed, do it first:
 
 ```xml
 <!-- Get project path and name for delegation -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Fix type mismatch</parameter>
 <parameter name="subagent_type">project:implementer</parameter>
 <parameter name="prompt">
@@ -236,7 +236,7 @@ The skill will guide you through:
 Use this template for all Task delegations to project:implementer:
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">[Task description from todo]</parameter>
 <parameter name="subagent_type">project:implementer</parameter>
 <parameter name="prompt">
@@ -342,14 +342,14 @@ Execute parallel analysis for discovered errors:
 </invoke>
 
 <!-- Simple file location - use Explore agent when you need to find related files -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Find all test files related to authentication in packages/api/tests/ and packages/api/src/**/*.test.ts</parameter>
 </invoke>
 
 <!-- Simple file location - find where a module is exported from -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Explore</parameter>
 <parameter name="model">haiku</parameter>
 <parameter name="prompt">Where is the AuthUser type exported from in packages/api/src/? List all files that define or re-export AuthUser.</parameter>
@@ -936,7 +936,7 @@ EOF
 Invoke the refactoring specialist to perform plan-aware cleanup:
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Refactor implementation</parameter>
 <parameter name="subagent_type">project:refactor</parameter>
 <parameter name="prompt">
@@ -1038,7 +1038,7 @@ EOF
 After all todos complete or are blocked:
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Evaluation</parameter>
 <parameter name="subagent_type">project:implementation-evaluator</parameter>
 <parameter name="prompt">

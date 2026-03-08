@@ -21,78 +21,78 @@ import { findClaudePid } from "./implement-plan-reloader.js";
  * This file contains one absolute file path per line.
  */
 export function getRemindPathsFilePath(claudePid: number): string {
-	return `/tmp/claude_remind_${claudePid}.paths`;
+  return `/tmp/claude_remind_${claudePid}.paths`;
 }
 
 export default sessionStartHook({ matcher: "compact" }, (_input, { logger }) => {
-	const claudePid = findClaudePid();
+  const claudePid = findClaudePid();
 
-	if (claudePid === null) {
-		logger.debug("Could not find Claude PID");
-		return sessionStartOutput({});
-	}
+  if (claudePid === null) {
+    logger.debug("Could not find Claude PID");
+    return sessionStartOutput({});
+  }
 
-	const pathsFile = getRemindPathsFilePath(claudePid);
+  const pathsFile = getRemindPathsFilePath(claudePid);
 
-	if (!existsSync(pathsFile)) {
-		logger.debug("No remind paths file for this session", { claudePid });
-		return sessionStartOutput({});
-	}
+  if (!existsSync(pathsFile)) {
+    logger.debug("No remind paths file for this session", { claudePid });
+    return sessionStartOutput({});
+  }
 
-	let rawPaths: string;
-	try {
-		rawPaths = readFileSync(pathsFile, "utf-8");
-	} catch {
-		logger.debug("Failed to read remind paths file", { claudePid });
-		return sessionStartOutput({});
-	}
+  let rawPaths: string;
+  try {
+    rawPaths = readFileSync(pathsFile, "utf-8");
+  } catch {
+    logger.debug("Failed to read remind paths file", { claudePid });
+    return sessionStartOutput({});
+  }
 
-	const filePaths = rawPaths
-		.split("\n")
-		.map((line) => line.trim())
-		.filter((line) => line.length > 0);
+  const filePaths = rawPaths
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 
-	if (filePaths.length === 0) {
-		logger.debug("Remind paths file is empty", { claudePid });
-		return sessionStartOutput({});
-	}
+  if (filePaths.length === 0) {
+    logger.debug("Remind paths file is empty", { claudePid });
+    return sessionStartOutput({});
+  }
 
-	const fileBlocks: string[] = [];
-	const missing: string[] = [];
+  const fileBlocks: string[] = [];
+  const missing: string[] = [];
 
-	for (const filePath of filePaths) {
-		if (!existsSync(filePath)) {
-			missing.push(filePath);
-			logger.warn("Reminded file no longer exists, skipping", { filePath });
-			continue;
-		}
+  for (const filePath of filePaths) {
+    if (!existsSync(filePath)) {
+      missing.push(filePath);
+      logger.warn("Reminded file no longer exists, skipping", { filePath });
+      continue;
+    }
 
-		try {
-			const content = readFileSync(filePath, "utf-8");
-			fileBlocks.push(`<file path="${filePath}">\n${content}\n</file>`);
-		} catch {
-			missing.push(filePath);
-			logger.warn("Failed to read reminded file, skipping", { filePath });
-		}
-	}
+    try {
+      const content = readFileSync(filePath, "utf-8");
+      fileBlocks.push(`<file path="${filePath}">\n${content}\n</file>`);
+    } catch {
+      missing.push(filePath);
+      logger.warn("Failed to read reminded file, skipping", { filePath });
+    }
+  }
 
-	if (fileBlocks.length === 0) {
-		logger.info("All reminded files are missing or unreadable", { claudePid, missing });
-		return sessionStartOutput({});
-	}
+  if (fileBlocks.length === 0) {
+    logger.info("All reminded files are missing or unreadable", { claudePid, missing });
+    return sessionStartOutput({});
+  }
 
-	const context = fileBlocks.join("\n\n");
+  const context = fileBlocks.join("\n\n");
 
-	logger.info("Reloading reminded files after compaction", {
-		claudePid,
-		loaded: fileBlocks.length,
-		missing: missing.length,
-	});
+  logger.info("Reloading reminded files after compaction", {
+    claudePid,
+    loaded: fileBlocks.length,
+    missing: missing.length,
+  });
 
-	return sessionStartOutput({
-		systemMessage: `Remind reloader: ${fileBlocks.length} file(s) restored after context compaction`,
-		hookSpecificOutput: {
-			additionalContext: context,
-		},
-	});
+  return sessionStartOutput({
+    systemMessage: `Remind reloader: ${fileBlocks.length} file(s) restored after context compaction`,
+    hookSpecificOutput: {
+      additionalContext: context,
+    },
+  });
 });

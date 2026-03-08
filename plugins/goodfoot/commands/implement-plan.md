@@ -160,7 +160,7 @@ Tasks: [N] tasks to implement"
 git tag -f implement/[PROJECT_NAME]/pre-implementation HEAD
 ```
 
-Dispatch tasks to subagents using the Task tool. Do not implement tasks directly—always dispatch, even for simple single-file changes.
+Dispatch tasks to subagents using the Agent tool. Do not implement tasks directly—always dispatch, even for simple single-file changes.
 
 ### Model Selection
 
@@ -186,7 +186,7 @@ Each task prompt should be self-contained with:
 **Parallel Route** - Launch all independent tasks in a single message:
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">[task-group-a]</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="model">[MODEL based on complexity]</parameter>
@@ -234,7 +234,7 @@ For new functions or methods, load the `goodfoot:tdd-implementation` skill and f
 - [ ] Types correct
 - [ ] Follows existing patterns</parameter>
 </invoke>
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">[task-group-b]</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="model">[MODEL based on complexity]</parameter>
@@ -268,7 +268,7 @@ Do not dispatch the next phase until the current phase passes validation.
 **Coherent Route** - Single agent handles all related tasks:
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">[all-related-tasks]</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="model">[MODEL - typically opus for coherent work]</parameter>
@@ -371,7 +371,7 @@ Continue the fix-and-validate cycle until:
 When dispatching fix tasks, include the exact error output:
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Fix [error-type]</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="model">[MODEL - haiku for simple fixes, sonnet for complex]</parameter>
@@ -421,7 +421,7 @@ Delegate refactoring to improve code quality while preserving behavior.
 ### Dispatch Refactoring
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Refactor implementation</parameter>
 <parameter name="subagent_type">code-simplifier:code-simplifier</parameter>
 <parameter name="prompt">
@@ -505,7 +505,7 @@ git checkout implement/[PROJECT_NAME]/pre-refactor -- $PLAN_CHANGES
 Dispatch a subagent to evaluate the implementation for production readiness:
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">Evaluate implementation quality</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="model">[MODEL - typically sonnet]</parameter>

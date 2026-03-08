@@ -73,7 +73,7 @@ console.log('TEST3:' + result3);
       // Create a mock transcript entry
       const toolCall = {
         type: 'tool_use',
-        name: 'Task',
+        name: 'Agent',
         input: {
           description: 'Evaluation',
           subagent_type: 'implementation-evaluator',
@@ -112,7 +112,7 @@ console.log('TEST3:' + result3);
 
       // Verify the format matches expected output
       expect(logEntry).toBe(`\`\`\`tool-call
-Task(
+Agent(
   description="Evaluation",
   subagent_type="implementation-evaluator",
   prompt="Evaluate project at /workspace/project"
@@ -123,7 +123,7 @@ Task(
     it('should format multiline prompts correctly', () => {
       const toolCall = {
         type: 'tool_use',
-        name: 'Task',
+        name: 'Agent',
         input: {
           description: 'Evaluation',
           subagent_type: 'implementation-evaluator',

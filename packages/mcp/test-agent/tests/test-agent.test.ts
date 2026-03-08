@@ -279,13 +279,13 @@ You are a senior engineer conducting code reviews.
         maxTurns: 100,
         includePartialMessages: true,
         abortController: expect.any(AbortController) as AbortController,
-        disallowedTools: ['Task', 'mcp__test-agent__task']
+        disallowedTools: ['Agent', 'mcp__test-agent__task']
       };
 
       // These would be the options passed to the query function
       expect(expectedOptions.maxTurns).toBe(100);
       expect(expectedOptions.includePartialMessages).toBe(true);
-      expect(expectedOptions.disallowedTools).toContain('Task');
+      expect(expectedOptions.disallowedTools).toContain('Agent');
       expect(expectedOptions.disallowedTools).toContain('mcp__test-agent__task');
     });
 

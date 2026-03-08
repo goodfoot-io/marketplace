@@ -73,7 +73,7 @@ Initialize: [REPRODUCTION_ATTEMPT] = 0
 Increment [REPRODUCTION_ATTEMPT] (max 2)
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">create-reproduction-test</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="prompt"># Task: Create Minimal Reproduction Test
@@ -218,7 +218,7 @@ Fixes that fail this check create "dead code" — new capabilities that are neve
 Increment [RESOLVE_ATTEMPT] (max 2)
 
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="description">resolve-bug</parameter>
 <parameter name="subagent_type">general-purpose</parameter>
 <parameter name="prompt"># Task: Fix Bug to Make Test Pass

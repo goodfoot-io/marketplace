@@ -9,7 +9,7 @@ MCP server for launching custom agents with configurable system instructions.
 - **Execution Logging**: Automatic logging of agent execution to `reports/.test-agent-logs/`
 - **Tool Restrictions**: Control which tools agents can access via configuration
 - **Model Selection**: Override model selection per task
-- **Recursion Prevention**: Automatically prevents recursive Task tool calls
+- **Recursion Prevention**: Automatically prevents recursive Agent tool calls
 
 ## Installation
 

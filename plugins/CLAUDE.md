@@ -120,7 +120,7 @@ For a GitHub MCP server with a "list prs" prompt:
 
 ## Plugin Subagent Naming
 
-Subagents defined in plugins are specialized AI agents invoked explicitly via the Task tool.
+Subagents defined in plugins are specialized AI agents invoked explicitly via the Agent tool.
 
 ### Naming Pattern
 
@@ -137,7 +137,7 @@ Subagents defined in plugins are specialized AI agents invoked explicitly via th
 
 **Usage**:
 ```xml
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">code-review:Analysis</parameter>
 <parameter name="description">Investigate TypeScript error</parameter>
 <parameter name="prompt">Analyze the TS2322 error at src/user.ts:45</parameter>
@@ -940,13 +940,13 @@ mcp__plugin_browser_browser__prompt()
 
 ```xml
 <!-- Wrong - missing plugin prefix -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">Analysis</parameter>
 ...
 </invoke>
 
 <!-- Correct -->
-<invoke name="Task">
+<invoke name="Agent">
 <parameter name="subagent_type">code-review:Analysis</parameter>
 ...
 </invoke>
