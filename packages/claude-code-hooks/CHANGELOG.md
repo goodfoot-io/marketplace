@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.1
+- Updated `isTaskTool` type guard and `KnownToolName`/`ToolInputMap` types to reflect the Agent tool rename (previously "Task")
+
 ## 1.2.0
 - Added 6 new hook types: `Elicitation`, `ElicitationResult`, `ConfigChange`, `InstructionsLoaded`, `WorktreeCreate`, and `WorktreeRemove` — each with input types, output builders, and factory functions
 - Added `agent_id` and `agent_type` fields to `BaseHookInput` (available in all hooks)
