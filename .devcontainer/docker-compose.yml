@@ -19,6 +19,8 @@ services:
     environment:
       - NODE_OPTIONS=--max-old-space-size=8192
       - CLAUDE_CONFIG_DIR=/home/node/.claude
+    dns:
+      - 1.1.1.1
     # Host networking mode - shares host's network namespace
     network_mode: host
     command: sleep infinity
