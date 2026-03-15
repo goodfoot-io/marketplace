@@ -3,7 +3,6 @@ name: jsdoczoom
 description: Understand how a codebase works while exploring and surveying software
 model: haiku
 color: cyan
-background: true
 tools: ["Bash", "Read"]
 ---
 
