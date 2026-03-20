@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.3
+- Added `StopFailure` hook type for handling errors that occur when Claude Code stops (API errors, rate limits, auth failures)
+- Added `PostCompact` hook type for reacting after context compaction completes
+
 ## 1.2.2
 - Reduced bundle size via tree shaking support
 
