@@ -607,6 +607,7 @@ execute(hook);
     target: "node20",
     bundle: true,
     minify: false,
+    treeShaking: true,
     write: false, // Return content directly via outputFiles
     banner: { js: esmRequireBanner },
     // Keep node built-ins external
