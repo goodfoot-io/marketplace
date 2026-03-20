@@ -143,7 +143,13 @@ export type PreCompactTrigger = "manual" | "auto";
  *
  * Note: SDK's ExitReason resolves to string. This type provides concrete literals for better DX.
  */
-export type SessionEndReason = "clear" | "resume" | "logout" | "prompt_input_exit" | "other" | "bypass_permissions_disabled";
+export type SessionEndReason =
+  | "clear"
+  | "resume"
+  | "logout"
+  | "prompt_input_exit"
+  | "other"
+  | "bypass_permissions_disabled";
 
 /**
  * Common fields present in all hook inputs.

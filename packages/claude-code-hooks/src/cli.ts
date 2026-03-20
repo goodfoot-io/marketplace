@@ -1237,22 +1237,22 @@ if (isDirectExecution) {
   });
 }
 
+export type { CliArgs, CompiledHook, HookConfig, HookMetadata, HooksJson, MatcherEntry };
 // Export for testing
 export {
-  parseArgs,
-  validateArgs,
   analyzeHookFile,
-  discoverHookFiles,
   compileHook,
-  generateContentHash,
   detectHookContext,
+  discoverHookFiles,
+  extractPreservedHooks,
   generateCommandPath,
+  generateContentHash,
   generateHooksJson,
   groupHooksByEventAndMatcher,
+  HOOK_FACTORY_TO_EVENT,
+  mergeHooksJson,
+  parseArgs,
   readExistingHooksJson,
   removeOldGeneratedFiles,
-  extractPreservedHooks,
-  mergeHooksJson,
-  HOOK_FACTORY_TO_EVENT,
+  validateArgs,
 };
-export type { CliArgs, HookMetadata, CompiledHook, HookConfig, MatcherEntry, HooksJson };
