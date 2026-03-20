@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.2
+- Reduced bundle size via tree shaking support
+
 ## 1.2.1
 - Updated `isTaskTool` type guard and `KnownToolName`/`ToolInputMap` types to reflect the Agent tool rename (previously "Task")
 
