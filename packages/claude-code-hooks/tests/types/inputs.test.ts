@@ -11,12 +11,14 @@ import type {
   HookInput,
   NotificationInput,
   PermissionRequestInput,
+  PostCompactInput,
   PostToolUseFailureInput,
   PostToolUseInput,
   PreCompactInput,
   PreToolUseInput,
   SessionEndInput,
   SessionStartInput,
+  StopFailureInput,
   StopInput,
   SubagentStartInput,
   SubagentStopInput,
@@ -74,6 +76,10 @@ describe("HookInput discriminated union", () => {
             return input.name;
           case "WorktreeRemove":
             return input.worktree_path;
+          case "StopFailure":
+            return input.error;
+          case "PostCompact":
+            return input.compact_summary;
           default: {
             // Exhaustiveness check
             const _exhaustive: never = input;

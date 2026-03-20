@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.71",
-  "extractedAt": "2026-03-07T23:47:37.532Z",
+  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.80",
+  "extractedAt": "2026-03-20T19:16:17.515Z",
   "types": {
     "BaseHookInput": {
       "kind": "type-alias",
@@ -841,6 +841,8 @@
         "SetupHookInput",
         "TeammateIdleHookInput",
         "TaskCompletedHookInput",
+        "StopFailureHookInput",
+        "PostCompactHookInput",
         "ElicitationHookInput",
         "ElicitationResultHookInput",
         "ConfigChangeHookInput",
@@ -851,7 +853,7 @@
     },
     "ExitReason": {
       "kind": "literal",
-      "literalType": "\"clear\" | \"logout\" | \"prompt_input_exit\" | \"other\" | \"bypass_permissions_disabled\""
+      "literalType": "\"clear\" | \"resume\" | \"logout\" | \"prompt_input_exit\" | \"other\" | \"bypass_permissions_disabled\""
     },
     "PermissionMode": {
       "kind": "literal",
@@ -859,7 +861,7 @@
     },
     "HookEvent": {
       "kind": "literal",
-      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PermissionRequest\" | \"Setup\" | \"TeammateIdle\" | \"TaskCompleted\" | \"Elicitation\" | \"ElicitationResult\" | \"ConfigChange\" | \"WorktreeCreate\" | \"WorktreeRemove\" | \"InstructionsLoaded\""
+      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"StopFailure\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PostCompact\" | \"PermissionRequest\" | \"Setup\" | \"TeammateIdle\" | \"TaskCompleted\" | \"Elicitation\" | \"ElicitationResult\" | \"ConfigChange\" | \"WorktreeCreate\" | \"WorktreeRemove\" | \"InstructionsLoaded\""
     },
     "NotificationHookSpecificOutput": {
       "kind": "type-alias",

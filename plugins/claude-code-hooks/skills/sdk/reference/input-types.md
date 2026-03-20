@@ -23,13 +23,15 @@ interface BaseHookInput {
 | PostToolUse | `tool_name`, `tool_input`, `tool_response`, `tool_use_id` |
 | PostToolUseFailure | `tool_name`, `tool_input`, `tool_use_id`, `error`, `is_interrupt?` |
 | SessionStart | `source` ('startup' \| 'resume' \| 'clear' \| 'compact') |
-| SessionEnd | `reason` ('clear' \| 'logout' \| 'prompt_input_exit' \| 'other') |
+| SessionEnd | `reason` ('clear' \| 'resume' \| 'logout' \| 'prompt_input_exit' \| 'other') |
 | Stop | `stop_hook_active` |
+| StopFailure | `error` |
 | SubagentStart | `agent_id`, `agent_type` |
 | SubagentStop | `stop_hook_active`, `agent_id`, `agent_type`, `agent_transcript_path` |
 | UserPromptSubmit | `prompt` |
 | Notification | `message`, `title?`, `notification_type` |
 | PreCompact | `trigger` ('manual' \| 'auto'), `custom_instructions` |
+| PostCompact | `compact_summary` |
 | PermissionRequest | `tool_name`, `tool_input`, `tool_use_id`, `permission_suggestions?` |
 | Setup | `trigger` ('init' \| 'maintenance') |
 

@@ -72,9 +72,11 @@ const EVENT_TO_OUTPUT_FUNCTION: Record<HookEventName, string> = {
   SessionStart: "sessionStartOutput",
   SessionEnd: "sessionEndOutput",
   Stop: "stopOutput",
+  StopFailure: "stopFailureOutput",
   SubagentStart: "subagentStartOutput",
   SubagentStop: "subagentStopOutput",
   PreCompact: "preCompactOutput",
+  PostCompact: "postCompactOutput",
   PermissionRequest: "permissionRequestOutput",
   Setup: "setupOutput",
   TeammateIdle: "teammateIdleOutput",
@@ -161,7 +163,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
       "@goodfoot/claude-code-hooks": "^1.0.9",
     },
     devDependencies: {
-      "@biomejs/biome": "2.4.6",
+      "@biomejs/biome": "2.4.8",
       "@types/node": "^22.0.0",
       typescript: "^5.9.3",
       vitest: "^4.0.16",
@@ -208,7 +210,7 @@ function generateTsConfig(): string {
  */
 function generateBiomeConfig(): string {
   return `{
-  "$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
   "formatter": {
     "enabled": true,
     "indentStyle": "space",

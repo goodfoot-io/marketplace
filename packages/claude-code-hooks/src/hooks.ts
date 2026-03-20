@@ -30,6 +30,7 @@ import type {
   InstructionsLoadedOutput,
   NotificationOutput,
   PermissionRequestOutput,
+  PostCompactOutput,
   PostToolUseFailureOutput,
   PostToolUseOutput,
   PreCompactOutput,
@@ -38,6 +39,7 @@ import type {
   SessionStartOutput,
   SetupOutput,
   SpecificHookOutput,
+  StopFailureOutput,
   StopOutput,
   SubagentStartOutput,
   SubagentStopOutput,
@@ -56,6 +58,7 @@ import type {
   KnownToolName,
   NotificationInput,
   PermissionRequestInput,
+  PostCompactInput,
   PostToolUseFailureInput,
   PostToolUseInput,
   PreCompactInput,
@@ -63,6 +66,7 @@ import type {
   SessionEndInput,
   SessionStartInput,
   SetupInput,
+  StopFailureInput,
   StopInput,
   SubagentStartInput,
   SubagentStopInput,
@@ -841,6 +845,44 @@ export function stopHook(
 }
 
 // ============================================================================
+// StopFailure Hook Factory
+// ============================================================================
+
+/**
+ * Creates a StopFailure hook handler.
+ *
+ * StopFailure hooks fire when Claude Code encounters an error while stopping
+ * (e.g., API errors, authentication failures, rate limits), allowing you to:
+ * - Log stop failure events and error details
+ * - Alert on unexpected session termination errors
+ * - Observe what error caused the failure
+ *
+ * **Matcher**: No matcher support - fires on all stop failure events
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { stopFailureHook, stopFailureOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default stopFailureHook({}, async (input, { logger }) => {
+ *   logger.error('Session stopped due to error', {
+ *     error: input.error,
+ *     details: input.error_details
+ *   });
+ *   return stopFailureOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#stopfailure
+ */
+export function stopFailureHook(
+  config: HookConfig,
+  handler: HookHandler<StopFailureInput, StopFailureOutput>,
+): HookFunction<StopFailureInput, StopFailureOutput> {
+  return createHookFunction("StopFailure", config, handler);
+}
+
+// ============================================================================
 // SubagentStart Hook Factory
 // ============================================================================
 
@@ -972,6 +1014,43 @@ export function preCompactHook(
   handler: HookHandler<PreCompactInput, PreCompactOutput>,
 ): HookFunction<PreCompactInput, PreCompactOutput> {
   return createHookFunction("PreCompact", config, handler);
+}
+
+// ============================================================================
+// PostCompact Hook Factory
+// ============================================================================
+
+/**
+ * Creates a PostCompact hook handler.
+ *
+ * PostCompact hooks fire after context compaction completes, allowing you to:
+ * - Observe the compaction summary and details
+ * - Log compaction events
+ * - React to the new compacted state
+ *
+ * **Matcher**: Matches against `trigger` ('manual', 'auto')
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { postCompactHook, postCompactOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default postCompactHook({}, async (input, { logger }) => {
+ *   logger.info('Context compaction completed', {
+ *     trigger: input.trigger,
+ *     summary: input.compact_summary
+ *   });
+ *   return postCompactOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#postcompact
+ */
+export function postCompactHook(
+  config: HookConfig,
+  handler: HookHandler<PostCompactInput, PostCompactOutput>,
+): HookFunction<PostCompactInput, PostCompactOutput> {
+  return createHookFunction("PostCompact", config, handler);
 }
 
 // ============================================================================

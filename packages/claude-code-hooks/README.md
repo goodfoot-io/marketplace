@@ -107,7 +107,7 @@ npm test        # Run tests
 
 ### Available Hook Types
 
-The `--hooks` argument accepts a comma-separated list of any of these 13 event types:
+The `--hooks` argument accepts a comma-separated list of any of these 15 event types:
 
 | Hook Type            | Description                                |
 | -------------------- | ------------------------------------------ |
@@ -119,9 +119,11 @@ The `--hooks` argument accepts a comma-separated list of any of these 13 event t
 | `SessionStart`       | When session begins                        |
 | `SessionEnd`         | When session terminates                    |
 | `Stop`               | After main agent finishes                  |
+| `StopFailure`        | When session stops due to an error         |
 | `SubagentStart`      | When an Agent tool starts                   |
 | `SubagentStop`       | When an Agent tool completes                |
 | `PreCompact`         | Before context compaction                  |
+| `PostCompact`        | After context compaction completes         |
 | `PermissionRequest`  | When permission is requested               |
 | `Setup`              | On init, install, or update events         |
 

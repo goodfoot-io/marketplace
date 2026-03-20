@@ -59,8 +59,6 @@ export type ExitCode = (typeof EXIT_CODES)[keyof typeof EXIT_CODES];
 /**
  * Re-export the SDK's SyncHookJSONOutput type.
  */
-export type { SDKSyncHookJSONOutput };
-
 /**
  * Re-export SDK hook-specific output types (includes hookEventName discriminator).
  */
@@ -68,14 +66,15 @@ export type {
   SDKElicitationHookSpecificOutput,
   SDKElicitationResultHookSpecificOutput,
   SDKNotificationHookSpecificOutput,
-  SDKPreToolUseHookSpecificOutput,
-  SDKPostToolUseHookSpecificOutput,
+  SDKPermissionRequestHookSpecificOutput,
   SDKPostToolUseFailureHookSpecificOutput,
-  SDKUserPromptSubmitHookSpecificOutput,
+  SDKPostToolUseHookSpecificOutput,
+  SDKPreToolUseHookSpecificOutput,
   SDKSessionStartHookSpecificOutput,
   SDKSetupHookSpecificOutput,
   SDKSubagentStartHookSpecificOutput,
-  SDKPermissionRequestHookSpecificOutput,
+  SDKSyncHookJSONOutput,
+  SDKUserPromptSubmitHookSpecificOutput,
 };
 
 // ============================================================================
@@ -304,6 +303,10 @@ export type StopOutput = BaseSpecificOutput<"Stop">;
 /**
  *
  */
+export type StopFailureOutput = BaseSpecificOutput<"StopFailure">;
+/**
+ *
+ */
 export type SubagentStartOutput = BaseSpecificOutput<"SubagentStart">;
 /**
  *
@@ -313,6 +316,10 @@ export type SubagentStopOutput = BaseSpecificOutput<"SubagentStop">;
  *
  */
 export type PreCompactOutput = BaseSpecificOutput<"PreCompact">;
+/**
+ *
+ */
+export type PostCompactOutput = BaseSpecificOutput<"PostCompact">;
 /**
  *
  */
@@ -366,9 +373,11 @@ export type SpecificHookOutput =
   | SessionStartOutput
   | SessionEndOutput
   | StopOutput
+  | StopFailureOutput
   | SubagentStartOutput
   | SubagentStopOutput
   | PreCompactOutput
+  | PostCompactOutput
   | PermissionRequestOutput
   | SetupOutput
   | TeammateIdleOutput
@@ -678,6 +687,27 @@ export interface StopOptions extends CommonOptions {
 export const stopOutput = /* @__PURE__ */ createDecisionOutputBuilder<"Stop">("Stop");
 
 // ============================================================================
+// StopFailure Output Builder
+// ============================================================================
+
+/**
+ * Options for the StopFailure output builder.
+ * StopFailure hooks only support common options.
+ */
+export type StopFailureOptions = CommonOptions;
+
+/**
+ * Creates an output for StopFailure hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A StopFailureOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * stopFailureOutput({});
+ * ```
+ */
+export const stopFailureOutput = /* @__PURE__ */ createSimpleOutputBuilder<"StopFailure">("StopFailure");
+
+// ============================================================================
 // SubagentStart Output Builder
 // ============================================================================
 
@@ -792,6 +822,27 @@ export type PreCompactOptions = CommonOptions;
  * ```
  */
 export const preCompactOutput = /* @__PURE__ */ createSimpleOutputBuilder<"PreCompact">("PreCompact");
+
+// ============================================================================
+// PostCompact Output Builder
+// ============================================================================
+
+/**
+ * Options for the PostCompact output builder.
+ * PostCompact hooks only support common options.
+ */
+export type PostCompactOptions = CommonOptions;
+
+/**
+ * Creates an output for PostCompact hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A PostCompactOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * postCompactOutput({});
+ * ```
+ */
+export const postCompactOutput = /* @__PURE__ */ createSimpleOutputBuilder<"PostCompact">("PostCompact");
 
 // ============================================================================
 // PermissionRequest Output Builder

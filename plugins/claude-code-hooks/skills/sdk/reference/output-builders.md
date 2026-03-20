@@ -366,6 +366,46 @@ export default preCompactHook({}, async (input, { logger }) => {
 });
 ```
 
+### Log Stop Failures (StopFailure)
+
+Use `stopFailureHook` to observe and log when a session stops due to an error:
+
+```typescript
+import { stopFailureHook, stopFailureOutput } from '@goodfoot/claude-code-hooks';
+import { appendFile } from 'fs/promises';
+
+export default stopFailureHook({}, async (input, { logger }) => {
+  logger.error('Session stopped due to error', {
+    error: input.error,
+    session: input.session_id
+  });
+
+  await appendFile('/tmp/stop-failures.log',
+    `${new Date().toISOString()} session=${input.session_id} error=${input.error}\n`
+  );
+
+  return stopFailureOutput({});
+});
+```
+
+### React After Context Compaction (PostCompact)
+
+Use `postCompactHook` to observe or log what happened after compaction:
+
+```typescript
+import { postCompactHook, postCompactOutput } from '@goodfoot/claude-code-hooks';
+
+export default postCompactHook({}, (input, { logger }) => {
+  logger.info('Context compaction completed', {
+    summary: input.compact_summary
+  });
+
+  return postCompactOutput({
+    systemMessage: 'Compaction complete. Resuming with compacted context.'
+  });
+});
+```
+
 ### Run Initial Setup Tasks (Setup)
 
 Use `setupHook` to perform one-time initialization or maintenance:
@@ -500,7 +540,7 @@ export default taskCompletedHook({}, (input, { logger }) => {
 });
 ```
 
-## All 15 Hook Types Reference
+## All 17 Hook Types Reference
 
 | Hook Type | Factory | Builder | Input Key |
 |-----------|---------|---------|-----------|
@@ -510,11 +550,13 @@ export default taskCompletedHook({}, (input, { logger }) => {
 | SessionStart | `sessionStartHook` | `sessionStartOutput` | `source` |
 | SessionEnd | `sessionEndHook` | `sessionEndOutput` | `reason` |
 | Stop | `stopHook` | `stopOutput` | N/A |
+| StopFailure | `stopFailureHook` | `stopFailureOutput` | `error` |
 | UserPromptSubmit | `userPromptSubmitHook` | `userPromptSubmitOutput` | N/A |
 | Notification | `notificationHook` | `notificationOutput` | `notification_type` |
 | SubagentStart | `subagentStartHook` | `subagentStartOutput` | `agent_type` |
 | SubagentStop | `subagentStopHook` | `subagentStopOutput` | `agent_type` |
 | PreCompact | `preCompactHook` | `preCompactOutput` | `trigger` |
+| PostCompact | `postCompactHook` | `postCompactOutput` | `compact_summary` |
 | PermissionRequest | `permissionRequestHook` | `permissionRequestOutput` | `tool_name` |
 | Setup | `setupHook` | `setupOutput` | `trigger` |
 | TeammateIdle | `teammateIdleHook` | `teammateIdleOutput` | `teammate_name` |
@@ -578,7 +620,7 @@ export default taskCompletedHook({}, (input, { logger }) => {
 }
 ```
 
-### sessionEndOutput / preCompactOutput
+### sessionEndOutput / preCompactOutput / postCompactOutput / stopFailureOutput
 
 ```typescript
 // No hook-specific output — only common options (systemMessage, etc.)

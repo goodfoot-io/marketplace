@@ -119,7 +119,7 @@ npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,Subage
 3.  `npm run build` (Compiles hooks to the specified output path)
 4.  `npm test` (Runs the generated tests)
 
-**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PermissionRequest`, `Setup`, `TeammateIdle`, `TaskCompleted`
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`, `PermissionRequest`, `Setup`, `TeammateIdle`, `TaskCompleted`
 
 **Monorepo?** Use `-o` to output directly to a plugin directory:
 ```bash
@@ -143,8 +143,10 @@ Different hooks have different capabilities. This table clarifies what each hook
 | SessionStart | No | No | Yes (`additionalContext`) | No |
 | SubagentStart | No | No | Yes (`additionalContext`) | No |
 | SessionEnd | No | No | No | No |
+| StopFailure | No | No | No | No |
 | Notification | No | No | Yes (`additionalContext`) | No |
 | PreCompact | No | No | No | No |
+| PostCompact | No | No | No | No |
 | Setup | No | No | Yes (`additionalContext`) | No |
 | TeammateIdle | Yes (`stderr`) | No | No | No |
 | TaskCompleted | Yes (`stderr`) | No | No | No |
@@ -263,7 +265,7 @@ For hooks in a separate package that output to a plugin directory, see [Monorepo
 ## 9. Reference Links
 
 *   **[Installation & Setup](reference/installation.md)**: Setup guide (Scaffolding vs Manual).
-*   **[All 15 Hook Types](reference/output-builders.md)**: Factories, builders, and inputs.
+*   **[All 17 Hook Types](reference/output-builders.md)**: Factories, builders, and inputs.
 *   **[Tool Input Types](reference/input-types.md)**: Type guards, helpers, and typed overloads.
 *   **[Porting from Bash](reference/porting.md)**: Migration guide.
 *   **[Logging & Debugging](reference/logging.md)**: How to see what's happening.

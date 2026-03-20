@@ -29,6 +29,7 @@ export type {
   PermissionMode as SDKPermissionMode,
   PermissionRequestHookInput as SDKPermissionRequestHookInput,
   PermissionUpdate as SDKPermissionUpdate,
+  PostCompactHookInput as SDKPostCompactHookInput,
   PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput,
   PostToolUseHookInput as SDKPostToolUseHookInput,
   PreCompactHookInput as SDKPreCompactHookInput,
@@ -36,6 +37,7 @@ export type {
   SessionEndHookInput as SDKSessionEndHookInput,
   SessionStartHookInput as SDKSessionStartHookInput,
   SetupHookInput as SDKSetupHookInput,
+  StopFailureHookInput as SDKStopFailureHookInput,
   StopHookInput as SDKStopHookInput,
   SubagentStartHookInput as SDKSubagentStartHookInput,
   SubagentStopHookInput as SDKSubagentStopHookInput,
@@ -56,6 +58,7 @@ import type {
   PermissionMode as SDKPermissionMode,
   PermissionRequestHookInput as SDKPermissionRequestHookInput,
   PermissionUpdate as SDKPermissionUpdate,
+  PostCompactHookInput as SDKPostCompactHookInput,
   PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput,
   PostToolUseHookInput as SDKPostToolUseHookInput,
   PreCompactHookInput as SDKPreCompactHookInput,
@@ -63,6 +66,7 @@ import type {
   SessionEndHookInput as SDKSessionEndHookInput,
   SessionStartHookInput as SDKSessionStartHookInput,
   SetupHookInput as SDKSetupHookInput,
+  StopFailureHookInput as SDKStopFailureHookInput,
   StopHookInput as SDKStopHookInput,
   SubagentStartHookInput as SDKSubagentStartHookInput,
   SubagentStopHookInput as SDKSubagentStopHookInput,
@@ -131,6 +135,7 @@ export type PreCompactTrigger = "manual" | "auto";
  * Reason for session end events.
  *
  * - `'clear'` - Session cleared by user
+ * - `'resume'` - Session resumed from a previous session
  * - `'logout'` - User logged out
  * - `'prompt_input_exit'` - User exited at prompt input
  * - `'other'` - Other reasons
@@ -138,7 +143,7 @@ export type PreCompactTrigger = "manual" | "auto";
  *
  * Note: SDK's ExitReason resolves to string. This type provides concrete literals for better DX.
  */
-export type SessionEndReason = "clear" | "logout" | "prompt_input_exit" | "other" | "bypass_permissions_disabled";
+export type SessionEndReason = "clear" | "resume" | "logout" | "prompt_input_exit" | "other" | "bypass_permissions_disabled";
 
 /**
  * Common fields present in all hook inputs.
@@ -218,6 +223,17 @@ export type SessionStartInput = { [K in keyof SDKSessionStartHookInput]: SDKSess
 export type StopInput = { [K in keyof SDKStopHookInput]: SDKStopHookInput[K] } & {};
 
 /**
+ * Input for StopFailure hooks.
+ *
+ * Fires when Claude Code encounters an error while stopping (e.g., API errors,
+ * rate limits, authentication failures), allowing you to:
+ * - Log stop failure events and error details
+ * - Alert on unexpected session termination errors
+ * @see https://code.claude.com/docs/en/hooks#stopfailure
+ */
+export type StopFailureInput = { [K in keyof SDKStopFailureHookInput]: SDKStopFailureHookInput[K] } & {};
+
+/**
  * Input for SubagentStart hooks.
  * @see https://code.claude.com/docs/en/hooks#subagentstart
  */
@@ -234,6 +250,17 @@ export type SubagentStopInput = { [K in keyof SDKSubagentStopHookInput]: SDKSuba
  * @see https://code.claude.com/docs/en/hooks#precompact
  */
 export type PreCompactInput = { [K in keyof SDKPreCompactHookInput]: SDKPreCompactHookInput[K] } & {};
+
+/**
+ * Input for PostCompact hooks.
+ *
+ * Fires after context compaction completes, allowing you to:
+ * - Observe the compaction summary
+ * - Log compaction events with context details
+ * - React to the new compacted state
+ * @see https://code.claude.com/docs/en/hooks#postcompact
+ */
+export type PostCompactInput = { [K in keyof SDKPostCompactHookInput]: SDKPostCompactHookInput[K] } & {};
 
 /**
  * Input for Setup hooks.
@@ -425,9 +452,11 @@ export type HookInput =
   | SessionStartInput
   | SessionEndInput
   | StopInput
+  | StopFailureInput
   | SubagentStartInput
   | SubagentStopInput
   | PreCompactInput
+  | PostCompactInput
   | PermissionRequestInput
   | SetupInput
   | TeammateIdleInput
@@ -466,9 +495,11 @@ export const HOOK_EVENT_NAMES = [
   "SessionStart",
   "SessionEnd",
   "Stop",
+  "StopFailure",
   "SubagentStart",
   "SubagentStop",
   "PreCompact",
+  "PostCompact",
   "PermissionRequest",
   "Setup",
   "TeammateIdle",
