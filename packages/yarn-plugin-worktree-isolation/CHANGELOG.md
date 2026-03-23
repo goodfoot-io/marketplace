@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0
+
+- Added `afterAllInstalled` hook to re-symlink per-workspace `node_modules` into the worktree's own root `node_modules` after install completes
+- Added `createInternalSymlink` utility function
+
 ## 1.0.1
 
 - Initial release of the worktree isolation plugin

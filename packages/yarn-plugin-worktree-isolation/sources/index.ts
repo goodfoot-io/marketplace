@@ -17,7 +17,7 @@
  * @packageDocumentation
  */
 
-import type { Plugin, Hooks } from '@yarnpkg/core';
+import type { Plugin, Hooks, Project } from '@yarnpkg/core';
 import type { PortablePath } from '@yarnpkg/fslib';
 import fs from 'fs';
 import path from 'path';
@@ -108,7 +108,7 @@ export function removeSymlink(filePath: string, verbose: boolean): boolean {
       return true;
     }
   } catch {
-    // File doesn't exist or can't be read
+    return false;
   }
   return false;
 }
@@ -130,6 +130,37 @@ export function findWorkspaceNodeModules(projectRoot: string, workspaces: Worksp
   }
   return nodeModulesPaths;
 }
+
+/**
+ * Creates a symlink at `symlinkPath` pointing (relatively) to `rootNodeModules`.
+ *
+ * Uses a relative target so the symlink remains valid regardless of where the
+ * worktree is mounted.
+ *
+ * @param symlinkPath - The path where the new symlink should be created
+ * @param rootNodeModules - The worktree's own root node_modules directory
+ * @param verbose - If true, logs the creation to console
+ * @returns `true` if the symlink was successfully created, `false` otherwise
+ */
+export function createInternalSymlink(symlinkPath: string, rootNodeModules: string, verbose: boolean): boolean {
+  try {
+    const symlinkDir = path.dirname(symlinkPath);
+    const relativeTarget = path.relative(symlinkDir, rootNodeModules);
+    fs.symlinkSync(relativeTarget, symlinkPath);
+    if (verbose) {
+      console.log(`[worktree-isolation] Created symlink: ${symlinkPath} -> ${relativeTarget}`);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Workspace node_modules paths that were removed during validateProject and
+ * should be re-symlinked after install completes.
+ */
+const pendingResymlinks: { symlinkPath: string; projectRoot: string }[] = [];
 
 /**
  * The plugin hooks implementation.
@@ -171,6 +202,11 @@ const hooks: Hooks = {
           unlinkedCount++;
           const relativePath = path.relative(projectRoot, nodeModulesPath);
           unlinkedPaths.push(relativePath);
+          // Skip the root node_modules — Yarn will regenerate it. Only
+          // per-workspace node_modules need to be re-symlinked afterward.
+          if (nodeModulesPath !== path.join(projectRoot, 'node_modules')) {
+            pendingResymlinks.push({ symlinkPath: nodeModulesPath, projectRoot });
+          }
         }
       }
     }
@@ -180,6 +216,29 @@ const hooks: Hooks = {
       report.reportWarning(MessageName.UNNAMED, message);
       console.log(`[worktree-isolation] ${message}`);
     }
+  },
+
+  afterAllInstalled(project: Project): void {
+    if (process.env.WORKTREE_ISOLATION_DISABLE === '1') {
+      pendingResymlinks.length = 0;
+      return;
+    }
+    if (pendingResymlinks.length === 0) {
+      return;
+    }
+
+    const verbose = process.env.WORKTREE_ISOLATION_VERBOSE === '1';
+
+    for (const { symlinkPath, projectRoot } of pendingResymlinks) {
+      // Only create the symlink if Yarn didn't already populate the directory.
+      if (fs.existsSync(symlinkPath)) {
+        continue;
+      }
+      const rootNodeModules = path.join(projectRoot, 'node_modules');
+      createInternalSymlink(symlinkPath, rootNodeModules, verbose);
+    }
+
+    pendingResymlinks.length = 0;
   }
 };
 

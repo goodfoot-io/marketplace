@@ -1,7 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { isExternalSymlink, isGitWorktree, removeSymlink, findWorkspaceNodeModules } from '../sources/index.js';
+import { isExternalSymlink, isGitWorktree, removeSymlink, findWorkspaceNodeModules, createInternalSymlink } from '../sources/index.js';
 
 describe('yarn-plugin-worktree-isolation', () => {
   let tempDir: string;
@@ -139,6 +139,62 @@ describe('yarn-plugin-worktree-isolation', () => {
         expect(fs.existsSync(symlinkPath)).toBe(false);
         // No log messages should be output when verbose is false
         expect(logMessages.length).toBe(0);
+      } finally {
+        console.log = originalLog;
+      }
+    });
+  });
+
+  describe('createInternalSymlink', () => {
+    it('creates a relative symlink pointing to rootNodeModules', () => {
+      const rootNodeModules = path.join(tempDir, 'node_modules');
+      fs.mkdirSync(rootNodeModules);
+      const workspaceDir = path.join(tempDir, 'packages', 'foo');
+      fs.mkdirSync(workspaceDir, { recursive: true });
+      const symlinkPath = path.join(workspaceDir, 'node_modules');
+
+      expect(createInternalSymlink(symlinkPath, rootNodeModules, false)).toBe(true);
+      expect(fs.lstatSync(symlinkPath).isSymbolicLink()).toBe(true);
+      // Target should be relative, not absolute
+      expect(fs.readlinkSync(symlinkPath)).toBe('../../node_modules');
+      // Resolving the symlink should reach the root node_modules
+      expect(fs.realpathSync(symlinkPath)).toBe(fs.realpathSync(rootNodeModules));
+    });
+
+    it('returns false when symlink already exists', () => {
+      const rootNodeModules = path.join(tempDir, 'node_modules');
+      fs.mkdirSync(rootNodeModules);
+      const workspaceDir = path.join(tempDir, 'packages', 'foo');
+      fs.mkdirSync(workspaceDir, { recursive: true });
+      const symlinkPath = path.join(workspaceDir, 'node_modules');
+      fs.symlinkSync(rootNodeModules, symlinkPath);
+
+      expect(createInternalSymlink(symlinkPath, rootNodeModules, false)).toBe(false);
+    });
+
+    it('returns false when parent directory does not exist', () => {
+      const rootNodeModules = path.join(tempDir, 'node_modules');
+      fs.mkdirSync(rootNodeModules);
+      const symlinkPath = path.join(tempDir, 'nonexistent', 'node_modules');
+
+      expect(createInternalSymlink(symlinkPath, rootNodeModules, false)).toBe(false);
+    });
+
+    it('logs when verbose is true', () => {
+      const rootNodeModules = path.join(tempDir, 'node_modules');
+      fs.mkdirSync(rootNodeModules);
+      const workspaceDir = path.join(tempDir, 'packages', 'bar');
+      fs.mkdirSync(workspaceDir, { recursive: true });
+      const symlinkPath = path.join(workspaceDir, 'node_modules');
+
+      const originalLog = console.log;
+      const logMessages: string[] = [];
+      console.log = (message: string) => logMessages.push(message);
+
+      try {
+        expect(createInternalSymlink(symlinkPath, rootNodeModules, true)).toBe(true);
+        expect(logMessages.some((msg) => msg.includes('[worktree-isolation]'))).toBe(true);
+        expect(logMessages.some((msg) => msg.includes('Created symlink'))).toBe(true);
       } finally {
         console.log = originalLog;
       }
