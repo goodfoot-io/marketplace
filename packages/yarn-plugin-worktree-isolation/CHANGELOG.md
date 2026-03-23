@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.1
+- Added NPM publishing URL to package metadata
+
 ## 1.1.0
 - Fixed workspace `node_modules` symlinks in monorepos: after removing external symlinks, the plugin now re-creates per-workspace `node_modules` as internal symlinks pointing to the worktree's own root `node_modules`
 
