@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/yarn-plugin-worktree-isolation",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Yarn plugin that isolates git worktrees by removing external symlinks before installation",
   "sideEffects": false,
   "type": "module",
@@ -17,6 +17,11 @@
     "release": "bash ../../scripts/release-package.sh yarn-plugin-worktree-isolation",
     "release:dry-run": "bash ../../scripts/release-package.sh yarn-plugin-worktree-isolation --dry-run"
   },
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/goodfoot-io/marketplace.git",
+		"directory": "packages/yarn-plugin-worktree-isolation"
+	},
   "files": [
     "bundles"
   ],
