@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { getFilePath, isTsFile, postToolUseHook, postToolUseOutput } from "@goodfoot/claude-code-hooks";
+import ts from "typescript";
 
 // ============================================================================
 // Types
@@ -51,7 +52,17 @@ interface SignatureInfo {
   type: string;
 }
 
-type ParsedError = TypeScriptError | ESLintError;
+interface SwallowedError {
+  type: "swallowed";
+  file: string;
+  line: number;
+  column: number;
+  pattern: "empty-catch" | "comment-only-catch" | "empty-promise-catch" | "error-param-unused";
+  message: string;
+  context: ContextLine[];
+}
+
+type ParsedError = TypeScriptError | ESLintError | SwallowedError;
 
 // ============================================================================
 // File Utilities
@@ -232,6 +243,133 @@ function findDependentFiles(filePath: string, packageDir: string): string[] {
 }
 
 // ============================================================================
+// Swallowed Error Detection
+// ============================================================================
+
+function hasBlockCommentTrivia(block: ts.Block, sourceFile: ts.SourceFile): boolean {
+  const fullText = sourceFile.getFullText();
+  const leadingComments = ts.getLeadingCommentRanges(fullText, block.statements.pos);
+  if (leadingComments && leadingComments.length > 0) return true;
+  const blockText = fullText.slice(block.getStart(sourceFile), block.getEnd());
+  return /\/\/|\/\*/.test(blockText);
+}
+
+function hasBlockRethrow(block: ts.Block): boolean {
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+    if (ts.isThrowStatement(node)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(block);
+  return found;
+}
+
+function isIdentifierUsedInBlock(name: string, block: ts.Block): boolean {
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+    if (ts.isIdentifier(node) && node.text === name) {
+      if (!ts.isVariableDeclaration(node.parent) && !ts.isParameter(node.parent)) {
+        found = true;
+        return;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(block);
+  return found;
+}
+
+function detectSwallowedErrors(filePath: string): SwallowedError[] {
+  const content = fs.readFileSync(filePath, "utf-8");
+  const sourceFile = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const fileLines = getFileLines(filePath);
+  const findings: SwallowedError[] = [];
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isCatchClause(node)) {
+      const block = node.block;
+      const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      const line = pos.line + 1;
+      const column = pos.character + 1;
+
+      if (block.statements.length === 0) {
+        if (hasBlockCommentTrivia(block, sourceFile)) {
+          findings.push({
+            type: "swallowed",
+            file: filePath,
+            line,
+            column,
+            pattern: "comment-only-catch",
+            message: "Catch block contains only comments — error is silently discarded.",
+            context: getContextLines(fileLines, line),
+          });
+        } else {
+          findings.push({
+            type: "swallowed",
+            file: filePath,
+            line,
+            column,
+            pattern: "empty-catch",
+            message: "Empty catch block silently discards the error.",
+            context: getContextLines(fileLines, line),
+          });
+        }
+      } else if (node.variableDeclaration && ts.isIdentifier(node.variableDeclaration.name)) {
+        const paramName = node.variableDeclaration.name.text;
+        if (!paramName.startsWith("_") && !hasBlockRethrow(block) && !isIdentifierUsedInBlock(paramName, block)) {
+          findings.push({
+            type: "swallowed",
+            file: filePath,
+            line,
+            column,
+            pattern: "error-param-unused",
+            message: `Catch parameter '${paramName}' is declared but never used. Prefix with '_' if intentional.`,
+            context: getContextLines(fileLines, line),
+          });
+        }
+      }
+    }
+
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "catch" &&
+      node.arguments.length === 1
+    ) {
+      const handler = node.arguments[0];
+      if (
+        (ts.isArrowFunction(handler) || ts.isFunctionExpression(handler)) &&
+        ts.isBlock(handler.body) &&
+        handler.body.statements.length === 0 &&
+        !hasBlockCommentTrivia(handler.body, sourceFile)
+      ) {
+        const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+        const line = pos.line + 1;
+        findings.push({
+          type: "swallowed",
+          file: filePath,
+          line,
+          column: pos.character + 1,
+          pattern: "empty-promise-catch",
+          message: "Empty .catch() handler silently discards promise rejections.",
+          context: getContextLines(fileLines, line),
+        });
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
+  return findings;
+}
+
+// ============================================================================
 // Validation Commands
 // ============================================================================
 
@@ -361,6 +499,9 @@ function formatErrorsAsYAML(
       if ("rule" in error && error.rule) {
         yaml += `    rule: ${error.rule}\n`;
       }
+      if ("pattern" in error && error.pattern) {
+        yaml += `    pattern: ${error.pattern}\n`;
+      }
 
       yaml += `    message: "${error.message.replace(/"/g, '\\"')}"\n`;
 
@@ -470,10 +611,11 @@ export default postToolUseHook({ matcher: "Write|Edit|MultiEdit", timeout: 60000
   // Run ESLint and find dependent files
   const eslintResult = runESLint(filePath, packageDir);
   const dependentFiles = findDependentFiles(filePath, packageDir);
+  const swallowedErrors = detectSwallowedErrors(filePath);
 
   // Filter errors for edited file
   const directTsErrors = typeCheckResult.errors.filter((e) => e.file === filePath);
-  const directErrors: ParsedError[] = [...directTsErrors, ...eslintResult.errors];
+  const directErrors: ParsedError[] = [...directTsErrors, ...eslintResult.errors, ...swallowedErrors];
 
   // Filter errors for dependent files (no additional tsc runs needed!)
   const externalErrors = filterDependentFileErrors(typeCheckResult.errors, dependentFiles, filePath);
