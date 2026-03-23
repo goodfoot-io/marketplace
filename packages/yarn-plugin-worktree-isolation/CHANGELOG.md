@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.1.0
+- Fixed workspace `node_modules` symlinks in monorepos: after removing external symlinks, the plugin now re-creates per-workspace `node_modules` as internal symlinks pointing to the worktree's own root `node_modules`
+
+## 1.1.0
 
 - Added `afterAllInstalled` hook to re-symlink per-workspace `node_modules` into the worktree's own root `node_modules` after install completes
 - Added `createInternalSymlink` utility function
