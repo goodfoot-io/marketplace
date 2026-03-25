@@ -165,7 +165,7 @@ echo ""
 
 # Use claude CLI to generate changelog entry
 CLAUDE_STDERR=$(mktemp)
-CHANGELOG_ENTRY=$(claude -p "$PROMPT" 2>"$CLAUDE_STDERR")
+CHANGELOG_ENTRY=$(claude -p "$PROMPT" < /dev/null 2>"$CLAUDE_STDERR")
 CLAUDE_EXIT=$?
 
 if [ $CLAUDE_EXIT -ne 0 ] || [ -z "$CHANGELOG_ENTRY" ]; then
