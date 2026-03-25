@@ -46,8 +46,10 @@ interface CliArgs {
   input: string;
   /** Path for hooks.json output file. */
   output: string;
-  /** Optional log file path. */
+  /** Optional log file path (hardcoded into bundle). */
   log?: string;
+  /** Optional env var name whose value supplies the log file path at runtime. */
+  logEnvVar?: string;
   /** Show help. */
   help: boolean;
   /** Show version. */
@@ -173,10 +175,18 @@ Scaffold Mode (create new hook project):
 
 Optional Arguments:
   --log <path>
-      Path to a log file for runtime hook logging.
-      If provided, all context.logger calls within your hooks will write to this file.
-      This is equivalent to setting the CLAUDE_CODE_HOOKS_LOG_FILE environment variable.
+      Hardcode a log file path into the compiled bundle.
+      All context.logger calls within your hooks will write to this file.
+      A runtime CLAUDE_CODE_HOOKS_LOG_FILE env var overrides this hardcoded path.
+      Cannot be combined with --log-env-var.
       Example: "/tmp/claude-hooks.log"
+
+  --log-env-var <var>
+      Name of the environment variable that will supply the log file path at runtime.
+      The Logger reads process.env[VAR_NAME] at startup instead of a hardcoded path.
+      Use this when the log path must be determined dynamically (e.g. across worktrees).
+      Cannot be combined with --log.
+      Example: --log-env-var MY_PLUGIN_LOG_FILE
 
   --executable <path>
       Node executable path to use in generated commands (default: "node").
@@ -193,8 +203,11 @@ Examples:
   1. Basic Compilation:
      npx -y @goodfoot/claude-code-hooks -i "hooks/**/*.ts" -o "dist/hooks.json"
 
-  2. With Runtime Logging:
+  2. With Hardcoded Log Path:
      npx -y @goodfoot/claude-code-hooks -i "src/hooks/*.ts" -o "bin/hooks.json" --log /tmp/claude-hooks.log
+
+  2b. With Dynamic Log Path (env var set at runtime):
+     npx -y @goodfoot/claude-code-hooks -i "src/hooks/*.ts" -o "bin/hooks.json" --log-env-var CLAUDE_CODE_HOOKS_LOG_FILE
 
   3. Scaffold a New Hook Project:
      npx -y @goodfoot/claude-code-hooks --scaffold ./my-hooks --hooks Stop,SubagentStop -o dist/hooks.json
@@ -211,7 +224,7 @@ Examples:
 Troubleshooting:
   - Ensure your hook files use 'export default'.
   - Use absolute paths in your glob patterns if relative paths aren't finding files.
-  - Check the log file specified by --log if hooks don't seem to run.
+  - Check the log file specified by --log (or the env var named by --log-env-var) if hooks don't seem to run.
 `;
 
 // ============================================================================
@@ -296,6 +309,9 @@ function parseArgs(argv: string[]): CliArgs {
       case "--log":
         args.log = argv[++i];
         break;
+      case "--log-env-var":
+        args.logEnvVar = argv[++i];
+        break;
       case "-h":
       case "--help":
         args.help = true;
@@ -345,6 +361,10 @@ function validateArgs(args: CliArgs): string | undefined {
   }
 
   // Normal build mode validation
+  if (args.log !== undefined && args.logEnvVar !== undefined) {
+    return "Cannot use --log and --log-env-var together: choose one method to configure log output";
+  }
+
   if (args.input === "") {
     return "Missing required argument: -i/--input <glob>";
   }
@@ -520,8 +540,10 @@ interface CompileHookOptions {
   sourcePath: string;
   /** Directory for compiled output. */
   outputDir: string;
-  /** Optional log file path to inject into compiled hook. */
+  /** Optional log file path to hardcode into the bundle via the banner. */
   logFilePath?: string;
+  /** Optional env var name the Logger should read for the log file path at runtime. */
+  logEnvVar?: string;
 }
 
 /**
@@ -550,16 +572,10 @@ interface CompileHookResult {
  * @returns Compiled content and stable content hash
  */
 async function compileHook(options: CompileHookOptions): Promise<CompileHookResult> {
-  const { sourcePath, logFilePath } = options;
+  const { sourcePath, logFilePath, logEnvVar } = options;
 
   // Get the path to the runtime module (absolute, then converted to relative)
   const runtimePathAbsolute = path.resolve(path.dirname(new URL(import.meta.url).pathname), "./runtime.js");
-
-  // Build log file injection code if specified
-  const logFileInjection =
-    logFilePath !== undefined
-      ? `process.env['CLAUDE_CODE_HOOKS_CLI_LOG_FILE'] = ${JSON.stringify(logFilePath)};\n`
-      : "";
 
   // Compute relative paths from resolveDir to avoid absolute paths in source maps.
   // This ensures reproducible builds regardless of checkout directory.
@@ -569,8 +585,7 @@ async function compileHook(options: CompileHookOptions): Promise<CompileHookResu
 
   // Create wrapper content that imports the hook and calls execute
   // Uses relative paths to produce reproducible builds
-  const wrapperContent = `${logFileInjection}
-import hook from '${relativeSourcePath.replace(/\\/g, "/")}';
+  const wrapperContent = `import hook from '${relativeSourcePath.replace(/\\/g, "/")}';
 import { execute } from '${relativeRuntimePath.replace(/\\/g, "/")}';
 
 execute(hook);
@@ -590,6 +605,24 @@ execute(hook);
   // Banner to polyfill CJS globals for dependencies bundled into ESM.
   // Some packages (e.g. typescript) use require(), __filename, and __dirname
   // internally, which are unavailable in ESM scope.
+  //
+  // Log configuration is also embedded here (before all bundled code) so the
+  // Logger singleton reads it at construction time.
+  //
+  // --log PATH:         sets CLAUDE_CODE_HOOKS_LOG_FILE if not already present
+  //                     (runtime env var wins over the hardcoded path)
+  // --log-env-var NAME: unconditionally sets CLAUDE_CODE_HOOKS_LOG_ENV_VAR
+  //                     (the var name is fixed at build time, no runtime override)
+  const logFileLines =
+    logFilePath !== undefined
+      ? [
+          `if (!process.env['CLAUDE_CODE_HOOKS_LOG_FILE']) {`,
+          `  process.env['CLAUDE_CODE_HOOKS_LOG_FILE'] = ${JSON.stringify(logFilePath)};`,
+          `}`,
+        ]
+      : [];
+  const logEnvVarLines =
+    logEnvVar !== undefined ? [`process.env['CLAUDE_CODE_HOOKS_LOG_ENV_VAR'] = ${JSON.stringify(logEnvVar)};`] : [];
   const esmRequireBanner = [
     `import { createRequire as __createRequire } from "node:module";`,
     `import { fileURLToPath as __fileURLToPath } from "node:url";`,
@@ -597,6 +630,8 @@ execute(hook);
     `const require = __createRequire(import.meta.url);`,
     `const __filename = __fileURLToPath(import.meta.url);`,
     `const __dirname = __pathDirname(__filename);`,
+    ...logFileLines,
+    ...logEnvVarLines,
   ].join("\n");
 
   // Common esbuild options
@@ -677,8 +712,10 @@ interface CompileAllHooksOptions {
   hookFiles: string[];
   /** Directory for compiled output. */
   outputDir: string;
-  /** Optional log file path to inject into compiled hooks. */
+  /** Optional log file path to hardcode into the bundle via the banner. */
   logFilePath?: string;
+  /** Optional env var name the Logger should read for the log file path at runtime. */
+  logEnvVar?: string;
 }
 
 /**
@@ -687,7 +724,7 @@ interface CompileAllHooksOptions {
  * @returns Array of compiled hook information
  */
 async function compileAllHooks(options: CompileAllHooksOptions): Promise<CompiledHook[]> {
-  const { hookFiles, outputDir, logFilePath } = options;
+  const { hookFiles, outputDir, logFilePath, logEnvVar } = options;
   const compiledHooks: CompiledHook[] = [];
 
   // Ensure output directory exists
@@ -712,7 +749,7 @@ async function compileAllHooks(options: CompileAllHooksOptions): Promise<Compile
 
     // Compile the hook (two-step process for stable content hash)
     log("info", `Compiling: ${sourcePath}`);
-    const { content, contentHash } = await compileHook({ sourcePath, outputDir, logFilePath });
+    const { content, contentHash } = await compileHook({ sourcePath, outputDir, logFilePath, logEnvVar });
 
     // Determine output filename using the stable content hash
     const baseName = path.basename(sourcePath, path.extname(sourcePath));
@@ -1058,8 +1095,8 @@ function writeHooksJson(hooksJson: HooksJson, outputPath: string): void {
     if (fs.existsSync(tempPath)) {
       try {
         fs.unlinkSync(tempPath);
-      } catch {
-        // Ignore cleanup errors
+      } catch (cleanupError) {
+        log("warn", "Failed to clean up temp file", { path: tempPath, error: cleanupError });
       }
     }
     throw error;
@@ -1115,13 +1152,18 @@ async function main(): Promise<void> {
     // Compiled hooks go in a 'bin' subdirectory relative to hooks.json
     const buildDir = path.join(hooksJsonDir, "bin");
 
-    // Resolve log file path to absolute if provided
-    const logFilePath = args.log !== undefined ? path.resolve(cwd, args.log) : undefined;
+    // Resolve log file path: --log flag takes priority, then CLAUDE_CODE_HOOKS_LOG_FILE env var
+    const logFileRaw = args.log ?? process.env.CLAUDE_CODE_HOOKS_LOG_FILE;
+    const logFilePath = logFileRaw !== undefined ? path.resolve(cwd, logFileRaw) : undefined;
+
+    // --log-env-var names the env var the Logger should read at runtime
+    const logEnvVar = args.logEnvVar;
 
     log("info", "Starting hook compilation", {
       input: args.input,
       output: args.output,
       logFilePath,
+      logEnvVar,
       cwd,
     });
 
@@ -1155,7 +1197,7 @@ async function main(): Promise<void> {
     }
 
     // Compile all hooks
-    const compiledHooks = await compileAllHooks({ hookFiles, outputDir: buildDir, logFilePath });
+    const compiledHooks = await compileAllHooks({ hookFiles, outputDir: buildDir, logFilePath, logEnvVar });
 
     if (compiledHooks.length === 0 && hookFiles.length > 0) {
       process.stderr.write("Error: No valid hooks found in discovered files.\n");

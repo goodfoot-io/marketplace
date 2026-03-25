@@ -182,9 +182,15 @@ export interface LoggerConfig {
   /**
    * Path to the log file for file output.
    * If not set, file logging is disabled.
-   * Can also be set via `CLAUDE_CODE_HOOKS_LOG_FILE` environment variable.
    */
   logFilePath?: string;
+  /**
+   * Name of the environment variable to read for the log file path.
+   * When set, the Logger reads `process.env[logEnvVar]` at construction time.
+   * Ignored if `logFilePath` is also provided.
+   * Defaults to `'CLAUDE_CODE_HOOKS_LOG_FILE'` for the exported singleton.
+   */
+  logEnvVar?: string;
 }
 
 // ============================================================================
@@ -278,8 +284,8 @@ export class Logger {
       this.handlers.set(level, new Set());
     }
 
-    // Set log file path from config or environment
-    this.logFilePath = config.logFilePath ?? process.env.CLAUDE_CODE_HOOKS_LOG_FILE ?? null;
+    // Set log file path from explicit config, or by reading the configured env var
+    this.logFilePath = config.logFilePath ?? (config.logEnvVar ? process.env[config.logEnvVar] : undefined) ?? null;
   }
 
   /**
@@ -471,8 +477,8 @@ export class Logger {
     if (this.logFileFd !== null) {
       try {
         closeSync(this.logFileFd);
-      } catch {
-        // Ignore errors on close
+      } catch (closeError) {
+        process.stderr.write(`[claude-code-hooks] Failed to close log file: ${String(closeError)}\n`);
       }
       this.logFileFd = null;
     }
@@ -496,8 +502,8 @@ export class Logger {
     if (this.logFileFd !== null) {
       try {
         closeSync(this.logFileFd);
-      } catch {
-        // Ignore errors on close
+      } catch (closeError) {
+        process.stderr.write(`[claude-code-hooks] Failed to close log file: ${String(closeError)}\n`);
       }
       this.logFileFd = null;
     }
@@ -551,8 +557,8 @@ export class Logger {
       for (const handler of levelHandlers) {
         try {
           handler(event);
-        } catch {
-          // Silently ignore handler errors to not disrupt hook execution
+        } catch (handlerError) {
+          process.stderr.write(`[claude-code-hooks] Log handler error: ${String(handlerError)}\n`);
         }
       }
     }
@@ -578,10 +584,11 @@ export class Logger {
     try {
       const line = `${JSON.stringify(event)}\n`;
       writeSync(this.logFileFd, line);
-    } catch {
-      // Silently ignore file write errors to not disrupt hook execution
-      // This follows the risk mitigation: "Graceful degradation - log write
-      // failures are silently ignored to not disrupt hook execution"
+    } catch (writeError) {
+      // Disable file logging after a write failure to avoid repeated errors
+      this.logFileFd = null;
+      this.fileInitialized = false;
+      process.stderr.write(`[claude-code-hooks] Log file write failed: ${String(writeError)}\n`);
     }
   }
 
@@ -695,4 +702,8 @@ export class Logger {
  * }
  * ```
  */
-export const logger = new Logger();
+// CLAUDE_CODE_HOOKS_LOG_ENV_VAR is set unconditionally by the --log-env-var banner
+// before this module initialises. If absent, fall back to the default env var name.
+export const logger = new Logger({
+  logEnvVar: process.env.CLAUDE_CODE_HOOKS_LOG_ENV_VAR ?? "CLAUDE_CODE_HOOKS_LOG_FILE",
+});

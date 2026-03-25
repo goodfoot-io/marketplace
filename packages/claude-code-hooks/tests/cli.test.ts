@@ -87,6 +87,7 @@ describe("parseArgs", () => {
     expect(result.input).toBe("");
     expect(result.output).toBe("");
     expect(result.log).toBeUndefined();
+    expect(result.logEnvVar).toBeUndefined();
     expect(result.help).toBe(false);
     expect(result.version).toBe(false);
   });
@@ -103,6 +104,10 @@ describe("parseArgs", () => {
 
   it("parses --log flag", () => {
     expect(parseArgs(["--log", "./build.log"]).log).toBe("./build.log");
+  });
+
+  it("parses --log-env-var flag", () => {
+    expect(parseArgs(["--log-env-var", "MY_LOG_FILE"]).logEnvVar).toBe("MY_LOG_FILE");
   });
 
   it("parses -h/--help flag", () => {
@@ -216,6 +221,33 @@ describe("validateArgs", () => {
     const error = validateArgs(args);
 
     expect(error).toBe("Missing required argument: -i/--input <glob>");
+  });
+
+  it("returns error when --log and --log-env-var are both set", () => {
+    const args: CliArgs = {
+      input: "hooks/**/*.ts",
+      output: "./dist/hooks.json",
+      log: "/tmp/hooks.log",
+      logEnvVar: "MY_LOG_FILE",
+      help: false,
+      version: false,
+    };
+
+    const error = validateArgs(args);
+
+    expect(error).toContain("Cannot use --log and --log-env-var together");
+  });
+
+  it("accepts --log-env-var without --log", () => {
+    const args: CliArgs = {
+      input: "hooks/**/*.ts",
+      output: "./dist/hooks.json",
+      logEnvVar: "MY_LOG_FILE",
+      help: false,
+      version: false,
+    };
+
+    expect(validateArgs(args)).toBeUndefined();
   });
 });
 

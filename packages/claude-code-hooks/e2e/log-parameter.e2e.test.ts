@@ -56,17 +56,20 @@ interface HooksJson {
  * Runs the CLI to build hooks from TypeScript source files.
  * @param inputPattern - Glob pattern for input hook files
  * @param outputPath - Path where hooks.json will be written
- * @param logPath - Optional log file path for hook runtime logging
+ * @param options - Optional log configuration
  * @returns Object with success status and captured stdout/stderr
  */
 function runCli(
   inputPattern: string,
   outputPath: string,
-  logPath?: string,
+  options: { logPath?: string; logEnvVar?: string } = {},
 ): { success: boolean; stdout: string; stderr: string } {
   const args = ["tsx", CLI_PATH, "-i", inputPattern, "-o", outputPath];
-  if (logPath) {
-    args.push("--log", logPath);
+  if (options.logPath) {
+    args.push("--log", options.logPath);
+  }
+  if (options.logEnvVar) {
+    args.push("--log-env-var", options.logEnvVar);
   }
 
   const result = spawnSync("npx", args, {
@@ -136,7 +139,7 @@ describe("E2E: --log CLI Parameter", () => {
 
       // Compile with --log parameter
       const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
-      const result = runCli(inputPath, outputPath, logPath);
+      const result = runCli(inputPath, outputPath, { logPath });
 
       expect(result.success).toBe(true);
       expect(fs.existsSync(outputPath)).toBe(true);
@@ -196,7 +199,7 @@ describe("E2E: --log CLI Parameter", () => {
 
       // Compile with --log parameter pointing to non-existent directory
       const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
-      const result = runCli(inputPath, outputPath, logPath);
+      const result = runCli(inputPath, outputPath, { logPath });
 
       expect(result.success).toBe(true);
 
@@ -225,17 +228,16 @@ describe("E2E: --log CLI Parameter", () => {
     });
   });
 
-  describe("Log Configuration Conflict Detection", () => {
-    it("throws error when --log and CLAUDE_CODE_HOOKS_LOG_FILE conflict", () => {
-      const outputDir = path.join(LOG_TEST_OUTPUT, "conflict");
+  describe("Runtime env var override", () => {
+    it("runtime CLAUDE_CODE_HOOKS_LOG_FILE overrides --log compiled path", () => {
+      const outputDir = path.join(LOG_TEST_OUTPUT, "runtime-override");
       const outputPath = path.join(outputDir, "hooks.json");
-      const cliLogPath = path.join(outputDir, "cli.log");
-      const envLogPath = path.join(outputDir, "env.log");
+      const compiledLogPath = path.join(outputDir, "compiled.log");
+      const runtimeLogPath = path.join(outputDir, "runtime.log");
       fs.mkdirSync(outputDir, { recursive: true });
 
-      // Compile with --log parameter
       const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
-      const result = runCli(inputPath, outputPath, cliLogPath);
+      const result = runCli(inputPath, outputPath, { logPath: compiledLogPath });
 
       expect(result.success).toBe(true);
 
@@ -243,7 +245,6 @@ describe("E2E: --log CLI Parameter", () => {
       const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
       const commandPath = resolveCommandPath(command, outputDir);
 
-      // Execute the hook with conflicting CLAUDE_CODE_HOOKS_LOG_FILE env var
       const mockInput = JSON.stringify({
         hook_event_name: "PreToolUse",
         session_id: "test-session",
@@ -257,74 +258,23 @@ describe("E2E: --log CLI Parameter", () => {
         input: mockInput,
         encoding: "utf-8",
         timeout: 5000,
-        env: {
-          ...process.env,
-          CLAUDE_CODE_HOOKS_LOG_FILE: envLogPath,
-        },
+        env: { ...process.env, CLAUDE_CODE_HOOKS_LOG_FILE: runtimeLogPath },
       });
 
-      // Should fail with exit code 1 (error)
-      expect(execResult.status).toBe(1);
-
-      // Stderr should contain conflict error message
-      expect(execResult.stderr).toContain("Log file configuration conflict");
-      expect(execResult.stderr).toContain("CLI --log=");
-      expect(execResult.stderr).toContain("CLAUDE_CODE_HOOKS_LOG_FILE=");
-    });
-
-    it("allows matching --log and CLAUDE_CODE_HOOKS_LOG_FILE paths", () => {
-      const outputDir = path.join(LOG_TEST_OUTPUT, "matching");
-      const outputPath = path.join(outputDir, "hooks.json");
-      const logPath = path.join(outputDir, "same.log");
-      fs.mkdirSync(outputDir, { recursive: true });
-
-      // Compile with --log parameter
-      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
-      const result = runCli(inputPath, outputPath, logPath);
-
-      expect(result.success).toBe(true);
-
-      const hooksJson = readHooksJson(outputPath);
-      const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
-      const commandPath = resolveCommandPath(command, outputDir);
-
-      // Execute the hook with MATCHING CLAUDE_CODE_HOOKS_LOG_FILE env var
-      const mockInput = JSON.stringify({
-        hook_event_name: "PreToolUse",
-        session_id: "test-session",
-        cwd: "/tmp",
-        tool_name: "Write",
-        tool_input: { file_path: "/tmp/test.txt", content: "test" },
-        tool_use_id: "test-tool-use-id",
-      });
-
-      const execResult = spawnSync("node", [commandPath], {
-        input: mockInput,
-        encoding: "utf-8",
-        timeout: 5000,
-        env: {
-          ...process.env,
-          CLAUDE_CODE_HOOKS_LOG_FILE: logPath, // Same as --log
-        },
-      });
-
-      // Should succeed - no conflict when paths match
+      // Runtime env var wins — hook succeeds, log written to runtime path
       expect(execResult.status).toBe(0);
-      expect(execResult.stderr).not.toContain("Log file configuration conflict");
-
-      // Log file should exist with entries
-      expect(fs.existsSync(logPath)).toBe(true);
+      expect(fs.existsSync(runtimeLogPath)).toBe(true);
+      expect(fs.existsSync(compiledLogPath)).toBe(false);
     });
 
-    it("works without --log when only CLAUDE_CODE_HOOKS_LOG_FILE is set", () => {
+    it("works without --log when only CLAUDE_CODE_HOOKS_LOG_FILE is set at runtime", () => {
       const outputDir = path.join(LOG_TEST_OUTPUT, "env-only");
       const outputPath = path.join(outputDir, "hooks.json");
       const logPath = path.join(outputDir, "env.log");
       fs.mkdirSync(outputDir, { recursive: true });
 
-      // Compile WITHOUT --log parameter
       const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
-      const result = runCli(inputPath, outputPath); // No logPath
+      const result = runCli(inputPath, outputPath);
 
       expect(result.success).toBe(true);
 
@@ -332,7 +282,6 @@ describe("E2E: --log CLI Parameter", () => {
       const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
       const commandPath = resolveCommandPath(command, outputDir);
 
-      // Execute the hook with CLAUDE_CODE_HOOKS_LOG_FILE env var
       const mockInput = JSON.stringify({
         hook_event_name: "PreToolUse",
         session_id: "test-session",
@@ -346,17 +295,10 @@ describe("E2E: --log CLI Parameter", () => {
         input: mockInput,
         encoding: "utf-8",
         timeout: 5000,
-        env: {
-          ...process.env,
-          CLAUDE_CODE_HOOKS_LOG_FILE: logPath,
-        },
+        env: { ...process.env, CLAUDE_CODE_HOOKS_LOG_FILE: logPath },
       });
 
-      // Should succeed
       expect(execResult.status).toBe(0);
-      expect(execResult.stderr).not.toContain("Log file configuration conflict");
-
-      // Log file should exist with entries from env var config
       expect(fs.existsSync(logPath)).toBe(true);
       const logContent = fs.readFileSync(logPath, "utf-8");
       expect(logContent).toContain("Hook with timeout triggered");
@@ -373,7 +315,7 @@ describe("E2E: --log CLI Parameter", () => {
       const relativePath = "./logs/relative-test.log";
       const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
 
-      const result = runCli(inputPath, outputPath, relativePath);
+      const result = runCli(inputPath, outputPath, { logPath: relativePath });
 
       expect(result.success).toBe(true);
 
@@ -385,10 +327,10 @@ describe("E2E: --log CLI Parameter", () => {
       const content = fs.readFileSync(commandPath, "utf-8");
 
       // Should contain an absolute path (starts with /) and the log filename
-      expect(content).toMatch(/CLAUDE_CODE_HOOKS_CLI_LOG_FILE.*=.*"\/.*relative-test\.log"/);
+      expect(content).toMatch(/CLAUDE_CODE_HOOKS_LOG_FILE.*=.*"\/.*relative-test\.log"/);
 
       // Extract the actual resolved path from the compiled content
-      const pathMatch = content.match(/process\.env\["CLAUDE_CODE_HOOKS_CLI_LOG_FILE"\]\s*=\s*"([^"]+)"/);
+      const pathMatch = content.match(/process\.env\['CLAUDE_CODE_HOOKS_LOG_FILE'\]\s*=\s*"([^"]+)"/);
       expect(pathMatch).toBeTruthy();
       const resolvedLogPath = pathMatch?.[1];
       if (!resolvedLogPath) {
@@ -420,15 +362,14 @@ describe("E2E: --log CLI Parameter", () => {
   });
 
   describe("Compiled Hook Content", () => {
-    it("injects CLAUDE_CODE_HOOKS_CLI_LOG_FILE env var when --log is used", () => {
+    it("injects CLAUDE_CODE_HOOKS_LOG_FILE assignment when --log is used", () => {
       const outputDir = path.join(LOG_TEST_OUTPUT, "inject-env");
       const outputPath = path.join(outputDir, "hooks.json");
       const logPath = path.join(outputDir, "hooks.log");
       fs.mkdirSync(outputDir, { recursive: true });
 
-      // Compile with --log parameter
       const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
-      const result = runCli(inputPath, outputPath, logPath);
+      const result = runCli(inputPath, outputPath, { logPath });
 
       expect(result.success).toBe(true);
 
@@ -436,22 +377,22 @@ describe("E2E: --log CLI Parameter", () => {
       const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
       const commandPath = resolveCommandPath(command, outputDir);
 
-      // Read the compiled hook content
       const content = fs.readFileSync(commandPath, "utf-8");
 
-      // Should contain the injected env var assignment
-      expect(content).toContain("CLAUDE_CODE_HOOKS_CLI_LOG_FILE");
+      // Banner should set CLAUDE_CODE_HOOKS_LOG_FILE to the hardcoded path
+      expect(content).toContain("CLAUDE_CODE_HOOKS_LOG_FILE");
       expect(content).toContain(logPath);
+      // Should not use the old CLI_LOG_FILE var
+      expect(content).not.toContain("CLAUDE_CODE_HOOKS_CLI_LOG_FILE");
     });
 
-    it("does not inject log path assignment when --log is not used", () => {
+    it("does not inject log path assignment when neither --log nor --log-env-var is used", () => {
       const outputDir = path.join(LOG_TEST_OUTPUT, "no-inject");
       const outputPath = path.join(outputDir, "hooks.json");
       fs.mkdirSync(outputDir, { recursive: true });
 
-      // Compile WITHOUT --log parameter
       const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
-      const result = runCli(inputPath, outputPath); // No logPath
+      const result = runCli(inputPath, outputPath);
 
       expect(result.success).toBe(true);
 
@@ -459,15 +400,127 @@ describe("E2E: --log CLI Parameter", () => {
       const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
       const commandPath = resolveCommandPath(command, outputDir);
 
-      // Read the compiled hook content
       const content = fs.readFileSync(commandPath, "utf-8");
 
-      // The runtime code references CLAUDE_CODE_HOOKS_CLI_LOG_FILE to check for it,
-      // but there should be no assignment setting a specific path at the top of the file.
-      // When --log is used, we inject: process.env['CLAUDE_CODE_HOOKS_CLI_LOG_FILE'] = "/some/path";
-      // This pattern should NOT appear when --log is not used.
-      const assignmentPattern = /process\.env\[['"]CLAUDE_CODE_HOOKS_CLI_LOG_FILE['"]\]\s*=\s*['"]/;
-      expect(content).not.toMatch(assignmentPattern);
+      // No log path or env var name should be hardcoded
+      const logFileAssignment = /process\.env\[['"]CLAUDE_CODE_HOOKS_LOG_FILE['"]\]\s*=\s*['"]/;
+      const logEnvVarAssignment = /process\.env\[['"]CLAUDE_CODE_HOOKS_LOG_ENV_VAR['"]\]\s*=\s*['"]/;
+      expect(content).not.toMatch(logFileAssignment);
+      expect(content).not.toMatch(logEnvVarAssignment);
+    });
+
+    it("injects CLAUDE_CODE_HOOKS_LOG_ENV_VAR when --log-env-var is used", () => {
+      const outputDir = path.join(LOG_TEST_OUTPUT, "inject-env-var");
+      const outputPath = path.join(outputDir, "hooks.json");
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
+      const result = runCli(inputPath, outputPath, { logEnvVar: "MY_CUSTOM_LOG_FILE" });
+
+      expect(result.success).toBe(true);
+
+      const hooksJson = readHooksJson(outputPath);
+      const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
+      const commandPath = resolveCommandPath(command, outputDir);
+
+      const content = fs.readFileSync(commandPath, "utf-8");
+
+      // Banner should record the env var name, not a hardcoded path
+      expect(content).toContain("CLAUDE_CODE_HOOKS_LOG_ENV_VAR");
+      expect(content).toContain("MY_CUSTOM_LOG_FILE");
+      // No hardcoded log file path should appear
+      const logFileAssignment = /process\.env\[['"]CLAUDE_CODE_HOOKS_LOG_FILE['"]\]\s*=\s*['"]/;
+      expect(content).not.toMatch(logFileAssignment);
+    });
+  });
+
+  describe("--log-env-var runtime behaviour", () => {
+    it("uses the named env var for log output at runtime", () => {
+      const outputDir = path.join(LOG_TEST_OUTPUT, "log-env-var-runtime");
+      const outputPath = path.join(outputDir, "hooks.json");
+      const logPath = path.join(outputDir, "custom.log");
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
+      const result = runCli(inputPath, outputPath, { logEnvVar: "MY_CUSTOM_LOG_FILE" });
+
+      expect(result.success).toBe(true);
+
+      const hooksJson = readHooksJson(outputPath);
+      const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
+      const commandPath = resolveCommandPath(command, outputDir);
+
+      const mockInput = JSON.stringify({
+        hook_event_name: "PreToolUse",
+        session_id: "test-session",
+        cwd: "/tmp",
+        tool_name: "Write",
+        tool_input: { file_path: "/tmp/test.txt", content: "test" },
+        tool_use_id: "test-tool-use-id",
+      });
+
+      const execResult = spawnSync("node", [commandPath], {
+        input: mockInput,
+        encoding: "utf-8",
+        timeout: 5000,
+        env: { ...process.env, MY_CUSTOM_LOG_FILE: logPath },
+      });
+
+      expect(execResult.status).toBe(0);
+      expect(fs.existsSync(logPath)).toBe(true);
+      const logContent = fs.readFileSync(logPath, "utf-8");
+      expect(logContent).toContain("Hook with timeout triggered");
+    });
+
+    it("produces no log file when the named env var is not set at runtime", () => {
+      const outputDir = path.join(LOG_TEST_OUTPUT, "log-env-var-unset");
+      const outputPath = path.join(outputDir, "hooks.json");
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
+      const result = runCli(inputPath, outputPath, { logEnvVar: "MY_UNSET_LOG_FILE" });
+
+      expect(result.success).toBe(true);
+
+      const hooksJson = readHooksJson(outputPath);
+      const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
+      const commandPath = resolveCommandPath(command, outputDir);
+
+      const mockInput = JSON.stringify({
+        hook_event_name: "PreToolUse",
+        session_id: "test-session",
+        cwd: "/tmp",
+        tool_name: "Write",
+        tool_input: { file_path: "/tmp/test.txt", content: "test" },
+        tool_use_id: "test-tool-use-id",
+      });
+
+      // Run without MY_UNSET_LOG_FILE in the environment
+      const { MY_UNSET_LOG_FILE: _removed, ...envWithout } = process.env;
+      const execResult = spawnSync("node", [commandPath], {
+        input: mockInput,
+        encoding: "utf-8",
+        timeout: 5000,
+        env: envWithout,
+      });
+
+      expect(execResult.status).toBe(0);
+      // No log file should have been created anywhere in the output dir
+      const logFiles = fs.readdirSync(outputDir).filter((f) => f.endsWith(".log"));
+      expect(logFiles).toHaveLength(0);
+    });
+
+    it("rejects --log and --log-env-var used together at compile time", () => {
+      const outputDir = path.join(LOG_TEST_OUTPUT, "log-conflict");
+      const outputPath = path.join(outputDir, "hooks.json");
+      const logPath = path.join(outputDir, "hooks.log");
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
+      const result = runCli(inputPath, outputPath, { logPath, logEnvVar: "MY_LOG_FILE" });
+
+      expect(result.success).toBe(false);
+      expect(result.stderr).toContain("Cannot use --log and --log-env-var together");
     });
   });
 });

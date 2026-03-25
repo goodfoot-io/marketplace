@@ -184,26 +184,6 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
   let output: HookOutput | undefined;
 
   try {
-    // Check for log file configuration conflicts
-    // CLAUDE_CODE_HOOKS_CLI_LOG_FILE is injected by the CLI --log parameter
-    // CLAUDE_CODE_HOOKS_LOG_FILE is the user's environment variable
-    const cliLogFile = process.env.CLAUDE_CODE_HOOKS_CLI_LOG_FILE;
-    const envLogFile = process.env.CLAUDE_CODE_HOOKS_LOG_FILE;
-
-    if (cliLogFile !== undefined && envLogFile !== undefined && cliLogFile !== envLogFile) {
-      // Write error to stderr and exit with error code
-      process.stderr.write(
-        `Log file configuration conflict: CLI --log="${cliLogFile}" vs CLAUDE_CODE_HOOKS_LOG_FILE="${envLogFile}". ` +
-          "Use only one method to configure hook logging.\n",
-      );
-      process.exit(EXIT_CODES.ERROR);
-    }
-
-    // If CLI log file is set, configure the logger
-    if (cliLogFile !== undefined) {
-      logger.setLogFile(cliLogFile);
-    }
-
     // Read and parse stdin
     let stdinContent: string;
     try {
