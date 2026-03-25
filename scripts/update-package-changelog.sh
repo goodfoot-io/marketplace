@@ -164,13 +164,21 @@ echo "Generating changelog entry with Claude..."
 echo ""
 
 # Use claude CLI to generate changelog entry
-CHANGELOG_ENTRY=$(claude -p "$PROMPT" 2>/dev/null)
+CLAUDE_STDERR=$(mktemp)
+CHANGELOG_ENTRY=$(claude -p "$PROMPT" 2>"$CLAUDE_STDERR")
+CLAUDE_EXIT=$?
 
-if [ $? -ne 0 ] || [ -z "$CHANGELOG_ENTRY" ]; then
+if [ $CLAUDE_EXIT -ne 0 ] || [ -z "$CHANGELOG_ENTRY" ]; then
   echo -e "${RED}❌ Error: Failed to generate changelog entry with Claude${NC}"
+  if [ -s "$CLAUDE_STDERR" ]; then
+    echo -e "${RED}Claude stderr output:${NC}"
+    cat "$CLAUDE_STDERR"
+  fi
+  rm -f "$CLAUDE_STDERR"
   echo -e "${YELLOW}Make sure the 'claude' CLI is installed and available in your PATH${NC}"
   exit 1
 fi
+rm -f "$CLAUDE_STDERR"
 
 # Extract only the changelog entry (from ## onwards, including all bullet points)
 # Remove any preamble/explanation text from Claude before the ## header
