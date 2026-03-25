@@ -181,8 +181,8 @@ fi
 
 echo ""
 echo "=== Running SDK type snapshot ==="
-yarn snapshot:sdk-types
-SNAPSHOT_EXIT=$?
+yarn snapshot:sdk-types || SNAPSHOT_EXIT=$?
+SNAPSHOT_EXIT=${SNAPSHOT_EXIT:-0}
 
 echo ""
 if [[ $SNAPSHOT_EXIT -eq 0 ]]; then
