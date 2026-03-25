@@ -169,10 +169,18 @@ CHANGELOG_ENTRY=$(claude -p "$PROMPT" 2>"$CLAUDE_STDERR")
 CLAUDE_EXIT=$?
 
 if [ $CLAUDE_EXIT -ne 0 ] || [ -z "$CHANGELOG_ENTRY" ]; then
-  echo -e "${RED}❌ Error: Failed to generate changelog entry with Claude${NC}"
+  echo -e "${RED}❌ Error: Failed to generate changelog entry with Claude (exit code: $CLAUDE_EXIT)${NC}"
   if [ -s "$CLAUDE_STDERR" ]; then
-    echo -e "${RED}Claude stderr output:${NC}"
+    echo -e "${RED}Claude stderr:${NC}"
     cat "$CLAUDE_STDERR"
+  else
+    echo -e "${YELLOW}(no stderr output)${NC}"
+  fi
+  if [ -n "$CHANGELOG_ENTRY" ]; then
+    echo -e "${RED}Claude stdout:${NC}"
+    echo "$CHANGELOG_ENTRY"
+  else
+    echo -e "${YELLOW}(no stdout output)${NC}"
   fi
   rm -f "$CLAUDE_STDERR"
   echo -e "${YELLOW}Make sure the 'claude' CLI is installed and available in your PATH${NC}"
