@@ -9,8 +9,10 @@
  */
 
 import type {
+  CwdChangedHookSpecificOutput as SDKCwdChangedHookSpecificOutput,
   ElicitationHookSpecificOutput as SDKElicitationHookSpecificOutput,
   ElicitationResultHookSpecificOutput as SDKElicitationResultHookSpecificOutput,
+  FileChangedHookSpecificOutput as SDKFileChangedHookSpecificOutput,
 } from "@anthropic-ai/claude-agent-sdk";
 import type {
   NotificationHookSpecificOutput as SDKNotificationHookSpecificOutput,
@@ -63,8 +65,10 @@ export type ExitCode = (typeof EXIT_CODES)[keyof typeof EXIT_CODES];
  * Re-export SDK hook-specific output types (includes hookEventName discriminator).
  */
 export type {
+  SDKCwdChangedHookSpecificOutput,
   SDKElicitationHookSpecificOutput,
   SDKElicitationResultHookSpecificOutput,
+  SDKFileChangedHookSpecificOutput,
   SDKNotificationHookSpecificOutput,
   SDKPermissionRequestHookSpecificOutput,
   SDKPostToolUseFailureHookSpecificOutput,
@@ -172,6 +176,18 @@ export type PermissionRequestDecision = SDKPermissionRequestHookSpecificOutput["
  */
 export type NotificationHookSpecificOutput = Omit<SDKNotificationHookSpecificOutput, "hookEventName">;
 
+/**
+ * CwdChanged hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
+ */
+export type CwdChangedHookSpecificOutput = Omit<SDKCwdChangedHookSpecificOutput, "hookEventName">;
+
+/**
+ * FileChanged hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
+ */
+export type FileChangedHookSpecificOutput = Omit<SDKFileChangedHookSpecificOutput, "hookEventName">;
+
 // ============================================================================
 // Wire Format Output Types
 // ============================================================================
@@ -190,7 +206,9 @@ export type HookSpecificOutput =
   | SDKPermissionRequestHookSpecificOutput
   | SDKNotificationHookSpecificOutput
   | SDKElicitationHookSpecificOutput
-  | SDKElicitationResultHookSpecificOutput;
+  | SDKElicitationResultHookSpecificOutput
+  | SDKCwdChangedHookSpecificOutput
+  | SDKFileChangedHookSpecificOutput;
 
 /**
  * The JSON output format expected by Claude Code (sync hooks only).
@@ -360,6 +378,14 @@ export type WorktreeCreateOutput = BaseSpecificOutput<"WorktreeCreate">;
  *
  */
 export type WorktreeRemoveOutput = BaseSpecificOutput<"WorktreeRemove">;
+/**
+ *
+ */
+export type CwdChangedOutput = BaseSpecificOutput<"CwdChanged">;
+/**
+ *
+ */
+export type FileChangedOutput = BaseSpecificOutput<"FileChanged">;
 
 /**
  * Union of all specific output types.
@@ -387,7 +413,9 @@ export type SpecificHookOutput =
   | ConfigChangeOutput
   | InstructionsLoadedOutput
   | WorktreeCreateOutput
-  | WorktreeRemoveOutput;
+  | WorktreeRemoveOutput
+  | CwdChangedOutput
+  | FileChangedOutput;
 
 // ============================================================================
 // Output Builder Factories
@@ -1124,6 +1152,74 @@ export type WorktreeRemoveOptions = CommonOptions;
  * ```
  */
 export const worktreeRemoveOutput = /* @__PURE__ */ createSimpleOutputBuilder<"WorktreeRemove">("WorktreeRemove");
+
+// ============================================================================
+// CwdChanged Output Builder
+// ============================================================================
+
+/**
+ * Options for the CwdChanged output builder.
+ */
+export type CwdChangedOptions = CommonOptions & {
+  /** Hook-specific output matching the wire format. */
+  hookSpecificOutput?: CwdChangedHookSpecificOutput;
+};
+
+/**
+ * Creates an output for CwdChanged hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A CwdChangedOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * // Return additional paths to watch after the cwd change
+ * cwdChangedOutput({
+ *   hookSpecificOutput: {
+ *     watchPaths: ['/new/path/to/watch']
+ *   }
+ * });
+ *
+ * // Simple passthrough
+ * cwdChangedOutput({});
+ * ```
+ */
+export const cwdChangedOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  "CwdChanged",
+  CwdChangedHookSpecificOutput
+>("CwdChanged");
+
+// ============================================================================
+// FileChanged Output Builder
+// ============================================================================
+
+/**
+ * Options for the FileChanged output builder.
+ */
+export type FileChangedOptions = CommonOptions & {
+  /** Hook-specific output matching the wire format. */
+  hookSpecificOutput?: FileChangedHookSpecificOutput;
+};
+
+/**
+ * Creates an output for FileChanged hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A FileChangedOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * // Update the set of watched paths
+ * fileChangedOutput({
+ *   hookSpecificOutput: {
+ *     watchPaths: ['/path/to/watch', '/another/path']
+ *   }
+ * });
+ *
+ * // Simple passthrough
+ * fileChangedOutput({});
+ * ```
+ */
+export const fileChangedOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  "FileChanged",
+  FileChangedHookSpecificOutput
+>("FileChanged");
 
 // ============================================================================
 // Legacy type aliases for backwards compatibility

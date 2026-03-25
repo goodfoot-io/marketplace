@@ -19,6 +19,8 @@ The Logger is **silent by default**. No output is produced unless you:
 |--------------|-----------------|
 | No config (default) | **Silent** — no output anywhere |
 | `CLAUDE_CODE_HOOKS_LOG_FILE` set | JSON lines appended to file |
+| `--log <path>` at build time | Path hardcoded into bundle (runtime env var overrides) |
+| `--log-env-var <name>` at build time | Logger reads `process.env[name]` at startup |
 | `.on(level, handler)` registered | Events delivered to handlers |
 | Multiple destinations | All destinations receive events |
 
@@ -32,13 +34,23 @@ Best for general debugging.
 export CLAUDE_CODE_HOOKS_LOG_FILE=/tmp/claude-hooks.log
 ```
 
-### Build Flag (Hardcoded)
+### Build Flag (Hardcoded Path)
 
-Best if you want to force logging for a specific build.
+Best if you want to force logging for a specific build. The path is baked into the bundle, but a runtime `CLAUDE_CODE_HOOKS_LOG_FILE` env var will override it.
 
 ```bash
 npx -y @goodfoot/claude-code-hooks ... --log /tmp/claude-hooks.log
 ```
+
+### Build Flag (Dynamic Path via Env Var)
+
+Best when the log path must be determined at runtime — for example, across different git worktrees. Pass the name of the env var that will hold the path; it is read when the hook starts.
+
+```bash
+npx -y @goodfoot/claude-code-hooks ... --log-env-var MY_PLUGIN_LOG_FILE
+```
+
+Cannot be combined with `--log`.
 
 ### Constructor (Programmatic)
 
@@ -47,7 +59,11 @@ Best for custom logging pipelines or testing.
 ```typescript
 import { Logger } from '@goodfoot/claude-code-hooks';
 
+// Hardcode the log file path
 const logger = new Logger({ logFilePath: '/tmp/my-hooks.log' });
+
+// Read the path from an env var at construction time
+const logger = new Logger({ logEnvVar: 'MY_PLUGIN_LOG_FILE' });
 ```
 
 ## Viewing Logs
@@ -261,7 +277,7 @@ process.on('exit', () => {
 
 **"Log events aren't reaching my handler!"**
 1. Verify you subscribed to the correct level: `logger.on('error', handler)`.
-2. Check that your handler isn't throwing errors (they're silently ignored).
+2. Check that your handler isn't throwing errors (errors are reported to stderr and drop that delivery).
 3. Ensure the Logger instance is the same one passed to hooks.
 
 </instructions>

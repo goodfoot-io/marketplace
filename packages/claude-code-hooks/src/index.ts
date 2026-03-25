@@ -37,11 +37,13 @@ export type {
   TypedPostToolUseHookInput,
   TypedPreToolUseHookInput,
 } from "./hooks.js";
-// Hook factory functions - all 23 hook types
+// Hook factory functions - all 25 hook types
 export {
   configChangeHook,
+  cwdChangedHook,
   elicitationHook,
   elicitationResultHook,
+  fileChangedHook,
   instructionsLoadedHook,
   notificationHook,
   permissionRequestHook,
@@ -76,12 +78,16 @@ export type {
   // Options types for output builders
   CommonOptions,
   ConfigChangeOptions,
+  CwdChangedHookSpecificOutput,
+  CwdChangedOptions,
   ElicitationHookSpecificOutput,
   ElicitationOptions,
   ElicitationResultHookSpecificOutput,
   ElicitationResultOptions,
   ExitCode,
   ExitCodeOptions,
+  FileChangedHookSpecificOutput,
+  FileChangedOptions,
   // Core output types
   HookOutput,
   // Hook-specific output types
@@ -123,10 +129,12 @@ export type {
 // Output builder functions
 export {
   configChangeOutput,
+  cwdChangedOutput,
   // Exit codes
   EXIT_CODES,
   elicitationOutput,
   elicitationResultOutput,
+  fileChangedOutput,
   instructionsLoadedOutput,
   notificationOutput,
   permissionRequestOutput,
@@ -134,7 +142,7 @@ export {
   postToolUseFailureOutput,
   postToolUseOutput,
   preCompactOutput,
-  // All 23 output builder functions
+  // All 25 output builder functions
   preToolUseOutput,
   sessionEndOutput,
   sessionStartOutput,
@@ -202,8 +210,10 @@ export type {
   BaseHookInput,
   ConfigChangeInput,
   ConfigInput,
+  CwdChangedInput,
   ElicitationInput,
   ElicitationResultInput,
+  FileChangedInput,
   FileModifyingToolInput,
   FileModifyingToolName,
   // Supporting types

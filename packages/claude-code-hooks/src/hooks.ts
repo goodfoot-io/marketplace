@@ -25,8 +25,10 @@
 import type { Logger } from "./logger.js";
 import type {
   ConfigChangeOutput,
+  CwdChangedOutput,
   ElicitationOutput,
   ElicitationResultOutput,
+  FileChangedOutput,
   InstructionsLoadedOutput,
   NotificationOutput,
   PermissionRequestOutput,
@@ -51,8 +53,10 @@ import type {
 } from "./outputs.js";
 import type {
   ConfigChangeInput,
+  CwdChangedInput,
   ElicitationInput,
   ElicitationResultInput,
+  FileChangedInput,
   HookEventName,
   InstructionsLoadedInput,
   KnownToolName,
@@ -1460,4 +1464,78 @@ export function worktreeRemoveHook(
   handler: HookHandler<WorktreeRemoveInput, WorktreeRemoveOutput>,
 ): HookFunction<WorktreeRemoveInput, WorktreeRemoveOutput> {
   return createHookFunction("WorktreeRemove", config, handler);
+}
+
+// ============================================================================
+// CwdChanged Hook Factory
+// ============================================================================
+
+/**
+ * Creates a CwdChanged hook handler.
+ *
+ * CwdChanged hooks fire when Claude Code's current working directory changes,
+ * allowing you to:
+ * - React to directory changes within a session
+ * - Update file watchers or environment state
+ * - Return `watchPaths` via `hookSpecificOutput` to register paths for FileChanged events
+ *
+ * **Matcher**: No matcher support - fires on all cwd change events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { cwdChangedHook, cwdChangedOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default cwdChangedHook({}, async (input, { logger }) => {
+ *   logger.info('Working directory changed', { from: input.old_cwd, to: input.new_cwd });
+ *   return cwdChangedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#cwdchanged
+ */
+export function cwdChangedHook(
+  config: HookConfig,
+  handler: HookHandler<CwdChangedInput, CwdChangedOutput>,
+): HookFunction<CwdChangedInput, CwdChangedOutput> {
+  return createHookFunction("CwdChanged", config, handler);
+}
+
+// ============================================================================
+// FileChanged Hook Factory
+// ============================================================================
+
+/**
+ * Creates a FileChanged hook handler.
+ *
+ * FileChanged hooks fire when a watched file changes on disk, allowing you to:
+ * - React to file system changes during a session
+ * - Invalidate caches or reload configuration
+ * - Return `watchPaths` via `hookSpecificOutput` to update the set of watched paths
+ *
+ * The input `event` field indicates the type of change:
+ * - `'change'` - File contents changed
+ * - `'add'` - File was created
+ * - `'unlink'` - File was deleted
+ *
+ * **Matcher**: No matcher support - fires on all file change events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { fileChangedHook, fileChangedOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default fileChangedHook({}, async (input, { logger }) => {
+ *   logger.info('File changed', { path: input.file_path, event: input.event });
+ *   return fileChangedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#filechanged
+ */
+export function fileChangedHook(
+  config: HookConfig,
+  handler: HookHandler<FileChangedInput, FileChangedOutput>,
+): HookFunction<FileChangedInput, FileChangedOutput> {
+  return createHookFunction("FileChanged", config, handler);
 }

@@ -17,11 +17,11 @@
     "release": "bash ../../scripts/release-package.sh yarn-plugin-worktree-isolation",
     "release:dry-run": "bash ../../scripts/release-package.sh yarn-plugin-worktree-isolation --dry-run"
   },
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/goodfoot-io/marketplace.git",
-		"directory": "packages/yarn-plugin-worktree-isolation"
-	},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodfoot-io/marketplace.git",
+    "directory": "packages/yarn-plugin-worktree-isolation"
+  },
   "files": [
     "bundles"
   ],

@@ -211,8 +211,11 @@ The Logger is **silent by default** — no output to stdout, stderr, or files un
 # Option A: Environment Variable
 export CLAUDE_CODE_HOOKS_LOG_FILE=/tmp/claude-hooks.log
 
-# Option B: CLI Argument (during build)
+# Option B: CLI Argument — hardcodes path into bundle (runtime CLAUDE_CODE_HOOKS_LOG_FILE overrides)
 npx -y @goodfoot/claude-code-hooks ... --log /tmp/claude-hooks.log
+
+# Option C: CLI Argument — embed the env var name instead of a hardcoded path (good for worktrees)
+npx -y @goodfoot/claude-code-hooks ... --log-env-var CLAUDE_CODE_HOOKS_LOG_FILE
 ```
 
 **View logs:**
@@ -231,8 +234,11 @@ import { Logger } from '@goodfoot/claude-code-hooks';
 // Silent by default — perfect for unit tests
 const logger = new Logger();
 
-// With file output
+// With file output (hardcoded path)
 const fileLogger = new Logger({ logFilePath: '/tmp/my-hooks.log' });
+
+// With dynamic path via env var
+const envLogger = new Logger({ logEnvVar: 'MY_PLUGIN_LOG_FILE' });
 
 // Subscribe to events programmatically
 const unsubscribe = logger.on('error', (event) => {

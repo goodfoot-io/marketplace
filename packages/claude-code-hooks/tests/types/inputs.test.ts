@@ -78,6 +78,10 @@ describe("HookInput discriminated union", () => {
             return input.error;
           case "PostCompact":
             return input.compact_summary;
+          case "CwdChanged":
+            return input.new_cwd;
+          case "FileChanged":
+            return input.file_path;
           default: {
             // Exhaustiveness check
             const _exhaustive: never = input;

@@ -20,8 +20,10 @@
 export type {
   BaseHookInput as SDKBaseHookInput,
   ConfigChangeHookInput as SDKConfigChangeHookInput,
+  CwdChangedHookInput as SDKCwdChangedHookInput,
   ElicitationHookInput as SDKElicitationHookInput,
   ElicitationResultHookInput as SDKElicitationResultHookInput,
+  FileChangedHookInput as SDKFileChangedHookInput,
   HookEvent as SDKHookEvent,
   HookInput as SDKHookInput,
   InstructionsLoadedHookInput as SDKInstructionsLoadedHookInput,
@@ -51,8 +53,10 @@ export type {
 import type {
   BaseHookInput as SDKBaseHookInput,
   ConfigChangeHookInput as SDKConfigChangeHookInput,
+  CwdChangedHookInput as SDKCwdChangedHookInput,
   ElicitationHookInput as SDKElicitationHookInput,
   ElicitationResultHookInput as SDKElicitationResultHookInput,
+  FileChangedHookInput as SDKFileChangedHookInput,
   InstructionsLoadedHookInput as SDKInstructionsLoadedHookInput,
   NotificationHookInput as SDKNotificationHookInput,
   PermissionMode as SDKPermissionMode,
@@ -353,6 +357,33 @@ export type WorktreeCreateInput = { [K in keyof SDKWorktreeCreateHookInput]: SDK
 export type WorktreeRemoveInput = { [K in keyof SDKWorktreeRemoveHookInput]: SDKWorktreeRemoveHookInput[K] } & {};
 
 /**
+ * Input for CwdChanged hooks.
+ *
+ * Fires when Claude Code's current working directory changes, allowing you to:
+ * - React to directory changes within a session
+ * - Update file watchers or environment state
+ * - Return `watchPaths` to register paths for FileChanged events
+ * @see https://code.claude.com/docs/en/hooks#cwdchanged
+ */
+export type CwdChangedInput = { [K in keyof SDKCwdChangedHookInput]: SDKCwdChangedHookInput[K] } & {};
+
+/**
+ * Input for FileChanged hooks.
+ *
+ * Fires when a watched file changes on disk, allowing you to:
+ * - React to file system changes during a session
+ * - Invalidate caches or reload configuration
+ * - Return `watchPaths` to update the set of watched paths
+ *
+ * The `event` field indicates the type of change:
+ * - `'change'` - File contents changed
+ * - `'add'` - File was created
+ * - `'unlink'` - File was deleted
+ * @see https://code.claude.com/docs/en/hooks#filechanged
+ */
+export type FileChangedInput = { [K in keyof SDKFileChangedHookInput]: SDKFileChangedHookInput[K] } & {};
+
+/**
  * Input for SessionEnd hooks.
  *
  * Fires when a Claude Code session ends, allowing you to:
@@ -472,7 +503,9 @@ export type HookInput =
   | ConfigChangeInput
   | InstructionsLoadedInput
   | WorktreeCreateInput
-  | WorktreeRemoveInput;
+  | WorktreeRemoveInput
+  | CwdChangedInput
+  | FileChangedInput;
 
 /**
  * Hook event name literal union.
@@ -516,6 +549,8 @@ export const HOOK_EVENT_NAMES = [
   "InstructionsLoaded",
   "WorktreeCreate",
   "WorktreeRemove",
+  "CwdChanged",
+  "FileChanged",
 ] as const satisfies readonly HookEventName[];
 
 // Re-export PermissionUpdate from SDK for convenience

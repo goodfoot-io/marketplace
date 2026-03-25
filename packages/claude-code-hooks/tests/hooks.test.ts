@@ -9,8 +9,10 @@
 
 import type {
   ConfigChangeHookInput,
+  CwdChangedHookInput,
   ElicitationHookInput,
   ElicitationResultHookInput,
+  FileChangedHookInput,
   InstructionsLoadedHookInput,
   NotificationHookInput,
   PostToolUseFailureHookInput,
@@ -37,6 +39,8 @@ import {
   postToolUseFailureHook,
   postToolUseHook,
   preCompactHook,
+  cwdChangedHook,
+  fileChangedHook,
   preToolUseHook,
   sessionEndHook,
   sessionStartHook,
@@ -65,6 +69,8 @@ import {
   subagentStartOutput,
   subagentStopOutput,
   userPromptSubmitOutput,
+  cwdChangedOutput,
+  fileChangedOutput,
   worktreeCreateOutput,
   worktreeRemoveOutput,
 } from "../src/outputs.js";
@@ -281,6 +287,28 @@ function createWorktreeRemoveHookInput(): WorktreeRemoveHookInput {
     transcript_path: "/path/to/transcript",
     cwd: "/workspace",
     worktree_path: "/workspace/.worktrees/feature-branch",
+  };
+}
+
+function createCwdChangedHookInput(): CwdChangedHookInput {
+  return {
+    hook_event_name: "CwdChanged",
+    session_id: "test-session",
+    transcript_path: "/path/to/transcript",
+    cwd: "/new/workspace",
+    old_cwd: "/old/workspace",
+    new_cwd: "/new/workspace",
+  };
+}
+
+function createFileChangedHookInput(): FileChangedHookInput {
+  return {
+    hook_event_name: "FileChanged",
+    session_id: "test-session",
+    transcript_path: "/path/to/transcript",
+    cwd: "/workspace",
+    file_path: "/workspace/src/index.ts",
+    event: "change",
   };
 }
 
@@ -831,6 +859,42 @@ describe("Hook Factory Functions", () => {
       });
       await hook(createWorktreeRemoveHookInput(), { logger: testLogger });
       expect(receivedInput?.worktree_path).toBe("/workspace/.worktrees/feature-branch");
+    });
+  });
+
+  describe("cwdChangedHook", () => {
+    it("returns a HookFunction with correct hookEventName", () => {
+      const hook = cwdChangedHook({}, () => cwdChangedOutput({}));
+      expect(hook.hookEventName).toBe("CwdChanged");
+    });
+
+    it("handler receives old_cwd and new_cwd fields", async () => {
+      let receivedInput: CwdChangedHookInput | undefined;
+      const hook = cwdChangedHook({}, (input) => {
+        receivedInput = input;
+        return cwdChangedOutput({});
+      });
+      await hook(createCwdChangedHookInput(), { logger: testLogger });
+      expect(receivedInput?.old_cwd).toBe("/old/workspace");
+      expect(receivedInput?.new_cwd).toBe("/new/workspace");
+    });
+  });
+
+  describe("fileChangedHook", () => {
+    it("returns a HookFunction with correct hookEventName", () => {
+      const hook = fileChangedHook({}, () => fileChangedOutput({}));
+      expect(hook.hookEventName).toBe("FileChanged");
+    });
+
+    it("handler receives file_path and event fields", async () => {
+      let receivedInput: FileChangedHookInput | undefined;
+      const hook = fileChangedHook({}, (input) => {
+        receivedInput = input;
+        return fileChangedOutput({});
+      });
+      await hook(createFileChangedHookInput(), { logger: testLogger });
+      expect(receivedInput?.file_path).toBe("/workspace/src/index.ts");
+      expect(receivedInput?.event).toBe("change");
     });
   });
 });
