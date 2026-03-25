@@ -21,7 +21,8 @@ npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
     *   *Critical:* Quote the glob pattern (`"..."`) to prevent your shell from expanding it before the CLI sees it.
 *   `-o "dist/hooks.json"`: **Output Manifest.** This is the file you register in your config.
     *   The CLI creates a `bin/` folder next to this file containing the compiled `.mjs` executables.
-*   `--log "/tmp/hooks.log"` (Optional): **Runtime Log.** Forces all hooks to write `logger` output to this file. Essential for debugging.
+*   `--log "/tmp/hooks.log"` (Optional): **Hardcoded Log Path.** Bakes the log file path into the compiled bundle. A runtime `CLAUDE_CODE_HOOKS_LOG_FILE` env var overrides it. Cannot be combined with `--log-env-var`.
+*   `--log-env-var MY_VAR` (Optional): **Dynamic Log Path.** Bakes an env var *name* into the bundle; Logger reads `process.env[MY_VAR]` at startup. Use when the log path varies at runtime (e.g. across git worktrees). Cannot be combined with `--log`.
 
 ## 2. Hook Factory Demonstration
 
@@ -119,7 +120,7 @@ npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,Subage
 3.  `npm run build` (Compiles hooks to the specified output path)
 4.  `npm test` (Runs the generated tests)
 
-**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`, `PermissionRequest`, `Setup`, `TeammateIdle`, `TaskCompleted`
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`, `PermissionRequest`, `Setup`, `TeammateIdle`, `TaskCompleted`, `CwdChanged`, `FileChanged`
 
 **Monorepo?** Use `-o` to output directly to a plugin directory:
 ```bash
@@ -150,8 +151,10 @@ Different hooks have different capabilities. This table clarifies what each hook
 | Setup | No | No | Yes (`additionalContext`) | No |
 | TeammateIdle | Yes (`stderr`) | No | No | No |
 | TaskCompleted | Yes (`stderr`) | No | No | No |
+| CwdChanged | No | No | No | No |
+| FileChanged | No | No | No | No |
 
-**Key distinction**: `Stop` and `SubagentStop` hooks use `decision: 'block'`. `TeammateIdle` and `TaskCompleted` hooks use `stderr` for exit-code-based blocking (no Common Options). Other hooks signal issues through `additionalContext`, `systemMessage`, or `permissionDecision`.
+**Key distinction**: `Stop` and `SubagentStop` hooks use `decision: 'block'`. `TeammateIdle` and `TaskCompleted` hooks use `stderr` for exit-code-based blocking (no Common Options). `CwdChanged` and `FileChanged` hooks return `hookSpecificOutput.watchPaths` to register/update paths for `FileChanged` events. Other hooks signal issues through `additionalContext`, `systemMessage`, or `permissionDecision`.
 
 ## 5. Common Patterns
 

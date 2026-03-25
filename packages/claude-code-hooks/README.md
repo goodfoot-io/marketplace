@@ -107,25 +107,27 @@ npm test        # Run tests
 
 ### Available Hook Types
 
-The `--hooks` argument accepts a comma-separated list of any of these 15 event types:
+The `--hooks` argument accepts a comma-separated list of any of these 17 event types:
 
-| Hook Type            | Description                                |
-| -------------------- | ------------------------------------------ |
-| `PreToolUse`         | Before a tool executes (allow/deny/modify) |
-| `PostToolUse`        | After a tool completes successfully        |
-| `PostToolUseFailure` | After a tool fails                         |
-| `Notification`       | When Claude requests permissions           |
-| `UserPromptSubmit`   | When user submits a prompt                 |
-| `SessionStart`       | When session begins                        |
-| `SessionEnd`         | When session terminates                    |
-| `Stop`               | After main agent finishes                  |
-| `StopFailure`        | When session stops due to an error         |
-| `SubagentStart`      | When an Agent tool starts                   |
-| `SubagentStop`       | When an Agent tool completes                |
-| `PreCompact`         | Before context compaction                  |
-| `PostCompact`        | After context compaction completes         |
-| `PermissionRequest`  | When permission is requested               |
-| `Setup`              | On init, install, or update events         |
+| Hook Type            | Description                                                              |
+| -------------------- | ------------------------------------------------------------------------ |
+| `PreToolUse`         | Before a tool executes (allow/deny/modify)                               |
+| `PostToolUse`        | After a tool completes successfully                                      |
+| `PostToolUseFailure` | After a tool fails                                                       |
+| `Notification`       | When Claude requests permissions                                         |
+| `UserPromptSubmit`   | When user submits a prompt                                               |
+| `SessionStart`       | When session begins                                                      |
+| `SessionEnd`         | When session terminates                                                  |
+| `Stop`               | After main agent finishes                                                |
+| `StopFailure`        | When session stops due to an error                                       |
+| `SubagentStart`      | When an Agent tool starts                                                |
+| `SubagentStop`       | When an Agent tool completes                                             |
+| `PreCompact`         | Before context compaction                                                |
+| `PostCompact`        | After context compaction completes                                       |
+| `PermissionRequest`  | When permission is requested                                             |
+| `Setup`              | On init, install, or update events                                       |
+| `CwdChanged`         | When Claude Code's working directory changes; return `watchPaths` to register paths for `FileChanged` |
+| `FileChanged`        | When a watched file changes on disk (`change`, `add`, or `unlink`); return `watchPaths` to update the watched set |
 
 Hook names are case-insensitive: `stop`, `Stop`, and `STOP` all work.
 

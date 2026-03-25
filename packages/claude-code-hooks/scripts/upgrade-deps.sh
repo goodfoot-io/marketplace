@@ -271,7 +271,14 @@ if [[ "$SDK_CHANGED" == "true" ]]; then
 
 8. Run 'yarn snapshot:sdk-types --update' to store a new snapshot
 
-9. Run 'yarn update:docs' to update the docs
+9. Update documentation:
+   - Find the last release tag: git tag --sort=-version:refname | grep -E '^claude-code-hooks-v[0-9]+\.[0-9]+\.[0-9]+' | head -1
+   - Run git diff <last-tag>..HEAD -- packages/claude-code-hooks/src/ to see what changed
+   - Review and update these files based on the source changes:
+     - packages/claude-code-hooks/README.md
+     - plugins/claude-code-hooks/skills/sdk/**/*.md
+   - Add new hook types, update API signatures, update examples, update counts (e.g. '17 hook types' -> '19 hook types')
+   - Maintain the existing style and structure; only change what is outdated
 
 10. Bump the version number
 
