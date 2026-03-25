@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.6
+- Added `CwdChanged` and `FileChanged` hook types for responding to working directory and file change events
+- Added `--log-env-var` CLI option to configure logging via environment variable
+- Unified log configuration across hook invocations for consistent logging behavior
+
 ## 1.2.3
 - Added `StopFailure` hook type for handling errors that occur when Claude Code stops (API errors, rate limits, auth failures)
 - Added `PostCompact` hook type for reacting after context compaction completes
