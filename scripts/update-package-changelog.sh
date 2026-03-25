@@ -164,9 +164,15 @@ echo "Generating changelog entry with Claude..."
 echo ""
 
 # Use claude CLI to generate changelog entry
+# Run from /tmp to avoid workspace plugin configuration interfering with -p mode
+CLAUDE_STDOUT=$(mktemp)
 CLAUDE_STDERR=$(mktemp)
-CHANGELOG_ENTRY=$(claude -p "$PROMPT" < /dev/null 2>"$CLAUDE_STDERR")
+CLAUDE_PROMPT_FILE=$(mktemp)
+printf '%s' "$PROMPT" > "$CLAUDE_PROMPT_FILE"
+(cd /tmp && claude -p "$(cat "$CLAUDE_PROMPT_FILE")" < /dev/null) > "$CLAUDE_STDOUT" 2>"$CLAUDE_STDERR"
 CLAUDE_EXIT=$?
+CHANGELOG_ENTRY=$(cat "$CLAUDE_STDOUT")
+rm -f "$CLAUDE_PROMPT_FILE"
 
 if [ $CLAUDE_EXIT -ne 0 ] || [ -z "$CHANGELOG_ENTRY" ]; then
   echo -e "${RED}❌ Error: Failed to generate changelog entry with Claude (exit code: $CLAUDE_EXIT)${NC}"
@@ -182,11 +188,11 @@ if [ $CLAUDE_EXIT -ne 0 ] || [ -z "$CHANGELOG_ENTRY" ]; then
   else
     echo -e "${YELLOW}(no stdout output)${NC}"
   fi
-  rm -f "$CLAUDE_STDERR"
+  rm -f "$CLAUDE_STDOUT" "$CLAUDE_STDERR"
   echo -e "${YELLOW}Make sure the 'claude' CLI is installed and available in your PATH${NC}"
   exit 1
 fi
-rm -f "$CLAUDE_STDERR"
+rm -f "$CLAUDE_STDOUT" "$CLAUDE_STDERR"
 
 # Extract only the changelog entry (from ## onwards, including all bullet points)
 # Remove any preamble/explanation text from Claude before the ## header
