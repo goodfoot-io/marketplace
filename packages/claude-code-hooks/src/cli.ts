@@ -642,6 +642,7 @@ execute(hook);
     target: "node20",
     bundle: true,
     minify: false,
+    minifyWhitespace: true,
     treeShaking: true,
     write: false, // Return content directly via outputFiles
     banner: { js: esmRequireBanner },
