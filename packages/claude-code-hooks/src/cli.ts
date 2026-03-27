@@ -16,6 +16,7 @@
  * @module
  */
 
+import type { HookEventName } from "./types.js";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -24,7 +25,6 @@ import { glob } from "glob";
 import ts from "typescript";
 import { HOOK_FACTORY_TO_EVENT } from "./constants.js";
 import { scaffoldProject } from "./scaffold.js";
-import type { HookEventName } from "./types.js";
 
 // ============================================================================
 // Types
@@ -642,7 +642,6 @@ execute(hook);
     target: "node20",
     bundle: true,
     minify: false,
-    minifyWhitespace: true,
     treeShaking: true,
     write: false, // Return content directly via outputFiles
     banner: { js: esmRequireBanner },
