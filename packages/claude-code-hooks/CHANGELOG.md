@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.7
+- Minor improvements and bug fixes
+
 ## 1.2.6
 - Added `CwdChanged` and `FileChanged` hook types for responding to working directory and file change events
 - Added `--log-env-var` CLI option to configure logging via environment variable
