@@ -1,6 +1,10 @@
 # Changelog
 
 ## 1.2.8
+- Added support for `TaskCreated` hook type
+- Removed minify whitespace option from output formatting
+
+## 1.2.8
 - Added `TaskCreated` hook type for responding to new task creation events (SDK 0.2.86)
 - Added `taskCreatedHook` factory and `taskCreatedOutput` builder
 - Added `TaskCreatedInput` type with `task_id`, `task_subject`, `task_description`, `teammate_name`, and `team_name` fields
