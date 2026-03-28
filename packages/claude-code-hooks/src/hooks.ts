@@ -46,6 +46,7 @@ import type {
   SubagentStartOutput,
   SubagentStopOutput,
   TaskCompletedOutput,
+  TaskCreatedOutput,
   TeammateIdleOutput,
   UserPromptSubmitOutput,
   WorktreeCreateOutput,
@@ -75,6 +76,7 @@ import type {
   SubagentStartInput,
   SubagentStopInput,
   TaskCompletedInput,
+  TaskCreatedInput,
   TeammateIdleInput,
   ToolInputMap,
   UserPromptSubmitInput,
@@ -1217,6 +1219,46 @@ export function teammateIdleHook(
   handler: HookHandler<TeammateIdleInput, TeammateIdleOutput>,
 ): HookFunction<TeammateIdleInput, TeammateIdleOutput> {
   return createHookFunction("TeammateIdle", config, handler);
+}
+
+// ============================================================================
+// TaskCreated Hook Factory
+// ============================================================================
+
+/**
+ * Creates a TaskCreated hook handler.
+ *
+ * TaskCreated hooks fire when a new task is created and assigned to a teammate,
+ * allowing you to:
+ * - Observe task creation events
+ * - Log task assignments for auditing
+ * - React to new work being assigned
+ *
+ * **Matcher**: No matcher support - fires on all task creation events
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { taskCreatedHook, taskCreatedOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * // Log task creation
+ * export default taskCreatedHook({}, async (input, { logger }) => {
+ *   logger.info('Task created', {
+ *     taskId: input.task_id,
+ *     taskSubject: input.task_subject
+ *   });
+ *
+ *   return taskCreatedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#taskcreated
+ */
+export function taskCreatedHook(
+  config: HookConfig,
+  handler: HookHandler<TaskCreatedInput, TaskCreatedOutput>,
+): HookFunction<TaskCreatedInput, TaskCreatedOutput> {
+  return createHookFunction("TaskCreated", config, handler);
 }
 
 // ============================================================================

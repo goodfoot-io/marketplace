@@ -25,6 +25,7 @@ export const HOOK_FACTORY_TO_EVENT: Record<string, HookEventName> = {
   permissionRequestHook: "PermissionRequest",
   setupHook: "Setup",
   teammateIdleHook: "TeammateIdle",
+  taskCreatedHook: "TaskCreated",
   taskCompletedHook: "TaskCompleted",
   elicitationHook: "Elicitation",
   elicitationResultHook: "ElicitationResult",

@@ -31,16 +31,16 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { HookContext, SessionStartContext } from "../src/hooks.js";
 import {
   configChangeHook,
+  cwdChangedHook,
   elicitationHook,
   elicitationResultHook,
+  fileChangedHook,
   instructionsLoadedHook,
   notificationHook,
   permissionRequestHook,
   postToolUseFailureHook,
   postToolUseHook,
   preCompactHook,
-  cwdChangedHook,
-  fileChangedHook,
   preToolUseHook,
   sessionEndHook,
   sessionStartHook,
@@ -54,8 +54,10 @@ import {
 import { Logger } from "../src/logger.js";
 import {
   configChangeOutput,
+  cwdChangedOutput,
   elicitationOutput,
   elicitationResultOutput,
+  fileChangedOutput,
   instructionsLoadedOutput,
   notificationOutput,
   permissionRequestOutput,
@@ -69,8 +71,6 @@ import {
   subagentStartOutput,
   subagentStopOutput,
   userPromptSubmitOutput,
-  cwdChangedOutput,
-  fileChangedOutput,
   worktreeCreateOutput,
   worktreeRemoveOutput,
 } from "../src/outputs.js";

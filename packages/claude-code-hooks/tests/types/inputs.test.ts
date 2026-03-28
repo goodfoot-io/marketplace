@@ -60,6 +60,8 @@ describe("HookInput discriminated union", () => {
             return input.trigger;
           case "TeammateIdle":
             return input.teammate_name;
+          case "TaskCreated":
+            return input.task_id;
           case "TaskCompleted":
             return input.task_id;
           case "Elicitation":

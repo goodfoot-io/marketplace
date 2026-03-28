@@ -521,6 +521,23 @@ export default teammateIdleHook({}, (input, { logger }) => {
 });
 ```
 
+### React to Task Creation (TaskCreated)
+
+```typescript
+import { taskCreatedHook, taskCreatedOutput } from '@goodfoot/claude-code-hooks';
+
+export default taskCreatedHook({}, (input, { logger }) => {
+  logger.info('Task created', {
+    taskId: input.task_id,
+    taskSubject: input.task_subject,
+    teammate: input.teammate_name
+  });
+
+  // Allow task creation
+  return taskCreatedOutput({});
+});
+```
+
 ### Validate Before Task Completion (TaskCompleted)
 
 ```typescript
@@ -540,7 +557,7 @@ export default taskCompletedHook({}, (input, { logger }) => {
 });
 ```
 
-## All 17 Hook Types Reference
+## All 18 Hook Types Reference
 
 | Hook Type | Factory | Builder | Input Key |
 |-----------|---------|---------|-----------|
@@ -560,6 +577,7 @@ export default taskCompletedHook({}, (input, { logger }) => {
 | PermissionRequest | `permissionRequestHook` | `permissionRequestOutput` | `tool_name` |
 | Setup | `setupHook` | `setupOutput` | `trigger` |
 | TeammateIdle | `teammateIdleHook` | `teammateIdleOutput` | `teammate_name` |
+| TaskCreated | `taskCreatedHook` | `taskCreatedOutput` | `task_subject` |
 | TaskCompleted | `taskCompletedHook` | `taskCompletedOutput` | `task_subject` |
 
 ## Builder Options Cheat Sheet
@@ -662,6 +680,7 @@ These options are available on ALL output builders:
 | Provide feedback after tool | PostToolUse | `additionalContext` and/or `systemMessage` |
 | Critical error (any hook) | Any | `stopReason` (last resort) |
 | Prevent teammate from idling | TeammateIdle | `stderr: 'message'` |
+| React to task creation | TaskCreated | `stderr: 'message'` |
 | Block task completion | TaskCompleted | `stderr: 'message'` |
 
 **Important**: PostToolUse hooks **cannot block execution** — the tool has already run. Use `additionalContext` and `systemMessage` to inform Claude of issues.

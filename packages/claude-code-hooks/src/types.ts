@@ -44,6 +44,7 @@ export type {
   SubagentStartHookInput as SDKSubagentStartHookInput,
   SubagentStopHookInput as SDKSubagentStopHookInput,
   TaskCompletedHookInput as SDKTaskCompletedHookInput,
+  TaskCreatedHookInput as SDKTaskCreatedHookInput,
   TeammateIdleHookInput as SDKTeammateIdleHookInput,
   UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
   WorktreeCreateHookInput as SDKWorktreeCreateHookInput,
@@ -75,6 +76,7 @@ import type {
   SubagentStartHookInput as SDKSubagentStartHookInput,
   SubagentStopHookInput as SDKSubagentStopHookInput,
   TaskCompletedHookInput as SDKTaskCompletedHookInput,
+  TaskCreatedHookInput as SDKTaskCreatedHookInput,
   TeammateIdleHookInput as SDKTeammateIdleHookInput,
   UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
   WorktreeCreateHookInput as SDKWorktreeCreateHookInput,
@@ -283,6 +285,17 @@ export type SetupInput = { [K in keyof SDKSetupHookInput]: SDKSetupHookInput[K] 
  * @see https://code.claude.com/docs/en/hooks#teammateidle
  */
 export type TeammateIdleInput = { [K in keyof SDKTeammateIdleHookInput]: SDKTeammateIdleHookInput[K] } & {};
+
+/**
+ * Input for TaskCreated hooks.
+ *
+ * Fires when a new task is created and assigned to a teammate, allowing you to:
+ * - Observe task creation events
+ * - Log task assignments for auditing
+ * - React to new work being assigned
+ * @see https://code.claude.com/docs/en/hooks#taskcreated
+ */
+export type TaskCreatedInput = { [K in keyof SDKTaskCreatedHookInput]: SDKTaskCreatedHookInput[K] } & {};
 
 /**
  * Input for TaskCompleted hooks.
@@ -497,6 +510,7 @@ export type HookInput =
   | PermissionRequestInput
   | SetupInput
   | TeammateIdleInput
+  | TaskCreatedInput
   | TaskCompletedInput
   | ElicitationInput
   | ElicitationResultInput
@@ -542,6 +556,7 @@ export const HOOK_EVENT_NAMES = [
   "PermissionRequest",
   "Setup",
   "TeammateIdle",
+  "TaskCreated",
   "TaskCompleted",
   "Elicitation",
   "ElicitationResult",

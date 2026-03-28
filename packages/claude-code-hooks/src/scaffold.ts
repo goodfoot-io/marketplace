@@ -80,6 +80,7 @@ const EVENT_TO_OUTPUT_FUNCTION: Record<HookEventName, string> = {
   PermissionRequest: "permissionRequestOutput",
   Setup: "setupOutput",
   TeammateIdle: "teammateIdleOutput",
+  TaskCreated: "taskCreatedOutput",
   TaskCompleted: "taskCompletedOutput",
   Elicitation: "elicitationOutput",
   ElicitationResult: "elicitationResultOutput",

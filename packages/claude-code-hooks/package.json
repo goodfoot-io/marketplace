@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/claude-code-hooks",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "description": "Type-safe Claude Code hooks library with camelCase types and output builders",
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/claude-code-hooks",
   "repository": {
@@ -51,7 +51,7 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.83",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.86",
     "@biomejs/biome": "2.4.9",
     "@types/node": "^24",
     "ts-morph": "^25.0.0",

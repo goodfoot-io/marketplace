@@ -353,6 +353,10 @@ export type TeammateIdleOutput = BaseSpecificOutput<"TeammateIdle">;
 /**
  *
  */
+export type TaskCreatedOutput = BaseSpecificOutput<"TaskCreated">;
+/**
+ *
+ */
 export type TaskCompletedOutput = BaseSpecificOutput<"TaskCompleted">;
 /**
  *
@@ -407,6 +411,7 @@ export type SpecificHookOutput =
   | PermissionRequestOutput
   | SetupOutput
   | TeammateIdleOutput
+  | TaskCreatedOutput
   | TaskCompletedOutput
   | ElicitationOutput
   | ElicitationResultOutput
@@ -982,6 +987,31 @@ export type TeammateIdleOptions = ExitCodeOptions;
  * ```
  */
 export const teammateIdleOutput = /* @__PURE__ */ createExitCodeOutputBuilder<"TeammateIdle">("TeammateIdle");
+
+// ============================================================================
+// TaskCreated Output Builder
+// ============================================================================
+
+/**
+ * Options for the TaskCreated output builder.
+ * TaskCreated hooks use exit codes only, not JSON decision control.
+ */
+export type TaskCreatedOptions = ExitCodeOptions;
+
+/**
+ * Creates an output for TaskCreated hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A TaskCreatedOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * // Allow task creation
+ * taskCreatedOutput({});
+ *
+ * // Block with feedback
+ * taskCreatedOutput({ stderr: 'Cannot create task: missing required fields.' });
+ * ```
+ */
+export const taskCreatedOutput = /* @__PURE__ */ createExitCodeOutputBuilder<"TaskCreated">("TaskCreated");
 
 // ============================================================================
 // TaskCompleted Output Builder

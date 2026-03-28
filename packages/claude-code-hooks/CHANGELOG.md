@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.8
+- Added `TaskCreated` hook type for responding to new task creation events (SDK 0.2.86)
+- Added `taskCreatedHook` factory and `taskCreatedOutput` builder
+- Added `TaskCreatedInput` type with `task_id`, `task_subject`, `task_description`, `teammate_name`, and `team_name` fields
+
 ## 1.2.7
 - Minor improvements and bug fixes
 
