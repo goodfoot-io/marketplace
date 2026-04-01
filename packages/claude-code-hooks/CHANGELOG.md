@@ -1,6 +1,10 @@
 # Changelog
 
 ## 1.2.9
+- Added asset loader support, enabling hooks to bundle and reference static assets (e.g., prompt files) at build time
+- Fixed changelog update skipping support for more reliable release workflows
+
+## 1.2.9
 - Added explicit esbuild loader support to the hook compiler via repeated `--loader .ext=type` flags
 - Enabled `.md=text` by default so markdown prompt assets can be imported directly in hooks
 - Documented bundled text-asset behavior and the need to mirror loader handling in Vitest/Vite test config
