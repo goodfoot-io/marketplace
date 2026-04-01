@@ -59,8 +59,12 @@ interface HooksJson {
  * @param outputPath - Path where hooks.json will be written
  * @returns Object with success status and captured stdout/stderr
  */
-function runCli(inputPattern: string, outputPath: string): { success: boolean; stdout: string; stderr: string } {
-  const result = spawnSync("npx", ["tsx", CLI_PATH, "-i", inputPattern, "-o", outputPath], {
+function runCli(
+  inputPattern: string,
+  outputPath: string,
+  extraArgs: string[] = [],
+): { success: boolean; stdout: string; stderr: string } {
+  const result = spawnSync("npx", ["tsx", CLI_PATH, "-i", inputPattern, "-o", outputPath, ...extraArgs], {
     cwd: path.dirname(CLI_PATH),
     encoding: "utf-8",
     stdio: "pipe",
@@ -382,8 +386,11 @@ describe("E2E: Build Process", () => {
       fs.mkdirSync(outputDir2, { recursive: true });
 
       // Build different hooks
-      runCli(path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts"), outputPath1);
-      runCli(path.join(BUILD_TEST_FIXTURES, "notification-hook.ts"), outputPath2);
+      const result1 = runCli(path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts"), outputPath1);
+      const result2 = runCli(path.join(BUILD_TEST_FIXTURES, "notification-hook.ts"), outputPath2);
+
+      expect(result1.success).toBe(true);
+      expect(result2.success).toBe(true);
 
       const hooksJson1 = readHooksJson(outputPath1);
       const hooksJson2 = readHooksJson(outputPath2);
@@ -469,6 +476,72 @@ describe("E2E: Build Process", () => {
         const output: unknown = JSON.parse(execResult.stdout);
         expect(output).toBeDefined();
       }
+    });
+
+    it("compiles markdown prompt assets with the default .md loader", () => {
+      const outputDir = path.join(BUILD_TEST_OUTPUT, "markdown-loader");
+      const outputPath = path.join(outputDir, "hooks.json");
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "session-start-markdown-hook.ts");
+      const result = runCli(inputPath, outputPath);
+
+      expect(result.success).toBe(true);
+
+      const hooksJson = readHooksJson(outputPath);
+      const command = hooksJson.hooks.SessionStart?.[0].hooks[0].command;
+      expect(command).toBeDefined();
+
+      const commandPath = resolveCommandPath(command, outputDir);
+      const execResult = spawnSync("node", [commandPath], {
+        input: JSON.stringify({
+          hook_event_name: "SessionStart",
+          session_id: "test",
+          cwd: "/tmp",
+          source: "startup",
+        }),
+        encoding: "utf-8",
+        timeout: 5000,
+      });
+
+      expect(execResult.status).toBe(0);
+      const output = JSON.parse(execResult.stdout) as Record<string, unknown>;
+      const hookOutput = output.hookSpecificOutput as Record<string, unknown>;
+      expect(hookOutput.additionalContext).toContain("Session Preamble");
+      expect(hookOutput.additionalContext).toContain("card repository guide");
+    });
+
+    it("compiles text prompt assets when --loader .txt=text is provided", () => {
+      const outputDir = path.join(BUILD_TEST_OUTPUT, "text-loader");
+      const outputPath = path.join(outputDir, "hooks.json");
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "subagent-start-text-hook.ts");
+      const result = runCli(inputPath, outputPath, ["--loader", ".txt=text"]);
+
+      expect(result.success).toBe(true);
+
+      const hooksJson = readHooksJson(outputPath);
+      const command = hooksJson.hooks.SubagentStart?.[0].hooks[0].command;
+      expect(command).toBeDefined();
+
+      const commandPath = resolveCommandPath(command, outputDir);
+      const execResult = spawnSync("node", [commandPath], {
+        input: JSON.stringify({
+          hook_event_name: "SubagentStart",
+          session_id: "test",
+          cwd: "/tmp",
+          agent_id: "agent_123",
+          agent_type: "explore",
+        }),
+        encoding: "utf-8",
+        timeout: 5000,
+      });
+
+      expect(execResult.status).toBe(0);
+      const output = JSON.parse(execResult.stdout) as Record<string, unknown>;
+      const hookOutput = output.hookSpecificOutput as Record<string, unknown>;
+      expect(hookOutput.additionalContext).toContain("Plaintext preamble for subagents.");
     });
 
     it("compiled hook that throws exits with code 2 and outputs stacktrace to stderr", () => {

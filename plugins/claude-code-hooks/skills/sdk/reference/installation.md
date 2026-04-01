@@ -77,6 +77,35 @@ Hooks **must be compiled**. Run the build CLI:
 npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
 ```
 
+### Asset Imports with `--loader`
+
+The compiler bundles hook code with esbuild. Non-code imports must have an esbuild loader.
+
+- `.md` works out of the box because the CLI enables `.md=text` by default.
+- Other extensions stay fail-closed until you opt in with repeated `--loader .ext=type` flags.
+- Use text imports for small static prompt assets that should become strings at bundle time.
+
+```bash
+npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json" --loader .txt=text
+```
+
+Typical pattern for prompt preambles:
+
+```typescript
+import preamble from './prompts/subagent-start.md';
+import { subagentStartHook } from '@goodfoot/claude-code-hooks';
+
+export default subagentStartHook({}, () => {
+  return {
+    hookSpecificOutput: {
+      additionalContext: preamble
+    }
+  };
+});
+```
+
+If your project also runs Vitest/Vite, configure the same extension handling there. Otherwise source builds can pass while tests still fail on the asset import.
+
 ### Custom Node Executable
 
 By default, generated commands use `node` as the executable. Use `--executable` to specify an alternative:

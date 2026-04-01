@@ -15,10 +15,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CliArgs } from "../src/cli.js";
 import {
   analyzeHookFile,
+  buildLoaderMap,
   detectHookContext,
   generateCommandPath,
   HOOK_FACTORY_TO_EVENT,
   parseArgs,
+  parseLoaderFlag,
   validateArgs,
 } from "../src/cli.js";
 
@@ -90,6 +92,7 @@ describe("parseArgs", () => {
     expect(result.logEnvVar).toBeUndefined();
     expect(result.help).toBe(false);
     expect(result.version).toBe(false);
+    expect(result.loaderFlags).toEqual([]);
   });
 
   it("parses -i/--input flag", () => {
@@ -147,6 +150,12 @@ describe("parseArgs", () => {
     expect(result.input).toBe("src/**/*.ts");
     expect(result.output).toBe("./out.json");
     expect(result.log).toBe("./log.txt");
+  });
+
+  it("parses repeated --loader flags", () => {
+    const result = parseArgs(["-i", "hooks/**/*.ts", "-o", "./dist/hooks.json", "--loader", ".txt=text", "--loader", ".svg=dataurl"]);
+
+    expect(result.loaderFlags).toEqual([".txt=text", ".svg=dataurl"]);
   });
 });
 
@@ -245,9 +254,47 @@ describe("validateArgs", () => {
       logEnvVar: "MY_LOG_FILE",
       help: false,
       version: false,
+      loaderFlags: [],
     };
 
     expect(validateArgs(args)).toBeUndefined();
+  });
+
+  it("rejects malformed --loader values", () => {
+    const args: CliArgs = {
+      input: "hooks/**/*.ts",
+      output: "./dist/hooks.json",
+      help: false,
+      version: false,
+      loaderFlags: ["txt=text"],
+    };
+
+    expect(validateArgs(args)).toBe("Invalid --loader value: txt=text. Expected .ext=type");
+  });
+
+  it("rejects unknown esbuild loader types", () => {
+    const args: CliArgs = {
+      input: "hooks/**/*.ts",
+      output: "./dist/hooks.json",
+      help: false,
+      version: false,
+      loaderFlags: [".txt=unknown"],
+    };
+
+    expect(validateArgs(args)).toBe("Invalid esbuild loader type for .txt: unknown");
+  });
+});
+
+describe("loader parsing", () => {
+  it("parses valid loader flags", () => {
+    expect(parseLoaderFlag(".txt=text")).toEqual({ extension: ".txt", loader: "text" });
+  });
+
+  it("builds a loader map with defaults and overrides", () => {
+    expect(buildLoaderMap([".txt=text", ".md=file"])).toEqual({
+      ".md": "file",
+      ".txt": "text",
+    });
   });
 });
 

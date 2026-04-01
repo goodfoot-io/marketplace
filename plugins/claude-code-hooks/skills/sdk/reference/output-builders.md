@@ -52,6 +52,27 @@ export default userPromptSubmitHook({}, (input, { logger }) => {
 });
 ```
 
+### Bundle Prompt Preambles from Markdown (SessionStart/SubagentStart)
+
+Use bundled text assets when you want a static preamble checked into the repo instead of hardcoding a long string inline.
+
+- `.md` imports work by default because `claude-code-hooks` enables `.md=text`.
+- For other asset types, add `--loader .ext=text` to the build command.
+- Keep these assets small; they are embedded into the compiled hook output as strings.
+
+```typescript
+import preamble from './prompts/session-start.md';
+import { sessionStartHook, sessionStartOutput } from '@goodfoot/claude-code-hooks';
+
+export default sessionStartHook({}, () => {
+  return sessionStartOutput({
+    hookSpecificOutput: {
+      additionalContext: preamble
+    }
+  });
+});
+```
+
 ### Block Stop on Condition (Stop)
 
 Use `stopHook` to prevent Claude from exiting if criteria aren't met.

@@ -65,6 +65,25 @@ The CLI compiles your TS into `.mjs` and generates the `hooks.json` manifest.
 npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
 ```
 
+Markdown prompt assets work out of the box via the default `.md=text` loader:
+
+```typescript
+import preamble from './prompts/session-start.md';
+import { sessionStartHook, sessionStartOutput } from '@goodfoot/claude-code-hooks';
+
+export default sessionStartHook({}, () => {
+  return sessionStartOutput({
+    hookSpecificOutput: { additionalContext: preamble }
+  });
+});
+```
+
+For other asset types, opt in explicitly:
+
+```bash
+npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json" --loader .txt=text
+```
+
 ### 4. Configure Claude
 
 Tell Claude where your hooks are. The location depends on your setup:
@@ -317,11 +336,18 @@ You can safely:
 1.  Use the logger to dump it: `logger.info('Input', { input })`.
 2.  Remember `input.tool_input` is `unknown`. Cast it safely, or use typed matchers.
 
+**"My prompt asset import fails in tests."**
+
+1.  `text` imports are bundled at build time and return a string. Keep them to small static assets such as prompt preambles.
+2.  If your tests run through Vitest/Vite, configure the same extension there (`.md` as text, or your chosen loader), otherwise `claude-code-hooks` builds can pass while test-time module loading still fails.
+
 ---
 
 ## 🏗️ Architecture
 
 1.  **CLI (`claude-code-hooks`)**: Scans your TS files, extracts metadata (events, matchers) via AST, and compiles them using `esbuild`.
+    - Supports explicit esbuild loaders for non-code assets via `--loader`.
+    - Ships with `.md=text` enabled for markdown prompt assets.
 2.  **Runtime (`runtime.ts`)**: The compiled files import a runtime wrapper. This wrapper:
     - Reads `stdin`.
     - Parses JSON (wire format with snake_case properties).

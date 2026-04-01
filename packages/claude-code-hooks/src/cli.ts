@@ -60,7 +60,11 @@ interface CliArgs {
   hooks?: string;
   /** Node executable path to use in command output (default: "node"). */
   executable?: string;
+  /** Repeated esbuild loader flags in EXT=TYPE form. */
+  loaderFlags: string[];
 }
+
+type HookLoaderMap = Record<string, esbuild.Loader>;
 
 /**
  * Metadata extracted from a hook file via TypeScript AST analysis.
@@ -132,6 +136,26 @@ interface HooksJson {
 // ============================================================================
 
 const VERSION = "1.0.0";
+const DEFAULT_ESBUILD_LOADERS: HookLoaderMap = {
+  ".md": "text",
+};
+const VALID_ESBUILD_LOADERS: readonly esbuild.Loader[] = [
+  "base64",
+  "binary",
+  "copy",
+  "css",
+  "dataurl",
+  "empty",
+  "file",
+  "global-css",
+  "js",
+  "json",
+  "jsx",
+  "local-css",
+  "text",
+  "ts",
+  "tsx",
+];
 
 const HELP_TEXT = `
 @goodfoot/claude-code-hooks - Type-safe, compiled hooks for Claude Code
@@ -193,6 +217,12 @@ Optional Arguments:
       Use this to specify a custom node path in the generated hooks.json commands.
       Example: "/usr/local/bin/node" or "node22"
 
+  --loader <ext=type>
+      Register an esbuild loader for non-code imports used by hooks.
+      Repeat the flag to enable additional extensions.
+      Example: --loader .txt=text --loader .svg=dataurl
+      Default loaders: .md=text
+
   -h, --help
       Show this help message.
 
@@ -214,6 +244,9 @@ Examples:
 
   4. With Custom Node Executable:
      npx -y @goodfoot/claude-code-hooks -i "hooks/**/*.ts" -o "dist/hooks.json" --executable /usr/local/bin/node
+
+  4b. With Text Assets:
+     npx -y @goodfoot/claude-code-hooks -i "hooks/**/*.ts" -o "dist/hooks.json" --loader .txt=text
 
   5. Configure Claude to use the hooks:
      After building, add this to your ~/.claude/config.json:
@@ -292,6 +325,7 @@ function parseArgs(argv: string[]): CliArgs {
     output: "",
     help: false,
     version: false,
+    loaderFlags: [],
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -328,6 +362,9 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case "--executable":
         args.executable = argv[++i] ?? "";
+        break;
+      case "--loader":
+        args.loaderFlags.push(argv[++i] ?? "");
         break;
       default:
         // Unknown argument - ignore
@@ -373,7 +410,47 @@ function validateArgs(args: CliArgs): string | undefined {
     return "Missing required argument: -o/--output <path>";
   }
 
+  for (const loaderFlag of args.loaderFlags ?? []) {
+    const parsedLoader = parseLoaderFlag(loaderFlag);
+    if (parsedLoader === undefined) {
+      return `Invalid --loader value: ${loaderFlag}. Expected .ext=type`;
+    }
+
+    if (!VALID_ESBUILD_LOADERS.includes(parsedLoader.loader)) {
+      return `Invalid esbuild loader type for ${parsedLoader.extension}: ${parsedLoader.loader}`;
+    }
+  }
+
   return undefined;
+}
+
+function parseLoaderFlag(spec: string): { extension: string; loader: esbuild.Loader } | undefined {
+  const separatorIndex = spec.indexOf("=");
+  if (separatorIndex <= 0 || separatorIndex === spec.length - 1) {
+    return undefined;
+  }
+
+  const extension = spec.slice(0, separatorIndex);
+  const loader = spec.slice(separatorIndex + 1);
+
+  if (!extension.startsWith(".") || extension.length < 2) {
+    return undefined;
+  }
+
+  return { extension, loader: loader as esbuild.Loader };
+}
+
+function buildLoaderMap(loaderFlags: string[] = []): HookLoaderMap {
+  const loaders: HookLoaderMap = { ...DEFAULT_ESBUILD_LOADERS };
+
+  for (const loaderFlag of loaderFlags) {
+    const parsedLoader = parseLoaderFlag(loaderFlag);
+    if (parsedLoader !== undefined) {
+      loaders[parsedLoader.extension] = parsedLoader.loader;
+    }
+  }
+
+  return loaders;
 }
 
 // ============================================================================
@@ -544,6 +621,8 @@ interface CompileHookOptions {
   logFilePath?: string;
   /** Optional env var name the Logger should read for the log file path at runtime. */
   logEnvVar?: string;
+  /** Explicit esbuild loaders for non-code imports. */
+  loaders: HookLoaderMap;
 }
 
 /**
@@ -572,7 +651,7 @@ interface CompileHookResult {
  * @returns Compiled content and stable content hash
  */
 async function compileHook(options: CompileHookOptions): Promise<CompileHookResult> {
-  const { sourcePath, logFilePath, logEnvVar } = options;
+  const { sourcePath, logFilePath, logEnvVar, loaders } = options;
 
   // Get the path to the runtime module (absolute, then converted to relative)
   const runtimePathAbsolute = path.resolve(path.dirname(new URL(import.meta.url).pathname), "./runtime.js");
@@ -637,6 +716,7 @@ execute(hook);
   // Common esbuild options
   const commonOptions: esbuild.BuildOptions = {
     stdin: stdinOptions,
+    loader: loaders,
     format: "esm",
     platform: "node",
     target: "node20",
@@ -716,6 +796,8 @@ interface CompileAllHooksOptions {
   logFilePath?: string;
   /** Optional env var name the Logger should read for the log file path at runtime. */
   logEnvVar?: string;
+  /** Explicit esbuild loaders for non-code imports. */
+  loaders: HookLoaderMap;
 }
 
 /**
@@ -724,7 +806,7 @@ interface CompileAllHooksOptions {
  * @returns Array of compiled hook information
  */
 async function compileAllHooks(options: CompileAllHooksOptions): Promise<CompiledHook[]> {
-  const { hookFiles, outputDir, logFilePath, logEnvVar } = options;
+  const { hookFiles, outputDir, logFilePath, logEnvVar, loaders } = options;
   const compiledHooks: CompiledHook[] = [];
 
   // Ensure output directory exists
@@ -749,7 +831,7 @@ async function compileAllHooks(options: CompileAllHooksOptions): Promise<Compile
 
     // Compile the hook (two-step process for stable content hash)
     log("info", `Compiling: ${sourcePath}`);
-    const { content, contentHash } = await compileHook({ sourcePath, outputDir, logFilePath, logEnvVar });
+    const { content, contentHash } = await compileHook({ sourcePath, outputDir, logFilePath, logEnvVar, loaders });
 
     // Determine output filename using the stable content hash
     const baseName = path.basename(sourcePath, path.extname(sourcePath));
@@ -1158,12 +1240,14 @@ async function main(): Promise<void> {
 
     // --log-env-var names the env var the Logger should read at runtime
     const logEnvVar = args.logEnvVar;
+    const loaders = buildLoaderMap(args.loaderFlags);
 
     log("info", "Starting hook compilation", {
       input: args.input,
       output: args.output,
       logFilePath,
       logEnvVar,
+      loaders,
       cwd,
     });
 
@@ -1197,7 +1281,7 @@ async function main(): Promise<void> {
     }
 
     // Compile all hooks
-    const compiledHooks = await compileAllHooks({ hookFiles, outputDir: buildDir, logFilePath, logEnvVar });
+    const compiledHooks = await compileAllHooks({ hookFiles, outputDir: buildDir, logFilePath, logEnvVar, loaders });
 
     if (compiledHooks.length === 0 && hookFiles.length > 0) {
       process.stderr.write("Error: No valid hooks found in discovered files.\n");
@@ -1279,10 +1363,11 @@ if (isDirectExecution) {
   });
 }
 
-export type { CliArgs, CompiledHook, HookConfig, HookMetadata, HooksJson, MatcherEntry };
+export type { CliArgs, CompiledHook, HookConfig, HookLoaderMap, HookMetadata, HooksJson, MatcherEntry };
 // Export for testing
 export {
   analyzeHookFile,
+  buildLoaderMap,
   compileHook,
   detectHookContext,
   discoverHookFiles,
@@ -1294,6 +1379,7 @@ export {
   HOOK_FACTORY_TO_EVENT,
   mergeHooksJson,
   parseArgs,
+  parseLoaderFlag,
   readExistingHooksJson,
   removeOldGeneratedFiles,
   validateArgs,

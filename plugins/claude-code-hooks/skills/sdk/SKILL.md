@@ -23,6 +23,22 @@ npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
     *   The CLI creates a `bin/` folder next to this file containing the compiled `.mjs` executables.
 *   `--log "/tmp/hooks.log"` (Optional): **Hardcoded Log Path.** Bakes the log file path into the compiled bundle. A runtime `CLAUDE_CODE_HOOKS_LOG_FILE` env var overrides it. Cannot be combined with `--log-env-var`.
 *   `--log-env-var MY_VAR` (Optional): **Dynamic Log Path.** Bakes an env var *name* into the bundle; Logger reads `process.env[MY_VAR]` at startup. Use when the log path varies at runtime (e.g. across git worktrees). Cannot be combined with `--log`.
+*   `--loader .ext=type` (Optional, repeatable): **Explicit Asset Loader.** Registers esbuild loaders for non-code imports used by hooks. The compiler ships with `.md=text` enabled by default, so markdown prompt assets can be imported without extra flags. For other extensions, opt in explicitly, e.g. `--loader .txt=text`.
+
+**Loader guidance:**
+*   Use text imports for **small static prompt assets** that should be bundled into the compiled hook as strings.
+*   Prefer this pattern for `SessionStart` and `SubagentStart` preambles:
+    ```typescript
+    import preamble from './prompts/session-start.md';
+    import { sessionStartHook, sessionStartOutput } from '@goodfoot/claude-code-hooks';
+
+    export default sessionStartHook({}, () => {
+      return sessionStartOutput({
+        hookSpecificOutput: { additionalContext: preamble }
+      });
+    });
+    ```
+*   If the project runs tests through Vitest/Vite, mirror the same loader behavior there or test-time imports can fail even when the `claude-code-hooks` build passes.
 
 ## 2. Hook Factory Demonstration
 
@@ -238,6 +254,7 @@ When helping a user with hooks, you **MUST** follow this protocol:
 
 1.  **Verify the Package:** Ensure usage of `@goodfoot/claude-code-hooks`.
 2.  **Enforce the Build Step:** Remind the user to run `npx ...` (or `npm run build` if scaffolded) after every edit.
+3.  **Match Asset Loaders Across Build and Test:** If a hook imports `.md`, `.txt`, or similar assets, ensure `claude-code-hooks --loader ...` and the test runner configuration agree.
 3.  **Ban `console.log` & `console.error`:** Aggressively correct any code using `console.log` or `console.error` to use `logger`. Stdio is reserved for the protocol; direct writes cause silent failures or UI corruption.
 4.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`.
 

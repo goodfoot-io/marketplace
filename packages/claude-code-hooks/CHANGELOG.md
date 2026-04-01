@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.9
+- Added explicit esbuild loader support to the hook compiler via repeated `--loader .ext=type` flags
+- Enabled `.md=text` by default so markdown prompt assets can be imported directly in hooks
+- Documented bundled text-asset behavior and the need to mirror loader handling in Vitest/Vite test config
+
 ## 1.2.8
 - Added support for `TaskCreated` hook type
 - Removed minify whitespace option from output formatting

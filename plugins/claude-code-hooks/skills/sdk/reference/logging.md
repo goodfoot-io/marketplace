@@ -52,6 +52,18 @@ npx -y @goodfoot/claude-code-hooks ... --log-env-var MY_PLUGIN_LOG_FILE
 
 Cannot be combined with `--log`.
 
+### Related Build Flags for Asset Imports
+
+If a hook imports prompt assets such as markdown, keep the build command aligned with the source:
+
+```bash
+npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json" --loader .txt=text
+```
+
+- `.md` already works by default through `.md=text`.
+- For other extensions, opt in explicitly with `--loader`.
+- Mirror the same extension handling in Vitest/Vite so tests do not diverge from build behavior.
+
 ### Constructor (Programmatic)
 
 Best for custom logging pipelines or testing.
