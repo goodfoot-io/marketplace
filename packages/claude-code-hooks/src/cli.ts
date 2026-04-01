@@ -147,7 +147,6 @@ const VALID_ESBUILD_LOADERS: readonly esbuild.Loader[] = [
   "dataurl",
   "empty",
   "file",
-  "global-css",
   "js",
   "json",
   "jsx",

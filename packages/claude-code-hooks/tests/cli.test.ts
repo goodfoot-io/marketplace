@@ -153,7 +153,16 @@ describe("parseArgs", () => {
   });
 
   it("parses repeated --loader flags", () => {
-    const result = parseArgs(["-i", "hooks/**/*.ts", "-o", "./dist/hooks.json", "--loader", ".txt=text", "--loader", ".svg=dataurl"]);
+    const result = parseArgs([
+      "-i",
+      "hooks/**/*.ts",
+      "-o",
+      "./dist/hooks.json",
+      "--loader",
+      ".txt=text",
+      "--loader",
+      ".svg=dataurl",
+    ]);
 
     expect(result.loaderFlags).toEqual([".txt=text", ".svg=dataurl"]);
   });
@@ -166,6 +175,7 @@ describe("validateArgs", () => {
       output: "./dist/hooks.json",
       help: false,
       version: false,
+      loaderFlags: [],
     };
 
     expect(validateArgs(args)).toBeUndefined();
@@ -177,6 +187,7 @@ describe("validateArgs", () => {
       output: "",
       help: true,
       version: false,
+      loaderFlags: [],
     };
 
     expect(validateArgs(args)).toBeUndefined();
@@ -188,6 +199,7 @@ describe("validateArgs", () => {
       output: "",
       help: false,
       version: true,
+      loaderFlags: [],
     };
 
     expect(validateArgs(args)).toBeUndefined();
@@ -199,6 +211,7 @@ describe("validateArgs", () => {
       output: "./dist/hooks.json",
       help: false,
       version: false,
+      loaderFlags: [],
     };
 
     const error = validateArgs(args);
@@ -212,6 +225,7 @@ describe("validateArgs", () => {
       output: "",
       help: false,
       version: false,
+      loaderFlags: [],
     };
 
     const error = validateArgs(args);
@@ -225,6 +239,7 @@ describe("validateArgs", () => {
       output: "",
       help: false,
       version: false,
+      loaderFlags: [],
     };
 
     const error = validateArgs(args);
@@ -240,6 +255,7 @@ describe("validateArgs", () => {
       logEnvVar: "MY_LOG_FILE",
       help: false,
       version: false,
+      loaderFlags: [],
     };
 
     const error = validateArgs(args);

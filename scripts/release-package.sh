@@ -10,6 +10,7 @@ set -e
 #   5. Triggers GitHub Actions workflow
 #
 # Usage: ./scripts/release-package.sh <package-name> [--dry-run]
+# Env: SKIP_CHANGELOG_UPDATE=1 to skip the changelog update step
 # Example: ./scripts/release-package.sh streamable-http-mcp-server-daemon
 # Example: ./scripts/release-package.sh streamable-http-mcp-server-daemon --dry-run
 
@@ -148,7 +149,9 @@ fi
 
 # Update CHANGELOG.md
 echo ""
-if [ "$DRY_RUN" = true ]; then
+if [ -n "${SKIP_CHANGELOG_UPDATE:-}" ]; then
+  echo -e "${YELLOW}⏭️  SKIP_CHANGELOG_UPDATE is set; skipping CHANGELOG.md update${NC}"
+elif [ "$DRY_RUN" = true ]; then
   echo -e "${MAGENTA}[DRY RUN]${NC} ${BLUE}Would update CHANGELOG.md${NC}"
   CHANGELOG_SCRIPT="$WORKSPACE_ROOT/scripts/update-package-changelog.sh"
   if [ -f "$CHANGELOG_SCRIPT" ]; then

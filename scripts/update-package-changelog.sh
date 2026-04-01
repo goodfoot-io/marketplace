@@ -5,6 +5,7 @@ set -e
 # Uses the claude CLI to analyze git history and generate changelog entries
 #
 # Usage: ./scripts/update-package-changelog.sh <package-name>
+# Env: SKIP_CHANGELOG_UPDATE=1 to skip changelog generation and exit successfully
 # Example: ./scripts/update-package-changelog.sh streamable-http-mcp-server-daemon
 
 # Colors for output
@@ -13,6 +14,11 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+if [ -n "${SKIP_CHANGELOG_UPDATE:-}" ]; then
+  echo -e "${YELLOW}⏭️  SKIP_CHANGELOG_UPDATE is set; skipping changelog update${NC}"
+  exit 0
+fi
 
 # Validate arguments
 if [ $# -eq 0 ]; then
