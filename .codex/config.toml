@@ -1,0 +1,5 @@
+[features]
+plugins = true
+
+[plugins."codex-hooks@workspace-local"]
+enabled = true

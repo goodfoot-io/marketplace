@@ -2273,6 +2273,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@goodfoot/codex-hooks@workspace:packages/codex-hooks":
+  version: 0.0.0-use.local
+  resolution: "@goodfoot/codex-hooks@workspace:packages/codex-hooks"
+  dependencies:
+    "@biomejs/biome": "npm:2.4.9"
+    "@types/node": "npm:^24"
+    esbuild: "npm:^0.24.0"
+    glob: "npm:^11.0.0"
+    tsx: "npm:^4.20.6"
+    typescript: "npm:^5.9.3"
+    vitest: "npm:4.0.13"
+  bin:
+    codex-hooks: ./dist/cli.js
+  languageName: unknown
+  linkType: soft
+
 "@goodfoot/example@workspace:packages/example":
   version: 0.0.0-use.local
   resolution: "@goodfoot/example@workspace:packages/example"

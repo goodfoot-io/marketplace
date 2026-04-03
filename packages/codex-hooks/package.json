@@ -1,0 +1,58 @@
+{
+  "name": "@goodfoot/codex-hooks",
+  "version": "0.1.0",
+  "description": "Type-safe Codex hooks library, runtime, and build tool",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/codex-hooks",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodfoot-io/marketplace.git",
+    "directory": "packages/codex-hooks"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "files": [
+    "dist",
+    "types",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --build tsconfig.build.json",
+    "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests ./e2e ./scripts",
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "release": "bash ../../scripts/release-package.sh codex-hooks",
+    "release:dry-run": "bash ../../scripts/release-package.sh codex-hooks --dry-run",
+    "snapshot:codex-schemas": "tsx scripts/snapshot-codex-schemas.ts"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./types/index.d.ts"
+    },
+    "./*": {
+      "import": "./dist/*.js",
+      "types": "./types/*.d.ts"
+    }
+  },
+  "bin": "./dist/cli.js",
+  "publishConfig": {
+    "bin": {
+      "codex-hooks": "./dist/cli.js"
+    }
+  },
+  "dependencies": {
+    "esbuild": "^0.24.0",
+    "glob": "^11.0.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.9",
+    "@types/node": "^24",
+    "tsx": "^4.20.6",
+    "vitest": "4.0.13"
+  }
+}

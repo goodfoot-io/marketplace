@@ -1,0 +1,148 @@
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { spawnSync } from "node:child_process";
+import { afterEach, describe, expect, it } from "vitest";
+
+const tempDirs: string[] = [];
+
+afterEach(() => {
+  for (const directory of tempDirs.splice(0)) {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+function createTempDir(): string {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "codex-hooks-e2e-"));
+  tempDirs.push(directory);
+  return directory;
+}
+
+const packageRoot = path.resolve(import.meta.dirname, "..");
+const workspaceRoot = path.resolve(packageRoot, "../..");
+const tsxBin = path.join(workspaceRoot, "node_modules", ".bin", "tsx");
+
+describe("codex-hooks e2e", () => {
+  it("builds hooks.json and runs a compiled SessionStart hook", () => {
+    const projectDir = createTempDir();
+    fs.mkdirSync(path.join(projectDir, "src"), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, ".codex"), { recursive: true });
+
+    fs.writeFileSync(
+      path.join(projectDir, "src", "session-start.ts"),
+      `
+        import { sessionStartHook } from ${JSON.stringify(path.join(packageRoot, "src", "index.ts"))};
+        export default sessionStartHook({ matcher: "startup", timeout: 1500 }, () => "Loaded from text");
+      `,
+    );
+
+    const build = spawnSync(
+      tsxBin,
+      [path.join(packageRoot, "src", "cli.ts"), "-i", "src/**/*.ts", "-o", ".codex/hooks.json"],
+      {
+        cwd: projectDir,
+        encoding: "utf-8",
+      },
+    );
+    expect(build.status).toBe(0);
+    expect(build.stderr).toBe("");
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(projectDir, ".codex", "hooks.json"), "utf-8"));
+    expect(manifest).toEqual({
+      hooks: {
+        SessionStart: [
+          {
+            matcher: "startup",
+            hooks: [
+              {
+                type: "command",
+                command: expect.stringContaining('node "$(git rev-parse --show-toplevel)/.codex/'),
+                timeout: 2,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const compiledFiles = fs.readdirSync(path.join(projectDir, ".codex")).filter((entry) => entry.endsWith(".mjs"));
+    expect(compiledFiles.length).toBe(1);
+
+    const run = spawnSync(
+      "node",
+      [path.join(projectDir, ".codex", compiledFiles[0])],
+      {
+        input: JSON.stringify({
+          cwd: projectDir,
+          hook_event_name: "SessionStart",
+          model: "gpt-5",
+          permission_mode: "default",
+          session_id: "sess-1",
+          source: "startup",
+          transcript_path: null,
+        }),
+        encoding: "utf-8",
+      },
+    );
+
+    expect(run.status).toBe(0);
+    expect(run.stderr).toBe("");
+    expect(JSON.parse(run.stdout)).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "SessionStart",
+        additionalContext: "Loaded from text",
+      },
+    });
+  });
+
+  it("maps BlockError to stderr plus exit code 2", () => {
+    const projectDir = createTempDir();
+    fs.mkdirSync(path.join(projectDir, "src"), { recursive: true });
+
+    fs.writeFileSync(
+      path.join(projectDir, "src", "stop.ts"),
+      `
+        import { BlockError, stopHook } from ${JSON.stringify(path.join(packageRoot, "src", "index.ts"))};
+        export default stopHook({}, () => {
+          throw new BlockError("blocked");
+        });
+      `,
+    );
+
+    const build = spawnSync(
+      tsxBin,
+      [path.join(packageRoot, "src", "cli.ts"), "-i", "src/**/*.ts", "-o", "hooks.json"],
+      {
+        cwd: projectDir,
+        encoding: "utf-8",
+      },
+    );
+    expect(build.status).toBe(0);
+
+    const compiledFile = fs.readdirSync(projectDir).find((entry) => entry.endsWith(".mjs"));
+    expect(compiledFile).toBeDefined();
+
+    const run = spawnSync(
+      "node",
+      [path.join(projectDir, compiledFile ?? "")],
+      {
+        input: JSON.stringify({
+          cwd: projectDir,
+          hook_event_name: "Stop",
+          last_assistant_message: null,
+          model: "gpt-5",
+          permission_mode: "default",
+          session_id: "sess-1",
+          stop_hook_active: false,
+          transcript_path: null,
+          turn_id: "turn-1",
+        }),
+        encoding: "utf-8",
+      },
+    );
+
+    expect(run.status).toBe(2);
+    expect(run.stdout).toBe("");
+    expect(run.stderr).toContain("blocked");
+  });
+});

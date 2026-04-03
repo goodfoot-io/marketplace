@@ -15,34 +15,49 @@ fi
 # Track which plugins have been processed to avoid double-bumping
 declare -A PROCESSED_PLUGINS
 
-# Track if any plugins were bumped
-PLUGINS_BUMPED=0
+# Track if any plugin families were bumped
+CLAUDE_PLUGINS_BUMPED=0
 
 for file in $STAGED_FILES; do
-    # Check if the file is in a plugin directory
+    PLUGIN_ROOT=""
+    PLUGIN_NAME=""
+    PLUGIN_JSON=""
+    PLUGIN_KIND=""
+
     if [[ "$file" =~ ^plugins/([^/]+)/ ]]; then
+        PLUGIN_ROOT="plugins"
         PLUGIN_NAME="${BASH_REMATCH[1]}"
         PLUGIN_JSON="plugins/${PLUGIN_NAME}/.claude-plugin/plugin.json"
+        PLUGIN_KIND="claude"
+    elif [[ "$file" =~ ^codex-plugins/([^/]+)/ ]]; then
+        PLUGIN_ROOT="codex-plugins"
+        PLUGIN_NAME="${BASH_REMATCH[1]}"
+        PLUGIN_JSON="codex-plugins/${PLUGIN_NAME}/.codex-plugin/plugin.json"
+        PLUGIN_KIND="codex"
+    fi
+
+    if [ -n "$PLUGIN_NAME" ]; then
 
         # Skip if we've already processed this plugin
-        if [[ -n "${PROCESSED_PLUGINS[$PLUGIN_NAME]}" ]]; then
+        PROCESSED_KEY="${PLUGIN_KIND}:${PLUGIN_NAME}"
+        if [[ -n "${PROCESSED_PLUGINS[$PROCESSED_KEY]}" ]]; then
             continue
         fi
 
         # Skip if the only change is to plugin.json itself (avoid infinite loops)
-        PLUGIN_STAGED_FILES=$(echo "$STAGED_FILES" | grep "^plugins/${PLUGIN_NAME}/" || true)
-        NON_PLUGIN_JSON_FILES=$(echo "$PLUGIN_STAGED_FILES" | grep -v "\.claude-plugin/plugin.json$" || true)
+        PLUGIN_STAGED_FILES=$(echo "$STAGED_FILES" | grep "^${PLUGIN_ROOT}/${PLUGIN_NAME}/" || true)
+        NON_PLUGIN_JSON_FILES=$(echo "$PLUGIN_STAGED_FILES" | grep -Fvx "$PLUGIN_JSON" || true)
 
         if [ -z "$NON_PLUGIN_JSON_FILES" ]; then
             # Only plugin.json is staged, skip version bump
-            PROCESSED_PLUGINS[$PLUGIN_NAME]=1
+            PROCESSED_PLUGINS[$PROCESSED_KEY]=1
             continue
         fi
 
         # Check if plugin.json exists
         if [ ! -f "$PLUGIN_JSON" ]; then
             echo "Warning: $PLUGIN_JSON not found, skipping version bump for $PLUGIN_NAME"
-            PROCESSED_PLUGINS[$PLUGIN_NAME]=1
+            PROCESSED_PLUGINS[$PROCESSED_KEY]=1
             continue
         fi
 
@@ -51,7 +66,7 @@ for file in $STAGED_FILES; do
 
         if [ -z "$CURRENT_VERSION" ]; then
             echo "Warning: Could not parse version from $PLUGIN_JSON, skipping"
-            PROCESSED_PLUGINS[$PLUGIN_NAME]=1
+            PROCESSED_PLUGINS[$PROCESSED_KEY]=1
             continue
         fi
 
@@ -76,28 +91,29 @@ for file in $STAGED_FILES; do
 
         echo "Bumped ${PLUGIN_NAME} version: ${CURRENT_VERSION} -> ${NEW_VERSION}"
 
-        # Also update the plugin version in marketplace.json
-        MARKETPLACE_JSON=".claude-plugin/marketplace.json"
-        if [ -f "$MARKETPLACE_JSON" ]; then
-            # Use jq to update the specific plugin's version in the plugins array
-            if command -v jq &> /dev/null; then
-                jq --arg name "$PLUGIN_NAME" --arg version "$NEW_VERSION" \
-                    '(.plugins[] | select(.name == $name)).version = $version' \
-                    "$MARKETPLACE_JSON" > "${MARKETPLACE_JSON}.tmp" && \
-                    mv "${MARKETPLACE_JSON}.tmp" "$MARKETPLACE_JSON"
-                echo "Synced ${PLUGIN_NAME} version in marketplace.json: ${NEW_VERSION}"
-            else
-                echo "Warning: jq not found, marketplace.json plugin version not synced"
+        if [ "$PLUGIN_KIND" = "claude" ]; then
+            # Also update the Claude marketplace plugin version entry
+            MARKETPLACE_JSON=".claude-plugin/marketplace.json"
+            if [ -f "$MARKETPLACE_JSON" ]; then
+                if command -v jq &> /dev/null; then
+                    jq --arg name "$PLUGIN_NAME" --arg version "$NEW_VERSION" \
+                        '(.plugins[] | select(.name == $name)).version = $version' \
+                        "$MARKETPLACE_JSON" > "${MARKETPLACE_JSON}.tmp" && \
+                        mv "${MARKETPLACE_JSON}.tmp" "$MARKETPLACE_JSON"
+                    echo "Synced ${PLUGIN_NAME} version in marketplace.json: ${NEW_VERSION}"
+                else
+                    echo "Warning: jq not found, marketplace.json plugin version not synced"
+                fi
             fi
+            CLAUDE_PLUGINS_BUMPED=1
         fi
 
-        PROCESSED_PLUGINS[$PLUGIN_NAME]=1
-        PLUGINS_BUMPED=1
+        PROCESSED_PLUGINS[$PROCESSED_KEY]=1
     fi
 done
 
-# If any plugins were bumped, also bump the marketplace.json version
-if [ "$PLUGINS_BUMPED" -eq 1 ]; then
+# If any Claude plugins were bumped, also bump the Claude marketplace version
+if [ "$CLAUDE_PLUGINS_BUMPED" -eq 1 ]; then
     MARKETPLACE_JSON=".claude-plugin/marketplace.json"
 
     if [ -f "$MARKETPLACE_JSON" ]; then
@@ -133,8 +149,7 @@ if [ "$PLUGINS_BUMPED" -eq 1 ]; then
     fi
 fi
 
-# Auto-sync: Ensure marketplace.json plugin versions match their plugin.json versions
-# This runs on every commit and automatically fixes any mismatches
+# Auto-sync: Ensure Claude marketplace plugin versions match their plugin.json versions
 MARKETPLACE_JSON=".claude-plugin/marketplace.json"
 VERSIONS_SYNCED=0
 

@@ -1,0 +1,416 @@
+#!/usr/bin/env node
+
+import * as crypto from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+import * as esbuild from "esbuild";
+import { glob } from "glob";
+import ts from "typescript";
+import { DEFAULT_ESBUILD_LOADERS, EVENTS_WITH_MATCHER, HOOK_FACTORY_TO_EVENT, PACKAGE_NAME } from "./constants.js";
+import { scaffoldProject } from "./scaffold.js";
+import type { HookEventName } from "./types.js";
+
+interface CliArgs {
+  input: string;
+  output: string;
+  executable?: string;
+  help: boolean;
+  version: boolean;
+  scaffold?: string;
+  hooks?: string;
+  loaderFlags: string[];
+}
+
+export interface HookMetadata {
+  hookEventName: HookEventName;
+  matcher?: string;
+  timeout?: number;
+  statusMessage?: string;
+}
+
+interface CompiledHook {
+  sourcePath: string;
+  outputPath: string;
+  outputFilename: string;
+  metadata: HookMetadata;
+}
+
+interface HookConfigEntry {
+  type: "command";
+  command: string;
+  timeout?: number;
+  statusMessage?: string;
+}
+
+interface MatcherEntry {
+  matcher?: string;
+  hooks: HookConfigEntry[];
+}
+
+interface HooksJson {
+  hooks: Partial<Record<HookEventName, MatcherEntry[]>>;
+}
+
+type HookLoaderMap = Record<string, esbuild.Loader>;
+
+const VERSION = "0.1.0";
+const HELP_TEXT = `
+${PACKAGE_NAME}
+
+Usage:
+  codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json"
+  codex-hooks --scaffold ./my-codex-hooks --hooks SessionStart,PreToolUse -o ./.codex/hooks.json
+
+Options:
+  -i, --input <glob>        Input glob for hook source files
+  -o, --output <path>       Output hooks.json path
+  --executable <path>       Executable prefix for generated commands (default: node)
+  --loader <ext=type>       Additional esbuild loader, repeatable
+  --scaffold <dir>          Create a starter project
+  --hooks <types>           Comma-separated scaffold hook names
+  -h, --help                Show help
+  -v, --version             Show version
+`;
+
+function parseArgs(argv: string[]): CliArgs {
+  const args: CliArgs = {
+    input: "",
+    output: "",
+    help: false,
+    version: false,
+    loaderFlags: [],
+  };
+  for (let index = 0; index < argv.length; index++) {
+    const arg = argv[index];
+    switch (arg) {
+      case "-i":
+      case "--input":
+        args.input = argv[++index] ?? "";
+        break;
+      case "-o":
+      case "--output":
+        args.output = argv[++index] ?? "";
+        break;
+      case "--executable":
+        args.executable = argv[++index] ?? "";
+        break;
+      case "--loader":
+        args.loaderFlags.push(argv[++index] ?? "");
+        break;
+      case "--scaffold":
+        args.scaffold = argv[++index] ?? "";
+        break;
+      case "--hooks":
+        args.hooks = argv[++index] ?? "";
+        break;
+      case "-h":
+      case "--help":
+        args.help = true;
+        break;
+      case "-v":
+      case "--version":
+        args.version = true;
+        break;
+      default:
+        break;
+    }
+  }
+  return args;
+}
+
+function validateArgs(args: CliArgs): string | undefined {
+  if (args.help || args.version) {
+    return undefined;
+  }
+  if (args.scaffold !== undefined && args.scaffold !== "") {
+    if (args.output === "") {
+      return "Scaffold mode requires -o/--output";
+    }
+    if (args.hooks === undefined || args.hooks === "") {
+      return "Scaffold mode requires --hooks";
+    }
+    return undefined;
+  }
+  if (args.input === "") {
+    return "Missing required argument: -i/--input";
+  }
+  if (args.output === "") {
+    return "Missing required argument: -o/--output";
+  }
+  return undefined;
+}
+
+function parseLoaderFlag(spec: string): { extension: string; loader: esbuild.Loader } | undefined {
+  const separatorIndex = spec.indexOf("=");
+  if (separatorIndex <= 0 || separatorIndex === spec.length - 1) {
+    return undefined;
+  }
+  const extension = spec.slice(0, separatorIndex);
+  const loader = spec.slice(separatorIndex + 1) as esbuild.Loader;
+  if (!extension.startsWith(".")) {
+    return undefined;
+  }
+  return { extension, loader };
+}
+
+function buildLoaderMap(loaderFlags: string[]): HookLoaderMap {
+  const loaders: HookLoaderMap = { ...DEFAULT_ESBUILD_LOADERS };
+  for (const loaderFlag of loaderFlags) {
+    const parsed = parseLoaderFlag(loaderFlag);
+    if (parsed !== undefined) {
+      loaders[parsed.extension] = parsed.loader;
+    }
+  }
+  return loaders;
+}
+
+export function analyzeHookFile(sourcePath: string): HookMetadata | undefined {
+  const sourceCode = fs.readFileSync(sourcePath, "utf-8");
+  const sourceFile = ts.createSourceFile(sourcePath, sourceCode, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  let metadata: HookMetadata | undefined;
+
+  function extractFromExpression(expression: ts.Expression): HookMetadata | undefined {
+    if (ts.isParenthesizedExpression(expression)) {
+      return extractFromExpression(expression.expression);
+    }
+    if (!ts.isCallExpression(expression)) {
+      return undefined;
+    }
+
+    let factoryName: string | undefined;
+    if (ts.isIdentifier(expression.expression)) {
+      factoryName = expression.expression.text;
+    } else if (ts.isPropertyAccessExpression(expression.expression)) {
+      factoryName = expression.expression.name.text;
+    }
+    if (factoryName === undefined) {
+      return undefined;
+    }
+
+    const hookEventName = HOOK_FACTORY_TO_EVENT[factoryName];
+    if (hookEventName === undefined) {
+      return undefined;
+    }
+
+    let matcher: string | undefined;
+    let timeout: number | undefined;
+    let statusMessage: string | undefined;
+    const configArg = expression.arguments[0];
+    if (configArg !== undefined && ts.isObjectLiteralExpression(configArg)) {
+      for (const property of configArg.properties) {
+        if (!ts.isPropertyAssignment(property)) {
+          continue;
+        }
+        const name = ts.isIdentifier(property.name) ? property.name.text : undefined;
+        if (name === undefined) {
+          continue;
+        }
+        if (name === "matcher" && (ts.isStringLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer))) {
+          matcher = property.initializer.text;
+        }
+        if (name === "statusMessage" && (ts.isStringLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer))) {
+          statusMessage = property.initializer.text;
+        }
+        if (name === "timeout" && ts.isNumericLiteral(property.initializer)) {
+          timeout = Number(property.initializer.text);
+        }
+      }
+    }
+    return { hookEventName, matcher, timeout, statusMessage };
+  }
+
+  function visit(node: ts.Node): void {
+    if (ts.isExportAssignment(node) && !node.isExportEquals) {
+      metadata = extractFromExpression(node.expression);
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return metadata;
+}
+
+async function discoverHookFiles(pattern: string, cwd: string): Promise<string[]> {
+  const files = await glob(pattern, {
+    cwd,
+    absolute: true,
+    nodir: true,
+  });
+  return files.filter((file) => file.endsWith(".ts") || file.endsWith(".mts"));
+}
+
+function generateContentHash(content: string): string {
+  return crypto.createHash("sha256").update(content).digest("hex").slice(0, 8);
+}
+
+async function compileHook(sourcePath: string, loaders: HookLoaderMap): Promise<{ content: string; contentHash: string }> {
+  const runtimePathAbsolute = path.resolve(path.dirname(new URL(import.meta.url).pathname), "./runtime.js");
+  const resolveDir = path.dirname(sourcePath);
+  const relativeRuntimePath = path.relative(resolveDir, runtimePathAbsolute).replace(/\\/g, "/");
+  const relativeSourcePath = `./${path.basename(sourcePath)}`.replace(/\\/g, "/");
+  const wrapperContent = `import hook from ${JSON.stringify(relativeSourcePath)};
+import { execute } from ${JSON.stringify(relativeRuntimePath)};
+execute(hook);
+`;
+  const baseName = path.basename(sourcePath, path.extname(sourcePath));
+  const result = await esbuild.build({
+    stdin: {
+      contents: wrapperContent,
+      resolveDir,
+      sourcefile: `${baseName}-entry.ts`,
+      loader: "ts",
+    },
+    loader: loaders,
+    format: "esm",
+    platform: "node",
+    target: "node20",
+    bundle: true,
+    sourcemap: "inline",
+    write: false,
+    external: ["node:*", "fs", "path", "os", "crypto", "module", "url"],
+    mainFields: ["module", "main"],
+    conditions: ["import", "node"],
+  });
+  const content = result.outputFiles?.[0]?.text;
+  if (content === undefined) {
+    throw new Error(`esbuild produced no output for ${sourcePath}`);
+  }
+  return { content, contentHash: generateContentHash(content) };
+}
+
+async function compileAllHooks(
+  hookFiles: string[],
+  outputDir: string,
+  loaders: HookLoaderMap,
+): Promise<CompiledHook[]> {
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+  const compiledHooks: CompiledHook[] = [];
+  for (const sourcePath of hookFiles) {
+    const metadata = analyzeHookFile(sourcePath);
+    if (metadata === undefined) {
+      continue;
+    }
+    const { content, contentHash } = await compileHook(sourcePath, loaders);
+    const baseName = path.basename(sourcePath, path.extname(sourcePath));
+    const outputFilename = `${baseName}.${contentHash}.mjs`;
+    const outputPath = path.join(outputDir, outputFilename);
+    fs.writeFileSync(outputPath, `#!/usr/bin/env -S node --enable-source-maps\n${content}`, {
+      encoding: "utf-8",
+      mode: 0o755,
+    });
+    compiledHooks.push({ sourcePath, outputPath, outputFilename, metadata });
+  }
+  return compiledHooks;
+}
+
+function timeoutMsToSeconds(timeout?: number): number | undefined {
+  if (timeout === undefined) {
+    return undefined;
+  }
+  return Math.max(1, Math.ceil(timeout / 1000));
+}
+
+function groupHooksByEventAndMatcher(
+  compiledHooks: CompiledHook[],
+): Map<HookEventName, Map<string | undefined, CompiledHook[]>> {
+  const grouped = new Map<HookEventName, Map<string | undefined, CompiledHook[]>>();
+  for (const hook of compiledHooks) {
+    const eventGroup = grouped.get(hook.metadata.hookEventName) ?? new Map<string | undefined, CompiledHook[]>();
+    grouped.set(hook.metadata.hookEventName, eventGroup);
+    const matcherKey = EVENTS_WITH_MATCHER.has(hook.metadata.hookEventName) ? hook.metadata.matcher : undefined;
+    const matcherGroup = eventGroup.get(matcherKey) ?? [];
+    matcherGroup.push(hook);
+    eventGroup.set(matcherKey, matcherGroup);
+  }
+  return grouped;
+}
+
+function shellQuote(value: string): string {
+  return JSON.stringify(value);
+}
+
+function generateCommandPath(outputPath: string, hookOutputPath: string, executable = "node"): string {
+  const normalizedOutputPath = outputPath.replace(/\\/g, "/");
+  const normalizedHookPath = hookOutputPath.replace(/\\/g, "/");
+  const repoMarker = "/.codex";
+  const repoMarkerIndex = normalizedOutputPath.indexOf(repoMarker);
+
+  if (repoMarkerIndex >= 0) {
+    const repoRoot = normalizedOutputPath.slice(0, repoMarkerIndex);
+    const relativeHookPath = path.relative(repoRoot, hookOutputPath).replace(/\\/g, "/");
+    return `${executable} "$(git rev-parse --show-toplevel)/${relativeHookPath}"`;
+  }
+
+  return `${executable} ${shellQuote(normalizedHookPath)}`;
+}
+
+export function generateHooksJson(compiledHooks: CompiledHook[], outputPath: string, executable = "node"): HooksJson {
+  const grouped = groupHooksByEventAndMatcher(compiledHooks);
+  const hooks: HooksJson["hooks"] = {};
+  for (const eventName of ["PreToolUse", "PostToolUse", "SessionStart", "UserPromptSubmit", "Stop"] as const) {
+    const matcherMap = grouped.get(eventName);
+    if (matcherMap === undefined) {
+      continue;
+    }
+    hooks[eventName] = Array.from(matcherMap.entries()).map(([matcher, entries]) => ({
+      ...(EVENTS_WITH_MATCHER.has(eventName) && matcher !== undefined ? { matcher } : {}),
+      hooks: entries.map((entry) => ({
+        type: "command" as const,
+        command: generateCommandPath(outputPath, entry.outputPath, executable),
+        ...(timeoutMsToSeconds(entry.metadata.timeout) !== undefined
+          ? { timeout: timeoutMsToSeconds(entry.metadata.timeout) }
+          : {}),
+        ...(entry.metadata.statusMessage !== undefined ? { statusMessage: entry.metadata.statusMessage } : {}),
+      })),
+    }));
+  }
+  return { hooks };
+}
+
+export async function main(): Promise<void> {
+  const args = parseArgs(process.argv.slice(2));
+  const validationError = validateArgs(args);
+
+  if (args.help) {
+    process.stdout.write(`${HELP_TEXT}\n`);
+    return;
+  }
+  if (args.version) {
+    process.stdout.write(`${VERSION}\n`);
+    return;
+  }
+  if (validationError !== undefined) {
+    process.stderr.write(`${validationError}\n`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (args.scaffold !== undefined && args.scaffold !== "") {
+    scaffoldProject({
+      directory: path.resolve(process.cwd(), args.scaffold),
+      hooks: (args.hooks ?? "").split(",").map((value) => value.trim()).filter(Boolean),
+      outputPath: args.output,
+    });
+    return;
+  }
+
+  const cwd = process.cwd();
+  const hookFiles = await discoverHookFiles(args.input, cwd);
+  const absoluteOutputPath = path.resolve(cwd, args.output);
+  const outputDir = path.dirname(absoluteOutputPath);
+  const compiledHooks = await compileAllHooks(hookFiles, outputDir, buildLoaderMap(args.loaderFlags));
+  const hooksJson = generateHooksJson(compiledHooks, absoluteOutputPath, args.executable ?? "node");
+  fs.writeFileSync(absoluteOutputPath, `${JSON.stringify(hooksJson, null, 2)}\n`);
+}
+
+const cliEntryPath = fileURLToPath(import.meta.url);
+const isDirectExecution =
+  process.argv[1] !== undefined &&
+  fs.existsSync(process.argv[1]) &&
+  fs.realpathSync(process.argv[1]) === fs.realpathSync(cliEntryPath);
+if (isDirectExecution) {
+  void main();
+}
