@@ -1,0 +1,30 @@
+{
+  "name": "typescript-hooks",
+  "version": "0.1.0",
+  "description": "Codex plugin for TypeScript and ESLint quality enforcement hooks.",
+  "author": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io",
+    "url": "https://github.com/goodfoot-io"
+  },
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/typescript-hooks",
+  "repository": "https://github.com/goodfoot-io/marketplace",
+  "license": "MIT",
+  "keywords": ["codex", "typescript", "eslint", "hooks", "quality"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "TypeScript Hooks",
+    "shortDescription": "Guide and maintain the TypeScript quality hooks package.",
+    "longDescription": "Guidance for building, testing, and understanding the TypeScript and ESLint quality enforcement hooks in packages/typescript-hooks.",
+    "developerName": "Goodfoot",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/packages/typescript-hooks",
+    "defaultPrompt": [
+      "Explain what the typescript-hooks package enforces.",
+      "Show how to build and test the typescript-hooks package.",
+      "Summarize the PreToolUse and PostToolUse behaviors in typescript-hooks."
+    ],
+    "brandColor": "#3178C6"
+  }
+}
