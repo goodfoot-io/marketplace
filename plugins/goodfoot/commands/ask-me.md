@@ -1,5 +1,4 @@
 ---
-name: ask-me
 description: Research and clarify user intent before taking action.
 argument-hint: <request-to-understand>
 disable-model-invocation: "true"
