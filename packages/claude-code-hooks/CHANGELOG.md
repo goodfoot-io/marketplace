@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0
+- Added `PermissionDenied` hook type for handling permission denial events
+- Updated Anthropic SDK compatibility to version 0.2.109
+
 ## 1.2.9
 - Added asset loader support, enabling hooks to bundle and reference static assets (e.g., prompt files) at build time
 - Fixed changelog update skipping support for more reliable release workflows
