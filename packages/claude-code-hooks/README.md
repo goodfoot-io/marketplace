@@ -126,7 +126,7 @@ npm test        # Run tests
 
 ### Available Hook Types
 
-The `--hooks` argument accepts a comma-separated list of any of these 18 event types:
+The `--hooks` argument accepts a comma-separated list of any of these 19 event types:
 
 | Hook Type            | Description                                                              |
 | -------------------- | ------------------------------------------------------------------------ |
@@ -144,6 +144,7 @@ The `--hooks` argument accepts a comma-separated list of any of these 18 event t
 | `PreCompact`         | Before context compaction                                                |
 | `PostCompact`        | After context compaction completes                                       |
 | `PermissionRequest`  | When permission is requested                                             |
+| `PermissionDenied`   | When a permission request is denied; optionally retry via output         |
 | `Setup`              | On init, install, or update events                                       |
 | `TaskCreated`        | When a new task is created and assigned to a teammate                    |
 | `CwdChanged`         | When Claude Code's working directory changes; return `watchPaths` to register paths for `FileChanged` |

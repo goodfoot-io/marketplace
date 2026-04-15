@@ -28,6 +28,7 @@ export type {
   HookInput as SDKHookInput,
   InstructionsLoadedHookInput as SDKInstructionsLoadedHookInput,
   NotificationHookInput as SDKNotificationHookInput,
+  PermissionDeniedHookInput as SDKPermissionDeniedHookInput,
   PermissionMode as SDKPermissionMode,
   PermissionRequestHookInput as SDKPermissionRequestHookInput,
   PermissionUpdate as SDKPermissionUpdate,
@@ -60,6 +61,7 @@ import type {
   FileChangedHookInput as SDKFileChangedHookInput,
   InstructionsLoadedHookInput as SDKInstructionsLoadedHookInput,
   NotificationHookInput as SDKNotificationHookInput,
+  PermissionDeniedHookInput as SDKPermissionDeniedHookInput,
   PermissionMode as SDKPermissionMode,
   PermissionRequestHookInput as SDKPermissionRequestHookInput,
   PermissionUpdate as SDKPermissionUpdate,
@@ -465,6 +467,22 @@ export type PermissionRequestInput = {
 } & {};
 
 /**
+ * Input for PermissionDenied hooks.
+ *
+ * Fires when a permission request is denied (either by the user or by a hook),
+ * allowing you to:
+ * - Log permission denials for auditing
+ * - React to denied tool executions
+ * - Optionally request a retry
+ *
+ * This hook uses `tool_name` for matcher matching.
+ * @see https://code.claude.com/docs/en/hooks#permissiondenied
+ */
+export type PermissionDeniedInput = {
+  [K in keyof SDKPermissionDeniedHookInput]: SDKPermissionDeniedHookInput[K];
+} & {};
+
+/**
  * Trigger type for Setup hooks.
  */
 export type SetupTrigger = "init" | "maintenance";
@@ -508,6 +526,7 @@ export type HookInput =
   | PreCompactInput
   | PostCompactInput
   | PermissionRequestInput
+  | PermissionDeniedInput
   | SetupInput
   | TeammateIdleInput
   | TaskCreatedInput
@@ -554,6 +573,7 @@ export const HOOK_EVENT_NAMES = [
   "PreCompact",
   "PostCompact",
   "PermissionRequest",
+  "PermissionDenied",
   "Setup",
   "TeammateIdle",
   "TaskCreated",

@@ -596,6 +596,7 @@ export default taskCompletedHook({}, (input, { logger }) => {
 | PreCompact | `preCompactHook` | `preCompactOutput` | `trigger` |
 | PostCompact | `postCompactHook` | `postCompactOutput` | `compact_summary` |
 | PermissionRequest | `permissionRequestHook` | `permissionRequestOutput` | `tool_name` |
+| PermissionDenied | `permissionDeniedHook` | `permissionDeniedOutput` | `tool_name` |
 | Setup | `setupHook` | `setupOutput` | `trigger` |
 | TeammateIdle | `teammateIdleHook` | `teammateIdleOutput` | `teammate_name` |
 | TaskCreated | `taskCreatedHook` | `taskCreatedOutput` | `task_subject` |
@@ -635,6 +636,16 @@ export default taskCompletedHook({}, (input, { logger }) => {
       interrupt?: boolean,  // for deny
       updatedInput?: object // for allow
     }
+  }
+}
+```
+
+### permissionDeniedOutput
+
+```typescript
+{
+  hookSpecificOutput: {
+    retry?: boolean  // If true, request Claude to retry the tool
   }
 }
 ```

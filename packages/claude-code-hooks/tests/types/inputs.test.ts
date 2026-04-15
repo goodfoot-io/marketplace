@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import type {
   HookInput,
   NotificationInput,
+  PermissionDeniedInput,
   PermissionRequestInput,
   PostToolUseFailureInput,
   PostToolUseInput,
@@ -84,6 +85,8 @@ describe("HookInput discriminated union", () => {
             return input.new_cwd;
           case "FileChanged":
             return input.file_path;
+          case "PermissionDenied":
+            return input.tool_name;
           default: {
             // Exhaustiveness check
             const _exhaustive: never = input;
@@ -309,6 +312,23 @@ describe("HookInput discriminated union", () => {
       expect(input.custom_instructions).toBe("Custom instructions here");
     });
 
+    it("PermissionDeniedInput has tool_name, tool_input, tool_use_id, and reason", () => {
+      const input: PermissionDeniedInput = {
+        hook_event_name: "PermissionDenied",
+        session_id: "sess-123",
+        transcript_path: "/path",
+        cwd: "/workspace",
+        tool_name: "Bash",
+        tool_input: { command: "rm file.txt" },
+        tool_use_id: "tool-1",
+        reason: "User denied the request",
+      };
+
+      expect(input.tool_name).toBe("Bash");
+      expect(input.reason).toBe("User denied the request");
+      expect(input.tool_use_id).toBe("tool-1");
+    });
+
     it("PermissionRequestInput has tool_name and permission_suggestions", () => {
       const input: PermissionRequestInput = {
         hook_event_name: "PermissionRequest",
@@ -407,7 +427,7 @@ describe("HookInput discriminated union", () => {
       expect(inputs.length).toBe(2);
     });
 
-    it("HookInput union includes all 13 hook types", () => {
+    it("HookInput union includes all hook types", () => {
       // Create an array with one of each type to verify they all work
       const allInputs: HookInput[] = [
         {
@@ -511,6 +531,16 @@ describe("HookInput discriminated union", () => {
           tool_use_id: "t",
         },
         {
+          hook_event_name: "PermissionDenied",
+          session_id: "s",
+          transcript_path: "/p",
+          cwd: "/c",
+          tool_name: "T",
+          tool_input: {},
+          tool_use_id: "t",
+          reason: "User denied",
+        },
+        {
           hook_event_name: "Setup",
           session_id: "s",
           transcript_path: "/p",
@@ -519,7 +549,7 @@ describe("HookInput discriminated union", () => {
         },
       ];
 
-      expect(allInputs.length).toBe(13);
+      expect(allInputs.length).toBe(14);
     });
   });
 });

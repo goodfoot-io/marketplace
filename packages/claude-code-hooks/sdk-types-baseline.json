@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.86",
-  "extractedAt": "2026-03-28T00:01:52.295Z",
+  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.109",
+  "extractedAt": "2026-04-15T05:59:13.533Z",
   "types": {
     "BaseHookInput": {
       "kind": "type-alias",
@@ -310,6 +310,11 @@
           "name": "session_id",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "session_title",
+          "type": "string",
+          "optional": true
         },
         {
           "name": "transcript_path",
@@ -841,6 +846,7 @@
         "SetupHookInput",
         "TeammateIdleHookInput",
         "TaskCompletedHookInput",
+        "PermissionDeniedHookInput",
         "StopFailureHookInput",
         "PostCompactHookInput",
         "TaskCreatedHookInput",
@@ -860,11 +866,11 @@
     },
     "PermissionMode": {
       "kind": "literal",
-      "literalType": "\"default\" | \"acceptEdits\" | \"bypassPermissions\" | \"plan\" | \"dontAsk\""
+      "literalType": "\"default\" | \"acceptEdits\" | \"bypassPermissions\" | \"plan\" | \"dontAsk\" | \"auto\""
     },
     "HookEvent": {
       "kind": "literal",
-      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"StopFailure\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PostCompact\" | \"PermissionRequest\" | \"Setup\" | \"TeammateIdle\" | \"TaskCreated\" | \"TaskCompleted\" | \"Elicitation\" | \"ElicitationResult\" | \"ConfigChange\" | \"WorktreeCreate\" | \"WorktreeRemove\" | \"InstructionsLoaded\" | \"CwdChanged\" | \"FileChanged\""
+      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"StopFailure\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PostCompact\" | \"PermissionRequest\" | \"PermissionDenied\" | \"Setup\" | \"TeammateIdle\" | \"TaskCreated\" | \"TaskCompleted\" | \"Elicitation\" | \"ElicitationResult\" | \"ConfigChange\" | \"WorktreeCreate\" | \"WorktreeRemove\" | \"InstructionsLoaded\" | \"CwdChanged\" | \"FileChanged\""
     },
     "NotificationHookSpecificOutput": {
       "kind": "type-alias",

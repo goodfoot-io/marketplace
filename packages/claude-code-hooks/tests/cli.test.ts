@@ -25,8 +25,8 @@ import {
 } from "../src/cli.js";
 
 describe("HOOK_FACTORY_TO_EVENT", () => {
-  it("maps all 26 hook factory names to event names", () => {
-    expect(Object.keys(HOOK_FACTORY_TO_EVENT)).toHaveLength(26);
+  it("maps all 27 hook factory names to event names", () => {
+    expect(Object.keys(HOOK_FACTORY_TO_EVENT)).toHaveLength(27);
   });
 
   it("maps preToolUseHook to PreToolUse", () => {
@@ -75,6 +75,10 @@ describe("HOOK_FACTORY_TO_EVENT", () => {
 
   it("maps permissionRequestHook to PermissionRequest", () => {
     expect(HOOK_FACTORY_TO_EVENT.permissionRequestHook).toBe("PermissionRequest");
+  });
+
+  it("maps permissionDeniedHook to PermissionDenied", () => {
+    expect(HOOK_FACTORY_TO_EVENT.permissionDeniedHook).toBe("PermissionDenied");
   });
 
   it("maps setupHook to Setup", () => {

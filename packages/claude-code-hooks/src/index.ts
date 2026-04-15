@@ -37,7 +37,7 @@ export type {
   TypedPostToolUseHookInput,
   TypedPreToolUseHookInput,
 } from "./hooks.js";
-// Hook factory functions - all 25 hook types
+// Hook factory functions - all 26 hook types
 export {
   configChangeHook,
   cwdChangedHook,
@@ -46,6 +46,7 @@ export {
   fileChangedHook,
   instructionsLoadedHook,
   notificationHook,
+  permissionDeniedHook,
   permissionRequestHook,
   postCompactHook,
   postToolUseFailureHook,
@@ -96,6 +97,8 @@ export type {
   InstructionsLoadedOptions,
   NotificationHookSpecificOutput,
   NotificationOptions,
+  PermissionDeniedHookSpecificOutput,
+  PermissionDeniedOptions,
   PermissionRequestAllowDecision,
   PermissionRequestDecision,
   PermissionRequestDenyDecision,
@@ -139,12 +142,13 @@ export {
   fileChangedOutput,
   instructionsLoadedOutput,
   notificationOutput,
+  permissionDeniedOutput,
   permissionRequestOutput,
   postCompactOutput,
   postToolUseFailureOutput,
   postToolUseOutput,
   preCompactOutput,
-  // All 25 output builder functions
+  // All 26 output builder functions
   preToolUseOutput,
   sessionEndOutput,
   sessionStartOutput,
@@ -233,6 +237,7 @@ export type {
   MultiEditToolInput,
   // Hook input types (with expanded hover tooltips)
   NotificationInput,
+  PermissionDeniedInput,
   PermissionMode,
   PermissionRequestInput,
   PermissionUpdate,

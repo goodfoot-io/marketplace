@@ -33,6 +33,7 @@ interface BaseHookInput {
 | PreCompact | `trigger` ('manual' \| 'auto'), `custom_instructions` |
 | PostCompact | `compact_summary` |
 | PermissionRequest | `tool_name`, `tool_input`, `tool_use_id`, `permission_suggestions?` |
+| PermissionDenied | `tool_name`, `tool_input`, `tool_use_id`, `reason` |
 | Setup | `trigger` ('init' \| 'maintenance') |
 
 ## Tool Input Overview

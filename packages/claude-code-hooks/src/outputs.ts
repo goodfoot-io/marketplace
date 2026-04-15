@@ -13,6 +13,7 @@ import type {
   ElicitationHookSpecificOutput as SDKElicitationHookSpecificOutput,
   ElicitationResultHookSpecificOutput as SDKElicitationResultHookSpecificOutput,
   FileChangedHookSpecificOutput as SDKFileChangedHookSpecificOutput,
+  PermissionDeniedHookSpecificOutput as SDKPermissionDeniedHookSpecificOutput,
 } from "@anthropic-ai/claude-agent-sdk";
 import type {
   NotificationHookSpecificOutput as SDKNotificationHookSpecificOutput,
@@ -70,6 +71,7 @@ export type {
   SDKElicitationResultHookSpecificOutput,
   SDKFileChangedHookSpecificOutput,
   SDKNotificationHookSpecificOutput,
+  SDKPermissionDeniedHookSpecificOutput,
   SDKPermissionRequestHookSpecificOutput,
   SDKPostToolUseFailureHookSpecificOutput,
   SDKPostToolUseHookSpecificOutput,
@@ -147,6 +149,12 @@ export type ElicitationHookSpecificOutput = Omit<SDKElicitationHookSpecificOutpu
 export type ElicitationResultHookSpecificOutput = Omit<SDKElicitationResultHookSpecificOutput, "hookEventName">;
 
 /**
+ * PermissionDenied hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
+ */
+export type PermissionDeniedHookSpecificOutput = Omit<SDKPermissionDeniedHookSpecificOutput, "hookEventName">;
+
+/**
  * Allow decision for permission requests.
  * Derived from SDK's PermissionRequestHookSpecificOutput.
  */
@@ -204,6 +212,7 @@ export type HookSpecificOutput =
   | SDKSetupHookSpecificOutput
   | SDKSubagentStartHookSpecificOutput
   | SDKPermissionRequestHookSpecificOutput
+  | SDKPermissionDeniedHookSpecificOutput
   | SDKNotificationHookSpecificOutput
   | SDKElicitationHookSpecificOutput
   | SDKElicitationResultHookSpecificOutput
@@ -345,6 +354,10 @@ export type PermissionRequestOutput = BaseSpecificOutput<"PermissionRequest">;
 /**
  *
  */
+export type PermissionDeniedOutput = BaseSpecificOutput<"PermissionDenied">;
+/**
+ *
+ */
 export type SetupOutput = BaseSpecificOutput<"Setup">;
 /**
  *
@@ -409,6 +422,7 @@ export type SpecificHookOutput =
   | PreCompactOutput
   | PostCompactOutput
   | PermissionRequestOutput
+  | PermissionDeniedOutput
   | SetupOutput
   | TeammateIdleOutput
   | TaskCreatedOutput
@@ -931,6 +945,38 @@ export const permissionRequestOutput = /* @__PURE__ */ createHookSpecificOutputB
   "PermissionRequest",
   PermissionRequestHookSpecificOutput
 >("PermissionRequest");
+
+// ============================================================================
+// PermissionDenied Output Builder
+// ============================================================================
+
+/**
+ * Options for the PermissionDenied output builder.
+ */
+export type PermissionDeniedOptions = CommonOptions & {
+  /** Hook-specific output matching the wire format. */
+  hookSpecificOutput?: PermissionDeniedHookSpecificOutput;
+};
+
+/**
+ * Creates an output for PermissionDenied hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A PermissionDeniedOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * // Log and allow retry
+ * permissionDeniedOutput({
+ *   hookSpecificOutput: { retry: true }
+ * });
+ *
+ * // Log without retry
+ * permissionDeniedOutput({});
+ * ```
+ */
+export const permissionDeniedOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  "PermissionDenied",
+  PermissionDeniedHookSpecificOutput
+>("PermissionDenied");
 
 // ============================================================================
 // Setup Output Builder

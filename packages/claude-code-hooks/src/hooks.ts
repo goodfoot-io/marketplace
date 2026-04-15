@@ -31,6 +31,7 @@ import type {
   FileChangedOutput,
   InstructionsLoadedOutput,
   NotificationOutput,
+  PermissionDeniedOutput,
   PermissionRequestOutput,
   PostCompactOutput,
   PostToolUseFailureOutput,
@@ -62,6 +63,7 @@ import type {
   InstructionsLoadedInput,
   KnownToolName,
   NotificationInput,
+  PermissionDeniedInput,
   PermissionRequestInput,
   PostCompactInput,
   PostToolUseFailureInput,
@@ -1134,6 +1136,45 @@ export function permissionRequestHook(
   handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>,
 ): HookFunction<PermissionRequestInput, PermissionRequestOutput> {
   return createHookFunction("PermissionRequest", config, handler);
+}
+
+// ============================================================================
+// PermissionDenied Hook Factory
+// ============================================================================
+
+/**
+ * Creates a PermissionDenied hook handler.
+ *
+ * PermissionDenied hooks fire when a permission request is denied (either by the
+ * user or by a PermissionRequest hook), allowing you to:
+ * - Log permission denials for auditing
+ * - React to denied tool executions
+ * - Optionally request a retry via the output
+ *
+ * **Matcher**: Matches against `tool_name`
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { permissionDeniedHook, permissionDeniedOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * // Log all permission denials
+ * export default permissionDeniedHook({}, async (input, { logger }) => {
+ *   logger.warn('Permission denied', {
+ *     toolName: input.tool_name,
+ *     reason: input.reason
+ *   });
+ *   return permissionDeniedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#permissiondenied
+ */
+export function permissionDeniedHook(
+  config: HookConfig,
+  handler: HookHandler<PermissionDeniedInput, PermissionDeniedOutput>,
+): HookFunction<PermissionDeniedInput, PermissionDeniedOutput> {
+  return createHookFunction("PermissionDenied", config, handler);
 }
 
 // ============================================================================
