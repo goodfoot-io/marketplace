@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.1
+- Fixed hook handlers to accept `null` as a valid return value
+
 ## 1.3.0
 - Added `PermissionDenied` hook type for handling permission denial events
 - Updated Anthropic SDK compatibility to version 0.2.109
