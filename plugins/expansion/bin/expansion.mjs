@@ -67,7 +67,7 @@ function run(args) {
     case "view": {
       const facts = getExpansion(args.key);
       if (facts === void 0) {
-        process.stderr.write(`Error: term "${args.key}" not found
+        void process.stderr.write(`*Expansion "${args.key}" does not exist*
 `);
         process.exit(1);
       }
@@ -80,14 +80,14 @@ function run(args) {
     case "remove": {
       const found = removeExpansion(args.key);
       if (!found) {
-        process.stderr.write(`Error: term "${args.key}" not found
+        void process.stderr.write(`*Expansion "${args.key}" does not exist*
 `);
         process.exit(1);
       }
       return "";
     }
     case "usage": {
-      process.stderr.write(
+      void process.stderr.write(
         "Usage:\n  expansion --list\n  expansion <key>\n  expansion <key> <fact1> [fact2 ...]\n  expansion <key> -d\n"
       );
       process.exit(0);
@@ -99,7 +99,8 @@ var scriptArg = process.argv[1];
 if (scriptArg && (currentFile === scriptArg || currentFile.endsWith(scriptArg))) {
   const cliArgs = parseArgs(process.argv.slice(2));
   const output = run(cliArgs);
-  if (output) process.stdout.write(output + "\n");
+  if (output) void process.stdout.write(`${output}
+`);
 }
 export {
   parseArgs,
