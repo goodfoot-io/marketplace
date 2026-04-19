@@ -27,7 +27,7 @@ import type {
   WorktreeCreateHookInput,
   WorktreeRemoveHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, it } from "vitest";
 import type { HookContext, SessionStartContext } from "../src/hooks.js";
 import {
   configChangeHook,
@@ -387,6 +387,7 @@ describe("Hook Factory Functions", () => {
       );
 
       const result = await hook(createPreToolUseHookInput(), { logger: testLogger });
+      assert(result !== null);
 
       expect(result.stdout.hookSpecificOutput?.hookEventName).toBe("PreToolUse");
       if (result.stdout.hookSpecificOutput?.hookEventName === "PreToolUse") {
@@ -551,6 +552,7 @@ describe("Hook Factory Functions", () => {
       const hook = stopHook({}, () => stopOutput({ decision: "block", reason: "Pending changes" }));
 
       const result = await hook(createStopHookInput(), { logger: testLogger });
+      assert(result !== null);
 
       expect(result.stdout.decision).toBe("block");
       expect(result.stdout.reason).toBe("Pending changes");
@@ -766,6 +768,7 @@ describe("Hook Factory Functions", () => {
         elicitationOutput({ hookSpecificOutput: { action: "accept", content: { username: "alice" } } }),
       );
       const result = await hook(createElicitationHookInput(), { logger: testLogger });
+      assert(result !== null);
       expect(result.stdout.hookSpecificOutput?.hookEventName).toBe("Elicitation");
     });
   });

@@ -215,7 +215,9 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
     // Execute handler
     try {
       const specificOutput = await hookFn(input, context as Parameters<typeof hookFn>[1]);
-      output = convertToHookOutput(specificOutput);
+      if (specificOutput !== null) {
+        output = convertToHookOutput(specificOutput);
+      }
     } catch (error) {
       // Handler threw - output stacktrace to stderr and exit with code 2
       // This call never returns (process.exit)

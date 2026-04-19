@@ -2,7 +2,7 @@
  * Tests for async handler support.
  */
 
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 import type { StopInput, TypedPreToolUseHookInput } from "../src/index.js";
 import { Logger, preToolUseHook, preToolUseOutput, stopHook, stopOutput } from "../src/index.js";
 
@@ -30,6 +30,7 @@ describe("async handler support", () => {
     };
 
     const result = await hook(mockInput, context);
+    assert(result !== null);
     expect(result._type).toBe("Stop");
     expect(result.stdout.decision).toBe("approve");
   });
@@ -47,6 +48,7 @@ describe("async handler support", () => {
     };
 
     const result = await hook(mockInput, context);
+    assert(result !== null);
     expect(result._type).toBe("Stop");
     expect(result.stdout.decision).toBe("block");
     expect(result.stdout.reason).toBe("async reason");
@@ -69,6 +71,7 @@ describe("async handler support", () => {
     };
 
     const result = await hook(mockInput, context);
+    assert(result !== null);
     expect(result._type).toBe("PreToolUse");
     expect(result.stdout.hookSpecificOutput?.hookEventName).toBe("PreToolUse");
   });

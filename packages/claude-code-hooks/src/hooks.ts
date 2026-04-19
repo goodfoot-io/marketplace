@@ -373,7 +373,7 @@ export interface SessionStartContext extends HookContext {
 export type HookHandler<TInput, TOutput extends SpecificHookOutput, TContext extends HookContext = HookContext> = (
   input: TInput,
   context: TContext,
-) => TOutput | Promise<TOutput>;
+) => TOutput | null | Promise<TOutput | null>;
 
 /**
  * The result of a hook factory - a function that wraps the handler.
@@ -389,9 +389,9 @@ export interface HookFunction<TInput, TOutput extends SpecificHookOutput, TConte
    * Execute the hook handler with the given input and context.
    * @param input - The hook input data
    * @param context - The hook execution context
-   * @returns The hook output (specific type, converted to HookOutput by runtime)
+   * @returns The hook output, or null to exit 0 with no stdout
    */
-  (input: TInput, context: TContext): Promise<TOutput>;
+  (input: TInput, context: TContext): Promise<TOutput | null>;
 
   /**
    * The hook event name this handler is for.
@@ -429,7 +429,7 @@ function createHookFunction<TInput, TOutput extends SpecificHookOutput, TContext
   config: HookConfig,
   handler: HookHandler<TInput, TOutput, TContext>,
 ): HookFunction<TInput, TOutput, TContext> {
-  const hookFn = async (input: TInput, context: TContext): Promise<TOutput> => {
+  const hookFn = async (input: TInput, context: TContext): Promise<TOutput | null> => {
     // Delegate error handling to the runtime - just execute the handler
     // The runtime will catch errors, log them, and return appropriate output
     return await handler(input, context);
