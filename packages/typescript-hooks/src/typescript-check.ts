@@ -231,8 +231,8 @@ function findDependentFiles(filePath: string, packageDir: string): string[] {
         for (const f of files) {
           dependentFiles.add(f);
         }
-      } catch {
-        // Ignore errors from ripgrep (e.g., no matches)
+      } catch (_e) {
+        void _e;
       }
     }
 
@@ -578,17 +578,17 @@ export default postToolUseHook({ matcher: "Write|Edit|MultiEdit", timeout: 60000
 
   if (!filePath) {
     logger.debug("No file path found in input");
-    return postToolUseOutput({});
+    return null;
   }
 
   if (!isTsFile(filePath)) {
     logger.debug("Skipping non-TypeScript file", { filePath });
-    return postToolUseOutput({});
+    return null;
   }
 
   if (!fs.existsSync(filePath)) {
     logger.warn("File not found", { filePath });
-    return postToolUseOutput({});
+    return null;
   }
 
   logger.info("Checking TypeScript file", { filePath });
@@ -639,5 +639,5 @@ export default postToolUseHook({ matcher: "Write|Edit|MultiEdit", timeout: 60000
   }
 
   logger.debug("No validation errors");
-  return postToolUseOutput({});
+  return null;
 });

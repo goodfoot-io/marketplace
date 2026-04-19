@@ -55,7 +55,7 @@ export default sessionStartHook({ matcher: "compact" }, (_input, { logger }) => 
 
   if (claudePid === null) {
     logger.debug("Could not find Claude PID");
-    return sessionStartOutput({});
+    return null;
   }
 
   const enablementFlag = getImplementPlanReloadFlagPath(claudePid);
@@ -63,14 +63,14 @@ export default sessionStartHook({ matcher: "compact" }, (_input, { logger }) => 
   // Check if enablement flag exists (set by implement-plan.md when it started)
   if (!existsSync(enablementFlag)) {
     logger.debug("Implement-plan reload not enabled for this session", { claudePid });
-    return sessionStartOutput({});
+    return null;
   }
 
   // Delete the enablement flag (one-shot behavior)
   try {
     unlinkSync(enablementFlag);
-  } catch {
-    // Ignore cleanup errors
+  } catch (_e) {
+    logger.debug("Failed to cleanup enablement flag", { enablementFlag });
   }
 
   logger.info("Reloading implement-plan instructions after compaction", { claudePid });

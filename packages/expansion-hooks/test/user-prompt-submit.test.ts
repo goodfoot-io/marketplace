@@ -8,7 +8,7 @@ import {
   type UserPromptSubmitHookSpecificOutput,
   type UserPromptSubmitInput,
 } from "@goodfoot/claude-code-hooks";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
 import hook, { findNewTerms, getSeenFilePath, loadSeen, saveSeen } from "../src/user-prompt-submit.js";
 
 vi.mock("../src/expansion-store.js", () => ({
@@ -29,8 +29,8 @@ const mockContext = {
   persistEnvVars: () => {},
 };
 
-function getAdditionalContext(result: { stdout: { hookSpecificOutput?: unknown } }): string | undefined {
-  return (result.stdout.hookSpecificOutput as UserPromptSubmitHookSpecificOutput | undefined)?.additionalContext;
+function getAdditionalContext(result: { stdout: { hookSpecificOutput?: unknown } } | null): string | undefined {
+  return (result?.stdout.hookSpecificOutput as UserPromptSubmitHookSpecificOutput | undefined)?.additionalContext;
 }
 
 function createMockInput(prompt = "test prompt"): UserPromptSubmitInput {
@@ -74,20 +74,18 @@ describe("UserPromptSubmit Hook", () => {
     expect(hook.hookEventName).toBe("UserPromptSubmit");
   });
 
-  it("returns empty output when store is empty", async () => {
+  it("returns null when store is empty", async () => {
     vi.mocked(readStore).mockReturnValue({});
     const result = await hook(createMockInput("hello world"), mockContext);
-    expect(result.stdout.hookSpecificOutput).toBeUndefined();
-    expect(result.stdout.systemMessage).toBeUndefined();
+    expect(result).toBeNull();
   });
 
-  it("returns empty output when no terms match prompt", async () => {
+  it("returns null when no terms match prompt", async () => {
     vi.mocked(readStore).mockReturnValue({
       "client-web": ["React web application", "Stored at ./client-web"],
     });
     const result = await hook(createMockInput("hello world, no terms here"), mockContext);
-    expect(result.stdout.hookSpecificOutput).toBeUndefined();
-    expect(result.stdout.systemMessage).toBeUndefined();
+    expect(result).toBeNull();
   });
 
   it("injects additionalContext for matched terms", async () => {
@@ -104,6 +102,7 @@ describe("UserPromptSubmit Hook", () => {
       "client-web": ["React web application"],
     });
     const result = await hook(createMockInput("update client-web"), mockContext);
+    assert(result !== null);
     expect(result.stdout.systemMessage).toBe(getAdditionalContext(result));
   });
 
@@ -127,7 +126,7 @@ describe("UserPromptSubmit Hook", () => {
     await hook(createMockInput("update client-web"), mockContext);
     // Second call with same session - should not inject again
     const result = await hook(createMockInput("update client-web again"), mockContext);
-    expect(result.stdout.hookSpecificOutput).toBeUndefined();
+    expect(result).toBeNull();
   });
 
   it("injects multiple terms found in the same prompt", async () => {
@@ -146,10 +145,10 @@ describe("UserPromptSubmit Hook", () => {
     expect(path).toContain("my-unique-session-abc");
   });
 
-  it("gracefully returns empty output when ~/.expansion.json contains malformed JSON", async () => {
+  it("returns null when ~/.expansion.json contains malformed JSON", async () => {
     vi.mocked(readStore).mockReturnValue({});
     const result = await hook(createMockInput("any prompt"), mockContext);
-    expect(result.stdout.hookSpecificOutput).toBeUndefined();
+    expect(result).toBeNull();
   });
 
   it("gracefully treats seen file as empty when it contains malformed JSON", async () => {

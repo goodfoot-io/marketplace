@@ -45,8 +45,7 @@ describe("TypeScript/ESLint Validation Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      // Should return empty output for non-TS files
-      expect(result.stdout.hookSpecificOutput).toBeUndefined();
+      expect(result).toBeNull();
     });
 
     it("skips markdown files", async () => {
@@ -63,7 +62,7 @@ describe("TypeScript/ESLint Validation Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput).toBeUndefined();
+      expect(result).toBeNull();
     });
 
     it("skips JSON files", async () => {
@@ -80,7 +79,7 @@ describe("TypeScript/ESLint Validation Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 
@@ -98,7 +97,7 @@ describe("TypeScript/ESLint Validation Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput).toBeUndefined();
+      expect(result).toBeNull();
     });
 
     it("handles non-existent files gracefully", async () => {
@@ -115,8 +114,7 @@ describe("TypeScript/ESLint Validation Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      // Should return empty output since file doesn't exist
-      expect(result.stdout.hookSpecificOutput).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 

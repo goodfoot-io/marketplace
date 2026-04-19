@@ -29,14 +29,14 @@ export default sessionStartHook({ matcher: "compact" }, (_input, { logger }) => 
 
   if (claudePid === null) {
     logger.debug("Could not find Claude PID");
-    return sessionStartOutput({});
+    return null;
   }
 
   const pathsFile = getRemindPathsFilePath(claudePid);
 
   if (!existsSync(pathsFile)) {
     logger.debug("No remind paths file for this session", { claudePid });
-    return sessionStartOutput({});
+    return null;
   }
 
   let rawPaths: string;
@@ -44,7 +44,7 @@ export default sessionStartHook({ matcher: "compact" }, (_input, { logger }) => 
     rawPaths = readFileSync(pathsFile, "utf-8");
   } catch {
     logger.debug("Failed to read remind paths file", { claudePid });
-    return sessionStartOutput({});
+    return null;
   }
 
   const filePaths = rawPaths
@@ -54,7 +54,7 @@ export default sessionStartHook({ matcher: "compact" }, (_input, { logger }) => 
 
   if (filePaths.length === 0) {
     logger.debug("Remind paths file is empty", { claudePid });
-    return sessionStartOutput({});
+    return null;
   }
 
   const fileBlocks: string[] = [];
@@ -78,7 +78,7 @@ export default sessionStartHook({ matcher: "compact" }, (_input, { logger }) => 
 
   if (fileBlocks.length === 0) {
     logger.info("All reminded files are missing or unreadable", { claudePid, missing });
-    return sessionStartOutput({});
+    return null;
   }
 
   const context = fileBlocks.join("\n\n");

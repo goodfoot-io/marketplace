@@ -1,6 +1,6 @@
 {
   "name": "goodfoot-hooks",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "build": "claude-code-hooks -i \"src/**/*.ts\" -o \"../../plugins/goodfoot/hooks/hooks.json\"",

@@ -38,7 +38,7 @@ export default userPromptSubmitHook({}, async (input, { logger }) => {
   logger.debug(`Found ${newTerms.length} new terms in prompt`);
 
   if (newTerms.length === 0) {
-    return userPromptSubmitOutput({});
+    return null;
   }
 
   const formattedContext = newTerms.map((key) => formatExpansion(key, store[key])).join("\n\n");

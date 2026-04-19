@@ -9,7 +9,7 @@ import {
   type SessionStartHookSpecificOutput,
   type SessionStartInput,
 } from "@goodfoot/claude-code-hooks";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, it } from "vitest";
 import hook, { findClaudePid, getImplementPlanReloadFlagPath } from "../src/implement-plan-reloader.js";
 
 const logger = new Logger();
@@ -45,8 +45,8 @@ describe("Implement-Plan Reloader Hook", () => {
     if (!enablementFlag) return;
     try {
       unlinkSync(enablementFlag);
-    } catch {
-      // File may not exist
+    } catch (_e) {
+      void _e;
     }
   }
 
@@ -73,9 +73,7 @@ describe("Implement-Plan Reloader Hook", () => {
 
   it("does nothing when enablement flag is not set", async () => {
     const result = await hook(createMockInput(), mockContext);
-
-    expect(result.stdout.systemMessage).toBeUndefined();
-    expect(result.stdout.hookSpecificOutput).toBeUndefined();
+    expect(result).toBeNull();
   });
 
   it("outputs instructions when flag is set", async () => {
@@ -83,6 +81,7 @@ describe("Implement-Plan Reloader Hook", () => {
     enableReload();
 
     const result = await hook(createMockInput(), mockContext);
+    assert(result !== null);
 
     expect(result.stdout.systemMessage).toContain("Implement-plan reloader");
     const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
@@ -104,6 +103,7 @@ describe("Implement-Plan Reloader Hook", () => {
     enableReload();
 
     const result = await hook(createMockInput(), mockContext);
+    assert(result !== null);
 
     const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
     const content = getAdditionalContext(hookOutput) ?? "";
@@ -116,6 +116,7 @@ describe("Implement-Plan Reloader Hook", () => {
     enableReload();
 
     const result = await hook(createMockInput(), mockContext);
+    assert(result !== null);
 
     const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
     expect(getAdditionalContext(hookOutput)).toContain("## Step 2: Locate and Read Plan");
@@ -126,6 +127,7 @@ describe("Implement-Plan Reloader Hook", () => {
     enableReload();
 
     const result = await hook(createMockInput(), mockContext);
+    assert(result !== null);
 
     const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
     const content = getAdditionalContext(hookOutput) ?? "";
@@ -145,6 +147,7 @@ describe("Implement-Plan Reloader Hook", () => {
     enableReload();
 
     const result = await hook(createMockInput(), mockContext);
+    assert(result !== null);
 
     const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
     expect(getAdditionalContext(hookOutput)).not.toContain("## Step 1:");
@@ -155,6 +158,7 @@ describe("Implement-Plan Reloader Hook", () => {
     enableReload();
 
     const result = await hook(createMockInput(), mockContext);
+    assert(result !== null);
 
     const hookOutput = result.stdout.hookSpecificOutput as { hookEventName: string } & SessionStartHookSpecificOutput;
     expect(getAdditionalContext(hookOutput)).not.toContain("## Step 3:");
