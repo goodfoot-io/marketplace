@@ -31,6 +31,7 @@ import type {
   FileChangedOutput,
   InstructionsLoadedOutput,
   NotificationOutput,
+  UserPromptExpansionOutput,
   PermissionDeniedOutput,
   PermissionRequestOutput,
   PostCompactOutput,
@@ -63,6 +64,7 @@ import type {
   InstructionsLoadedInput,
   KnownToolName,
   NotificationInput,
+  UserPromptExpansionInput,
   PermissionDeniedInput,
   PermissionRequestInput,
   PostCompactInput,
@@ -699,6 +701,47 @@ export function userPromptSubmitHook(
   handler: HookHandler<UserPromptSubmitInput, UserPromptSubmitOutput>,
 ): HookFunction<UserPromptSubmitInput, UserPromptSubmitOutput> {
   return createHookFunction("UserPromptSubmit", config, handler);
+}
+
+// ============================================================================
+// UserPromptExpansion Hook Factory
+// ============================================================================
+
+/**
+ * Creates a UserPromptExpansion hook handler.
+ *
+ * UserPromptExpansion hooks fire when a user prompt is expanded from a slash
+ * command or MCP prompt, allowing you to:
+ * - Add context based on the command being invoked
+ * - Log slash command and MCP prompt usage
+ * - Observe prompt expansion events
+ *
+ * **Matcher**: No matcher support - fires on all prompt expansions
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { userPromptExpansionHook, userPromptExpansionOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * // Add context when a slash command is invoked
+ * export default userPromptExpansionHook({}, async (input, { logger }) => {
+ *   logger.debug('Prompt expanded', { type: input.expansion_type, command: input.command_name });
+ *
+ *   return userPromptExpansionOutput({
+ *     hookSpecificOutput: {
+ *       additionalContext: `Command: ${input.command_name}`
+ *     }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#userpromptexpansion
+ */
+export function userPromptExpansionHook(
+  config: HookConfig,
+  handler: HookHandler<UserPromptExpansionInput, UserPromptExpansionOutput>,
+): HookFunction<UserPromptExpansionInput, UserPromptExpansionOutput> {
+  return createHookFunction("UserPromptExpansion", config, handler);
 }
 
 // ============================================================================

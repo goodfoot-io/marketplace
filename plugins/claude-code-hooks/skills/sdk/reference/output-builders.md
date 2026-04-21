@@ -589,6 +589,7 @@ export default taskCompletedHook({}, (input, { logger }) => {
 | SessionEnd | `sessionEndHook` | `sessionEndOutput` | `reason` |
 | Stop | `stopHook` | `stopOutput` | N/A |
 | StopFailure | `stopFailureHook` | `stopFailureOutput` | `error` |
+| UserPromptExpansion | `userPromptExpansionHook` | `userPromptExpansionOutput` | N/A |
 | UserPromptSubmit | `userPromptSubmitHook` | `userPromptSubmitOutput` | N/A |
 | Notification | `notificationHook` | `notificationOutput` | `notification_type` |
 | SubagentStart | `subagentStartHook` | `subagentStartOutput` | `agent_type` |

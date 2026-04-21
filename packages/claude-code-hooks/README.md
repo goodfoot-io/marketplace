@@ -126,7 +126,7 @@ npm test        # Run tests
 
 ### Available Hook Types
 
-The `--hooks` argument accepts a comma-separated list of any of these 19 event types:
+The `--hooks` argument accepts a comma-separated list of any of these 20 event types:
 
 | Hook Type            | Description                                                              |
 | -------------------- | ------------------------------------------------------------------------ |
@@ -134,6 +134,7 @@ The `--hooks` argument accepts a comma-separated list of any of these 19 event t
 | `PostToolUse`        | After a tool completes successfully                                      |
 | `PostToolUseFailure` | After a tool fails                                                       |
 | `Notification`       | When Claude requests permissions                                         |
+| `UserPromptExpansion` | When a slash command or MCP prompt is expanded                          |
 | `UserPromptSubmit`   | When user submits a prompt                                               |
 | `SessionStart`       | When session begins                                                      |
 | `SessionEnd`         | When session terminates                                                  |
@@ -222,6 +223,7 @@ Don't construct raw JSON. Use the builders to ensure wire-format compatibility.
 | `preToolUseOutput`       | Allow/Deny permissions, modify inputs.                             |
 | `postToolUseOutput`      | Inject context after a tool runs (e.g., "File read successfully"). |
 | `stopOutput`             | Block Claude from quitting (`decision: 'block'`).                  |
+| `userPromptExpansionOutput` | Inject context when a slash command or MCP prompt is expanded.   |
 | `userPromptSubmitOutput` | Inject context when the user types a message.                      |
 
 ### The Logger

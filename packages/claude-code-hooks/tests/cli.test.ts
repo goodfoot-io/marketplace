@@ -25,8 +25,8 @@ import {
 } from "../src/cli.js";
 
 describe("HOOK_FACTORY_TO_EVENT", () => {
-  it("maps all 27 hook factory names to event names", () => {
-    expect(Object.keys(HOOK_FACTORY_TO_EVENT)).toHaveLength(27);
+  it("maps all 28 hook factory names to event names", () => {
+    expect(Object.keys(HOOK_FACTORY_TO_EVENT)).toHaveLength(28);
   });
 
   it("maps preToolUseHook to PreToolUse", () => {

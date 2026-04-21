@@ -47,6 +47,7 @@ export type {
   TaskCompletedHookInput as SDKTaskCompletedHookInput,
   TaskCreatedHookInput as SDKTaskCreatedHookInput,
   TeammateIdleHookInput as SDKTeammateIdleHookInput,
+  UserPromptExpansionHookInput as SDKUserPromptExpansionHookInput,
   UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
   WorktreeCreateHookInput as SDKWorktreeCreateHookInput,
   WorktreeRemoveHookInput as SDKWorktreeRemoveHookInput,
@@ -80,6 +81,7 @@ import type {
   TaskCompletedHookInput as SDKTaskCompletedHookInput,
   TaskCreatedHookInput as SDKTaskCreatedHookInput,
   TeammateIdleHookInput as SDKTeammateIdleHookInput,
+  UserPromptExpansionHookInput as SDKUserPromptExpansionHookInput,
   UserPromptSubmitHookInput as SDKUserPromptSubmitHookInput,
   WorktreeCreateHookInput as SDKWorktreeCreateHookInput,
   WorktreeRemoveHookInput as SDKWorktreeRemoveHookInput,
@@ -215,6 +217,20 @@ export type PostToolUseFailureInput = {
  * @see https://code.claude.com/docs/en/hooks#notification
  */
 export type NotificationInput = { [K in keyof SDKNotificationHookInput]: SDKNotificationHookInput[K] } & {};
+
+/**
+ * Input for UserPromptExpansion hooks.
+ *
+ * Fires when a user prompt is expanded from a slash command or MCP prompt,
+ * allowing you to:
+ * - Add context based on the command being invoked
+ * - Log slash command and MCP prompt usage
+ * - Observe prompt expansion events
+ * @see https://code.claude.com/docs/en/hooks#userpromptexpansion
+ */
+export type UserPromptExpansionInput = {
+  [K in keyof SDKUserPromptExpansionHookInput]: SDKUserPromptExpansionHookInput[K];
+} & {};
 
 /**
  * Input for UserPromptSubmit hooks.
@@ -516,6 +532,7 @@ export type HookInput =
   | PostToolUseInput
   | PostToolUseFailureInput
   | NotificationInput
+  | UserPromptExpansionInput
   | UserPromptSubmitInput
   | SessionStartInput
   | SessionEndInput
@@ -563,6 +580,7 @@ export const HOOK_EVENT_NAMES = [
   "PostToolUse",
   "PostToolUseFailure",
   "Notification",
+  "UserPromptExpansion",
   "UserPromptSubmit",
   "SessionStart",
   "SessionEnd",

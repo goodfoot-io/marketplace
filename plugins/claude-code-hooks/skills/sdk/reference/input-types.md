@@ -28,6 +28,7 @@ interface BaseHookInput {
 | StopFailure | `error` |
 | SubagentStart | `agent_id`, `agent_type` |
 | SubagentStop | `stop_hook_active`, `agent_id`, `agent_type`, `agent_transcript_path` |
+| UserPromptExpansion | `expansion_type` ('slash_command' \| 'mcp_prompt'), `command_name`, `command_args`, `command_source?`, `prompt` |
 | UserPromptSubmit | `prompt` |
 | Notification | `message`, `title?`, `notification_type` |
 | PreCompact | `trigger` ('manual' \| 'auto'), `custom_instructions` |

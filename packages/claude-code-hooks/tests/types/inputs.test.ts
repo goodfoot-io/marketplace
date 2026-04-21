@@ -45,6 +45,8 @@ describe("HookInput discriminated union", () => {
             return input.error;
           case "Notification":
             return input.message;
+          case "UserPromptExpansion":
+            return input.command_name;
           case "UserPromptSubmit":
             return input.prompt;
           case "SessionEnd":

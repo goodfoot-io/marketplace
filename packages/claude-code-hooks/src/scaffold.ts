@@ -68,6 +68,7 @@ const EVENT_TO_OUTPUT_FUNCTION: Record<HookEventName, string> = {
   PostToolUse: "postToolUseOutput",
   PostToolUseFailure: "postToolUseFailureOutput",
   Notification: "notificationOutput",
+  UserPromptExpansion: "userPromptExpansionOutput",
   UserPromptSubmit: "userPromptSubmitOutput",
   SessionStart: "sessionStartOutput",
   SessionEnd: "sessionEndOutput",
@@ -353,6 +354,12 @@ function generateHookTemplate(eventName: HookEventName): string {
       returnStatement = `return ${outputName}({
     systemMessage: "Session initialized by ${eventName} hook.",
     hookSpecificOutput: { additionalContext: "Environment ready." },
+  });`;
+      break;
+    case "UserPromptExpansion":
+      returnStatement = `return ${outputName}({
+    systemMessage: "Prompt expansion observed.",
+    hookSpecificOutput: { additionalContext: \`Command: \${input.command_name}\` },
   });`;
       break;
     case "UserPromptSubmit":

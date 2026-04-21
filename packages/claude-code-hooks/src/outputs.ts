@@ -14,6 +14,7 @@ import type {
   ElicitationResultHookSpecificOutput as SDKElicitationResultHookSpecificOutput,
   FileChangedHookSpecificOutput as SDKFileChangedHookSpecificOutput,
   PermissionDeniedHookSpecificOutput as SDKPermissionDeniedHookSpecificOutput,
+  UserPromptExpansionHookSpecificOutput as SDKUserPromptExpansionHookSpecificOutput,
 } from "@anthropic-ai/claude-agent-sdk";
 import type {
   NotificationHookSpecificOutput as SDKNotificationHookSpecificOutput,
@@ -105,6 +106,12 @@ export type PostToolUseHookSpecificOutput = Omit<SDKPostToolUseHookSpecificOutpu
  * Omits `hookEventName` which is added automatically by the builder.
  */
 export type PostToolUseFailureHookSpecificOutput = Omit<SDKPostToolUseFailureHookSpecificOutput, "hookEventName">;
+
+/**
+ * UserPromptExpansion hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
+ */
+export type UserPromptExpansionHookSpecificOutput = Omit<SDKUserPromptExpansionHookSpecificOutput, "hookEventName">;
 
 /**
  * UserPromptSubmit hook-specific output fields.
@@ -207,6 +214,7 @@ export type HookSpecificOutput =
   | SDKPreToolUseHookSpecificOutput
   | SDKPostToolUseHookSpecificOutput
   | SDKPostToolUseFailureHookSpecificOutput
+  | SDKUserPromptExpansionHookSpecificOutput
   | SDKUserPromptSubmitHookSpecificOutput
   | SDKSessionStartHookSpecificOutput
   | SDKSetupHookSpecificOutput
@@ -314,6 +322,10 @@ export type NotificationOutput = BaseSpecificOutput<"Notification">;
 /**
  *
  */
+export type UserPromptExpansionOutput = BaseSpecificOutput<"UserPromptExpansion">;
+/**
+ *
+ */
 export type UserPromptSubmitOutput = BaseSpecificOutput<"UserPromptSubmit">;
 /**
  *
@@ -412,6 +424,7 @@ export type SpecificHookOutput =
   | PostToolUseOutput
   | PostToolUseFailureOutput
   | NotificationOutput
+  | UserPromptExpansionOutput
   | UserPromptSubmitOutput
   | SessionStartOutput
   | SessionEndOutput
@@ -619,6 +632,36 @@ export const postToolUseFailureOutput = /* @__PURE__ */ createHookSpecificOutput
   "PostToolUseFailure",
   PostToolUseFailureHookSpecificOutput
 >("PostToolUseFailure");
+
+// ============================================================================
+// UserPromptExpansion Output Builder
+// ============================================================================
+
+/**
+ * Options for the UserPromptExpansion output builder.
+ */
+export type UserPromptExpansionOptions = CommonOptions & {
+  /** Hook-specific output matching the wire format. */
+  hookSpecificOutput?: UserPromptExpansionHookSpecificOutput;
+};
+
+/**
+ * Creates an output for UserPromptExpansion hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A UserPromptExpansionOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * userPromptExpansionOutput({
+ *   hookSpecificOutput: {
+ *     additionalContext: 'Slash command expanded with additional context'
+ *   }
+ * });
+ * ```
+ */
+export const userPromptExpansionOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  "UserPromptExpansion",
+  UserPromptExpansionHookSpecificOutput
+>("UserPromptExpansion");
 
 // ============================================================================
 // UserPromptSubmit Output Builder

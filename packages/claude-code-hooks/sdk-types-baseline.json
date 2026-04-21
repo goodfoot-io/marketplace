@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.109",
-  "extractedAt": "2026-04-15T05:59:13.533Z",
+  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.117",
+  "extractedAt": "2026-04-21T23:10:05.082Z",
   "types": {
     "BaseHookInput": {
       "kind": "type-alias",
@@ -847,6 +847,7 @@
         "TeammateIdleHookInput",
         "TaskCompletedHookInput",
         "PermissionDeniedHookInput",
+        "UserPromptExpansionHookInput",
         "StopFailureHookInput",
         "PostCompactHookInput",
         "TaskCreatedHookInput",
@@ -870,7 +871,7 @@
     },
     "HookEvent": {
       "kind": "literal",
-      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"StopFailure\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PostCompact\" | \"PermissionRequest\" | \"PermissionDenied\" | \"Setup\" | \"TeammateIdle\" | \"TaskCreated\" | \"TaskCompleted\" | \"Elicitation\" | \"ElicitationResult\" | \"ConfigChange\" | \"WorktreeCreate\" | \"WorktreeRemove\" | \"InstructionsLoaded\" | \"CwdChanged\" | \"FileChanged\""
+      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"UserPromptExpansion\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"StopFailure\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PostCompact\" | \"PermissionRequest\" | \"PermissionDenied\" | \"Setup\" | \"TeammateIdle\" | \"TaskCreated\" | \"TaskCompleted\" | \"Elicitation\" | \"ElicitationResult\" | \"ConfigChange\" | \"WorktreeCreate\" | \"WorktreeRemove\" | \"InstructionsLoaded\" | \"CwdChanged\" | \"FileChanged\""
     },
     "NotificationHookSpecificOutput": {
       "kind": "type-alias",
