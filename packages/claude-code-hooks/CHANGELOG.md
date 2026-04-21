@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.2
+- Added `UserPromptExpansion` hook type for intercepting and expanding user prompts
+
 ## 1.3.1
 - Fixed hook handlers to accept `null` as a valid return value
 
