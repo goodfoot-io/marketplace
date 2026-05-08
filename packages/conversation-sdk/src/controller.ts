@@ -357,12 +357,21 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   async #createRealtimeConnection(): Promise<RealtimeConnection> {
     try {
       if (this.#realtimeFactory) {
+        // Test factory is responsible for returning an already-ready connection.
         return await this.#realtimeFactory({ apiKey: this.#config.apiKey, model: this.#config.realtime.model });
       }
-      return new OpenAIRealtimeWebSocket(
+      const ws = new OpenAIRealtimeWebSocket(
         { model: this.#config.realtime.model },
         { apiKey: this.#config.apiKey, baseURL: "https://api.openai.com/v1" },
       ) as unknown as RealtimeConnection;
+      // Do not return until the session is established server-side. This
+      // guarantees the socket is in OPEN state and the session is ready to
+      // accept sends before any caller touches the connection.
+      await new Promise<void>((resolve, reject) => {
+        ws.on("session.created", () => resolve());
+        ws.on("error", (err) => reject(err));
+      });
+      return ws;
     } catch (cause) {
       const error = this.#fail("CONVERSATION_START_FAILED", "Failed to connect to the Realtime API.", undefined, cause);
       this.emit("conversation.error", { conversationId: this.#conversation?.id, error, createdAt: new Date() });
@@ -1108,11 +1117,13 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         break;
       case "message.text": {
         const text = typeof message.data?.text === "string" ? message.data.text : "";
-        if (!this.#conversation) await this.startConversation();
+        if (this.#status.conversation === "none") await this.startConversation();
         await this.injectUserMessage({ text, source: "textInput" });
         break;
       }
       case "audio.input.append":
+        // Guard readyState so a mid-session socket drop silently discards
+        // continuous audio frames rather than flooding the error log.
         if (
           typeof message.data?.audio === "string" &&
           this.#conversation?.status === "active" &&
@@ -1162,7 +1173,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
       data: { devices: audio.devices, selectedDeviceId: audio.selectedDeviceId },
     });
     this.#broadcastState();
-    if (this.#config.browserSession.connectOnPageLoad && audio.ready && !this.#conversation) {
+    if (this.#config.browserSession.connectOnPageLoad && audio.ready && this.#status.conversation === "none") {
       void this.startConversation().catch((error: unknown) => {
         const wrapped =
           error instanceof RealtimeVoiceServerError
