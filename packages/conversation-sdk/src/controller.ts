@@ -70,6 +70,7 @@ type RealtimeConnection = {
   send(event: Record<string, unknown>): void;
   close(props?: { code: number; reason: string }): void;
   on(eventName: string, handler: (event: unknown) => void): unknown;
+  socket?: { readyState: number };
 };
 
 type InternalConfig<TTools extends RealtimeVoiceToolMap> = RealtimeVoiceServerConfig<TTools> & {
@@ -240,7 +241,18 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
 
   async endConversation(options?: { shutdownTimeoutMs?: number }): Promise<void> {
     this.#assertLifecycleUnlocked();
-    await this.#endConversationLocked(options?.shutdownTimeoutMs);
+    try {
+      await this.#endConversationLocked(options?.shutdownTimeoutMs);
+    } catch (error) {
+      if (error instanceof RealtimeVoiceServerError) {
+        this.emit("conversation.error", {
+          conversationId: this.#conversation?.id,
+          error,
+          createdAt: new Date(),
+        });
+      }
+      throw error;
+    }
   }
 
   async resetConversation(options?: { shutdownTimeoutMs?: number }): Promise<void> {
@@ -259,8 +271,16 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         createdAt: new Date(),
       });
     } catch (cause) {
-      if (cause instanceof RealtimeVoiceServerError) throw cause;
-      throw this.#fail("CONVERSATION_RESET_FAILED", "Failed to reset the conversation.", undefined, cause);
+      const error =
+        cause instanceof RealtimeVoiceServerError
+          ? cause
+          : this.#fail("CONVERSATION_RESET_FAILED", "Failed to reset the conversation.", undefined, cause);
+      this.emit("conversation.error", {
+        conversationId: this.#conversation?.id,
+        error,
+        createdAt: new Date(),
+      });
+      throw error;
     } finally {
       this.#lifecycleLocked = false;
     }
@@ -352,7 +372,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   #wireRealtimeConnection(realtime: RealtimeConnection): void {
     realtime.on("error", (error) => {
       const wrapped = toRealtimeError(
-        "CONVERSATION_START_FAILED",
+        "REALTIME_SESSION_ERROR",
         "Realtime session reported an error.",
         undefined,
         error,
@@ -471,9 +491,12 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
 
   #handleUserTranscriptDone(event: { item_id: string; transcript: string }): void {
     const conversation = this.#conversation;
-    if (!conversation || !normalizeText(event.transcript)) return;
+    if (!conversation) return;
+    const accumulated = this.#streamingAssistantText.get(event.item_id);
     this.#streamingAssistantText.delete(event.item_id);
-    this.#appendTranscriptItemWithId(conversation, event.item_id, "user", "microphone", event.transcript);
+    const text = normalizeText(event.transcript) || (accumulated ? normalizeText(accumulated) : "");
+    if (!text && accumulated === undefined) return;
+    this.#appendTranscriptItemWithId(conversation, event.item_id, "user", "microphone", text);
     this.#broadcastState();
   }
 
@@ -505,9 +528,12 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
 
   #handleAssistantTranscriptDone(event: { item_id: string; transcript: string }): void {
     const conversation = this.#conversation;
-    if (!conversation || !normalizeText(event.transcript)) return;
+    if (!conversation) return;
+    const accumulated = this.#streamingAssistantText.get(event.item_id);
     this.#streamingAssistantText.delete(event.item_id);
-    this.#appendTranscriptItemWithId(conversation, event.item_id, "assistant", "assistantAudio", event.transcript);
+    const text = normalizeText(event.transcript) || (accumulated ? normalizeText(accumulated) : "");
+    if (!text && accumulated === undefined) return;
+    this.#appendTranscriptItemWithId(conversation, event.item_id, "assistant", "assistantAudio", text);
     this.#broadcastState();
   }
 
@@ -659,7 +685,17 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         this.#markToolInterrupted(conversation, event.item_id, event.call_id, toolName, "aborted");
         return;
       }
+      let serialized: string | undefined;
       if (!isJsonValue(result)) {
+        serialized = undefined;
+      } else {
+        try {
+          serialized = JSON.stringify(result);
+        } catch {
+          serialized = undefined;
+        }
+      }
+      if (serialized === undefined) {
         const error = toRealtimeError("TOOL_RESULT_SERIALIZATION_FAILED", "Tool result must be JSON-serializable.", {
           toolName,
           callId: event.call_id,
@@ -691,7 +727,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         startedAt,
         completedAt,
       } as ToolCallCompletedEvent<TTools>);
-      this.#sendToolResult(event.call_id, result);
+      this.#sendToolResult(event.call_id, serialized);
     } catch (cause) {
       if (abortController.signal.aborted) {
         this.#markToolInterrupted(conversation, event.item_id, event.call_id, toolName, "aborted");
@@ -722,13 +758,13 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     }
   }
 
-  #sendToolResult(callId: string, result: JsonValue): void {
+  #sendToolResult(callId: string, serialized: string): void {
     this.#realtime?.send({
       type: "conversation.item.create",
       item: {
         type: "function_call_output",
         call_id: callId,
-        output: JSON.stringify(result),
+        output: serialized,
       },
     });
     this.#realtime?.send({ type: "response.create" });
@@ -1058,8 +1094,12 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         break;
       }
       case "audio.input.append":
-        if (typeof message.data?.audio === "string" && this.#conversation?.status === "active") {
-          this.#realtime?.send({ type: "input_audio_buffer.append", audio: message.data.audio });
+        if (
+          typeof message.data?.audio === "string" &&
+          this.#conversation?.status === "active" &&
+          this.#realtime?.socket?.readyState === 1
+        ) {
+          this.#realtime.send({ type: "input_audio_buffer.append", audio: message.data.audio });
         }
         break;
       case "audio.input.commit":
