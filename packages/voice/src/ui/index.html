@@ -637,7 +637,7 @@
           state.status = {
             server: message.data.server,
             browserClient: message.data.browserClient,
-            conversation: message.data.conversation?.status ?? message.data.conversation ?? "none",
+            conversation: message.data.conversationStatus ?? message.data.conversation?.status ?? message.data.conversation ?? "none",
           };
           state.conversation = message.data.conversation;
           clearFinalizedDrafts();
@@ -766,7 +766,11 @@
         const status = state.status.conversation;
         primary.className = "primary";
         primary.disabled = !["none", "active", "paused"].includes(status);
-        primary.textContent = status === "active" ? "Pause" : status === "paused" ? "Resume" : "Start";
+        primary.textContent =
+          status === "active" ? "Pause" :
+          status === "paused" ? "Resume" :
+          status === "starting" ? "Starting…" :
+          "Start";
         primary.setAttribute("aria-label", `${primary.textContent} conversation`);
         if (status === "active") primary.classList.add("pause");
         if (status === "paused") primary.classList.add("resume");

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { createRealtimeVoiceServer, type RealtimeVoiceServerEvents, type RealtimeVoiceToolMap } from "../src/index.js";
 
 type DemoEvents = RealtimeVoiceServerEvents<RealtimeVoiceToolMap>;
@@ -45,7 +46,13 @@ const controller = createRealtimeVoiceServer({
   realtime: {
     instructions: "You are a concise voice assistant for a local SDK demo.",
   },
-  tools: {},
+  tools: {
+    ping: {
+      description: "Responds with pong. Use this to confirm the tool system is working.",
+      parameters: z.object({}),
+      execute: async () => ({ pong: true }),
+    },
+  },
   ui: {
     title: "Conversation SDK Demo",
   },

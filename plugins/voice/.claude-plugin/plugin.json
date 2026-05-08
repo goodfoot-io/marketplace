@@ -1,0 +1,12 @@
+{
+  "name": "voice",
+  "version": "1.0.2",
+  "description": "Voice conversation SDK skills and CLI tools for launching and interacting with realtime voice agents.",
+  "author": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io",
+    "url": "https://goodfoot.io"
+  },
+  "license": "MIT",
+  "keywords": ["voice", "conversation", "realtime", "audio", "sdk", "cli"]
+}

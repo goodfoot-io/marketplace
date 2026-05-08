@@ -2461,23 +2461,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@goodfoot/conversation-sdk@workspace:packages/conversation-sdk":
-  version: 0.0.0-use.local
-  resolution: "@goodfoot/conversation-sdk@workspace:packages/conversation-sdk"
-  dependencies:
-    "@biomejs/biome": "npm:2.4.1"
-    "@types/node": "npm:^25"
-    "@types/ws": "npm:^8.18.1"
-    "@typescript/native-preview": "npm:^7.0.0-beta.20260501.1"
-    openai: "npm:^6.37.0"
-    tsx: "npm:^4.20.6"
-    typescript: "npm:^6.0.3"
-    vitest: "npm:^4.1.5"
-    ws: "npm:^8.18.3"
-    zod: "npm:^3.24.1"
-  languageName: unknown
-  linkType: soft
-
 "@goodfoot/example@workspace:packages/example":
   version: 0.0.0-use.local
   resolution: "@goodfoot/example@workspace:packages/example"
@@ -2664,6 +2647,26 @@ __metadata:
     glob: "npm:^11.0.0"
     typescript: "npm:^5.9.3"
     vitest: "npm:^4.0.16"
+  languageName: unknown
+  linkType: soft
+
+"@goodfoot/voice@workspace:packages/voice":
+  version: 0.0.0-use.local
+  resolution: "@goodfoot/voice@workspace:packages/voice"
+  dependencies:
+    "@biomejs/biome": "npm:2.4.1"
+    "@types/node": "npm:^25"
+    "@types/ws": "npm:^8.18.1"
+    "@typescript/native-preview": "npm:^7.0.0-beta.20260501.1"
+    esbuild: "npm:^0.24.0"
+    openai: "npm:^6.37.0"
+    tsx: "npm:^4.20.6"
+    typescript: "npm:^6.0.3"
+    vitest: "npm:^4.1.5"
+    ws: "npm:^8.18.3"
+    zod: "npm:^3.24.1"
+  bin:
+    voice: ./dist/cli/index.js
   languageName: unknown
   linkType: soft
 

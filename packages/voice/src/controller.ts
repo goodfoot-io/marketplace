@@ -833,6 +833,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
       throw error;
     }
     this.#setConversationStatus("starting");
+    this.#broadcastState();
     const realtime = await this.#createRealtimeConnection();
     this.#realtime = realtime;
     this.#wireRealtimeConnection(realtime);
@@ -1210,7 +1211,17 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   }
 
   #broadcastState(): void {
-    this.#broadcast({ type: "state", data: { ...this.status, conversation: this.currentConversation } });
+    this.#broadcast({
+      type: "state",
+      data: {
+        ...this.status,
+        // Include controller-level conversation status separately so the
+        // browser sees transitional states (e.g. "starting") even when
+        // currentConversation is not yet populated.
+        conversationStatus: this.#status.conversation,
+        conversation: this.currentConversation,
+      },
+    });
   }
 
   #broadcast(payload: unknown): void {
