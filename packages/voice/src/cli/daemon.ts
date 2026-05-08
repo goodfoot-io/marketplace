@@ -14,7 +14,7 @@ import type { JsonValue, RealtimeVoiceToolContext, RealtimeVoiceServerEvents, Re
 // Config from env
 // ---------------------------------------------------------------------------
 
-const port = parseInt(process.env["RVS_PORT"] ?? "3000", 10);
+const port = parseInt(process.env["RVS_PORT"] ?? String(20000 + (process.ppid % 10000)), 10);
 const apiKey = process.env["RVS_API_KEY"] ?? "";
 const instructions = process.env["RVS_INSTRUCTIONS"] ?? "";
 const title = process.env["RVS_TITLE"];
@@ -118,7 +118,8 @@ function cleanup(): void {
 // ---------------------------------------------------------------------------
 
 const askTool = {
-  description: "Ask the user a question and wait for their response.",
+  description:
+    "Recall information not available in this conversation — prior context, user preferences, file contents, external state, or anything the backing agent can look up. Phrase the query as a specific lookup key, not a conversational question. The result will be supplied by the agent monitoring this session.",
   parameters: z.object({ question: z.string() }),
   execute: async ({ question }: { question: string }, { signal }: RealtimeVoiceToolContext): Promise<JsonValue> => {
     const questionId = ++questionCounter;

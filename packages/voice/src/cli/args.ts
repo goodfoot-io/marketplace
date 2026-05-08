@@ -2,6 +2,8 @@
  * argv parsing helpers for the rvs CLI
  */
 
+import { readFileSync } from "node:fs";
+
 export interface ParsedArgs {
   command: string;
   subcommand?: string;
@@ -49,13 +51,24 @@ export function parseArgs(argv: string[]): ParsedArgs {
   return { command, subcommand, positional: positional.slice(2), flags };
 }
 
+function getGrandparentPid(): number {
+  try {
+    const status = readFileSync(`/proc/${process.ppid}/status`, "utf8");
+    const match = status.match(/^PPid:\s+(\d+)/m);
+    if (match) return parseInt(match[1], 10);
+  } catch (_err: unknown) {
+    void _err;
+  }
+  return process.ppid;
+}
+
 export function getPort(flags: Record<string, string | boolean>): number {
   const p = flags["port"];
   if (typeof p === "string") {
     const n = parseInt(p, 10);
     if (!isNaN(n)) return n;
   }
-  return 3000;
+  return 20000 + (getGrandparentPid() % 10000);
 }
 
 export function getString(flags: Record<string, string | boolean>, key: string): string | undefined {

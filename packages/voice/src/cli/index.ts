@@ -252,6 +252,11 @@ async function cmdWatch(port: number, eventTypes: string[]): Promise<void> {
     return true;
   };
 
+  // Default to common event types when none specified
+  if (eventTypes.length === 0) {
+    eventTypes = ['transcript.item', 'question', 'conversation.error', 'browser.audio.error'];
+  }
+
   // First attempt
   const got = await pollOnce();
   if (got) {

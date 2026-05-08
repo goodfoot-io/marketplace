@@ -17,7 +17,7 @@ Stop when the user signals done.
 
 ### §ASK
 **When:** about to call `AskUserQuestion`.
-Preface in one or two sentences: what was just produced, what this question decides. Ask one question.
+Preface in one or two sentences: what was just produced, what this question decides. Ask one question. If the question is a choice (solution, score band, action), draft 2–4 options with one recommended; reserve free-form prompts for genuinely open answer spaces.
 
 ### §VIEWPOINTS
 **When:** entering the viewpoints stage; or a new class of affected party emerges.
@@ -60,23 +60,36 @@ Pair person and system: record both sides regardless of which framing the user o
 Ask: *"Anything we haven't touched?"* Advance only on a null answer.
 
 ### §FRAME_HOLD
-**When:** the user's framing of the same row flips between gain/loss or if/when across turns.
-Restate in the chosen frame and confirm.
+**When:** the user's framing of the same row flips (gain/loss, if/when), or narrows/sharpens its subject.
+Restate in the chosen frame and rewrite the row in place — do not split or duplicate. Confirm.
+
+### §EDITOR_AGENT
+**When:** entering stage 8.
+Spawn a source plan editor scoped to all documents in `<source-plan>`. It owns writes to those documents and works in parallel with the conversation; route ratified changes via `SendMessage`. Terse user imperatives ("send a follow-up edit") forward to it without re-eliciting.
 
 ### §COMMIT
 **When:** any fact, score, cause, protection, or action is ratified; or the user asks to keep the work.
-Update the relevant `<artifacts>` file in a session temp directory immediately. On explicit "keep" request, copy temp to the user-specified path.
+Update the relevant `<artifacts>` file directly. Never write to `<source-plan>` here — that only happens in stage 8.
+
+### §REMEDIATE
+**When:** in stage 8, addressing each ratified failure mode.
+Walk the worksheet one row at a time — never batched. Per row: (1) header it by ID and one-line problem; (2) diagnose by citing the offending location in `<source-plan>` (section, quoted text) and the intent that makes it wrong; (3) propose remediation via §ASK; (4) on ratification, SendMessage the source plan editor from §EDITOR_AGENT with the row ID, problem, and fix including locations so the editor can place the edit without rereading context; (5) on the editor's done-signal, acknowledge in one line and move to the next row. On user objection, do not edit — invoke §FRAME_HOLD, then re-enter at step 3.
+
+### §FINAL_PASS
+**When:** session end, or before any commit handoff for a given document.
+Re-read the document for cross-row contradictions, terminology drift, and dangling references; reconcile via the source plan editor from §EDITOR_AGENT. Then ask whether to commit it in its host repo, and if so instruct the editor to do it.
 
 ## Reference sections
 
 <stages consult-when="deciding what to do next in the main flow">
-1. Scope — what plan, what boundary, what counts as success. Assume unlimited implementation resources; coordination overhead is in scope, schedule and budget are not.
+1. Scope — what plan, what boundary, what counts as success, and what kind of inquiry this is (e.g., surface-area only vs. implementation). Spend real time here. If later stages produce items that expand the subject's surface area beyond the scoped inquiry, treat it as a signal that scoping was thin — pause and re-scope. Assume unlimited implementation resources; coordination overhead is in scope, schedule and budget are not.
 2. Viewpoints — whose interests are at stake.
 3. Trouble — what could go wrong.
 4. Causes — why each goes wrong.
 5. Protections — what already guards against it.
 6. Scoring — how bad, how likely, with confidence.
 7. Actions — prioritized response and how each will be verified.
+8. Revise (optional) — translate ratified findings into edits on `<source-plan>`. Enter only if the user opts in. Spawn the source plan editor per §EDITOR_AGENT, then walk rows via §REMEDIATE; run §FINAL_PASS before any commit handoff.
 </stages>
 
 <categories consult-when="running §CATEGORY_SWEEP">
@@ -88,6 +101,10 @@ Reputation · rules and compliance · technical · instructions and skill · coo
 - `actions.md` — prioritized actions with owner and trigger.
 - `assumptions.md` — guesses, what would change them, what was deferred. Log small or hand-picked reference classes here.
 </artifacts>
+
+<source-plan consult-when="referring to the artifact under review, or routing edits in stage 8">
+The external planning document or set of documents being analyzed; exists before the session. Treated as read-only outside stage 8.
+</source-plan>
 
 <language consult-when="writing anything the user will see, including merged subagent output">
 Avoid method names, stage names, subroutine names, scoring jargon, acronyms. Use the user's words for their plan and stakeholders. Plain over precise when they conflict.
