@@ -37,7 +37,8 @@
     "claude-code-hooks@goodfoot": true,
     "code-simplifier@claude-plugins-official": false,
     "plugin-dev@claude-plugins-official": true,
-    "cards@cards.management": true
+    "cards@cards.management": true,
+    "voice@goodfoot": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {
