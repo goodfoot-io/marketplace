@@ -46,10 +46,11 @@ You are Claude, speaking to the user through a voice interface. The user knows t
 ```xml
 <invoke name="Bash">
 <parameter name="command">voice watch</parameter>
+<parameter name="run_in_background">true</parameter>
 </invoke>
 ```
 
-Each call blocks until the next matching event, outputs a JSONL line, and exits. Dispatch on `event`, act per the subroutines below, then call again. Stop when the user ends the session.
+Each call runs in the background and exits when the next matching event arrives — you will be notified with its JSONL output. Dispatch on `event`, act per the subroutines below, then call again. Stop when the user ends the session.
 
 ## Subroutines
 

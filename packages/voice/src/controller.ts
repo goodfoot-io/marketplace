@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import uiHtml from "./ui/index.html";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { OpenAIRealtimeWebSocket } from "openai/realtime/websocket";
 import { WebSocket, WebSocketServer } from "ws";
@@ -64,7 +64,6 @@ type BrowserEnvelope =
   | { type: "audio.device.state"; data?: BrowserAudioDeviceState }
   | { type: "browser.audio.error"; data?: { code?: unknown; message?: unknown; suggestedAction?: unknown } };
 
-const uiPath = new URL("../src/ui/index.html", import.meta.url);
 
 type RealtimeConnection = {
   send(event: Record<string, unknown>): void;
@@ -1025,11 +1024,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   }
 
   async #loadUi(): Promise<string> {
-    try {
-      return await readFile(uiPath, "utf8");
-    } catch {
-      return fallbackHtml;
-    }
+    return uiHtml;
   }
 
   #handleHttpRequest(request: IncomingMessage, response: ServerResponse, html: string): void {
