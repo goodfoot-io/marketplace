@@ -206,3 +206,4 @@ packages/jsdoczoom/types
 packages/claude-code-skill-reader/types
 
 documentation/PageIndex
+scripts/ssh/

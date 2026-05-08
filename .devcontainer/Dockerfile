@@ -29,7 +29,8 @@ RUN apt update && export DEBIAN_FRONTEND=noninteractive && apt install -y less \
   dbus-x11 \
   xvfb \
   bc \
-  bat
+  bat \
+  openssh-server
 
 RUN (type -p wget >/dev/null || (apt update && apt install wget -y)) \
 	&& mkdir -p -m 755 /etc/apt/keyrings \
