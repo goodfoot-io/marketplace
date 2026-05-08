@@ -179,6 +179,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   }
 
   async stop(options?: { conversationShutdownTimeoutMs?: number }): Promise<void> {
+    this.#assertLifecycleUnlocked();
     if (this.#status.server !== "active") {
       throw this.#fail("SERVER_NOT_STARTED", "Server can only be stopped from the active state.", {
         server: this.#status.server,
@@ -306,7 +307,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   }
 
   async cancelToolCall(callId: string): Promise<void> {
-    const conversation = this.#requireInjectableConversation("TOOL_CALL_INTERRUPTED");
+    const conversation = this.#requireInjectableConversation("CONVERSATION_INVALID_STATE");
     const toolCall = conversation.toolCalls.find((record) => record.callId === callId);
     if (!toolCall || toolCall.status !== "started") {
       throw this.#fail("TOOL_CALL_INTERRUPTED", "No in-flight tool call exists for the provided callId.", {
@@ -325,7 +326,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
       });
     }
     const toolEntries = Object.entries(input.tools ?? {});
-    if (!input.instructions && toolEntries.length === 0) {
+    if (input.instructions === undefined && toolEntries.length === 0) {
       throw this.#fail("REALTIME_UPDATE_FAILED", "Realtime update input cannot be empty.");
     }
     for (const [toolName] of toolEntries) {
@@ -910,7 +911,19 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     text: string,
     invalidStateCode: RealtimeVoiceServerErrorCode,
   ): TranscriptItem {
-    const conversation = this.#requireInjectableConversation(invalidStateCode);
+    let conversation: MutableConversation<TTools>;
+    try {
+      conversation = this.#requireInjectableConversation(invalidStateCode);
+    } catch (error) {
+      if (error instanceof RealtimeVoiceServerError) {
+        this.emit("conversation.error", {
+          conversationId: this.#conversation?.id,
+          error,
+          createdAt: new Date(),
+        });
+      }
+      throw error;
+    }
     const normalized = normalizeText(text);
     if (!normalized) {
       throw this.#fail("MESSAGE_INJECTION_EMPTY_TEXT", "Injected message text must be non-empty.");
@@ -923,12 +936,18 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
       return item;
     } catch (cause) {
       if (item) this.#removeTranscriptItem(conversation, item.id);
-      throw this.#fail(
+      const error = this.#fail(
         "MESSAGE_INJECTION_FAILED",
         "Failed to inject message into the current conversation.",
         undefined,
         cause,
       );
+      this.emit("conversation.error", {
+        conversationId: conversation.id,
+        error,
+        createdAt: new Date(),
+      });
+      throw error;
     }
   }
 
