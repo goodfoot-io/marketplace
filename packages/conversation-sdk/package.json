@@ -1,0 +1,56 @@
+{
+  "name": "@goodfoot/conversation-sdk",
+  "version": "0.1.0",
+  "description": "Local Realtime voice conversation server and browser control surface",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/conversation-sdk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodfoot-io/marketplace.git",
+    "directory": "packages/conversation-sdk"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "files": [
+    "dist",
+    "types",
+    "example",
+    "src/ui/index.html",
+    "README.md"
+  ],
+  "scripts": {
+    "demo": "tsx example/server.ts",
+    "typecheck": "tsgo --noEmit",
+    "build": "tsc --build tsconfig.build.json",
+    "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests ./example",
+    "test": "vitest run",
+    "release": "bash ../../scripts/release-package.sh conversation-sdk",
+    "release:dry-run": "bash ../../scripts/release-package.sh conversation-sdk --dry-run"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./types/index.d.ts"
+    },
+    "./*": {
+      "import": "./dist/*.js",
+      "types": "./types/*.d.ts"
+    }
+  },
+  "dependencies": {
+    "openai": "^6.37.0",
+    "ws": "^8.18.3",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.1",
+    "@types/node": "^25",
+    "@types/ws": "^8.18.1",
+    "@typescript/native-preview": "^7.0.0-beta.20260501.1",
+    "tsx": "^4.20.6",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  }
+}

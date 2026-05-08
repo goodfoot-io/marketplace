@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>__REALTIME_VOICE_TITLE__</title>
+    <style>
+      :root {
+        --bg-base: #09090b;
+        --bg-card: #18181b;
+        --border: #27272a;
+        --text-dim: #52525b;
+        --text-muted: #71717a;
+        --text-default: #a1a1aa;
+        --text-bright: #e4e4e7;
+        --text-white: #fafafa;
+        --accent: #22d3ee;
+        --role-user: #a78bfa;
+        --role-assistant: #34d399;
+        --role-system: #fb923c;
+        --role-tool: #60a5fa;
+        --state-error: #f87171;
+        --dot-connected: #22c55e;
+        --dot-connecting: #eab308;
+        --dot-disconnected: #52525b;
+        --dot-error: #f87171;
+        --font-sans: "Geist", "Inter", system-ui, -apple-system, sans-serif;
+        --font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        display: flex;
+        justify-content: center;
+        min-height: 100dvh;
+        margin: 0;
+        background: var(--bg-base);
+        color: var(--text-default);
+        font-family: var(--font-sans);
+      }
+
+      button,
+      textarea,
+      select {
+        font: inherit;
+      }
+
+      button:focus-visible,
+      textarea:focus-visible,
+      select:focus-visible,
+      .tool-call:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .layout {
+        width: 100%;
+        max-width: 680px;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .header {
+        display: none;
+        height: 0;
+        padding: 0;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg-base);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+      }
+
+      .title {
+        color: var(--text-bright);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .connection {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        font-size: 11px;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--dot-disconnected);
+      }
+
+      .dot.connected {
+        background: var(--dot-connected);
+      }
+
+      .dot.connecting {
+        background: var(--dot-connecting);
+      }
+
+      .dot.error {
+        background: var(--dot-error);
+      }
+
+      .controls {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .field-label {
+        color: var(--text-muted);
+        font-size: 11px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .mic-note,
+      .input-hint {
+        color: var(--text-muted);
+        font-size: 12px;
+        font-style: italic;
+      }
+
+      select {
+        width: 100%;
+        appearance: none;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-bright);
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+
+      .buttons,
+      .input-row,
+      .meters {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .buttons {
+        min-width: 0;
+      }
+
+      .settings {
+        position: relative;
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .icon-btn {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg-card);
+        color: var(--text-muted);
+        cursor: pointer;
+      }
+
+      .icon-btn:hover {
+        color: var(--text-bright);
+        border-color: #3f3f46;
+      }
+
+      .settings-menu {
+        position: absolute;
+        right: 0;
+        top: 40px;
+        z-index: 20;
+        width: min(320px, calc(100vw - 32px));
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg-card);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+      }
+
+      .primary,
+      .reset,
+      .retry {
+        height: 32px;
+        padding: 0 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition:
+          opacity 150ms,
+          transform 80ms,
+          color 150ms,
+          border-color 150ms,
+          background 150ms;
+      }
+
+      .primary {
+        border: none;
+        background: var(--accent);
+        color: #000;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .primary.pause {
+        background: var(--bg-card);
+        color: var(--text-bright);
+        border: 1px solid var(--border);
+      }
+
+      .primary.resume {
+        background: rgba(34, 211, 238, 0.1);
+        border: 1px solid rgba(34, 211, 238, 0.3);
+        color: var(--accent);
+      }
+
+      .primary:disabled,
+      .send-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+
+      .reset {
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      .reset:hover {
+        border-color: #3f3f46;
+        color: var(--state-error);
+      }
+
+      button:active:enabled {
+        transform: scale(0.97);
+      }
+
+      .meters {
+        height: 16px;
+        align-items: flex-end;
+      }
+
+      .bar {
+        width: 2px;
+        height: 16px;
+        border-radius: 2px;
+        background: rgba(34, 211, 238, 0.6);
+        transform: scaleY(var(--level, 0.1));
+        transform-origin: bottom;
+        transition: transform 50ms linear;
+      }
+
+      .transcript {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .empty-state,
+      .ended-state,
+      .duplicate-page {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        text-align: center;
+        color: var(--text-muted);
+      }
+
+      .empty-icon {
+        width: 32px;
+        height: 32px;
+        opacity: 0.5;
+      }
+
+      .transcript-item {
+        padding: 8px 12px;
+        border-radius: 0 6px 6px 0;
+        color: var(--text-bright);
+        font-size: 14px;
+        line-height: 1.55;
+        word-break: break-word;
+      }
+
+      .transcript-item.streaming {
+        opacity: 1;
+      }
+
+      .role-user {
+        border-left: 2px solid var(--role-user);
+      }
+
+      .role-assistant {
+        border-left: 2px solid var(--role-assistant);
+      }
+
+      .role-system {
+        border-left: 2px solid var(--role-system);
+        background: rgba(251, 146, 60, 0.06);
+        color: rgba(251, 146, 60, 0.85);
+        font-size: 13px;
+        font-style: italic;
+      }
+
+      .source-textInput {
+        background: rgba(167, 139, 250, 0.04);
+      }
+
+      .source-system.role-user,
+      .source-system.role-assistant {
+        border-left-style: dashed;
+        color: var(--text-default);
+      }
+
+      .source-firstMessage {
+        position: relative;
+        border: 1px solid rgba(167, 139, 250, 0.25);
+        background: rgba(167, 139, 250, 0.06);
+        border-radius: 6px;
+        padding-right: 110px;
+      }
+
+      .source-firstMessage::after {
+        content: "first message";
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        color: var(--text-dim);
+        font-family: var(--font-mono);
+        font-size: 10px;
+      }
+
+      .tool-call {
+        background: rgba(96, 165, 250, 0.07);
+        border: 1px solid rgba(96, 165, 250, 0.18);
+        border-radius: 6px;
+        padding: 7px 10px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .tool-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .badge {
+        border-radius: 4px;
+        padding: 2px 7px;
+        background: rgba(52, 211, 153, 0.12);
+        color: #34d399;
+        font-size: 11px;
+      }
+
+      .badge.started {
+        background: rgba(251, 191, 36, 0.15);
+        color: #fbbf24;
+      }
+
+      .badge.failed {
+        background: rgba(248, 113, 113, 0.12);
+        color: #f87171;
+      }
+
+      .badge.interrupted {
+        background: rgba(161, 161, 170, 0.12);
+        color: #71717a;
+      }
+
+      .tool-call-body {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 220ms ease-out;
+      }
+
+      .tool-call.expanded .tool-call-body {
+        max-height: var(--body-height);
+      }
+
+      .section-label {
+        margin: 10px 0 4px;
+        color: var(--text-dim);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+      }
+
+      pre {
+        margin: 0 0 8px;
+        padding: 8px;
+        overflow-x: auto;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--text-default);
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      .input-bar {
+        flex-shrink: 0;
+        border-top: 1px solid var(--border);
+        background: var(--bg-base);
+        padding: 10px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      textarea {
+        flex: 1;
+        min-height: 36px;
+        max-height: 120px;
+        resize: none;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg-card);
+        color: var(--text-bright);
+        padding: 8px 12px;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      textarea:focus {
+        border-color: rgba(34, 211, 238, 0.4);
+      }
+
+      textarea::placeholder {
+        color: var(--text-dim);
+      }
+
+      .send-btn {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        border: none;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #000;
+        cursor: pointer;
+      }
+
+      .send-btn:disabled {
+        background: var(--bg-card);
+        color: var(--text-dim);
+      }
+
+      .error-block {
+        background: rgba(248, 113, 113, 0.07);
+        border: 1px solid rgba(248, 113, 113, 0.2);
+        border-radius: 6px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .error-title {
+        color: var(--state-error);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .retry {
+        height: 28px;
+        border: 1px solid rgba(248, 113, 113, 0.4);
+        background: transparent;
+        color: var(--state-error);
+        font-size: 12px;
+      }
+
+      .duplicate-page {
+        min-height: 100dvh;
+        max-width: 380px;
+        padding: 24px;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+    </style>
+  </head>
+  <body>
+    <main class="layout" id="app">
+      <header class="header">
+        <div class="title">__REALTIME_VOICE_TITLE__</div>
+      </header>
+      <section class="controls" id="controls">
+        <div class="buttons">
+          <button class="primary" id="primary" type="button" aria-label="Start conversation">Start</button>
+          <button class="reset hidden" id="reset" type="button">Reset</button>
+          <div class="meters hidden" id="meters" aria-hidden="true">
+            <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          </div>
+        </div>
+        <div class="settings">
+          <div class="connection"><span class="dot connecting" id="dot"></span><span id="connectionLabel">Connecting...</span></div>
+          <button class="icon-btn" id="settingsToggle" type="button" aria-label="Audio settings" aria-expanded="false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6V20a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1H4a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6V4a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.17.36.38.69.6 1H20a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-.51 1Z"></path>
+            </svg>
+          </button>
+          <div class="settings-menu hidden" id="settingsMenu">
+            <div id="micArea" class="mic-note">Microphone access is required to use voice.</div>
+          </div>
+        </div>
+      </section>
+      <section class="transcript" id="transcript" role="log" aria-live="polite" aria-label="Conversation transcript"></section>
+      <footer class="input-bar">
+        <div class="input-row">
+          <textarea id="textInput" placeholder="Type a message..." rows="1"></textarea>
+          <button class="send-btn" id="send" type="button" aria-label="Send message" disabled>↑</button>
+        </div>
+      </footer>
+    </main>
+    <script>
+      const state = {
+        ws: undefined,
+        reconnect: 250,
+        status: { server: "stopped", browserClient: "none", conversation: "none" },
+        conversation: undefined,
+        audio: { permission: "unknown", devices: [], ready: false },
+        inputAudioCtx: undefined,
+        outputAudioCtx: undefined,
+        outputCursor: 0,
+        atBottom: true,
+        streamDrafts: new Map(),
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const dot = $("dot");
+      const connectionLabel = $("connectionLabel");
+      const transcript = $("transcript");
+      const primary = $("primary");
+      const reset = $("reset");
+      const textInput = $("textInput");
+      const send = $("send");
+      const micArea = $("micArea");
+      const meters = $("meters");
+      const settingsToggle = $("settingsToggle");
+      const settingsMenu = $("settingsMenu");
+
+      connect();
+      wireUi();
+      render();
+
+      function connect() {
+        setConnection("connecting");
+        const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+        const ws = new WebSocket(`${protocol}//${location.host}/ws`);
+        state.ws = ws;
+        ws.addEventListener("open", () => {
+          state.reconnect = 250;
+          setConnection("connected");
+          refreshAudio();
+        });
+        ws.addEventListener("message", (event) => handleMessage(JSON.parse(event.data)));
+        ws.addEventListener("close", () => {
+          setConnection("disconnected");
+          setTimeout(connect, state.reconnect);
+          state.reconnect = Math.min(state.reconnect * 2, 5000);
+        });
+        ws.addEventListener("error", () => setConnection("error"));
+      }
+
+      function wireUi() {
+        primary.addEventListener("click", () => {
+          const status = state.status.conversation;
+          if (status === "none") sendMessage("conversation.start");
+          if (status === "active") sendMessage("conversation.pause");
+          if (status === "paused") sendMessage("conversation.resume");
+        });
+        reset.addEventListener("click", () => sendMessage("conversation.reset"));
+        settingsToggle.addEventListener("click", () => {
+          const isHidden = settingsMenu.classList.toggle("hidden");
+          settingsToggle.setAttribute("aria-expanded", String(!isHidden));
+        });
+        document.addEventListener("click", (event) => {
+          if (settingsMenu.classList.contains("hidden")) return;
+          if (settingsMenu.contains(event.target) || settingsToggle.contains(event.target)) return;
+          settingsMenu.classList.add("hidden");
+          settingsToggle.setAttribute("aria-expanded", "false");
+        });
+        send.addEventListener("click", sendText);
+        textInput.addEventListener("input", () => {
+          textInput.style.height = "auto";
+          textInput.style.height = `${Math.min(textInput.scrollHeight, 120)}px`;
+          send.disabled = textInput.value.trim().length === 0;
+        });
+        textInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            sendText();
+          }
+        });
+        transcript.addEventListener("scroll", () => {
+          state.atBottom = transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 80;
+        });
+      }
+
+      function handleMessage(message) {
+        if (message.type === "duplicate.client") {
+          document.body.innerHTML =
+            '<main class="duplicate-page"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg><h1>Session unavailable</h1><p>Another browser window is already connected to this Realtime Voice Server. Close the other session and refresh this page.</p></main>';
+          return;
+        }
+        if (message.type === "state") {
+          state.status = {
+            server: message.data.server,
+            browserClient: message.data.browserClient,
+            conversation: message.data.conversation?.status ?? message.data.conversation ?? "none",
+          };
+          state.conversation = message.data.conversation;
+          clearFinalizedDrafts();
+          render();
+        }
+        if (message.type === "transcript.item") {
+          state.streamDrafts.delete(message.data.id ?? message.data.item?.id);
+          render();
+        }
+        if (message.type === "transcript.delta") {
+          state.streamDrafts.set(message.data.itemId, message.data);
+          render();
+        }
+        if (message.type === "browser.audio.error") {
+          renderAudioError(message.data);
+        }
+        if (message.type === "browser.audio.deviceChange") {
+          state.audio.devices = message.data.devices ?? [];
+          state.audio.selectedDeviceId = message.data.selectedDeviceId;
+          renderMicSelector();
+        }
+        if (message.type === "audio.output.delta") {
+          playPcm16(message.data.audio);
+        }
+      }
+
+      async function refreshAudio() {
+        if (!navigator.mediaDevices?.getUserMedia) return;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const devices = (await navigator.mediaDevices.enumerateDevices())
+            .filter((device) => device.kind === "audioinput")
+            .map((device) => ({ deviceId: device.deviceId, label: device.label || "Microphone", groupId: device.groupId }));
+          state.audio = { permission: "granted", devices, selectedDeviceId: devices[0]?.deviceId, ready: true };
+          sendMessage("audio.device.state", state.audio);
+          startAudioPipeline(stream);
+          renderMicSelector();
+        } catch (error) {
+          const details = {
+            code: "MICROPHONE_DEVICE_ERROR",
+            message: "Could not access the selected microphone.",
+            suggestedAction: "Allow microphone access and try again.",
+          };
+          sendMessage("browser.audio.error", details);
+          renderAudioError(details);
+        }
+      }
+
+      function startAudioPipeline(stream) {
+        const audioCtx = new AudioContext();
+        state.inputAudioCtx = audioCtx;
+        const analyser = audioCtx.createAnalyser();
+        const source = audioCtx.createMediaStreamSource(stream);
+        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        source.connect(processor);
+        processor.connect(audioCtx.destination);
+        processor.onaudioprocess = (event) => {
+          if (state.status.conversation !== "active") return;
+          const pcm = floatToPcm16(resampleTo24k(event.inputBuffer.getChannelData(0), audioCtx.sampleRate));
+          if (pcm.byteLength > 0) sendMessage("audio.input.append", { audio: bytesToBase64(new Uint8Array(pcm.buffer)) });
+        };
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const bars = [...meters.querySelectorAll(".bar")];
+        function updateBars() {
+          analyser.getByteFrequencyData(data);
+          bars.forEach((bar, index) => {
+            bar.style.setProperty("--level", Math.max(0.1, data[index * 10] / 255));
+          });
+          requestAnimationFrame(updateBars);
+        }
+        updateBars();
+      }
+
+      function resampleTo24k(input, sourceRate) {
+        if (sourceRate === 24000) return input;
+        const ratio = sourceRate / 24000;
+        const length = Math.floor(input.length / ratio);
+        const output = new Float32Array(length);
+        for (let i = 0; i < length; i += 1) {
+          output[i] = input[Math.floor(i * ratio)] ?? 0;
+        }
+        return output;
+      }
+
+      function floatToPcm16(input) {
+        const output = new Int16Array(input.length);
+        for (let i = 0; i < input.length; i += 1) {
+          const value = Math.max(-1, Math.min(1, input[i] ?? 0));
+          output[i] = value < 0 ? value * 0x8000 : value * 0x7fff;
+        }
+        return output;
+      }
+
+      function playPcm16(base64) {
+        const bytes = base64ToBytes(base64);
+        const samples = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
+        const audioCtx = state.outputAudioCtx ?? new AudioContext({ sampleRate: 24000 });
+        state.outputAudioCtx = audioCtx;
+        const buffer = audioCtx.createBuffer(1, samples.length, 24000);
+        const channel = buffer.getChannelData(0);
+        for (let i = 0; i < samples.length; i += 1) channel[i] = samples[i] / 0x8000;
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+        const startAt = Math.max(audioCtx.currentTime, state.outputCursor);
+        source.start(startAt);
+        state.outputCursor = startAt + buffer.duration;
+      }
+
+      function bytesToBase64(bytes) {
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary);
+      }
+
+      function base64ToBytes(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+      }
+
+      function render() {
+        const status = state.status.conversation;
+        primary.className = "primary";
+        primary.disabled = !["none", "active", "paused"].includes(status);
+        primary.textContent = status === "active" ? "Pause" : status === "paused" ? "Resume" : "Start";
+        primary.setAttribute("aria-label", `${primary.textContent} conversation`);
+        if (status === "active") primary.classList.add("pause");
+        if (status === "paused") primary.classList.add("resume");
+        reset.classList.toggle("hidden", !["active", "paused"].includes(status));
+        meters.classList.toggle("hidden", status !== "active" || !state.audio.ready);
+        renderTranscript();
+      }
+
+      function renderTranscript() {
+        transcript.innerHTML = "";
+        const conversation = state.conversation;
+        if (!conversation) {
+          transcript.innerHTML =
+            '<div class="empty-state"><svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v20M5 8v8M19 8v8"/></svg><div>Ready to start</div></div>';
+          return;
+        }
+        if (conversation.status === "ended") {
+          transcript.innerHTML = '<div class="ended-state"><strong>Conversation ended</strong><span>Transcript is no longer active.</span></div>';
+          return;
+        }
+        const byTranscript = new Map((conversation.transcript ?? []).map((item) => [item.id, item]));
+        const byTool = new Map((conversation.toolCalls ?? []).map((item) => [item.id, item]));
+        for (const entry of conversation.timeline ?? []) {
+          if (entry.type === "transcript") renderTranscriptItem(byTranscript.get(entry.transcriptItemId));
+          if (entry.type === "toolCall") renderToolCall(byTool.get(entry.toolCallId));
+        }
+        for (const draft of state.streamDrafts.values()) {
+          if (byTranscript.has(draft.itemId)) continue;
+          renderTranscriptItem({
+            id: draft.itemId,
+            role: draft.role ?? "assistant",
+            source: draft.source ?? "assistantAudio",
+            text: draft.fullTextSoFar,
+            streaming: true,
+          });
+        }
+        maybeScrollToBottom();
+      }
+
+      function renderTranscriptItem(item) {
+        if (!item) return;
+        const node = document.createElement("article");
+        node.className = `transcript-item role-${item.role} source-${item.source}`;
+        if (item.streaming) node.classList.add("streaming");
+        node.textContent = item.text;
+        transcript.append(node);
+      }
+
+      function clearFinalizedDrafts() {
+        const finalized = new Set((state.conversation?.transcript ?? []).map((item) => item.id));
+        for (const itemId of state.streamDrafts.keys()) {
+          if (finalized.has(itemId)) state.streamDrafts.delete(itemId);
+        }
+      }
+
+      function renderToolCall(tool) {
+        if (!tool) return;
+        const node = document.createElement("article");
+        node.className = "tool-call";
+        node.tabIndex = 0;
+        node.innerHTML = `<div class="tool-row"><span class="toggle">▸</span><span>Tool: ${escapeText(tool.toolName)}(...)</span><span class="badge ${tool.status}">${tool.status}</span></div><div class="tool-call-body"><div class="section-label">ARGUMENTS</div><pre>${escapeText(JSON.stringify(tool.arguments, null, 2))}</pre><div class="section-label">RESULT</div><pre>${escapeText(JSON.stringify(tool.result ?? tool.error ?? null, null, 2))}</pre></div>`;
+        const toggle = () => {
+          node.classList.toggle("expanded");
+          const body = node.querySelector(".tool-call-body");
+          node.style.setProperty("--body-height", `${body.scrollHeight}px`);
+          node.querySelector(".toggle").textContent = node.classList.contains("expanded") ? "▾" : "▸";
+        };
+        node.addEventListener("click", toggle);
+        node.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") toggle();
+        });
+        transcript.append(node);
+      }
+
+      function renderMicSelector() {
+        if (!state.audio.ready) return;
+        micArea.innerHTML = '<label class="field-label" for="micSelect">Microphone</label><select id="micSelect"></select>';
+        const select = $("micSelect");
+        for (const device of state.audio.devices) {
+          const option = document.createElement("option");
+          option.value = device.deviceId;
+          option.textContent = device.label;
+          option.selected = device.deviceId === state.audio.selectedDeviceId;
+          select.append(option);
+        }
+        select.addEventListener("change", () => sendMessage("audio.device.select", { deviceId: select.value }));
+      }
+
+      function renderAudioError(error) {
+        micArea.innerHTML = `<div class="error-block"><div class="error-title">Microphone error</div><div>${escapeText(error.message)}</div><div><strong>Reason:</strong> ${escapeText(error.code)}</div><div><strong>Suggested action:</strong> ${escapeText(error.suggestedAction)}</div><button class="retry" type="button">Retry</button></div>`;
+        micArea.querySelector("button").addEventListener("click", refreshAudio);
+      }
+
+      function sendText() {
+        const text = textInput.value.trim();
+        if (!text) return;
+        sendMessage("message.text", { text });
+        textInput.value = "";
+        textInput.dispatchEvent(new Event("input"));
+      }
+
+      function sendMessage(type, data) {
+        if (state.ws?.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type, data }));
+      }
+
+      function setConnection(status) {
+        dot.className = `dot ${status}`;
+        connectionLabel.textContent =
+          status === "connected" ? "Connected" : status === "connecting" ? "Connecting..." : status === "error" ? "Connection Error" : "Disconnected";
+      }
+
+      function maybeScrollToBottom() {
+        if (state.atBottom) transcript.scrollTop = transcript.scrollHeight;
+      }
+
+      function escapeText(value) {
+        return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+      }
+    </script>
+  </body>
+</html>
