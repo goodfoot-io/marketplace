@@ -3,11 +3,12 @@ import { createRequire as __banner_createRequire } from 'node:module';import { f
 
 // src/cli/index.ts
 import { spawn, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync as readFileSync2, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 // src/cli/args.ts
+import { readFileSync } from "node:fs";
 function parseArgs(argv) {
   const args = argv.slice(2);
   const positional = [];
@@ -40,13 +41,22 @@ function parseArgs(argv) {
   }
   return { command, subcommand, positional: positional.slice(2), flags };
 }
+function getGrandparentPid() {
+  try {
+    const status = readFileSync(`/proc/${process.ppid}/status`, "utf8");
+    const match = status.match(/^PPid:\s+(\d+)/m);
+    if (match) return parseInt(match[1], 10);
+  } catch (_err) {
+  }
+  return process.ppid;
+}
 function getPort(flags) {
   const p = flags["port"];
   if (typeof p === "string") {
     const n = parseInt(p, 10);
     if (!isNaN(n)) return n;
   }
-  return 3e3;
+  return 2e4 + getGrandparentPid() % 1e4;
 }
 function getString(flags, key) {
   const v = flags[key];
@@ -141,7 +151,7 @@ function cursorFile(port2) {
 }
 function readCursor(port2) {
   try {
-    const raw = readFileSync(cursorFile(port2), "utf8").trim();
+    const raw = readFileSync2(cursorFile(port2), "utf8").trim();
     const n = parseInt(raw, 10);
     return isNaN(n) ? 0 : n;
   } catch {
@@ -207,8 +217,7 @@ async function cmdStart(port2, title, model, voice) {
   } catch {
     fatal(`daemon sent invalid startup JSON: ${startupJson}`);
   }
-  const parentPid = process.ppid;
-  await postJson(controlPort(port2), "/client/register", { pid: parentPid });
+  await postJson(controlPort(port2), "/client/register", { pid: getGrandparentPid() });
   printJson(startupData);
   process.exit(0);
 }
@@ -280,6 +289,9 @@ async function cmdWatch(port2, eventTypes) {
     cursor = maxSeq;
     return true;
   };
+  if (eventTypes.length === 0) {
+    eventTypes = ["transcript.item", "question", "conversation.error", "browser.audio.error"];
+  }
   const got = await pollOnce();
   if (got) {
     process.exit(0);

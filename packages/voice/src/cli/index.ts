@@ -7,7 +7,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { getBoolean, getPort, getString, parseArgs, readStdin } from "./args.js";
+import { getBoolean, getGrandparentPid, getPort, getString, parseArgs, readStdin } from "./args.js";
 import { getStatus, postEmpty, postJson, watchOnce } from "./control-client.js";
 
 // ---------------------------------------------------------------------------
@@ -126,11 +126,10 @@ async function cmdStart(
     fatal(`daemon sent invalid startup JSON: ${startupJson}`);
   }
 
-  // Register the parent process (the shell/script that invoked `rvs start`).
-  // The daemon polls liveness and shuts down when the parent exits — no
-  // unregister call needed from our side.
-  const parentPid = process.ppid;
-  await postJson(controlPort(port), "/client/register", { pid: parentPid });
+  // Register the grandparent (Claude) rather than the shell that ran `voice start`.
+  // Each bash tool call is a new shell, so the shell exits immediately after — the
+  // grandparent is the stable Claude process that should own the daemon's lifetime.
+  await postJson(controlPort(port), "/client/register", { pid: getGrandparentPid() });
 
   printJson(startupData);
   process.exit(0);

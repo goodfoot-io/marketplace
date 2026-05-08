@@ -51,7 +51,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   return { command, subcommand, positional: positional.slice(2), flags };
 }
 
-function getGrandparentPid(): number {
+export function getGrandparentPid(): number {
   try {
     const status = readFileSync(`/proc/${process.ppid}/status`, "utf8");
     const match = status.match(/^PPid:\s+(\d+)/m);
