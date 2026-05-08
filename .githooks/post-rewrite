@@ -1,0 +1,31 @@
+#!/bin/bash
+# cards-workspace-hook
+# Repository-level post-rewrite hook for Cards commit re-attribution after rebase
+# Bash wrapper: captures stdin, chains to original hook, delegates to compiled .mjs
+
+# Capture stdin before anything else (git passes old/new SHA pairs on stdin)
+STDIN_DATA=$(cat)
+
+# Chain to original hook first (preserve existing functionality)
+ORIGINAL_HOOK="${0}.cards-original"
+if [ -x "$ORIGINAL_HOOK" ]; then
+  echo "$STDIN_DATA" | "$ORIGINAL_HOOK" "$1"
+  ORIGINAL_EXIT=$?
+  if [ $ORIGINAL_EXIT -ne 0 ]; then
+    exit $ORIGINAL_EXIT
+  fi
+fi
+
+# Log file path baked at installation time; env var takes precedence at runtime
+export CARDS_GIT_WORKSPACE_REPO_HOOKS_LOG_FILE="${CARDS_GIT_WORKSPACE_REPO_HOOKS_LOG_FILE:-/workspace/.cards/logs/git-workspace-repo-hooks.log}"
+
+# Resolve Node.js: prefer the extension's bundled interpreter, fall back to PATH
+NODE_BIN=$(cat "$HOME/.cards/VSCODE_NODE" 2>/dev/null)
+if [ -n "$NODE_BIN" ] && [ -x "$NODE_BIN" ]; then
+  echo "$STDIN_DATA" | exec "$NODE_BIN" "$(dirname "$0")/post-rewrite.mjs" "$1"
+elif command -v node >/dev/null 2>&1; then
+  echo "$STDIN_DATA" | exec node "$(dirname "$0")/post-rewrite.mjs" "$1"
+fi
+
+# No bash fallback — post-rewrite reconciliation requires JSON parsing
+exit 0

@@ -1,7 +1,8 @@
 {
   "env": {
     "MAX_MCP_OUTPUT_TOKENS": "100000",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CARDS_CLAUDE_CODE_HOOKS_LOG_FILE": "/workspace/.cards/logs/claude-code-cards-api-hooks.log"
   },
   "permissions": {
     "allow": [],
@@ -35,7 +36,8 @@
     "github@goodfoot": true,
     "claude-code-hooks@goodfoot": true,
     "code-simplifier@claude-plugins-official": false,
-    "plugin-dev@claude-plugins-official": true
+    "plugin-dev@claude-plugins-official": true,
+    "cards@cards.management": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {
@@ -54,6 +56,12 @@
       "source": {
         "source": "directory",
         "path": "./."
+      }
+    },
+    "cards.management": {
+      "source": {
+        "source": "directory",
+        "path": "/home/node/.vscode-server/data/User/globalStorage/goodfoot.cards/marketplace"
       }
     }
   }

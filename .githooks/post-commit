@@ -1,0 +1,50 @@
+#!/bin/bash
+# cards-workspace-hook
+# Repository-level post-commit hook for Cards commit tracking
+# Bash wrapper: chains to original hook, delegates to compiled .mjs, falls back to bash
+
+# Chain to original hook first (preserve existing functionality)
+ORIGINAL_HOOK="${0}.cards-original"
+if [ -x "$ORIGINAL_HOOK" ]; then
+  "$ORIGINAL_HOOK"
+  ORIGINAL_EXIT=$?
+  if [ $ORIGINAL_EXIT -ne 0 ]; then
+    exit $ORIGINAL_EXIT
+  fi
+fi
+
+# Log file path baked at installation time; env var takes precedence at runtime
+export CARDS_GIT_WORKSPACE_REPO_HOOKS_LOG_FILE="${CARDS_GIT_WORKSPACE_REPO_HOOKS_LOG_FILE:-/workspace/.cards/logs/git-workspace-repo-hooks.log}"
+
+# Resolve Node.js: prefer the extension's bundled interpreter, fall back to PATH
+NODE_BIN=$(cat "$HOME/.cards/VSCODE_NODE" 2>/dev/null)
+if [ -n "$NODE_BIN" ] && [ -x "$NODE_BIN" ]; then
+  exec "$NODE_BIN" "$(dirname "$0")/post-commit.mjs"
+elif command -v node >/dev/null 2>&1; then
+  exec node "$(dirname "$0")/post-commit.mjs"
+fi
+
+# Bash fallback: card-bound worktree path (no PID attribution).
+# Reads the worktree marker written by createWorktree({ cardId }).
+WORKTREE_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+[ -z "$WORKTREE_ROOT" ] && exit 0
+CARD_ID=$(cat "$WORKTREE_ROOT/.cards/CARD_ID" 2>/dev/null)
+[ -z "$CARD_ID" ] && exit 0
+DISCOVERY_FILE="/home/node/.cards/cards-api.json"
+[ ! -f "$DISCOVERY_FILE" ] && exit 0
+
+# Parse discovery file (no jq dependency)
+HOST=$(grep -o '"host"[[:space:]]*:[[:space:]]*"[^"]*"' "$DISCOVERY_FILE" | sed 's/.*"\([^"]*\)"$/\1/')
+PORT=$(grep -o '"port"[[:space:]]*:[[:space:]]*[0-9]*' "$DISCOVERY_FILE" | grep -o '[0-9]*$')
+TOKEN=$(grep -o '"accessToken"[[:space:]]*:[[:space:]]*"[^"]*"' "$DISCOVERY_FILE" | sed 's/.*"\([^"]*\)"$/\1/')
+
+[ -z "$HOST" ] || [ -z "$PORT" ] || [ -z "$TOKEN" ] && exit 0
+
+SHA=$(git rev-parse HEAD)
+
+( curl -s -X POST "http://${HOST}:${PORT}/cards/${CARD_ID}/commits" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -d "{\"sha\":\"$SHA\"}" ) &
+
+exit 0
