@@ -3,12 +3,11 @@ import { createRequire as __banner_createRequire } from 'node:module';import { f
 
 // src/cli/index.ts
 import { spawn, spawnSync } from "node:child_process";
-import { readFileSync as readFileSync2, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 // src/cli/args.ts
-import { readFileSync } from "node:fs";
 function parseArgs(argv) {
   const args = argv.slice(2);
   const positional = [];
@@ -41,22 +40,13 @@ function parseArgs(argv) {
   }
   return { command, subcommand, positional: positional.slice(2), flags };
 }
-function getGrandparentPid() {
-  try {
-    const status = readFileSync(`/proc/${process.ppid}/status`, "utf8");
-    const match = status.match(/^PPid:\s+(\d+)/m);
-    if (match) return parseInt(match[1], 10);
-  } catch (_err) {
-  }
-  return process.ppid;
-}
 function getPort(flags) {
   const p = flags["port"];
   if (typeof p === "string") {
     const n = parseInt(p, 10);
     if (!isNaN(n)) return n;
   }
-  return 2e4 + getGrandparentPid() % 1e4;
+  return 3e3;
 }
 function getString(flags, key) {
   const v = flags[key];
@@ -151,7 +141,7 @@ function cursorFile(port2) {
 }
 function readCursor(port2) {
   try {
-    const raw = readFileSync2(cursorFile(port2), "utf8").trim();
+    const raw = readFileSync(cursorFile(port2), "utf8").trim();
     const n = parseInt(raw, 10);
     return isNaN(n) ? 0 : n;
   } catch {
@@ -217,7 +207,7 @@ async function cmdStart(port2, title, model, voice) {
   } catch {
     fatal(`daemon sent invalid startup JSON: ${startupJson}`);
   }
-  await postJson(controlPort(port2), "/client/register", { pid: getGrandparentPid() });
+  await postJson(controlPort(port2), "/client/register", { pid: process.ppid });
   printJson(startupData);
   process.exit(0);
 }
@@ -256,17 +246,20 @@ async function cmdInject(port2, role, source, triggerResponse) {
   const res = await postJson(controlPort(port2), `/inject/${role}`, body);
   printJson(JSON.parse(res.body));
 }
-async function cmdCancelTool(port2, callId) {
-  const res = await postJson(controlPort(port2), "/tool/cancel", { callId });
+async function cmdSay(port2) {
+  const text = await readStdin();
+  const wrapped = `<say>${text}</say>`;
+  const res = await postJson(controlPort(port2), "/inject/system", { text: wrapped });
   printJson(JSON.parse(res.body));
 }
-async function cmdAnswer(port2, questionId) {
-  const id = parseInt(questionId, 10);
-  if (isNaN(id)) {
-    fatal(`Invalid questionId: ${questionId}`);
-  }
-  const answer = await readStdin();
-  const res = await postJson(controlPort(port2), "/tool/answer", { questionId: id, answer });
+async function cmdContext(port2) {
+  const text = await readStdin();
+  const wrapped = `<context>${text}</context>`;
+  const res = await postJson(controlPort(port2), "/inject/system", { text: wrapped });
+  printJson(JSON.parse(res.body));
+}
+async function cmdCancelTool(port2, callId) {
+  const res = await postJson(controlPort(port2), "/tool/cancel", { callId });
   printJson(JSON.parse(res.body));
 }
 async function cmdWatch(port2, eventTypes) {
@@ -290,7 +283,7 @@ async function cmdWatch(port2, eventTypes) {
     return true;
   };
   if (eventTypes.length === 0) {
-    eventTypes = ["transcript.item", "question", "conversation.error", "browser.audio.error"];
+    eventTypes = ["transcript.item", "conversation.error", "browser.audio.error"];
   }
   const got = await pollOnce();
   if (got) {
@@ -353,16 +346,18 @@ async function main() {
       await cmdInject(port, role, source, triggerResponse);
       break;
     }
+    case "say": {
+      await cmdSay(port);
+      break;
+    }
+    case "context": {
+      await cmdContext(port);
+      break;
+    }
     case "cancel-tool": {
       const callId = parsed.subcommand ?? parsed.positional[0];
       if (callId === void 0) fatal("Usage: voice cancel-tool <callId>");
       await cmdCancelTool(port, callId);
-      break;
-    }
-    case "answer": {
-      const questionId = parsed.subcommand ?? parsed.positional[0];
-      if (questionId === void 0) fatal("Usage: voice answer <questionId>");
-      await cmdAnswer(port, questionId);
       break;
     }
     case "watch": {
@@ -374,7 +369,7 @@ async function main() {
     }
     default: {
       fatal(
-        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, cancel-tool, answer, watch`
+        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, say, context, cancel-tool, watch`
       );
     }
   }
