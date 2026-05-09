@@ -3,7 +3,7 @@
  * rvs — Realtime Voice Server CLI
  */
 
-import { spawn, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -25,6 +25,54 @@ function fatal(message: string, code?: string): never {
 
 function controlPort(port: number): number {
   return port + 1;
+}
+
+// Names that count as a shell when walking the ancestor chain. Some platforms
+// prefix login shells with `-` (e.g. `-bash`); we strip that before matching.
+const SHELL_NAMES = new Set([
+  "bash",
+  "sh",
+  "zsh",
+  "dash",
+  "fish",
+  "ksh",
+  "tcsh",
+  "csh",
+]);
+
+function getProcessInfo(pid: number): { ppid: number; name: string } | null {
+  try {
+    const out = execFileSync("ps", ["-o", "ppid=,comm=", "-p", String(pid)], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (out.length === 0) return null;
+    const match = /^\s*(\d+)\s+(.+)$/.exec(out);
+    if (match === null) return null;
+    return { ppid: parseInt(match[1], 10), name: match[2].trim() };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Walk up the ancestor chain from `startPid`, skipping shell processes,
+ * and return the first non-shell ancestor's PID. Under Claude Code's bash
+ * tool this resolves to the Claude process itself, giving the daemon a
+ * stable lifetime anchor instead of the ephemeral wrapping shell.
+ */
+function findNonShellAncestor(startPid: number): number {
+  let pid = startPid;
+  for (let i = 0; i < 20; i++) {
+    const info = getProcessInfo(pid);
+    if (info === null) return pid;
+    const stripped = info.name.replace(/^-/, "");
+    const baseName = stripped.split("/").pop() ?? stripped;
+    if (!SHELL_NAMES.has(baseName)) return pid;
+    if (info.ppid <= 1) return pid;
+    pid = info.ppid;
+  }
+  return pid;
 }
 
 function tmpDir(port: number): string {
@@ -126,7 +174,8 @@ async function cmdStart(
     fatal(`daemon sent invalid startup JSON: ${startupJson}`);
   }
 
-  await postJson(controlPort(port), "/client/register", { pid: process.ppid });
+  const anchorPid = findNonShellAncestor(process.ppid);
+  await postJson(controlPort(port), "/client/register", { pid: anchorPid });
 
   printJson(startupData);
   process.exit(0);
@@ -215,6 +264,17 @@ async function cmdSay(port: number): Promise<void> {
 async function cmdContext(port: number): Promise<void> {
   const text = await readStdin();
   const wrapped = `<context>${text}</context>`;
+  const res = await postJson(controlPort(port), "/inject/system", { text: wrapped });
+  printJson(JSON.parse(res.body));
+}
+
+// ---------------------------------------------------------------------------
+// `rvs plan`
+// ---------------------------------------------------------------------------
+
+async function cmdPlan(port: number): Promise<void> {
+  const text = await readStdin();
+  const wrapped = `<plan>${text}</plan>`;
   const res = await postJson(controlPort(port), "/inject/system", { text: wrapped });
   printJson(JSON.parse(res.body));
 }
@@ -341,6 +401,10 @@ async function main(): Promise<void> {
       await cmdContext(port);
       break;
     }
+    case "plan": {
+      await cmdPlan(port);
+      break;
+    }
     case "cancel-tool": {
       const callId = parsed.subcommand ?? parsed.positional[0];
       if (callId === undefined) fatal("Usage: voice cancel-tool <callId>");
@@ -357,7 +421,7 @@ async function main(): Promise<void> {
     }
     default: {
       fatal(
-        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, say, context, cancel-tool, watch`,
+        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, say, context, plan, cancel-tool, watch`,
       );
     }
   }

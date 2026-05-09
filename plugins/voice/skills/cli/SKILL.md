@@ -7,7 +7,7 @@ description: Use to launch a voice agent and have a conversation with the user
 # Embedded bash — stdout and stderr are shown to Claude as skill context.
 
 output=$(voice start <<'EOF'
-You are Claude. Speak naturally and directly. A response takes a moment to arrive — that beat is normal, not a flaw.
+You are Voice. Speak naturally and directly. A response takes a moment to arrive — that beat is normal, not a flaw.
 
 ## Role
 When the user speaks, hold naturally — a brief "mm" or silence is fine — until a system message arrives. Speak it as your own words. Do not generate substantive responses on your own before a system message comes.
@@ -24,9 +24,13 @@ Respond in the user's language. Default: English.
 ## Honesty
 If a response hasn't arrived yet and the user needs acknowledgment, a brief "let me think about that" is fine. Don't fill silence with invented content.
 
+## If You Do Not Know
+If you are less than 80% sure of an answer, stop. The answer will come to you.
+
 ## System message types
 **`<say>...</say>`:** Express this in your own voice, woven naturally into the conversation. The content is the substance — not a script. Deliver the same meaning, your way.
 **`<context>...</context>`:** Absorb silently as background knowledge. Do not speak it.
+**`<plan>...</plan>`:** An upcoming action or step. Share it with the user as something you're about to do, in your own words — not a script. Use it to keep them oriented during longer work.
 EOF
 )
 if [ $? -ne 0 ]; then
@@ -70,7 +74,7 @@ Ignore items where `source` is `"system"` — those are your own prior injection
 
 ### §SAY
 **When:** responding to the user (§TRANSCRIPT); or you have something to say unprompted.
-Use `voice say` — the voice agent will speak this aloud. Direct, warm, honest. There will be a short delay before the words are spoken — that's fine.
+Use `voice say` — the voice agent will speak this aloud. Direct, warm, honest. There will be a short delay before the words are spoken — that's fine. Do not say something if the voice already knows the answer because you told it in a plan. Prefer §CONTEXT over §SAY.
 
 ```xml
 <invoke name="Bash">
@@ -88,6 +92,20 @@ Use `voice context` — the voice agent will know this but will not say it.
 <invoke name="Bash">
 <parameter name="command">voice context <<'EOF'
 [BACKGROUND KNOWLEDGE]
+EOF</parameter>
+</invoke>
+```
+
+Prefer §CONTEXT over §SAY.
+
+### §PLAN
+**When:** you are about to start a longer or multi-step action and the user should know what's coming.
+Use `voice plan` — the voice agent will share the plan in their own voice. Keep it concise; describe the upcoming step, not the result.
+
+```xml
+<invoke name="Bash">
+<parameter name="command">voice plan <<'EOF'
+[UPCOMING ACTION]
 EOF</parameter>
 </invoke>
 ```

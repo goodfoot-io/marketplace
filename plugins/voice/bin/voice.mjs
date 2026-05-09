@@ -2,7 +2,7 @@
 import { createRequire as __banner_createRequire } from 'node:module';import { fileURLToPath as __banner_fileURLToPath } from 'node:url';import { dirname as __banner_dirname } from 'node:path';const require = __banner_createRequire(import.meta.url);const __filename = __banner_fileURLToPath(import.meta.url);const __dirname = __banner_dirname(__filename);
 
 // src/cli/index.ts
-import { spawn, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -133,6 +133,43 @@ function fatal(message, code) {
 function controlPort(port2) {
   return port2 + 1;
 }
+var SHELL_NAMES = /* @__PURE__ */ new Set([
+  "bash",
+  "sh",
+  "zsh",
+  "dash",
+  "fish",
+  "ksh",
+  "tcsh",
+  "csh"
+]);
+function getProcessInfo(pid) {
+  try {
+    const out = execFileSync("ps", ["-o", "ppid=,comm=", "-p", String(pid)], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    if (out.length === 0) return null;
+    const match = /^\s*(\d+)\s+(.+)$/.exec(out);
+    if (match === null) return null;
+    return { ppid: parseInt(match[1], 10), name: match[2].trim() };
+  } catch {
+    return null;
+  }
+}
+function findNonShellAncestor(startPid) {
+  let pid = startPid;
+  for (let i = 0; i < 20; i++) {
+    const info = getProcessInfo(pid);
+    if (info === null) return pid;
+    const stripped = info.name.replace(/^-/, "");
+    const baseName = stripped.split("/").pop() ?? stripped;
+    if (!SHELL_NAMES.has(baseName)) return pid;
+    if (info.ppid <= 1) return pid;
+    pid = info.ppid;
+  }
+  return pid;
+}
 function tmpDir(port2) {
   return `/tmp/voice-${port2}`;
 }
@@ -207,7 +244,8 @@ async function cmdStart(port2, title, model, voice) {
   } catch {
     fatal(`daemon sent invalid startup JSON: ${startupJson}`);
   }
-  await postJson(controlPort(port2), "/client/register", { pid: process.ppid });
+  const anchorPid = findNonShellAncestor(process.ppid);
+  await postJson(controlPort(port2), "/client/register", { pid: anchorPid });
   printJson(startupData);
   process.exit(0);
 }
@@ -255,6 +293,12 @@ async function cmdSay(port2) {
 async function cmdContext(port2) {
   const text = await readStdin();
   const wrapped = `<context>${text}</context>`;
+  const res = await postJson(controlPort(port2), "/inject/system", { text: wrapped });
+  printJson(JSON.parse(res.body));
+}
+async function cmdPlan(port2) {
+  const text = await readStdin();
+  const wrapped = `<plan>${text}</plan>`;
   const res = await postJson(controlPort(port2), "/inject/system", { text: wrapped });
   printJson(JSON.parse(res.body));
 }
@@ -354,6 +398,10 @@ async function main() {
       await cmdContext(port);
       break;
     }
+    case "plan": {
+      await cmdPlan(port);
+      break;
+    }
     case "cancel-tool": {
       const callId = parsed.subcommand ?? parsed.positional[0];
       if (callId === void 0) fatal("Usage: voice cancel-tool <callId>");
@@ -369,7 +417,7 @@ async function main() {
     }
     default: {
       fatal(
-        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, say, context, cancel-tool, watch`
+        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, say, context, plan, cancel-tool, watch`
       );
     }
   }
