@@ -49,6 +49,44 @@ export function logError(source: string, context: string, err: unknown): void {
   });
 }
 
+/**
+ * Mirror stdout and stderr writes from this process to VOICE_LOG_PATH.
+ * Originals still go to the underlying terminal/pipe — the log file is
+ * an additional sink. No-op if VOICE_LOG_PATH is unset.
+ */
+export function mirrorStdio(): void {
+  if (logPath === undefined || logPath.length === 0) return;
+  ensureDir();
+
+  type WriteFn = (
+    chunk: string | Uint8Array,
+    encodingOrCb?: BufferEncoding | ((err?: Error | null) => void),
+    cb?: (err?: Error | null) => void,
+  ) => boolean;
+
+  const origStdout = process.stdout.write.bind(process.stdout) as WriteFn;
+  const origStderr = process.stderr.write.bind(process.stderr) as WriteFn;
+
+  const append = (chunk: string | Uint8Array): void => {
+    try {
+      const text = typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+      appendFileSync(logPath, text, "utf8");
+    } catch (err: unknown) {
+      origStderr(`voice log: mirror append failed: ${String(err)}\n`);
+    }
+  };
+
+  const wrap = (orig: WriteFn): WriteFn => {
+    return ((chunk, encodingOrCb, cb) => {
+      append(chunk);
+      return orig(chunk, encodingOrCb, cb);
+    }) as WriteFn;
+  };
+
+  process.stdout.write = wrap(origStdout) as typeof process.stdout.write;
+  process.stderr.write = wrap(origStderr) as typeof process.stderr.write;
+}
+
 function serialize(value: unknown): unknown {
   if (value === null || value === undefined) return null;
   if (value instanceof Date) return value.toISOString();

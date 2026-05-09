@@ -8,7 +8,9 @@ import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createRealtimeVoiceServer, RealtimeVoiceServerError } from "../index.js";
 import type { JsonValue, RealtimeVoiceServerEvents, RealtimeVoiceToolMap } from "../types.js";
-import { logError, logEvent } from "./log.js";
+import { logError, logEvent, mirrorStdio } from "./log.js";
+
+mirrorStdio();
 
 // ---------------------------------------------------------------------------
 // Config from env
@@ -151,6 +153,9 @@ const controller = createRealtimeVoiceServer({
   realtime: realtimeConfig,
   tools: {},
   ui: uiConfig,
+  browserSession: {
+    connectOnPageLoad: true,
+  },
 });
 
 // ---------------------------------------------------------------------------

@@ -597,7 +597,12 @@
           setConnection("connected");
           refreshAudio();
         });
-        ws.addEventListener("message", (event) => handleMessage(JSON.parse(event.data)));
+        ws.addEventListener("message", (event) => {
+          let parsed;
+          try { parsed = JSON.parse(event.data); } catch (e) { dlog("ws.in.parseError", { data: String(event.data).slice(0, 200) }); return; }
+          dlog("ws.in", { type: parsed.type, data: parsed.data });
+          handleMessage(parsed);
+        });
         ws.addEventListener("close", () => {
           setConnection("disconnected");
           setTimeout(connect, state.reconnect);
@@ -679,8 +684,17 @@
           state.audio.selectedDeviceId = message.data.selectedDeviceId;
           renderMicSelector();
         }
+        if (message.type === "webrtc.session.start") {
+          dlog("webrtc.session.start.received", { conversationStatus: state.status.conversation, audioReady: state.audio.ready });
+          if (!state.webrtc.sessionInFlight) {
+            state.webrtc.sessionInFlight = true;
+            sendMessage("webrtc.session.requested");
+          }
+        }
         if (message.type === "webrtc.session.token") {
+          dlog("webrtc.session.token.received", { hasClientSecret: !!message.data?.clientSecret, model: message.data?.model, expiresAt: message.data?.expiresAt });
           establishWebrtc(message.data).catch((error) => {
+            dlog("establishWebrtc.unhandled", { message: error?.message, stack: error?.stack });
             failWebrtc("WEBRTC_SETUP_FAILED", error?.message ?? String(error));
           });
         }
@@ -761,26 +775,35 @@
       }
 
       async function establishWebrtc(token) {
+        dlog("establishWebrtc.enter", { hasToken: !!token, hasClientSecret: !!token?.clientSecret, model: token?.model });
         if (!token?.clientSecret || !token?.model) {
           failWebrtc("WEBRTC_TOKEN_INVALID", "Missing client secret or model.");
           return;
         }
-        if (state.webrtc.pc) return;
+        if (state.webrtc.pc) {
+          dlog("establishWebrtc.skip", { reason: "pc already exists" });
+          return;
+        }
         try {
+          dlog("acquireMicStream.start", { deviceId: state.audio.selectedDeviceId });
           const stream = await acquireMicStream(state.audio.selectedDeviceId);
           state.webrtc.micStream = stream;
           const track = stream.getAudioTracks()[0];
           state.webrtc.micTrack = track;
+          dlog("acquireMicStream.ok", { trackId: track?.id, label: track?.label, enabled: track?.enabled, muted: track?.muted });
           startMeters(stream);
 
           const pc = new RTCPeerConnection();
+          dlog("RTCPeerConnection.created", webrtcSnapshot());
           state.webrtc.pc = pc;
           state.webrtc.micSender = pc.addTrack(track, stream);
           pc.ontrack = (event) => {
+            dlog("pc.ontrack", { kind: event.track?.kind, streams: event.streams?.length });
             const [remoteStream] = event.streams;
             if (remoteStream) remoteAudio.srcObject = remoteStream;
           };
           pc.onconnectionstatechange = () => {
+            dlog("pc.connectionstatechange", { connectionState: pc.connectionState });
             const connectionState = pc.connectionState;
             if (connectionState === "connected") {
               state.webrtc.pcConnected = true;
@@ -792,10 +815,15 @@
               }
             }
           };
+          pc.oniceconnectionstatechange = () => dlog("pc.iceconnectionstatechange", { iceConnectionState: pc.iceConnectionState });
+          pc.onicegatheringstatechange = () => dlog("pc.icegatheringstatechange", { iceGatheringState: pc.iceGatheringState });
+          pc.onsignalingstatechange = () => dlog("pc.signalingstatechange", { signalingState: pc.signalingState });
+          pc.onicecandidateerror = (event) => dlog("pc.icecandidateerror", { errorCode: event.errorCode, errorText: event.errorText, url: event.url });
 
           const dc = pc.createDataChannel("oai-events");
           state.webrtc.dc = dc;
           dc.onopen = () => {
+            dlog("dc.onopen", { readyState: dc.readyState });
             state.webrtc.dcOpen = true;
             for (const payload of state.webrtc.pendingSends) {
               try { dc.send(payload); } catch (_error) { /* ignore */ }
@@ -803,39 +831,48 @@
             state.webrtc.pendingSends = [];
             maybeAnnounceConnected();
           };
-          dc.onclose = () => { state.webrtc.dcOpen = false; };
+          dc.onclose = () => { dlog("dc.onclose", {}); state.webrtc.dcOpen = false; };
+          dc.onerror = (e) => dlog("dc.onerror", { message: String(e?.error?.message ?? e?.message ?? e) });
           dc.onmessage = (event) => {
             const parsed = JSON.parse(event.data);
             sendMessage("realtime.event", { event: parsed });
           };
 
           const offer = await pc.createOffer();
+          dlog("pc.createOffer.ok", { sdpLength: offer.sdp?.length });
           await pc.setLocalDescription(offer);
+          dlog("pc.setLocalDescription.ok", { signalingState: pc.signalingState });
 
-          const response = await fetch(
-            `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(token.model)}`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token.clientSecret}`,
-                "Content-Type": "application/sdp",
-              },
-              body: pc.localDescription.sdp,
+          const sdpUrl = `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(token.model)}`;
+          dlog("sdp.fetch.start", { url: sdpUrl, sdpLength: pc.localDescription.sdp?.length });
+          const fetchStart = Date.now();
+          const response = await fetch(sdpUrl, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token.clientSecret}`,
+              "Content-Type": "application/sdp",
             },
-          );
+            body: pc.localDescription.sdp,
+          });
+          dlog("sdp.fetch.response", { status: response.status, ok: response.ok, durationMs: Date.now() - fetchStart, headers: Object.fromEntries(response.headers.entries()) });
           if (!response.ok) {
             const body = await response.text().catch(() => "");
+            dlog("sdp.fetch.errorBody", { status: response.status, body: body.slice(0, 500) });
             throw new Error(`OpenAI SDP exchange failed (${response.status}): ${body.slice(0, 200)}`);
           }
           const answerSdp = await response.text();
+          dlog("sdp.fetch.ok", { answerSdpLength: answerSdp.length });
           await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
+          dlog("pc.setRemoteDescription.ok", webrtcSnapshot());
         } catch (error) {
+          dlog("establishWebrtc.catch", { message: error?.message, name: error?.name, stack: error?.stack, snapshot: webrtcSnapshot() });
           failWebrtc("WEBRTC_SETUP_FAILED", error?.message ?? String(error));
         }
       }
 
       function maybeAnnounceConnected() {
         const { pcConnected, dcOpen, connectedSent } = state.webrtc;
+        dlog("maybeAnnounceConnected", { pcConnected, dcOpen, connectedSent });
         if (!pcConnected || !dcOpen || connectedSent) return;
         state.webrtc.connectedSent = true;
         state.webrtc.sessionInFlight = false;
@@ -854,6 +891,7 @@
       }
 
       function failWebrtc(code, message) {
+        dlog("failWebrtc", { code, message, snapshot: webrtcSnapshot() });
         sendMessage("webrtc.session.failed", { error: { code, message } });
         teardownWebrtc();
       }
@@ -1006,7 +1044,8 @@
       function renderMicSelector() {
         if (!state.audio.ready) return;
         micArea.innerHTML = '<label class="field-label" for="micSelect">Microphone</label><select id="micSelect"></select>';
-        const select = $("micSelect");
+        const select = micArea.querySelector("#micSelect");
+        if (!select) return;
         for (const device of state.audio.devices) {
           const option = document.createElement("option");
           option.value = device.deviceId;
@@ -1031,8 +1070,40 @@
       }
 
       function sendMessage(type, data) {
+        if (type !== "browser.debug") dlog("ws.out", { type, data });
         if (state.ws?.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type, data }));
       }
+
+      function dlog(label, info) {
+        try {
+          const payload = { label, info, t: Date.now() };
+          console.log("[dbg]", label, info);
+          if (state.ws?.readyState === WebSocket.OPEN) {
+            state.ws.send(JSON.stringify({ type: "browser.debug", data: payload }));
+          }
+        } catch (_e) { /* ignore */ }
+      }
+
+      function webrtcSnapshot() {
+        const { pc, dc } = state.webrtc;
+        return {
+          sessionInFlight: state.webrtc.sessionInFlight,
+          pcConnected: state.webrtc.pcConnected,
+          dcOpen: state.webrtc.dcOpen,
+          connectedSent: state.webrtc.connectedSent,
+          hasMicTrack: !!state.webrtc.micTrack,
+          pc: pc ? {
+            connectionState: pc.connectionState,
+            iceConnectionState: pc.iceConnectionState,
+            iceGatheringState: pc.iceGatheringState,
+            signalingState: pc.signalingState,
+          } : null,
+          dc: dc ? { readyState: dc.readyState, label: dc.label } : null,
+        };
+      }
+
+      window.addEventListener("error", (e) => dlog("window.error", { message: e.message, filename: e.filename, lineno: e.lineno, colno: e.colno }));
+      window.addEventListener("unhandledrejection", (e) => dlog("window.unhandledrejection", { reason: String(e.reason), stack: e.reason?.stack }));
 
       function setConnection(status) {
         dot.className = `dot ${status}`;

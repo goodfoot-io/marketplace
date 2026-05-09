@@ -404,9 +404,166 @@ async function cmdWatch(port2, eventTypes) {
   };
   setTimeout(() => void poll(), 200);
 }
+var HELP_TEXT = `voice \u2014 Realtime Voice Server CLI
+
+USAGE
+  voice <command> [subcommand] [--flags]
+
+CHANNELS
+  You are operating across two channels simultaneously:
+    Voice  \u2014 transcript.item events from the microphone \u2192 steer via
+             \`voice topics\` or \`voice context\`
+    Text   \u2014 messages typed in the chat \u2192 reply in text as normal
+
+  Do not cross channels. If the user types here, reply here. If the user
+  speaks, steer the voice via topics/context \u2014 do not reply in text.
+
+MONITOR LOOP
+  Once \`voice start\` reports a URL and the browser is open, run:
+    voice watch     (background)
+
+  When notified, immediately restart \`voice watch\` in the background
+  before doing any other work \u2014 this keeps the loop alive so events are
+  never missed while work is in flight. Then dispatch on \`event\`.
+
+  Background-first rule: any substantial work \u2014 memory lookups, file
+  reads, Agent calls, Bash commands \u2014 should run in the background and
+  fire in parallel with the next \`voice watch\` call.
+
+SUBROUTINES (event dispatch)
+  \xA7TRANSCRIPT
+    When: event is \`transcript.item\` and \`data.item.source\` is
+    \`"microphone"\`. The user just spoke. Restart \`voice watch\` first,
+    then think and fire \xA7TOPICS or \xA7CONTEXT to steer the voice's
+    response. Ignore items where source is \`"system"\` \u2014 those are your
+    own prior injections.
+
+  \xA7CONTEXT
+    When: you have background knowledge, facts, or state the voice
+    should absorb silently \u2014 without speaking it aloud.
+    Use \`voice context\` \u2014 the voice agent will know but will not say.
+
+  \xA7TOPICS
+    When: you want to describe what the voice should talk about next \u2014
+    subjects to raise, threads to pick up, directions to steer toward.
+    Use \`voice topics\` \u2014 the voice will fold them in naturally.
+    Describe subject matter, not a script.
+
+  \xA7CONV_ERROR
+    When: event is \`conversation.error\`. Tell the user the voice
+    conversation hit an error. Show the details from \`data\`. Ask if
+    they'd like to try again.
+
+  \xA7AUDIO_ERROR
+    When: event is \`browser.audio.error\`. Tell the user there's a
+    problem with their audio device. Show \`data.error\`. Ask them to
+    check microphone permissions in their browser.
+
+COMMANDS
+
+  voice start [--title T] [--model M] [--voice V] < instructions
+    Start the daemon and Realtime session. Reads the system instructions
+    for the voice persona from stdin. Prints \`{port,url,createdAt}\` as
+    JSON. If a daemon is already running on this port, prints its
+    current status and exits 0. The daemon is detached and survives
+    until clients disconnect (with grace period) or it is stopped.
+
+  voice stop
+    Stop the running daemon and Realtime session.
+
+  voice status
+    Print the current daemon status as JSON (server, conversation,
+    connected clients, etc.).
+
+  voice open
+    Open the browser UI to http://localhost:<port>. Equivalent to the
+    URL printed by \`voice start\`.
+
+  voice conversation <start|pause|resume|end|reset>
+    Drive the conversation lifecycle.
+      start   \u2014 begin accepting microphone audio
+      pause   \u2014 pause the active conversation (audio held)
+      resume  \u2014 resume from pause
+      end     \u2014 end the conversation (releases the session)
+      reset   \u2014 clear conversation history and start fresh
+
+  voice inject <user|assistant|system> [--source S] [--trigger-response] < text
+    Inject a message into the conversation. Reads the message text from
+    stdin. \`--source\` overrides the default source label. For user/
+    system roles, \`--trigger-response\` requests a response immediately.
+    Prefer the higher-level \`voice context\` / \`voice topics\` for
+    steering \u2014 \`inject\` is the low-level primitive.
+
+  voice context < text
+    System message wrapped in <context>...</context>. The voice absorbs
+    this silently as background knowledge \u2014 does NOT speak it aloud.
+    Use this for facts, state, names, numbers, definitions.
+
+  voice topics < text
+    System message wrapped in <topics>...</topics>. Subjects the voice
+    should talk about; the voice will weave them into the conversation
+    in its own words. Use this to steer what comes next \u2014 describe the
+    subject matter, not a script.
+
+  voice cancel-tool <callId>
+    Cancel an in-flight tool call by its call ID.
+
+  voice watch [event-types...]
+    Stream new events from the daemon as JSONL on stdout. Maintains a
+    per-port cursor under /tmp/voice-<port>/cursor so each invocation
+    returns only events newer than the last call. Exits as soon as at
+    least one event is delivered (intended to be re-run in a loop in
+    the background). With no event types, defaults to:
+      transcript.item, conversation.error, browser.audio.error
+    Pass specific event names to filter, e.g.:
+      voice watch transcript.item tool.call.failed
+
+GLOBAL FLAGS
+  --port <n>     Override the default port (3000). The control server
+                 runs on port+1.
+  -h, --help     Show this help.
+
+ENVIRONMENT
+  OPENAI_API_KEY     API key forwarded to the daemon as RVS_API_KEY.
+  RVS_API_KEY        Alternative to OPENAI_API_KEY.
+  USE_SESSION_PORT   When set with CLAUDE_CODE_SESSION_ID, the wrapper
+                     derives a per-session port instead of using 3000.
+  VOICE_LOG_PATH     If set, the CLI and daemon append JSONL diagnostic
+                     records (events + errors) to this path.
+                     transcript.delta events are excluded.
+
+REFERENCE GUIDES
+  When the browser has not connected or audio is not ready
+    \u2192 @reference/browser-audio.md
+  When starting, pausing, resuming, ending, or restarting a conversation
+    \u2192 @reference/conversation-lifecycle.md
+  When the conversation is long, the avatar seems confused, or context
+    needs refreshing
+    \u2192 @reference/context-management.md
+  When the avatar says something wrong, goes off-track, or needs
+    redirecting
+    \u2192 @reference/intervention.md
+  When the user signals they are done and the session should end
+    \u2192 @reference/shutdown.md
+  When the server fails to start, becomes unresponsive, or crashes
+    \u2192 @reference/startup-failure.md
+`;
+function printHelp() {
+  process.stdout.write(HELP_TEXT);
+}
 var parsed = parseArgs(process.argv);
 var port = getPort(parsed.flags);
+function isHelpRequested() {
+  if (parsed.flags["help"] === true || parsed.flags["h"] === true) return true;
+  if (parsed.command === "" || parsed.command === "-h" || parsed.command === "--help") return true;
+  if (parsed.subcommand === "-h" || parsed.subcommand === "--help") return true;
+  return parsed.positional.includes("-h") || parsed.positional.includes("--help");
+}
 async function main() {
+  if (isHelpRequested()) {
+    printHelp();
+    return;
+  }
   switch (parsed.command) {
     case "start": {
       const title = getString(parsed.flags, "title");

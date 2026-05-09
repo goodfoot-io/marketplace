@@ -5,7 +5,16 @@ if [ -n "$USE_SESSION_PORT" ] && [ -n "$CLAUDE_CODE_SESSION_ID" ]; then
   _hash=$(echo -n "$CLAUDE_CODE_SESSION_ID" | sha256sum | cut -c1-8)
   _num=$((16#${_hash}))
   _port=$((20000 + (_num % 10000)))
-  exec node "$DIR/voice.mjs" --port "$_port" "$@"
+  set -- --port "$_port" "$@"
 else
-  exec node "$DIR/voice.mjs" --port 3000 "$@"
+  set -- --port 3000 "$@"
+fi
+
+if [ -n "$VOICE_LOG_PATH" ]; then
+  mkdir -p "$(dirname "$VOICE_LOG_PATH")" 2>/dev/null
+  exec node "$DIR/voice.mjs" "$@" \
+    > >(tee -a "$VOICE_LOG_PATH") \
+    2> >(tee -a "$VOICE_LOG_PATH" >&2)
+else
+  exec node "$DIR/voice.mjs" "$@"
 fi

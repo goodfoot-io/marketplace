@@ -63,7 +63,8 @@ type BrowserEnvelope =
   | { type: "webrtc.session.requested" }
   | { type: "webrtc.session.connected" }
   | { type: "webrtc.session.failed"; data?: { error?: { code?: unknown; message?: unknown } } }
-  | { type: "realtime.event"; data?: { event?: unknown } };
+  | { type: "realtime.event"; data?: { event?: unknown } }
+  | { type: "browser.debug"; data?: { label?: unknown; info?: unknown; t?: unknown } };
 
 
 type RealtimeConnection = {
@@ -986,34 +987,40 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     }
     this.#setConversationStatus("starting");
     this.#broadcastState();
-    const realtime = await this.#createRealtimeConnection();
-    this.#realtime = realtime;
-    this.#wireRealtimeConnection(realtime);
-    this.#sendSessionUpdate();
-    const conversation: MutableConversation<TTools> = {
-      id: createId("conv"),
-      status: "starting",
-      startedAt: new Date(),
-      transcript: [],
-      toolCalls: [],
-      timeline: [],
-    };
-    this.#conversation = conversation;
-    conversation.status = "active";
-    this.#setConversationStatus("active");
-    if (this.#config.browserSession.firstMessage) {
-      const role = this.#config.browserSession.firstMessageRole;
-      const firstMessage = this.#appendTranscriptItem(
-        conversation,
-        role,
-        "firstMessage",
-        this.#config.browserSession.firstMessage,
-      );
-      this.#sendTranscriptItemToRealtime(firstMessage);
-      await this.#requestModelResponse();
+    try {
+      const realtime = await this.#createRealtimeConnection();
+      this.#realtime = realtime;
+      this.#wireRealtimeConnection(realtime);
+      this.#sendSessionUpdate();
+      const conversation: MutableConversation<TTools> = {
+        id: createId("conv"),
+        status: "starting",
+        startedAt: new Date(),
+        transcript: [],
+        toolCalls: [],
+        timeline: [],
+      };
+      this.#conversation = conversation;
+      conversation.status = "active";
+      this.#setConversationStatus("active");
+      if (this.#config.browserSession.firstMessage) {
+        const role = this.#config.browserSession.firstMessageRole;
+        const firstMessage = this.#appendTranscriptItem(
+          conversation,
+          role,
+          "firstMessage",
+          this.#config.browserSession.firstMessage,
+        );
+        this.#sendTranscriptItemToRealtime(firstMessage);
+        await this.#requestModelResponse();
+      }
+      this.#broadcastState();
+      this.emit("conversation.started", { conversation: snapshotConversation(conversation), createdAt: new Date() });
+    } catch (cause) {
+      this.#setConversationStatus("none");
+      this.#broadcastState();
+      throw cause;
     }
-    this.#broadcastState();
-    this.emit("conversation.started", { conversation: snapshotConversation(conversation), createdAt: new Date() });
   }
 
   async #endConversationLocked(
@@ -1337,6 +1344,22 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
           this.#emitAudioChange();
         }
         break;
+      case "browser.debug": {
+        let details: JsonValue | undefined;
+        try {
+          details = JSON.parse(JSON.stringify({ info: message.data?.info, t: message.data?.t })) as JsonValue;
+        } catch {
+          details = undefined;
+        }
+        this.emit("log", {
+          level: "debug",
+          code: "BROWSER_DEBUG",
+          message: typeof message.data?.label === "string" ? message.data.label : "browser.debug",
+          details,
+          createdAt: new Date(),
+        });
+        break;
+      }
       case "browser.audio.error": {
         const error = toRealtimeError("MICROPHONE_DEVICE_ERROR", "Browser reported a microphone error.", {
           code: String(message.data?.code ?? "unknown"),
