@@ -6,9 +6,8 @@
 
 import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { z } from "zod";
 import { createRealtimeVoiceServer, RealtimeVoiceServerError } from "../index.js";
-import type { JsonValue, RealtimeVoiceToolContext, RealtimeVoiceServerEvents, RealtimeVoiceToolMap } from "../types.js";
+import type { JsonValue, RealtimeVoiceServerEvents, RealtimeVoiceToolMap } from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Config from env
@@ -55,13 +54,6 @@ function serializeData(value: unknown): JsonValue {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value;
   return String(value);
 }
-
-// ---------------------------------------------------------------------------
-// Ask tool state
-// ---------------------------------------------------------------------------
-
-let questionCounter = 0;
-const pendingQuestions = new Map<number, (answer: string) => void>();
 
 // ---------------------------------------------------------------------------
 // Staged system messages
@@ -128,24 +120,6 @@ function cleanup(): void {
 // Build controller
 // ---------------------------------------------------------------------------
 
-const askTool = {
-  description:
-    "Recall information not available in this conversation — prior context, user preferences, file contents, external state, or anything the backing agent can look up. Phrase the query as a specific lookup key, not a conversational question. The result will be supplied by the agent monitoring this session.",
-  parameters: z.object({ question: z.string() }),
-  execute: async ({ question }: { question: string }, { signal }: RealtimeVoiceToolContext): Promise<JsonValue> => {
-    const questionId = ++questionCounter;
-    appendEvent("question", { questionId, question });
-    const answer = await new Promise<string>((resolve, reject) => {
-      pendingQuestions.set(questionId, resolve);
-      signal.addEventListener("abort", () => {
-        pendingQuestions.delete(questionId);
-        reject(new Error("aborted"));
-      });
-    });
-    return { answer };
-  },
-};
-
 const realtimeConfig = {
   instructions,
   ...(model !== undefined ? { model } : {}),
@@ -158,7 +132,7 @@ const controller = createRealtimeVoiceServer({
   port,
   apiKey,
   realtime: realtimeConfig,
-  tools: { ask: askTool },
+  tools: {},
   ui: uiConfig,
 });
 
@@ -328,20 +302,17 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
     if (method === "POST" && pathname === "/inject/system") {
       const raw = await readBody(req);
       const parsed = JSON.parse(raw) as { text: string; triggerResponse?: boolean };
-      try {
-        const item = await controller.injectSystemMessage({
-          text: parsed.text,
-          triggerResponse: parsed.triggerResponse,
-        });
-        sendJson(res, 200, serializeData(item as unknown as Record<string, unknown>));
-      } catch (err: unknown) {
-        if (err instanceof RealtimeVoiceServerError && err.code === "MESSAGE_INJECTION_INVALID_STATE") {
-          stagedSystemMessages.push({ text: parsed.text, triggerResponse: parsed.triggerResponse });
-          sendJson(res, 200, { staged: true });
-        } else {
-          throw err;
-        }
+      const convStatus = controller.status.conversation;
+      if (convStatus !== "active" && convStatus !== "paused") {
+        stagedSystemMessages.push({ text: parsed.text, triggerResponse: parsed.triggerResponse });
+        sendJson(res, 200, { staged: true });
+        return;
       }
+      const item = await controller.injectSystemMessage({
+        text: parsed.text,
+        triggerResponse: parsed.triggerResponse,
+      });
+      sendJson(res, 200, serializeData(item as unknown as Record<string, unknown>));
       return;
     }
 
@@ -353,19 +324,7 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
       return;
     }
 
-    if (method === "POST" && pathname === "/tool/answer") {
-      const raw = await readBody(req);
-      const parsed = JSON.parse(raw) as { questionId: number; answer: string };
-      const resolve = pendingQuestions.get(parsed.questionId);
-      if (resolve === undefined) {
-        sendJson(res, 404, { error: "Question not found", code: "QUESTION_NOT_FOUND" });
-      } else {
-        pendingQuestions.delete(parsed.questionId);
-        resolve(parsed.answer);
-        sendJson(res, 200, { ok: true });
-      }
-      return;
-    }
+
 
     if (method === "POST" && pathname === "/client/register") {
       const raw = await readBody(req);

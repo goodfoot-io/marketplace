@@ -198,25 +198,33 @@ async function cmdInject(
 }
 
 // ---------------------------------------------------------------------------
+// `rvs say`
+// ---------------------------------------------------------------------------
+
+async function cmdSay(port: number): Promise<void> {
+  const text = await readStdin();
+  const wrapped = `<say>${text}</say>`;
+  const res = await postJson(controlPort(port), "/inject/system", { text: wrapped });
+  printJson(JSON.parse(res.body));
+}
+
+// ---------------------------------------------------------------------------
+// `rvs context`
+// ---------------------------------------------------------------------------
+
+async function cmdContext(port: number): Promise<void> {
+  const text = await readStdin();
+  const wrapped = `<context>${text}</context>`;
+  const res = await postJson(controlPort(port), "/inject/system", { text: wrapped });
+  printJson(JSON.parse(res.body));
+}
+
+// ---------------------------------------------------------------------------
 // `rvs cancel-tool <callId>`
 // ---------------------------------------------------------------------------
 
 async function cmdCancelTool(port: number, callId: string): Promise<void> {
   const res = await postJson(controlPort(port), "/tool/cancel", { callId });
-  printJson(JSON.parse(res.body));
-}
-
-// ---------------------------------------------------------------------------
-// `rvs answer <questionId>`
-// ---------------------------------------------------------------------------
-
-async function cmdAnswer(port: number, questionId: string): Promise<void> {
-  const id = parseInt(questionId, 10);
-  if (isNaN(id)) {
-    fatal(`Invalid questionId: ${questionId}`);
-  }
-  const answer = await readStdin();
-  const res = await postJson(controlPort(port), "/tool/answer", { questionId: id, answer });
   printJson(JSON.parse(res.body));
 }
 
@@ -250,7 +258,7 @@ async function cmdWatch(port: number, eventTypes: string[]): Promise<void> {
 
   // Default to common event types when none specified
   if (eventTypes.length === 0) {
-    eventTypes = ['transcript.item', 'question', 'conversation.error', 'browser.audio.error'];
+    eventTypes = ['transcript.item', 'conversation.error', 'browser.audio.error'];
   }
 
   // First attempt
@@ -325,16 +333,18 @@ async function main(): Promise<void> {
       await cmdInject(port, role, source, triggerResponse);
       break;
     }
+    case "say": {
+      await cmdSay(port);
+      break;
+    }
+    case "context": {
+      await cmdContext(port);
+      break;
+    }
     case "cancel-tool": {
       const callId = parsed.subcommand ?? parsed.positional[0];
       if (callId === undefined) fatal("Usage: voice cancel-tool <callId>");
       await cmdCancelTool(port, callId);
-      break;
-    }
-    case "answer": {
-      const questionId = parsed.subcommand ?? parsed.positional[0];
-      if (questionId === undefined) fatal("Usage: voice answer <questionId>");
-      await cmdAnswer(port, questionId);
       break;
     }
     case "watch": {
@@ -347,7 +357,7 @@ async function main(): Promise<void> {
     }
     default: {
       fatal(
-        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, cancel-tool, answer, watch`,
+        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, say, context, cancel-tool, watch`,
       );
     }
   }
