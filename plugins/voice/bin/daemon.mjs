@@ -3645,7 +3645,7 @@ var require_websocket_server = __commonJS({
 });
 
 // src/cli/daemon.ts
-import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync as appendFileSync2, mkdirSync as mkdirSync2, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer as createServer2 } from "node:http";
 
 // src/ui/index.html
@@ -9084,6 +9084,60 @@ function isJsonValue(value) {
   return Object.values(value).every(isJsonValue);
 }
 
+// src/cli/log.ts
+import { appendFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+var logPath = process.env["VOICE_LOG_PATH"];
+var initialized = false;
+function ensureDir() {
+  if (initialized || logPath === void 0) return;
+  try {
+    mkdirSync(dirname(logPath), { recursive: true });
+  } catch (err) {
+    process.stderr.write(`voice log: mkdir failed: ${String(err)}
+`);
+  }
+  initialized = true;
+}
+function logLine(record) {
+  if (logPath === void 0 || logPath.length === 0) return;
+  ensureDir();
+  try {
+    const line = JSON.stringify({ timestamp: (/* @__PURE__ */ new Date()).toISOString(), ...record }) + "\n";
+    appendFileSync(logPath, line, "utf8");
+  } catch (err) {
+    process.stderr.write(`voice log: append failed: ${String(err)}
+`);
+  }
+}
+function logEvent(source, event, data) {
+  if (event === "transcript.delta") return;
+  logLine({ kind: "event", source, event, data: serialize(data) });
+}
+function logError(source, context, err) {
+  logLine({
+    kind: "error",
+    source,
+    context,
+    error: err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : String(err)
+  });
+}
+function serialize(value) {
+  if (value === null || value === void 0) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Error) return { name: value.name, message: value.message, stack: value.stack };
+  if (Array.isArray(value)) return value.map(serialize);
+  if (typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = serialize(v);
+    }
+    return out;
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value;
+  return String(value);
+}
+
 // src/cli/daemon.ts
 var port = parseInt(process.env["RVS_PORT"] ?? "3000", 10);
 var apiKey = process.env["RVS_API_KEY"] ?? "";
@@ -9100,7 +9154,7 @@ var seq = 0;
 function appendEvent(event, data) {
   seq += 1;
   const line = JSON.stringify({ seq, event, timestamp: (/* @__PURE__ */ new Date()).toISOString(), data: serializeData(data) }) + "\n";
-  appendFileSync(eventsFile, line, "utf8");
+  appendFileSync2(eventsFile, line, "utf8");
 }
 function serializeData(value) {
   if (value === null || value === void 0) return null;
@@ -9205,23 +9259,36 @@ var knownEvents = [
 for (const eventName of knownEvents) {
   controller.on(eventName, (data) => {
     appendEvent(eventName, data);
+    logEvent("daemon", eventName, data);
   });
 }
+process.on("uncaughtException", (err) => {
+  logError("daemon", "uncaughtException", err);
+  process.stderr.write(`uncaughtException: ${String(err)}
+`);
+});
+process.on("unhandledRejection", (reason) => {
+  logError("daemon", "unhandledRejection", reason);
+  process.stderr.write(`unhandledRejection: ${String(reason)}
+`);
+});
 controller.on("conversation.started", () => {
   const pending = stagedSystemMessages.splice(0);
   for (const msg of pending) {
     controller.injectSystemMessage({ text: msg.text, triggerResponse: msg.triggerResponse }).catch((err) => {
       appendEvent("conversation.error", { error: String(err) });
+      logError("daemon", "flush staged system message", err);
     });
   }
 });
-mkdirSync(tmpDir, { recursive: true });
+mkdirSync2(tmpDir, { recursive: true });
 writeFileSync(pidFile, String(process.pid), "utf8");
 controller.on("server.started", (event) => {
   const line = JSON.stringify({ port: event.port, url: event.url, createdAt: event.createdAt.toISOString() });
   process.stdout.write(line + "\n");
 });
 controller.start().catch((err) => {
+  logError("daemon", "controller.start", err);
   process.stderr.write(JSON.stringify({ error: String(err) }) + "\n");
   cleanup();
   process.exit(1);
@@ -9387,6 +9454,7 @@ var controlServer = createServer2(async (req, res) => {
     }
     sendJson(res, 404, { error: "Not found" });
   } catch (err) {
+    logError("daemon", `control ${method} ${pathname}`, err);
     sendJson(res, 500, { error: String(err) });
   }
 });

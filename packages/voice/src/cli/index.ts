@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { getBoolean, getPort, getString, parseArgs, readStdin } from "./args.js";
 import { getStatus, postEmpty, postJson, watchOnce } from "./control-client.js";
+import { logError, logEvent } from "./log.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -19,6 +20,7 @@ function printJson(data: unknown): void {
 }
 
 function fatal(message: string, code?: string): never {
+  logError("cli", "fatal", code !== undefined ? { message, code } : message);
   process.stderr.write(JSON.stringify({ error: message, ...(code !== undefined ? { code } : {}) }) + "\n");
   process.exit(1);
 }
@@ -247,17 +249,6 @@ async function cmdInject(
 }
 
 // ---------------------------------------------------------------------------
-// `rvs say`
-// ---------------------------------------------------------------------------
-
-async function cmdSay(port: number): Promise<void> {
-  const text = await readStdin();
-  const wrapped = `<say>${text}</say>`;
-  const res = await postJson(controlPort(port), "/inject/system", { text: wrapped });
-  printJson(JSON.parse(res.body));
-}
-
-// ---------------------------------------------------------------------------
 // `rvs context`
 // ---------------------------------------------------------------------------
 
@@ -269,12 +260,12 @@ async function cmdContext(port: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// `rvs plan`
+// `rvs topics`
 // ---------------------------------------------------------------------------
 
-async function cmdPlan(port: number): Promise<void> {
+async function cmdTopics(port: number): Promise<void> {
   const text = await readStdin();
-  const wrapped = `<plan>${text}</plan>`;
+  const wrapped = `<topics>${text}</topics>`;
   const res = await postJson(controlPort(port), "/inject/system", { text: wrapped });
   printJson(JSON.parse(res.body));
 }
@@ -305,10 +296,11 @@ async function cmdWatch(port: number, eventTypes: string[]): Promise<void> {
     for (const line of lines) {
       process.stdout.write(line + "\n");
       try {
-        const parsed = JSON.parse(line) as { seq: number };
+        const parsed = JSON.parse(line) as { seq: number; event: string; data?: unknown };
         if (parsed.seq > maxSeq) maxSeq = parsed.seq;
-      } catch (_err: unknown) {
-        void _err; // skip malformed JSONL lines
+        logEvent("cli", parsed.event, parsed.data);
+      } catch (err: unknown) {
+        logError("cli", "watch parse", err);
       }
     }
     writeCursor(port, maxSeq);
@@ -393,16 +385,12 @@ async function main(): Promise<void> {
       await cmdInject(port, role, source, triggerResponse);
       break;
     }
-    case "say": {
-      await cmdSay(port);
-      break;
-    }
     case "context": {
       await cmdContext(port);
       break;
     }
-    case "plan": {
-      await cmdPlan(port);
+    case "topics": {
+      await cmdTopics(port);
       break;
     }
     case "cancel-tool": {
@@ -421,12 +409,25 @@ async function main(): Promise<void> {
     }
     default: {
       fatal(
-        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, say, context, plan, cancel-tool, watch`,
+        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, context, topics, cancel-tool, watch`,
       );
     }
   }
 }
 
+process.on("uncaughtException", (err: unknown) => {
+  logError("cli", "uncaughtException", err);
+  process.stderr.write(`uncaughtException: ${String(err)}\n`);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason: unknown) => {
+  logError("cli", "unhandledRejection", reason);
+  process.stderr.write(`unhandledRejection: ${String(reason)}\n`);
+  process.exit(1);
+});
+
 main().catch((err: unknown) => {
+  logError("cli", "main", err);
   fatal(err instanceof Error ? err.message : String(err));
 });

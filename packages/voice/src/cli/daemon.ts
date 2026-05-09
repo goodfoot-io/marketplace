@@ -8,6 +8,7 @@ import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createRealtimeVoiceServer, RealtimeVoiceServerError } from "../index.js";
 import type { JsonValue, RealtimeVoiceServerEvents, RealtimeVoiceToolMap } from "../types.js";
+import { logError, logEvent } from "./log.js";
 
 // ---------------------------------------------------------------------------
 // Config from env
@@ -185,8 +186,19 @@ const knownEvents: KnownEventKey[] = [
 for (const eventName of knownEvents) {
   controller.on(eventName, (data) => {
     appendEvent(eventName, data as unknown as Record<string, unknown>);
+    logEvent("daemon", eventName, data);
   });
 }
+
+process.on("uncaughtException", (err: unknown) => {
+  logError("daemon", "uncaughtException", err);
+  process.stderr.write(`uncaughtException: ${String(err)}\n`);
+});
+
+process.on("unhandledRejection", (reason: unknown) => {
+  logError("daemon", "unhandledRejection", reason);
+  process.stderr.write(`unhandledRejection: ${String(reason)}\n`);
+});
 
 // Flush staged system messages when a conversation becomes active
 controller.on("conversation.started", () => {
@@ -194,6 +206,7 @@ controller.on("conversation.started", () => {
   for (const msg of pending) {
     controller.injectSystemMessage({ text: msg.text, triggerResponse: msg.triggerResponse }).catch((err: unknown) => {
       appendEvent("conversation.error", { error: String(err) });
+      logError("daemon", "flush staged system message", err);
     });
   }
 });
@@ -212,6 +225,7 @@ controller.on("server.started", (event) => {
 });
 
 controller.start().catch((err: unknown) => {
+  logError("daemon", "controller.start", err);
   process.stderr.write(JSON.stringify({ error: String(err) }) + "\n");
   cleanup();
   process.exit(1);
@@ -411,6 +425,7 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
 
     sendJson(res, 404, { error: "Not found" });
   } catch (err: unknown) {
+    logError("daemon", `control ${method} ${pathname}`, err);
     sendJson(res, 500, { error: String(err) });
   }
 });

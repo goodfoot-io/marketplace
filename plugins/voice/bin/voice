@@ -1,11 +1,11 @@
 #!/bin/bash
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [ -n "$CLAUDE_CODE_SESSION_ID" ]; then
+if [ -n "$USE_SESSION_PORT" ] && [ -n "$CLAUDE_CODE_SESSION_ID" ]; then
   _hash=$(echo -n "$CLAUDE_CODE_SESSION_ID" | sha256sum | cut -c1-8)
   _num=$((16#${_hash}))
   _port=$((20000 + (_num % 10000)))
   exec node "$DIR/voice.mjs" --port "$_port" "$@"
 else
-  exec node "$DIR/voice.mjs" "$@"
+  exec node "$DIR/voice.mjs" --port 3000 "$@"
 fi

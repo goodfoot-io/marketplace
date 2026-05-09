@@ -3,9 +3,9 @@ import { createRequire as __banner_createRequire } from 'node:module';import { f
 
 // src/cli/index.ts
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync as mkdirSync2 } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname as dirname2, join } from "node:path";
 
 // src/cli/args.ts
 function parseArgs(argv) {
@@ -122,11 +122,66 @@ async function watchOnce(controlPort2, events, after) {
   return request(makeOptions(controlPort2, "GET", path));
 }
 
+// src/cli/log.ts
+import { appendFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+var logPath = process.env["VOICE_LOG_PATH"];
+var initialized = false;
+function ensureDir() {
+  if (initialized || logPath === void 0) return;
+  try {
+    mkdirSync(dirname(logPath), { recursive: true });
+  } catch (err) {
+    process.stderr.write(`voice log: mkdir failed: ${String(err)}
+`);
+  }
+  initialized = true;
+}
+function logLine(record) {
+  if (logPath === void 0 || logPath.length === 0) return;
+  ensureDir();
+  try {
+    const line = JSON.stringify({ timestamp: (/* @__PURE__ */ new Date()).toISOString(), ...record }) + "\n";
+    appendFileSync(logPath, line, "utf8");
+  } catch (err) {
+    process.stderr.write(`voice log: append failed: ${String(err)}
+`);
+  }
+}
+function logEvent(source, event, data) {
+  if (event === "transcript.delta") return;
+  logLine({ kind: "event", source, event, data: serialize(data) });
+}
+function logError(source, context, err) {
+  logLine({
+    kind: "error",
+    source,
+    context,
+    error: err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : String(err)
+  });
+}
+function serialize(value) {
+  if (value === null || value === void 0) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Error) return { name: value.name, message: value.message, stack: value.stack };
+  if (Array.isArray(value)) return value.map(serialize);
+  if (typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = serialize(v);
+    }
+    return out;
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value;
+  return String(value);
+}
+
 // src/cli/index.ts
 function printJson(data) {
   process.stdout.write(JSON.stringify(data) + "\n");
 }
 function fatal(message, code) {
+  logError("cli", "fatal", code !== void 0 ? { message, code } : message);
   process.stderr.write(JSON.stringify({ error: message, ...code !== void 0 ? { code } : {} }) + "\n");
   process.exit(1);
 }
@@ -186,7 +241,7 @@ function readCursor(port2) {
   }
 }
 function writeCursor(port2, cursor) {
-  mkdirSync(tmpDir(port2), { recursive: true });
+  mkdirSync2(tmpDir(port2), { recursive: true });
   writeFileSync(cursorFile(port2), String(cursor), "utf8");
 }
 async function cmdStart(port2, title, model, voice) {
@@ -200,7 +255,7 @@ async function cmdStart(port2, title, model, voice) {
   } catch (_err) {
   }
   const thisFile = fileURLToPath(import.meta.url);
-  const daemonPath = join(dirname(thisFile), "daemon.mjs");
+  const daemonPath = join(dirname2(thisFile), "daemon.mjs");
   const env = {
     ...process.env,
     RVS_PORT: String(port2),
@@ -284,21 +339,15 @@ async function cmdInject(port2, role, source, triggerResponse) {
   const res = await postJson(controlPort(port2), `/inject/${role}`, body);
   printJson(JSON.parse(res.body));
 }
-async function cmdSay(port2) {
-  const text = await readStdin();
-  const wrapped = `<say>${text}</say>`;
-  const res = await postJson(controlPort(port2), "/inject/system", { text: wrapped });
-  printJson(JSON.parse(res.body));
-}
 async function cmdContext(port2) {
   const text = await readStdin();
   const wrapped = `<context>${text}</context>`;
   const res = await postJson(controlPort(port2), "/inject/system", { text: wrapped });
   printJson(JSON.parse(res.body));
 }
-async function cmdPlan(port2) {
+async function cmdTopics(port2) {
   const text = await readStdin();
-  const wrapped = `<plan>${text}</plan>`;
+  const wrapped = `<topics>${text}</topics>`;
   const res = await postJson(controlPort(port2), "/inject/system", { text: wrapped });
   printJson(JSON.parse(res.body));
 }
@@ -319,7 +368,9 @@ async function cmdWatch(port2, eventTypes) {
       try {
         const parsed2 = JSON.parse(line);
         if (parsed2.seq > maxSeq) maxSeq = parsed2.seq;
-      } catch (_err) {
+        logEvent("cli", parsed2.event, parsed2.data);
+      } catch (err) {
+        logError("cli", "watch parse", err);
       }
     }
     writeCursor(port2, maxSeq);
@@ -390,16 +441,12 @@ async function main() {
       await cmdInject(port, role, source, triggerResponse);
       break;
     }
-    case "say": {
-      await cmdSay(port);
-      break;
-    }
     case "context": {
       await cmdContext(port);
       break;
     }
-    case "plan": {
-      await cmdPlan(port);
+    case "topics": {
+      await cmdTopics(port);
       break;
     }
     case "cancel-tool": {
@@ -417,11 +464,24 @@ async function main() {
     }
     default: {
       fatal(
-        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, say, context, plan, cancel-tool, watch`
+        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, context, topics, cancel-tool, watch`
       );
     }
   }
 }
+process.on("uncaughtException", (err) => {
+  logError("cli", "uncaughtException", err);
+  process.stderr.write(`uncaughtException: ${String(err)}
+`);
+  process.exit(1);
+});
+process.on("unhandledRejection", (reason) => {
+  logError("cli", "unhandledRejection", reason);
+  process.stderr.write(`unhandledRejection: ${String(reason)}
+`);
+  process.exit(1);
+});
 main().catch((err) => {
+  logError("cli", "main", err);
   fatal(err instanceof Error ? err.message : String(err));
 });
