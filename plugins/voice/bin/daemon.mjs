@@ -18376,12 +18376,27 @@ var stagedSystemMessages = [];
 var registeredClients = /* @__PURE__ */ new Map();
 var clientIdCounter = 0;
 var firstRegisterDeadline = null;
+var clientGraceDeadline = null;
 function startFirstRegisterTimer() {
   firstRegisterDeadline = setTimeout(() => {
     if (registeredClients.size === 0) {
       shutdown();
     }
   }, 3e4);
+}
+function startClientGraceTimer() {
+  if (clientGraceDeadline !== null) return;
+  clientGraceDeadline = setTimeout(() => {
+    if (registeredClients.size === 0) {
+      shutdown();
+    }
+  }, 12e4);
+}
+function cancelClientGraceTimer() {
+  if (clientGraceDeadline !== null) {
+    clearTimeout(clientGraceDeadline);
+    clientGraceDeadline = null;
+  }
 }
 function checkClients() {
   for (const [clientId, client] of registeredClients) {
@@ -18392,7 +18407,7 @@ function checkClients() {
     }
   }
   if (registeredClients.size === 0 && firstRegisterDeadline === null) {
-    shutdown();
+    startClientGraceTimer();
   }
 }
 function shutdown() {
@@ -18577,6 +18592,7 @@ var controlServer = createServer2(async (req, res) => {
         clearTimeout(firstRegisterDeadline);
         firstRegisterDeadline = null;
       }
+      cancelClientGraceTimer();
       sendJson(res, 200, { clientId });
       return;
     }
@@ -18586,7 +18602,7 @@ var controlServer = createServer2(async (req, res) => {
       registeredClients.delete(parsed.clientId);
       sendJson(res, 200, { ok: true });
       if (registeredClients.size === 0) {
-        setImmediate(() => shutdown());
+        startClientGraceTimer();
       }
       return;
     }

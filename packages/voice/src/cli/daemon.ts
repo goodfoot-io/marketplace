@@ -78,6 +78,7 @@ interface RegisteredClient {
 const registeredClients = new Map<string, RegisteredClient>();
 let clientIdCounter = 0;
 let firstRegisterDeadline: ReturnType<typeof setTimeout> | null = null;
+let clientGraceDeadline: ReturnType<typeof setTimeout> | null = null;
 
 function startFirstRegisterTimer(): void {
   firstRegisterDeadline = setTimeout(() => {
@@ -85,6 +86,22 @@ function startFirstRegisterTimer(): void {
       shutdown();
     }
   }, 30_000);
+}
+
+function startClientGraceTimer(): void {
+  if (clientGraceDeadline !== null) return;
+  clientGraceDeadline = setTimeout(() => {
+    if (registeredClients.size === 0) {
+      shutdown();
+    }
+  }, 120_000);
+}
+
+function cancelClientGraceTimer(): void {
+  if (clientGraceDeadline !== null) {
+    clearTimeout(clientGraceDeadline);
+    clientGraceDeadline = null;
+  }
 }
 
 function checkClients(): void {
@@ -96,8 +113,7 @@ function checkClients(): void {
     }
   }
   if (registeredClients.size === 0 && firstRegisterDeadline === null) {
-    // All clients gone
-    shutdown();
+    startClientGraceTimer();
   }
 }
 
@@ -331,11 +347,11 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
       const parsed = JSON.parse(raw) as { pid: number };
       const clientId = `client-${++clientIdCounter}`;
       registeredClients.set(clientId, { clientId, pid: parsed.pid });
-      // Cancel the 30s no-registration shutdown timer
       if (firstRegisterDeadline !== null) {
         clearTimeout(firstRegisterDeadline);
         firstRegisterDeadline = null;
       }
+      cancelClientGraceTimer();
       sendJson(res, 200, { clientId });
       return;
     }
@@ -346,7 +362,7 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
       registeredClients.delete(parsed.clientId);
       sendJson(res, 200, { ok: true });
       if (registeredClients.size === 0) {
-        setImmediate(() => shutdown());
+        startClientGraceTimer();
       }
       return;
     }
