@@ -18374,6 +18374,7 @@ function serializeData(value) {
 }
 var questionCounter = 0;
 var pendingQuestions = /* @__PURE__ */ new Map();
+var stagedSystemMessages = [];
 var registeredClients = /* @__PURE__ */ new Map();
 var clientIdCounter = 0;
 var firstRegisterDeadline = null;
@@ -18465,6 +18466,14 @@ for (const eventName of knownEvents) {
     appendEvent(eventName, data);
   });
 }
+controller.on("conversation.started", () => {
+  const pending = stagedSystemMessages.splice(0);
+  for (const msg of pending) {
+    controller.injectSystemMessage({ text: msg.text, triggerResponse: msg.triggerResponse }).catch((err) => {
+      appendEvent("conversation.error", { error: String(err) });
+    });
+  }
+});
 mkdirSync(tmpDir, { recursive: true });
 writeFileSync(pidFile, String(process.pid), "utf8");
 controller.on("server.started", (event) => {
@@ -18557,11 +18566,20 @@ var controlServer = createServer2(async (req, res) => {
     if (method === "POST" && pathname === "/inject/system") {
       const raw = await readBody(req);
       const parsed = JSON.parse(raw);
-      const item = await controller.injectSystemMessage({
-        text: parsed.text,
-        triggerResponse: parsed.triggerResponse
-      });
-      sendJson(res, 200, serializeData(item));
+      try {
+        const item = await controller.injectSystemMessage({
+          text: parsed.text,
+          triggerResponse: parsed.triggerResponse
+        });
+        sendJson(res, 200, serializeData(item));
+      } catch (err) {
+        if (err instanceof RealtimeVoiceServerError && err.code === "MESSAGE_INJECTION_INVALID_STATE") {
+          stagedSystemMessages.push({ text: parsed.text, triggerResponse: parsed.triggerResponse });
+          sendJson(res, 200, { staged: true });
+        } else {
+          throw err;
+        }
+      }
       return;
     }
     if (method === "POST" && pathname === "/tool/cancel") {
@@ -18624,6 +18642,9 @@ var controlServer = createServer2(async (req, res) => {
           const parsed = JSON.parse(line);
           if (parsed.seq > after) {
             if (filterEvents.length === 0 || filterEvents.includes(parsed.event)) {
+              if (parsed.event === "transcript.item" && parsed.data?.item?.source === "system") {
+                continue;
+              }
               matching.push(line);
             }
           }

@@ -7,14 +7,14 @@
 import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { z } from "zod";
-import { createRealtimeVoiceServer } from "../index.js";
+import { createRealtimeVoiceServer, RealtimeVoiceServerError } from "../index.js";
 import type { JsonValue, RealtimeVoiceToolContext, RealtimeVoiceServerEvents, RealtimeVoiceToolMap } from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Config from env
 // ---------------------------------------------------------------------------
 
-const port = parseInt(process.env["RVS_PORT"] ?? String(20000 + (process.ppid % 10000)), 10);
+const port = parseInt(process.env["RVS_PORT"] ?? "3000", 10);
 const apiKey = process.env["RVS_API_KEY"] ?? "";
 const instructions = process.env["RVS_INSTRUCTIONS"] ?? "";
 const title = process.env["RVS_TITLE"];
@@ -62,6 +62,17 @@ function serializeData(value: unknown): JsonValue {
 
 let questionCounter = 0;
 const pendingQuestions = new Map<number, (answer: string) => void>();
+
+// ---------------------------------------------------------------------------
+// Staged system messages
+// ---------------------------------------------------------------------------
+
+interface StagedSystemMessage {
+  text: string;
+  triggerResponse?: boolean;
+}
+
+const stagedSystemMessages: StagedSystemMessage[] = [];
 
 // ---------------------------------------------------------------------------
 // Client registry & lifecycle
@@ -187,6 +198,16 @@ for (const eventName of knownEvents) {
   });
 }
 
+// Flush staged system messages when a conversation becomes active
+controller.on("conversation.started", () => {
+  const pending = stagedSystemMessages.splice(0);
+  for (const msg of pending) {
+    controller.injectSystemMessage({ text: msg.text, triggerResponse: msg.triggerResponse }).catch((err: unknown) => {
+      appendEvent("conversation.error", { error: String(err) });
+    });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Startup
 // ---------------------------------------------------------------------------
@@ -307,11 +328,20 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
     if (method === "POST" && pathname === "/inject/system") {
       const raw = await readBody(req);
       const parsed = JSON.parse(raw) as { text: string; triggerResponse?: boolean };
-      const item = await controller.injectSystemMessage({
-        text: parsed.text,
-        triggerResponse: parsed.triggerResponse,
-      });
-      sendJson(res, 200, serializeData(item as unknown as Record<string, unknown>));
+      try {
+        const item = await controller.injectSystemMessage({
+          text: parsed.text,
+          triggerResponse: parsed.triggerResponse,
+        });
+        sendJson(res, 200, serializeData(item as unknown as Record<string, unknown>));
+      } catch (err: unknown) {
+        if (err instanceof RealtimeVoiceServerError && err.code === "MESSAGE_INJECTION_INVALID_STATE") {
+          stagedSystemMessages.push({ text: parsed.text, triggerResponse: parsed.triggerResponse });
+          sendJson(res, 200, { staged: true });
+        } else {
+          throw err;
+        }
+      }
       return;
     }
 
@@ -380,9 +410,13 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
 
       for (const line of lines) {
         try {
-          const parsed = JSON.parse(line) as { seq: number; event: string };
+          const parsed = JSON.parse(line) as { seq: number; event: string; data?: { item?: { source?: string } } };
           if (parsed.seq > after) {
             if (filterEvents.length === 0 || filterEvents.includes(parsed.event)) {
+              // Skip system-sourced transcript items — these are Claude's own injections
+              if (parsed.event === "transcript.item" && parsed.data?.item?.source === "system") {
+                continue;
+              }
               matching.push(line);
             }
           }
