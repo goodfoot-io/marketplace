@@ -1,6 +1,5 @@
 import uiHtml from "./ui/index.html";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { OpenAIRealtimeWebSocket } from "openai/realtime/websocket";
 import { WebSocket, WebSocketServer } from "ws";
 import { z } from "zod";
 
@@ -58,11 +57,13 @@ type BrowserEnvelope =
   | { type: "conversation.reset" }
   | { type: "conversation.end" }
   | { type: "message.text"; data?: { text?: unknown } }
-  | { type: "audio.input.append"; data?: { audio?: unknown } }
-  | { type: "audio.input.commit" }
   | { type: "audio.device.select"; data?: { deviceId?: unknown } }
   | { type: "audio.device.state"; data?: BrowserAudioDeviceState }
-  | { type: "browser.audio.error"; data?: { code?: unknown; message?: unknown; suggestedAction?: unknown } };
+  | { type: "browser.audio.error"; data?: { code?: unknown; message?: unknown; suggestedAction?: unknown } }
+  | { type: "webrtc.session.requested" }
+  | { type: "webrtc.session.connected" }
+  | { type: "webrtc.session.failed"; data?: { error?: { code?: unknown; message?: unknown } } }
+  | { type: "realtime.event"; data?: { event?: unknown } };
 
 
 type RealtimeConnection = {
@@ -71,6 +72,89 @@ type RealtimeConnection = {
   on(eventName: string, handler: (event: unknown) => void): unknown;
   socket?: { readyState: number };
 };
+
+// OpenAI Realtime "ephemeral client secret" mint endpoint.
+// TODO(verify-against-openai-docs): Confirm exact response shape — current
+// implementation reads `value` (string) and `expires_at` (unix seconds) from
+// the top-level response. Some docs nest these under `client_secret`.
+const OPENAI_CLIENT_SECRET_URL = "https://api.openai.com/v1/realtime/client_secrets";
+const WEBRTC_CONNECT_TIMEOUT_MS = 30_000;
+
+interface OpenAIClientSecretResponse {
+  value?: string;
+  expires_at?: number;
+  client_secret?: { value?: string; expires_at?: number };
+}
+
+type RealtimeConnectionEmitter = {
+  emit(eventName: string, payload: unknown): void;
+  emitClose(): void;
+};
+
+type SocketRef = { readyState: number };
+
+class BrowserProxiedRealtimeConnection implements RealtimeConnection {
+  readonly socket: SocketRef;
+  readonly #handlers = new Map<string, Array<(event: unknown) => void>>();
+  readonly #sendToBrowser: (envelope: { type: string; data?: unknown }) => void;
+  #closed = false;
+
+  constructor(input: { sendToBrowser: (envelope: { type: string; data?: unknown }) => void; socket: SocketRef }) {
+    this.#sendToBrowser = input.sendToBrowser;
+    this.socket = input.socket;
+  }
+
+  send(event: Record<string, unknown>): void {
+    if (this.#closed) return;
+    this.#sendToBrowser({ type: "realtime.send", data: { event } });
+  }
+
+  close(props?: { code: number; reason: string }): void {
+    if (this.#closed) return;
+    this.#closed = true;
+    this.#sendToBrowser({
+      type: "webrtc.session.close",
+      data: { code: props?.code ?? 1000, reason: props?.reason ?? "closed" },
+    });
+  }
+
+  on(eventName: string, handler: (event: unknown) => void): () => void {
+    const list = this.#handlers.get(eventName) ?? [];
+    list.push(handler);
+    this.#handlers.set(eventName, list);
+    return () => {
+      const current = this.#handlers.get(eventName);
+      if (!current) return;
+      const next = current.filter((entry) => entry !== handler);
+      if (next.length === 0) this.#handlers.delete(eventName);
+      else this.#handlers.set(eventName, next);
+    };
+  }
+
+  controller(): RealtimeConnectionEmitter {
+    return {
+      emit: (eventName: string, payload: unknown) => {
+        const list = this.#handlers.get(eventName);
+        if (!list) return;
+        for (const handler of [...list]) {
+          try {
+            handler(payload);
+          } catch (cause) {
+            // Re-surface asynchronously so one bad handler does not break the
+            // fan-out loop, while still failing the process / surfacing in
+            // unhandledRejection (rather than being silently dropped).
+            queueMicrotask(() => {
+              throw cause instanceof Error ? cause : new Error(String(cause));
+            });
+          }
+        }
+      },
+      emitClose: () => {
+        this.#closed = true;
+      },
+    };
+  }
+}
 
 type InternalConfig<TTools extends RealtimeVoiceToolMap> = RealtimeVoiceServerConfig<TTools> & {
   __realtimeFactory?: (input: { apiKey: string; model: string }) => RealtimeConnection | Promise<RealtimeConnection>;
@@ -103,6 +187,13 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   #wss?: WebSocketServer;
   #browserSocket?: WebSocket;
   #realtime?: RealtimeConnection;
+  #browserProxiedRealtime?: BrowserProxiedRealtimeConnection;
+  #browserProxiedEmitter?: RealtimeConnectionEmitter;
+  #pendingWebrtcSession?: {
+    resolve: () => void;
+    reject: (error: Error) => void;
+    timeout: ReturnType<typeof setTimeout>;
+  };
   #lifecycleLocked = false;
   #instructions: string;
   readonly #activeToolAbortControllers = new Map<string, AbortController>();
@@ -359,23 +450,74 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         // Test factory is responsible for returning an already-ready connection.
         return await this.#realtimeFactory({ apiKey: this.#config.apiKey, model: this.#config.realtime.model });
       }
-      const ws = new OpenAIRealtimeWebSocket(
-        { model: this.#config.realtime.model },
-        { apiKey: this.#config.apiKey, baseURL: "https://api.openai.com/v1" },
-      ) as unknown as RealtimeConnection;
-      // Do not return until the session is established server-side. This
-      // guarantees the socket is in OPEN state and the session is ready to
-      // accept sends before any caller touches the connection.
-      await new Promise<void>((resolve, reject) => {
-        ws.on("session.created", () => resolve());
-        ws.on("error", (err) => reject(err));
+      // Browser-proxied flow: the browser owns the WebRTC peer connection
+      // with OpenAI. The daemon (a) mints an ephemeral client secret on
+      // request, (b) routes Realtime API events to/from the browser over
+      // the existing WebSocket. Construction blocks until the browser
+      // signals webrtc.session.connected.
+      const socketRef: SocketRef = { readyState: 0 /* CONNECTING */ };
+      const connection = new BrowserProxiedRealtimeConnection({
+        sendToBrowser: (envelope) => this.#broadcast(envelope),
+        socket: socketRef,
       });
-      return ws;
+      this.#browserProxiedRealtime = connection;
+      this.#browserProxiedEmitter = connection.controller();
+
+      const connected = new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          this.#pendingWebrtcSession = undefined;
+          reject(new Error("Timed out waiting for browser webrtc.session.connected."));
+        }, WEBRTC_CONNECT_TIMEOUT_MS);
+        this.#pendingWebrtcSession = { resolve, reject, timeout };
+      });
+
+      // Tell the browser to begin its WebRTC setup. Browser will respond with
+      // webrtc.session.requested → daemon mints ephemeral key → browser
+      // performs SDP exchange directly with OpenAI → browser signals
+      // webrtc.session.connected (or webrtc.session.failed).
+      this.#broadcast({ type: "webrtc.session.start" });
+
+      try {
+        await connected;
+      } catch (cause) {
+        this.#browserProxiedRealtime = undefined;
+        this.#browserProxiedEmitter = undefined;
+        throw cause;
+      }
+      socketRef.readyState = 1 /* OPEN */;
+      return connection;
     } catch (cause) {
       const error = this.#fail("CONVERSATION_START_FAILED", "Failed to connect to the Realtime API.", undefined, cause);
       this.emit("conversation.error", { conversationId: this.#conversation?.id, error, createdAt: new Date() });
       throw error;
     }
+  }
+
+  async #mintEphemeralClientSecret(): Promise<{ clientSecret: string; model: string; expiresAt: number }> {
+    const model = this.#config.realtime.model;
+    const response = await fetch(OPENAI_CLIENT_SECRET_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${this.#config.apiKey}`,
+      },
+      body: JSON.stringify({ session: { type: "realtime", model } }),
+    });
+    if (!response.ok) {
+      const bodyText = await response.text().catch(() => "");
+      throw new Error(`OpenAI client_secrets endpoint returned ${response.status}: ${bodyText}`);
+    }
+    const json = (await response.json()) as OpenAIClientSecretResponse;
+    // TODO(verify-against-openai-docs): The exact response shape of
+    // POST /v1/realtime/client_secrets should be confirmed. Some references
+    // show top-level { value, expires_at }; others nest under client_secret.
+    // We accept both for resilience.
+    const value = json.value ?? json.client_secret?.value;
+    const expiresAt = json.expires_at ?? json.client_secret?.expires_at;
+    if (typeof value !== "string" || typeof expiresAt !== "number") {
+      throw new Error("OpenAI client_secrets response did not include value/expires_at.");
+    }
+    return { clientSecret: value, model, expiresAt };
   }
 
   #wireRealtimeConnection(realtime: RealtimeConnection): void {
@@ -470,6 +612,17 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     this.#streamingAssistantText.clear();
     this.#realtime?.close({ code: 1000, reason });
     this.#realtime = undefined;
+    this.#browserProxiedRealtime = undefined;
+    this.#browserProxiedEmitter = undefined;
+    this.#failPendingWebrtcSession(new Error(`Realtime connection closed: ${reason}`));
+  }
+
+  #failPendingWebrtcSession(cause: Error): void {
+    const pending = this.#pendingWebrtcSession;
+    if (!pending) return;
+    clearTimeout(pending.timeout);
+    this.#pendingWebrtcSession = undefined;
+    pending.reject(cause);
   }
 
   #handleUserTranscriptDelta(event: { item_id: string; delta: string }): void {
@@ -1117,23 +1270,61 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         await this.injectUserMessage({ text, source: "textInput" });
         break;
       }
-      case "audio.input.append":
-        // Guard readyState so a mid-session socket drop silently discards
-        // continuous audio frames rather than flooding the error log.
-        if (
-          typeof message.data?.audio === "string" &&
-          this.#conversation?.status === "active" &&
-          this.#realtime?.socket?.readyState === 1
-        ) {
-          this.#realtime.send({ type: "input_audio_buffer.append", audio: message.data.audio });
+      case "webrtc.session.requested": {
+        try {
+          const token = await this.#mintEphemeralClientSecret();
+          this.#broadcast({
+            type: "webrtc.session.token",
+            data: {
+              clientSecret: token.clientSecret,
+              model: token.model,
+              expiresAt: token.expiresAt,
+            },
+          });
+        } catch (cause) {
+          const error = this.#fail(
+            "CONVERSATION_START_FAILED",
+            "Failed to mint OpenAI ephemeral client secret.",
+            undefined,
+            cause,
+          );
+          this.#failPendingWebrtcSession(error);
+          this.emit("conversation.error", {
+            conversationId: this.#conversation?.id,
+            error,
+            createdAt: new Date(),
+          });
         }
         break;
-      case "audio.input.commit":
-        if (this.#conversation?.status === "active") {
-          this.#realtime?.send({ type: "input_audio_buffer.commit" });
-          this.#realtime?.send({ type: "response.create" });
+      }
+      case "webrtc.session.connected": {
+        const pending = this.#pendingWebrtcSession;
+        if (pending) {
+          clearTimeout(pending.timeout);
+          this.#pendingWebrtcSession = undefined;
+          pending.resolve();
         }
         break;
+      }
+      case "webrtc.session.failed": {
+        const code = String(message.data?.error?.code ?? "WEBRTC_SESSION_FAILED");
+        const text = String(message.data?.error?.message ?? "Browser reported a WebRTC session failure.");
+        const error = toRealtimeError("CONVERSATION_START_FAILED", text, { code });
+        this.#failPendingWebrtcSession(error);
+        // If the session failed mid-conversation (after connect), mark a
+        // realtime error so the controller's wired error handler runs.
+        this.#browserProxiedEmitter?.emit("error", error);
+        break;
+      }
+      case "realtime.event": {
+        const event = message.data?.event;
+        if (event && typeof event === "object") {
+          const eventRecord = event as Record<string, unknown>;
+          const eventType = typeof eventRecord.type === "string" ? eventRecord.type : undefined;
+          if (eventType) this.#browserProxiedEmitter?.emit(eventType, event);
+        }
+        break;
+      }
       case "audio.device.select":
         if (this.#browserClient.audio && typeof message.data?.deviceId === "string") {
           this.#browserClient.audio = { ...this.#browserClient.audio, selectedDeviceId: message.data.deviceId };

@@ -535,6 +535,7 @@
         </div>
       </section>
       <section class="transcript" id="transcript" role="log" aria-live="polite" aria-label="Conversation transcript"></section>
+      <audio id="remoteAudio" autoplay playsinline class="hidden"></audio>
       <footer class="input-bar">
         <div class="input-row">
           <textarea id="textInput" placeholder="Type a message..." rows="1"></textarea>
@@ -549,11 +550,23 @@
         status: { server: "stopped", browserClient: "none", conversation: "none" },
         conversation: undefined,
         audio: { permission: "unknown", devices: [], ready: false },
-        inputAudioCtx: undefined,
-        outputAudioCtx: undefined,
-        outputCursor: 0,
         atBottom: true,
         streamDrafts: new Map(),
+        webrtc: {
+          pc: undefined,
+          dc: undefined,
+          dcOpen: false,
+          pcConnected: false,
+          connectedSent: false,
+          micStream: undefined,
+          micTrack: undefined,
+          micSender: undefined,
+          analyser: undefined,
+          analyserCtx: undefined,
+          metersStarted: false,
+          pendingSends: [],
+          sessionInFlight: false,
+        },
       };
 
       const $ = (id) => document.getElementById(id);
@@ -568,6 +581,7 @@
       const meters = $("meters");
       const settingsToggle = $("settingsToggle");
       const settingsMenu = $("settingsMenu");
+      const remoteAudio = $("remoteAudio");
 
       connect();
       wireUi();
@@ -595,11 +609,14 @@
       function wireUi() {
         primary.addEventListener("click", () => {
           const status = state.status.conversation;
-          if (status === "none") sendMessage("conversation.start");
+          if (status === "none") startConversation();
           if (status === "active") sendMessage("conversation.pause");
           if (status === "paused") sendMessage("conversation.resume");
         });
-        reset.addEventListener("click", () => sendMessage("conversation.reset"));
+        reset.addEventListener("click", () => {
+          sendMessage("conversation.reset");
+          teardownWebrtc();
+        });
         settingsToggle.addEventListener("click", () => {
           const isHidden = settingsMenu.classList.toggle("hidden");
           settingsToggle.setAttribute("aria-expanded", String(!isHidden));
@@ -641,6 +658,9 @@
           };
           state.conversation = message.data.conversation;
           clearFinalizedDrafts();
+          if ((state.status.conversation === "none" || state.status.conversation === "ended") && state.webrtc.pc) {
+            teardownWebrtc();
+          }
           render();
         }
         if (message.type === "transcript.item") {
@@ -659,21 +679,28 @@
           state.audio.selectedDeviceId = message.data.selectedDeviceId;
           renderMicSelector();
         }
-        if (message.type === "audio.output.delta") {
-          playPcm16(message.data.audio);
+        if (message.type === "webrtc.session.token") {
+          establishWebrtc(message.data).catch((error) => {
+            failWebrtc("WEBRTC_SETUP_FAILED", error?.message ?? String(error));
+          });
+        }
+        if (message.type === "realtime.send") {
+          forwardRealtimeSend(message.data?.event);
         }
       }
 
       async function refreshAudio() {
         if (!navigator.mediaDevices?.getUserMedia) return;
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+          probe.getTracks().forEach((track) => track.stop());
           const devices = (await navigator.mediaDevices.enumerateDevices())
             .filter((device) => device.kind === "audioinput")
             .map((device) => ({ deviceId: device.deviceId, label: device.label || "Microphone", groupId: device.groupId }));
-          state.audio = { permission: "granted", devices, selectedDeviceId: devices[0]?.deviceId, ready: true };
+          const previous = state.audio.selectedDeviceId;
+          const selected = devices.find((device) => device.deviceId === previous)?.deviceId ?? devices[0]?.deviceId;
+          state.audio = { permission: "granted", devices, selectedDeviceId: selected, ready: true };
           sendMessage("audio.device.state", state.audio);
-          startAudioPipeline(stream);
           renderMicSelector();
         } catch (error) {
           const details = {
@@ -686,67 +713,198 @@
         }
       }
 
-      function startAudioPipeline(stream) {
+      async function acquireMicStream(deviceId) {
+        const constraints = { audio: deviceId ? { deviceId: { exact: deviceId } } : true };
+        return navigator.mediaDevices.getUserMedia(constraints);
+      }
+
+      function startMeters(stream) {
+        if (state.webrtc.analyserCtx) {
+          try { state.webrtc.analyserCtx.close(); } catch (_error) { /* ignore */ }
+        }
         const audioCtx = new AudioContext();
-        state.inputAudioCtx = audioCtx;
         const analyser = audioCtx.createAnalyser();
-        const source = audioCtx.createMediaStreamSource(stream);
-        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
         analyser.fftSize = 256;
-        source.connect(analyser);
-        source.connect(processor);
-        processor.connect(audioCtx.destination);
-        processor.onaudioprocess = (event) => {
-          if (state.status.conversation !== "active") return;
-          const pcm = floatToPcm16(resampleTo24k(event.inputBuffer.getChannelData(0), audioCtx.sampleRate));
-          if (pcm.byteLength > 0) sendMessage("audio.input.append", { audio: bytesToBase64(new Uint8Array(pcm.buffer)) });
-        };
+        audioCtx.createMediaStreamSource(stream).connect(analyser);
+        state.webrtc.analyser = analyser;
+        state.webrtc.analyserCtx = audioCtx;
+        if (state.webrtc.metersStarted) return;
+        state.webrtc.metersStarted = true;
         const data = new Uint8Array(analyser.frequencyBinCount);
         const bars = [...meters.querySelectorAll(".bar")];
         function updateBars() {
-          analyser.getByteFrequencyData(data);
-          bars.forEach((bar, index) => {
-            bar.style.setProperty("--level", Math.max(0.1, data[index * 10] / 255));
-          });
+          const current = state.webrtc.analyser;
+          if (current) {
+            current.getByteFrequencyData(data);
+            bars.forEach((bar, index) => {
+              bar.style.setProperty("--level", Math.max(0.1, data[index * 10] / 255));
+            });
+          }
           requestAnimationFrame(updateBars);
         }
         updateBars();
       }
 
-      function resampleTo24k(input, sourceRate) {
-        if (sourceRate === 24000) return input;
-        const ratio = sourceRate / 24000;
-        const length = Math.floor(input.length / ratio);
-        const output = new Float32Array(length);
-        for (let i = 0; i < length; i += 1) {
-          output[i] = input[Math.floor(i * ratio)] ?? 0;
+      function startConversation() {
+        if (state.webrtc.sessionInFlight || state.webrtc.pc) return;
+        if (!state.audio.ready) {
+          renderAudioError({
+            code: "MICROPHONE_NOT_READY",
+            message: "Microphone is not ready.",
+            suggestedAction: "Grant microphone access and try again.",
+          });
+          return;
         }
-        return output;
+        state.webrtc.sessionInFlight = true;
+        sendMessage("conversation.start");
+        sendMessage("webrtc.session.requested");
       }
 
-      function floatToPcm16(input) {
-        const output = new Int16Array(input.length);
-        for (let i = 0; i < input.length; i += 1) {
-          const value = Math.max(-1, Math.min(1, input[i] ?? 0));
-          output[i] = value < 0 ? value * 0x8000 : value * 0x7fff;
+      async function establishWebrtc(token) {
+        if (!token?.clientSecret || !token?.model) {
+          failWebrtc("WEBRTC_TOKEN_INVALID", "Missing client secret or model.");
+          return;
         }
-        return output;
+        if (state.webrtc.pc) return;
+        try {
+          const stream = await acquireMicStream(state.audio.selectedDeviceId);
+          state.webrtc.micStream = stream;
+          const track = stream.getAudioTracks()[0];
+          state.webrtc.micTrack = track;
+          startMeters(stream);
+
+          const pc = new RTCPeerConnection();
+          state.webrtc.pc = pc;
+          state.webrtc.micSender = pc.addTrack(track, stream);
+          pc.ontrack = (event) => {
+            const [remoteStream] = event.streams;
+            if (remoteStream) remoteAudio.srcObject = remoteStream;
+          };
+          pc.onconnectionstatechange = () => {
+            const connectionState = pc.connectionState;
+            if (connectionState === "connected") {
+              state.webrtc.pcConnected = true;
+              maybeAnnounceConnected();
+            }
+            if (connectionState === "failed" || connectionState === "closed") {
+              if (!state.webrtc.connectedSent) {
+                failWebrtc("WEBRTC_PC_FAILED", `Peer connection ${connectionState}.`);
+              }
+            }
+          };
+
+          const dc = pc.createDataChannel("oai-events");
+          state.webrtc.dc = dc;
+          dc.onopen = () => {
+            state.webrtc.dcOpen = true;
+            for (const payload of state.webrtc.pendingSends) {
+              try { dc.send(payload); } catch (_error) { /* ignore */ }
+            }
+            state.webrtc.pendingSends = [];
+            maybeAnnounceConnected();
+          };
+          dc.onclose = () => { state.webrtc.dcOpen = false; };
+          dc.onmessage = (event) => {
+            const parsed = JSON.parse(event.data);
+            sendMessage("realtime.event", { event: parsed });
+          };
+
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+
+          const response = await fetch(
+            `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(token.model)}`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token.clientSecret}`,
+                "Content-Type": "application/sdp",
+              },
+              body: pc.localDescription.sdp,
+            },
+          );
+          if (!response.ok) {
+            const body = await response.text().catch(() => "");
+            throw new Error(`OpenAI SDP exchange failed (${response.status}): ${body.slice(0, 200)}`);
+          }
+          const answerSdp = await response.text();
+          await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
+        } catch (error) {
+          failWebrtc("WEBRTC_SETUP_FAILED", error?.message ?? String(error));
+        }
       }
 
-      function playPcm16(base64) {
-        const bytes = base64ToBytes(base64);
-        const samples = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
-        const audioCtx = state.outputAudioCtx ?? new AudioContext({ sampleRate: 24000 });
-        state.outputAudioCtx = audioCtx;
-        const buffer = audioCtx.createBuffer(1, samples.length, 24000);
-        const channel = buffer.getChannelData(0);
-        for (let i = 0; i < samples.length; i += 1) channel[i] = samples[i] / 0x8000;
-        const source = audioCtx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioCtx.destination);
-        const startAt = Math.max(audioCtx.currentTime, state.outputCursor);
-        source.start(startAt);
-        state.outputCursor = startAt + buffer.duration;
+      function maybeAnnounceConnected() {
+        const { pcConnected, dcOpen, connectedSent } = state.webrtc;
+        if (!pcConnected || !dcOpen || connectedSent) return;
+        state.webrtc.connectedSent = true;
+        state.webrtc.sessionInFlight = false;
+        sendMessage("webrtc.session.connected");
+      }
+
+      function forwardRealtimeSend(event) {
+        if (!event) return;
+        const payload = JSON.stringify(event);
+        const { dc, dcOpen } = state.webrtc;
+        if (dc && dcOpen) {
+          try { dc.send(payload); } catch (_error) { state.webrtc.pendingSends.push(payload); }
+          return;
+        }
+        state.webrtc.pendingSends.push(payload);
+      }
+
+      function failWebrtc(code, message) {
+        sendMessage("webrtc.session.failed", { error: { code, message } });
+        teardownWebrtc();
+      }
+
+      function teardownWebrtc() {
+        const { pc, micStream, analyserCtx } = state.webrtc;
+        if (pc) {
+          try { pc.close(); } catch (_error) { /* ignore */ }
+        }
+        if (micStream) {
+          micStream.getTracks().forEach((track) => track.stop());
+        }
+        if (analyserCtx) {
+          try { analyserCtx.close(); } catch (_error) { /* ignore */ }
+        }
+        remoteAudio.srcObject = null;
+        state.webrtc.pc = undefined;
+        state.webrtc.dc = undefined;
+        state.webrtc.dcOpen = false;
+        state.webrtc.pcConnected = false;
+        state.webrtc.connectedSent = false;
+        state.webrtc.micStream = undefined;
+        state.webrtc.micTrack = undefined;
+        state.webrtc.micSender = undefined;
+        state.webrtc.analyser = undefined;
+        state.webrtc.analyserCtx = undefined;
+        state.webrtc.pendingSends = [];
+        state.webrtc.sessionInFlight = false;
+      }
+
+      async function switchMicDevice(deviceId) {
+        state.audio.selectedDeviceId = deviceId;
+        sendMessage("audio.device.select", { deviceId });
+        if (!state.webrtc.pc) return;
+        try {
+          const stream = await acquireMicStream(deviceId);
+          const track = stream.getAudioTracks()[0];
+          if (state.webrtc.micSender) await state.webrtc.micSender.replaceTrack(track);
+          if (state.webrtc.micStream) {
+            state.webrtc.micStream.getTracks().forEach((existing) => existing.stop());
+          }
+          state.webrtc.micStream = stream;
+          state.webrtc.micTrack = track;
+          startMeters(stream);
+        } catch (error) {
+          renderAudioError({
+            code: "MICROPHONE_SWITCH_FAILED",
+            message: error?.message ?? "Could not switch microphone.",
+            suggestedAction: "Try a different device.",
+          });
+        }
       }
 
       function bytesToBase64(bytes) {
@@ -856,7 +1014,7 @@
           option.selected = device.deviceId === state.audio.selectedDeviceId;
           select.append(option);
         }
-        select.addEventListener("change", () => sendMessage("audio.device.select", { deviceId: select.value }));
+        select.addEventListener("change", () => switchMicDevice(select.value));
       }
 
       function renderAudioError(error) {
