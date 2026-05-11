@@ -567,6 +567,7 @@
           pendingSends: [],
           sessionInFlight: false,
         },
+        realtime: { responseActive: false, pendingPauseCut: false },
       };
 
       const $ = (id) => document.getElementById(id);
@@ -587,15 +588,54 @@
       wireUi();
       render();
 
+      // Detect whether the browser's autoplay policy will let unmuted media
+      // start without a user gesture. If not, we hold off acquiring the mic
+      // and announcing audio.ready so the server's connectOnPageLoad does
+      // NOT auto-start the conversation — the user must press Start.
+      // Spec: https://www.w3.org/TR/autoplay-detection/  (MDN: Navigator.getAutoplayPolicy)
+      // getAutoplayPolicy can report "allowed" even when unmuted MediaStream
+      // playback is still blocked, so we always do a live silent-audio probe —
+      // it's the only way to actually verify that play() will succeed.
+      async function canAutoplay() {
+        if (navigator.userActivation && navigator.userActivation.hasBeenActive === false) {
+          return false;
+        }
+        try {
+          const probe = new Audio(
+            "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA",
+          );
+          probe.volume = 0;
+          await probe.play();
+          probe.pause();
+          return true;
+        } catch (error) {
+          dlog("canAutoplay.probe.blocked", { message: String(error?.message ?? error) });
+          return false;
+        }
+      }
+
       function connect() {
         setConnection("connecting");
         const protocol = location.protocol === "https:" ? "wss:" : "ws:";
         const ws = new WebSocket(`${protocol}//${location.host}/ws`);
         state.ws = ws;
-        ws.addEventListener("open", () => {
+        ws.addEventListener("open", async () => {
           state.reconnect = 250;
           setConnection("connected");
-          refreshAudio();
+          const autoplayOk = await canAutoplay();
+          dlog("autoplay.check", { allowed: autoplayOk });
+          if (autoplayOk) {
+            refreshAudio();
+          } else {
+            // Defer mic acquisition until the user clicks Start. The primary
+            // button handler will call refreshAudio() at that point.
+            state.audio.pendingUserGesture = true;
+            renderAudioError({
+              code: "AUTOPLAY_BLOCKED",
+              message: "Press Start to enable audio.",
+              suggestedAction: "Browsers require a click before audio can play.",
+            });
+          }
         });
         ws.addEventListener("message", (event) => {
           let parsed;
@@ -613,6 +653,14 @@
 
       function wireUi() {
         primary.addEventListener("click", () => {
+          // If we deferred mic acquisition pending a user gesture (autoplay
+          // policy blocked), this click is the gesture — acquire the mic now
+          // and let the resulting audio.ready signal trigger normal flow.
+          if (state.audio.pendingUserGesture) {
+            state.audio.pendingUserGesture = false;
+            refreshAudio();
+            return;
+          }
           const status = state.status.conversation;
           if (status === "none") startConversation();
           if (status === "active") sendMessage("conversation.pause");
@@ -656,6 +704,7 @@
           return;
         }
         if (message.type === "state") {
+          const previousStatus = state.status.conversation;
           state.status = {
             server: message.data.server,
             browserClient: message.data.browserClient,
@@ -665,6 +714,9 @@
           clearFinalizedDrafts();
           if ((state.status.conversation === "none" || state.status.conversation === "ended") && state.webrtc.pc) {
             teardownWebrtc();
+          }
+          if (state.status.conversation !== previousStatus) {
+            applyPauseState(state.status.conversation, previousStatus);
           }
           render();
         }
@@ -701,6 +753,53 @@
         if (message.type === "realtime.send") {
           forwardRealtimeSend(message.data?.event);
         }
+        if (message.type === "wait_for_context.start") {
+          startMetronome();
+        }
+        if (message.type === "wait_for_context.end") {
+          stopMetronome();
+        }
+      }
+
+      // ──────────────────────────────────────────────────────────────────────
+      // Wait-for-context metronome: a gentle click every 2s while the agent
+      // is paused waiting for new <context>/<topics> from the orchestrator.
+      // ──────────────────────────────────────────────────────────────────────
+      const metronome = { ctx: undefined, timer: undefined };
+
+      function startMetronome() {
+        if (metronome.timer) return;
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!metronome.ctx) metronome.ctx = new Ctx();
+        if (metronome.ctx.state === "suspended") {
+          metronome.ctx.resume().catch((error) => {
+            dlog("metronome.resume.failed", { message: String(error?.message ?? error) });
+          });
+        }
+        const click = () => {
+          const ctx = metronome.ctx;
+          if (!ctx) return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = 880;
+          const now = ctx.currentTime;
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.05, now + 0.005);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.1);
+        };
+        click();
+        metronome.timer = setInterval(click, 2000);
+      }
+
+      function stopMetronome() {
+        if (metronome.timer) {
+          clearInterval(metronome.timer);
+          metronome.timer = undefined;
+        }
       }
 
       async function refreshAudio() {
@@ -728,15 +827,29 @@
       }
 
       async function acquireMicStream(deviceId) {
-        const constraints = { audio: deviceId ? { deviceId: { exact: deviceId } } : true };
-        return navigator.mediaDevices.getUserMedia(constraints);
+        const audio = {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        };
+        if (deviceId) audio.deviceId = { exact: deviceId };
+        return navigator.mediaDevices.getUserMedia({ audio });
       }
 
       function startMeters(stream) {
         if (state.webrtc.analyserCtx) {
-          try { state.webrtc.analyserCtx.close(); } catch (_error) { /* ignore */ }
+          try {
+            state.webrtc.analyserCtx.close();
+          } catch (error) {
+            dlog("startMeters.analyserCtx.close.failed", { message: String(error?.message ?? error) });
+          }
         }
         const audioCtx = new AudioContext();
+        if (audioCtx.state === "suspended") {
+          audioCtx.resume().catch((error) => {
+            dlog("startMeters.audioCtx.resume.failed", { message: String(error?.message ?? error) });
+          });
+        }
         const analyser = audioCtx.createAnalyser();
         analyser.fftSize = 256;
         audioCtx.createMediaStreamSource(stream).connect(analyser);
@@ -826,7 +939,11 @@
             dlog("dc.onopen", { readyState: dc.readyState });
             state.webrtc.dcOpen = true;
             for (const payload of state.webrtc.pendingSends) {
-              try { dc.send(payload); } catch (_error) { /* ignore */ }
+              try {
+                dc.send(payload);
+              } catch (error) {
+                dlog("dc.send.pending.failed", { message: String(error?.message ?? error) });
+              }
             }
             state.webrtc.pendingSends = [];
             maybeAnnounceConnected();
@@ -835,6 +952,19 @@
           dc.onerror = (e) => dlog("dc.onerror", { message: String(e?.error?.message ?? e?.message ?? e) });
           dc.onmessage = (event) => {
             const parsed = JSON.parse(event.data);
+            if (parsed?.type === "response.created") {
+              state.realtime.responseActive = true;
+            } else if (parsed?.type === "response.done" || parsed?.type === "response.cancelled" || parsed?.type === "response.failed") {
+              state.realtime.responseActive = false;
+            }
+            // The actual end-of-audio signal is output_audio_buffer.stopped —
+            // that's when all queued audio chunks have been delivered. Using
+            // response.done would cut off the avatar mid-sentence because
+            // generation completes before audio finishes streaming.
+            if (parsed?.type === "output_audio_buffer.stopped" && state.realtime.pendingPauseCut) {
+              state.realtime.pendingPauseCut = false;
+              applyPauseAudioCut();
+            }
             sendMessage("realtime.event", { event: parsed });
           };
 
@@ -884,7 +1014,12 @@
         const payload = JSON.stringify(event);
         const { dc, dcOpen } = state.webrtc;
         if (dc && dcOpen) {
-          try { dc.send(payload); } catch (_error) { state.webrtc.pendingSends.push(payload); }
+          try {
+            dc.send(payload);
+          } catch (error) {
+            dlog("dc.send.failed.requeue", { message: String(error?.message ?? error) });
+            state.webrtc.pendingSends.push(payload);
+          }
           return;
         }
         state.webrtc.pendingSends.push(payload);
@@ -899,13 +1034,21 @@
       function teardownWebrtc() {
         const { pc, micStream, analyserCtx } = state.webrtc;
         if (pc) {
-          try { pc.close(); } catch (_error) { /* ignore */ }
+          try {
+            pc.close();
+          } catch (error) {
+            dlog("teardown.pc.close.failed", { message: String(error?.message ?? error) });
+          }
         }
         if (micStream) {
           micStream.getTracks().forEach((track) => track.stop());
         }
         if (analyserCtx) {
-          try { analyserCtx.close(); } catch (_error) { /* ignore */ }
+          try {
+            analyserCtx.close();
+          } catch (error) {
+            dlog("teardown.analyserCtx.close.failed", { message: String(error?.message ?? error) });
+          }
         }
         remoteAudio.srcObject = null;
         state.webrtc.pc = undefined;
@@ -920,6 +1063,58 @@
         state.webrtc.analyserCtx = undefined;
         state.webrtc.pendingSends = [];
         state.webrtc.sessionInFlight = false;
+      }
+
+      function applyPauseState(status, previousStatus) {
+        const paused = status === "paused";
+        const wasPaused = previousStatus === "paused";
+        const { micTrack, micSender } = state.webrtc;
+        if (paused) {
+          // If a response is currently being spoken, defer the audio cut
+          // until response.done fires so the avatar can finish its sentence.
+          if (state.realtime.responseActive) {
+            state.realtime.pendingPauseCut = true;
+            // Stop the user's mic from sending audio immediately so the
+            // model can't pick up more input during the wind-down.
+            if (micTrack) micTrack.enabled = false;
+            micSender?.replaceTrack(null).catch((error) => {
+              dlog("micSender.replaceTrack(null).failed", { message: String(error?.message ?? error) });
+            });
+            return;
+          }
+          applyPauseAudioCut();
+        } else if (status === "active") {
+          // Resuming: clear any deferred pause-cut, re-enable the local
+          // mic track, restore the sender, and unmute remote playback.
+          state.realtime.pendingPauseCut = false;
+          if (micTrack) micTrack.enabled = true;
+          remoteAudio.muted = false;
+          remoteAudio.play().catch((error) => {
+            dlog("remoteAudio.play.blocked", { message: String(error?.message ?? error) });
+          });
+          if (wasPaused && micSender && micTrack) {
+            micSender.replaceTrack(micTrack).catch((error) => {
+              dlog("micSender.replaceTrack(micTrack).failed", { message: String(error?.message ?? error) });
+            });
+          }
+        }
+      }
+
+      // Applies the actual audio-pause side effects: mute remote audio, stop
+      // sending mic RTP, cancel any in-flight response. Called either
+      // immediately on pause (no active response) or deferred from
+      // applyPauseState until response.done fires.
+      function applyPauseAudioCut() {
+        const { micTrack, micSender, dc, dcOpen } = state.webrtc;
+        if (micTrack) micTrack.enabled = false;
+        remoteAudio.muted = true;
+        remoteAudio.pause();
+        micSender?.replaceTrack(null).catch((error) => {
+          dlog("micSender.replaceTrack(null).failed", { message: String(error?.message ?? error) });
+        });
+        if (dc && dcOpen && state.realtime.responseActive) {
+          dc.send(JSON.stringify({ type: "response.cancel" }));
+        }
       }
 
       async function switchMicDevice(deviceId) {
@@ -1075,13 +1270,18 @@
       }
 
       function dlog(label, info) {
+        // dlog is called from every code path; if logging itself throws
+        // (e.g. WS in odd state, JSON.stringify on a circular ref), we must
+        // not propagate — that would surface as a fatal in unrelated callers.
         try {
           const payload = { label, info, t: Date.now() };
           console.log("[dbg]", label, info);
           if (state.ws?.readyState === WebSocket.OPEN) {
             state.ws.send(JSON.stringify({ type: "browser.debug", data: payload }));
           }
-        } catch (_e) { /* ignore */ }
+        } catch (error) {
+          console.error("dlog itself threw", error);
+        }
       }
 
       function webrtcSnapshot() {

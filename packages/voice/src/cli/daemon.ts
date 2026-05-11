@@ -4,14 +4,30 @@
  * Spawned as a detached child by `rvs start`. Communicates config via env vars.
  */
 
-import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+
+// Close any FDs > 19 inherited from the parent shell (e.g. tee pipes from
+// bash process substitution at FDs 62/63). Node's own internals occupy low
+// FDs (event loop, epoll, internal pipes — typically <= 19), so closing
+// higher FDs releases the parent's tee pipes without disturbing Node.
+try {
+  for (const name of readdirSync("/proc/self/fd")) {
+    const fd = Number(name);
+    if (Number.isFinite(fd) && fd > 19) {
+      try {
+        closeSync(fd);
+      } catch (err: unknown) {
+        void err; // FD may already be closed by Node — non-fatal
+      }
+    }
+  }
+} catch (err: unknown) {
+  void err; // /proc unavailable (non-Linux); skip
+}
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { z } from "zod";
 import { createRealtimeVoiceServer, RealtimeVoiceServerError } from "../index.js";
 import type { JsonValue, RealtimeVoiceServerEvents, RealtimeVoiceToolMap } from "../types.js";
-import { logError, logEvent, mirrorStdio } from "./log.js";
-
-mirrorStdio();
-
 // ---------------------------------------------------------------------------
 // Config from env
 // ---------------------------------------------------------------------------
@@ -147,11 +163,32 @@ const realtimeConfig = {
 
 const uiConfig = title !== undefined ? { title } : {};
 
+let waitingForContext = false;
+
+const waitForContextTool = {
+  description:
+    "Signal that the user has asked about something not covered by current <context> or <topics>. Call this instead of guessing or saying you don't have enough information.",
+  parameters: z.object({}),
+  execute: async (): Promise<JsonValue> => {
+    appendEvent("wait_for_context", {});
+    waitingForContext = true;
+    controller.broadcastToBrowser({ type: "wait_for_context.start" });
+    if (controller.status.conversation === "active") {
+      try {
+        await controller.pauseConversation();
+      } catch (err: unknown) {
+        appendEvent("conversation.error", { error: String(err) });
+      }
+    }
+    return { ok: true };
+  },
+};
+
 const controller = createRealtimeVoiceServer({
   port,
   apiKey,
   realtime: realtimeConfig,
-  tools: {},
+  tools: { wait_for_context: waitForContextTool },
   ui: uiConfig,
   browserSession: {
     connectOnPageLoad: true,
@@ -191,17 +228,14 @@ const knownEvents: KnownEventKey[] = [
 for (const eventName of knownEvents) {
   controller.on(eventName, (data) => {
     appendEvent(eventName, data as unknown as Record<string, unknown>);
-    logEvent("daemon", eventName, data);
   });
 }
 
 process.on("uncaughtException", (err: unknown) => {
-  logError("daemon", "uncaughtException", err);
   process.stderr.write(`uncaughtException: ${String(err)}\n`);
 });
 
 process.on("unhandledRejection", (reason: unknown) => {
-  logError("daemon", "unhandledRejection", reason);
   process.stderr.write(`unhandledRejection: ${String(reason)}\n`);
 });
 
@@ -211,9 +245,25 @@ controller.on("conversation.started", () => {
   for (const msg of pending) {
     controller.injectSystemMessage({ text: msg.text, triggerResponse: msg.triggerResponse }).catch((err: unknown) => {
       appendEvent("conversation.error", { error: String(err) });
-      logError("daemon", "flush staged system message", err);
     });
   }
+});
+
+// Auto-start a conversation once the browser is ready, if messages are staged.
+function tryAutoStartForStaged(): void {
+  if (stagedSystemMessages.length === 0) return;
+  if (controller.status.conversation !== "none") return;
+  controller.startConversation().catch((err: unknown) => {
+    appendEvent("conversation.error", { error: String(err) });
+  });
+}
+
+controller.on("browser.client.connected", () => {
+  tryAutoStartForStaged();
+});
+
+controller.on("browser.audio.deviceChange", (event) => {
+  if (event.audio.ready) tryAutoStartForStaged();
 });
 
 // ---------------------------------------------------------------------------
@@ -222,6 +272,14 @@ controller.on("conversation.started", () => {
 
 mkdirSync(tmpDir, { recursive: true });
 writeFileSync(pidFile, String(process.pid), "utf8");
+// Reset per-daemon state so a fresh daemon's seq=1 isn't shadowed by a
+// stale cursor or stale events from a prior run.
+writeFileSync(eventsFile, "", "utf8");
+try {
+  rmSync(cursorFile);
+} catch (err: unknown) {
+  void err; // cursor file may not exist
+}
 
 controller.on("server.started", (event) => {
   // Emit startup JSON to stdout for the spawning CLI
@@ -230,7 +288,6 @@ controller.on("server.started", (event) => {
 });
 
 controller.start().catch((err: unknown) => {
-  logError("daemon", "controller.start", err);
   process.stderr.write(JSON.stringify({ error: String(err) }) + "\n");
   cleanup();
   process.exit(1);
@@ -344,7 +401,6 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
           await controller.startConversation();
           convStatus = controller.status.conversation;
         } catch (err: unknown) {
-          logError("daemon", "auto-start on topics/context", err);
           stagedSystemMessages.push({ text: parsed.text, triggerResponse: parsed.triggerResponse });
           sendJson(res, 200, { staged: true, startError: String(err) });
           return;
@@ -354,6 +410,19 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
         stagedSystemMessages.push({ text: parsed.text, triggerResponse: parsed.triggerResponse });
         sendJson(res, 200, { staged: true });
         return;
+      }
+      // If we paused the conversation because the agent invoked `wait_for_context`,
+      // resume now that fresh context/topics has arrived so the model can speak.
+      if (waitingForContext && isTopicsOrContext) {
+        waitingForContext = false;
+        controller.broadcastToBrowser({ type: "wait_for_context.end" });
+        if (convStatus === "paused") {
+          try {
+            await controller.resumeConversation();
+          } catch (err: unknown) {
+            appendEvent("conversation.error", { error: String(err) });
+          }
+        }
       }
       const item = await controller.injectSystemMessage({
         text: parsed.text,
@@ -442,7 +511,6 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
 
     sendJson(res, 404, { error: "Not found" });
   } catch (err: unknown) {
-    logError("daemon", `control ${method} ${pathname}`, err);
     sendJson(res, 500, { error: String(err) });
   }
 });

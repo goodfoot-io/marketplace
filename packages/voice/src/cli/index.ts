@@ -9,7 +9,6 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { getBoolean, getPort, getString, parseArgs, readStdin } from "./args.js";
 import { getStatus, postEmpty, postJson, watchOnce } from "./control-client.js";
-import { logError, logEvent } from "./log.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -20,7 +19,6 @@ function printJson(data: unknown): void {
 }
 
 function fatal(message: string, code?: string): never {
-  logError("cli", "fatal", code !== undefined ? { message, code } : message);
   process.stderr.write(JSON.stringify({ error: message, ...(code !== undefined ? { code } : {}) }) + "\n");
   process.exit(1);
 }
@@ -139,7 +137,7 @@ async function cmdStart(
 
   const child = spawn(process.execPath, [daemonPath], {
     detached: true,
-    stdio: ["ignore", "pipe", "inherit"],
+    stdio: ["ignore", "pipe", "ignore"],
     env,
   });
 
@@ -255,7 +253,7 @@ async function cmdInject(
 async function cmdContext(port: number): Promise<void> {
   const text = await readStdin();
   const wrapped = `<context>${text}</context>`;
-  const res = await postJson(controlPort(port), "/inject/system", { text: wrapped });
+  const res = await postJson(controlPort(port), "/inject/system", { text: wrapped, triggerResponse: true });
   printJson(JSON.parse(res.body));
 }
 
@@ -266,7 +264,7 @@ async function cmdContext(port: number): Promise<void> {
 async function cmdTopics(port: number): Promise<void> {
   const text = await readStdin();
   const wrapped = `<topics>${text}</topics>`;
-  const res = await postJson(controlPort(port), "/inject/system", { text: wrapped });
+  const res = await postJson(controlPort(port), "/inject/system", { text: wrapped, triggerResponse: true });
   printJson(JSON.parse(res.body));
 }
 
@@ -294,13 +292,23 @@ async function cmdWatch(port: number, eventTypes: string[]): Promise<void> {
     const lines = body.split("\n").filter(Boolean);
     let maxSeq = cursor;
     for (const line of lines) {
-      process.stdout.write(line + "\n");
       try {
-        const parsed = JSON.parse(line) as { seq: number; event: string; data?: unknown };
+        const parsed = JSON.parse(line) as {
+          seq: number;
+          event: string;
+          data?: { item?: { role?: string; source?: string; text?: string } };
+        };
         if (parsed.seq > maxSeq) maxSeq = parsed.seq;
-        logEvent("cli", parsed.event, parsed.data);
+        const item = parsed.data?.item;
+        if (item !== undefined && parsed.event === "transcript.item") {
+          process.stdout.write(
+            JSON.stringify({ role: item.role, source: item.source, text: item.text }) + "\n",
+          );
+        } else {
+          process.stdout.write(line + "\n");
+        }
       } catch (err: unknown) {
-        logError("cli", "watch parse", err);
+        process.stderr.write(`watch parse error: ${String(err)}\n`);
       }
     }
     writeCursor(port, maxSeq);
@@ -310,7 +318,14 @@ async function cmdWatch(port: number, eventTypes: string[]): Promise<void> {
 
   // Default to common event types when none specified
   if (eventTypes.length === 0) {
-    eventTypes = ['transcript.item', 'conversation.error', 'browser.audio.error'];
+    eventTypes = [
+      'transcript.item',
+      'wait_for_context',
+      'conversation.paused',
+      'conversation.resumed',
+      'conversation.error',
+      'browser.audio.error',
+    ];
   }
 
   // First attempt
@@ -580,18 +595,15 @@ async function main(): Promise<void> {
 }
 
 process.on("uncaughtException", (err: unknown) => {
-  logError("cli", "uncaughtException", err);
   process.stderr.write(`uncaughtException: ${String(err)}\n`);
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason: unknown) => {
-  logError("cli", "unhandledRejection", reason);
   process.stderr.write(`unhandledRejection: ${String(reason)}\n`);
   process.exit(1);
 });
 
 main().catch((err: unknown) => {
-  logError("cli", "main", err);
   fatal(err instanceof Error ? err.message : String(err));
 });

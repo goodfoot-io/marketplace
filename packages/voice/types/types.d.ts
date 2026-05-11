@@ -1,6 +1,6 @@
 import type { z } from "zod";
 export declare const DEFAULT_REALTIME_MODEL = "gpt-realtime-2";
-export declare const DEFAULT_REALTIME_VOICE = "alloy";
+export declare const DEFAULT_REALTIME_VOICE = "cedar";
 export declare const DEFAULT_UI_TITLE = "Realtime Voice Console";
 export type JsonValue = string | number | boolean | null | JsonValue[] | {
     [key: string]: JsonValue;
@@ -58,6 +58,10 @@ export interface RealtimeVoiceServerController<TTools extends RealtimeVoiceToolM
     injectSystemMessage(input: InjectSystemMessageInput): Promise<TranscriptItem>;
     cancelToolCall(callId: string): Promise<void>;
     updateRealtime(input: UpdateRealtimeInput<TTools>): Promise<void>;
+    broadcastToBrowser(envelope: {
+        type: string;
+        data?: unknown;
+    }): void;
 }
 export interface StopOptions {
     conversationShutdownTimeoutMs?: number;

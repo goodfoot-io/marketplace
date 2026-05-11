@@ -283,8 +283,16 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
       }
       this.#closeRealtime("server stopped");
       await new Promise<void>((resolve, reject) => {
+        // Forcibly terminate WebSocket clients — http.Server.close() waits
+        // for all active connections (including WS upgrades) to be idle,
+        // and a still-connected browser would otherwise block shutdown
+        // indefinitely.
+        for (const client of this.#wss?.clients ?? []) {
+          client.terminate();
+        }
         this.#wss?.close();
-        this.#browserSocket?.close();
+        this.#browserSocket?.terminate();
+        this.#server?.closeAllConnections?.();
         this.#server?.close((error) => (error ? reject(error) : resolve()));
       });
       this.#server = undefined;
@@ -384,8 +392,9 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     if (!text) {
       throw this.#fail("MESSAGE_INJECTION_EMPTY_TEXT", "Injected message text must be non-empty.");
     }
+    const item = this.#injectMessage("user", source, text, "MESSAGE_INJECTION_INVALID_STATE");
     if (input.triggerResponse !== false) await this.#requestModelResponse();
-    return this.#injectMessage("user", source, text, "MESSAGE_INJECTION_INVALID_STATE");
+    return item;
   }
 
   async injectAssistantMessage(input: InjectAssistantMessageInput): Promise<TranscriptItem> {
@@ -393,8 +402,9 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   }
 
   async injectSystemMessage(input: InjectSystemMessageInput): Promise<TranscriptItem> {
+    const item = this.#injectMessage("system", "system", input.text, "MESSAGE_INJECTION_INVALID_STATE");
     if (input.triggerResponse === true) await this.#requestModelResponse();
-    return this.#injectMessage("system", "system", input.text, "MESSAGE_INJECTION_INVALID_STATE");
+    return item;
   }
 
   async cancelToolCall(callId: string): Promise<void> {
@@ -523,6 +533,12 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
 
   #wireRealtimeConnection(realtime: RealtimeConnection): void {
     realtime.on("error", (error) => {
+      // Benign: a `response.cancel` arrived while no response was in flight.
+      // We send cancel proactively on pause; if nothing was speaking, OpenAI
+      // returns this error. Swallow it instead of surfacing as conversation.error.
+      const realtimeCode = (error as { error?: { code?: string } } | undefined)?.error?.code;
+      if (realtimeCode === "response_cancel_not_active") return;
+
       const wrapped = toRealtimeError(
         "REALTIME_SESSION_ERROR",
         "Realtime session reported an error.",
@@ -574,15 +590,17 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         instructions: this.#instructions,
         model: this.#config.realtime.model,
         output_modalities: ["audio"],
+        reasoning: { effort: "low" },
         audio: {
           input: {
             format: { type: "audio/pcm", rate: 24000 },
-            transcription: { model: "gpt-4o-mini-transcribe" },
-            turn_detection: { type: "server_vad" },
+            transcription: { model: "gpt-realtime-whisper" },
+            turn_detection: { type: "semantic_vad", eagerness: "low" },
           },
           output: {
             format: { type: "audio/pcm", rate: 24000 },
             voice: this.#config.realtime.voice,
+            speed: 1.0,
           },
         },
         tools: toolsToRealtimeTools(this.#tools, this.#toolDescriptions),
@@ -930,7 +948,13 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         output: serialized,
       },
     });
-    this.#realtime?.send({ type: "response.create" });
+    // Only trigger a follow-up model response when the conversation is still
+    // active. If the tool's side-effects paused the conversation (e.g. the
+    // `wait_for_context` tool), suppress response.create so the model doesn't
+    // speak before fresh context arrives.
+    if (this.#status.conversation === "active") {
+      this.#realtime?.send({ type: "response.create" });
+    }
   }
 
   #markToolInterrupted(
@@ -1431,6 +1455,10 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         conversation: this.currentConversation,
       },
     });
+  }
+
+  broadcastToBrowser(envelope: { type: string; data?: unknown }): void {
+    this.#broadcast(envelope);
   }
 
   #broadcast(payload: unknown): void {
