@@ -207,3 +207,6 @@ packages/claude-code-skill-reader/types
 
 documentation/PageIndex
 scripts/ssh/
+
+# Claude Code runtime
+.claude/scheduled_tasks.lock
