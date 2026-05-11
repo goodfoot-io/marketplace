@@ -25,6 +25,8 @@ Use `voice context` when you have background knowledge, facts, or answers.
 
 The voice has no access to files or the things you know. Provide a clearly stated, full context and make sure it understands the user's goals.
 
+Avoid mentioning artifacts created solely to support the conversation - such as your notes or todo list items - unless they are actionable for the user.
+
 ```xml
 <invoke name="Bash">
 <parameter name="command">voice context <<'EOF'
