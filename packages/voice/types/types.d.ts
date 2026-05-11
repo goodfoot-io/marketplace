@@ -43,6 +43,7 @@ export interface RealtimeVoiceToolContext {
 }
 export interface RealtimeVoiceServerController<TTools extends RealtimeVoiceToolMap> extends TypedEventEmitter<RealtimeVoiceServerEvents<TTools>> {
     readonly status: ControllerStatus;
+    readonly responseInFlight: boolean;
     readonly currentConversation?: ConversationSnapshot<TTools>;
     readonly previousConversations: Readonly<Record<string, ConversationSnapshot<TTools>>>;
     readonly browserClient: BrowserClientState;
@@ -52,6 +53,7 @@ export interface RealtimeVoiceServerController<TTools extends RealtimeVoiceToolM
     pauseConversation(): Promise<void>;
     resumeConversation(): Promise<void>;
     setAutoResponse(enabled: boolean): Promise<void>;
+    requestResponse(): Promise<void>;
     endConversation(options?: EndConversationOptions): Promise<void>;
     resetConversation(options?: ResetConversationOptions): Promise<void>;
     injectUserMessage(input: InjectUserMessageInput): Promise<TranscriptItem>;
@@ -206,6 +208,7 @@ export interface RealtimeVoiceServerEvents<TTools extends RealtimeVoiceToolMap> 
     "conversation.ended": ConversationEndedEvent<TTools>;
     "conversation.reset": ConversationResetEvent<TTools>;
     "conversation.error": ConversationErrorEvent;
+    "response.completed": ResponseCompletedEvent;
     "realtime.updated": RealtimeUpdatedEvent;
     "transcript.delta": TranscriptDeltaEvent;
     "transcript.item": TranscriptItemEvent;
@@ -272,6 +275,10 @@ export interface ConversationResetEvent<TTools extends RealtimeVoiceToolMap> {
 export interface ConversationErrorEvent {
     conversationId?: string;
     error: RealtimeVoiceServerError;
+    createdAt: Date;
+}
+export interface ResponseCompletedEvent {
+    conversationId?: string;
     createdAt: Date;
 }
 export interface RealtimeUpdatedEvent {

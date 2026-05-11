@@ -197,6 +197,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   };
   #lifecycleLocked = false;
   #autoResponseEnabled = true;
+  #responseInFlight = false;
   #instructions: string;
   readonly #activeToolAbortControllers = new Map<string, AbortController>();
   readonly #streamingAssistantText = new Map<string, string>();
@@ -216,6 +217,10 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
 
   get status(): ControllerStatus {
     return { ...this.#status };
+  }
+
+  get responseInFlight(): boolean {
+    return this.#responseInFlight;
   }
 
   get currentConversation(): ConversationSnapshot<TTools> | undefined {
@@ -338,6 +343,10 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     this.#setConversationStatus("active");
     this.#broadcastState();
     this.emit("conversation.resumed", { conversationId: conversation.id, createdAt: new Date() });
+  }
+
+  async requestResponse(): Promise<void> {
+    await this.#requestModelResponse();
   }
 
   async setAutoResponse(enabled: boolean): Promise<void> {
@@ -590,6 +599,17 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     realtime.on("conversation.item.input_audio_transcription.completed", (event) =>
       this.#handleUserTranscriptDone(event as { item_id: string; transcript: string }),
     );
+    realtime.on("response.created", () => {
+      this.#responseInFlight = true;
+    });
+    realtime.on("response.done", () => {
+      if (!this.#responseInFlight) return;
+      this.#responseInFlight = false;
+      this.emit("response.completed", {
+        conversationId: this.#conversation?.id,
+        createdAt: new Date(),
+      });
+    });
     realtime.on("response.output_audio_transcript.delta", (event) =>
       this.#handleAssistantTranscriptDelta(event as { item_id: string; delta: string }),
     );
@@ -1099,6 +1119,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     this.#interruptInFlightToolCalls(conversation, transitionalStatus);
     this.#closeRealtime(`conversation ${transitionalStatus}`);
     this.#autoResponseEnabled = true;
+    this.#responseInFlight = false;
     conversation.status = "ended";
     conversation.endedAt = new Date();
     const archived = snapshotConversation(conversation);

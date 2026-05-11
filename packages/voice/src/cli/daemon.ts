@@ -215,6 +215,7 @@ const knownEvents: KnownEventKey[] = [
   "conversation.ended",
   "conversation.reset",
   "conversation.error",
+  "response.completed",
   "realtime.updated",
   "transcript.delta",
   "transcript.item",
@@ -239,14 +240,67 @@ process.on("unhandledRejection", (reason: unknown) => {
   process.stderr.write(`unhandledRejection: ${String(reason)}\n`);
 });
 
-// Flush staged system messages when a conversation becomes active
-controller.on("conversation.started", () => {
-  const pending = stagedSystemMessages.splice(0);
-  for (const msg of pending) {
-    controller.injectSystemMessage({ text: msg.text, triggerResponse: msg.triggerResponse }).catch((err: unknown) => {
+// Coalesce response.create calls — when back-to-back system messages are
+// injected (e.g. <context> then <topics>), debounce so the model produces a
+// single response that incorporates all newly-arrived items.
+const RESPONSE_DEBOUNCE_MS = 250;
+let pendingResponseTimer: NodeJS.Timeout | null = null;
+
+function scheduleResponse(): void {
+  if (pendingResponseTimer) clearTimeout(pendingResponseTimer);
+  pendingResponseTimer = setTimeout(() => {
+    pendingResponseTimer = null;
+    const status = controller.status.conversation;
+    if (status !== "active" && status !== "paused") return;
+    controller.requestResponse().catch((err: unknown) => {
+      appendEvent("conversation.error", { error: String(err) });
+    });
+  }, RESPONSE_DEBOUNCE_MS);
+}
+
+function cancelPendingResponse(): void {
+  if (pendingResponseTimer) {
+    clearTimeout(pendingResponseTimer);
+    pendingResponseTimer = null;
+  }
+}
+
+controller.on("conversation.ended", cancelPendingResponse);
+controller.on("conversation.reset", cancelPendingResponse);
+
+// Injections that arrive while a model response is streaming are queued and
+// flushed once the response completes — adding items mid-response can confuse
+// the model and we want fresh context to influence the *next* turn cleanly.
+const queuedInjections: string[] = [];
+
+function clearQueuedInjections(): void {
+  queuedInjections.length = 0;
+}
+controller.on("conversation.ended", clearQueuedInjections);
+controller.on("conversation.reset", clearQueuedInjections);
+
+controller.on("response.completed", () => {
+  if (queuedInjections.length === 0) return;
+  const drained = queuedInjections.splice(0);
+  for (const text of drained) {
+    controller.injectSystemMessage({ text, triggerResponse: false }).catch((err: unknown) => {
       appendEvent("conversation.error", { error: String(err) });
     });
   }
+  scheduleResponse();
+});
+
+// Flush staged system messages when a conversation becomes active
+controller.on("conversation.started", () => {
+  const pending = stagedSystemMessages.splice(0);
+  let anyTrigger = false;
+  for (const msg of pending) {
+    if (msg.triggerResponse) anyTrigger = true;
+    controller.injectSystemMessage({ text: msg.text, triggerResponse: false }).catch((err: unknown) => {
+      appendEvent("conversation.error", { error: String(err) });
+    });
+  }
+  if (anyTrigger) scheduleResponse();
 });
 
 // Auto-start a conversation once the browser is ready, if messages are staged.
@@ -425,10 +479,19 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
           appendEvent("conversation.error", { error: String(err) });
         }
       }
+      // If a response is currently streaming, queue this injection so the
+      // item lands cleanly after the model finishes — and so any trigger fires
+      // against the post-response state, not mid-stream.
+      if (controller.responseInFlight) {
+        queuedInjections.push(parsed.text);
+        sendJson(res, 200, { queued: true });
+        return;
+      }
       const item = await controller.injectSystemMessage({
         text: parsed.text,
-        triggerResponse: parsed.triggerResponse,
+        triggerResponse: false,
       });
+      if (parsed.triggerResponse === true) scheduleResponse();
       sendJson(res, 200, serializeData(item as unknown as Record<string, unknown>));
       return;
     }

@@ -7831,6 +7831,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
   #pendingWebrtcSession;
   #lifecycleLocked = false;
   #autoResponseEnabled = true;
+  #responseInFlight = false;
   #instructions;
   #activeToolAbortControllers = /* @__PURE__ */ new Map();
   #streamingAssistantText = /* @__PURE__ */ new Map();
@@ -7848,6 +7849,9 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
   }
   get status() {
     return { ...this.#status };
+  }
+  get responseInFlight() {
+    return this.#responseInFlight;
   }
   get currentConversation() {
     return this.#conversation ? snapshotConversation(this.#conversation) : void 0;
@@ -7958,6 +7962,9 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     this.#setConversationStatus("active");
     this.#broadcastState();
     this.emit("conversation.resumed", { conversationId: conversation.id, createdAt: /* @__PURE__ */ new Date() });
+  }
+  async requestResponse() {
+    await this.#requestModelResponse();
   }
   async setAutoResponse(enabled) {
     if (this.#autoResponseEnabled === enabled) return;
@@ -8180,6 +8187,17 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
       "conversation.item.input_audio_transcription.completed",
       (event) => this.#handleUserTranscriptDone(event)
     );
+    realtime.on("response.created", () => {
+      this.#responseInFlight = true;
+    });
+    realtime.on("response.done", () => {
+      if (!this.#responseInFlight) return;
+      this.#responseInFlight = false;
+      this.emit("response.completed", {
+        conversationId: this.#conversation?.id,
+        createdAt: /* @__PURE__ */ new Date()
+      });
+    });
     realtime.on(
       "response.output_audio_transcript.delta",
       (event) => this.#handleAssistantTranscriptDelta(event)
@@ -8652,6 +8670,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     this.#interruptInFlightToolCalls(conversation, transitionalStatus);
     this.#closeRealtime(`conversation ${transitionalStatus}`);
     this.#autoResponseEnabled = true;
+    this.#responseInFlight = false;
     conversation.status = "ended";
     conversation.endedAt = /* @__PURE__ */ new Date();
     const archived = snapshotConversation(conversation);
@@ -9300,6 +9319,7 @@ var knownEvents = [
   "conversation.ended",
   "conversation.reset",
   "conversation.error",
+  "response.completed",
   "realtime.updated",
   "transcript.delta",
   "transcript.item",
@@ -9322,13 +9342,53 @@ process.on("unhandledRejection", (reason) => {
   process.stderr.write(`unhandledRejection: ${String(reason)}
 `);
 });
-controller.on("conversation.started", () => {
-  const pending = stagedSystemMessages.splice(0);
-  for (const msg of pending) {
-    controller.injectSystemMessage({ text: msg.text, triggerResponse: msg.triggerResponse }).catch((err) => {
+var RESPONSE_DEBOUNCE_MS = 250;
+var pendingResponseTimer = null;
+function scheduleResponse() {
+  if (pendingResponseTimer) clearTimeout(pendingResponseTimer);
+  pendingResponseTimer = setTimeout(() => {
+    pendingResponseTimer = null;
+    const status = controller.status.conversation;
+    if (status !== "active" && status !== "paused") return;
+    controller.requestResponse().catch((err) => {
+      appendEvent("conversation.error", { error: String(err) });
+    });
+  }, RESPONSE_DEBOUNCE_MS);
+}
+function cancelPendingResponse() {
+  if (pendingResponseTimer) {
+    clearTimeout(pendingResponseTimer);
+    pendingResponseTimer = null;
+  }
+}
+controller.on("conversation.ended", cancelPendingResponse);
+controller.on("conversation.reset", cancelPendingResponse);
+var queuedInjections = [];
+function clearQueuedInjections() {
+  queuedInjections.length = 0;
+}
+controller.on("conversation.ended", clearQueuedInjections);
+controller.on("conversation.reset", clearQueuedInjections);
+controller.on("response.completed", () => {
+  if (queuedInjections.length === 0) return;
+  const drained = queuedInjections.splice(0);
+  for (const text of drained) {
+    controller.injectSystemMessage({ text, triggerResponse: false }).catch((err) => {
       appendEvent("conversation.error", { error: String(err) });
     });
   }
+  scheduleResponse();
+});
+controller.on("conversation.started", () => {
+  const pending = stagedSystemMessages.splice(0);
+  let anyTrigger = false;
+  for (const msg of pending) {
+    if (msg.triggerResponse) anyTrigger = true;
+    controller.injectSystemMessage({ text: msg.text, triggerResponse: false }).catch((err) => {
+      appendEvent("conversation.error", { error: String(err) });
+    });
+  }
+  if (anyTrigger) scheduleResponse();
 });
 function tryAutoStartForStaged() {
   if (stagedSystemMessages.length === 0) return;
@@ -9466,10 +9526,16 @@ var controlServer = createServer2(async (req, res) => {
           appendEvent("conversation.error", { error: String(err) });
         }
       }
+      if (controller.responseInFlight) {
+        queuedInjections.push(parsed.text);
+        sendJson(res, 200, { queued: true });
+        return;
+      }
       const item = await controller.injectSystemMessage({
         text: parsed.text,
-        triggerResponse: parsed.triggerResponse
+        triggerResponse: false
       });
+      if (parsed.triggerResponse === true) scheduleResponse();
       sendJson(res, 200, serializeData(item));
       return;
     }
