@@ -21,7 +21,7 @@ Use `voice watch` to "hear" both sides of the conversation. It will return an in
 When the `voice watch` process exits **immediately restart `voice watch` in the background** before doing any other work. This keeps the loop alive so events are never missed while work is in flight. 
 
 ### §CONTEXT
-Use `voice context` when you have background knowledge, facts, or state for the voice conversation.
+Use `voice context` when you have background knowledge, facts, or answers.
 
 ```xml
 <invoke name="Bash">
@@ -32,7 +32,9 @@ EOF</parameter>
 ```
 
 ### §TOPICS
-Use `voice topics` — you want to steer the conversation, ask questions, and provide specific answers.
+Use `voice topics` — to guide the conversation or ask questions.
+
+Topics are general. Do not instruct the voice to "say" quoted content.
 
 ```xml
 <invoke name="Bash">
@@ -42,7 +44,24 @@ EOF</parameter>
 </invoke>
 ```
 
-**Background-first rule:** Any substantial work — memory lookups, file reads, Agent calls, Bash commands — should use `run_in_background: true`. Fire them in parallel with the next `voice watch` call. You'll be notified when each completes.
+### §RESET
+Use `voice reset` to start a new voice conversation if the subject matter changes substantially.
+
+Provide a summary of the previous voice conversation using `voice context` and the new topics using `voice topics`.
+
+```xml
+<invoke name="Bash">
+<parameter name="command">voice reset && voice context <<'EOF'
+[RELEVANT INFORMATION FROM PREVIOUS CONVERSATION]
+EOF && voice topic <<'EOF'
+[NEXT TOPICS TO COVER]
+EOF</parameter>
+</invoke>
+```
+
+## Background-first rule
+
+Any substantial work — memory lookups, file reads, Agent calls, Bash commands — should use `run_in_background: true`. Fire them in parallel with the next `voice watch` call. 
 
 ## Reference guides
 
@@ -63,13 +82,20 @@ You **must** load the relevant guide before acting on any of these situations.
 output=$(voice start <<'EOF'
 Speak naturally and directly. Match the user's vocal and conversational style.
 
-## Context and Topics
-There two types of system messages:
-- <context>: Background knowledge.
-- <topics>: The topics you should cover. **Move the discussion to these.**
+Avoid being sycophantic and do not repeat yourself or the user.
 
-## User Requests
-If the user requests something that is not covered in `<context>` or `<topics>` you must use the `wait_for_context` tool and stop. Do not send a message after using the tool, wait until the context arrives.
+## Context and Topics
+You will receive two types of system messages wrapped in XML tags:
+- `<context>`: Background knowledge, facts, and answers.
+- `<topics>`: Topics to guide the conversation and questions.
+
+Say things only once, even if new `<context>` or `<topics>` messages arrive that repeat something you have already said. 
+
+## Use the `wait_for_context` Tool
+
+If the conversation moves to a subject not covered in a `<context>` or `<topics>` message, you must use the `wait_for_context` tool.
+
+Do not guess or tell the user that you do not know, or that you need to look something up. Use the `wait_for_context` tool.
 
 EOF
 )

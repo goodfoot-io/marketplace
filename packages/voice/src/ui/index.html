@@ -251,6 +251,31 @@
         color: var(--state-error);
       }
 
+      .menu-item {
+        display: block;
+        width: 100%;
+        margin-top: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: transparent;
+        color: var(--text-bright);
+        font-size: 13px;
+        text-align: left;
+        cursor: pointer;
+        transition: border-color 150ms, color 150ms, background 150ms;
+      }
+
+      .menu-item:hover:enabled {
+        border-color: #3f3f46;
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .menu-item:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
       button:active:enabled {
         transform: scale(0.97);
       }
@@ -531,6 +556,7 @@
           </button>
           <div class="settings-menu hidden" id="settingsMenu">
             <div id="micArea" class="mic-note">Microphone access is required to use voice.</div>
+            <button class="menu-item" id="download" type="button" disabled>Download transcript (JSONL)</button>
           </div>
         </div>
       </section>
@@ -576,6 +602,7 @@
       const transcript = $("transcript");
       const primary = $("primary");
       const reset = $("reset");
+      const download = $("download");
       const textInput = $("textInput");
       const send = $("send");
       const micArea = $("micArea");
@@ -670,6 +697,7 @@
           sendMessage("conversation.reset");
           teardownWebrtc();
         });
+        download.addEventListener("click", downloadTranscript);
         settingsToggle.addEventListener("click", () => {
           const isHidden = settingsMenu.classList.toggle("hidden");
           settingsToggle.setAttribute("aria-expanded", String(!isHidden));
@@ -1166,8 +1194,26 @@
         if (status === "active") primary.classList.add("pause");
         if (status === "paused") primary.classList.add("resume");
         reset.classList.toggle("hidden", !["active", "paused"].includes(status));
+        download.disabled = (state.conversation?.transcript ?? []).length === 0;
         meters.classList.toggle("hidden", status !== "active" || !state.audio.ready);
         renderTranscript();
+      }
+
+      function downloadTranscript() {
+        const items = state.conversation?.transcript ?? [];
+        if (items.length === 0) return;
+        const jsonl = items.map((item) => JSON.stringify(item)).join("\n") + "\n";
+        const blob = new Blob([jsonl], { type: "application/jsonl" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const convId = state.conversation?.id ?? "conversation";
+        anchor.href = url;
+        anchor.download = `transcript-${convId}-${stamp}.jsonl`;
+        document.body.append(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
       }
 
       function renderTranscript() {

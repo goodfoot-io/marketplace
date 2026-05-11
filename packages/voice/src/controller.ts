@@ -196,6 +196,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     timeout: ReturnType<typeof setTimeout>;
   };
   #lifecycleLocked = false;
+  #autoResponseEnabled = true;
   #instructions: string;
   readonly #activeToolAbortControllers = new Map<string, AbortController>();
   readonly #streamingAssistantText = new Map<string, string>();
@@ -337,6 +338,37 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     this.#setConversationStatus("active");
     this.#broadcastState();
     this.emit("conversation.resumed", { conversationId: conversation.id, createdAt: new Date() });
+  }
+
+  async setAutoResponse(enabled: boolean): Promise<void> {
+    if (this.#autoResponseEnabled === enabled) return;
+    this.#autoResponseEnabled = enabled;
+    if (!this.#realtime) return;
+    try {
+      this.#realtime.send({
+        type: "session.update",
+        session: {
+          type: "realtime",
+          audio: {
+            input: {
+              turn_detection: {
+                type: "semantic_vad",
+                eagerness: "medium",
+                create_response: enabled,
+                interrupt_response: enabled,
+              },
+            },
+          },
+        },
+      });
+    } catch (cause) {
+      throw this.#fail(
+        "REALTIME_UPDATE_FAILED",
+        "Realtime session rejected the auto-response update.",
+        undefined,
+        cause,
+      );
+    }
   }
 
   async endConversation(options?: { shutdownTimeoutMs?: number }): Promise<void> {
@@ -595,7 +627,12 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
           input: {
             format: { type: "audio/pcm", rate: 24000 },
             transcription: { model: "gpt-realtime-whisper" },
-            turn_detection: { type: "semantic_vad", eagerness: "low" },
+            turn_detection: {
+              type: "semantic_vad",
+              eagerness: "medium",
+              create_response: this.#autoResponseEnabled,
+              interrupt_response: this.#autoResponseEnabled,
+            },
           },
           output: {
             format: { type: "audio/pcm", rate: 24000 },
@@ -948,11 +985,11 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         output: serialized,
       },
     });
-    // Only trigger a follow-up model response when the conversation is still
-    // active. If the tool's side-effects paused the conversation (e.g. the
-    // `wait_for_context` tool), suppress response.create so the model doesn't
-    // speak before fresh context arrives.
-    if (this.#status.conversation === "active") {
+    // Only trigger a follow-up model response when the conversation is
+    // active AND auto-response is enabled. The `wait_for_context` tool
+    // disables auto-response so the model stays silent until fresh
+    // context/topics arrive.
+    if (this.#status.conversation === "active" && this.#autoResponseEnabled) {
       this.#realtime?.send({ type: "response.create" });
     }
   }
@@ -1061,6 +1098,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     this.#setConversationStatus(transitionalStatus === "resetting" ? "resetting" : "ending");
     this.#interruptInFlightToolCalls(conversation, transitionalStatus);
     this.#closeRealtime(`conversation ${transitionalStatus}`);
+    this.#autoResponseEnabled = true;
     conversation.status = "ended";
     conversation.endedAt = new Date();
     const archived = snapshotConversation(conversation);

@@ -66,6 +66,7 @@ export interface RealtimeVoiceServerController<TTools extends RealtimeVoiceToolM
   startConversation(): Promise<void>;
   pauseConversation(): Promise<void>;
   resumeConversation(): Promise<void>;
+  setAutoResponse(enabled: boolean): Promise<void>;
   endConversation(options?: EndConversationOptions): Promise<void>;
   resetConversation(options?: ResetConversationOptions): Promise<void>;
   injectUserMessage(input: InjectUserMessageInput): Promise<TranscriptItem>;

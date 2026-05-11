@@ -175,7 +175,7 @@ const waitForContextTool = {
     controller.broadcastToBrowser({ type: "wait_for_context.start" });
     if (controller.status.conversation === "active") {
       try {
-        await controller.pauseConversation();
+        await controller.setAutoResponse(false);
       } catch (err: unknown) {
         appendEvent("conversation.error", { error: String(err) });
       }
@@ -411,17 +411,18 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
         sendJson(res, 200, { staged: true });
         return;
       }
-      // If we paused the conversation because the agent invoked `wait_for_context`,
-      // resume now that fresh context/topics has arrived so the model can speak.
+      // If the agent invoked `wait_for_context`, fresh context/topics has now
+      // arrived, so re-enable auto-response before injecting the system message
+      // (injectSystemMessage with triggerResponse:true will fire response.create
+      // explicitly regardless of the flag, but VAD-driven responses should
+      // resume for any subsequent user speech).
       if (waitingForContext && isTopicsOrContext) {
         waitingForContext = false;
         controller.broadcastToBrowser({ type: "wait_for_context.end" });
-        if (convStatus === "paused") {
-          try {
-            await controller.resumeConversation();
-          } catch (err: unknown) {
-            appendEvent("conversation.error", { error: String(err) });
-          }
+        try {
+          await controller.setAutoResponse(true);
+        } catch (err: unknown) {
+          appendEvent("conversation.error", { error: String(err) });
         }
       }
       const item = await controller.injectSystemMessage({
