@@ -9423,7 +9423,19 @@ var controlServer = createServer2(async (req, res) => {
     if (method === "POST" && pathname === "/inject/system") {
       const raw = await readBody(req);
       const parsed = JSON.parse(raw);
-      const convStatus = controller.status.conversation;
+      let convStatus = controller.status.conversation;
+      const isTopicsOrContext = /^\s*<(topics|context)>/.test(parsed.text);
+      if (isTopicsOrContext && convStatus === "none") {
+        try {
+          await controller.startConversation();
+          convStatus = controller.status.conversation;
+        } catch (err) {
+          logError("daemon", "auto-start on topics/context", err);
+          stagedSystemMessages.push({ text: parsed.text, triggerResponse: parsed.triggerResponse });
+          sendJson(res, 200, { staged: true, startError: String(err) });
+          return;
+        }
+      }
       if (convStatus !== "active" && convStatus !== "paused") {
         stagedSystemMessages.push({ text: parsed.text, triggerResponse: parsed.triggerResponse });
         sendJson(res, 200, { staged: true });
