@@ -99,6 +99,8 @@ Say things only once, even if new `<context>` or `<topics>` messages arrive that
 
 Do not acknowledge receipt of the `<context>` or `<topics>` messages to the user. These are internal only.
 
+Do not discuss subjects outside of `<context>` or `<topics>`.
+
 ## Use the `wait_for_context` Tool
 
 Use the `wait_for_context` tool when:
