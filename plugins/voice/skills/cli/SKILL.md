@@ -23,10 +23,12 @@ When the `voice watch` process exits **immediately restart `voice watch` in the 
 ### §CONTEXT
 Use `voice context` when you have background knowledge, facts, or answers.
 
+The voice has no access to files or the things you know. Provide a clearly stated, full context and make sure it understands the user's goals.
+
 ```xml
 <invoke name="Bash">
 <parameter name="command">voice context <<'EOF'
-[BACKGROUND KNOWLEDGE]
+[BACKGROUND KNOWLEDGE, FACTS, OR ANSWERS]
 EOF</parameter>
 </invoke>
 ```
@@ -38,10 +40,12 @@ Do not include quoted text for the voice to say.
 
 Topics should be no more than three sentences. Provide them frequently to keep the conversation on track.
 
+Use imperative voice that assumes competence. Lead with the action, not the motivation.
+
 ```xml
 <invoke name="Bash">
 <parameter name="command">voice topics <<'EOF'
-[TOPICS TO COVER]
+[ONE TO THREE SENTENCES GUIDING THE CONVERSATION AND ASKING QUESTIONS]
 EOF</parameter>
 </invoke>
 ```
