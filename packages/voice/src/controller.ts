@@ -364,7 +364,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
                 type: "semantic_vad",
                 eagerness: "medium",
                 create_response: enabled,
-                interrupt_response: enabled,
+                interrupt_response: true,
               },
             },
           },

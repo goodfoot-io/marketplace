@@ -7981,7 +7981,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
                 type: "semantic_vad",
                 eagerness: "medium",
                 create_response: enabled,
-                interrupt_response: enabled
+                interrupt_response: true
               }
             }
           }
