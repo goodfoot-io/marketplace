@@ -3,9 +3,9 @@ import { createRequire as __banner_createRequire } from 'node:module';import { f
 
 // src/cli/index.ts
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // src/cli/args.ts
 function parseArgs(argv) {
@@ -41,10 +41,10 @@ function parseArgs(argv) {
   return { command, subcommand, positional: positional.slice(2), flags };
 }
 function getPort(flags) {
-  const p = flags["port"];
+  const p = flags.port;
   if (typeof p === "string") {
     const n = parseInt(p, 10);
-    if (!isNaN(n)) return n;
+    if (!Number.isNaN(n)) return n;
   }
   return 3e3;
 }
@@ -124,25 +124,18 @@ async function watchOnce(controlPort2, events, after) {
 
 // src/cli/index.ts
 function printJson(data) {
-  process.stdout.write(JSON.stringify(data) + "\n");
+  process.stdout.write(`${JSON.stringify(data)}
+`);
 }
 function fatal(message, code) {
-  process.stderr.write(JSON.stringify({ error: message, ...code !== void 0 ? { code } : {} }) + "\n");
+  process.stderr.write(`${JSON.stringify({ error: message, ...code !== void 0 ? { code } : {} })}
+`);
   process.exit(1);
 }
 function controlPort(port2) {
   return port2 + 1;
 }
-var SHELL_NAMES = /* @__PURE__ */ new Set([
-  "bash",
-  "sh",
-  "zsh",
-  "dash",
-  "fish",
-  "ksh",
-  "tcsh",
-  "csh"
-]);
+var SHELL_NAMES = /* @__PURE__ */ new Set(["bash", "sh", "zsh", "dash", "fish", "ksh", "tcsh", "csh"]);
 function getProcessInfo(pid) {
   try {
     const out = execFileSync("ps", ["-o", "ppid=,comm=", "-p", String(pid)], {
@@ -180,7 +173,7 @@ function readCursor(port2) {
   try {
     const raw = readFileSync(cursorFile(port2), "utf8").trim();
     const n = parseInt(raw, 10);
-    return isNaN(n) ? 0 : n;
+    return Number.isNaN(n) ? 0 : n;
   } catch {
     return 0;
   }
@@ -203,12 +196,12 @@ async function cmdStart(port2, title, model, voice) {
   const daemonPath = join(dirname(thisFile), "daemon.mjs");
   const env = {
     ...process.env,
-    RVS_PORT: String(port2),
-    RVS_API_KEY: process.env["OPENAI_API_KEY"] ?? process.env["RVS_API_KEY"] ?? "",
-    RVS_INSTRUCTIONS: instructions,
-    ...title !== void 0 ? { RVS_TITLE: title } : {},
-    ...model !== void 0 ? { RVS_MODEL: model } : {},
-    ...voice !== void 0 ? { RVS_VOICE: voice } : {}
+    VOICE_PORT: String(port2),
+    VOICE_API_KEY: process.env.XAI_API_KEY ?? process.env.VOICE_API_KEY ?? "",
+    VOICE_INSTRUCTIONS: instructions,
+    ...title !== void 0 ? { VOICE_TITLE: title } : {},
+    ...model !== void 0 ? { VOICE_MODEL: model } : {},
+    ...voice !== void 0 ? { VOICE_VOICE: voice } : {}
   };
   const child = spawn(process.execPath, [daemonPath], {
     detached: true,
@@ -279,8 +272,8 @@ async function cmdInject(port2, role, source, triggerResponse) {
   }
   const text = await readStdin();
   const body = { text };
-  if (source !== void 0) body["source"] = source;
-  if (role !== "assistant" && triggerResponse) body["triggerResponse"] = true;
+  if (source !== void 0) body.source = source;
+  if (role !== "assistant" && triggerResponse) body.triggerResponse = true;
   const res = await postJson(controlPort(port2), `/inject/${role}`, body);
   printJson(JSON.parse(res.body));
 }
@@ -314,11 +307,11 @@ async function cmdWatch(port2, eventTypes) {
         if (parsed2.seq > maxSeq) maxSeq = parsed2.seq;
         const item = parsed2.data?.item;
         if (item !== void 0 && parsed2.event === "transcript.item") {
-          process.stdout.write(
-            JSON.stringify({ role: item.role, source: item.source, text: item.text }) + "\n"
-          );
+          process.stdout.write(`${JSON.stringify({ role: item.role, source: item.source, text: item.text })}
+`);
         } else {
-          process.stdout.write(line + "\n");
+          process.stdout.write(`${line}
+`);
         }
       } catch (err) {
         process.stderr.write(`watch parse error: ${String(err)}
@@ -483,8 +476,8 @@ GLOBAL FLAGS
   -h, --help     Show this help.
 
 ENVIRONMENT
-  OPENAI_API_KEY     API key forwarded to the daemon as RVS_API_KEY.
-  RVS_API_KEY        Alternative to OPENAI_API_KEY.
+  XAI_API_KEY        xAI API key forwarded to the daemon.
+  VOICE_API_KEY      Alternative to XAI_API_KEY.
   USE_SESSION_PORT   When set with CLAUDE_CODE_SESSION_ID, the wrapper
                      derives a per-session port instead of using 3000.
   VOICE_LOG_PATH     If set, the CLI and daemon append JSONL diagnostic
@@ -513,7 +506,7 @@ function printHelp() {
 var parsed = parseArgs(process.argv);
 var port = getPort(parsed.flags);
 function isHelpRequested() {
-  if (parsed.flags["help"] === true || parsed.flags["h"] === true) return true;
+  if (parsed.flags.help === true || parsed.flags.h === true) return true;
   if (parsed.command === "" || parsed.command === "-h" || parsed.command === "--help") return true;
   if (parsed.subcommand === "-h" || parsed.subcommand === "--help") return true;
   return parsed.positional.includes("-h") || parsed.positional.includes("--help");

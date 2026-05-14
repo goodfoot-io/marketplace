@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Daemon entry point for rvs.
- * Spawned as a detached child by `rvs start`. Communicates config via env vars.
+ * Daemon entry point for voice.
+ * Spawned as a detached child by `voice start`. Communicates config via env vars.
  */
 
 import { appendFileSync, closeSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -24,20 +24,22 @@ try {
 } catch (err: unknown) {
   void err; // /proc unavailable (non-Linux); skip
 }
+
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { z } from "zod";
-import { createRealtimeVoiceServer, RealtimeVoiceServerError } from "../index.js";
-import type { JsonValue, RealtimeVoiceServerEvents, RealtimeVoiceToolMap } from "../types.js";
+import { createVoiceAgentServer } from "../index.js";
+import type { JsonValue, VoiceAgentServerEvents, VoiceAgentToolMap } from "../types.js";
+
 // ---------------------------------------------------------------------------
 // Config from env
 // ---------------------------------------------------------------------------
 
-const port = parseInt(process.env["RVS_PORT"] ?? "3000", 10);
-const apiKey = process.env["RVS_API_KEY"] ?? "";
-const instructions = process.env["RVS_INSTRUCTIONS"] ?? "";
-const title = process.env["RVS_TITLE"];
-const model = process.env["RVS_MODEL"];
-const voice = process.env["RVS_VOICE"];
+const port = parseInt(process.env.VOICE_PORT ?? "3000", 10);
+const apiKey = process.env.VOICE_API_KEY ?? "";
+const instructions = process.env.VOICE_INSTRUCTIONS ?? "";
+const title = process.env.VOICE_TITLE;
+const model = process.env.VOICE_MODEL;
+const voice = process.env.VOICE_VOICE;
 
 const controlPort = port + 1;
 const tmpDir = `/tmp/voice-${port}`;
@@ -53,8 +55,7 @@ let seq = 0;
 
 function appendEvent(event: string, data: Record<string, unknown>): void {
   seq += 1;
-  const line =
-    JSON.stringify({ seq, event, timestamp: new Date().toISOString(), data: serializeData(data) }) + "\n";
+  const line = `${JSON.stringify({ seq, event, timestamp: new Date().toISOString(), data: serializeData(data) })}\n`;
   appendFileSync(eventsFile, line, "utf8");
 }
 
@@ -184,7 +185,7 @@ const waitForContextTool = {
   },
 };
 
-const controller = createRealtimeVoiceServer({
+const controller = createVoiceAgentServer({
   port,
   apiKey,
   realtime: realtimeConfig,
@@ -199,7 +200,7 @@ const controller = createRealtimeVoiceServer({
 // Wire controller events to JSONL
 // ---------------------------------------------------------------------------
 
-type KnownEventKey = keyof RealtimeVoiceServerEvents<RealtimeVoiceToolMap>;
+type KnownEventKey = keyof VoiceAgentServerEvents<VoiceAgentToolMap>;
 
 const knownEvents: KnownEventKey[] = [
   "server.started",
@@ -216,7 +217,7 @@ const knownEvents: KnownEventKey[] = [
   "conversation.reset",
   "conversation.error",
   "response.completed",
-  "realtime.updated",
+  "voice.session.updated",
   "transcript.delta",
   "transcript.item",
   "tool.call.started",
@@ -338,11 +339,11 @@ try {
 controller.on("server.started", (event) => {
   // Emit startup JSON to stdout for the spawning CLI
   const line = JSON.stringify({ port: event.port, url: event.url, createdAt: event.createdAt.toISOString() });
-  process.stdout.write(line + "\n");
+  process.stdout.write(`${line}\n`);
 });
 
 controller.start().catch((err: unknown) => {
-  process.stderr.write(JSON.stringify({ error: String(err) }) + "\n");
+  process.stderr.write(`${JSON.stringify({ error: String(err) })}\n`);
   cleanup();
   process.exit(1);
 });
@@ -503,8 +504,6 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
       sendJson(res, 200, { ok: true });
       return;
     }
-
-
 
     if (method === "POST" && pathname === "/client/register") {
       const raw = await readBody(req);

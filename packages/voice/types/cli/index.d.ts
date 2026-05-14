@@ -1,5 +1,5 @@
 #!/usr/bin/env node
 /**
- * rvs — Realtime Voice Server CLI
+ * voice — Voice Agent CLI
  */
 export {};

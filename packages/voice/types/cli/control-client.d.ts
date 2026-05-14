@@ -1,5 +1,5 @@
 /**
- * HTTP client for talking to the rvs control server (port+1).
+ * HTTP client for talking to the voice control server (port+1).
  */
 export interface ControlClientOptions {
     controlPort: number;

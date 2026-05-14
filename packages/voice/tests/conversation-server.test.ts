@@ -15,13 +15,13 @@ type ConversationController = {
   injectUserMessage: (input: { text: string }) => Promise<{ role: string; source: string; text: string }>;
   injectAssistantMessage: (input: { text: string }) => Promise<{ role: string; source: string; text: string }>;
   injectSystemMessage: (input: { text: string }) => Promise<{ role: string; source: string; text: string }>;
-  updateRealtime: (config: unknown) => Promise<void> | void;
+  updateVoiceSession: (config: unknown) => Promise<void> | void;
   cancelToolCall: (toolCallId: string) => Promise<void> | void;
 };
 
 type TestConversationController = ConversationController & { __testPort: number };
 
-type CreateRealtimeVoiceServer = (options: {
+type CreateVoiceAgentServer = (options: {
   apiKey: string;
   browserSession?: {
     firstMessage?: string;
@@ -30,7 +30,7 @@ type CreateRealtimeVoiceServer = (options: {
   port: number;
   realtime: { instructions: string; model?: string; voice?: string };
   tools: Record<string, unknown>;
-  __realtimeFactory?: () => FakeRealtimeConnection;
+  __voiceFactory?: () => FakeRealtimeConnection;
 }) => ConversationController;
 
 class FakeRealtimeConnection {
@@ -60,7 +60,7 @@ const testDir = dirname(fileURLToPath(import.meta.url));
 const sourceEntry = resolve(testDir, "../src/index.ts");
 const runIfSourceExists = existsSync(sourceEntry) ? describe : describe.skip;
 
-let createRealtimeVoiceServer: CreateRealtimeVoiceServer;
+let createVoiceAgentServer: CreateVoiceAgentServer;
 const controllers: ConversationController[] = [];
 
 beforeAll(async () => {
@@ -68,8 +68,8 @@ beforeAll(async () => {
     return;
   }
 
-  ({ createRealtimeVoiceServer } = (await import("../src/index.js")) as unknown as {
-    createRealtimeVoiceServer: CreateRealtimeVoiceServer;
+  ({ createVoiceAgentServer } = (await import("../src/index.js")) as unknown as {
+    createVoiceAgentServer: CreateVoiceAgentServer;
   });
 });
 
@@ -77,14 +77,14 @@ afterEach(async () => {
   await Promise.allSettled(controllers.splice(0).map((controller) => controller.stop()));
 });
 
-runIfSourceExists("createRealtimeVoiceServer", () => {
+runIfSourceExists("createVoiceAgentServer", () => {
   it("fails closed before the server lifecycle has started", async () => {
     const controller = await makeController();
 
     await expectCallToFail(() => controller.injectUserMessage({ text: "hello" }));
     await expectCallToFail(() => controller.injectAssistantMessage({ text: "hello" }));
     await expectCallToFail(() => controller.injectSystemMessage({ text: "hello" }));
-    await expectCallToFail(() => controller.updateRealtime({ instructions: "updated" }));
+    await expectCallToFail(() => controller.updateVoiceSession({ instructions: "updated" }));
     await expectCallToFail(() => controller.cancelToolCall("call_123"));
   });
 
@@ -115,7 +115,7 @@ runIfSourceExists("createRealtimeVoiceServer", () => {
     controllers.push(controller);
 
     await expectCallToFail(() =>
-      controller.updateRealtime({
+      controller.updateVoiceSession({
         instructions: "",
         temperature: "hot",
       }),
@@ -191,7 +191,7 @@ runIfSourceExists("createRealtimeVoiceServer", () => {
     const fakeRealtime = new FakeRealtimeConnection();
     const completed: unknown[] = [];
     const controller = await makeController({
-      __realtimeFactory: () => fakeRealtime,
+      __voiceFactory: () => fakeRealtime,
       tools: {
         remember: {
           description: "Remember text",
@@ -231,17 +231,17 @@ runIfSourceExists("createRealtimeVoiceServer", () => {
 });
 
 async function makeController(
-  overrides: Partial<Parameters<CreateRealtimeVoiceServer>[0]> = {},
+  overrides: Partial<Parameters<CreateVoiceAgentServer>[0]> = {},
 ): Promise<TestConversationController> {
   const port = overrides.port ?? (await getFreePort());
-  const controller = createRealtimeVoiceServer({
+  const controller = createVoiceAgentServer({
     apiKey: "test-api-key",
     port,
     realtime: {
       instructions: "You are a test assistant.",
     },
     tools: {},
-    __realtimeFactory: () => new FakeRealtimeConnection(),
+    __voiceFactory: () => new FakeRealtimeConnection(),
     ...overrides,
   });
   return Object.assign(controller, { __testPort: port }) as TestConversationController;

@@ -36,9 +36,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../node_modules/ws/lib/constants.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/constants.js
 var require_constants = __commonJS({
-  "../../node_modules/ws/lib/constants.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/constants.js"(exports, module) {
     "use strict";
     var BINARY_TYPES = ["nodebuffer", "arraybuffer", "fragments"];
     var hasBlob = typeof Blob !== "undefined";
@@ -58,9 +58,9 @@ var require_constants = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/buffer-util.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/buffer-util.js
 var require_buffer_util = __commonJS({
-  "../../node_modules/ws/lib/buffer-util.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/buffer-util.js"(exports, module) {
     "use strict";
     var { EMPTY_BUFFER } = require_constants();
     var FastBuffer = Buffer[Symbol.species];
@@ -133,9 +133,9 @@ var require_buffer_util = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/limiter.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/limiter.js
 var require_limiter = __commonJS({
-  "../../node_modules/ws/lib/limiter.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/limiter.js"(exports, module) {
     "use strict";
     var kDone = Symbol("kDone");
     var kRun = Symbol("kRun");
@@ -183,9 +183,9 @@ var require_limiter = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/permessage-deflate.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/permessage-deflate.js
 var require_permessage_deflate = __commonJS({
-  "../../node_modules/ws/lib/permessage-deflate.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/permessage-deflate.js"(exports, module) {
     "use strict";
     var zlib = __require("zlib");
     var bufferUtil = require_buffer_util();
@@ -566,9 +566,9 @@ var require_permessage_deflate = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/validation.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/validation.js
 var require_validation = __commonJS({
-  "../../node_modules/ws/lib/validation.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/validation.js"(exports, module) {
     "use strict";
     var { isUtf8 } = __require("buffer");
     var { hasBlob } = require_constants();
@@ -767,9 +767,9 @@ var require_validation = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/receiver.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/receiver.js
 var require_receiver = __commonJS({
-  "../../node_modules/ws/lib/receiver.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/receiver.js"(exports, module) {
     "use strict";
     var { Writable } = __require("stream");
     var PerMessageDeflate = require_permessage_deflate();
@@ -1359,9 +1359,9 @@ var require_receiver = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/sender.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/sender.js
 var require_sender = __commonJS({
-  "../../node_modules/ws/lib/sender.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/sender.js"(exports, module) {
     "use strict";
     var { Duplex } = __require("stream");
     var { randomFillSync } = __require("crypto");
@@ -1847,9 +1847,9 @@ var require_sender = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/event-target.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/event-target.js
 var require_event_target = __commonJS({
-  "../../node_modules/ws/lib/event-target.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/event-target.js"(exports, module) {
     "use strict";
     var { kForOnEventAttribute, kListener } = require_constants();
     var kCode = Symbol("kCode");
@@ -2076,9 +2076,9 @@ var require_event_target = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/extension.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/extension.js
 var require_extension = __commonJS({
-  "../../node_modules/ws/lib/extension.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/extension.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function push(dest, name, elem) {
@@ -2229,9 +2229,9 @@ var require_extension = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/websocket.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/websocket.js
 var require_websocket = __commonJS({
-  "../../node_modules/ws/lib/websocket.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/websocket.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var https = __require("https");
@@ -3112,9 +3112,9 @@ var require_websocket = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/stream.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/stream.js
 var require_stream = __commonJS({
-  "../../node_modules/ws/lib/stream.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/stream.js"(exports, module) {
     "use strict";
     var WebSocket2 = require_websocket();
     var { Duplex } = __require("stream");
@@ -3210,9 +3210,9 @@ var require_stream = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/subprotocol.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/subprotocol.js
 var require_subprotocol = __commonJS({
-  "../../node_modules/ws/lib/subprotocol.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/subprotocol.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function parse(header) {
@@ -3255,9 +3255,9 @@ var require_subprotocol = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/websocket-server.js
+// ../../../../../../../../../../workspace/node_modules/ws/lib/websocket-server.js
 var require_websocket_server = __commonJS({
-  "../../node_modules/ws/lib/websocket-server.js"(exports, module) {
+  "../../../../../../../../../../workspace/node_modules/ws/lib/websocket-server.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var http = __require("http");
@@ -3648,7 +3648,7 @@ var require_websocket_server = __commonJS({
 import { appendFileSync, closeSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer as createServer2 } from "node:http";
 
-// ../../node_modules/zod/v3/external.js
+// ../../../../../../../../../../workspace/node_modules/zod/v3/external.js
 var external_exports = {};
 __export(external_exports, {
   BRAND: () => BRAND,
@@ -3760,7 +3760,7 @@ __export(external_exports, {
   void: () => voidType
 });
 
-// ../../node_modules/zod/v3/helpers/util.js
+// ../../../../../../../../../../workspace/node_modules/zod/v3/helpers/util.js
 var util;
 (function(util2) {
   util2.assertEqual = (_) => {
@@ -3894,7 +3894,7 @@ var getParsedType = (data) => {
   }
 };
 
-// ../../node_modules/zod/v3/ZodError.js
+// ../../../../../../../../../../workspace/node_modules/zod/v3/ZodError.js
 var ZodIssueCode = util.arrayToEnum([
   "invalid_type",
   "invalid_literal",
@@ -4012,7 +4012,7 @@ ZodError.create = (issues) => {
   return error;
 };
 
-// ../../node_modules/zod/v3/locales/en.js
+// ../../../../../../../../../../workspace/node_modules/zod/v3/locales/en.js
 var errorMap = (issue, _ctx) => {
   let message;
   switch (issue.code) {
@@ -4115,7 +4115,7 @@ var errorMap = (issue, _ctx) => {
 };
 var en_default = errorMap;
 
-// ../../node_modules/zod/v3/errors.js
+// ../../../../../../../../../../workspace/node_modules/zod/v3/errors.js
 var overrideErrorMap = en_default;
 function setErrorMap(map) {
   overrideErrorMap = map;
@@ -4124,7 +4124,7 @@ function getErrorMap() {
   return overrideErrorMap;
 }
 
-// ../../node_modules/zod/v3/helpers/parseUtil.js
+// ../../../../../../../../../../workspace/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
   const { data, path, errorMaps, issueData } = params;
   const fullPath = [...path, ...issueData.path || []];
@@ -4234,14 +4234,14 @@ var isDirty = (x) => x.status === "dirty";
 var isValid = (x) => x.status === "valid";
 var isAsync = (x) => typeof Promise !== "undefined" && x instanceof Promise;
 
-// ../../node_modules/zod/v3/helpers/errorUtil.js
+// ../../../../../../../../../../workspace/node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
 (function(errorUtil2) {
   errorUtil2.errToObj = (message) => typeof message === "string" ? { message } : message || {};
   errorUtil2.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
 
-// ../../node_modules/zod/v3/types.js
+// ../../../../../../../../../../workspace/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
   constructor(parent, value, path, key) {
     this._cachedPath = [];
@@ -7689,13 +7689,10 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// src/ui/index.html
-var ui_default = '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />\n    <title>__REALTIME_VOICE_TITLE__</title>\n    <style>\n      :root {\n        --bg-base: #09090b;\n        --bg-card: #18181b;\n        --border: #27272a;\n        --text-dim: #52525b;\n        --text-muted: #71717a;\n        --text-default: #a1a1aa;\n        --text-bright: #e4e4e7;\n        --text-white: #fafafa;\n        --accent: #22d3ee;\n        --role-user: #a78bfa;\n        --role-assistant: #34d399;\n        --role-system: #fb923c;\n        --role-tool: #60a5fa;\n        --state-error: #f87171;\n        --dot-connected: #22c55e;\n        --dot-connecting: #eab308;\n        --dot-disconnected: #52525b;\n        --dot-error: #f87171;\n        --font-sans: "Geist", "Inter", system-ui, -apple-system, sans-serif;\n        --font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;\n      }\n\n      * {\n        box-sizing: border-box;\n      }\n\n      body {\n        display: flex;\n        justify-content: center;\n        min-height: 100dvh;\n        margin: 0;\n        background: var(--bg-base);\n        color: var(--text-default);\n        font-family: var(--font-sans);\n      }\n\n      button,\n      textarea,\n      select {\n        font: inherit;\n      }\n\n      button:focus-visible,\n      textarea:focus-visible,\n      select:focus-visible,\n      .tool-call:focus-visible {\n        outline: 2px solid var(--accent);\n        outline-offset: 2px;\n      }\n\n      .layout {\n        width: 100%;\n        max-width: 680px;\n        height: 100dvh;\n        display: flex;\n        flex-direction: column;\n      }\n\n      .header {\n        display: none;\n        height: 0;\n        padding: 0;\n        border-bottom: 1px solid var(--border);\n        background: var(--bg-base);\n        position: sticky;\n        top: 0;\n        z-index: 10;\n        align-items: center;\n        justify-content: space-between;\n        flex-shrink: 0;\n      }\n\n      .title {\n        color: var(--text-bright);\n        font-size: 14px;\n        font-weight: 500;\n      }\n\n      .connection {\n        display: flex;\n        align-items: center;\n        gap: 6px;\n        color: var(--text-muted);\n        font-family: var(--font-mono);\n        font-size: 11px;\n      }\n\n      .dot {\n        width: 8px;\n        height: 8px;\n        border-radius: 50%;\n        background: var(--dot-disconnected);\n      }\n\n      .dot.connected {\n        background: var(--dot-connected);\n      }\n\n      .dot.connecting {\n        background: var(--dot-connecting);\n      }\n\n      .dot.error {\n        background: var(--dot-error);\n      }\n\n      .controls {\n        padding: 12px 16px;\n        border-bottom: 1px solid var(--border);\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        gap: 8px;\n        flex-shrink: 0;\n      }\n\n      .field-label {\n        color: var(--text-muted);\n        font-size: 11px;\n        letter-spacing: 0.05em;\n        text-transform: uppercase;\n      }\n\n      .mic-note,\n      .input-hint {\n        color: var(--text-muted);\n        font-size: 12px;\n        font-style: italic;\n      }\n\n      select {\n        width: 100%;\n        appearance: none;\n        background: var(--bg-card);\n        border: 1px solid var(--border);\n        border-radius: 6px;\n        color: var(--text-bright);\n        padding: 6px 10px;\n        font-size: 13px;\n      }\n\n      .buttons,\n      .input-row,\n      .meters {\n        display: flex;\n        align-items: center;\n        gap: 8px;\n      }\n\n      .buttons {\n        min-width: 0;\n      }\n\n      .settings {\n        position: relative;\n        margin-left: auto;\n        display: flex;\n        align-items: center;\n        gap: 10px;\n      }\n\n      .icon-btn {\n        width: 32px;\n        height: 32px;\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        border: 1px solid var(--border);\n        border-radius: 6px;\n        background: var(--bg-card);\n        color: var(--text-muted);\n        cursor: pointer;\n      }\n\n      .icon-btn:hover {\n        color: var(--text-bright);\n        border-color: #3f3f46;\n      }\n\n      .settings-menu {\n        position: absolute;\n        right: 0;\n        top: 40px;\n        z-index: 20;\n        width: min(320px, calc(100vw - 32px));\n        padding: 12px;\n        border: 1px solid var(--border);\n        border-radius: 6px;\n        background: var(--bg-card);\n        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);\n      }\n\n      .primary,\n      .reset,\n      .retry {\n        height: 32px;\n        padding: 0 14px;\n        border-radius: 6px;\n        cursor: pointer;\n        transition:\n          opacity 150ms,\n          transform 80ms,\n          color 150ms,\n          border-color 150ms,\n          background 150ms;\n      }\n\n      .primary {\n        border: none;\n        background: var(--accent);\n        color: #000;\n        font-size: 13px;\n        font-weight: 500;\n      }\n\n      .primary.pause {\n        background: var(--bg-card);\n        color: var(--text-bright);\n        border: 1px solid var(--border);\n      }\n\n      .primary.resume {\n        background: rgba(34, 211, 238, 0.1);\n        border: 1px solid rgba(34, 211, 238, 0.3);\n        color: var(--accent);\n      }\n\n      .primary:disabled,\n      .send-btn:disabled {\n        opacity: 0.35;\n        cursor: not-allowed;\n      }\n\n      .reset {\n        border: 1px solid var(--border);\n        background: transparent;\n        color: var(--text-muted);\n        font-size: 13px;\n      }\n\n      .reset:hover {\n        border-color: #3f3f46;\n        color: var(--state-error);\n      }\n\n      .menu-item {\n        display: block;\n        width: 100%;\n        margin-top: 8px;\n        padding: 8px 10px;\n        border: 1px solid var(--border);\n        border-radius: 6px;\n        background: transparent;\n        color: var(--text-bright);\n        font-size: 13px;\n        text-align: left;\n        cursor: pointer;\n        transition: border-color 150ms, color 150ms, background 150ms;\n      }\n\n      .menu-item:hover:enabled {\n        border-color: #3f3f46;\n        background: rgba(255, 255, 255, 0.04);\n      }\n\n      .menu-item:disabled {\n        opacity: 0.4;\n        cursor: not-allowed;\n      }\n\n      button:active:enabled {\n        transform: scale(0.97);\n      }\n\n      .meters {\n        height: 16px;\n        align-items: flex-end;\n      }\n\n      .bar {\n        width: 2px;\n        height: 16px;\n        border-radius: 2px;\n        background: rgba(34, 211, 238, 0.6);\n        transform: scaleY(var(--level, 0.1));\n        transform-origin: bottom;\n        transition: transform 50ms linear;\n      }\n\n      .transcript {\n        flex: 1;\n        overflow-y: auto;\n        padding: 12px 16px;\n        display: flex;\n        flex-direction: column;\n        gap: 6px;\n      }\n\n      .empty-state,\n      .ended-state,\n      .duplicate-page {\n        flex: 1;\n        display: flex;\n        flex-direction: column;\n        align-items: center;\n        justify-content: center;\n        gap: 12px;\n        text-align: center;\n        color: var(--text-muted);\n      }\n\n      .empty-icon {\n        width: 32px;\n        height: 32px;\n        opacity: 0.5;\n      }\n\n      .transcript-item {\n        padding: 8px 12px;\n        border-radius: 0 6px 6px 0;\n        color: var(--text-bright);\n        font-size: 14px;\n        line-height: 1.55;\n        word-break: break-word;\n      }\n\n      .transcript-item.streaming {\n        opacity: 1;\n      }\n\n      .role-user {\n        border-left: 2px solid var(--role-user);\n      }\n\n      .role-assistant {\n        border-left: 2px solid var(--role-assistant);\n      }\n\n      .role-system {\n        border-left: 2px solid var(--role-system);\n        background: rgba(251, 146, 60, 0.06);\n        color: rgba(251, 146, 60, 0.85);\n        font-size: 13px;\n        font-style: italic;\n      }\n\n      .source-textInput {\n        background: rgba(167, 139, 250, 0.04);\n      }\n\n      .source-system.role-user,\n      .source-system.role-assistant {\n        border-left-style: dashed;\n        color: var(--text-default);\n      }\n\n      .source-firstMessage {\n        position: relative;\n        border: 1px solid rgba(167, 139, 250, 0.25);\n        background: rgba(167, 139, 250, 0.06);\n        border-radius: 6px;\n        padding-right: 110px;\n      }\n\n      .source-firstMessage::after {\n        content: "first message";\n        position: absolute;\n        top: 6px;\n        right: 8px;\n        color: var(--text-dim);\n        font-family: var(--font-mono);\n        font-size: 10px;\n      }\n\n      .tool-call {\n        background: rgba(96, 165, 250, 0.07);\n        border: 1px solid rgba(96, 165, 250, 0.18);\n        border-radius: 6px;\n        padding: 7px 10px;\n        font-family: var(--font-mono);\n        font-size: 12px;\n        cursor: pointer;\n        user-select: none;\n      }\n\n      .tool-row {\n        display: flex;\n        align-items: center;\n        gap: 8px;\n      }\n\n      .badge {\n        border-radius: 4px;\n        padding: 2px 7px;\n        background: rgba(52, 211, 153, 0.12);\n        color: #34d399;\n        font-size: 11px;\n      }\n\n      .badge.started {\n        background: rgba(251, 191, 36, 0.15);\n        color: #fbbf24;\n      }\n\n      .badge.failed {\n        background: rgba(248, 113, 113, 0.12);\n        color: #f87171;\n      }\n\n      .badge.interrupted {\n        background: rgba(161, 161, 170, 0.12);\n        color: #71717a;\n      }\n\n      .tool-call-body {\n        max-height: 0;\n        overflow: hidden;\n        transition: max-height 220ms ease-out;\n      }\n\n      .tool-call.expanded .tool-call-body {\n        max-height: var(--body-height);\n      }\n\n      .section-label {\n        margin: 10px 0 4px;\n        color: var(--text-dim);\n        font-size: 11px;\n        letter-spacing: 0.08em;\n      }\n\n      pre {\n        margin: 0 0 8px;\n        padding: 8px;\n        overflow-x: auto;\n        border-radius: 4px;\n        background: rgba(0, 0, 0, 0.25);\n        color: var(--text-default);\n        white-space: pre-wrap;\n        word-break: break-all;\n      }\n\n      .input-bar {\n        flex-shrink: 0;\n        border-top: 1px solid var(--border);\n        background: var(--bg-base);\n        padding: 10px 16px;\n        display: flex;\n        flex-direction: column;\n        gap: 6px;\n      }\n\n      textarea {\n        flex: 1;\n        min-height: 36px;\n        max-height: 120px;\n        resize: none;\n        overflow-y: auto;\n        border: 1px solid var(--border);\n        border-radius: 8px;\n        background: var(--bg-card);\n        color: var(--text-bright);\n        padding: 8px 12px;\n        font-size: 14px;\n        line-height: 1.5;\n      }\n\n      textarea:focus {\n        border-color: rgba(34, 211, 238, 0.4);\n      }\n\n      textarea::placeholder {\n        color: var(--text-dim);\n      }\n\n      .send-btn {\n        width: 36px;\n        height: 36px;\n        flex-shrink: 0;\n        border: none;\n        border-radius: 8px;\n        background: var(--accent);\n        color: #000;\n        cursor: pointer;\n      }\n\n      .send-btn:disabled {\n        background: var(--bg-card);\n        color: var(--text-dim);\n      }\n\n      .error-block {\n        background: rgba(248, 113, 113, 0.07);\n        border: 1px solid rgba(248, 113, 113, 0.2);\n        border-radius: 6px;\n        padding: 12px;\n        display: flex;\n        flex-direction: column;\n        gap: 6px;\n      }\n\n      .error-title {\n        color: var(--state-error);\n        font-size: 13px;\n        font-weight: 600;\n      }\n\n      .retry {\n        height: 28px;\n        border: 1px solid rgba(248, 113, 113, 0.4);\n        background: transparent;\n        color: var(--state-error);\n        font-size: 12px;\n      }\n\n      .duplicate-page {\n        min-height: 100dvh;\n        max-width: 380px;\n        padding: 24px;\n      }\n\n      .hidden {\n        display: none !important;\n      }\n\n    </style>\n  </head>\n  <body>\n    <main class="layout" id="app">\n      <header class="header">\n        <div class="title">__REALTIME_VOICE_TITLE__</div>\n      </header>\n      <section class="controls" id="controls">\n        <div class="buttons">\n          <button class="primary" id="primary" type="button" aria-label="Start conversation">Start</button>\n          <button class="reset hidden" id="reset" type="button">Reset</button>\n          <div class="meters hidden" id="meters" aria-hidden="true">\n            <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>\n          </div>\n        </div>\n        <div class="settings">\n          <div class="connection"><span class="dot connecting" id="dot"></span><span id="connectionLabel">Connecting...</span></div>\n          <button class="icon-btn" id="settingsToggle" type="button" aria-label="Audio settings" aria-expanded="false">\n            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">\n              <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>\n              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6V20a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1H4a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6V4a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.17.36.38.69.6 1H20a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-.51 1Z"></path>\n            </svg>\n          </button>\n          <div class="settings-menu hidden" id="settingsMenu">\n            <div id="micArea" class="mic-note">Microphone access is required to use voice.</div>\n            <button class="menu-item" id="download" type="button" disabled>Download transcript (JSONL)</button>\n          </div>\n        </div>\n      </section>\n      <section class="transcript" id="transcript" role="log" aria-live="polite" aria-label="Conversation transcript"></section>\n      <audio id="remoteAudio" autoplay playsinline class="hidden"></audio>\n      <footer class="input-bar">\n        <div class="input-row">\n          <textarea id="textInput" placeholder="Type a message..." rows="1"></textarea>\n          <button class="send-btn" id="send" type="button" aria-label="Send message" disabled>\u2191</button>\n        </div>\n      </footer>\n    </main>\n    <script>\n      const state = {\n        ws: undefined,\n        reconnect: 250,\n        status: { server: "stopped", browserClient: "none", conversation: "none" },\n        conversation: undefined,\n        audio: { permission: "unknown", devices: [], ready: false },\n        atBottom: true,\n        streamDrafts: new Map(),\n        webrtc: {\n          pc: undefined,\n          dc: undefined,\n          dcOpen: false,\n          pcConnected: false,\n          connectedSent: false,\n          micStream: undefined,\n          micTrack: undefined,\n          micSender: undefined,\n          analyser: undefined,\n          analyserCtx: undefined,\n          metersStarted: false,\n          pendingSends: [],\n          sessionInFlight: false,\n        },\n        realtime: { responseActive: false, pendingPauseCut: false },\n      };\n\n      const $ = (id) => document.getElementById(id);\n      const dot = $("dot");\n      const connectionLabel = $("connectionLabel");\n      const transcript = $("transcript");\n      const primary = $("primary");\n      const reset = $("reset");\n      const download = $("download");\n      const textInput = $("textInput");\n      const send = $("send");\n      const micArea = $("micArea");\n      const meters = $("meters");\n      const settingsToggle = $("settingsToggle");\n      const settingsMenu = $("settingsMenu");\n      const remoteAudio = $("remoteAudio");\n\n      connect();\n      wireUi();\n      render();\n\n      // Detect whether the browser\'s autoplay policy will let unmuted media\n      // start without a user gesture. If not, we hold off acquiring the mic\n      // and announcing audio.ready so the server\'s connectOnPageLoad does\n      // NOT auto-start the conversation \u2014 the user must press Start.\n      // Spec: https://www.w3.org/TR/autoplay-detection/  (MDN: Navigator.getAutoplayPolicy)\n      // getAutoplayPolicy can report "allowed" even when unmuted MediaStream\n      // playback is still blocked, so we always do a live silent-audio probe \u2014\n      // it\'s the only way to actually verify that play() will succeed.\n      async function canAutoplay() {\n        if (navigator.userActivation && navigator.userActivation.hasBeenActive === false) {\n          return false;\n        }\n        try {\n          const probe = new Audio(\n            "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA",\n          );\n          probe.volume = 0;\n          await probe.play();\n          probe.pause();\n          return true;\n        } catch (error) {\n          dlog("canAutoplay.probe.blocked", { message: String(error?.message ?? error) });\n          return false;\n        }\n      }\n\n      function connect() {\n        setConnection("connecting");\n        const protocol = location.protocol === "https:" ? "wss:" : "ws:";\n        const ws = new WebSocket(`${protocol}//${location.host}/ws`);\n        state.ws = ws;\n        ws.addEventListener("open", async () => {\n          state.reconnect = 250;\n          setConnection("connected");\n          const autoplayOk = await canAutoplay();\n          dlog("autoplay.check", { allowed: autoplayOk });\n          if (autoplayOk) {\n            refreshAudio();\n          } else {\n            // Defer mic acquisition until the user clicks Start. The primary\n            // button handler will call refreshAudio() at that point.\n            state.audio.pendingUserGesture = true;\n            renderAudioError({\n              code: "AUTOPLAY_BLOCKED",\n              message: "Press Start to enable audio.",\n              suggestedAction: "Browsers require a click before audio can play.",\n            });\n          }\n        });\n        ws.addEventListener("message", (event) => {\n          let parsed;\n          try { parsed = JSON.parse(event.data); } catch (e) { dlog("ws.in.parseError", { data: String(event.data).slice(0, 200) }); return; }\n          dlog("ws.in", { type: parsed.type, data: parsed.data });\n          handleMessage(parsed);\n        });\n        ws.addEventListener("close", () => {\n          setConnection("disconnected");\n          setTimeout(connect, state.reconnect);\n          state.reconnect = Math.min(state.reconnect * 2, 5000);\n        });\n        ws.addEventListener("error", () => setConnection("error"));\n      }\n\n      function wireUi() {\n        primary.addEventListener("click", () => {\n          // If we deferred mic acquisition pending a user gesture (autoplay\n          // policy blocked), this click is the gesture \u2014 acquire the mic now\n          // and let the resulting audio.ready signal trigger normal flow.\n          if (state.audio.pendingUserGesture) {\n            state.audio.pendingUserGesture = false;\n            refreshAudio();\n            return;\n          }\n          const status = state.status.conversation;\n          if (status === "none") startConversation();\n          if (status === "active") sendMessage("conversation.pause");\n          if (status === "paused") sendMessage("conversation.resume");\n        });\n        reset.addEventListener("click", () => {\n          sendMessage("conversation.reset");\n          teardownWebrtc();\n        });\n        download.addEventListener("click", downloadTranscript);\n        settingsToggle.addEventListener("click", () => {\n          const isHidden = settingsMenu.classList.toggle("hidden");\n          settingsToggle.setAttribute("aria-expanded", String(!isHidden));\n        });\n        document.addEventListener("click", (event) => {\n          if (settingsMenu.classList.contains("hidden")) return;\n          if (settingsMenu.contains(event.target) || settingsToggle.contains(event.target)) return;\n          settingsMenu.classList.add("hidden");\n          settingsToggle.setAttribute("aria-expanded", "false");\n        });\n        send.addEventListener("click", sendText);\n        textInput.addEventListener("input", () => {\n          textInput.style.height = "auto";\n          textInput.style.height = `${Math.min(textInput.scrollHeight, 120)}px`;\n          send.disabled = textInput.value.trim().length === 0;\n        });\n        textInput.addEventListener("keydown", (event) => {\n          if (event.key === "Enter" && !event.shiftKey) {\n            event.preventDefault();\n            sendText();\n          }\n        });\n        transcript.addEventListener("scroll", () => {\n          state.atBottom = transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 80;\n        });\n      }\n\n      function handleMessage(message) {\n        if (message.type === "duplicate.client") {\n          document.body.innerHTML =\n            \'<main class="duplicate-page"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg><h1>Session unavailable</h1><p>Another browser window is already connected to this Realtime Voice Server. Close the other session and refresh this page.</p></main>\';\n          return;\n        }\n        if (message.type === "state") {\n          const previousStatus = state.status.conversation;\n          state.status = {\n            server: message.data.server,\n            browserClient: message.data.browserClient,\n            conversation: message.data.conversationStatus ?? message.data.conversation?.status ?? message.data.conversation ?? "none",\n          };\n          state.conversation = message.data.conversation;\n          clearFinalizedDrafts();\n          if ((state.status.conversation === "none" || state.status.conversation === "ended") && state.webrtc.pc) {\n            teardownWebrtc();\n          }\n          if (state.status.conversation !== previousStatus) {\n            applyPauseState(state.status.conversation, previousStatus);\n          }\n          render();\n        }\n        if (message.type === "transcript.item") {\n          state.streamDrafts.delete(message.data.id ?? message.data.item?.id);\n          render();\n        }\n        if (message.type === "transcript.delta") {\n          state.streamDrafts.set(message.data.itemId, message.data);\n          render();\n        }\n        if (message.type === "browser.audio.error") {\n          renderAudioError(message.data);\n        }\n        if (message.type === "browser.audio.deviceChange") {\n          state.audio.devices = message.data.devices ?? [];\n          state.audio.selectedDeviceId = message.data.selectedDeviceId;\n          renderMicSelector();\n        }\n        if (message.type === "webrtc.session.start") {\n          dlog("webrtc.session.start.received", { conversationStatus: state.status.conversation, audioReady: state.audio.ready });\n          if (!state.webrtc.sessionInFlight) {\n            state.webrtc.sessionInFlight = true;\n            sendMessage("webrtc.session.requested");\n          }\n        }\n        if (message.type === "webrtc.session.token") {\n          dlog("webrtc.session.token.received", { hasClientSecret: !!message.data?.clientSecret, model: message.data?.model, expiresAt: message.data?.expiresAt });\n          establishWebrtc(message.data).catch((error) => {\n            dlog("establishWebrtc.unhandled", { message: error?.message, stack: error?.stack });\n            failWebrtc("WEBRTC_SETUP_FAILED", error?.message ?? String(error));\n          });\n        }\n        if (message.type === "realtime.send") {\n          forwardRealtimeSend(message.data?.event);\n        }\n        if (message.type === "wait_for_context.start") {\n          startMetronome();\n        }\n        if (message.type === "wait_for_context.end") {\n          stopMetronome();\n        }\n      }\n\n      // \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n      // Wait-for-context metronome: a gentle click every 2s while the agent\n      // is paused waiting for new <context>/<topics> from the orchestrator.\n      // \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n      const metronome = { ctx: undefined, timer: undefined };\n\n      function startMetronome() {\n        if (metronome.timer) return;\n        const Ctx = window.AudioContext || window.webkitAudioContext;\n        if (!metronome.ctx) metronome.ctx = new Ctx();\n        if (metronome.ctx.state === "suspended") {\n          metronome.ctx.resume().catch((error) => {\n            dlog("metronome.resume.failed", { message: String(error?.message ?? error) });\n          });\n        }\n        const click = () => {\n          const ctx = metronome.ctx;\n          if (!ctx) return;\n          const osc = ctx.createOscillator();\n          const gain = ctx.createGain();\n          osc.type = "sine";\n          osc.frequency.value = 880;\n          const now = ctx.currentTime;\n          gain.gain.setValueAtTime(0, now);\n          gain.gain.linearRampToValueAtTime(0.05, now + 0.005);\n          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);\n          osc.connect(gain).connect(ctx.destination);\n          osc.start(now);\n          osc.stop(now + 0.1);\n        };\n        click();\n        metronome.timer = setInterval(click, 2000);\n      }\n\n      function stopMetronome() {\n        if (metronome.timer) {\n          clearInterval(metronome.timer);\n          metronome.timer = undefined;\n        }\n      }\n\n      async function refreshAudio() {\n        if (!navigator.mediaDevices?.getUserMedia) return;\n        try {\n          const probe = await navigator.mediaDevices.getUserMedia({ audio: true });\n          probe.getTracks().forEach((track) => track.stop());\n          const devices = (await navigator.mediaDevices.enumerateDevices())\n            .filter((device) => device.kind === "audioinput")\n            .map((device) => ({ deviceId: device.deviceId, label: device.label || "Microphone", groupId: device.groupId }));\n          const previous = state.audio.selectedDeviceId;\n          const selected = devices.find((device) => device.deviceId === previous)?.deviceId ?? devices[0]?.deviceId;\n          state.audio = { permission: "granted", devices, selectedDeviceId: selected, ready: true };\n          sendMessage("audio.device.state", state.audio);\n          renderMicSelector();\n        } catch (error) {\n          const details = {\n            code: "MICROPHONE_DEVICE_ERROR",\n            message: "Could not access the selected microphone.",\n            suggestedAction: "Allow microphone access and try again.",\n          };\n          sendMessage("browser.audio.error", details);\n          renderAudioError(details);\n        }\n      }\n\n      async function acquireMicStream(deviceId) {\n        const audio = {\n          echoCancellation: true,\n          noiseSuppression: true,\n          autoGainControl: true,\n        };\n        if (deviceId) audio.deviceId = { exact: deviceId };\n        return navigator.mediaDevices.getUserMedia({ audio });\n      }\n\n      function startMeters(stream) {\n        if (state.webrtc.analyserCtx) {\n          try {\n            state.webrtc.analyserCtx.close();\n          } catch (error) {\n            dlog("startMeters.analyserCtx.close.failed", { message: String(error?.message ?? error) });\n          }\n        }\n        const audioCtx = new AudioContext();\n        if (audioCtx.state === "suspended") {\n          audioCtx.resume().catch((error) => {\n            dlog("startMeters.audioCtx.resume.failed", { message: String(error?.message ?? error) });\n          });\n        }\n        const analyser = audioCtx.createAnalyser();\n        analyser.fftSize = 256;\n        audioCtx.createMediaStreamSource(stream).connect(analyser);\n        state.webrtc.analyser = analyser;\n        state.webrtc.analyserCtx = audioCtx;\n        if (state.webrtc.metersStarted) return;\n        state.webrtc.metersStarted = true;\n        const data = new Uint8Array(analyser.frequencyBinCount);\n        const bars = [...meters.querySelectorAll(".bar")];\n        function updateBars() {\n          const current = state.webrtc.analyser;\n          if (current) {\n            current.getByteFrequencyData(data);\n            bars.forEach((bar, index) => {\n              bar.style.setProperty("--level", Math.max(0.1, data[index * 10] / 255));\n            });\n          }\n          requestAnimationFrame(updateBars);\n        }\n        updateBars();\n      }\n\n      function startConversation() {\n        if (state.webrtc.sessionInFlight || state.webrtc.pc) return;\n        if (!state.audio.ready) {\n          renderAudioError({\n            code: "MICROPHONE_NOT_READY",\n            message: "Microphone is not ready.",\n            suggestedAction: "Grant microphone access and try again.",\n          });\n          return;\n        }\n        state.webrtc.sessionInFlight = true;\n        sendMessage("conversation.start");\n        sendMessage("webrtc.session.requested");\n      }\n\n      async function establishWebrtc(token) {\n        dlog("establishWebrtc.enter", { hasToken: !!token, hasClientSecret: !!token?.clientSecret, model: token?.model });\n        if (!token?.clientSecret || !token?.model) {\n          failWebrtc("WEBRTC_TOKEN_INVALID", "Missing client secret or model.");\n          return;\n        }\n        if (state.webrtc.pc) {\n          dlog("establishWebrtc.skip", { reason: "pc already exists" });\n          return;\n        }\n        try {\n          dlog("acquireMicStream.start", { deviceId: state.audio.selectedDeviceId });\n          const stream = await acquireMicStream(state.audio.selectedDeviceId);\n          state.webrtc.micStream = stream;\n          const track = stream.getAudioTracks()[0];\n          state.webrtc.micTrack = track;\n          dlog("acquireMicStream.ok", { trackId: track?.id, label: track?.label, enabled: track?.enabled, muted: track?.muted });\n          startMeters(stream);\n\n          const pc = new RTCPeerConnection();\n          dlog("RTCPeerConnection.created", webrtcSnapshot());\n          state.webrtc.pc = pc;\n          state.webrtc.micSender = pc.addTrack(track, stream);\n          pc.ontrack = (event) => {\n            dlog("pc.ontrack", { kind: event.track?.kind, streams: event.streams?.length });\n            const [remoteStream] = event.streams;\n            if (remoteStream) remoteAudio.srcObject = remoteStream;\n          };\n          pc.onconnectionstatechange = () => {\n            dlog("pc.connectionstatechange", { connectionState: pc.connectionState });\n            const connectionState = pc.connectionState;\n            if (connectionState === "connected") {\n              state.webrtc.pcConnected = true;\n              maybeAnnounceConnected();\n            }\n            if (connectionState === "failed" || connectionState === "closed") {\n              if (!state.webrtc.connectedSent) {\n                failWebrtc("WEBRTC_PC_FAILED", `Peer connection ${connectionState}.`);\n              }\n            }\n          };\n          pc.oniceconnectionstatechange = () => dlog("pc.iceconnectionstatechange", { iceConnectionState: pc.iceConnectionState });\n          pc.onicegatheringstatechange = () => dlog("pc.icegatheringstatechange", { iceGatheringState: pc.iceGatheringState });\n          pc.onsignalingstatechange = () => dlog("pc.signalingstatechange", { signalingState: pc.signalingState });\n          pc.onicecandidateerror = (event) => dlog("pc.icecandidateerror", { errorCode: event.errorCode, errorText: event.errorText, url: event.url });\n\n          const dc = pc.createDataChannel("oai-events");\n          state.webrtc.dc = dc;\n          dc.onopen = () => {\n            dlog("dc.onopen", { readyState: dc.readyState });\n            state.webrtc.dcOpen = true;\n            for (const payload of state.webrtc.pendingSends) {\n              try {\n                dc.send(payload);\n              } catch (error) {\n                dlog("dc.send.pending.failed", { message: String(error?.message ?? error) });\n              }\n            }\n            state.webrtc.pendingSends = [];\n            maybeAnnounceConnected();\n          };\n          dc.onclose = () => { dlog("dc.onclose", {}); state.webrtc.dcOpen = false; };\n          dc.onerror = (e) => dlog("dc.onerror", { message: String(e?.error?.message ?? e?.message ?? e) });\n          dc.onmessage = (event) => {\n            const parsed = JSON.parse(event.data);\n            if (parsed?.type === "response.created") {\n              state.realtime.responseActive = true;\n            } else if (parsed?.type === "response.done" || parsed?.type === "response.cancelled" || parsed?.type === "response.failed") {\n              state.realtime.responseActive = false;\n            }\n            // The actual end-of-audio signal is output_audio_buffer.stopped \u2014\n            // that\'s when all queued audio chunks have been delivered. Using\n            // response.done would cut off the avatar mid-sentence because\n            // generation completes before audio finishes streaming.\n            if (parsed?.type === "output_audio_buffer.stopped" && state.realtime.pendingPauseCut) {\n              state.realtime.pendingPauseCut = false;\n              applyPauseAudioCut();\n            }\n            sendMessage("realtime.event", { event: parsed });\n          };\n\n          const offer = await pc.createOffer();\n          dlog("pc.createOffer.ok", { sdpLength: offer.sdp?.length });\n          await pc.setLocalDescription(offer);\n          dlog("pc.setLocalDescription.ok", { signalingState: pc.signalingState });\n\n          const sdpUrl = `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(token.model)}`;\n          dlog("sdp.fetch.start", { url: sdpUrl, sdpLength: pc.localDescription.sdp?.length });\n          const fetchStart = Date.now();\n          const response = await fetch(sdpUrl, {\n            method: "POST",\n            headers: {\n              Authorization: `Bearer ${token.clientSecret}`,\n              "Content-Type": "application/sdp",\n            },\n            body: pc.localDescription.sdp,\n          });\n          dlog("sdp.fetch.response", { status: response.status, ok: response.ok, durationMs: Date.now() - fetchStart, headers: Object.fromEntries(response.headers.entries()) });\n          if (!response.ok) {\n            const body = await response.text().catch(() => "");\n            dlog("sdp.fetch.errorBody", { status: response.status, body: body.slice(0, 500) });\n            throw new Error(`OpenAI SDP exchange failed (${response.status}): ${body.slice(0, 200)}`);\n          }\n          const answerSdp = await response.text();\n          dlog("sdp.fetch.ok", { answerSdpLength: answerSdp.length });\n          await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });\n          dlog("pc.setRemoteDescription.ok", webrtcSnapshot());\n        } catch (error) {\n          dlog("establishWebrtc.catch", { message: error?.message, name: error?.name, stack: error?.stack, snapshot: webrtcSnapshot() });\n          failWebrtc("WEBRTC_SETUP_FAILED", error?.message ?? String(error));\n        }\n      }\n\n      function maybeAnnounceConnected() {\n        const { pcConnected, dcOpen, connectedSent } = state.webrtc;\n        dlog("maybeAnnounceConnected", { pcConnected, dcOpen, connectedSent });\n        if (!pcConnected || !dcOpen || connectedSent) return;\n        state.webrtc.connectedSent = true;\n        state.webrtc.sessionInFlight = false;\n        sendMessage("webrtc.session.connected");\n      }\n\n      function forwardRealtimeSend(event) {\n        if (!event) return;\n        const payload = JSON.stringify(event);\n        const { dc, dcOpen } = state.webrtc;\n        if (dc && dcOpen) {\n          try {\n            dc.send(payload);\n          } catch (error) {\n            dlog("dc.send.failed.requeue", { message: String(error?.message ?? error) });\n            state.webrtc.pendingSends.push(payload);\n          }\n          return;\n        }\n        state.webrtc.pendingSends.push(payload);\n      }\n\n      function failWebrtc(code, message) {\n        dlog("failWebrtc", { code, message, snapshot: webrtcSnapshot() });\n        sendMessage("webrtc.session.failed", { error: { code, message } });\n        teardownWebrtc();\n      }\n\n      function teardownWebrtc() {\n        const { pc, micStream, analyserCtx } = state.webrtc;\n        if (pc) {\n          try {\n            pc.close();\n          } catch (error) {\n            dlog("teardown.pc.close.failed", { message: String(error?.message ?? error) });\n          }\n        }\n        if (micStream) {\n          micStream.getTracks().forEach((track) => track.stop());\n        }\n        if (analyserCtx) {\n          try {\n            analyserCtx.close();\n          } catch (error) {\n            dlog("teardown.analyserCtx.close.failed", { message: String(error?.message ?? error) });\n          }\n        }\n        remoteAudio.srcObject = null;\n        state.webrtc.pc = undefined;\n        state.webrtc.dc = undefined;\n        state.webrtc.dcOpen = false;\n        state.webrtc.pcConnected = false;\n        state.webrtc.connectedSent = false;\n        state.webrtc.micStream = undefined;\n        state.webrtc.micTrack = undefined;\n        state.webrtc.micSender = undefined;\n        state.webrtc.analyser = undefined;\n        state.webrtc.analyserCtx = undefined;\n        state.webrtc.pendingSends = [];\n        state.webrtc.sessionInFlight = false;\n      }\n\n      function applyPauseState(status, previousStatus) {\n        const paused = status === "paused";\n        const wasPaused = previousStatus === "paused";\n        const { micTrack, micSender } = state.webrtc;\n        if (paused) {\n          // If a response is currently being spoken, defer the audio cut\n          // until response.done fires so the avatar can finish its sentence.\n          if (state.realtime.responseActive) {\n            state.realtime.pendingPauseCut = true;\n            // Stop the user\'s mic from sending audio immediately so the\n            // model can\'t pick up more input during the wind-down.\n            if (micTrack) micTrack.enabled = false;\n            micSender?.replaceTrack(null).catch((error) => {\n              dlog("micSender.replaceTrack(null).failed", { message: String(error?.message ?? error) });\n            });\n            return;\n          }\n          applyPauseAudioCut();\n        } else if (status === "active") {\n          // Resuming: clear any deferred pause-cut, re-enable the local\n          // mic track, restore the sender, and unmute remote playback.\n          state.realtime.pendingPauseCut = false;\n          if (micTrack) micTrack.enabled = true;\n          remoteAudio.muted = false;\n          remoteAudio.play().catch((error) => {\n            dlog("remoteAudio.play.blocked", { message: String(error?.message ?? error) });\n          });\n          if (wasPaused && micSender && micTrack) {\n            micSender.replaceTrack(micTrack).catch((error) => {\n              dlog("micSender.replaceTrack(micTrack).failed", { message: String(error?.message ?? error) });\n            });\n          }\n        }\n      }\n\n      // Applies the actual audio-pause side effects: mute remote audio, stop\n      // sending mic RTP, cancel any in-flight response. Called either\n      // immediately on pause (no active response) or deferred from\n      // applyPauseState until response.done fires.\n      function applyPauseAudioCut() {\n        const { micTrack, micSender, dc, dcOpen } = state.webrtc;\n        if (micTrack) micTrack.enabled = false;\n        remoteAudio.muted = true;\n        remoteAudio.pause();\n        micSender?.replaceTrack(null).catch((error) => {\n          dlog("micSender.replaceTrack(null).failed", { message: String(error?.message ?? error) });\n        });\n        if (dc && dcOpen && state.realtime.responseActive) {\n          dc.send(JSON.stringify({ type: "response.cancel" }));\n        }\n      }\n\n      async function switchMicDevice(deviceId) {\n        state.audio.selectedDeviceId = deviceId;\n        sendMessage("audio.device.select", { deviceId });\n        if (!state.webrtc.pc) return;\n        try {\n          const stream = await acquireMicStream(deviceId);\n          const track = stream.getAudioTracks()[0];\n          if (state.webrtc.micSender) await state.webrtc.micSender.replaceTrack(track);\n          if (state.webrtc.micStream) {\n            state.webrtc.micStream.getTracks().forEach((existing) => existing.stop());\n          }\n          state.webrtc.micStream = stream;\n          state.webrtc.micTrack = track;\n          startMeters(stream);\n        } catch (error) {\n          renderAudioError({\n            code: "MICROPHONE_SWITCH_FAILED",\n            message: error?.message ?? "Could not switch microphone.",\n            suggestedAction: "Try a different device.",\n          });\n        }\n      }\n\n      function bytesToBase64(bytes) {\n        let binary = "";\n        for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);\n        return btoa(binary);\n      }\n\n      function base64ToBytes(base64) {\n        const binary = atob(base64);\n        const bytes = new Uint8Array(binary.length);\n        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);\n        return bytes;\n      }\n\n      function render() {\n        const status = state.status.conversation;\n        primary.className = "primary";\n        primary.disabled = !["none", "active", "paused"].includes(status);\n        primary.textContent =\n          status === "active" ? "Pause" :\n          status === "paused" ? "Resume" :\n          status === "starting" ? "Starting\u2026" :\n          "Start";\n        primary.setAttribute("aria-label", `${primary.textContent} conversation`);\n        if (status === "active") primary.classList.add("pause");\n        if (status === "paused") primary.classList.add("resume");\n        reset.classList.toggle("hidden", !["active", "paused"].includes(status));\n        download.disabled = (state.conversation?.transcript ?? []).length === 0;\n        meters.classList.toggle("hidden", status !== "active" || !state.audio.ready);\n        renderTranscript();\n      }\n\n      function downloadTranscript() {\n        const items = state.conversation?.transcript ?? [];\n        if (items.length === 0) return;\n        const jsonl = items.map((item) => JSON.stringify(item)).join("\\n") + "\\n";\n        const blob = new Blob([jsonl], { type: "application/jsonl" });\n        const url = URL.createObjectURL(blob);\n        const anchor = document.createElement("a");\n        const stamp = new Date().toISOString().replace(/[:.]/g, "-");\n        const convId = state.conversation?.id ?? "conversation";\n        anchor.href = url;\n        anchor.download = `transcript-${convId}-${stamp}.jsonl`;\n        document.body.append(anchor);\n        anchor.click();\n        anchor.remove();\n        URL.revokeObjectURL(url);\n      }\n\n      function renderTranscript() {\n        transcript.innerHTML = "";\n        const conversation = state.conversation;\n        if (!conversation) {\n          transcript.innerHTML =\n            \'<div class="empty-state"><svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v20M5 8v8M19 8v8"/></svg><div>Ready to start</div></div>\';\n          return;\n        }\n        if (conversation.status === "ended") {\n          transcript.innerHTML = \'<div class="ended-state"><strong>Conversation ended</strong><span>Transcript is no longer active.</span></div>\';\n          return;\n        }\n        const byTranscript = new Map((conversation.transcript ?? []).map((item) => [item.id, item]));\n        const byTool = new Map((conversation.toolCalls ?? []).map((item) => [item.id, item]));\n        for (const entry of conversation.timeline ?? []) {\n          if (entry.type === "transcript") renderTranscriptItem(byTranscript.get(entry.transcriptItemId));\n          if (entry.type === "toolCall") renderToolCall(byTool.get(entry.toolCallId));\n        }\n        for (const draft of state.streamDrafts.values()) {\n          if (byTranscript.has(draft.itemId)) continue;\n          renderTranscriptItem({\n            id: draft.itemId,\n            role: draft.role ?? "assistant",\n            source: draft.source ?? "assistantAudio",\n            text: draft.fullTextSoFar,\n            streaming: true,\n          });\n        }\n        maybeScrollToBottom();\n      }\n\n      function renderTranscriptItem(item) {\n        if (!item) return;\n        const node = document.createElement("article");\n        node.className = `transcript-item role-${item.role} source-${item.source}`;\n        if (item.streaming) node.classList.add("streaming");\n        node.textContent = item.text;\n        transcript.append(node);\n      }\n\n      function clearFinalizedDrafts() {\n        const finalized = new Set((state.conversation?.transcript ?? []).map((item) => item.id));\n        for (const itemId of state.streamDrafts.keys()) {\n          if (finalized.has(itemId)) state.streamDrafts.delete(itemId);\n        }\n      }\n\n      function renderToolCall(tool) {\n        if (!tool) return;\n        const node = document.createElement("article");\n        node.className = "tool-call";\n        node.tabIndex = 0;\n        node.innerHTML = `<div class="tool-row"><span class="toggle">\u25B8</span><span>Tool: ${escapeText(tool.toolName)}(...)</span><span class="badge ${tool.status}">${tool.status}</span></div><div class="tool-call-body"><div class="section-label">ARGUMENTS</div><pre>${escapeText(JSON.stringify(tool.arguments, null, 2))}</pre><div class="section-label">RESULT</div><pre>${escapeText(JSON.stringify(tool.result ?? tool.error ?? null, null, 2))}</pre></div>`;\n        const toggle = () => {\n          node.classList.toggle("expanded");\n          const body = node.querySelector(".tool-call-body");\n          node.style.setProperty("--body-height", `${body.scrollHeight}px`);\n          node.querySelector(".toggle").textContent = node.classList.contains("expanded") ? "\u25BE" : "\u25B8";\n        };\n        node.addEventListener("click", toggle);\n        node.addEventListener("keydown", (event) => {\n          if (event.key === "Enter" || event.key === " ") toggle();\n        });\n        transcript.append(node);\n      }\n\n      function renderMicSelector() {\n        if (!state.audio.ready) return;\n        micArea.innerHTML = \'<label class="field-label" for="micSelect">Microphone</label><select id="micSelect"></select>\';\n        const select = micArea.querySelector("#micSelect");\n        if (!select) return;\n        for (const device of state.audio.devices) {\n          const option = document.createElement("option");\n          option.value = device.deviceId;\n          option.textContent = device.label;\n          option.selected = device.deviceId === state.audio.selectedDeviceId;\n          select.append(option);\n        }\n        select.addEventListener("change", () => switchMicDevice(select.value));\n      }\n\n      function renderAudioError(error) {\n        micArea.innerHTML = `<div class="error-block"><div class="error-title">Microphone error</div><div>${escapeText(error.message)}</div><div><strong>Reason:</strong> ${escapeText(error.code)}</div><div><strong>Suggested action:</strong> ${escapeText(error.suggestedAction)}</div><button class="retry" type="button">Retry</button></div>`;\n        micArea.querySelector("button").addEventListener("click", refreshAudio);\n      }\n\n      function sendText() {\n        const text = textInput.value.trim();\n        if (!text) return;\n        sendMessage("message.text", { text });\n        textInput.value = "";\n        textInput.dispatchEvent(new Event("input"));\n      }\n\n      function sendMessage(type, data) {\n        if (type !== "browser.debug") dlog("ws.out", { type, data });\n        if (state.ws?.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type, data }));\n      }\n\n      function dlog(label, info) {\n        // dlog is called from every code path; if logging itself throws\n        // (e.g. WS in odd state, JSON.stringify on a circular ref), we must\n        // not propagate \u2014 that would surface as a fatal in unrelated callers.\n        try {\n          const payload = { label, info, t: Date.now() };\n          console.log("[dbg]", label, info);\n          if (state.ws?.readyState === WebSocket.OPEN) {\n            state.ws.send(JSON.stringify({ type: "browser.debug", data: payload }));\n          }\n        } catch (error) {\n          console.error("dlog itself threw", error);\n        }\n      }\n\n      function webrtcSnapshot() {\n        const { pc, dc } = state.webrtc;\n        return {\n          sessionInFlight: state.webrtc.sessionInFlight,\n          pcConnected: state.webrtc.pcConnected,\n          dcOpen: state.webrtc.dcOpen,\n          connectedSent: state.webrtc.connectedSent,\n          hasMicTrack: !!state.webrtc.micTrack,\n          pc: pc ? {\n            connectionState: pc.connectionState,\n            iceConnectionState: pc.iceConnectionState,\n            iceGatheringState: pc.iceGatheringState,\n            signalingState: pc.signalingState,\n          } : null,\n          dc: dc ? { readyState: dc.readyState, label: dc.label } : null,\n        };\n      }\n\n      window.addEventListener("error", (e) => dlog("window.error", { message: e.message, filename: e.filename, lineno: e.lineno, colno: e.colno }));\n      window.addEventListener("unhandledrejection", (e) => dlog("window.unhandledrejection", { reason: String(e.reason), stack: e.reason?.stack }));\n\n      function setConnection(status) {\n        dot.className = `dot ${status}`;\n        connectionLabel.textContent =\n          status === "connected" ? "Connected" : status === "connecting" ? "Connecting..." : status === "error" ? "Connection Error" : "Disconnected";\n      }\n\n      function maybeScrollToBottom() {\n        if (state.atBottom) transcript.scrollTop = transcript.scrollHeight;\n      }\n\n      function escapeText(value) {\n        return String(value).replace(/[&<>"\']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", \'"\': "&quot;", "\'": "&#39;" })[char]);\n      }\n    </script>\n  </body>\n</html>\n';
-
 // src/controller.ts
 import { createServer } from "node:http";
 
-// ../../node_modules/ws/wrapper.mjs
+// ../../../../../../../../../../workspace/node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
 var import_receiver = __toESM(require_receiver(), 1);
 var import_sender = __toESM(require_sender(), 1);
@@ -7731,8 +7728,8 @@ var StrictEventEmitter = class {
 };
 
 // src/errors.ts
-var RealtimeVoiceServerError = class extends Error {
-  name = "RealtimeVoiceServerError";
+var VoiceAgentServerError = class extends Error {
+  name = "VoiceAgentServerError";
   code;
   details;
   cause;
@@ -7743,19 +7740,22 @@ var RealtimeVoiceServerError = class extends Error {
     this.cause = input.cause;
   }
 };
-function toRealtimeError(code, message, details, cause) {
-  return new RealtimeVoiceServerError({ code, message, details, cause });
+function toVoiceError(code, message, details, cause) {
+  return new VoiceAgentServerError({ code, message, details, cause });
 }
 
 // src/types.ts
-var DEFAULT_REALTIME_MODEL = "gpt-realtime-2";
-var DEFAULT_REALTIME_VOICE = "cedar";
-var DEFAULT_UI_TITLE = "Realtime Voice Console";
+var DEFAULT_REALTIME_MODEL = "grok-voice-latest";
+var DEFAULT_REALTIME_VOICE = "eve";
+var DEFAULT_UI_TITLE = "Voice Agent";
+
+// src/ui/index.html
+var ui_default = '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />\n    <title>__REALTIME_VOICE_TITLE__</title>\n    <style>\n      :root {\n        --bg-base: #09090b;\n        --bg-card: #18181b;\n        --border: #27272a;\n        --text-dim: #52525b;\n        --text-muted: #71717a;\n        --text-default: #a1a1aa;\n        --text-bright: #e4e4e7;\n        --text-white: #fafafa;\n        --accent: #22d3ee;\n        --role-user: #a78bfa;\n        --role-assistant: #34d399;\n        --role-system: #fb923c;\n        --role-tool: #60a5fa;\n        --state-error: #f87171;\n        --dot-connected: #22c55e;\n        --dot-connecting: #eab308;\n        --dot-disconnected: #52525b;\n        --dot-error: #f87171;\n        --font-sans: "Geist", "Inter", system-ui, -apple-system, sans-serif;\n        --font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;\n      }\n\n      * {\n        box-sizing: border-box;\n      }\n\n      body {\n        display: flex;\n        justify-content: center;\n        min-height: 100dvh;\n        margin: 0;\n        background: var(--bg-base);\n        color: var(--text-default);\n        font-family: var(--font-sans);\n      }\n\n      button,\n      textarea,\n      select {\n        font: inherit;\n      }\n\n      button:focus-visible,\n      textarea:focus-visible,\n      select:focus-visible,\n      .tool-call:focus-visible {\n        outline: 2px solid var(--accent);\n        outline-offset: 2px;\n      }\n\n      .layout {\n        width: 100%;\n        max-width: 680px;\n        height: 100dvh;\n        display: flex;\n        flex-direction: column;\n      }\n\n      .header {\n        display: none;\n        height: 0;\n        padding: 0;\n        border-bottom: 1px solid var(--border);\n        background: var(--bg-base);\n        position: sticky;\n        top: 0;\n        z-index: 10;\n        align-items: center;\n        justify-content: space-between;\n        flex-shrink: 0;\n      }\n\n      .title {\n        color: var(--text-bright);\n        font-size: 14px;\n        font-weight: 500;\n      }\n\n      .connection {\n        display: flex;\n        align-items: center;\n        gap: 6px;\n        color: var(--text-muted);\n        font-family: var(--font-mono);\n        font-size: 11px;\n      }\n\n      .dot {\n        width: 8px;\n        height: 8px;\n        border-radius: 50%;\n        background: var(--dot-disconnected);\n      }\n\n      .dot.connected {\n        background: var(--dot-connected);\n      }\n\n      .dot.connecting {\n        background: var(--dot-connecting);\n      }\n\n      .dot.error {\n        background: var(--dot-error);\n      }\n\n      .controls {\n        padding: 12px 16px;\n        border-bottom: 1px solid var(--border);\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        gap: 8px;\n        flex-shrink: 0;\n      }\n\n      .field-label {\n        color: var(--text-muted);\n        font-size: 11px;\n        letter-spacing: 0.05em;\n        text-transform: uppercase;\n      }\n\n      .mic-note,\n      .input-hint {\n        color: var(--text-muted);\n        font-size: 12px;\n        font-style: italic;\n      }\n\n      select {\n        width: 100%;\n        appearance: none;\n        background: var(--bg-card);\n        border: 1px solid var(--border);\n        border-radius: 6px;\n        color: var(--text-bright);\n        padding: 6px 10px;\n        font-size: 13px;\n      }\n\n      .buttons,\n      .input-row,\n      .meters {\n        display: flex;\n        align-items: center;\n        gap: 8px;\n      }\n\n      .buttons {\n        min-width: 0;\n      }\n\n      .settings {\n        position: relative;\n        margin-left: auto;\n        display: flex;\n        align-items: center;\n        gap: 10px;\n      }\n\n      .icon-btn {\n        width: 32px;\n        height: 32px;\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        border: 1px solid var(--border);\n        border-radius: 6px;\n        background: var(--bg-card);\n        color: var(--text-muted);\n        cursor: pointer;\n      }\n\n      .icon-btn:hover {\n        color: var(--text-bright);\n        border-color: #3f3f46;\n      }\n\n      .settings-menu {\n        position: absolute;\n        right: 0;\n        top: 40px;\n        z-index: 20;\n        width: min(320px, calc(100vw - 32px));\n        padding: 12px;\n        border: 1px solid var(--border);\n        border-radius: 6px;\n        background: var(--bg-card);\n        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);\n      }\n\n      .primary,\n      .reset,\n      .retry {\n        height: 32px;\n        padding: 0 14px;\n        border-radius: 6px;\n        cursor: pointer;\n        transition:\n          opacity 150ms,\n          transform 80ms,\n          color 150ms,\n          border-color 150ms,\n          background 150ms;\n      }\n\n      .primary {\n        border: none;\n        background: var(--accent);\n        color: #000;\n        font-size: 13px;\n        font-weight: 500;\n      }\n\n      .primary.pause {\n        background: var(--bg-card);\n        color: var(--text-bright);\n        border: 1px solid var(--border);\n      }\n\n      .primary.resume {\n        background: rgba(34, 211, 238, 0.1);\n        border: 1px solid rgba(34, 211, 238, 0.3);\n        color: var(--accent);\n      }\n\n      .primary:disabled,\n      .send-btn:disabled {\n        opacity: 0.35;\n        cursor: not-allowed;\n      }\n\n      .reset {\n        border: 1px solid var(--border);\n        background: transparent;\n        color: var(--text-muted);\n        font-size: 13px;\n      }\n\n      .reset:hover {\n        border-color: #3f3f46;\n        color: var(--state-error);\n      }\n\n      .menu-item {\n        display: block;\n        width: 100%;\n        margin-top: 8px;\n        padding: 8px 10px;\n        border: 1px solid var(--border);\n        border-radius: 6px;\n        background: transparent;\n        color: var(--text-bright);\n        font-size: 13px;\n        text-align: left;\n        cursor: pointer;\n        transition: border-color 150ms, color 150ms, background 150ms;\n      }\n\n      .menu-item:hover:enabled {\n        border-color: #3f3f46;\n        background: rgba(255, 255, 255, 0.04);\n      }\n\n      .menu-item:disabled {\n        opacity: 0.4;\n        cursor: not-allowed;\n      }\n\n      button:active:enabled {\n        transform: scale(0.97);\n      }\n\n      .meters {\n        height: 16px;\n        align-items: flex-end;\n      }\n\n      .bar {\n        width: 2px;\n        height: 16px;\n        border-radius: 2px;\n        background: rgba(34, 211, 238, 0.6);\n        transform: scaleY(var(--level, 0.1));\n        transform-origin: bottom;\n        transition: transform 50ms linear;\n      }\n\n      .transcript {\n        flex: 1;\n        overflow-y: auto;\n        padding: 12px 16px;\n        display: flex;\n        flex-direction: column;\n        gap: 6px;\n      }\n\n      .empty-state,\n      .ended-state,\n      .duplicate-page {\n        flex: 1;\n        display: flex;\n        flex-direction: column;\n        align-items: center;\n        justify-content: center;\n        gap: 12px;\n        text-align: center;\n        color: var(--text-muted);\n      }\n\n      .empty-icon {\n        width: 32px;\n        height: 32px;\n        opacity: 0.5;\n      }\n\n      .transcript-item {\n        padding: 8px 12px;\n        border-radius: 0 6px 6px 0;\n        color: var(--text-bright);\n        font-size: 14px;\n        line-height: 1.55;\n        word-break: break-word;\n      }\n\n      .transcript-item.streaming {\n        opacity: 1;\n      }\n\n      .role-user {\n        border-left: 2px solid var(--role-user);\n      }\n\n      .role-assistant {\n        border-left: 2px solid var(--role-assistant);\n      }\n\n      .role-system {\n        border-left: 2px solid var(--role-system);\n        background: rgba(251, 146, 60, 0.06);\n        color: rgba(251, 146, 60, 0.85);\n        font-size: 13px;\n        font-style: italic;\n      }\n\n      .source-textInput {\n        background: rgba(167, 139, 250, 0.04);\n      }\n\n      .source-system.role-user,\n      .source-system.role-assistant {\n        border-left-style: dashed;\n        color: var(--text-default);\n      }\n\n      .source-firstMessage {\n        position: relative;\n        border: 1px solid rgba(167, 139, 250, 0.25);\n        background: rgba(167, 139, 250, 0.06);\n        border-radius: 6px;\n        padding-right: 110px;\n      }\n\n      .source-firstMessage::after {\n        content: "first message";\n        position: absolute;\n        top: 6px;\n        right: 8px;\n        color: var(--text-dim);\n        font-family: var(--font-mono);\n        font-size: 10px;\n      }\n\n      .tool-call {\n        background: rgba(96, 165, 250, 0.07);\n        border: 1px solid rgba(96, 165, 250, 0.18);\n        border-radius: 6px;\n        padding: 7px 10px;\n        font-family: var(--font-mono);\n        font-size: 12px;\n        cursor: pointer;\n        user-select: none;\n      }\n\n      .tool-row {\n        display: flex;\n        align-items: center;\n        gap: 8px;\n      }\n\n      .badge {\n        border-radius: 4px;\n        padding: 2px 7px;\n        background: rgba(52, 211, 153, 0.12);\n        color: #34d399;\n        font-size: 11px;\n      }\n\n      .badge.started {\n        background: rgba(251, 191, 36, 0.15);\n        color: #fbbf24;\n      }\n\n      .badge.failed {\n        background: rgba(248, 113, 113, 0.12);\n        color: #f87171;\n      }\n\n      .badge.interrupted {\n        background: rgba(161, 161, 170, 0.12);\n        color: #71717a;\n      }\n\n      .tool-call-body {\n        max-height: 0;\n        overflow: hidden;\n        transition: max-height 220ms ease-out;\n      }\n\n      .tool-call.expanded .tool-call-body {\n        max-height: var(--body-height);\n      }\n\n      .section-label {\n        margin: 10px 0 4px;\n        color: var(--text-dim);\n        font-size: 11px;\n        letter-spacing: 0.08em;\n      }\n\n      pre {\n        margin: 0 0 8px;\n        padding: 8px;\n        overflow-x: auto;\n        border-radius: 4px;\n        background: rgba(0, 0, 0, 0.25);\n        color: var(--text-default);\n        white-space: pre-wrap;\n        word-break: break-all;\n      }\n\n      .input-bar {\n        flex-shrink: 0;\n        border-top: 1px solid var(--border);\n        background: var(--bg-base);\n        padding: 10px 16px;\n        display: flex;\n        flex-direction: column;\n        gap: 6px;\n      }\n\n      textarea {\n        flex: 1;\n        min-height: 36px;\n        max-height: 120px;\n        resize: none;\n        overflow-y: auto;\n        border: 1px solid var(--border);\n        border-radius: 8px;\n        background: var(--bg-card);\n        color: var(--text-bright);\n        padding: 8px 12px;\n        font-size: 14px;\n        line-height: 1.5;\n      }\n\n      textarea:focus {\n        border-color: rgba(34, 211, 238, 0.4);\n      }\n\n      textarea::placeholder {\n        color: var(--text-dim);\n      }\n\n      .send-btn {\n        width: 36px;\n        height: 36px;\n        flex-shrink: 0;\n        border: none;\n        border-radius: 8px;\n        background: var(--accent);\n        color: #000;\n        cursor: pointer;\n      }\n\n      .send-btn:disabled {\n        background: var(--bg-card);\n        color: var(--text-dim);\n      }\n\n      .error-block {\n        background: rgba(248, 113, 113, 0.07);\n        border: 1px solid rgba(248, 113, 113, 0.2);\n        border-radius: 6px;\n        padding: 12px;\n        display: flex;\n        flex-direction: column;\n        gap: 6px;\n      }\n\n      .error-title {\n        color: var(--state-error);\n        font-size: 13px;\n        font-weight: 600;\n      }\n\n      .retry {\n        height: 28px;\n        border: 1px solid rgba(248, 113, 113, 0.4);\n        background: transparent;\n        color: var(--state-error);\n        font-size: 12px;\n      }\n\n      .duplicate-page {\n        min-height: 100dvh;\n        max-width: 380px;\n        padding: 24px;\n      }\n\n      .hidden {\n        display: none !important;\n      }\n\n    </style>\n  </head>\n  <body>\n    <main class="layout" id="app">\n      <header class="header">\n        <div class="title">__REALTIME_VOICE_TITLE__</div>\n      </header>\n      <section class="controls" id="controls">\n        <div class="buttons">\n          <button class="primary" id="primary" type="button" aria-label="Start conversation">Start</button>\n          <button class="reset hidden" id="reset" type="button">Reset</button>\n          <div class="meters hidden" id="meters" aria-hidden="true">\n            <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>\n          </div>\n        </div>\n        <div class="settings">\n          <div class="connection"><span class="dot connecting" id="dot"></span><span id="connectionLabel">Connecting...</span></div>\n          <button class="icon-btn" id="settingsToggle" type="button" aria-label="Audio settings" aria-expanded="false">\n            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">\n              <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>\n              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6V20a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1H4a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6V4a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.17.36.38.69.6 1H20a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-.51 1Z"></path>\n            </svg>\n          </button>\n          <div class="settings-menu hidden" id="settingsMenu">\n            <div id="micArea" class="mic-note">Microphone access is required to use voice.</div>\n            <button class="menu-item" id="download" type="button" disabled>Download transcript (JSONL)</button>\n          </div>\n        </div>\n      </section>\n      <section class="transcript" id="transcript" role="log" aria-live="polite" aria-label="Conversation transcript"></section>\n      <audio id="remoteAudio" autoplay playsinline class="hidden"></audio>\n      <footer class="input-bar">\n        <div class="input-row">\n          <textarea id="textInput" placeholder="Type a message..." rows="1"></textarea>\n          <button class="send-btn" id="send" type="button" aria-label="Send message" disabled>\u2191</button>\n        </div>\n      </footer>\n    </main>\n    <script>\n      const state = {\n        ws: undefined,\n        reconnect: 250,\n        status: { server: "stopped", browserClient: "none", conversation: "none" },\n        conversation: undefined,\n        audio: { permission: "unknown", devices: [], ready: false },\n        atBottom: true,\n        streamDrafts: new Map(),\n        voice: {\n          xaiWs: undefined,\n          xaiOpen: false,\n          connectedSent: false,\n          micStream: undefined,\n          micTrack: undefined,\n          micSourceNode: undefined,\n          processorNode: undefined,\n          inputCtx: undefined,\n          outputCtx: undefined,\n          nextPlaybackTime: 0,\n          analyser: undefined,\n          analyserCtx: undefined,\n          metersStarted: false,\n          pendingSends: [],\n          sessionInFlight: false,\n          tokenExpiresAt: 0,\n          paused: false,\n        },\n        realtime: { responseActive: false, pendingPauseCut: false },\n      };\n\n      const $ = (id) => document.getElementById(id);\n      const dot = $("dot");\n      const connectionLabel = $("connectionLabel");\n      const transcript = $("transcript");\n      const primary = $("primary");\n      const reset = $("reset");\n      const download = $("download");\n      const textInput = $("textInput");\n      const send = $("send");\n      const micArea = $("micArea");\n      const meters = $("meters");\n      const settingsToggle = $("settingsToggle");\n      const settingsMenu = $("settingsMenu");\n      const remoteAudio = $("remoteAudio");\n\n      connect();\n      wireUi();\n      render();\n\n      // Detect whether the browser\'s autoplay policy will let unmuted media\n      // start without a user gesture. If not, we hold off acquiring the mic\n      // and announcing audio.ready so the server\'s connectOnPageLoad does\n      // NOT auto-start the conversation \u2014 the user must press Start.\n      // Spec: https://www.w3.org/TR/autoplay-detection/  (MDN: Navigator.getAutoplayPolicy)\n      // getAutoplayPolicy can report "allowed" even when unmuted MediaStream\n      // playback is still blocked, so we always do a live silent-audio probe \u2014\n      // it\'s the only way to actually verify that play() will succeed.\n      async function canAutoplay() {\n        if (navigator.userActivation && navigator.userActivation.hasBeenActive === false) {\n          return false;\n        }\n        try {\n          const probe = new Audio(\n            "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA",\n          );\n          probe.volume = 0;\n          await probe.play();\n          probe.pause();\n          return true;\n        } catch (error) {\n          dlog("canAutoplay.probe.blocked", { message: String(error?.message ?? error) });\n          return false;\n        }\n      }\n\n      function connect() {\n        setConnection("connecting");\n        const protocol = location.protocol === "https:" ? "wss:" : "ws:";\n        const ws = new WebSocket(`${protocol}//${location.host}/ws`);\n        state.ws = ws;\n        ws.addEventListener("open", async () => {\n          state.reconnect = 250;\n          setConnection("connected");\n          const autoplayOk = await canAutoplay();\n          dlog("autoplay.check", { allowed: autoplayOk });\n          if (autoplayOk) {\n            refreshAudio();\n          } else {\n            // Defer mic acquisition until the user clicks Start. The primary\n            // button handler will call refreshAudio() at that point.\n            state.audio.pendingUserGesture = true;\n            renderAudioError({\n              code: "AUTOPLAY_BLOCKED",\n              message: "Press Start to enable audio.",\n              suggestedAction: "Browsers require a click before audio can play.",\n            });\n          }\n        });\n        ws.addEventListener("message", (event) => {\n          let parsed;\n          try { parsed = JSON.parse(event.data); } catch (e) { dlog("ws.in.parseError", { data: String(event.data).slice(0, 200) }); return; }\n          dlog("ws.in", { type: parsed.type, data: parsed.data });\n          handleMessage(parsed);\n        });\n        ws.addEventListener("close", () => {\n          setConnection("disconnected");\n          setTimeout(connect, state.reconnect);\n          state.reconnect = Math.min(state.reconnect * 2, 5000);\n        });\n        ws.addEventListener("error", () => setConnection("error"));\n      }\n\n      function wireUi() {\n        primary.addEventListener("click", () => {\n          // If we deferred mic acquisition pending a user gesture (autoplay\n          // policy blocked), this click is the gesture \u2014 acquire the mic now\n          // and let the resulting audio.ready signal trigger normal flow.\n          if (state.audio.pendingUserGesture) {\n            state.audio.pendingUserGesture = false;\n            refreshAudio();\n            return;\n          }\n          const status = state.status.conversation;\n          if (status === "none") startConversation();\n          if (status === "active") sendMessage("conversation.pause");\n          if (status === "paused") sendMessage("conversation.resume");\n        });\n        reset.addEventListener("click", () => {\n          sendMessage("conversation.reset");\n          teardownVoice();\n        });\n        download.addEventListener("click", downloadTranscript);\n        settingsToggle.addEventListener("click", () => {\n          const isHidden = settingsMenu.classList.toggle("hidden");\n          settingsToggle.setAttribute("aria-expanded", String(!isHidden));\n        });\n        document.addEventListener("click", (event) => {\n          if (settingsMenu.classList.contains("hidden")) return;\n          if (settingsMenu.contains(event.target) || settingsToggle.contains(event.target)) return;\n          settingsMenu.classList.add("hidden");\n          settingsToggle.setAttribute("aria-expanded", "false");\n        });\n        send.addEventListener("click", sendText);\n        textInput.addEventListener("input", () => {\n          textInput.style.height = "auto";\n          textInput.style.height = `${Math.min(textInput.scrollHeight, 120)}px`;\n          send.disabled = textInput.value.trim().length === 0;\n        });\n        textInput.addEventListener("keydown", (event) => {\n          if (event.key === "Enter" && !event.shiftKey) {\n            event.preventDefault();\n            sendText();\n          }\n        });\n        transcript.addEventListener("scroll", () => {\n          state.atBottom = transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 80;\n        });\n      }\n\n      function handleMessage(message) {\n        if (message.type === "duplicate.client") {\n          document.body.innerHTML =\n            \'<main class="duplicate-page"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg><h1>Session unavailable</h1><p>Another browser window is already connected to this Realtime Voice Server. Close the other session and refresh this page.</p></main>\';\n          return;\n        }\n        if (message.type === "state") {\n          const previousStatus = state.status.conversation;\n          state.status = {\n            server: message.data.server,\n            browserClient: message.data.browserClient,\n            conversation: message.data.conversationStatus ?? message.data.conversation?.status ?? message.data.conversation ?? "none",\n          };\n          state.conversation = message.data.conversation;\n          clearFinalizedDrafts();\n          if ((state.status.conversation === "none" || state.status.conversation === "ended") && state.voice.xaiWs) {\n            teardownVoice();\n          }\n          if (state.status.conversation !== previousStatus) {\n            applyPauseState(state.status.conversation, previousStatus);\n          }\n          render();\n        }\n        if (message.type === "transcript.item") {\n          state.streamDrafts.delete(message.data.id ?? message.data.item?.id);\n          render();\n        }\n        if (message.type === "transcript.delta") {\n          state.streamDrafts.set(message.data.itemId, message.data);\n          render();\n        }\n        if (message.type === "browser.audio.error") {\n          renderAudioError(message.data);\n        }\n        if (message.type === "browser.audio.deviceChange") {\n          state.audio.devices = message.data.devices ?? [];\n          state.audio.selectedDeviceId = message.data.selectedDeviceId;\n          renderMicSelector();\n        }\n        if (message.type === "voice.session.start") {\n          dlog("voice.session.start.received", { conversationStatus: state.status.conversation, audioReady: state.audio.ready });\n          if (!state.voice.sessionInFlight) {\n            state.voice.sessionInFlight = true;\n            sendMessage("voice.session.requested");\n          }\n        }\n        if (message.type === "voice.session.token") {\n          dlog("voice.session.token.received", { hasClientSecret: !!message.data?.clientSecret, model: message.data?.model, expiresAt: message.data?.expiresAt });\n          establishVoiceSession(message.data).catch((error) => {\n            dlog("establishVoiceSession.unhandled", { message: error?.message, stack: error?.stack });\n            failVoice("VOICE_SETUP_FAILED", error?.message ?? String(error));\n          });\n        }\n        if (message.type === "voice.session.close") {\n          teardownVoice();\n        }\n        if (message.type === "voice.send") {\n          forwardVoiceSend(message.data?.event);\n        }\n        // audio.output.delta is broadcast by the daemon for visualizer use\n        // only \u2014 playback is driven directly by the xAI WS message handler in\n        // establishVoiceSession (single authoritative playback path; no\n        // double-play). We deliberately ignore audio data here.\n        if (message.type === "wait_for_context.start") {\n          startMetronome();\n        }\n        if (message.type === "wait_for_context.end") {\n          stopMetronome();\n        }\n      }\n\n      // \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n      // Wait-for-context metronome: a gentle click every 2s while the agent\n      // is paused waiting for new <context>/<topics> from the orchestrator.\n      // \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n      const metronome = { ctx: undefined, timer: undefined };\n\n      function startMetronome() {\n        if (metronome.timer) return;\n        const Ctx = window.AudioContext || window.webkitAudioContext;\n        if (!metronome.ctx) metronome.ctx = new Ctx();\n        if (metronome.ctx.state === "suspended") {\n          metronome.ctx.resume().catch((error) => {\n            dlog("metronome.resume.failed", { message: String(error?.message ?? error) });\n          });\n        }\n        const click = () => {\n          const ctx = metronome.ctx;\n          if (!ctx) return;\n          const osc = ctx.createOscillator();\n          const gain = ctx.createGain();\n          osc.type = "sine";\n          osc.frequency.value = 880;\n          const now = ctx.currentTime;\n          gain.gain.setValueAtTime(0, now);\n          gain.gain.linearRampToValueAtTime(0.05, now + 0.005);\n          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);\n          osc.connect(gain).connect(ctx.destination);\n          osc.start(now);\n          osc.stop(now + 0.1);\n        };\n        click();\n        metronome.timer = setInterval(click, 2000);\n      }\n\n      function stopMetronome() {\n        if (metronome.timer) {\n          clearInterval(metronome.timer);\n          metronome.timer = undefined;\n        }\n      }\n\n      async function refreshAudio() {\n        if (!navigator.mediaDevices?.getUserMedia) return;\n        try {\n          const probe = await navigator.mediaDevices.getUserMedia({ audio: true });\n          probe.getTracks().forEach((track) => track.stop());\n          const devices = (await navigator.mediaDevices.enumerateDevices())\n            .filter((device) => device.kind === "audioinput")\n            .map((device) => ({ deviceId: device.deviceId, label: device.label || "Microphone", groupId: device.groupId }));\n          const previous = state.audio.selectedDeviceId;\n          const selected = devices.find((device) => device.deviceId === previous)?.deviceId ?? devices[0]?.deviceId;\n          state.audio = { permission: "granted", devices, selectedDeviceId: selected, ready: true };\n          sendMessage("audio.device.state", state.audio);\n          renderMicSelector();\n        } catch (error) {\n          const details = {\n            code: "MICROPHONE_DEVICE_ERROR",\n            message: "Could not access the selected microphone.",\n            suggestedAction: "Allow microphone access and try again.",\n          };\n          sendMessage("browser.audio.error", details);\n          renderAudioError(details);\n        }\n      }\n\n      async function acquireMicStream(deviceId) {\n        const audio = {\n          echoCancellation: true,\n          noiseSuppression: true,\n          autoGainControl: true,\n        };\n        if (deviceId) audio.deviceId = { exact: deviceId };\n        return navigator.mediaDevices.getUserMedia({ audio });\n      }\n\n      function startMeters(stream) {\n        if (state.voice.analyserCtx) {\n          try {\n            state.voice.analyserCtx.close();\n          } catch (error) {\n            dlog("startMeters.analyserCtx.close.failed", { message: String(error?.message ?? error) });\n          }\n        }\n        const audioCtx = new AudioContext();\n        if (audioCtx.state === "suspended") {\n          audioCtx.resume().catch((error) => {\n            dlog("startMeters.audioCtx.resume.failed", { message: String(error?.message ?? error) });\n          });\n        }\n        const analyser = audioCtx.createAnalyser();\n        analyser.fftSize = 256;\n        audioCtx.createMediaStreamSource(stream).connect(analyser);\n        state.voice.analyser = analyser;\n        state.voice.analyserCtx = audioCtx;\n        if (state.voice.metersStarted) return;\n        state.voice.metersStarted = true;\n        const data = new Uint8Array(analyser.frequencyBinCount);\n        const bars = [...meters.querySelectorAll(".bar")];\n        function updateBars() {\n          const current = state.voice.analyser;\n          if (current) {\n            current.getByteFrequencyData(data);\n            bars.forEach((bar, index) => {\n              bar.style.setProperty("--level", Math.max(0.1, data[index * 10] / 255));\n            });\n          }\n          requestAnimationFrame(updateBars);\n        }\n        updateBars();\n      }\n\n      function startConversation() {\n        if (state.voice.sessionInFlight || state.voice.xaiWs) return;\n        if (!state.audio.ready) {\n          renderAudioError({\n            code: "MICROPHONE_NOT_READY",\n            message: "Microphone is not ready.",\n            suggestedAction: "Grant microphone access and try again.",\n          });\n          return;\n        }\n        state.voice.sessionInFlight = true;\n        sendMessage("conversation.start");\n        sendMessage("voice.session.requested");\n      }\n\n      // RFC 6455 \xA74.1: Sec-WebSocket-Protocol values must be RFC 7230 token\n      // characters. Base64 standard chars \'=\', \'/\', \'+\' are outside that set\n      // and would cause the browser to silently reject the WS handshake.\n      const SUBPROTOCOL_SAFE = /^[A-Za-z0-9!#$%&\'*+\\-.^_`|~]+$/;\n\n      function sanitizeSubprotocolToken(token) {\n        if (SUBPROTOCOL_SAFE.test(token)) return token;\n        const unsafe = [...new Set(token.split(\'\').filter((c) => !SUBPROTOCOL_SAFE.test(c)))].join(\'\');\n        // Log the character set (NOT the token value) for diagnostics.\n        dlog("voice.session.token.sanitized", { unsafeChars: unsafe });\n        return btoa(token).replace(/\\+/g, \'-\').replace(/\\//g, \'_\').replace(/=/g, \'\');\n      }\n\n      function bytesToBase64Buf(uint8) {\n        let binary = "";\n        const chunkSize = 0x8000;\n        for (let i = 0; i < uint8.length; i += chunkSize) {\n          binary += String.fromCharCode.apply(null, uint8.subarray(i, i + chunkSize));\n        }\n        return btoa(binary);\n      }\n\n      function float32ToPcm16Base64(float32) {\n        const pcm = new Int16Array(float32.length);\n        for (let i = 0; i < float32.length; i += 1) {\n          let s = Math.max(-1, Math.min(1, float32[i]));\n          pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;\n        }\n        return bytesToBase64Buf(new Uint8Array(pcm.buffer));\n      }\n\n      function pcm16Base64ToFloat32(b64) {\n        const binary = atob(b64);\n        const bytes = new Uint8Array(binary.length);\n        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);\n        const view = new DataView(bytes.buffer);\n        const samples = new Float32Array(bytes.length / 2);\n        for (let i = 0; i < samples.length; i += 1) {\n          const s = view.getInt16(i * 2, true);\n          samples[i] = s < 0 ? s / 0x8000 : s / 0x7fff;\n        }\n        return samples;\n      }\n\n      function playPcmDelta(b64) {\n        try {\n          const samples = pcm16Base64ToFloat32(b64);\n          if (samples.length === 0) return;\n          let ctx = state.voice.outputCtx;\n          if (!ctx) {\n            const Ctx = window.AudioContext || window.webkitAudioContext;\n            ctx = new Ctx({ sampleRate: 24000 });\n            state.voice.outputCtx = ctx;\n          }\n          if (ctx.state === "suspended") {\n            ctx.resume().catch((error) => {\n              dlog("outputCtx.resume.failed", { message: String(error?.message ?? error) });\n            });\n          }\n          const buffer = ctx.createBuffer(1, samples.length, 24000);\n          buffer.copyToChannel(samples, 0);\n          const source = ctx.createBufferSource();\n          source.buffer = buffer;\n          source.connect(ctx.destination);\n          const now = ctx.currentTime;\n          const startAt = Math.max(now, state.voice.nextPlaybackTime);\n          source.start(startAt);\n          state.voice.nextPlaybackTime = startAt + buffer.duration;\n        } catch (error) {\n          sendMessage("browser.audio.error", {\n            code: "AUDIO_DECODE_FAILED",\n            message: String(error?.message ?? error),\n            suggestedAction: "Refresh the page; if the problem persists check audio device permissions.",\n          });\n        }\n      }\n\n      async function establishVoiceSession(token) {\n        dlog("establishVoiceSession.enter", { hasToken: !!token, hasClientSecret: !!token?.clientSecret, model: token?.model, expiresAt: token?.expiresAt });\n        if (!token?.clientSecret || !token?.model) {\n          failVoice("VOICE_TOKEN_INVALID", "Missing client secret or model.");\n          return;\n        }\n        if (state.voice.xaiWs) {\n          dlog("establishVoiceSession.skip", { reason: "xaiWs already exists" });\n          return;\n        }\n        // Pre-expiry re-mint: if we are within 5s of token expiry, request a\n        // fresh token before opening the WS instead of racing the boundary.\n        if (typeof token.expiresAt === "number" && Date.now() > token.expiresAt * 1000 - 5000) {\n          dlog("voice.session.token.preExpiry", { expiresAt: token.expiresAt });\n          sendMessage("voice.session.requested");\n          return;\n        }\n        state.voice.tokenExpiresAt = token.expiresAt;\n\n        try {\n          const stream = await acquireMicStream(state.audio.selectedDeviceId);\n          state.voice.micStream = stream;\n          const track = stream.getAudioTracks()[0];\n          state.voice.micTrack = track;\n          startMeters(stream);\n\n          const safeToken = sanitizeSubprotocolToken(token.clientSecret);\n          // xAI tokens may be JWT-style (base64url) \u2014 already subprotocol-safe;\n          // sanitization is a defensive no-op in that case but surfaces format\n          // changes if xAI alters the token alphabet.\n          const ws = new WebSocket(\n            `wss://api.x.ai/v1/realtime?model=${encodeURIComponent(token.model)}`,\n            [`xai-client-secret.${safeToken}`],\n          );\n          state.voice.xaiWs = ws;\n\n          ws.addEventListener("open", () => {\n            dlog("xaiWs.open", { readyState: ws.readyState });\n            state.voice.xaiOpen = true;\n            // Start the mic encoder pipeline now that the channel is open.\n            startMicEncoder(stream);\n            for (const payload of state.voice.pendingSends) {\n              try { ws.send(payload); } catch (error) {\n                dlog("xaiWs.send.pending.failed", { message: String(error?.message ?? error) });\n              }\n            }\n            state.voice.pendingSends = [];\n            if (!state.voice.connectedSent) {\n              state.voice.connectedSent = true;\n              state.voice.sessionInFlight = false;\n              sendMessage("voice.session.connected");\n            }\n          });\n\n          ws.addEventListener("message", (event) => {\n            let parsed;\n            try { parsed = JSON.parse(event.data); } catch (e) {\n              dlog("xaiWs.in.parseError", { dataPrefix: String(event.data).slice(0, 200) });\n              return;\n            }\n            if (parsed?.type === "response.created") {\n              state.realtime.responseActive = true;\n            } else if (parsed?.type === "response.done" || parsed?.type === "response.cancelled" || parsed?.type === "response.failed") {\n              state.realtime.responseActive = false;\n            }\n            if (parsed?.type === "output_audio_buffer.stopped" && state.realtime.pendingPauseCut) {\n              state.realtime.pendingPauseCut = false;\n              applyPauseAudioCut();\n            }\n            // Forward every event to the daemon for transcript/tool wiring.\n            sendMessage("voice.event", { event: parsed });\n            // Single authoritative playback path: decode + play PCM deltas\n            // directly from the xAI WS message. The daemon\'s audio.output.delta\n            // relay is for visualizer data only and is ignored for playback.\n            if (parsed?.type === "response.audio.delta" && typeof parsed.delta === "string" && !state.voice.paused) {\n              playPcmDelta(parsed.delta);\n            }\n          });\n\n          ws.addEventListener("close", (event) => {\n            dlog("xaiWs.close", { code: event.code, reason: event.reason });\n            state.voice.xaiOpen = false;\n            if (!state.voice.connectedSent) {\n              failVoice("VOICE_WS_REJECTED", `xAI WS closed before open: code=${event.code} reason=${event.reason}`);\n            } else {\n              // Mid-session close \u2014 surface as session failure.\n              sendMessage("voice.session.failed", { error: { code: "VOICE_WS_CLOSED", message: `xAI WS closed: code=${event.code}` } });\n              teardownVoice();\n            }\n          });\n\n          ws.addEventListener("error", () => {\n            dlog("xaiWs.error", {});\n            // CORS / handshake rejection: the browser delivers minimal info\n            // here. The daemon-held WS contingency (proxy binary frames\n            // through the daemon) is documented but NOT implemented per\n            // plan \xA73c.\n            if (!state.voice.connectedSent) {\n              failVoice("VOICE_WS_REJECTED", "xAI WebSocket connection failed (likely CORS or handshake).");\n            }\n          });\n        } catch (error) {\n          dlog("establishVoiceSession.catch", { message: error?.message, name: error?.name, stack: error?.stack });\n          failVoice("VOICE_SETUP_FAILED", error?.message ?? String(error));\n        }\n      }\n\n      function startMicEncoder(stream) {\n        try {\n          const Ctx = window.AudioContext || window.webkitAudioContext;\n          const ctx = new Ctx({ sampleRate: 24000 });\n          state.voice.inputCtx = ctx;\n          if (ctx.state === "suspended") {\n            ctx.resume().catch((error) => dlog("inputCtx.resume.failed", { message: String(error?.message ?? error) }));\n          }\n          const source = ctx.createMediaStreamSource(stream);\n          state.voice.micSourceNode = source;\n          // ScriptProcessor: deprecated but universally supported. AudioWorklet\n          // would require a separate module URL which complicates the bundled\n          // single-file UI; ScriptProcessor is acceptable for 24 kHz mono PCM.\n          const bufferSize = 2048;\n          const processor = ctx.createScriptProcessor(bufferSize, 1, 1);\n          state.voice.processorNode = processor;\n          processor.onaudioprocess = (event) => {\n            if (state.voice.paused) return;\n            const ws = state.voice.xaiWs;\n            if (!ws || ws.readyState !== WebSocket.OPEN) return;\n            const input = event.inputBuffer.getChannelData(0);\n            try {\n              const b64 = float32ToPcm16Base64(input);\n              ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 }));\n            } catch (error) {\n              sendMessage("browser.audio.error", {\n                code: "AUDIO_ENCODE_FAILED",\n                message: String(error?.message ?? error),\n                suggestedAction: "Refresh the page; if the problem persists check microphone permissions.",\n              });\n            }\n          };\n          source.connect(processor);\n          processor.connect(ctx.destination);\n        } catch (error) {\n          dlog("startMicEncoder.failed", { message: String(error?.message ?? error) });\n          sendMessage("browser.audio.error", {\n            code: "AUDIO_ENCODER_INIT_FAILED",\n            message: String(error?.message ?? error),\n            suggestedAction: "Try a different browser or device.",\n          });\n        }\n      }\n\n      function forwardVoiceSend(event) {\n        if (!event) return;\n        const payload = JSON.stringify(event);\n        const ws = state.voice.xaiWs;\n        if (ws && state.voice.xaiOpen) {\n          try {\n            ws.send(payload);\n          } catch (error) {\n            dlog("xaiWs.send.failed.requeue", { message: String(error?.message ?? error) });\n            state.voice.pendingSends.push(payload);\n          }\n          return;\n        }\n        state.voice.pendingSends.push(payload);\n      }\n\n      function failVoice(code, message) {\n        dlog("failVoice", { code, message });\n        sendMessage("voice.session.failed", { error: { code, message } });\n        teardownVoice();\n      }\n\n      function teardownVoice() {\n        const { xaiWs, micStream, analyserCtx, processorNode, micSourceNode, inputCtx, outputCtx } = state.voice;\n        if (xaiWs) {\n          try { xaiWs.close(); } catch (error) { dlog("teardown.xaiWs.close.failed", { message: String(error?.message ?? error) }); }\n        }\n        if (processorNode) {\n          try { processorNode.disconnect(); } catch (error) { dlog("teardown.processor.disconnect.failed", { message: String(error?.message ?? error) }); }\n        }\n        if (micSourceNode) {\n          try { micSourceNode.disconnect(); } catch (error) { dlog("teardown.micSource.disconnect.failed", { message: String(error?.message ?? error) }); }\n        }\n        if (inputCtx) {\n          try { inputCtx.close(); } catch (error) { dlog("teardown.inputCtx.close.failed", { message: String(error?.message ?? error) }); }\n        }\n        if (outputCtx) {\n          try { outputCtx.close(); } catch (error) { dlog("teardown.outputCtx.close.failed", { message: String(error?.message ?? error) }); }\n        }\n        if (micStream) {\n          micStream.getTracks().forEach((track) => track.stop());\n        }\n        if (analyserCtx) {\n          try { analyserCtx.close(); } catch (error) { dlog("teardown.analyserCtx.close.failed", { message: String(error?.message ?? error) }); }\n        }\n        state.voice.xaiWs = undefined;\n        state.voice.xaiOpen = false;\n        state.voice.connectedSent = false;\n        state.voice.micStream = undefined;\n        state.voice.micTrack = undefined;\n        state.voice.micSourceNode = undefined;\n        state.voice.processorNode = undefined;\n        state.voice.inputCtx = undefined;\n        state.voice.outputCtx = undefined;\n        state.voice.nextPlaybackTime = 0;\n        state.voice.analyser = undefined;\n        state.voice.analyserCtx = undefined;\n        state.voice.pendingSends = [];\n        state.voice.sessionInFlight = false;\n        state.voice.tokenExpiresAt = 0;\n        state.voice.paused = false;\n      }\n\n      function applyPauseState(status, previousStatus) {\n        const paused = status === "paused";\n        const { micTrack, xaiWs, xaiOpen } = state.voice;\n        if (paused) {\n          // If a response is currently being spoken, defer the audio cut\n          // until output_audio_buffer.stopped fires so the avatar can finish\n          // its sentence.\n          if (state.realtime.responseActive) {\n            state.realtime.pendingPauseCut = true;\n            // Stop the user\'s mic from sending audio immediately so the\n            // model can\'t pick up more input during the wind-down.\n            state.voice.paused = true;\n            if (micTrack) micTrack.enabled = false;\n            return;\n          }\n          applyPauseAudioCut();\n        } else if (status === "active") {\n          // Resuming: clear deferred pause-cut, re-enable mic.\n          state.realtime.pendingPauseCut = false;\n          state.voice.paused = false;\n          if (micTrack) micTrack.enabled = true;\n          // previousStatus retained as parameter for symmetry with the\n          // controller\'s pause/resume contract.\n          void previousStatus;\n          // Resume output context if it was suspended.\n          if (state.voice.outputCtx?.state === "suspended") {\n            state.voice.outputCtx.resume().catch((error) => {\n              dlog("outputCtx.resume.failed", { message: String(error?.message ?? error) });\n            });\n          }\n          if (xaiWs && xaiOpen) {\n            // No explicit "resume" event in xAI\'s protocol \u2014 turn detection\n            // resumes naturally as mic frames flow again.\n          }\n        }\n      }\n\n      // Applies the actual audio-pause side effects: pause output context,\n      // stop mic capture, cancel any in-flight response.\n      function applyPauseAudioCut() {\n        const { micTrack, xaiWs, xaiOpen, outputCtx } = state.voice;\n        state.voice.paused = true;\n        if (micTrack) micTrack.enabled = false;\n        if (outputCtx?.state === "running") {\n          outputCtx.suspend().catch((error) => {\n            dlog("outputCtx.suspend.failed", { message: String(error?.message ?? error) });\n          });\n        }\n        if (xaiWs && xaiOpen && state.realtime.responseActive) {\n          try { xaiWs.send(JSON.stringify({ type: "response.cancel" })); }\n          catch (error) { dlog("xaiWs.send.responseCancel.failed", { message: String(error?.message ?? error) }); }\n        }\n      }\n\n      async function switchMicDevice(deviceId) {\n        state.audio.selectedDeviceId = deviceId;\n        sendMessage("audio.device.select", { deviceId });\n        if (!state.voice.xaiWs) return;\n        try {\n          const stream = await acquireMicStream(deviceId);\n          // Tear down the existing mic encoder pipeline and rebuild it on the\n          // new stream. The xAI WS stays open; only the mic capture changes.\n          if (state.voice.processorNode) {\n            try { state.voice.processorNode.disconnect(); } catch (error) { dlog("switchMic.processor.disconnect.failed", { message: String(error?.message ?? error) }); }\n          }\n          if (state.voice.micSourceNode) {\n            try { state.voice.micSourceNode.disconnect(); } catch (error) { dlog("switchMic.micSource.disconnect.failed", { message: String(error?.message ?? error) }); }\n          }\n          if (state.voice.inputCtx) {\n            try { state.voice.inputCtx.close(); } catch (error) { dlog("switchMic.inputCtx.close.failed", { message: String(error?.message ?? error) }); }\n            state.voice.inputCtx = undefined;\n          }\n          if (state.voice.micStream) {\n            state.voice.micStream.getTracks().forEach((existing) => existing.stop());\n          }\n          state.voice.micStream = stream;\n          state.voice.micTrack = stream.getAudioTracks()[0];\n          startMicEncoder(stream);\n          startMeters(stream);\n        } catch (error) {\n          renderAudioError({\n            code: "MICROPHONE_SWITCH_FAILED",\n            message: error?.message ?? "Could not switch microphone.",\n            suggestedAction: "Try a different device.",\n          });\n        }\n      }\n\n      function bytesToBase64(bytes) {\n        let binary = "";\n        for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);\n        return btoa(binary);\n      }\n\n      function base64ToBytes(base64) {\n        const binary = atob(base64);\n        const bytes = new Uint8Array(binary.length);\n        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);\n        return bytes;\n      }\n\n      function render() {\n        const status = state.status.conversation;\n        primary.className = "primary";\n        primary.disabled = !["none", "active", "paused"].includes(status);\n        primary.textContent =\n          status === "active" ? "Pause" :\n          status === "paused" ? "Resume" :\n          status === "starting" ? "Starting\u2026" :\n          "Start";\n        primary.setAttribute("aria-label", `${primary.textContent} conversation`);\n        if (status === "active") primary.classList.add("pause");\n        if (status === "paused") primary.classList.add("resume");\n        reset.classList.toggle("hidden", !["active", "paused"].includes(status));\n        download.disabled = (state.conversation?.transcript ?? []).length === 0;\n        meters.classList.toggle("hidden", status !== "active" || !state.audio.ready);\n        renderTranscript();\n      }\n\n      function downloadTranscript() {\n        const items = state.conversation?.transcript ?? [];\n        if (items.length === 0) return;\n        const jsonl = items.map((item) => JSON.stringify(item)).join("\\n") + "\\n";\n        const blob = new Blob([jsonl], { type: "application/jsonl" });\n        const url = URL.createObjectURL(blob);\n        const anchor = document.createElement("a");\n        const stamp = new Date().toISOString().replace(/[:.]/g, "-");\n        const convId = state.conversation?.id ?? "conversation";\n        anchor.href = url;\n        anchor.download = `transcript-${convId}-${stamp}.jsonl`;\n        document.body.append(anchor);\n        anchor.click();\n        anchor.remove();\n        URL.revokeObjectURL(url);\n      }\n\n      function renderTranscript() {\n        transcript.innerHTML = "";\n        const conversation = state.conversation;\n        if (!conversation) {\n          transcript.innerHTML =\n            \'<div class="empty-state"><svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v20M5 8v8M19 8v8"/></svg><div>Ready to start</div></div>\';\n          return;\n        }\n        if (conversation.status === "ended") {\n          transcript.innerHTML = \'<div class="ended-state"><strong>Conversation ended</strong><span>Transcript is no longer active.</span></div>\';\n          return;\n        }\n        const byTranscript = new Map((conversation.transcript ?? []).map((item) => [item.id, item]));\n        const byTool = new Map((conversation.toolCalls ?? []).map((item) => [item.id, item]));\n        for (const entry of conversation.timeline ?? []) {\n          if (entry.type === "transcript") renderTranscriptItem(byTranscript.get(entry.transcriptItemId));\n          if (entry.type === "toolCall") renderToolCall(byTool.get(entry.toolCallId));\n        }\n        for (const draft of state.streamDrafts.values()) {\n          if (byTranscript.has(draft.itemId)) continue;\n          renderTranscriptItem({\n            id: draft.itemId,\n            role: draft.role ?? "assistant",\n            source: draft.source ?? "assistantAudio",\n            text: draft.fullTextSoFar,\n            streaming: true,\n          });\n        }\n        maybeScrollToBottom();\n      }\n\n      function renderTranscriptItem(item) {\n        if (!item) return;\n        const node = document.createElement("article");\n        node.className = `transcript-item role-${item.role} source-${item.source}`;\n        if (item.streaming) node.classList.add("streaming");\n        node.textContent = item.text;\n        transcript.append(node);\n      }\n\n      function clearFinalizedDrafts() {\n        const finalized = new Set((state.conversation?.transcript ?? []).map((item) => item.id));\n        for (const itemId of state.streamDrafts.keys()) {\n          if (finalized.has(itemId)) state.streamDrafts.delete(itemId);\n        }\n      }\n\n      function renderToolCall(tool) {\n        if (!tool) return;\n        const node = document.createElement("article");\n        node.className = "tool-call";\n        node.tabIndex = 0;\n        node.innerHTML = `<div class="tool-row"><span class="toggle">\u25B8</span><span>Tool: ${escapeText(tool.toolName)}(...)</span><span class="badge ${tool.status}">${tool.status}</span></div><div class="tool-call-body"><div class="section-label">ARGUMENTS</div><pre>${escapeText(JSON.stringify(tool.arguments, null, 2))}</pre><div class="section-label">RESULT</div><pre>${escapeText(JSON.stringify(tool.result ?? tool.error ?? null, null, 2))}</pre></div>`;\n        const toggle = () => {\n          node.classList.toggle("expanded");\n          const body = node.querySelector(".tool-call-body");\n          node.style.setProperty("--body-height", `${body.scrollHeight}px`);\n          node.querySelector(".toggle").textContent = node.classList.contains("expanded") ? "\u25BE" : "\u25B8";\n        };\n        node.addEventListener("click", toggle);\n        node.addEventListener("keydown", (event) => {\n          if (event.key === "Enter" || event.key === " ") toggle();\n        });\n        transcript.append(node);\n      }\n\n      function renderMicSelector() {\n        if (!state.audio.ready) return;\n        micArea.innerHTML = \'<label class="field-label" for="micSelect">Microphone</label><select id="micSelect"></select>\';\n        const select = micArea.querySelector("#micSelect");\n        if (!select) return;\n        for (const device of state.audio.devices) {\n          const option = document.createElement("option");\n          option.value = device.deviceId;\n          option.textContent = device.label;\n          option.selected = device.deviceId === state.audio.selectedDeviceId;\n          select.append(option);\n        }\n        select.addEventListener("change", () => switchMicDevice(select.value));\n      }\n\n      function renderAudioError(error) {\n        micArea.innerHTML = `<div class="error-block"><div class="error-title">Microphone error</div><div>${escapeText(error.message)}</div><div><strong>Reason:</strong> ${escapeText(error.code)}</div><div><strong>Suggested action:</strong> ${escapeText(error.suggestedAction)}</div><button class="retry" type="button">Retry</button></div>`;\n        micArea.querySelector("button").addEventListener("click", refreshAudio);\n      }\n\n      function sendText() {\n        const text = textInput.value.trim();\n        if (!text) return;\n        sendMessage("message.text", { text });\n        textInput.value = "";\n        textInput.dispatchEvent(new Event("input"));\n      }\n\n      function sendMessage(type, data) {\n        if (type !== "browser.debug") dlog("ws.out", { type, data });\n        if (state.ws?.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type, data }));\n      }\n\n      function dlog(label, info) {\n        // dlog is called from every code path; if logging itself throws\n        // (e.g. WS in odd state, JSON.stringify on a circular ref), we must\n        // not propagate \u2014 that would surface as a fatal in unrelated callers.\n        try {\n          const payload = { label, info, t: Date.now() };\n          console.log("[dbg]", label, info);\n          if (state.ws?.readyState === WebSocket.OPEN) {\n            state.ws.send(JSON.stringify({ type: "browser.debug", data: payload }));\n          }\n        } catch (error) {\n          console.error("dlog itself threw", error);\n        }\n      }\n\n      function voiceSnapshot() {\n        const { xaiWs } = state.voice;\n        return {\n          sessionInFlight: state.voice.sessionInFlight,\n          xaiOpen: state.voice.xaiOpen,\n          connectedSent: state.voice.connectedSent,\n          hasMicTrack: !!state.voice.micTrack,\n          ws: xaiWs ? { readyState: xaiWs.readyState } : null,\n        };\n      }\n\n      window.addEventListener("error", (e) => dlog("window.error", { message: e.message, filename: e.filename, lineno: e.lineno, colno: e.colno }));\n      window.addEventListener("unhandledrejection", (e) => dlog("window.unhandledrejection", { reason: String(e.reason), stack: e.reason?.stack }));\n\n      function setConnection(status) {\n        dot.className = `dot ${status}`;\n        connectionLabel.textContent =\n          status === "connected" ? "Connected" : status === "connecting" ? "Connecting..." : status === "error" ? "Connection Error" : "Disconnected";\n      }\n\n      function maybeScrollToBottom() {\n        if (state.atBottom) transcript.scrollTop = transcript.scrollHeight;\n      }\n\n      function escapeText(value) {\n        return String(value).replace(/[&<>"\']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", \'"\': "&quot;", "\'": "&#39;" })[char]);\n      }\n    </script>\n  </body>\n</html>\n';
 
 // src/controller.ts
-var OPENAI_CLIENT_SECRET_URL = "https://api.openai.com/v1/realtime/client_secrets";
-var WEBRTC_CONNECT_TIMEOUT_MS = 3e4;
-var BrowserProxiedRealtimeConnection = class {
+var XAI_CLIENT_SECRET_URL = "https://api.x.ai/v1/realtime/client_secrets";
+var VOICE_CONNECT_TIMEOUT_MS = 3e4;
+var BrowserProxiedVoiceConnection = class {
   socket;
   #handlers = /* @__PURE__ */ new Map();
   #sendToBrowser;
@@ -7766,13 +7766,13 @@ var BrowserProxiedRealtimeConnection = class {
   }
   send(event) {
     if (this.#closed) return;
-    this.#sendToBrowser({ type: "realtime.send", data: { event } });
+    this.#sendToBrowser({ type: "voice.send", data: { event } });
   }
   close(props) {
     if (this.#closed) return;
     this.#closed = true;
     this.#sendToBrowser({
-      type: "webrtc.session.close",
+      type: "voice.session.close",
       data: { code: props?.code ?? 1e3, reason: props?.reason ?? "closed" }
     });
   }
@@ -7809,12 +7809,12 @@ var BrowserProxiedRealtimeConnection = class {
     };
   }
 };
-function createRealtimeVoiceServer(config) {
-  return new RealtimeVoiceServerControllerImpl(config);
+function createVoiceAgentServer(config) {
+  return new VoiceAgentServerControllerImpl(config);
 }
-var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
+var VoiceAgentServerControllerImpl = class extends StrictEventEmitter {
   #config;
-  #realtimeFactory;
+  #voiceFactory;
   #tools;
   #toolDescriptions = /* @__PURE__ */ new Map();
   #toolExecutors = /* @__PURE__ */ new Map();
@@ -7826,20 +7826,20 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
   #wss;
   #browserSocket;
   #realtime;
-  #browserProxiedRealtime;
   #browserProxiedEmitter;
-  #pendingWebrtcSession;
+  #pendingVoiceSession;
   #lifecycleLocked = false;
   #autoResponseEnabled = true;
   #responseInFlight = false;
   #instructions;
+  #pendingToolResultCount = 0;
   #activeToolAbortControllers = /* @__PURE__ */ new Map();
   #streamingAssistantText = /* @__PURE__ */ new Map();
   constructor(config) {
     super();
     validateConfig(config);
     this.#config = normalizeConfig(config);
-    this.#realtimeFactory = config.__realtimeFactory;
+    this.#voiceFactory = config.__voiceFactory ?? config.__realtimeFactory;
     this.#tools = config.tools;
     this.#instructions = config.realtime.instructions;
     for (const [name, definition] of Object.entries(config.tools)) {
@@ -7898,7 +7898,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
       });
     } catch (cause) {
       this.#setServerStatus("error");
-      throw this.#fail("SERVER_START_FAILED", "Failed to start the Realtime voice server.", void 0, cause);
+      throw this.#fail("SERVER_START_FAILED", "Failed to start the Voice Agent server.", void 0, cause);
     }
   }
   async stop(options) {
@@ -7930,7 +7930,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
       this.emit("server.stopped", { port: this.#config.port, createdAt: /* @__PURE__ */ new Date() });
     } catch (cause) {
       this.#setServerStatus("error");
-      throw this.#fail("SERVER_STOP_FAILED", "Failed to stop the Realtime voice server cleanly.", void 0, cause);
+      throw this.#fail("SERVER_STOP_FAILED", "Failed to stop the Voice Agent server cleanly.", void 0, cause);
     }
   }
   async startConversation() {
@@ -7974,26 +7974,21 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
       this.#realtime.send({
         type: "session.update",
         session: {
-          type: "realtime",
-          audio: {
-            input: {
-              turn_detection: {
-                type: "semantic_vad",
-                eagerness: "medium",
-                create_response: enabled,
-                interrupt_response: true
-              }
-            }
+          turn_detection: {
+            type: "server_vad",
+            create_response: enabled,
+            interrupt_response: enabled
           }
         }
       });
     } catch (cause) {
-      throw this.#fail(
-        "REALTIME_UPDATE_FAILED",
-        "Realtime session rejected the auto-response update.",
-        void 0,
-        cause
-      );
+      this.emit("log", {
+        level: "warn",
+        code: "SESSION_UPDATE_FAILED",
+        message: "setAutoResponse session.update rejected; auto-response tracked locally only.",
+        details: { enabled, cause: String(cause) },
+        createdAt: /* @__PURE__ */ new Date()
+      });
     }
   }
   async endConversation(options) {
@@ -8001,7 +7996,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     try {
       await this.#endConversationLocked(options?.shutdownTimeoutMs);
     } catch (error) {
-      if (error instanceof RealtimeVoiceServerError) {
+      if (error instanceof VoiceAgentServerError) {
         this.emit("conversation.error", {
           conversationId: this.#conversation?.id,
           error,
@@ -8027,7 +8022,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
         createdAt: /* @__PURE__ */ new Date()
       });
     } catch (cause) {
-      const error = cause instanceof RealtimeVoiceServerError ? cause : this.#fail("CONVERSATION_RESET_FAILED", "Failed to reset the conversation.", void 0, cause);
+      const error = cause instanceof VoiceAgentServerError ? cause : this.#fail("CONVERSATION_RESET_FAILED", "Failed to reset the conversation.", void 0, cause);
       this.emit("conversation.error", {
         conversationId: this.#conversation?.id,
         error,
@@ -8076,7 +8071,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     }
     const toolEntries = Object.entries(input.tools ?? {});
     if (input.instructions === void 0 && toolEntries.length === 0) {
-      throw this.#fail("REALTIME_UPDATE_FAILED", "Realtime update input cannot be empty.");
+      throw this.#fail("SESSION_UPDATE_FAILED", "Realtime update input cannot be empty.");
     }
     for (const [toolName] of toolEntries) {
       if (!(toolName in this.#tools)) {
@@ -8094,7 +8089,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     try {
       this.#sendSessionUpdate();
     } catch (cause) {
-      throw this.#fail("REALTIME_UPDATE_FAILED", "Realtime session rejected the update.", void 0, cause);
+      throw this.#fail("SESSION_UPDATE_FAILED", "Voice session rejected the update.", void 0, cause);
     }
     this.emit("realtime.updated", {
       instructionsUpdated: input.instructions !== void 0,
@@ -8104,74 +8099,72 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
   }
   async #createRealtimeConnection() {
     try {
-      if (this.#realtimeFactory) {
-        return await this.#realtimeFactory({ apiKey: this.#config.apiKey, model: this.#config.realtime.model });
+      if (this.#voiceFactory) {
+        return await this.#voiceFactory({ apiKey: this.#config.apiKey, model: this.#config.realtime.model });
       }
       const socketRef = {
         readyState: 0
         /* CONNECTING */
       };
-      const connection = new BrowserProxiedRealtimeConnection({
+      const connection = new BrowserProxiedVoiceConnection({
         sendToBrowser: (envelope) => this.#broadcast(envelope),
         socket: socketRef
       });
-      this.#browserProxiedRealtime = connection;
       this.#browserProxiedEmitter = connection.controller();
       const connected = new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          this.#pendingWebrtcSession = void 0;
-          reject(new Error("Timed out waiting for browser webrtc.session.connected."));
-        }, WEBRTC_CONNECT_TIMEOUT_MS);
-        this.#pendingWebrtcSession = { resolve, reject, timeout };
+          this.#pendingVoiceSession = void 0;
+          reject(new Error("Timed out waiting for browser voice.session.connected."));
+        }, VOICE_CONNECT_TIMEOUT_MS);
+        this.#pendingVoiceSession = { resolve, reject, timeout };
       });
-      this.#broadcast({ type: "webrtc.session.start" });
+      this.#broadcast({ type: "voice.session.start" });
       try {
         await connected;
       } catch (cause) {
-        this.#browserProxiedRealtime = void 0;
         this.#browserProxiedEmitter = void 0;
         throw cause;
       }
       socketRef.readyState = 1;
       return connection;
     } catch (cause) {
-      const error = this.#fail("CONVERSATION_START_FAILED", "Failed to connect to the Realtime API.", void 0, cause);
+      const error = this.#fail(
+        "CONVERSATION_START_FAILED",
+        "Failed to connect to the xAI Voice Agent.",
+        void 0,
+        cause
+      );
       this.emit("conversation.error", { conversationId: this.#conversation?.id, error, createdAt: /* @__PURE__ */ new Date() });
       throw error;
     }
   }
   async #mintEphemeralClientSecret() {
     const model2 = this.#config.realtime.model;
-    const response = await fetch(OPENAI_CLIENT_SECRET_URL, {
+    const response = await fetch(XAI_CLIENT_SECRET_URL, {
       method: "POST",
       headers: {
         "content-type": "application/json",
         authorization: `Bearer ${this.#config.apiKey}`
       },
-      body: JSON.stringify({ session: { type: "realtime", model: model2 } })
+      body: JSON.stringify({ model: model2 })
     });
     if (!response.ok) {
       const bodyText = await response.text().catch(() => "");
-      throw new Error(`OpenAI client_secrets endpoint returned ${response.status}: ${bodyText}`);
+      throw new Error(`xAI client_secrets returned ${response.status}: ${bodyText}`);
     }
     const json = await response.json();
-    const value = json.value ?? json.client_secret?.value;
+    const token = json.token ?? json.client_secret?.token;
     const expiresAt = json.expires_at ?? json.client_secret?.expires_at;
-    if (typeof value !== "string" || typeof expiresAt !== "number") {
-      throw new Error("OpenAI client_secrets response did not include value/expires_at.");
+    if (typeof token !== "string" || typeof expiresAt !== "number") {
+      throw new Error(`xAI client_secrets response has unexpected shape. Raw body: ${JSON.stringify(json)}`);
     }
-    return { clientSecret: value, model: model2, expiresAt };
+    return { clientSecret: token, model: model2, expiresAt };
   }
   #wireRealtimeConnection(realtime) {
     realtime.on("error", (error) => {
       const realtimeCode = error?.error?.code;
       if (realtimeCode === "response_cancel_not_active") return;
-      const wrapped = toRealtimeError(
-        "REALTIME_SESSION_ERROR",
-        "Realtime session reported an error.",
-        void 0,
-        error
-      );
+      const wrapped = toVoiceError("SESSION_ERROR", "Voice Agent session reported an error.", void 0, error);
       this.#log("error", wrapped);
       this.emit("conversation.error", {
         conversationId: this.#conversation?.id,
@@ -8179,14 +8172,6 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
         createdAt: /* @__PURE__ */ new Date()
       });
     });
-    realtime.on(
-      "conversation.item.input_audio_transcription.delta",
-      (event) => this.#handleUserTranscriptDelta(event)
-    );
-    realtime.on(
-      "conversation.item.input_audio_transcription.completed",
-      (event) => this.#handleUserTranscriptDone(event)
-    );
     realtime.on("response.created", () => {
       this.#responseInFlight = true;
     });
@@ -8199,30 +8184,44 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
       });
     });
     realtime.on(
-      "response.output_audio_transcript.delta",
+      "response.audio_transcript.delta",
       (event) => this.#handleAssistantTranscriptDelta(event)
     );
     realtime.on(
-      "response.output_audio_transcript.done",
+      "response.audio_transcript.done",
       (event) => this.#handleAssistantTranscriptDone(event)
     );
     realtime.on(
-      "response.output_text.delta",
-      (event) => this.#handleAssistantTranscriptDelta(event)
-    );
-    realtime.on(
-      "response.output_text.done",
-      (event) => this.#handleAssistantTranscriptDone({
-        item_id: event.item_id,
-        transcript: event.text
-      })
-    );
-    realtime.on(
-      "response.output_audio.delta",
-      (event) => this.#broadcast({ type: "audio.output.delta", data: { audio: event.delta } })
+      "response.audio.delta",
+      (event) => (
+        // Relay to browser for visualizer only. Playback is driven by the
+        // browser's xAI WS message handler directly — not by this relay.
+        this.#broadcast({ type: "audio.output.delta", data: { audio: event.delta } })
+      )
     );
     realtime.on("response.function_call_arguments.done", (event) => {
       void this.#handleToolCall(event);
+    });
+    const knownEventTypes = /* @__PURE__ */ new Set([
+      "error",
+      "response.created",
+      "response.done",
+      "response.audio_transcript.delta",
+      "response.audio_transcript.done",
+      "response.audio.delta",
+      "response.function_call_arguments.done"
+    ]);
+    realtime.on("*", (event) => {
+      const eventType = event?.type;
+      if (typeof eventType === "string" && !knownEventTypes.has(eventType)) {
+        this.emit("log", {
+          level: "warn",
+          code: "VOICE_UNKNOWN_EVENT",
+          message: `Unrecognized xAI event type: ${eventType}`,
+          details: { eventType },
+          createdAt: /* @__PURE__ */ new Date()
+        });
+      }
     });
   }
   #sendSessionUpdate() {
@@ -8230,27 +8229,13 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     this.#realtime.send({
       type: "session.update",
       session: {
-        type: "realtime",
         instructions: this.#instructions,
         model: this.#config.realtime.model,
-        output_modalities: ["audio"],
-        reasoning: { effort: "low" },
-        audio: {
-          input: {
-            format: { type: "audio/pcm", rate: 24e3 },
-            transcription: { model: "gpt-realtime-whisper" },
-            turn_detection: {
-              type: "semantic_vad",
-              eagerness: "medium",
-              create_response: this.#autoResponseEnabled,
-              interrupt_response: this.#autoResponseEnabled
-            }
-          },
-          output: {
-            format: { type: "audio/pcm", rate: 24e3 },
-            voice: this.#config.realtime.voice,
-            speed: 1
-          }
+        voice: this.#config.realtime.voice,
+        turn_detection: {
+          type: "server_vad",
+          create_response: this.#autoResponseEnabled,
+          interrupt_response: this.#autoResponseEnabled
         },
         tools: toolsToRealtimeTools(this.#tools, this.#toolDescriptions)
       }
@@ -8276,53 +8261,18 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     }
     this.#activeToolAbortControllers.clear();
     this.#streamingAssistantText.clear();
+    this.#pendingToolResultCount = 0;
     this.#realtime?.close({ code: 1e3, reason });
     this.#realtime = void 0;
-    this.#browserProxiedRealtime = void 0;
     this.#browserProxiedEmitter = void 0;
-    this.#failPendingWebrtcSession(new Error(`Realtime connection closed: ${reason}`));
+    this.#failPendingVoiceSession(new Error(`Voice connection closed: ${reason}`));
   }
-  #failPendingWebrtcSession(cause) {
-    const pending = this.#pendingWebrtcSession;
+  #failPendingVoiceSession(cause) {
+    const pending = this.#pendingVoiceSession;
     if (!pending) return;
     clearTimeout(pending.timeout);
-    this.#pendingWebrtcSession = void 0;
+    this.#pendingVoiceSession = void 0;
     pending.reject(cause);
-  }
-  #handleUserTranscriptDelta(event) {
-    const conversation = this.#conversation;
-    if (!conversation) return;
-    const fullTextSoFar = (this.#streamingAssistantText.get(event.item_id) ?? "") + event.delta;
-    this.#streamingAssistantText.set(event.item_id, fullTextSoFar);
-    this.emit("transcript.delta", {
-      conversationId: conversation.id,
-      itemId: event.item_id,
-      role: "user",
-      source: "microphone",
-      delta: event.delta,
-      fullTextSoFar,
-      createdAt: /* @__PURE__ */ new Date()
-    });
-    this.#broadcast({
-      type: "transcript.delta",
-      data: {
-        itemId: event.item_id,
-        role: "user",
-        source: "microphone",
-        delta: event.delta,
-        fullTextSoFar
-      }
-    });
-  }
-  #handleUserTranscriptDone(event) {
-    const conversation = this.#conversation;
-    if (!conversation) return;
-    const accumulated = this.#streamingAssistantText.get(event.item_id);
-    this.#streamingAssistantText.delete(event.item_id);
-    const text = normalizeText(event.transcript) || (accumulated ? normalizeText(accumulated) : "");
-    if (!text && accumulated === void 0) return;
-    this.#appendTranscriptItemWithId(conversation, event.item_id, "user", "microphone", text);
-    this.#broadcastState();
   }
   #handleAssistantTranscriptDelta(event) {
     const conversation = this.#conversation;
@@ -8394,7 +8344,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     const tool = this.#tools[toolName];
     const failedAt = /* @__PURE__ */ new Date();
     if (!tool) {
-      const error = toRealtimeError("TOOL_NOT_FOUND", "Realtime requested an unknown tool.", { toolName });
+      const error = toVoiceError("TOOL_NOT_FOUND", "Voice Agent requested an unknown tool.", { toolName });
       this.emit("tool.call.failed", {
         phase: "validation",
         conversationId: conversation.id,
@@ -8411,7 +8361,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     try {
       parsedJson = JSON.parse(event.arguments);
     } catch (cause) {
-      const error = toRealtimeError(
+      const error = toVoiceError(
         "TOOL_ARGUMENT_VALIDATION_FAILED",
         "Tool arguments were not valid JSON.",
         {
@@ -8434,7 +8384,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     }
     const validation = tool.parameters.safeParse(parsedJson);
     if (!validation.success) {
-      const error = toRealtimeError("TOOL_ARGUMENT_VALIDATION_FAILED", "Tool arguments failed schema validation.", {
+      const error = toVoiceError("TOOL_ARGUMENT_VALIDATION_FAILED", "Tool arguments failed schema validation.", {
         toolName,
         callId: event.call_id,
         issues: validation.error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message }))
@@ -8473,6 +8423,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
       createdAt: startedAt
     });
     this.#activeToolAbortControllers.set(event.call_id, abortController);
+    this.#pendingToolResultCount += 1;
     this.emit("tool.call.started", {
       conversationId: conversation.id,
       toolCallId: event.item_id,
@@ -8506,7 +8457,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
         }
       }
       if (serialized === void 0) {
-        const error = toRealtimeError("TOOL_RESULT_SERIALIZATION_FAILED", "Tool result must be JSON-serializable.", {
+        const error = toVoiceError("TOOL_RESULT_SERIALIZATION_FAILED", "Tool result must be JSON-serializable.", {
           toolName,
           callId: event.call_id
         });
@@ -8543,7 +8494,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
         this.#markToolInterrupted(conversation, event.item_id, event.call_id, toolName, "aborted");
         return;
       }
-      const error = toRealtimeError(
+      const error = toVoiceError(
         "TOOL_EXECUTION_FAILED",
         "Tool execution failed.",
         { toolName, callId: event.call_id },
@@ -8563,6 +8514,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
       });
       this.#log("error", error);
     } finally {
+      this.#pendingToolResultCount -= 1;
       this.#activeToolAbortControllers.delete(event.call_id);
       this.#broadcastState();
     }
@@ -8576,7 +8528,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
         output: serialized
       }
     });
-    if (this.#status.conversation === "active" && this.#autoResponseEnabled) {
+    if (this.#status.conversation === "active" && this.#autoResponseEnabled && this.#pendingToolResultCount === 0) {
       this.#realtime?.send({ type: "response.create" });
     }
   }
@@ -8584,7 +8536,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     const record = conversation.toolCalls.find((toolCall) => toolCall.id === toolCallId);
     if (record && record.status !== "started") return;
     const interruptedAt = /* @__PURE__ */ new Date();
-    const error = toRealtimeError("TOOL_CALL_INTERRUPTED", "Tool call was interrupted.", { callId, reason });
+    const error = toVoiceError("TOOL_CALL_INTERRUPTED", "Tool call was interrupted.", { callId, reason });
     if (record) Object.assign(record, { status: "interrupted", error, completedAt: interruptedAt });
     this.emit("tool.call.interrupted", {
       conversationId: conversation.id,
@@ -8637,6 +8589,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
         timeline: []
       };
       this.#conversation = conversation;
+      this.#pendingToolResultCount = 0;
       conversation.status = "active";
       this.#setConversationStatus("active");
       if (this.#config.browserSession.firstMessage) {
@@ -8671,6 +8624,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     this.#closeRealtime(`conversation ${transitionalStatus}`);
     this.#autoResponseEnabled = true;
     this.#responseInFlight = false;
+    this.#pendingToolResultCount = 0;
     conversation.status = "ended";
     conversation.endedAt = /* @__PURE__ */ new Date();
     const archived = snapshotConversation(conversation);
@@ -8706,7 +8660,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     try {
       conversation = this.#requireInjectableConversation(invalidStateCode);
     } catch (error) {
-      if (error instanceof RealtimeVoiceServerError) {
+      if (error instanceof VoiceAgentServerError) {
         this.emit("conversation.error", {
           conversationId: this.#conversation?.id,
           error,
@@ -8753,7 +8707,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     } catch (cause) {
       throw this.#fail(
         "MESSAGE_RESPONSE_TRIGGER_FAILED",
-        "Realtime session rejected the response request.",
+        "Voice session rejected the response request.",
         void 0,
         cause
       );
@@ -8783,7 +8737,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     for (const toolCall of conversation.toolCalls) {
       if (toolCall.status !== "started") continue;
       const interruptedAt = /* @__PURE__ */ new Date();
-      const error = toRealtimeError("TOOL_CALL_INTERRUPTED", "Tool call was interrupted by conversation cleanup.", {
+      const error = toVoiceError("TOOL_CALL_INTERRUPTED", "Tool call was interrupted by conversation cleanup.", {
         callId: toolCall.callId,
         reason
       });
@@ -8814,14 +8768,10 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
   #handleBrowserConnection(socket) {
     const attemptedClientId = createId("client");
     if (this.#browserSocket && this.#browserSocket.readyState === socket.OPEN) {
-      const error = toRealtimeError(
-        "BROWSER_CLIENT_ALREADY_CONNECTED",
-        "Another browser client is already connected.",
-        {
-          activeClientId: this.#browserClient.clientId ?? "",
-          attemptedClientId
-        }
-      );
+      const error = toVoiceError("BROWSER_CLIENT_ALREADY_CONNECTED", "Another browser client is already connected.", {
+        activeClientId: this.#browserClient.clientId ?? "",
+        attemptedClientId
+      });
       socket.send(JSON.stringify({ type: "duplicate.client" }));
       socket.close(1008, "duplicate client");
       this.emit("browser.client.rejected", {
@@ -8846,7 +8796,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     this.#broadcastState();
     socket.on("message", (message) => {
       void this.#handleBrowserMessage(String(message)).catch((error) => {
-        const normalized = error instanceof RealtimeVoiceServerError ? error : toRealtimeError("INTERNAL_INVARIANT_VIOLATION", "Browser message handling failed.", void 0, error);
+        const normalized = error instanceof VoiceAgentServerError ? error : toVoiceError("INTERNAL_INVARIANT_VIOLATION", "Browser message handling failed.", void 0, error);
         socket.send(JSON.stringify({ type: "error", data: serializeError(normalized) }));
       });
     });
@@ -8886,11 +8836,11 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
         await this.injectUserMessage({ text, source: "textInput" });
         break;
       }
-      case "webrtc.session.requested": {
+      case "voice.session.requested": {
         try {
           const token = await this.#mintEphemeralClientSecret();
           this.#broadcast({
-            type: "webrtc.session.token",
+            type: "voice.session.token",
             data: {
               clientSecret: token.clientSecret,
               model: token.model,
@@ -8900,11 +8850,11 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
         } catch (cause) {
           const error = this.#fail(
             "CONVERSATION_START_FAILED",
-            "Failed to mint OpenAI ephemeral client secret.",
+            "Failed to mint xAI ephemeral client secret.",
             void 0,
             cause
           );
-          this.#failPendingWebrtcSession(error);
+          this.#failPendingVoiceSession(error);
           this.emit("conversation.error", {
             conversationId: this.#conversation?.id,
             error,
@@ -8913,24 +8863,24 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
         }
         break;
       }
-      case "webrtc.session.connected": {
-        const pending = this.#pendingWebrtcSession;
+      case "voice.session.connected": {
+        const pending = this.#pendingVoiceSession;
         if (pending) {
           clearTimeout(pending.timeout);
-          this.#pendingWebrtcSession = void 0;
+          this.#pendingVoiceSession = void 0;
           pending.resolve();
         }
         break;
       }
-      case "webrtc.session.failed": {
-        const code = String(message.data?.error?.code ?? "WEBRTC_SESSION_FAILED");
-        const text = String(message.data?.error?.message ?? "Browser reported a WebRTC session failure.");
-        const error = toRealtimeError("CONVERSATION_START_FAILED", text, { code });
-        this.#failPendingWebrtcSession(error);
+      case "voice.session.failed": {
+        const code = String(message.data?.error?.code ?? "VOICE_SESSION_FAILED");
+        const text = String(message.data?.error?.message ?? "Browser reported a Voice Agent session failure.");
+        const error = toVoiceError("CONVERSATION_START_FAILED", text, { code });
+        this.#failPendingVoiceSession(error);
         this.#browserProxiedEmitter?.emit("error", error);
         break;
       }
-      case "realtime.event": {
+      case "voice.event": {
         const event = message.data?.event;
         if (event && typeof event === "object") {
           const eventRecord = event;
@@ -8968,7 +8918,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
         break;
       }
       case "browser.audio.error": {
-        const error = toRealtimeError("MICROPHONE_DEVICE_ERROR", "Browser reported a microphone error.", {
+        const error = toVoiceError("MICROPHONE_DEVICE_ERROR", "Browser reported a microphone error.", {
           code: String(message.data?.code ?? "unknown"),
           message: String(message.data?.message ?? "Unknown microphone error."),
           suggestedAction: String(message.data?.suggestedAction ?? "Check microphone access and try again.")
@@ -8991,7 +8941,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     this.#broadcastState();
     if (this.#config.browserSession.connectOnPageLoad && audio.ready && this.#status.conversation === "none") {
       void this.startConversation().catch((error) => {
-        const wrapped = error instanceof RealtimeVoiceServerError ? error : toRealtimeError("CONVERSATION_START_FAILED", "connectOnPageLoad failed.", void 0, error);
+        const wrapped = error instanceof VoiceAgentServerError ? error : toVoiceError("CONVERSATION_START_FAILED", "connectOnPageLoad failed.", void 0, error);
         this.emit("conversation.error", {
           conversationId: this.#conversation?.id,
           error: wrapped,
@@ -9039,7 +8989,7 @@ var RealtimeVoiceServerControllerImpl = class extends StrictEventEmitter {
     }
   }
   #fail(code, message, details, cause) {
-    const error = toRealtimeError(code, message, details, cause);
+    const error = toVoiceError(code, message, details, cause);
     this.#log("error", error);
     return error;
   }
@@ -9074,17 +9024,17 @@ function normalizeConfig(config) {
 }
 function validateConfig(config) {
   if (!Number.isInteger(config.port) || config.port <= 0 || config.port > 65535) {
-    throw toRealtimeError("CONFIG_INVALID", "port must be an integer between 1 and 65535.", { port: config.port });
+    throw toVoiceError("CONFIG_INVALID", "port must be an integer between 1 and 65535.", { port: config.port });
   }
   if (!config.apiKey) {
-    throw toRealtimeError("CONFIG_INVALID", "apiKey is required.");
+    throw toVoiceError("CONFIG_INVALID", "apiKey is required.");
   }
   if (!normalizeText(config.realtime?.instructions)) {
-    throw toRealtimeError("CONFIG_INVALID", "realtime.instructions is required.");
+    throw toVoiceError("CONFIG_INVALID", "realtime.instructions is required.");
   }
   for (const [name, tool] of Object.entries(config.tools)) {
     if (!name || !tool.description || !tool.parameters || typeof tool.execute !== "function") {
-      throw toRealtimeError("CONFIG_INVALID", "Each tool requires a name, description, parameters, and execute.", {
+      throw toVoiceError("CONFIG_INVALID", "Each tool requires a name, description, parameters, and execute.", {
         name
       });
     }
@@ -9190,12 +9140,12 @@ try {
   }
 } catch (err) {
 }
-var port = parseInt(process.env["RVS_PORT"] ?? "3000", 10);
-var apiKey = process.env["RVS_API_KEY"] ?? "";
-var instructions = process.env["RVS_INSTRUCTIONS"] ?? "";
-var title = process.env["RVS_TITLE"];
-var model = process.env["RVS_MODEL"];
-var voice = process.env["RVS_VOICE"];
+var port = parseInt(process.env.VOICE_PORT ?? "3000", 10);
+var apiKey = process.env.VOICE_API_KEY ?? "";
+var instructions = process.env.VOICE_INSTRUCTIONS ?? "";
+var title = process.env.VOICE_TITLE;
+var model = process.env.VOICE_MODEL;
+var voice = process.env.VOICE_VOICE;
 var controlPort = port + 1;
 var tmpDir = `/tmp/voice-${port}`;
 var eventsFile = `${tmpDir}/events.jsonl`;
@@ -9204,7 +9154,8 @@ var pidFile = `${tmpDir}/daemon.pid`;
 var seq = 0;
 function appendEvent(event, data) {
   seq += 1;
-  const line = JSON.stringify({ seq, event, timestamp: (/* @__PURE__ */ new Date()).toISOString(), data: serializeData(data) }) + "\n";
+  const line = `${JSON.stringify({ seq, event, timestamp: (/* @__PURE__ */ new Date()).toISOString(), data: serializeData(data) })}
+`;
   appendFileSync(eventsFile, line, "utf8");
 }
 function serializeData(value) {
@@ -9295,7 +9246,7 @@ var waitForContextTool = {
     return { ok: true };
   }
 };
-var controller = createRealtimeVoiceServer({
+var controller = createVoiceAgentServer({
   port,
   apiKey,
   realtime: realtimeConfig,
@@ -9412,10 +9363,12 @@ try {
 }
 controller.on("server.started", (event) => {
   const line = JSON.stringify({ port: event.port, url: event.url, createdAt: event.createdAt.toISOString() });
-  process.stdout.write(line + "\n");
+  process.stdout.write(`${line}
+`);
 });
 controller.start().catch((err) => {
-  process.stderr.write(JSON.stringify({ error: String(err) }) + "\n");
+  process.stderr.write(`${JSON.stringify({ error: String(err) })}
+`);
   cleanup();
   process.exit(1);
 });

@@ -1,5 +1,5 @@
 /**
- * argv parsing helpers for the rvs CLI
+ * argv parsing helpers for the voice CLI
  */
 
 export interface ParsedArgs {
@@ -50,10 +50,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
 }
 
 export function getPort(flags: Record<string, string | boolean>): number {
-  const p = flags["port"];
+  const p = flags.port;
   if (typeof p === "string") {
     const n = parseInt(p, 10);
-    if (!isNaN(n)) return n;
+    if (!Number.isNaN(n)) return n;
   }
   return 3000;
 }

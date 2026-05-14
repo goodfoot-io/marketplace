@@ -1,5 +1,5 @@
 /**
- * HTTP client for talking to the rvs control server (port+1).
+ * HTTP client for talking to the voice control server (port+1).
  */
 
 import http from "node:http";
@@ -8,10 +8,7 @@ export interface ControlClientOptions {
   controlPort: number;
 }
 
-function request(
-  options: http.RequestOptions,
-  body?: string,
-): Promise<{ statusCode: number; body: string }> {
+function request(options: http.RequestOptions, body?: string): Promise<{ statusCode: number; body: string }> {
   return new Promise((resolve, reject) => {
     const req = http.request(options, (res) => {
       const chunks: Buffer[] = [];
@@ -37,12 +34,7 @@ function request(
   });
 }
 
-function makeOptions(
-  controlPort: number,
-  method: string,
-  path: string,
-  bodyLength?: number,
-): http.RequestOptions {
+function makeOptions(controlPort: number, method: string, path: string, bodyLength?: number): http.RequestOptions {
   const opts: http.RequestOptions = {
     hostname: "localhost",
     port: controlPort,
@@ -69,10 +61,7 @@ export async function postJson(
   return request(makeOptions(controlPort, "POST", path, Buffer.byteLength(body)), body);
 }
 
-export async function postEmpty(
-  controlPort: number,
-  path: string,
-): Promise<{ statusCode: number; body: string }> {
+export async function postEmpty(controlPort: number, path: string): Promise<{ statusCode: number; body: string }> {
   const body = "{}";
   return request(makeOptions(controlPort, "POST", path, Buffer.byteLength(body)), body);
 }

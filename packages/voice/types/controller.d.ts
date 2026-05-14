@@ -1,2 +1,4 @@
-import { type RealtimeVoiceServerConfig, type RealtimeVoiceServerController, type RealtimeVoiceToolMap } from "./types.js";
-export declare function createRealtimeVoiceServer<const TTools extends RealtimeVoiceToolMap>(config: RealtimeVoiceServerConfig<TTools>): RealtimeVoiceServerController<TTools>;
+import { type VoiceAgentServerConfig, type VoiceAgentServerController, type VoiceAgentToolMap } from "./types.js";
+export declare function createVoiceAgentServer<const TTools extends VoiceAgentToolMap>(config: VoiceAgentServerConfig<TTools>): VoiceAgentServerController<TTools>;
+/** @deprecated Use createVoiceAgentServer */
+export declare const createRealtimeVoiceServer: typeof createVoiceAgentServer;

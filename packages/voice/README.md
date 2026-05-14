@@ -1,14 +1,14 @@
-# @goodfoot/conversation-sdk
+# @goodfoot/voice
 
-Local Realtime voice conversation server and browser control surface.
+Local Voice Agent server (xAI) and browser control surface.
 
 ```ts
 import { z } from "zod";
-import { createRealtimeVoiceServer } from "@goodfoot/conversation-sdk";
+import { createVoiceAgentServer } from "@goodfoot/voice";
 
-const controller = createRealtimeVoiceServer({
+const controller = createVoiceAgentServer({
   port: 3000,
-  apiKey: process.env.OPENAI_API_KEY!,
+  apiKey: process.env.XAI_API_KEY!,
   realtime: {
     instructions: "You are a concise voice assistant.",
   },
@@ -23,3 +23,12 @@ const controller = createRealtimeVoiceServer({
 
 await controller.start();
 ```
+
+## Known limitations
+
+- **No user-side transcription.** xAI does not currently expose an equivalent
+  of OpenAI's `conversation.item.input_audio_transcription.*` events. As a
+  result, `transcript.item` events with `role: "user"` will not fire during
+  live voice sessions, and `voice watch --events transcript.item` returns
+  only assistant items. Injected user messages still produce transcript
+  items.

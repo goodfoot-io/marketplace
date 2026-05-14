@@ -578,20 +578,24 @@
         audio: { permission: "unknown", devices: [], ready: false },
         atBottom: true,
         streamDrafts: new Map(),
-        webrtc: {
-          pc: undefined,
-          dc: undefined,
-          dcOpen: false,
-          pcConnected: false,
+        voice: {
+          xaiWs: undefined,
+          xaiOpen: false,
           connectedSent: false,
           micStream: undefined,
           micTrack: undefined,
-          micSender: undefined,
+          micSourceNode: undefined,
+          processorNode: undefined,
+          inputCtx: undefined,
+          outputCtx: undefined,
+          nextPlaybackTime: 0,
           analyser: undefined,
           analyserCtx: undefined,
           metersStarted: false,
           pendingSends: [],
           sessionInFlight: false,
+          tokenExpiresAt: 0,
+          paused: false,
         },
         realtime: { responseActive: false, pendingPauseCut: false },
       };
@@ -695,7 +699,7 @@
         });
         reset.addEventListener("click", () => {
           sendMessage("conversation.reset");
-          teardownWebrtc();
+          teardownVoice();
         });
         download.addEventListener("click", downloadTranscript);
         settingsToggle.addEventListener("click", () => {
@@ -728,7 +732,7 @@
       function handleMessage(message) {
         if (message.type === "duplicate.client") {
           document.body.innerHTML =
-            '<main class="duplicate-page"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg><h1>Session unavailable</h1><p>Another browser window is already connected to this Realtime Voice Server. Close the other session and refresh this page.</p></main>';
+            '<main class="duplicate-page"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg><h1>Session unavailable</h1><p>Another browser window is already connected to this Voice Agent. Close the other session and refresh this page.</p></main>';
           return;
         }
         if (message.type === "state") {
@@ -740,8 +744,8 @@
           };
           state.conversation = message.data.conversation;
           clearFinalizedDrafts();
-          if ((state.status.conversation === "none" || state.status.conversation === "ended") && state.webrtc.pc) {
-            teardownWebrtc();
+          if ((state.status.conversation === "none" || state.status.conversation === "ended") && state.voice.xaiWs) {
+            teardownVoice();
           }
           if (state.status.conversation !== previousStatus) {
             applyPauseState(state.status.conversation, previousStatus);
@@ -764,23 +768,30 @@
           state.audio.selectedDeviceId = message.data.selectedDeviceId;
           renderMicSelector();
         }
-        if (message.type === "webrtc.session.start") {
-          dlog("webrtc.session.start.received", { conversationStatus: state.status.conversation, audioReady: state.audio.ready });
-          if (!state.webrtc.sessionInFlight) {
-            state.webrtc.sessionInFlight = true;
-            sendMessage("webrtc.session.requested");
+        if (message.type === "voice.session.start") {
+          dlog("voice.session.start.received", { conversationStatus: state.status.conversation, audioReady: state.audio.ready });
+          if (!state.voice.sessionInFlight) {
+            state.voice.sessionInFlight = true;
+            sendMessage("voice.session.requested");
           }
         }
-        if (message.type === "webrtc.session.token") {
-          dlog("webrtc.session.token.received", { hasClientSecret: !!message.data?.clientSecret, model: message.data?.model, expiresAt: message.data?.expiresAt });
-          establishWebrtc(message.data).catch((error) => {
-            dlog("establishWebrtc.unhandled", { message: error?.message, stack: error?.stack });
-            failWebrtc("WEBRTC_SETUP_FAILED", error?.message ?? String(error));
+        if (message.type === "voice.session.token") {
+          dlog("voice.session.token.received", { hasClientSecret: !!message.data?.clientSecret, model: message.data?.model, expiresAt: message.data?.expiresAt });
+          establishVoiceSession(message.data).catch((error) => {
+            dlog("establishVoiceSession.unhandled", { message: error?.message, stack: error?.stack });
+            failVoice("VOICE_SETUP_FAILED", error?.message ?? String(error));
           });
         }
-        if (message.type === "realtime.send") {
-          forwardRealtimeSend(message.data?.event);
+        if (message.type === "voice.session.close") {
+          teardownVoice();
         }
+        if (message.type === "voice.send") {
+          forwardVoiceSend(message.data?.event);
+        }
+        // audio.output.delta is broadcast by the daemon for visualizer use
+        // only — playback is driven directly by the xAI WS message handler in
+        // establishVoiceSession (single authoritative playback path; no
+        // double-play). We deliberately ignore audio data here.
         if (message.type === "wait_for_context.start") {
           startMetronome();
         }
@@ -865,9 +876,9 @@
       }
 
       function startMeters(stream) {
-        if (state.webrtc.analyserCtx) {
+        if (state.voice.analyserCtx) {
           try {
-            state.webrtc.analyserCtx.close();
+            state.voice.analyserCtx.close();
           } catch (error) {
             dlog("startMeters.analyserCtx.close.failed", { message: String(error?.message ?? error) });
           }
@@ -881,14 +892,14 @@
         const analyser = audioCtx.createAnalyser();
         analyser.fftSize = 256;
         audioCtx.createMediaStreamSource(stream).connect(analyser);
-        state.webrtc.analyser = analyser;
-        state.webrtc.analyserCtx = audioCtx;
-        if (state.webrtc.metersStarted) return;
-        state.webrtc.metersStarted = true;
+        state.voice.analyser = analyser;
+        state.voice.analyserCtx = audioCtx;
+        if (state.voice.metersStarted) return;
+        state.voice.metersStarted = true;
         const data = new Uint8Array(analyser.frequencyBinCount);
         const bars = [...meters.querySelectorAll(".bar")];
         function updateBars() {
-          const current = state.webrtc.analyser;
+          const current = state.voice.analyser;
           if (current) {
             current.getByteFrequencyData(data);
             bars.forEach((bar, index) => {
@@ -901,7 +912,7 @@
       }
 
       function startConversation() {
-        if (state.webrtc.sessionInFlight || state.webrtc.pc) return;
+        if (state.voice.sessionInFlight || state.voice.xaiWs) return;
         if (!state.audio.ready) {
           renderAudioError({
             code: "MICROPHONE_NOT_READY",
@@ -910,254 +921,380 @@
           });
           return;
         }
-        state.webrtc.sessionInFlight = true;
+        state.voice.sessionInFlight = true;
         sendMessage("conversation.start");
-        sendMessage("webrtc.session.requested");
+        sendMessage("voice.session.requested");
       }
 
-      async function establishWebrtc(token) {
-        dlog("establishWebrtc.enter", { hasToken: !!token, hasClientSecret: !!token?.clientSecret, model: token?.model });
-        if (!token?.clientSecret || !token?.model) {
-          failWebrtc("WEBRTC_TOKEN_INVALID", "Missing client secret or model.");
-          return;
+      // RFC 6455 §4.1: Sec-WebSocket-Protocol values must be RFC 7230 token
+      // characters. Base64 standard chars '=', '/', '+' are outside that set
+      // and would cause the browser to silently reject the WS handshake.
+      const SUBPROTOCOL_SAFE = /^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$/;
+
+      function sanitizeSubprotocolToken(token) {
+        if (SUBPROTOCOL_SAFE.test(token)) return token;
+        const unsafe = [...new Set(token.split('').filter((c) => !SUBPROTOCOL_SAFE.test(c)))].join('');
+        // Log the character set (NOT the token value) for diagnostics.
+        dlog("voice.session.token.sanitized", { unsafeChars: unsafe });
+        return btoa(token).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+      }
+
+      function bytesToBase64Buf(uint8) {
+        let binary = "";
+        const chunkSize = 0x8000;
+        for (let i = 0; i < uint8.length; i += chunkSize) {
+          binary += String.fromCharCode.apply(null, uint8.subarray(i, i + chunkSize));
         }
-        if (state.webrtc.pc) {
-          dlog("establishWebrtc.skip", { reason: "pc already exists" });
-          return;
+        return btoa(binary);
+      }
+
+      function float32ToPcm16Base64(float32) {
+        const pcm = new Int16Array(float32.length);
+        for (let i = 0; i < float32.length; i += 1) {
+          let s = Math.max(-1, Math.min(1, float32[i]));
+          pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
         }
+        return bytesToBase64Buf(new Uint8Array(pcm.buffer));
+      }
+
+      function pcm16Base64ToFloat32(b64) {
+        const binary = atob(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+        const view = new DataView(bytes.buffer);
+        const samples = new Float32Array(bytes.length / 2);
+        for (let i = 0; i < samples.length; i += 1) {
+          const s = view.getInt16(i * 2, true);
+          samples[i] = s < 0 ? s / 0x8000 : s / 0x7fff;
+        }
+        return samples;
+      }
+
+      function playPcmDelta(b64) {
         try {
-          dlog("acquireMicStream.start", { deviceId: state.audio.selectedDeviceId });
+          const samples = pcm16Base64ToFloat32(b64);
+          if (samples.length === 0) return;
+          let ctx = state.voice.outputCtx;
+          if (!ctx) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            ctx = new Ctx({ sampleRate: 24000 });
+            state.voice.outputCtx = ctx;
+          }
+          if (ctx.state === "suspended") {
+            ctx.resume().catch((error) => {
+              dlog("outputCtx.resume.failed", { message: String(error?.message ?? error) });
+            });
+          }
+          const buffer = ctx.createBuffer(1, samples.length, 24000);
+          buffer.copyToChannel(samples, 0);
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          const now = ctx.currentTime;
+          const startAt = Math.max(now, state.voice.nextPlaybackTime);
+          source.start(startAt);
+          state.voice.nextPlaybackTime = startAt + buffer.duration;
+        } catch (error) {
+          sendMessage("browser.audio.error", {
+            code: "AUDIO_DECODE_FAILED",
+            message: String(error?.message ?? error),
+            suggestedAction: "Refresh the page; if the problem persists check audio device permissions.",
+          });
+        }
+      }
+
+      async function establishVoiceSession(token) {
+        dlog("establishVoiceSession.enter", { hasToken: !!token, hasClientSecret: !!token?.clientSecret, model: token?.model, expiresAt: token?.expiresAt });
+        if (!token?.clientSecret || !token?.model) {
+          failVoice("VOICE_TOKEN_INVALID", "Missing client secret or model.");
+          return;
+        }
+        if (state.voice.xaiWs) {
+          dlog("establishVoiceSession.skip", { reason: "xaiWs already exists" });
+          return;
+        }
+        // Pre-expiry re-mint: if we are within 5s of token expiry, request a
+        // fresh token before opening the WS instead of racing the boundary.
+        if (typeof token.expiresAt === "number" && Date.now() > token.expiresAt * 1000 - 5000) {
+          dlog("voice.session.token.preExpiry", { expiresAt: token.expiresAt });
+          sendMessage("voice.session.requested");
+          return;
+        }
+        state.voice.tokenExpiresAt = token.expiresAt;
+
+        try {
           const stream = await acquireMicStream(state.audio.selectedDeviceId);
-          state.webrtc.micStream = stream;
+          state.voice.micStream = stream;
           const track = stream.getAudioTracks()[0];
-          state.webrtc.micTrack = track;
-          dlog("acquireMicStream.ok", { trackId: track?.id, label: track?.label, enabled: track?.enabled, muted: track?.muted });
+          state.voice.micTrack = track;
           startMeters(stream);
 
-          const pc = new RTCPeerConnection();
-          dlog("RTCPeerConnection.created", webrtcSnapshot());
-          state.webrtc.pc = pc;
-          state.webrtc.micSender = pc.addTrack(track, stream);
-          pc.ontrack = (event) => {
-            dlog("pc.ontrack", { kind: event.track?.kind, streams: event.streams?.length });
-            const [remoteStream] = event.streams;
-            if (remoteStream) remoteAudio.srcObject = remoteStream;
-          };
-          pc.onconnectionstatechange = () => {
-            dlog("pc.connectionstatechange", { connectionState: pc.connectionState });
-            const connectionState = pc.connectionState;
-            if (connectionState === "connected") {
-              state.webrtc.pcConnected = true;
-              maybeAnnounceConnected();
-            }
-            if (connectionState === "failed" || connectionState === "closed") {
-              if (!state.webrtc.connectedSent) {
-                failWebrtc("WEBRTC_PC_FAILED", `Peer connection ${connectionState}.`);
-              }
-            }
-          };
-          pc.oniceconnectionstatechange = () => dlog("pc.iceconnectionstatechange", { iceConnectionState: pc.iceConnectionState });
-          pc.onicegatheringstatechange = () => dlog("pc.icegatheringstatechange", { iceGatheringState: pc.iceGatheringState });
-          pc.onsignalingstatechange = () => dlog("pc.signalingstatechange", { signalingState: pc.signalingState });
-          pc.onicecandidateerror = (event) => dlog("pc.icecandidateerror", { errorCode: event.errorCode, errorText: event.errorText, url: event.url });
+          const safeToken = sanitizeSubprotocolToken(token.clientSecret);
+          // xAI tokens may be JWT-style (base64url) — already subprotocol-safe;
+          // sanitization is a defensive no-op in that case but surfaces format
+          // changes if xAI alters the token alphabet.
+          const ws = new WebSocket(
+            `wss://api.x.ai/v1/realtime?model=${encodeURIComponent(token.model)}`,
+            [`xai-client-secret.${safeToken}`],
+          );
+          state.voice.xaiWs = ws;
 
-          const dc = pc.createDataChannel("oai-events");
-          state.webrtc.dc = dc;
-          dc.onopen = () => {
-            dlog("dc.onopen", { readyState: dc.readyState });
-            state.webrtc.dcOpen = true;
-            for (const payload of state.webrtc.pendingSends) {
-              try {
-                dc.send(payload);
-              } catch (error) {
-                dlog("dc.send.pending.failed", { message: String(error?.message ?? error) });
+          ws.addEventListener("open", () => {
+            dlog("xaiWs.open", { readyState: ws.readyState });
+            state.voice.xaiOpen = true;
+            // Start the mic encoder pipeline now that the channel is open.
+            startMicEncoder(stream);
+            for (const payload of state.voice.pendingSends) {
+              try { ws.send(payload); } catch (error) {
+                dlog("xaiWs.send.pending.failed", { message: String(error?.message ?? error) });
               }
             }
-            state.webrtc.pendingSends = [];
-            maybeAnnounceConnected();
-          };
-          dc.onclose = () => { dlog("dc.onclose", {}); state.webrtc.dcOpen = false; };
-          dc.onerror = (e) => dlog("dc.onerror", { message: String(e?.error?.message ?? e?.message ?? e) });
-          dc.onmessage = (event) => {
-            const parsed = JSON.parse(event.data);
+            state.voice.pendingSends = [];
+            if (!state.voice.connectedSent) {
+              state.voice.connectedSent = true;
+              state.voice.sessionInFlight = false;
+              sendMessage("voice.session.connected");
+            }
+          });
+
+          ws.addEventListener("message", (event) => {
+            let parsed;
+            try { parsed = JSON.parse(event.data); } catch (e) {
+              dlog("xaiWs.in.parseError", { dataPrefix: String(event.data).slice(0, 200) });
+              return;
+            }
             if (parsed?.type === "response.created") {
               state.realtime.responseActive = true;
             } else if (parsed?.type === "response.done" || parsed?.type === "response.cancelled" || parsed?.type === "response.failed") {
               state.realtime.responseActive = false;
             }
-            // The actual end-of-audio signal is output_audio_buffer.stopped —
-            // that's when all queued audio chunks have been delivered. Using
-            // response.done would cut off the avatar mid-sentence because
-            // generation completes before audio finishes streaming.
             if (parsed?.type === "output_audio_buffer.stopped" && state.realtime.pendingPauseCut) {
               state.realtime.pendingPauseCut = false;
               applyPauseAudioCut();
             }
-            sendMessage("realtime.event", { event: parsed });
-          };
-
-          const offer = await pc.createOffer();
-          dlog("pc.createOffer.ok", { sdpLength: offer.sdp?.length });
-          await pc.setLocalDescription(offer);
-          dlog("pc.setLocalDescription.ok", { signalingState: pc.signalingState });
-
-          const sdpUrl = `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(token.model)}`;
-          dlog("sdp.fetch.start", { url: sdpUrl, sdpLength: pc.localDescription.sdp?.length });
-          const fetchStart = Date.now();
-          const response = await fetch(sdpUrl, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token.clientSecret}`,
-              "Content-Type": "application/sdp",
-            },
-            body: pc.localDescription.sdp,
+            // Forward every event to the daemon for transcript/tool wiring.
+            sendMessage("voice.event", { event: parsed });
+            // Single authoritative playback path: decode + play PCM deltas
+            // directly from the xAI WS message. The daemon's audio.output.delta
+            // relay is for visualizer data only and is ignored for playback.
+            if (parsed?.type === "response.audio.delta" && typeof parsed.delta === "string" && !state.voice.paused) {
+              playPcmDelta(parsed.delta);
+            }
           });
-          dlog("sdp.fetch.response", { status: response.status, ok: response.ok, durationMs: Date.now() - fetchStart, headers: Object.fromEntries(response.headers.entries()) });
-          if (!response.ok) {
-            const body = await response.text().catch(() => "");
-            dlog("sdp.fetch.errorBody", { status: response.status, body: body.slice(0, 500) });
-            throw new Error(`OpenAI SDP exchange failed (${response.status}): ${body.slice(0, 200)}`);
-          }
-          const answerSdp = await response.text();
-          dlog("sdp.fetch.ok", { answerSdpLength: answerSdp.length });
-          await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
-          dlog("pc.setRemoteDescription.ok", webrtcSnapshot());
+
+          ws.addEventListener("close", (event) => {
+            dlog("xaiWs.close", { code: event.code, reason: event.reason });
+            state.voice.xaiOpen = false;
+            if (!state.voice.connectedSent) {
+              failVoice("VOICE_WS_REJECTED", `xAI WS closed before open: code=${event.code} reason=${event.reason}`);
+            } else {
+              // Mid-session close — surface as session failure.
+              sendMessage("voice.session.failed", { error: { code: "VOICE_WS_CLOSED", message: `xAI WS closed: code=${event.code}` } });
+              teardownVoice();
+            }
+          });
+
+          ws.addEventListener("error", () => {
+            dlog("xaiWs.error", {});
+            // CORS / handshake rejection: the browser delivers minimal info
+            // here. The daemon-held WS contingency (proxy binary frames
+            // through the daemon) is documented but NOT implemented per
+            // plan §3c.
+            if (!state.voice.connectedSent) {
+              failVoice("VOICE_WS_REJECTED", "xAI WebSocket connection failed (likely CORS or handshake).");
+            }
+          });
         } catch (error) {
-          dlog("establishWebrtc.catch", { message: error?.message, name: error?.name, stack: error?.stack, snapshot: webrtcSnapshot() });
-          failWebrtc("WEBRTC_SETUP_FAILED", error?.message ?? String(error));
+          dlog("establishVoiceSession.catch", { message: error?.message, name: error?.name, stack: error?.stack });
+          failVoice("VOICE_SETUP_FAILED", error?.message ?? String(error));
         }
       }
 
-      function maybeAnnounceConnected() {
-        const { pcConnected, dcOpen, connectedSent } = state.webrtc;
-        dlog("maybeAnnounceConnected", { pcConnected, dcOpen, connectedSent });
-        if (!pcConnected || !dcOpen || connectedSent) return;
-        state.webrtc.connectedSent = true;
-        state.webrtc.sessionInFlight = false;
-        sendMessage("webrtc.session.connected");
+      function startMicEncoder(stream) {
+        try {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          const ctx = new Ctx({ sampleRate: 24000 });
+          state.voice.inputCtx = ctx;
+          if (ctx.state === "suspended") {
+            ctx.resume().catch((error) => dlog("inputCtx.resume.failed", { message: String(error?.message ?? error) }));
+          }
+          const source = ctx.createMediaStreamSource(stream);
+          state.voice.micSourceNode = source;
+          // ScriptProcessor: deprecated but universally supported. AudioWorklet
+          // would require a separate module URL which complicates the bundled
+          // single-file UI; ScriptProcessor is acceptable for 24 kHz mono PCM.
+          const bufferSize = 2048;
+          const processor = ctx.createScriptProcessor(bufferSize, 1, 1);
+          state.voice.processorNode = processor;
+          processor.onaudioprocess = (event) => {
+            if (state.voice.paused) return;
+            const ws = state.voice.xaiWs;
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            const input = event.inputBuffer.getChannelData(0);
+            try {
+              const b64 = float32ToPcm16Base64(input);
+              ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 }));
+            } catch (error) {
+              sendMessage("browser.audio.error", {
+                code: "AUDIO_ENCODE_FAILED",
+                message: String(error?.message ?? error),
+                suggestedAction: "Refresh the page; if the problem persists check microphone permissions.",
+              });
+            }
+          };
+          source.connect(processor);
+          processor.connect(ctx.destination);
+        } catch (error) {
+          dlog("startMicEncoder.failed", { message: String(error?.message ?? error) });
+          sendMessage("browser.audio.error", {
+            code: "AUDIO_ENCODER_INIT_FAILED",
+            message: String(error?.message ?? error),
+            suggestedAction: "Try a different browser or device.",
+          });
+        }
       }
 
-      function forwardRealtimeSend(event) {
+      function forwardVoiceSend(event) {
         if (!event) return;
         const payload = JSON.stringify(event);
-        const { dc, dcOpen } = state.webrtc;
-        if (dc && dcOpen) {
+        const ws = state.voice.xaiWs;
+        if (ws && state.voice.xaiOpen) {
           try {
-            dc.send(payload);
+            ws.send(payload);
           } catch (error) {
-            dlog("dc.send.failed.requeue", { message: String(error?.message ?? error) });
-            state.webrtc.pendingSends.push(payload);
+            dlog("xaiWs.send.failed.requeue", { message: String(error?.message ?? error) });
+            state.voice.pendingSends.push(payload);
           }
           return;
         }
-        state.webrtc.pendingSends.push(payload);
+        state.voice.pendingSends.push(payload);
       }
 
-      function failWebrtc(code, message) {
-        dlog("failWebrtc", { code, message, snapshot: webrtcSnapshot() });
-        sendMessage("webrtc.session.failed", { error: { code, message } });
-        teardownWebrtc();
+      function failVoice(code, message) {
+        dlog("failVoice", { code, message });
+        sendMessage("voice.session.failed", { error: { code, message } });
+        teardownVoice();
       }
 
-      function teardownWebrtc() {
-        const { pc, micStream, analyserCtx } = state.webrtc;
-        if (pc) {
-          try {
-            pc.close();
-          } catch (error) {
-            dlog("teardown.pc.close.failed", { message: String(error?.message ?? error) });
-          }
+      function teardownVoice() {
+        const { xaiWs, micStream, analyserCtx, processorNode, micSourceNode, inputCtx, outputCtx } = state.voice;
+        if (xaiWs) {
+          try { xaiWs.close(); } catch (error) { dlog("teardown.xaiWs.close.failed", { message: String(error?.message ?? error) }); }
+        }
+        if (processorNode) {
+          try { processorNode.disconnect(); } catch (error) { dlog("teardown.processor.disconnect.failed", { message: String(error?.message ?? error) }); }
+        }
+        if (micSourceNode) {
+          try { micSourceNode.disconnect(); } catch (error) { dlog("teardown.micSource.disconnect.failed", { message: String(error?.message ?? error) }); }
+        }
+        if (inputCtx) {
+          try { inputCtx.close(); } catch (error) { dlog("teardown.inputCtx.close.failed", { message: String(error?.message ?? error) }); }
+        }
+        if (outputCtx) {
+          try { outputCtx.close(); } catch (error) { dlog("teardown.outputCtx.close.failed", { message: String(error?.message ?? error) }); }
         }
         if (micStream) {
           micStream.getTracks().forEach((track) => track.stop());
         }
         if (analyserCtx) {
-          try {
-            analyserCtx.close();
-          } catch (error) {
-            dlog("teardown.analyserCtx.close.failed", { message: String(error?.message ?? error) });
-          }
+          try { analyserCtx.close(); } catch (error) { dlog("teardown.analyserCtx.close.failed", { message: String(error?.message ?? error) }); }
         }
-        remoteAudio.srcObject = null;
-        state.webrtc.pc = undefined;
-        state.webrtc.dc = undefined;
-        state.webrtc.dcOpen = false;
-        state.webrtc.pcConnected = false;
-        state.webrtc.connectedSent = false;
-        state.webrtc.micStream = undefined;
-        state.webrtc.micTrack = undefined;
-        state.webrtc.micSender = undefined;
-        state.webrtc.analyser = undefined;
-        state.webrtc.analyserCtx = undefined;
-        state.webrtc.pendingSends = [];
-        state.webrtc.sessionInFlight = false;
+        state.voice.xaiWs = undefined;
+        state.voice.xaiOpen = false;
+        state.voice.connectedSent = false;
+        state.voice.micStream = undefined;
+        state.voice.micTrack = undefined;
+        state.voice.micSourceNode = undefined;
+        state.voice.processorNode = undefined;
+        state.voice.inputCtx = undefined;
+        state.voice.outputCtx = undefined;
+        state.voice.nextPlaybackTime = 0;
+        state.voice.analyser = undefined;
+        state.voice.analyserCtx = undefined;
+        state.voice.pendingSends = [];
+        state.voice.sessionInFlight = false;
+        state.voice.tokenExpiresAt = 0;
+        state.voice.paused = false;
       }
 
       function applyPauseState(status, previousStatus) {
         const paused = status === "paused";
-        const wasPaused = previousStatus === "paused";
-        const { micTrack, micSender } = state.webrtc;
+        const { micTrack, xaiWs, xaiOpen } = state.voice;
         if (paused) {
           // If a response is currently being spoken, defer the audio cut
-          // until response.done fires so the avatar can finish its sentence.
+          // until output_audio_buffer.stopped fires so the avatar can finish
+          // its sentence.
           if (state.realtime.responseActive) {
             state.realtime.pendingPauseCut = true;
             // Stop the user's mic from sending audio immediately so the
             // model can't pick up more input during the wind-down.
+            state.voice.paused = true;
             if (micTrack) micTrack.enabled = false;
-            micSender?.replaceTrack(null).catch((error) => {
-              dlog("micSender.replaceTrack(null).failed", { message: String(error?.message ?? error) });
-            });
             return;
           }
           applyPauseAudioCut();
         } else if (status === "active") {
-          // Resuming: clear any deferred pause-cut, re-enable the local
-          // mic track, restore the sender, and unmute remote playback.
+          // Resuming: clear deferred pause-cut, re-enable mic.
           state.realtime.pendingPauseCut = false;
+          state.voice.paused = false;
           if (micTrack) micTrack.enabled = true;
-          remoteAudio.muted = false;
-          remoteAudio.play().catch((error) => {
-            dlog("remoteAudio.play.blocked", { message: String(error?.message ?? error) });
-          });
-          if (wasPaused && micSender && micTrack) {
-            micSender.replaceTrack(micTrack).catch((error) => {
-              dlog("micSender.replaceTrack(micTrack).failed", { message: String(error?.message ?? error) });
+          // previousStatus retained as parameter for symmetry with the
+          // controller's pause/resume contract.
+          void previousStatus;
+          // Resume output context if it was suspended.
+          if (state.voice.outputCtx?.state === "suspended") {
+            state.voice.outputCtx.resume().catch((error) => {
+              dlog("outputCtx.resume.failed", { message: String(error?.message ?? error) });
             });
+          }
+          if (xaiWs && xaiOpen) {
+            // No explicit "resume" event in xAI's protocol — turn detection
+            // resumes naturally as mic frames flow again.
           }
         }
       }
 
-      // Applies the actual audio-pause side effects: mute remote audio, stop
-      // sending mic RTP, cancel any in-flight response. Called either
-      // immediately on pause (no active response) or deferred from
-      // applyPauseState until response.done fires.
+      // Applies the actual audio-pause side effects: pause output context,
+      // stop mic capture, cancel any in-flight response.
       function applyPauseAudioCut() {
-        const { micTrack, micSender, dc, dcOpen } = state.webrtc;
+        const { micTrack, xaiWs, xaiOpen, outputCtx } = state.voice;
+        state.voice.paused = true;
         if (micTrack) micTrack.enabled = false;
-        remoteAudio.muted = true;
-        remoteAudio.pause();
-        micSender?.replaceTrack(null).catch((error) => {
-          dlog("micSender.replaceTrack(null).failed", { message: String(error?.message ?? error) });
-        });
-        if (dc && dcOpen && state.realtime.responseActive) {
-          dc.send(JSON.stringify({ type: "response.cancel" }));
+        if (outputCtx?.state === "running") {
+          outputCtx.suspend().catch((error) => {
+            dlog("outputCtx.suspend.failed", { message: String(error?.message ?? error) });
+          });
+        }
+        if (xaiWs && xaiOpen && state.realtime.responseActive) {
+          try { xaiWs.send(JSON.stringify({ type: "response.cancel" })); }
+          catch (error) { dlog("xaiWs.send.responseCancel.failed", { message: String(error?.message ?? error) }); }
         }
       }
 
       async function switchMicDevice(deviceId) {
         state.audio.selectedDeviceId = deviceId;
         sendMessage("audio.device.select", { deviceId });
-        if (!state.webrtc.pc) return;
+        if (!state.voice.xaiWs) return;
         try {
           const stream = await acquireMicStream(deviceId);
-          const track = stream.getAudioTracks()[0];
-          if (state.webrtc.micSender) await state.webrtc.micSender.replaceTrack(track);
-          if (state.webrtc.micStream) {
-            state.webrtc.micStream.getTracks().forEach((existing) => existing.stop());
+          // Tear down the existing mic encoder pipeline and rebuild it on the
+          // new stream. The xAI WS stays open; only the mic capture changes.
+          if (state.voice.processorNode) {
+            try { state.voice.processorNode.disconnect(); } catch (error) { dlog("switchMic.processor.disconnect.failed", { message: String(error?.message ?? error) }); }
           }
-          state.webrtc.micStream = stream;
-          state.webrtc.micTrack = track;
+          if (state.voice.micSourceNode) {
+            try { state.voice.micSourceNode.disconnect(); } catch (error) { dlog("switchMic.micSource.disconnect.failed", { message: String(error?.message ?? error) }); }
+          }
+          if (state.voice.inputCtx) {
+            try { state.voice.inputCtx.close(); } catch (error) { dlog("switchMic.inputCtx.close.failed", { message: String(error?.message ?? error) }); }
+            state.voice.inputCtx = undefined;
+          }
+          if (state.voice.micStream) {
+            state.voice.micStream.getTracks().forEach((existing) => existing.stop());
+          }
+          state.voice.micStream = stream;
+          state.voice.micTrack = stream.getAudioTracks()[0];
+          startMicEncoder(stream);
           startMeters(stream);
         } catch (error) {
           renderAudioError({
@@ -1330,21 +1467,14 @@
         }
       }
 
-      function webrtcSnapshot() {
-        const { pc, dc } = state.webrtc;
+      function voiceSnapshot() {
+        const { xaiWs } = state.voice;
         return {
-          sessionInFlight: state.webrtc.sessionInFlight,
-          pcConnected: state.webrtc.pcConnected,
-          dcOpen: state.webrtc.dcOpen,
-          connectedSent: state.webrtc.connectedSent,
-          hasMicTrack: !!state.webrtc.micTrack,
-          pc: pc ? {
-            connectionState: pc.connectionState,
-            iceConnectionState: pc.iceConnectionState,
-            iceGatheringState: pc.iceGatheringState,
-            signalingState: pc.signalingState,
-          } : null,
-          dc: dc ? { readyState: dc.readyState, label: dc.label } : null,
+          sessionInFlight: state.voice.sessionInFlight,
+          xaiOpen: state.voice.xaiOpen,
+          connectedSent: state.voice.connectedSent,
+          hasMicTrack: !!state.voice.micTrack,
+          ws: xaiWs ? { readyState: xaiWs.readyState } : null,
         };
       }
 

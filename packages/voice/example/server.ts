@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { createRealtimeVoiceServer, type RealtimeVoiceServerEvents, type RealtimeVoiceToolMap } from "../src/index.js";
+import { createVoiceAgentServer, type VoiceAgentServerEvents, type VoiceAgentToolMap } from "../src/index.js";
 
-type DemoEvents = RealtimeVoiceServerEvents<RealtimeVoiceToolMap>;
+type DemoEvents = VoiceAgentServerEvents<VoiceAgentToolMap>;
 
 const eventNames = [
   "server.started",
@@ -17,7 +17,7 @@ const eventNames = [
   "conversation.ended",
   "conversation.reset",
   "conversation.error",
-  "realtime.updated",
+  "voice.session.updated",
   "transcript.item",
   "tool.call.started",
   "tool.call.completed",
@@ -26,12 +26,12 @@ const eventNames = [
   "log",
 ] as const satisfies readonly (keyof DemoEvents)[];
 
-const apiKey = process.env.OPENAI_API_KEY;
+const apiKey = process.env.XAI_API_KEY;
 const port = Number(process.env.PORT ?? 3000);
 
 if (!apiKey) {
-  console.error("OPENAI_API_KEY is required.");
-  console.error("Start with: OPENAI_API_KEY='your-api-key-here' yarn demo");
+  console.error("XAI_API_KEY is required.");
+  console.error("Start with: XAI_API_KEY='your-api-key-here' yarn demo");
   process.exit(1);
 }
 
@@ -40,7 +40,7 @@ if (!Number.isInteger(port) || port <= 0 || port > 65535) {
   process.exit(1);
 }
 
-const controller = createRealtimeVoiceServer({
+const controller = createVoiceAgentServer({
   port,
   apiKey,
   realtime: {
@@ -58,15 +58,21 @@ const controller = createRealtimeVoiceServer({
   },
 });
 
-for (const eventName of eventNames) {
-  controller.on(eventName, (event) => {
-    console.log(
-      toYaml({
-        event: eventName,
-        data: event,
-      }),
-    );
-  });
+for (const name of eventNames) {
+  const eventName: keyof DemoEvents = name;
+  // Cast handler through a single keyof-erased shape so the loop typechecks
+  // — TypeScript cannot narrow the callback parameter when iterating a union.
+  (controller.on as (n: keyof DemoEvents, h: (event: DemoEvents[keyof DemoEvents]) => void) => void)(
+    eventName,
+    (event) => {
+      console.log(
+        toYaml({
+          event: eventName,
+          data: event,
+        }),
+      );
+    },
+  );
 }
 
 await controller.start();

@@ -1,12 +1,12 @@
 import type { z } from "zod";
 
-export const DEFAULT_REALTIME_MODEL = "gpt-realtime-2";
-export const DEFAULT_REALTIME_VOICE = "cedar";
-export const DEFAULT_UI_TITLE = "Realtime Voice Console";
+export const DEFAULT_REALTIME_MODEL = "grok-voice-latest";
+export const DEFAULT_REALTIME_VOICE = "eve";
+export const DEFAULT_UI_TITLE = "Voice Agent";
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-export interface RealtimeSessionConfig {
+export interface VoiceSessionConfig {
   instructions: string;
   model?: string;
   voice?: string;
@@ -20,33 +20,33 @@ export interface BrowserSessionConfig {
 
 export type FirstMessageRole = "user" | "system" | "assistant";
 
-export interface RealtimeVoiceUiConfig {
+export interface VoiceAgentUiConfig {
   title?: string;
 }
 
-export interface RealtimeVoiceServerConfig<TTools extends RealtimeVoiceToolMap> {
+export interface VoiceAgentServerConfig<TTools extends VoiceAgentToolMap> {
   port: number;
   apiKey: string;
-  realtime: RealtimeSessionConfig;
+  realtime: VoiceSessionConfig;
   tools: TTools;
   browserSession?: BrowserSessionConfig;
-  ui?: RealtimeVoiceUiConfig;
+  ui?: VoiceAgentUiConfig;
 }
 
-export type RealtimeVoiceToolMap = Record<string, RealtimeVoiceToolDefinition<z.ZodTypeAny>>;
+export type VoiceAgentToolMap = Record<string, VoiceAgentToolDefinition<z.ZodTypeAny>>;
 
-export interface RealtimeVoiceToolDefinition<TParameters extends z.ZodTypeAny> {
+export interface VoiceAgentToolDefinition<TParameters extends z.ZodTypeAny> {
   description: string;
   parameters: TParameters;
-  execute: RealtimeVoiceToolExecute<TParameters>;
+  execute: VoiceAgentToolExecute<TParameters>;
 }
 
-export type RealtimeVoiceToolExecute<TParameters extends z.ZodTypeAny> = (
+export type VoiceAgentToolExecute<TParameters extends z.ZodTypeAny> = (
   input: z.infer<TParameters>,
-  context: RealtimeVoiceToolContext,
+  context: VoiceAgentToolContext,
 ) => JsonValue | Promise<JsonValue>;
 
-export interface RealtimeVoiceToolContext {
+export interface VoiceAgentToolContext {
   conversationId: string;
   callId: string;
   toolName: string;
@@ -54,8 +54,8 @@ export interface RealtimeVoiceToolContext {
   signal: AbortSignal;
 }
 
-export interface RealtimeVoiceServerController<TTools extends RealtimeVoiceToolMap>
-  extends TypedEventEmitter<RealtimeVoiceServerEvents<TTools>> {
+export interface VoiceAgentServerController<TTools extends VoiceAgentToolMap>
+  extends TypedEventEmitter<VoiceAgentServerEvents<TTools>> {
   readonly status: ControllerStatus;
   readonly responseInFlight: boolean;
   readonly currentConversation?: ConversationSnapshot<TTools>;
@@ -75,7 +75,7 @@ export interface RealtimeVoiceServerController<TTools extends RealtimeVoiceToolM
   injectAssistantMessage(input: InjectAssistantMessageInput): Promise<TranscriptItem>;
   injectSystemMessage(input: InjectSystemMessageInput): Promise<TranscriptItem>;
   cancelToolCall(callId: string): Promise<void>;
-  updateRealtime(input: UpdateRealtimeInput<TTools>): Promise<void>;
+  updateVoiceSession(input: UpdateVoiceSessionInput<TTools>): Promise<void>;
   broadcastToBrowser(envelope: { type: string; data?: unknown }): void;
 }
 
@@ -128,7 +128,7 @@ export interface BrowserAudioErrorDetails {
   suggestedAction: string;
 }
 
-export interface ConversationSnapshot<TTools extends RealtimeVoiceToolMap = RealtimeVoiceToolMap> {
+export interface ConversationSnapshot<TTools extends VoiceAgentToolMap = VoiceAgentToolMap> {
   id: string;
   status: ConversationStatus;
   startedAt: Date;
@@ -175,22 +175,22 @@ export interface TranscriptDeltaEvent {
   createdAt: Date;
 }
 
-export type ToolName<TTools extends RealtimeVoiceToolMap> = Extract<keyof TTools, string>;
+export type ToolName<TTools extends VoiceAgentToolMap> = Extract<keyof TTools, string>;
 
-export type ToolInput<TTools extends RealtimeVoiceToolMap, TName extends ToolName<TTools>> =
-  TTools[TName] extends RealtimeVoiceToolDefinition<infer TParameters> ? z.infer<TParameters> : never;
+export type ToolInput<TTools extends VoiceAgentToolMap, TName extends ToolName<TTools>> =
+  TTools[TName] extends VoiceAgentToolDefinition<infer TParameters> ? z.infer<TParameters> : never;
 
-export type ToolCallRecord<TTools extends RealtimeVoiceToolMap> = {
+export type ToolCallRecord<TTools extends VoiceAgentToolMap> = {
   [TName in ToolName<TTools>]: ToolCallRecordOfName<TTools, TName>;
 }[ToolName<TTools>];
 
-export type ToolCallRecordOfName<TTools extends RealtimeVoiceToolMap, TName extends ToolName<TTools>> =
+export type ToolCallRecordOfName<TTools extends VoiceAgentToolMap, TName extends ToolName<TTools>> =
   | ToolCallRecordStarted<TTools, TName>
   | ToolCallRecordCompleted<TTools, TName>
   | ToolCallRecordFailed<TTools, TName>
   | ToolCallRecordInterrupted<TTools, TName>;
 
-interface ToolCallRecordBase<TTools extends RealtimeVoiceToolMap, TName extends ToolName<TTools>> {
+interface ToolCallRecordBase<TTools extends VoiceAgentToolMap, TName extends ToolName<TTools>> {
   id: string;
   conversationId: string;
   toolName: TName;
@@ -199,29 +199,29 @@ interface ToolCallRecordBase<TTools extends RealtimeVoiceToolMap, TName extends 
   startedAt: Date;
 }
 
-export interface ToolCallRecordStarted<TTools extends RealtimeVoiceToolMap, TName extends ToolName<TTools>>
+export interface ToolCallRecordStarted<TTools extends VoiceAgentToolMap, TName extends ToolName<TTools>>
   extends ToolCallRecordBase<TTools, TName> {
   status: "started";
 }
 
-export interface ToolCallRecordCompleted<TTools extends RealtimeVoiceToolMap, TName extends ToolName<TTools>>
+export interface ToolCallRecordCompleted<TTools extends VoiceAgentToolMap, TName extends ToolName<TTools>>
   extends ToolCallRecordBase<TTools, TName> {
   status: "completed";
   result: JsonValue;
   completedAt: Date;
 }
 
-export interface ToolCallRecordFailed<TTools extends RealtimeVoiceToolMap, TName extends ToolName<TTools>>
+export interface ToolCallRecordFailed<TTools extends VoiceAgentToolMap, TName extends ToolName<TTools>>
   extends ToolCallRecordBase<TTools, TName> {
   status: "failed";
-  error: RealtimeVoiceServerError;
+  error: VoiceAgentServerError;
   completedAt: Date;
 }
 
-export interface ToolCallRecordInterrupted<TTools extends RealtimeVoiceToolMap, TName extends ToolName<TTools>>
+export interface ToolCallRecordInterrupted<TTools extends VoiceAgentToolMap, TName extends ToolName<TTools>>
   extends ToolCallRecordBase<TTools, TName> {
   status: "interrupted";
-  error: RealtimeVoiceServerError;
+  error: VoiceAgentServerError;
   completedAt: Date;
 }
 
@@ -252,7 +252,7 @@ export interface TypedEventEmitter<TEvents extends EventMap> {
   off<K extends keyof TEvents>(eventName: K, handler: (event: TEvents[K]) => void): void;
 }
 
-export interface RealtimeVoiceServerEvents<TTools extends RealtimeVoiceToolMap> {
+export interface VoiceAgentServerEvents<TTools extends VoiceAgentToolMap> {
   "server.started": ServerStartedEvent;
   "server.stopped": ServerStoppedEvent;
   "browser.client.connected": BrowserClientConnectedEvent;
@@ -267,7 +267,7 @@ export interface RealtimeVoiceServerEvents<TTools extends RealtimeVoiceToolMap> 
   "conversation.reset": ConversationResetEvent<TTools>;
   "conversation.error": ConversationErrorEvent;
   "response.completed": ResponseCompletedEvent;
-  "realtime.updated": RealtimeUpdatedEvent;
+  "voice.session.updated": VoiceSessionUpdatedEvent;
   "transcript.delta": TranscriptDeltaEvent;
   "transcript.item": TranscriptItemEvent;
   "tool.call.started": ToolCallStartedEvent<TTools>;
@@ -301,13 +301,13 @@ export interface BrowserClientDisconnectedEvent {
 export interface BrowserClientRejectedEvent {
   attemptedClientId: string;
   activeClientId: string;
-  error: RealtimeVoiceServerError;
+  error: VoiceAgentServerError;
   createdAt: Date;
 }
 
 export interface BrowserAudioErrorEvent {
   clientId?: string;
-  error: RealtimeVoiceServerError;
+  error: VoiceAgentServerError;
   createdAt: Date;
 }
 
@@ -317,7 +317,7 @@ export interface BrowserAudioDeviceChangeEvent {
   createdAt: Date;
 }
 
-export interface ConversationStartedEvent<TTools extends RealtimeVoiceToolMap> {
+export interface ConversationStartedEvent<TTools extends VoiceAgentToolMap> {
   conversation: ConversationSnapshot<TTools>;
   createdAt: Date;
 }
@@ -332,12 +332,12 @@ export interface ConversationResumedEvent {
   createdAt: Date;
 }
 
-export interface ConversationEndedEvent<TTools extends RealtimeVoiceToolMap> {
+export interface ConversationEndedEvent<TTools extends VoiceAgentToolMap> {
   conversation: ConversationSnapshot<TTools>;
   createdAt: Date;
 }
 
-export interface ConversationResetEvent<TTools extends RealtimeVoiceToolMap> {
+export interface ConversationResetEvent<TTools extends VoiceAgentToolMap> {
   previousConversation: ConversationSnapshot<TTools>;
   currentConversation: ConversationSnapshot<TTools>;
   createdAt: Date;
@@ -345,7 +345,7 @@ export interface ConversationResetEvent<TTools extends RealtimeVoiceToolMap> {
 
 export interface ConversationErrorEvent {
   conversationId?: string;
-  error: RealtimeVoiceServerError;
+  error: VoiceAgentServerError;
   createdAt: Date;
 }
 
@@ -354,7 +354,7 @@ export interface ResponseCompletedEvent {
   createdAt: Date;
 }
 
-export interface RealtimeUpdatedEvent {
+export interface VoiceSessionUpdatedEvent {
   instructionsUpdated: boolean;
   toolsUpdated: readonly string[];
   createdAt: Date;
@@ -366,7 +366,7 @@ export interface TranscriptItemEvent {
 }
 
 export interface ToolCallStartedEvent<
-  TTools extends RealtimeVoiceToolMap,
+  TTools extends VoiceAgentToolMap,
   TName extends ToolName<TTools> = ToolName<TTools>,
 > {
   conversationId: string;
@@ -377,16 +377,13 @@ export interface ToolCallStartedEvent<
   startedAt: Date;
 }
 
-export type ToolCallFailedEvent<
-  TTools extends RealtimeVoiceToolMap,
-  TName extends ToolName<TTools> = ToolName<TTools>,
-> =
+export type ToolCallFailedEvent<TTools extends VoiceAgentToolMap, TName extends ToolName<TTools> = ToolName<TTools>> =
   | ToolCallFailedAtValidation<TTools, TName>
   | ToolCallFailedAtExecution<TTools, TName>
   | ToolCallFailedAtSerialization<TTools, TName>;
 
 export interface ToolCallCompletedEvent<
-  TTools extends RealtimeVoiceToolMap,
+  TTools extends VoiceAgentToolMap,
   TName extends ToolName<TTools> = ToolName<TTools>,
 > {
   conversationId: string;
@@ -400,7 +397,7 @@ export interface ToolCallCompletedEvent<
 }
 
 export interface ToolCallFailedAtValidation<
-  TTools extends RealtimeVoiceToolMap,
+  TTools extends VoiceAgentToolMap,
   TName extends ToolName<TTools> = ToolName<TTools>,
 > {
   phase: "validation";
@@ -409,13 +406,13 @@ export interface ToolCallFailedAtValidation<
   callId: string;
   toolName: TName;
   arguments?: JsonValue;
-  error: RealtimeVoiceServerError;
+  error: VoiceAgentServerError;
   startedAt?: Date;
   failedAt: Date;
 }
 
 export interface ToolCallFailedAtExecution<
-  TTools extends RealtimeVoiceToolMap,
+  TTools extends VoiceAgentToolMap,
   TName extends ToolName<TTools> = ToolName<TTools>,
 > {
   phase: "execution";
@@ -424,13 +421,13 @@ export interface ToolCallFailedAtExecution<
   callId: string;
   toolName: TName;
   arguments: ToolInput<TTools, TName>;
-  error: RealtimeVoiceServerError;
+  error: VoiceAgentServerError;
   startedAt: Date;
   failedAt: Date;
 }
 
 export interface ToolCallFailedAtSerialization<
-  TTools extends RealtimeVoiceToolMap,
+  TTools extends VoiceAgentToolMap,
   TName extends ToolName<TTools> = ToolName<TTools>,
 > {
   phase: "serialization";
@@ -439,13 +436,13 @@ export interface ToolCallFailedAtSerialization<
   callId: string;
   toolName: TName;
   arguments: ToolInput<TTools, TName>;
-  error: RealtimeVoiceServerError;
+  error: VoiceAgentServerError;
   startedAt: Date;
   failedAt: Date;
 }
 
 export interface ToolCallInterruptedEvent<
-  TTools extends RealtimeVoiceToolMap,
+  TTools extends VoiceAgentToolMap,
   TName extends ToolName<TTools> = ToolName<TTools>,
 > {
   conversationId: string;
@@ -464,11 +461,11 @@ export interface LogEvent {
   code: string;
   message: string;
   details?: JsonValue;
-  error?: RealtimeVoiceServerError;
+  error?: VoiceAgentServerError;
   createdAt: Date;
 }
 
-export type RealtimeVoiceServerErrorCode =
+export type VoiceAgentServerErrorCode =
   | "SERVER_ALREADY_STARTED"
   | "SERVER_NOT_STARTED"
   | "SERVER_START_FAILED"
@@ -496,24 +493,24 @@ export type RealtimeVoiceServerErrorCode =
   | "TOOL_EXECUTION_FAILED"
   | "TOOL_RESULT_SERIALIZATION_FAILED"
   | "TOOL_CALL_INTERRUPTED"
-  | "REALTIME_SESSION_ERROR"
-  | "REALTIME_UPDATE_FAILED"
+  | "SESSION_ERROR"
+  | "SESSION_UPDATE_FAILED"
   | "CONFIG_INVALID"
   | "INTERNAL_INVARIANT_VIOLATION";
 
-export interface RealtimeVoiceServerErrorInput {
-  code: RealtimeVoiceServerErrorCode;
+export interface VoiceAgentServerErrorInput {
+  code: VoiceAgentServerErrorCode;
   message: string;
   details?: JsonValue;
   cause?: unknown;
 }
 
-export declare class RealtimeVoiceServerError extends Error {
-  readonly name: "RealtimeVoiceServerError";
-  readonly code: RealtimeVoiceServerErrorCode;
+export declare class VoiceAgentServerError extends Error {
+  readonly name: "VoiceAgentServerError";
+  readonly code: VoiceAgentServerErrorCode;
   readonly details?: JsonValue;
   readonly cause?: unknown;
-  constructor(input: RealtimeVoiceServerErrorInput);
+  constructor(input: VoiceAgentServerErrorInput);
 }
 
 export interface InjectUserMessageInput {
@@ -536,17 +533,17 @@ export interface InjectSystemMessageInput {
   triggerResponse?: boolean;
 }
 
-export interface UpdateRealtimeInput<TTools extends RealtimeVoiceToolMap> {
+export interface UpdateVoiceSessionInput<TTools extends VoiceAgentToolMap> {
   instructions?: string;
   tools?: Partial<{
-    [K in keyof TTools]: UpdateRealtimeToolPatch<TTools[K]>;
+    [K in keyof TTools]: UpdateVoiceSessionToolPatch<TTools[K]>;
   }>;
 }
 
-export type UpdateRealtimeToolPatch<TDef> =
-  TDef extends RealtimeVoiceToolDefinition<infer TParameters>
+export type UpdateVoiceSessionToolPatch<TDef> =
+  TDef extends VoiceAgentToolDefinition<infer TParameters>
     ? {
         description?: string;
-        execute?: RealtimeVoiceToolExecute<TParameters>;
+        execute?: VoiceAgentToolExecute<TParameters>;
       }
     : never;

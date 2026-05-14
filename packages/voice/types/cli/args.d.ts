@@ -1,5 +1,5 @@
 /**
- * argv parsing helpers for the rvs CLI
+ * argv parsing helpers for the voice CLI
  */
 export interface ParsedArgs {
     command: string;

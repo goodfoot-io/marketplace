@@ -1,10 +1,8 @@
-import uiHtml from "./ui/index.html";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 import { z } from "zod";
-
 import { StrictEventEmitter } from "./emitter.js";
-import { RealtimeVoiceServerError, toRealtimeError } from "./errors.js";
+import { toVoiceError, VoiceAgentServerError } from "./errors.js";
 import {
   type BrowserAudioDeviceState,
   type BrowserClientState,
@@ -19,13 +17,6 @@ import {
   type InjectSystemMessageInput,
   type InjectUserMessageInput,
   type JsonValue,
-  type RealtimeVoiceServerConfig,
-  type RealtimeVoiceServerController,
-  type RealtimeVoiceServerErrorCode,
-  type RealtimeVoiceServerEvents,
-  type RealtimeVoiceToolDefinition,
-  type RealtimeVoiceToolExecute,
-  type RealtimeVoiceToolMap,
   type ServerStatus,
   type ToolCallCompletedEvent,
   type ToolCallFailedAtExecution,
@@ -37,10 +28,18 @@ import {
   type TranscriptItem,
   type TranscriptRole,
   type TranscriptSource,
-  type UpdateRealtimeInput,
+  type UpdateVoiceSessionInput,
+  type VoiceAgentServerConfig,
+  type VoiceAgentServerController,
+  type VoiceAgentServerErrorCode,
+  type VoiceAgentServerEvents,
+  type VoiceAgentToolDefinition,
+  type VoiceAgentToolExecute,
+  type VoiceAgentToolMap,
 } from "./types.js";
+import uiHtml from "./ui/index.html";
 
-type MutableConversation<TTools extends RealtimeVoiceToolMap> = {
+type MutableConversation<TTools extends VoiceAgentToolMap> = {
   id: string;
   status: ConversationStatus;
   startedAt: Date;
@@ -60,12 +59,11 @@ type BrowserEnvelope =
   | { type: "audio.device.select"; data?: { deviceId?: unknown } }
   | { type: "audio.device.state"; data?: BrowserAudioDeviceState }
   | { type: "browser.audio.error"; data?: { code?: unknown; message?: unknown; suggestedAction?: unknown } }
-  | { type: "webrtc.session.requested" }
-  | { type: "webrtc.session.connected" }
-  | { type: "webrtc.session.failed"; data?: { error?: { code?: unknown; message?: unknown } } }
-  | { type: "realtime.event"; data?: { event?: unknown } }
+  | { type: "voice.session.requested" }
+  | { type: "voice.session.connected" }
+  | { type: "voice.session.failed"; data?: { error?: { code?: unknown; message?: unknown } } }
+  | { type: "voice.event"; data?: { event?: unknown } }
   | { type: "browser.debug"; data?: { label?: unknown; info?: unknown; t?: unknown } };
-
 
 type RealtimeConnection = {
   send(event: Record<string, unknown>): void;
@@ -74,17 +72,14 @@ type RealtimeConnection = {
   socket?: { readyState: number };
 };
 
-// OpenAI Realtime "ephemeral client secret" mint endpoint.
-// TODO(verify-against-openai-docs): Confirm exact response shape — current
-// implementation reads `value` (string) and `expires_at` (unix seconds) from
-// the top-level response. Some docs nest these under `client_secret`.
-const OPENAI_CLIENT_SECRET_URL = "https://api.openai.com/v1/realtime/client_secrets";
-const WEBRTC_CONNECT_TIMEOUT_MS = 30_000;
+// xAI Voice Agent ephemeral client secret mint endpoint.
+const XAI_CLIENT_SECRET_URL = "https://api.x.ai/v1/realtime/client_secrets";
+const VOICE_CONNECT_TIMEOUT_MS = 30_000;
 
-interface OpenAIClientSecretResponse {
-  value?: string;
+interface XaiClientSecretResponse {
+  token?: string;
   expires_at?: number;
-  client_secret?: { value?: string; expires_at?: number };
+  client_secret?: { token?: string; expires_at?: number };
 }
 
 type RealtimeConnectionEmitter = {
@@ -94,7 +89,7 @@ type RealtimeConnectionEmitter = {
 
 type SocketRef = { readyState: number };
 
-class BrowserProxiedRealtimeConnection implements RealtimeConnection {
+class BrowserProxiedVoiceConnection implements RealtimeConnection {
   readonly socket: SocketRef;
   readonly #handlers = new Map<string, Array<(event: unknown) => void>>();
   readonly #sendToBrowser: (envelope: { type: string; data?: unknown }) => void;
@@ -107,14 +102,14 @@ class BrowserProxiedRealtimeConnection implements RealtimeConnection {
 
   send(event: Record<string, unknown>): void {
     if (this.#closed) return;
-    this.#sendToBrowser({ type: "realtime.send", data: { event } });
+    this.#sendToBrowser({ type: "voice.send", data: { event } });
   }
 
   close(props?: { code: number; reason: string }): void {
     if (this.#closed) return;
     this.#closed = true;
     this.#sendToBrowser({
-      type: "webrtc.session.close",
+      type: "voice.session.close",
       data: { code: props?.code ?? 1000, reason: props?.reason ?? "closed" },
     });
   }
@@ -157,28 +152,25 @@ class BrowserProxiedRealtimeConnection implements RealtimeConnection {
   }
 }
 
-type InternalConfig<TTools extends RealtimeVoiceToolMap> = RealtimeVoiceServerConfig<TTools> & {
-  __realtimeFactory?: (input: { apiKey: string; model: string }) => RealtimeConnection | Promise<RealtimeConnection>;
+type InternalConfig<TTools extends VoiceAgentToolMap> = VoiceAgentServerConfig<TTools> & {
+  __voiceFactory?: (input: { apiKey: string; model: string }) => RealtimeConnection | Promise<RealtimeConnection>;
 };
 
-export function createRealtimeVoiceServer<const TTools extends RealtimeVoiceToolMap>(
-  config: RealtimeVoiceServerConfig<TTools>,
-): RealtimeVoiceServerController<TTools> {
-  return new RealtimeVoiceServerControllerImpl(config as InternalConfig<TTools>);
+export function createVoiceAgentServer<const TTools extends VoiceAgentToolMap>(
+  config: VoiceAgentServerConfig<TTools>,
+): VoiceAgentServerController<TTools> {
+  return new VoiceAgentServerControllerImpl(config as InternalConfig<TTools>);
 }
 
-class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMap>
-  extends StrictEventEmitter<RealtimeVoiceServerEvents<TTools>>
-  implements RealtimeVoiceServerController<TTools>
+class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
+  extends StrictEventEmitter<VoiceAgentServerEvents<TTools>>
+  implements VoiceAgentServerController<TTools>
 {
   readonly #config: NormalizedConfig<TTools>;
-  readonly #realtimeFactory?: InternalConfig<TTools>["__realtimeFactory"];
+  readonly #voiceFactory?: InternalConfig<TTools>["__voiceFactory"];
   readonly #tools: { [K in keyof TTools]: TTools[K] };
   readonly #toolDescriptions = new Map<string, string>();
-  readonly #toolExecutors = new Map<
-    string,
-    RealtimeVoiceToolDefinition<TTools[keyof TTools]["parameters"]>["execute"]
-  >();
+  readonly #toolExecutors = new Map<string, VoiceAgentToolDefinition<TTools[keyof TTools]["parameters"]>["execute"]>();
   readonly #previousConversations: Record<string, ConversationSnapshot<TTools>> = {};
   readonly #browserClient: BrowserClientState = { connected: false };
 
@@ -188,9 +180,8 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   #wss?: WebSocketServer;
   #browserSocket?: WebSocket;
   #realtime?: RealtimeConnection;
-  #browserProxiedRealtime?: BrowserProxiedRealtimeConnection;
   #browserProxiedEmitter?: RealtimeConnectionEmitter;
-  #pendingWebrtcSession?: {
+  #pendingVoiceSession?: {
     resolve: () => void;
     reject: (error: Error) => void;
     timeout: ReturnType<typeof setTimeout>;
@@ -199,6 +190,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   #autoResponseEnabled = true;
   #responseInFlight = false;
   #instructions: string;
+  #pendingToolResultCount = 0;
   readonly #activeToolAbortControllers = new Map<string, AbortController>();
   readonly #streamingAssistantText = new Map<string, string>();
 
@@ -206,7 +198,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     super();
     validateConfig(config);
     this.#config = normalizeConfig(config);
-    this.#realtimeFactory = config.__realtimeFactory;
+    this.#voiceFactory = config.__voiceFactory;
     this.#tools = config.tools;
     this.#instructions = config.realtime.instructions;
     for (const [name, definition] of Object.entries(config.tools)) {
@@ -271,7 +263,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
       });
     } catch (cause) {
       this.#setServerStatus("error");
-      throw this.#fail("SERVER_START_FAILED", "Failed to start the Realtime voice server.", undefined, cause);
+      throw this.#fail("SERVER_START_FAILED", "Failed to start the Voice Agent server.", undefined, cause);
     }
   }
 
@@ -308,7 +300,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
       this.emit("server.stopped", { port: this.#config.port, createdAt: new Date() });
     } catch (cause) {
       this.#setServerStatus("error");
-      throw this.#fail("SERVER_STOP_FAILED", "Failed to stop the Realtime voice server cleanly.", undefined, cause);
+      throw this.#fail("SERVER_STOP_FAILED", "Failed to stop the Voice Agent server cleanly.", undefined, cause);
     }
   }
 
@@ -357,26 +349,25 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
       this.#realtime.send({
         type: "session.update",
         session: {
-          type: "realtime",
-          audio: {
-            input: {
-              turn_detection: {
-                type: "semantic_vad",
-                eagerness: "medium",
-                create_response: enabled,
-                interrupt_response: true,
-              },
-            },
+          turn_detection: {
+            type: "server_vad",
+            create_response: enabled,
+            interrupt_response: enabled,
           },
         },
       });
     } catch (cause) {
-      throw this.#fail(
-        "REALTIME_UPDATE_FAILED",
-        "Realtime session rejected the auto-response update.",
-        undefined,
-        cause,
-      );
+      // xAI may not support create_response/interrupt_response on server_vad;
+      // treat schema-rejection as "feature unavailable" — auto-response state
+      // is still tracked locally (affects #sendToolResult response.create gate).
+      // Public contract: no throw.
+      this.emit("log", {
+        level: "warn",
+        code: "SESSION_UPDATE_FAILED",
+        message: "setAutoResponse session.update rejected; auto-response tracked locally only.",
+        details: { enabled, cause: String(cause) },
+        createdAt: new Date(),
+      });
     }
   }
 
@@ -385,7 +376,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     try {
       await this.#endConversationLocked(options?.shutdownTimeoutMs);
     } catch (error) {
-      if (error instanceof RealtimeVoiceServerError) {
+      if (error instanceof VoiceAgentServerError) {
         this.emit("conversation.error", {
           conversationId: this.#conversation?.id,
           error,
@@ -413,7 +404,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
       });
     } catch (cause) {
       const error =
-        cause instanceof RealtimeVoiceServerError
+        cause instanceof VoiceAgentServerError
           ? cause
           : this.#fail("CONVERSATION_RESET_FAILED", "Failed to reset the conversation.", undefined, cause);
       this.emit("conversation.error", {
@@ -461,7 +452,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     this.#broadcastState();
   }
 
-  async updateRealtime(input: UpdateRealtimeInput<TTools>): Promise<void> {
+  async updateVoiceSession(input: UpdateVoiceSessionInput<TTools>): Promise<void> {
     if (this.#status.server !== "active") {
       throw this.#fail("SERVER_NOT_STARTED", "Realtime updates require an active server.", {
         server: this.#status.server,
@@ -469,7 +460,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     }
     const toolEntries = Object.entries(input.tools ?? {});
     if (input.instructions === undefined && toolEntries.length === 0) {
-      throw this.#fail("REALTIME_UPDATE_FAILED", "Realtime update input cannot be empty.");
+      throw this.#fail("SESSION_UPDATE_FAILED", "Realtime update input cannot be empty.");
     }
     for (const [toolName] of toolEntries) {
       if (!(toolName in this.#tools)) {
@@ -487,9 +478,9 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     try {
       this.#sendSessionUpdate();
     } catch (cause) {
-      throw this.#fail("REALTIME_UPDATE_FAILED", "Realtime session rejected the update.", undefined, cause);
+      throw this.#fail("SESSION_UPDATE_FAILED", "Voice session rejected the update.", undefined, cause);
     }
-    this.emit("realtime.updated", {
+    this.emit("voice.session.updated", {
       instructionsUpdated: input.instructions !== undefined,
       toolsUpdated: updatedTools,
       createdAt: new Date(),
@@ -498,48 +489,50 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
 
   async #createRealtimeConnection(): Promise<RealtimeConnection> {
     try {
-      if (this.#realtimeFactory) {
+      if (this.#voiceFactory) {
         // Test factory is responsible for returning an already-ready connection.
-        return await this.#realtimeFactory({ apiKey: this.#config.apiKey, model: this.#config.realtime.model });
+        return await this.#voiceFactory({ apiKey: this.#config.apiKey, model: this.#config.realtime.model });
       }
-      // Browser-proxied flow: the browser owns the WebRTC peer connection
-      // with OpenAI. The daemon (a) mints an ephemeral client secret on
-      // request, (b) routes Realtime API events to/from the browser over
+      // Browser-proxied flow: the browser owns the WebSocket to xAI.
+      // The daemon (a) mints an ephemeral client secret on request,
+      // (b) routes xAI Voice Agent events to/from the browser over
       // the existing WebSocket. Construction blocks until the browser
-      // signals webrtc.session.connected.
+      // signals voice.session.connected.
       const socketRef: SocketRef = { readyState: 0 /* CONNECTING */ };
-      const connection = new BrowserProxiedRealtimeConnection({
+      const connection = new BrowserProxiedVoiceConnection({
         sendToBrowser: (envelope) => this.#broadcast(envelope),
         socket: socketRef,
       });
-      this.#browserProxiedRealtime = connection;
       this.#browserProxiedEmitter = connection.controller();
 
       const connected = new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
-          this.#pendingWebrtcSession = undefined;
-          reject(new Error("Timed out waiting for browser webrtc.session.connected."));
-        }, WEBRTC_CONNECT_TIMEOUT_MS);
-        this.#pendingWebrtcSession = { resolve, reject, timeout };
+          this.#pendingVoiceSession = undefined;
+          reject(new Error("Timed out waiting for browser voice.session.connected."));
+        }, VOICE_CONNECT_TIMEOUT_MS);
+        this.#pendingVoiceSession = { resolve, reject, timeout };
       });
 
-      // Tell the browser to begin its WebRTC setup. Browser will respond with
-      // webrtc.session.requested → daemon mints ephemeral key → browser
-      // performs SDP exchange directly with OpenAI → browser signals
-      // webrtc.session.connected (or webrtc.session.failed).
-      this.#broadcast({ type: "webrtc.session.start" });
+      // Tell the browser to begin its xAI WebSocket setup. Browser will respond with
+      // voice.session.requested → daemon mints ephemeral key → browser
+      // opens WS to xAI → browser signals voice.session.connected (or voice.session.failed).
+      this.#broadcast({ type: "voice.session.start" });
 
       try {
         await connected;
       } catch (cause) {
-        this.#browserProxiedRealtime = undefined;
         this.#browserProxiedEmitter = undefined;
         throw cause;
       }
       socketRef.readyState = 1 /* OPEN */;
       return connection;
     } catch (cause) {
-      const error = this.#fail("CONVERSATION_START_FAILED", "Failed to connect to the Realtime API.", undefined, cause);
+      const error = this.#fail(
+        "CONVERSATION_START_FAILED",
+        "Failed to connect to the xAI Voice Agent.",
+        undefined,
+        cause,
+      );
       this.emit("conversation.error", { conversationId: this.#conversation?.id, error, createdAt: new Date() });
       throw error;
     }
@@ -547,45 +540,37 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
 
   async #mintEphemeralClientSecret(): Promise<{ clientSecret: string; model: string; expiresAt: number }> {
     const model = this.#config.realtime.model;
-    const response = await fetch(OPENAI_CLIENT_SECRET_URL, {
+    const response = await fetch(XAI_CLIENT_SECRET_URL, {
       method: "POST",
       headers: {
         "content-type": "application/json",
         authorization: `Bearer ${this.#config.apiKey}`,
       },
-      body: JSON.stringify({ session: { type: "realtime", model } }),
+      body: JSON.stringify({ model }),
     });
     if (!response.ok) {
       const bodyText = await response.text().catch(() => "");
-      throw new Error(`OpenAI client_secrets endpoint returned ${response.status}: ${bodyText}`);
+      throw new Error(`xAI client_secrets returned ${response.status}: ${bodyText}`);
     }
-    const json = (await response.json()) as OpenAIClientSecretResponse;
-    // TODO(verify-against-openai-docs): The exact response shape of
-    // POST /v1/realtime/client_secrets should be confirmed. Some references
-    // show top-level { value, expires_at }; others nest under client_secret.
-    // We accept both for resilience.
-    const value = json.value ?? json.client_secret?.value;
+    const json = (await response.json()) as XaiClientSecretResponse;
+    // Accept both top-level { token, expires_at } and nested { client_secret: { token, expires_at } }.
+    // On shape mismatch, include raw body in error for diagnostics.
+    const token = json.token ?? json.client_secret?.token;
     const expiresAt = json.expires_at ?? json.client_secret?.expires_at;
-    if (typeof value !== "string" || typeof expiresAt !== "number") {
-      throw new Error("OpenAI client_secrets response did not include value/expires_at.");
+    if (typeof token !== "string" || typeof expiresAt !== "number") {
+      throw new Error(`xAI client_secrets response has unexpected shape. Raw body: ${JSON.stringify(json)}`);
     }
-    return { clientSecret: value, model, expiresAt };
+    return { clientSecret: token, model, expiresAt };
   }
 
   #wireRealtimeConnection(realtime: RealtimeConnection): void {
     realtime.on("error", (error) => {
       // Benign: a `response.cancel` arrived while no response was in flight.
-      // We send cancel proactively on pause; if nothing was speaking, OpenAI
-      // returns this error. Swallow it instead of surfacing as conversation.error.
+      // Swallow it instead of surfacing as conversation.error.
       const realtimeCode = (error as { error?: { code?: string } } | undefined)?.error?.code;
       if (realtimeCode === "response_cancel_not_active") return;
 
-      const wrapped = toRealtimeError(
-        "REALTIME_SESSION_ERROR",
-        "Realtime session reported an error.",
-        undefined,
-        error,
-      );
+      const wrapped = toVoiceError("SESSION_ERROR", "Voice Agent session reported an error.", undefined, error);
       this.#log("error", wrapped);
       this.emit("conversation.error", {
         conversationId: this.#conversation?.id,
@@ -593,12 +578,13 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         createdAt: new Date(),
       });
     });
-    realtime.on("conversation.item.input_audio_transcription.delta", (event) =>
-      this.#handleUserTranscriptDelta(event as { item_id: string; delta: string }),
-    );
-    realtime.on("conversation.item.input_audio_transcription.completed", (event) =>
-      this.#handleUserTranscriptDone(event as { item_id: string; transcript: string }),
-    );
+
+    // xAI does not expose input audio transcription events equivalent to
+    // OpenAI's conversation.item.input_audio_transcription.* without explicit
+    // input transcription config. User-side transcript.item events will be
+    // absent in live sessions — this is expected, not a bug.
+    // voice watch --events transcript.item returns only assistant items.
+
     realtime.on("response.created", () => {
       this.#responseInFlight = true;
     });
@@ -610,26 +596,46 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         createdAt: new Date(),
       });
     });
-    realtime.on("response.output_audio_transcript.delta", (event) =>
+    // Tentative xAI event names — verified against xAI API surface.
+    // If a name is wrong, the catch-all warn logger below will surface it.
+    realtime.on("response.audio_transcript.delta", (event) =>
       this.#handleAssistantTranscriptDelta(event as { item_id: string; delta: string }),
     );
-    realtime.on("response.output_audio_transcript.done", (event) =>
+    realtime.on("response.audio_transcript.done", (event) =>
       this.#handleAssistantTranscriptDone(event as { item_id: string; transcript: string }),
     );
-    realtime.on("response.output_text.delta", (event) =>
-      this.#handleAssistantTranscriptDelta(event as { item_id: string; delta: string }),
-    );
-    realtime.on("response.output_text.done", (event) =>
-      this.#handleAssistantTranscriptDone({
-        item_id: (event as { item_id: string }).item_id,
-        transcript: (event as { text: string }).text,
-      }),
-    );
-    realtime.on("response.output_audio.delta", (event) =>
+    realtime.on("response.audio.delta", (event) =>
+      // Relay to browser for visualizer only. Playback is driven by the
+      // browser's xAI WS message handler directly — not by this relay.
       this.#broadcast({ type: "audio.output.delta", data: { audio: (event as { delta: string }).delta } }),
     );
     realtime.on("response.function_call_arguments.done", (event) => {
       void this.#handleToolCall(event as { item_id: string; call_id: string; name: string; arguments: string });
+    });
+
+    // Catch-all: log any xAI event type not matched by an existing handler.
+    // This makes event-name mismatches visible at runtime rather than silently
+    // dropping audio or transcripts.
+    const knownEventTypes = new Set([
+      "error",
+      "response.created",
+      "response.done",
+      "response.audio_transcript.delta",
+      "response.audio_transcript.done",
+      "response.audio.delta",
+      "response.function_call_arguments.done",
+    ]);
+    realtime.on("*", (event) => {
+      const eventType = (event as Record<string, unknown> | undefined)?.type;
+      if (typeof eventType === "string" && !knownEventTypes.has(eventType)) {
+        this.emit("log", {
+          level: "warn",
+          code: "VOICE_UNKNOWN_EVENT",
+          message: `Unrecognized xAI event type: ${eventType}`,
+          details: { eventType },
+          createdAt: new Date(),
+        });
+      }
     });
   }
 
@@ -638,27 +644,13 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     this.#realtime.send({
       type: "session.update",
       session: {
-        type: "realtime",
         instructions: this.#instructions,
         model: this.#config.realtime.model,
-        output_modalities: ["audio"],
-        reasoning: { effort: "low" },
-        audio: {
-          input: {
-            format: { type: "audio/pcm", rate: 24000 },
-            transcription: { model: "gpt-realtime-whisper" },
-            turn_detection: {
-              type: "semantic_vad",
-              eagerness: "medium",
-              create_response: this.#autoResponseEnabled,
-              interrupt_response: this.#autoResponseEnabled,
-            },
-          },
-          output: {
-            format: { type: "audio/pcm", rate: 24000 },
-            voice: this.#config.realtime.voice,
-            speed: 1.0,
-          },
+        voice: this.#config.realtime.voice,
+        turn_detection: {
+          type: "server_vad",
+          create_response: this.#autoResponseEnabled,
+          interrupt_response: this.#autoResponseEnabled,
         },
         tools: toolsToRealtimeTools(this.#tools, this.#toolDescriptions),
       },
@@ -686,56 +678,19 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     }
     this.#activeToolAbortControllers.clear();
     this.#streamingAssistantText.clear();
+    this.#pendingToolResultCount = 0;
     this.#realtime?.close({ code: 1000, reason });
     this.#realtime = undefined;
-    this.#browserProxiedRealtime = undefined;
     this.#browserProxiedEmitter = undefined;
-    this.#failPendingWebrtcSession(new Error(`Realtime connection closed: ${reason}`));
+    this.#failPendingVoiceSession(new Error(`Voice connection closed: ${reason}`));
   }
 
-  #failPendingWebrtcSession(cause: Error): void {
-    const pending = this.#pendingWebrtcSession;
+  #failPendingVoiceSession(cause: Error): void {
+    const pending = this.#pendingVoiceSession;
     if (!pending) return;
     clearTimeout(pending.timeout);
-    this.#pendingWebrtcSession = undefined;
+    this.#pendingVoiceSession = undefined;
     pending.reject(cause);
-  }
-
-  #handleUserTranscriptDelta(event: { item_id: string; delta: string }): void {
-    const conversation = this.#conversation;
-    if (!conversation) return;
-    const fullTextSoFar = (this.#streamingAssistantText.get(event.item_id) ?? "") + event.delta;
-    this.#streamingAssistantText.set(event.item_id, fullTextSoFar);
-    this.emit("transcript.delta", {
-      conversationId: conversation.id,
-      itemId: event.item_id,
-      role: "user",
-      source: "microphone",
-      delta: event.delta,
-      fullTextSoFar,
-      createdAt: new Date(),
-    });
-    this.#broadcast({
-      type: "transcript.delta",
-      data: {
-        itemId: event.item_id,
-        role: "user",
-        source: "microphone",
-        delta: event.delta,
-        fullTextSoFar,
-      },
-    });
-  }
-
-  #handleUserTranscriptDone(event: { item_id: string; transcript: string }): void {
-    const conversation = this.#conversation;
-    if (!conversation) return;
-    const accumulated = this.#streamingAssistantText.get(event.item_id);
-    this.#streamingAssistantText.delete(event.item_id);
-    const text = normalizeText(event.transcript) || (accumulated ? normalizeText(accumulated) : "");
-    if (!text && accumulated === undefined) return;
-    this.#appendTranscriptItemWithId(conversation, event.item_id, "user", "microphone", text);
-    this.#broadcastState();
   }
 
   #handleAssistantTranscriptDelta(event: { item_id: string; delta: string }): void {
@@ -818,7 +773,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     const tool = this.#tools[toolName as keyof TTools];
     const failedAt = new Date();
     if (!tool) {
-      const error = toRealtimeError("TOOL_NOT_FOUND", "Realtime requested an unknown tool.", { toolName });
+      const error = toVoiceError("TOOL_NOT_FOUND", "Voice Agent requested an unknown tool.", { toolName });
       this.emit("tool.call.failed", {
         phase: "validation",
         conversationId: conversation.id,
@@ -836,7 +791,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     try {
       parsedJson = JSON.parse(event.arguments) as JsonValue;
     } catch (cause) {
-      const error = toRealtimeError(
+      const error = toVoiceError(
         "TOOL_ARGUMENT_VALIDATION_FAILED",
         "Tool arguments were not valid JSON.",
         {
@@ -860,7 +815,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
 
     const validation = tool.parameters.safeParse(parsedJson);
     if (!validation.success) {
-      const error = toRealtimeError("TOOL_ARGUMENT_VALIDATION_FAILED", "Tool arguments failed schema validation.", {
+      const error = toVoiceError("TOOL_ARGUMENT_VALIDATION_FAILED", "Tool arguments failed schema validation.", {
         toolName,
         callId: event.call_id,
         issues: validation.error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
@@ -900,6 +855,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
       createdAt: startedAt,
     });
     this.#activeToolAbortControllers.set(event.call_id, abortController);
+    this.#pendingToolResultCount += 1;
     this.emit("tool.call.started", {
       conversationId: conversation.id,
       toolCallId: event.item_id,
@@ -910,7 +866,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     });
     this.#broadcastState();
 
-    const executor = this.#toolExecutors.get(toolName) as RealtimeVoiceToolExecute<typeof tool.parameters> | undefined;
+    const executor = this.#toolExecutors.get(toolName) as VoiceAgentToolExecute<typeof tool.parameters> | undefined;
     try {
       const result = await executor?.(validation.data, {
         conversationId: conversation.id,
@@ -934,7 +890,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         }
       }
       if (serialized === undefined) {
-        const error = toRealtimeError("TOOL_RESULT_SERIALIZATION_FAILED", "Tool result must be JSON-serializable.", {
+        const error = toVoiceError("TOOL_RESULT_SERIALIZATION_FAILED", "Tool result must be JSON-serializable.", {
           toolName,
           callId: event.call_id,
         });
@@ -971,7 +927,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         this.#markToolInterrupted(conversation, event.item_id, event.call_id, toolName, "aborted");
         return;
       }
-      const error = toRealtimeError(
+      const error = toVoiceError(
         "TOOL_EXECUTION_FAILED",
         "Tool execution failed.",
         { toolName, callId: event.call_id },
@@ -991,6 +947,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
       } as ToolCallFailedAtExecution<TTools>);
       this.#log("error", error);
     } finally {
+      this.#pendingToolResultCount -= 1;
       this.#activeToolAbortControllers.delete(event.call_id);
       this.#broadcastState();
     }
@@ -1005,11 +962,11 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         output: serialized,
       },
     });
-    // Only trigger a follow-up model response when the conversation is
-    // active AND auto-response is enabled. The `wait_for_context` tool
-    // disables auto-response so the model stays silent until fresh
-    // context/topics arrive.
-    if (this.#status.conversation === "active" && this.#autoResponseEnabled) {
+    // Only fire response.create when this is the last pending tool output.
+    // xAI requires all function-call outputs be submitted before response.create.
+    // The wait_for_context tool disables auto-response so the model stays silent
+    // until fresh context/topics arrive.
+    if (this.#status.conversation === "active" && this.#autoResponseEnabled && this.#pendingToolResultCount === 0) {
       this.#realtime?.send({ type: "response.create" });
     }
   }
@@ -1024,7 +981,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     const record = conversation.toolCalls.find((toolCall) => toolCall.id === toolCallId);
     if (record && record.status !== "started") return;
     const interruptedAt = new Date();
-    const error = toRealtimeError("TOOL_CALL_INTERRUPTED", "Tool call was interrupted.", { callId, reason });
+    const error = toVoiceError("TOOL_CALL_INTERRUPTED", "Tool call was interrupted.", { callId, reason });
     if (record) Object.assign(record, { status: "interrupted", error, completedAt: interruptedAt });
     this.emit("tool.call.interrupted", {
       conversationId: conversation.id,
@@ -1082,6 +1039,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         timeline: [],
       };
       this.#conversation = conversation;
+      this.#pendingToolResultCount = 0;
       conversation.status = "active";
       this.#setConversationStatus("active");
       if (this.#config.browserSession.firstMessage) {
@@ -1120,6 +1078,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     this.#closeRealtime(`conversation ${transitionalStatus}`);
     this.#autoResponseEnabled = true;
     this.#responseInFlight = false;
+    this.#pendingToolResultCount = 0;
     conversation.status = "ended";
     conversation.endedAt = new Date();
     const archived = snapshotConversation(conversation);
@@ -1161,13 +1120,13 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     role: TranscriptRole,
     source: TranscriptSource,
     text: string,
-    invalidStateCode: RealtimeVoiceServerErrorCode,
+    invalidStateCode: VoiceAgentServerErrorCode,
   ): TranscriptItem {
     let conversation: MutableConversation<TTools>;
     try {
       conversation = this.#requireInjectableConversation(invalidStateCode);
     } catch (error) {
-      if (error instanceof RealtimeVoiceServerError) {
+      if (error instanceof VoiceAgentServerError) {
         this.emit("conversation.error", {
           conversationId: this.#conversation?.id,
           error,
@@ -1215,21 +1174,21 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     } catch (cause) {
       throw this.#fail(
         "MESSAGE_RESPONSE_TRIGGER_FAILED",
-        "Realtime session rejected the response request.",
+        "Voice session rejected the response request.",
         undefined,
         cause,
       );
     }
   }
 
-  #requireConversation(code: RealtimeVoiceServerErrorCode): MutableConversation<TTools> {
+  #requireConversation(code: VoiceAgentServerErrorCode): MutableConversation<TTools> {
     if (!this.#conversation) {
       throw this.#fail(code, "There is no current conversation.");
     }
     return this.#conversation;
   }
 
-  #requireInjectableConversation(code: RealtimeVoiceServerErrorCode): MutableConversation<TTools> {
+  #requireInjectableConversation(code: VoiceAgentServerErrorCode): MutableConversation<TTools> {
     const conversation = this.#requireConversation(code);
     if (conversation.status !== "active" && conversation.status !== "paused") {
       throw this.#fail(code, "Current conversation is not active or paused.", {
@@ -1249,7 +1208,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     for (const toolCall of conversation.toolCalls) {
       if (toolCall.status !== "started") continue;
       const interruptedAt = new Date();
-      const error = toRealtimeError("TOOL_CALL_INTERRUPTED", "Tool call was interrupted by conversation cleanup.", {
+      const error = toVoiceError("TOOL_CALL_INTERRUPTED", "Tool call was interrupted by conversation cleanup.", {
         callId: toolCall.callId,
         reason,
       });
@@ -1283,14 +1242,10 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   #handleBrowserConnection(socket: WebSocket): void {
     const attemptedClientId = createId("client");
     if (this.#browserSocket && this.#browserSocket.readyState === socket.OPEN) {
-      const error = toRealtimeError(
-        "BROWSER_CLIENT_ALREADY_CONNECTED",
-        "Another browser client is already connected.",
-        {
-          activeClientId: this.#browserClient.clientId ?? "",
-          attemptedClientId,
-        },
-      );
+      const error = toVoiceError("BROWSER_CLIENT_ALREADY_CONNECTED", "Another browser client is already connected.", {
+        activeClientId: this.#browserClient.clientId ?? "",
+        attemptedClientId,
+      });
       socket.send(JSON.stringify({ type: "duplicate.client" }));
       socket.close(1008, "duplicate client");
       this.emit("browser.client.rejected", {
@@ -1317,9 +1272,9 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     socket.on("message", (message) => {
       void this.#handleBrowserMessage(String(message)).catch((error: unknown) => {
         const normalized =
-          error instanceof RealtimeVoiceServerError
+          error instanceof VoiceAgentServerError
             ? error
-            : toRealtimeError("INTERNAL_INVARIANT_VIOLATION", "Browser message handling failed.", undefined, error);
+            : toVoiceError("INTERNAL_INVARIANT_VIOLATION", "Browser message handling failed.", undefined, error);
         socket.send(JSON.stringify({ type: "error", data: serializeError(normalized) }));
       });
     });
@@ -1360,11 +1315,11 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         await this.injectUserMessage({ text, source: "textInput" });
         break;
       }
-      case "webrtc.session.requested": {
+      case "voice.session.requested": {
         try {
           const token = await this.#mintEphemeralClientSecret();
           this.#broadcast({
-            type: "webrtc.session.token",
+            type: "voice.session.token",
             data: {
               clientSecret: token.clientSecret,
               model: token.model,
@@ -1374,11 +1329,11 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         } catch (cause) {
           const error = this.#fail(
             "CONVERSATION_START_FAILED",
-            "Failed to mint OpenAI ephemeral client secret.",
+            "Failed to mint xAI ephemeral client secret.",
             undefined,
             cause,
           );
-          this.#failPendingWebrtcSession(error);
+          this.#failPendingVoiceSession(error);
           this.emit("conversation.error", {
             conversationId: this.#conversation?.id,
             error,
@@ -1387,26 +1342,26 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         }
         break;
       }
-      case "webrtc.session.connected": {
-        const pending = this.#pendingWebrtcSession;
+      case "voice.session.connected": {
+        const pending = this.#pendingVoiceSession;
         if (pending) {
           clearTimeout(pending.timeout);
-          this.#pendingWebrtcSession = undefined;
+          this.#pendingVoiceSession = undefined;
           pending.resolve();
         }
         break;
       }
-      case "webrtc.session.failed": {
-        const code = String(message.data?.error?.code ?? "WEBRTC_SESSION_FAILED");
-        const text = String(message.data?.error?.message ?? "Browser reported a WebRTC session failure.");
-        const error = toRealtimeError("CONVERSATION_START_FAILED", text, { code });
-        this.#failPendingWebrtcSession(error);
+      case "voice.session.failed": {
+        const code = String(message.data?.error?.code ?? "VOICE_SESSION_FAILED");
+        const text = String(message.data?.error?.message ?? "Browser reported a Voice Agent session failure.");
+        const error = toVoiceError("CONVERSATION_START_FAILED", text, { code });
+        this.#failPendingVoiceSession(error);
         // If the session failed mid-conversation (after connect), mark a
-        // realtime error so the controller's wired error handler runs.
+        // session error so the controller's wired error handler runs.
         this.#browserProxiedEmitter?.emit("error", error);
         break;
       }
-      case "realtime.event": {
+      case "voice.event": {
         const event = message.data?.event;
         if (event && typeof event === "object") {
           const eventRecord = event as Record<string, unknown>;
@@ -1444,7 +1399,7 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
         break;
       }
       case "browser.audio.error": {
-        const error = toRealtimeError("MICROPHONE_DEVICE_ERROR", "Browser reported a microphone error.", {
+        const error = toVoiceError("MICROPHONE_DEVICE_ERROR", "Browser reported a microphone error.", {
           code: String(message.data?.code ?? "unknown"),
           message: String(message.data?.message ?? "Unknown microphone error."),
           suggestedAction: String(message.data?.suggestedAction ?? "Check microphone access and try again."),
@@ -1469,9 +1424,9 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     if (this.#config.browserSession.connectOnPageLoad && audio.ready && this.#status.conversation === "none") {
       void this.startConversation().catch((error: unknown) => {
         const wrapped =
-          error instanceof RealtimeVoiceServerError
+          error instanceof VoiceAgentServerError
             ? error
-            : toRealtimeError("CONVERSATION_START_FAILED", "connectOnPageLoad failed.", undefined, error);
+            : toVoiceError("CONVERSATION_START_FAILED", "connectOnPageLoad failed.", undefined, error);
         this.emit("conversation.error", {
           conversationId: this.#conversation?.id,
           error: wrapped,
@@ -1526,18 +1481,13 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
     }
   }
 
-  #fail(
-    code: RealtimeVoiceServerErrorCode,
-    message: string,
-    details?: JsonValue,
-    cause?: unknown,
-  ): RealtimeVoiceServerError {
-    const error = toRealtimeError(code, message, details, cause);
+  #fail(code: VoiceAgentServerErrorCode, message: string, details?: JsonValue, cause?: unknown): VoiceAgentServerError {
+    const error = toVoiceError(code, message, details, cause);
     this.#log("error", error);
     return error;
   }
 
-  #log(level: "debug" | "info" | "warn" | "error", error: RealtimeVoiceServerError): void {
+  #log(level: "debug" | "info" | "warn" | "error", error: VoiceAgentServerError): void {
     this.emit("log", {
       level,
       code: error.code,
@@ -1549,14 +1499,14 @@ class RealtimeVoiceServerControllerImpl<const TTools extends RealtimeVoiceToolMa
   }
 }
 
-interface NormalizedConfig<TTools extends RealtimeVoiceToolMap> extends RealtimeVoiceServerConfig<TTools> {
-  realtime: Required<RealtimeVoiceServerConfig<TTools>["realtime"]>;
-  browserSession: Required<NonNullable<RealtimeVoiceServerConfig<TTools>["browserSession"]>>;
-  ui: Required<NonNullable<RealtimeVoiceServerConfig<TTools>["ui"]>>;
+interface NormalizedConfig<TTools extends VoiceAgentToolMap> extends VoiceAgentServerConfig<TTools> {
+  realtime: Required<VoiceAgentServerConfig<TTools>["realtime"]>;
+  browserSession: Required<NonNullable<VoiceAgentServerConfig<TTools>["browserSession"]>>;
+  ui: Required<NonNullable<VoiceAgentServerConfig<TTools>["ui"]>>;
 }
 
-function normalizeConfig<TTools extends RealtimeVoiceToolMap>(
-  config: RealtimeVoiceServerConfig<TTools>,
+function normalizeConfig<TTools extends VoiceAgentToolMap>(
+  config: VoiceAgentServerConfig<TTools>,
 ): NormalizedConfig<TTools> {
   return {
     ...config,
@@ -1576,26 +1526,26 @@ function normalizeConfig<TTools extends RealtimeVoiceToolMap>(
   };
 }
 
-function validateConfig<TTools extends RealtimeVoiceToolMap>(config: RealtimeVoiceServerConfig<TTools>): void {
+function validateConfig<TTools extends VoiceAgentToolMap>(config: VoiceAgentServerConfig<TTools>): void {
   if (!Number.isInteger(config.port) || config.port <= 0 || config.port > 65535) {
-    throw toRealtimeError("CONFIG_INVALID", "port must be an integer between 1 and 65535.", { port: config.port });
+    throw toVoiceError("CONFIG_INVALID", "port must be an integer between 1 and 65535.", { port: config.port });
   }
   if (!config.apiKey) {
-    throw toRealtimeError("CONFIG_INVALID", "apiKey is required.");
+    throw toVoiceError("CONFIG_INVALID", "apiKey is required.");
   }
   if (!normalizeText(config.realtime?.instructions)) {
-    throw toRealtimeError("CONFIG_INVALID", "realtime.instructions is required.");
+    throw toVoiceError("CONFIG_INVALID", "realtime.instructions is required.");
   }
   for (const [name, tool] of Object.entries(config.tools)) {
     if (!name || !tool.description || !tool.parameters || typeof tool.execute !== "function") {
-      throw toRealtimeError("CONFIG_INVALID", "Each tool requires a name, description, parameters, and execute.", {
+      throw toVoiceError("CONFIG_INVALID", "Each tool requires a name, description, parameters, and execute.", {
         name,
       });
     }
   }
 }
 
-function snapshotConversation<TTools extends RealtimeVoiceToolMap>(
+function snapshotConversation<TTools extends VoiceAgentToolMap>(
   conversation: MutableConversation<TTools>,
 ): ConversationSnapshot<TTools> {
   return {
@@ -1636,11 +1586,11 @@ function escapeHtml(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
 
-function serializeError(error: RealtimeVoiceServerError): JsonValue {
+function serializeError(error: VoiceAgentServerError): JsonValue {
   return { name: error.name, code: error.code, message: error.message, details: error.details ?? null };
 }
 
-function toolsToRealtimeTools<TTools extends RealtimeVoiceToolMap>(
+function toolsToRealtimeTools<TTools extends VoiceAgentToolMap>(
   tools: TTools,
   descriptions: ReadonlyMap<string, string>,
 ): JsonValue[] {
@@ -1698,7 +1648,7 @@ function isJsonValue(value: unknown): value is JsonValue {
   return Object.values(value as Record<string, unknown>).every(isJsonValue);
 }
 
-const fallbackHtml = `<!doctype html>
+const _fallbackHtml = `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -1708,7 +1658,7 @@ const fallbackHtml = `<!doctype html>
   <body style="background:#09090b;color:#e4e4e7;font-family:system-ui,sans-serif">
     <main style="max-width:680px;margin:40px auto;padding:16px">
       <h1>__REALTIME_VOICE_TITLE__</h1>
-      <p>Realtime Voice Console UI asset was not found.</p>
+      <p>Voice Agent UI asset was not found.</p>
     </main>
   </body>
 </html>`;

@@ -1,5 +1,5 @@
-export { createRealtimeVoiceServer } from "./controller.js";
-export { RealtimeVoiceServerError } from "./errors.js";
+export { createVoiceAgentServer } from "./controller.js";
+export { VoiceAgentServerError } from "./errors.js";
 export {
   type BrowserAudioDeviceState,
   type BrowserAudioErrorDetails,
@@ -34,18 +34,6 @@ export {
   type JsonValue,
   type LogEvent,
   type LogLevel,
-  type RealtimeSessionConfig,
-  type RealtimeUpdatedEvent,
-  type RealtimeVoiceServerConfig,
-  type RealtimeVoiceServerController,
-  type RealtimeVoiceServerErrorCode,
-  type RealtimeVoiceServerErrorInput,
-  type RealtimeVoiceServerEvents,
-  type RealtimeVoiceToolContext,
-  type RealtimeVoiceToolDefinition,
-  type RealtimeVoiceToolExecute,
-  type RealtimeVoiceToolMap,
-  type RealtimeVoiceUiConfig,
   type ResetConversationOptions,
   type ServerStartedEvent,
   type ServerStatus,
@@ -75,6 +63,18 @@ export {
   type TranscriptSource,
   type TypedEventEmitter,
   type Unsubscribe,
-  type UpdateRealtimeInput,
-  type UpdateRealtimeToolPatch,
+  type UpdateVoiceSessionInput,
+  type UpdateVoiceSessionToolPatch,
+  type VoiceAgentServerConfig,
+  type VoiceAgentServerController,
+  type VoiceAgentServerErrorCode,
+  type VoiceAgentServerErrorInput,
+  type VoiceAgentServerEvents,
+  type VoiceAgentToolContext,
+  type VoiceAgentToolDefinition,
+  type VoiceAgentToolExecute,
+  type VoiceAgentToolMap,
+  type VoiceAgentUiConfig,
+  type VoiceSessionConfig,
+  type VoiceSessionUpdatedEvent,
 } from "./types.js";

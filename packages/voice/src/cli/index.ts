@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * rvs — Realtime Voice Server CLI
+ * voice — Voice Agent CLI
  */
 
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { getBoolean, getPort, getString, parseArgs, readStdin } from "./args.js";
 import { getStatus, postEmpty, postJson, watchOnce } from "./control-client.js";
 
@@ -15,11 +15,11 @@ import { getStatus, postEmpty, postJson, watchOnce } from "./control-client.js";
 // ---------------------------------------------------------------------------
 
 function printJson(data: unknown): void {
-  process.stdout.write(JSON.stringify(data) + "\n");
+  process.stdout.write(`${JSON.stringify(data)}\n`);
 }
 
 function fatal(message: string, code?: string): never {
-  process.stderr.write(JSON.stringify({ error: message, ...(code !== undefined ? { code } : {}) }) + "\n");
+  process.stderr.write(`${JSON.stringify({ error: message, ...(code !== undefined ? { code } : {}) })}\n`);
   process.exit(1);
 }
 
@@ -29,16 +29,7 @@ function controlPort(port: number): number {
 
 // Names that count as a shell when walking the ancestor chain. Some platforms
 // prefix login shells with `-` (e.g. `-bash`); we strip that before matching.
-const SHELL_NAMES = new Set([
-  "bash",
-  "sh",
-  "zsh",
-  "dash",
-  "fish",
-  "ksh",
-  "tcsh",
-  "csh",
-]);
+const SHELL_NAMES = new Set(["bash", "sh", "zsh", "dash", "fish", "ksh", "tcsh", "csh"]);
 
 function getProcessInfo(pid: number): { ppid: number; name: string } | null {
   try {
@@ -87,7 +78,7 @@ function readCursor(port: number): number {
   try {
     const raw = readFileSync(cursorFile(port), "utf8").trim();
     const n = parseInt(raw, 10);
-    return isNaN(n) ? 0 : n;
+    return Number.isNaN(n) ? 0 : n;
   } catch {
     return 0;
   }
@@ -99,7 +90,7 @@ function writeCursor(port: number, cursor: number): void {
 }
 
 // ---------------------------------------------------------------------------
-// `rvs start`
+// `voice start`
 // ---------------------------------------------------------------------------
 
 async function cmdStart(
@@ -127,12 +118,12 @@ async function cmdStart(
 
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    RVS_PORT: String(port),
-    RVS_API_KEY: process.env["OPENAI_API_KEY"] ?? process.env["RVS_API_KEY"] ?? "",
-    RVS_INSTRUCTIONS: instructions,
-    ...(title !== undefined ? { RVS_TITLE: title } : {}),
-    ...(model !== undefined ? { RVS_MODEL: model } : {}),
-    ...(voice !== undefined ? { RVS_VOICE: voice } : {}),
+    VOICE_PORT: String(port),
+    VOICE_API_KEY: process.env.XAI_API_KEY ?? process.env.VOICE_API_KEY ?? "",
+    VOICE_INSTRUCTIONS: instructions,
+    ...(title !== undefined ? { VOICE_TITLE: title } : {}),
+    ...(model !== undefined ? { VOICE_MODEL: model } : {}),
+    ...(voice !== undefined ? { VOICE_VOICE: voice } : {}),
   };
 
   const child = spawn(process.execPath, [daemonPath], {
@@ -182,7 +173,7 @@ async function cmdStart(
 }
 
 // ---------------------------------------------------------------------------
-// `rvs stop`
+// `voice stop`
 // ---------------------------------------------------------------------------
 
 async function cmdStop(port: number): Promise<void> {
@@ -191,7 +182,7 @@ async function cmdStop(port: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// `rvs status`
+// `voice status`
 // ---------------------------------------------------------------------------
 
 async function cmdStatus(port: number): Promise<void> {
@@ -200,7 +191,7 @@ async function cmdStatus(port: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// `rvs open`
+// `voice open`
 // ---------------------------------------------------------------------------
 
 async function cmdOpen(port: number): Promise<void> {
@@ -212,7 +203,7 @@ async function cmdOpen(port: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// `rvs conversation <action>`
+// `voice conversation <action>`
 // ---------------------------------------------------------------------------
 
 async function cmdConversation(port: number, action: string): Promise<void> {
@@ -225,7 +216,7 @@ async function cmdConversation(port: number, action: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// `rvs inject <role>`
+// `voice inject <role>`
 // ---------------------------------------------------------------------------
 
 async function cmdInject(
@@ -240,14 +231,14 @@ async function cmdInject(
   }
   const text = await readStdin();
   const body: Record<string, unknown> = { text };
-  if (source !== undefined) body["source"] = source;
-  if (role !== "assistant" && triggerResponse) body["triggerResponse"] = true;
+  if (source !== undefined) body.source = source;
+  if (role !== "assistant" && triggerResponse) body.triggerResponse = true;
   const res = await postJson(controlPort(port), `/inject/${role}`, body);
   printJson(JSON.parse(res.body));
 }
 
 // ---------------------------------------------------------------------------
-// `rvs context`
+// `voice context`
 // ---------------------------------------------------------------------------
 
 async function cmdContext(port: number): Promise<void> {
@@ -258,7 +249,7 @@ async function cmdContext(port: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// `rvs topics`
+// `voice topics`
 // ---------------------------------------------------------------------------
 
 async function cmdTopics(port: number): Promise<void> {
@@ -269,7 +260,7 @@ async function cmdTopics(port: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// `rvs cancel-tool <callId>`
+// `voice cancel-tool <callId>`
 // ---------------------------------------------------------------------------
 
 async function cmdCancelTool(port: number, callId: string): Promise<void> {
@@ -278,7 +269,7 @@ async function cmdCancelTool(port: number, callId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// `rvs watch [event-types...]`
+// `voice watch [event-types...]`
 // ---------------------------------------------------------------------------
 
 async function cmdWatch(port: number, eventTypes: string[]): Promise<void> {
@@ -301,11 +292,9 @@ async function cmdWatch(port: number, eventTypes: string[]): Promise<void> {
         if (parsed.seq > maxSeq) maxSeq = parsed.seq;
         const item = parsed.data?.item;
         if (item !== undefined && parsed.event === "transcript.item") {
-          process.stdout.write(
-            JSON.stringify({ role: item.role, source: item.source, text: item.text }) + "\n",
-          );
+          process.stdout.write(`${JSON.stringify({ role: item.role, source: item.source, text: item.text })}\n`);
         } else {
-          process.stdout.write(line + "\n");
+          process.stdout.write(`${line}\n`);
         }
       } catch (err: unknown) {
         process.stderr.write(`watch parse error: ${String(err)}\n`);
@@ -319,12 +308,12 @@ async function cmdWatch(port: number, eventTypes: string[]): Promise<void> {
   // Default to common event types when none specified
   if (eventTypes.length === 0) {
     eventTypes = [
-      'transcript.item',
-      'wait_for_context',
-      'conversation.paused',
-      'conversation.resumed',
-      'conversation.error',
-      'browser.audio.error',
+      "transcript.item",
+      "wait_for_context",
+      "conversation.paused",
+      "conversation.resumed",
+      "conversation.error",
+      "browser.audio.error",
     ];
   }
 
@@ -362,7 +351,7 @@ async function cmdWatch(port: number, eventTypes: string[]): Promise<void> {
 // `voice -h` / `voice --help`
 // ---------------------------------------------------------------------------
 
-const HELP_TEXT = `voice — Realtime Voice Server CLI
+const HELP_TEXT = `voice — Voice Agent CLI
 
 USAGE
   voice <command> [subcommand] [--flags]
@@ -420,14 +409,14 @@ SUBROUTINES (event dispatch)
 COMMANDS
 
   voice start [--title T] [--model M] [--voice V] < instructions
-    Start the daemon and Realtime session. Reads the system instructions
+    Start the daemon and Voice Agent session. Reads the system instructions
     for the voice persona from stdin. Prints \`{port,url,createdAt}\` as
     JSON. If a daemon is already running on this port, prints its
     current status and exits 0. The daemon is detached and survives
     until clients disconnect (with grace period) or it is stopped.
 
   voice stop
-    Stop the running daemon and Realtime session.
+    Stop the running daemon and Voice Agent session.
 
   voice status
     Print the current daemon status as JSON (server, conversation,
@@ -482,8 +471,8 @@ GLOBAL FLAGS
   -h, --help     Show this help.
 
 ENVIRONMENT
-  OPENAI_API_KEY     API key forwarded to the daemon as RVS_API_KEY.
-  RVS_API_KEY        Alternative to OPENAI_API_KEY.
+  XAI_API_KEY        xAI API key forwarded to the daemon.
+  VOICE_API_KEY      Alternative to XAI_API_KEY.
   USE_SESSION_PORT   When set with CLAUDE_CODE_SESSION_ID, the wrapper
                      derives a per-session port instead of using 3000.
   VOICE_LOG_PATH     If set, the CLI and daemon append JSONL diagnostic
@@ -519,7 +508,7 @@ const parsed = parseArgs(process.argv);
 const port = getPort(parsed.flags);
 
 function isHelpRequested(): boolean {
-  if (parsed.flags["help"] === true || parsed.flags["h"] === true) return true;
+  if (parsed.flags.help === true || parsed.flags.h === true) return true;
   if (parsed.command === "" || parsed.command === "-h" || parsed.command === "--help") return true;
   if (parsed.subcommand === "-h" || parsed.subcommand === "--help") return true;
   return parsed.positional.includes("-h") || parsed.positional.includes("--help");
