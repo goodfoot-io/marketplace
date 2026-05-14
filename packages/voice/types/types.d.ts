@@ -10,8 +10,6 @@ export interface VoiceSessionConfig {
     model?: string;
     voice?: string;
 }
-/** @deprecated Use VoiceSessionConfig */
-export type RealtimeSessionConfig = VoiceSessionConfig;
 export interface BrowserSessionConfig {
     connectOnPageLoad?: boolean;
     firstMessage?: string;
@@ -21,8 +19,6 @@ export type FirstMessageRole = "user" | "system" | "assistant";
 export interface VoiceAgentUiConfig {
     title?: string;
 }
-/** @deprecated Use VoiceAgentUiConfig */
-export type RealtimeVoiceUiConfig = VoiceAgentUiConfig;
 export interface VoiceAgentServerConfig<TTools extends VoiceAgentToolMap> {
     port: number;
     apiKey: string;
@@ -31,21 +27,13 @@ export interface VoiceAgentServerConfig<TTools extends VoiceAgentToolMap> {
     browserSession?: BrowserSessionConfig;
     ui?: VoiceAgentUiConfig;
 }
-/** @deprecated Use VoiceAgentServerConfig */
-export type RealtimeVoiceServerConfig<TTools extends VoiceAgentToolMap> = VoiceAgentServerConfig<TTools>;
 export type VoiceAgentToolMap = Record<string, VoiceAgentToolDefinition<z.ZodTypeAny>>;
-/** @deprecated Use VoiceAgentToolMap */
-export type RealtimeVoiceToolMap = VoiceAgentToolMap;
 export interface VoiceAgentToolDefinition<TParameters extends z.ZodTypeAny> {
     description: string;
     parameters: TParameters;
     execute: VoiceAgentToolExecute<TParameters>;
 }
-/** @deprecated Use VoiceAgentToolDefinition */
-export type RealtimeVoiceToolDefinition<TParameters extends z.ZodTypeAny> = VoiceAgentToolDefinition<TParameters>;
 export type VoiceAgentToolExecute<TParameters extends z.ZodTypeAny> = (input: z.infer<TParameters>, context: VoiceAgentToolContext) => JsonValue | Promise<JsonValue>;
-/** @deprecated Use VoiceAgentToolExecute */
-export type RealtimeVoiceToolExecute<TParameters extends z.ZodTypeAny> = VoiceAgentToolExecute<TParameters>;
 export interface VoiceAgentToolContext {
     conversationId: string;
     callId: string;
@@ -53,8 +41,6 @@ export interface VoiceAgentToolContext {
     transcript: readonly TranscriptItem[];
     signal: AbortSignal;
 }
-/** @deprecated Use VoiceAgentToolContext */
-export type RealtimeVoiceToolContext = VoiceAgentToolContext;
 export interface VoiceAgentServerController<TTools extends VoiceAgentToolMap> extends TypedEventEmitter<VoiceAgentServerEvents<TTools>> {
     readonly status: ControllerStatus;
     readonly responseInFlight: boolean;
@@ -74,14 +60,12 @@ export interface VoiceAgentServerController<TTools extends VoiceAgentToolMap> ex
     injectAssistantMessage(input: InjectAssistantMessageInput): Promise<TranscriptItem>;
     injectSystemMessage(input: InjectSystemMessageInput): Promise<TranscriptItem>;
     cancelToolCall(callId: string): Promise<void>;
-    updateRealtime(input: UpdateRealtimeInput<TTools>): Promise<void>;
+    updateVoiceSession(input: UpdateVoiceSessionInput<TTools>): Promise<void>;
     broadcastToBrowser(envelope: {
         type: string;
         data?: unknown;
     }): void;
 }
-/** @deprecated Use VoiceAgentServerController */
-export type RealtimeVoiceServerController<TTools extends VoiceAgentToolMap> = VoiceAgentServerController<TTools>;
 export interface StopOptions {
     conversationShutdownTimeoutMs?: number;
 }
@@ -225,7 +209,7 @@ export interface VoiceAgentServerEvents<TTools extends VoiceAgentToolMap> {
     "conversation.reset": ConversationResetEvent<TTools>;
     "conversation.error": ConversationErrorEvent;
     "response.completed": ResponseCompletedEvent;
-    "realtime.updated": RealtimeUpdatedEvent;
+    "voice.session.updated": VoiceSessionUpdatedEvent;
     "transcript.delta": TranscriptDeltaEvent;
     "transcript.item": TranscriptItemEvent;
     "tool.call.started": ToolCallStartedEvent<TTools>;
@@ -234,8 +218,6 @@ export interface VoiceAgentServerEvents<TTools extends VoiceAgentToolMap> {
     "tool.call.interrupted": ToolCallInterruptedEvent<TTools>;
     log: LogEvent;
 }
-/** @deprecated Use VoiceAgentServerEvents */
-export type RealtimeVoiceServerEvents<TTools extends VoiceAgentToolMap> = VoiceAgentServerEvents<TTools>;
 export interface ServerStartedEvent {
     port: number;
     url: string;
@@ -299,7 +281,7 @@ export interface ResponseCompletedEvent {
     conversationId?: string;
     createdAt: Date;
 }
-export interface RealtimeUpdatedEvent {
+export interface VoiceSessionUpdatedEvent {
     instructionsUpdated: boolean;
     toolsUpdated: readonly string[];
     createdAt: Date;
@@ -379,16 +361,12 @@ export interface LogEvent {
     createdAt: Date;
 }
 export type VoiceAgentServerErrorCode = "SERVER_ALREADY_STARTED" | "SERVER_NOT_STARTED" | "SERVER_START_FAILED" | "SERVER_STOP_FAILED" | "BROWSER_CLIENT_REQUIRED" | "BROWSER_CLIENT_ALREADY_CONNECTED" | "BROWSER_CLIENT_DISCONNECTED" | "MICROPHONE_PERMISSION_DENIED" | "MICROPHONE_DEVICE_UNAVAILABLE" | "MICROPHONE_DEVICE_ERROR" | "NO_CURRENT_CONVERSATION" | "CONVERSATION_ALREADY_ACTIVE" | "CONVERSATION_NOT_ACTIVE" | "CONVERSATION_NOT_PAUSED" | "CONVERSATION_START_FAILED" | "CONVERSATION_END_FAILED" | "CONVERSATION_RESET_FAILED" | "CONVERSATION_INVALID_STATE" | "MESSAGE_INJECTION_INVALID_STATE" | "MESSAGE_INJECTION_EMPTY_TEXT" | "MESSAGE_INJECTION_FAILED" | "MESSAGE_RESPONSE_TRIGGER_FAILED" | "TOOL_NOT_FOUND" | "TOOL_ARGUMENT_VALIDATION_FAILED" | "TOOL_EXECUTION_FAILED" | "TOOL_RESULT_SERIALIZATION_FAILED" | "TOOL_CALL_INTERRUPTED" | "SESSION_ERROR" | "SESSION_UPDATE_FAILED" | "CONFIG_INVALID" | "INTERNAL_INVARIANT_VIOLATION";
-/** @deprecated Use VoiceAgentServerErrorCode */
-export type RealtimeVoiceServerErrorCode = VoiceAgentServerErrorCode;
 export interface VoiceAgentServerErrorInput {
     code: VoiceAgentServerErrorCode;
     message: string;
     details?: JsonValue;
     cause?: unknown;
 }
-/** @deprecated Use VoiceAgentServerErrorInput */
-export type RealtimeVoiceServerErrorInput = VoiceAgentServerErrorInput;
 export declare class VoiceAgentServerError extends Error {
     readonly name: "VoiceAgentServerError";
     readonly code: VoiceAgentServerErrorCode;
@@ -396,8 +374,6 @@ export declare class VoiceAgentServerError extends Error {
     readonly cause?: unknown;
     constructor(input: VoiceAgentServerErrorInput);
 }
-/** @deprecated Use VoiceAgentServerError */
-export type RealtimeVoiceServerError = VoiceAgentServerError;
 export interface InjectUserMessageInput {
     text: string;
     source?: InjectedUserMessageSource;
@@ -413,13 +389,13 @@ export interface InjectSystemMessageInput {
     text: string;
     triggerResponse?: boolean;
 }
-export interface UpdateRealtimeInput<TTools extends VoiceAgentToolMap> {
+export interface UpdateVoiceSessionInput<TTools extends VoiceAgentToolMap> {
     instructions?: string;
     tools?: Partial<{
-        [K in keyof TTools]: UpdateRealtimeToolPatch<TTools[K]>;
+        [K in keyof TTools]: UpdateVoiceSessionToolPatch<TTools[K]>;
     }>;
 }
-export type UpdateRealtimeToolPatch<TDef> = TDef extends VoiceAgentToolDefinition<infer TParameters> ? {
+export type UpdateVoiceSessionToolPatch<TDef> = TDef extends VoiceAgentToolDefinition<infer TParameters> ? {
     description?: string;
     execute?: VoiceAgentToolExecute<TParameters>;
 } : never;

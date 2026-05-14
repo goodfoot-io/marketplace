@@ -356,7 +356,7 @@ async function cmdWatch(port2, eventTypes) {
   };
   setTimeout(() => void poll(), 200);
 }
-var HELP_TEXT = `voice \u2014 Realtime Voice Server CLI
+var HELP_TEXT = `voice \u2014 Voice Agent CLI
 
 USAGE
   voice <command> [subcommand] [--flags]
@@ -414,14 +414,14 @@ SUBROUTINES (event dispatch)
 COMMANDS
 
   voice start [--title T] [--model M] [--voice V] < instructions
-    Start the daemon and Realtime session. Reads the system instructions
+    Start the daemon and Voice Agent session. Reads the system instructions
     for the voice persona from stdin. Prints \`{port,url,createdAt}\` as
     JSON. If a daemon is already running on this port, prints its
     current status and exits 0. The daemon is detached and survives
     until clients disconnect (with grace period) or it is stopped.
 
   voice stop
-    Stop the running daemon and Realtime session.
+    Stop the running daemon and Voice Agent session.
 
   voice status
     Print the current daemon status as JSON (server, conversation,
