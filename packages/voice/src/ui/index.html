@@ -1068,22 +1068,28 @@
             } else if (parsed?.type === "response.done" || parsed?.type === "response.cancelled" || parsed?.type === "response.failed") {
               state.realtime.responseActive = false;
             }
-            if (parsed?.type === "output_audio_buffer.stopped" && state.realtime.pendingPauseCut) {
-              state.realtime.pendingPauseCut = false;
-              applyPauseAudioCut();
-            }
+            // output_audio_buffer.{started,stopped,cleared} are WebRTC/SIP only —
+            // not emitted on the WS path. The pending pause cut is driven by a
+            // bounded timer in applyPauseState instead.
             // Forward every event to the daemon for transcript/tool wiring.
             sendMessage("voice.event", { event: parsed });
             // Single authoritative playback path: decode + play PCM deltas
             // directly from the xAI WS message. The daemon's audio.output.delta
             // relay is for visualizer data only and is ignored for playback.
-            if (parsed?.type === "response.audio.delta" && typeof parsed.delta === "string" && !state.voice.paused) {
+            if (parsed?.type === "response.output_audio.delta" && typeof parsed.delta === "string" && !state.voice.paused) {
               playPcmDelta(parsed.delta);
             }
           });
 
+          // Capture close-event details for the onerror message — close fires
+          // after error for handshake rejections, giving us code + reason.
+          let lastCloseCode = undefined;
+          let lastCloseReason = "";
+
           ws.addEventListener("close", (event) => {
             dlog("xaiWs.close", { code: event.code, reason: event.reason });
+            lastCloseCode = event.code;
+            lastCloseReason = event.reason;
             state.voice.xaiOpen = false;
             if (!state.voice.connectedSent) {
               failVoice("VOICE_WS_REJECTED", `xAI WS closed before open: code=${event.code} reason=${event.reason}`);
@@ -1095,13 +1101,19 @@
           });
 
           ws.addEventListener("error", () => {
-            dlog("xaiWs.error", {});
+            dlog("xaiWs.error", { lastCloseCode, lastCloseReason });
             // CORS / handshake rejection: the browser delivers minimal info
-            // here. The daemon-held WS contingency (proxy binary frames
-            // through the daemon) is documented but NOT implemented per
-            // plan §3c.
+            // in the error event. Build a descriptive message from what we
+            // know: what was attempted (URL scheme+host, subprotocol prefix)
+            // and any close-event details that arrived before the error.
             if (!state.voice.connectedSent) {
-              failVoice("VOICE_WS_REJECTED", "xAI WebSocket connection failed (likely CORS or handshake).");
+              const closeInfo = lastCloseCode !== undefined
+                ? ` WS close code=${lastCloseCode}${lastCloseReason ? ` reason="${lastCloseReason}"` : ""}.`
+                : " No close frame received before error.";
+              failVoice(
+                "VOICE_WS_REJECTED",
+                `xAI WebSocket handshake failed. Attempted: wss://api.x.ai/v1/realtime with subprotocol prefix "xai-client-secret" (token not logged).${closeInfo} Possible causes: CORS policy, invalid/expired token, wrong subprotocol format, or origin not allowlisted.`,
+              );
             }
           });
         } catch (error) {
@@ -1221,15 +1233,20 @@
         const paused = status === "paused";
         const { micTrack, xaiWs, xaiOpen } = state.voice;
         if (paused) {
-          // If a response is currently being spoken, defer the audio cut
-          // until output_audio_buffer.stopped fires so the avatar can finish
-          // its sentence.
+          // If a response is currently being spoken, defer the audio cut by a
+          // short bounded timer (output_audio_buffer.stopped is WebRTC/SIP only
+          // and never fires on the WS path). Stop the mic immediately so the
+          // model cannot pick up more input during the wind-down.
           if (state.realtime.responseActive) {
             state.realtime.pendingPauseCut = true;
-            // Stop the user's mic from sending audio immediately so the
-            // model can't pick up more input during the wind-down.
             state.voice.paused = true;
             if (micTrack) micTrack.enabled = false;
+            setTimeout(() => {
+              if (state.realtime.pendingPauseCut) {
+                state.realtime.pendingPauseCut = false;
+                applyPauseAudioCut();
+              }
+            }, 500);
             return;
           }
           applyPauseAudioCut();

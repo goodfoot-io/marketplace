@@ -77,9 +77,10 @@ const XAI_CLIENT_SECRET_URL = "https://api.x.ai/v1/realtime/client_secrets";
 const VOICE_CONNECT_TIMEOUT_MS = 30_000;
 
 interface XaiClientSecretResponse {
-  token?: string;
-  expires_at?: number;
-  client_secret?: { token?: string; expires_at?: number };
+  value?: unknown;
+  token?: unknown;
+  expires_at?: unknown;
+  client_secret?: unknown;
 }
 
 type RealtimeConnectionEmitter = {
@@ -546,20 +547,47 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         "content-type": "application/json",
         authorization: `Bearer ${this.#config.apiKey}`,
       },
-      body: JSON.stringify({ model }),
+      // xAI mint endpoint accepts only expires_after; model and session config
+      // go over the WebSocket via session.update after connect.
+      body: JSON.stringify({ expires_after: { seconds: 300 } }),
     });
     if (!response.ok) {
       const bodyText = await response.text().catch(() => "");
       throw new Error(`xAI client_secrets returned ${response.status}: ${bodyText}`);
     }
     const json = (await response.json()) as XaiClientSecretResponse;
-    // Accept both top-level { token, expires_at } and nested { client_secret: { token, expires_at } }.
-    // On shape mismatch, include raw body in error for diagnostics.
-    const token = json.token ?? json.client_secret?.token;
-    const expiresAt = json.expires_at ?? json.client_secret?.expires_at;
-    if (typeof token !== "string" || typeof expiresAt !== "number") {
+    // Accept multiple plausible shapes (xAI docs do not quote field names).
+    // Priority: top-level value → top-level token → client_secret string →
+    //   client_secret.value → client_secret.token.
+    const cs = json.client_secret;
+    const csObj = cs !== null && typeof cs === "object" ? (cs as Record<string, unknown>) : undefined;
+    const token =
+      (typeof json.value === "string" ? json.value : undefined) ??
+      (typeof json.token === "string" ? json.token : undefined) ??
+      (typeof cs === "string" ? cs : undefined) ??
+      (typeof csObj?.value === "string" ? csObj.value : undefined) ??
+      (typeof csObj?.token === "string" ? csObj.token : undefined);
+
+    const rawExpiry =
+      (typeof json.expires_at === "number" ? json.expires_at : undefined) ??
+      (typeof csObj?.expires_at === "number" ? (csObj.expires_at as number) : undefined);
+
+    if (typeof token !== "string" || typeof rawExpiry !== "number") {
       throw new Error(`xAI client_secrets response has unexpected shape. Raw body: ${JSON.stringify(json)}`);
     }
+
+    // Normalize expiresAt to seconds. xAI does not pin the unit; if the value
+    // is > 1e12 it is almost certainly milliseconds.
+    const expiresAt = rawExpiry > 1e12 ? rawExpiry / 1000 : rawExpiry;
+    const unitApplied = rawExpiry > 1e12 ? "milliseconds → normalized to seconds" : "seconds";
+    this.emit("log", {
+      level: "info",
+      code: "SESSION_ERROR",
+      message: `xAI client_secrets expires_at interpreted as ${unitApplied} (raw=${rawExpiry}, normalized=${expiresAt}).`,
+      details: { rawExpiry, expiresAt, unitApplied },
+      createdAt: new Date(),
+    });
+
     return { clientSecret: token, model, expiresAt };
   }
 
@@ -596,15 +624,14 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         createdAt: new Date(),
       });
     });
-    // Tentative xAI event names — verified against xAI API surface.
-    // If a name is wrong, the catch-all warn logger below will surface it.
-    realtime.on("response.audio_transcript.delta", (event) =>
+    // xAI event names per notes/xai-api-surface.md.
+    realtime.on("response.output_audio_transcript.delta", (event) =>
       this.#handleAssistantTranscriptDelta(event as { item_id: string; delta: string }),
     );
-    realtime.on("response.audio_transcript.done", (event) =>
+    realtime.on("response.output_audio_transcript.done", (event) =>
       this.#handleAssistantTranscriptDone(event as { item_id: string; transcript: string }),
     );
-    realtime.on("response.audio.delta", (event) =>
+    realtime.on("response.output_audio.delta", (event) =>
       // Relay to browser for visualizer only. Playback is driven by the
       // browser's xAI WS message handler directly — not by this relay.
       this.#broadcast({ type: "audio.output.delta", data: { audio: (event as { delta: string }).delta } }),
@@ -620,14 +647,29 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       "error",
       "response.created",
       "response.done",
-      "response.audio_transcript.delta",
-      "response.audio_transcript.done",
-      "response.audio.delta",
+      "response.output_audio_transcript.delta",
+      "response.output_audio_transcript.done",
+      "response.output_audio.delta",
       "response.function_call_arguments.done",
     ]);
+    // Track event types already escalated to conversation.error to avoid spam.
+    const reportedUnknownEventTypes = new Set<string>();
     realtime.on("*", (event) => {
       const eventType = (event as Record<string, unknown> | undefined)?.type;
       if (typeof eventType === "string" && !knownEventTypes.has(eventType)) {
+        if (!reportedUnknownEventTypes.has(eventType)) {
+          reportedUnknownEventTypes.add(eventType);
+          const wrapped = toVoiceError(
+            "SESSION_ERROR",
+            `xAI emitted unrecognized event type ${eventType}; check that event-name mapping in #wireRealtimeConnection matches xAI's current vocabulary.`,
+            { eventType },
+          );
+          this.emit("conversation.error", {
+            conversationId: this.#conversation?.id,
+            error: wrapped,
+            createdAt: new Date(),
+          });
+        }
         this.emit("log", {
           level: "warn",
           code: "VOICE_UNKNOWN_EVENT",
@@ -856,6 +898,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     });
     this.#activeToolAbortControllers.set(event.call_id, abortController);
     this.#pendingToolResultCount += 1;
+    let cleanedUpEarly = false;
     this.emit("tool.call.started", {
       conversationId: conversation.id,
       toolCallId: event.item_id,
@@ -921,6 +964,12 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         startedAt,
         completedAt,
       } as ToolCallCompletedEvent<TTools>);
+      // Decrement before #sendToolResult so the pendingToolResultCount === 0
+      // gate in #sendToolResult fires correctly for the last parallel call.
+      // The finally block checks cleanedUpEarly to avoid double-decrement.
+      this.#pendingToolResultCount -= 1;
+      this.#activeToolAbortControllers.delete(event.call_id);
+      cleanedUpEarly = true;
       this.#sendToolResult(event.call_id, serialized);
     } catch (cause) {
       if (abortController.signal.aborted) {
@@ -947,8 +996,10 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       } as ToolCallFailedAtExecution<TTools>);
       this.#log("error", error);
     } finally {
-      this.#pendingToolResultCount -= 1;
-      this.#activeToolAbortControllers.delete(event.call_id);
+      if (!cleanedUpEarly) {
+        this.#pendingToolResultCount -= 1;
+        this.#activeToolAbortControllers.delete(event.call_id);
+      }
       this.#broadcastState();
     }
   }
