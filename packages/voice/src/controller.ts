@@ -652,24 +652,9 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       "response.output_audio.delta",
       "response.function_call_arguments.done",
     ]);
-    // Track event types already escalated to conversation.error to avoid spam.
-    const reportedUnknownEventTypes = new Set<string>();
     realtime.on("*", (event) => {
       const eventType = (event as Record<string, unknown> | undefined)?.type;
       if (typeof eventType === "string" && !knownEventTypes.has(eventType)) {
-        if (!reportedUnknownEventTypes.has(eventType)) {
-          reportedUnknownEventTypes.add(eventType);
-          const wrapped = toVoiceError(
-            "SESSION_ERROR",
-            `xAI emitted unrecognized event type ${eventType}; check that event-name mapping in #wireRealtimeConnection matches xAI's current vocabulary.`,
-            { eventType },
-          );
-          this.emit("conversation.error", {
-            conversationId: this.#conversation?.id,
-            error: wrapped,
-            createdAt: new Date(),
-          });
-        }
         this.emit("log", {
           level: "warn",
           code: "VOICE_UNKNOWN_EVENT",
