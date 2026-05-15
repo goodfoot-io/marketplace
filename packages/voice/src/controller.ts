@@ -597,6 +597,8 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       this.#handleUserTranscriptCompleted(event),
     );
 
+    realtime.on("conversation.item.added", (event) => this.#handleConversationItemAdded(event));
+
     realtime.on("response.created", () => {
       this.#responseInFlight = true;
     });
@@ -636,17 +638,45 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     // Catch-all: log any xAI event type not matched by an existing handler.
     // This makes event-name mismatches visible at runtime rather than silently
     // dropping audio or transcripts.
+    // `response.text.done`, `response.cancelled`, `response.failed` are not in
+    // the reference doc but are observed in practice; included to silence the
+    // catch-all warn logger. No behavior change.
     const knownEventTypes = new Set([
       "error",
+      "session.created",
+      "conversation.created",
+      "session.updated",
+      "input_audio_buffer.speech_started",
+      "input_audio_buffer.speech_stopped",
+      "input_audio_buffer.committed",
+      "input_audio_buffer.cleared",
+      "conversation.item.deleted",
+      "conversation.item.added",
+      "conversation.item.input_audio_transcription.completed",
       "response.created",
-      "response.done",
+      "response.output_item.added",
+      "response.output_item.done",
+      "response.content_part.added",
+      "response.content_part.done",
       "response.output_audio_transcript.delta",
       "response.output_audio_transcript.done",
+      "response.output_audio.delta",
+      "response.output_audio.done",
       "response.text.delta",
       "response.text.done",
-      "response.output_audio.delta",
+      "response.function_call_arguments.delta",
       "response.function_call_arguments.done",
-      "conversation.item.input_audio_transcription.completed",
+      "response.cancelled",
+      "response.failed",
+      "mcp_list_tools.in_progress",
+      "mcp_list_tools.completed",
+      "mcp_list_tools.failed",
+      "response.mcp_call_arguments.delta",
+      "response.mcp_call_arguments.done",
+      "response.mcp_call.in_progress",
+      "response.mcp_call.completed",
+      "response.mcp_call.failed",
+      "response.done",
     ]);
     realtime.on("*", (event) => {
       if (!knownEventTypes.has(event.type)) {
@@ -758,6 +788,22 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     this.#broadcastState();
   }
 
+  // xAI's authoritative slot-creation event. Fires BEFORE response.created
+  // for the assistant turn that follows, so creating the user transcript
+  // slot here locks chronological order — transcription.completed (which
+  // arrives later, ASR-bound) just fills in the text by item.id.
+  #handleConversationItemAdded(event: XAIServerEvent): void {
+    const conversation = this.#conversation;
+    const item = event.item;
+    if (!conversation || !item?.id || item.role !== "user") return;
+    const initialText = normalizeText(
+      item.content?.find((c) => c?.type === "input_audio")?.transcript ??
+        item.content?.find((c) => c?.type === "input_text")?.text ??
+        "",
+    );
+    this.#upsertUserTranscript(conversation, item.id, initialText);
+  }
+
   #handleUserTranscriptCompleted(event: XAIServerEvent): void {
     const conversation = this.#conversation;
     if (!conversation || !event.item_id) return;
@@ -774,6 +820,10 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     const existing = conversation.transcript.find((item) => item.id === id);
     if (existing) {
       if (existing.text === text) return existing;
+      // Preserve existing non-empty text against an empty incoming value:
+      // `conversation.item.added` can arrive after `transcription.completed`
+      // with an empty transcript field and must not clobber the real text.
+      if (!text && existing.text) return existing;
       existing.text = text;
       this.emit("transcript.item", { item: existing, createdAt: new Date() });
       this.#broadcast({ type: "transcript.item", data: existing });

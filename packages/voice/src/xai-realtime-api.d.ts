@@ -127,6 +127,20 @@ export type XAIClientEvent =
 
 export interface XAIServerEvent {
   type: string;
+  event_id?: string;
+  previous_item_id?: string;
+  item?: {
+    id?: string;
+    object?: 'realtime.item';
+    type?: 'message' | 'function_call' | 'function_call_output';
+    status?: 'completed' | 'in_progress' | 'incomplete';
+    role?: 'user' | 'assistant' | 'system';
+    content?: Array<{
+      type?: 'input_audio' | 'input_text' | 'output_text' | 'audio' | 'text';
+      transcript?: string;
+      text?: string;
+    }>;
+  };
   response_id?: string;
   item_id?: string;
   call_id?: string;

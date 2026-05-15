@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>__REALTIME_VOICE_TITLE__</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.36/dist/codicon.css" />
     <style>
       :root {
         --bg-base: #09090b;
@@ -185,6 +186,24 @@
         border-color: #3f3f46;
       }
 
+      .more-actions {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 0;
+        border-radius: 6px;
+      }
+
+      .more-actions:hover {
+        color: var(--text-bright);
+      }
+
       .settings-menu {
         position: absolute;
         right: 0;
@@ -334,6 +353,27 @@
 
       .transcript-item.streaming {
         opacity: 1;
+      }
+
+      .transcript-item.speaking {
+        opacity: 0.85;
+      }
+
+      .transcript-item.speaking::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--role-user);
+        margin-right: 6px;
+        animation: speaking-pulse 1s ease-in-out infinite;
+        vertical-align: middle;
+      }
+
+      @keyframes speaking-pulse {
+        0%, 100% { opacity: 0.3; transform: scale(0.85); }
+        50% { opacity: 1; transform: scale(1.15); }
       }
 
       .role-user {
@@ -573,18 +613,15 @@
       <section class="controls" id="controls">
         <div class="buttons">
           <button class="primary" id="primary" type="button" aria-label="Start conversation">Start</button>
-          <button class="reset hidden" id="reset" type="button">Reset</button>
+          <button class="reset hidden" id="reset" type="button" aria-label="Reset conversation"><span class="codicon codicon-refresh" aria-hidden="true"></span></button>
           <div class="meters hidden" id="meters" aria-hidden="true">
             <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
           </div>
         </div>
         <div class="settings">
           <div class="connection"><span class="dot connecting" id="dot"></span><span id="connectionLabel">Connecting...</span></div>
-          <button class="icon-btn" id="settingsToggle" type="button" aria-label="Audio settings" aria-expanded="false">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>
-              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6V20a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1H4a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6V4a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.17.36.38.69.6 1H20a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-.51 1Z"></path>
-            </svg>
+          <button class="more-actions" id="settingsToggle" type="button" aria-label="More actions" aria-expanded="false">
+            <span class="codicon codicon-ellipsis" aria-hidden="true"></span>
           </button>
           <div class="settings-menu hidden" id="settingsMenu">
             <div id="micArea" class="mic-note">Microphone access is required to use voice.</div>
@@ -635,6 +672,7 @@
           sessionInFlight: false,
           tokenExpiresAt: 0,
           paused: false,
+          speakingItemId: null,
         },
         realtime: { responseActive: false, pendingPauseCut: false },
       };
@@ -781,7 +819,16 @@
             browserClient: message.data.browserClient,
             conversation: message.data.conversationStatus ?? message.data.conversation?.status ?? message.data.conversation ?? "none",
           };
+          const previousConversationId = state.conversation?.id;
           state.conversation = message.data.conversation;
+          // Drop all in-flight streaming drafts when the conversation changes
+          // (reset, end, or new start). Without this, a draft that was still
+          // streaming at reset-time would re-render in the new (empty)
+          // conversation indefinitely because clearFinalizedDrafts only removes
+          // drafts whose ID appears in the NEW transcript.
+          if (state.conversation?.id !== previousConversationId) {
+            state.streamDrafts.clear();
+          }
           clearFinalizedDrafts();
           if ((state.status.conversation === "none" || state.status.conversation === "ended") && state.voice.xaiWs) {
             teardownVoice();
@@ -1141,6 +1188,22 @@
               stopScheduledPlayback();
               state.voice.deferredSends = [];
               setThinking(false);
+              if (parsed?.type === "response.cancelled" && state.voice.speakingItemId !== null) {
+                state.voice.speakingItemId = null;
+                render();
+              }
+            }
+            if (parsed?.type === "input_audio_buffer.speech_started") {
+              state.voice.speakingItemId = parsed.item_id ?? null;
+              render();
+            }
+            if (parsed?.type === "input_audio_buffer.speech_stopped"
+                || parsed?.type === "conversation.item.added"
+                || parsed?.type === "response.created") {
+              if (state.voice.speakingItemId !== null) {
+                state.voice.speakingItemId = null;
+                render();
+              }
             }
             // output_audio_buffer.{started,stopped,cleared} are WebRTC/SIP only —
             // not emitted on the WS path. The pending pause cut is driven by a
@@ -1399,6 +1462,7 @@
         state.voice.sessionInFlight = false;
         state.voice.tokenExpiresAt = 0;
         state.voice.paused = false;
+        state.voice.speakingItemId = null;
         setThinking(false);
       }
 
@@ -1516,12 +1580,19 @@
         const status = state.status.conversation;
         primary.className = "primary";
         primary.disabled = !["none", "active", "paused"].includes(status);
-        primary.textContent =
+        const primaryLabel =
           status === "active" ? "Pause" :
           status === "paused" ? "Resume" :
           status === "starting" ? "Starting…" :
           "Start";
-        primary.setAttribute("aria-label", `${primary.textContent} conversation`);
+        if (status === "active") {
+          primary.innerHTML = '<span class="codicon codicon-debug-pause" aria-hidden="true"></span>';
+        } else if (status === "paused") {
+          primary.innerHTML = '<span class="codicon codicon-play" aria-hidden="true"></span>';
+        } else {
+          primary.textContent = primaryLabel;
+        }
+        primary.setAttribute("aria-label", `${primaryLabel} conversation`);
         if (status === "active") primary.classList.add("pause");
         if (status === "paused") primary.classList.add("resume");
         reset.classList.toggle("hidden", !["active", "paused"].includes(status));
@@ -1583,7 +1654,10 @@
         const node = document.createElement("article");
         node.className = `transcript-item role-${item.role} source-${item.source}`;
         if (item.streaming) node.classList.add("streaming");
-        node.textContent = item.text;
+        if (item.role === "user" && item.id === state.voice.speakingItemId) {
+          node.classList.add("speaking");
+        }
+        node.textContent = item.text || (item.role === "user" ? "…" : "");
         transcript.append(node);
       }
 
@@ -1678,7 +1752,7 @@
       function setConnection(status) {
         dot.className = `dot ${status}`;
         connectionLabel.textContent =
-          status === "connected" ? "Connected" : status === "connecting" ? "Connecting..." : status === "error" ? "Connection Error" : "Disconnected";
+          status === "connected" ? "" : status === "connecting" ? "Connecting..." : status === "error" ? "Connection Error" : "Disconnected";
       }
 
       function maybeScrollToBottom() {
