@@ -2659,7 +2659,6 @@ __metadata:
     "@types/ws": "npm:^8.18.1"
     "@typescript/native-preview": "npm:^7.0.0-beta.20260501.1"
     esbuild: "npm:^0.24.0"
-    openai: "npm:^6.37.0"
     tsx: "npm:^4.20.6"
     typescript: "npm:^6.0.3"
     vitest: "npm:^4.1.5"
@@ -13112,23 +13111,6 @@ __metadata:
   dependencies:
     mimic-fn: "npm:^2.1.0"
   checksum: 10c0/ffcef6fbb2692c3c40749f31ea2e22677a876daea92959b8a80b521d95cca7a668c884d8b2045d1d8ee7d56796aa405c405462af112a1477594cc63531baeb8f
-  languageName: node
-  linkType: hard
-
-"openai@npm:^6.37.0":
-  version: 6.37.0
-  resolution: "openai@npm:6.37.0"
-  peerDependencies:
-    ws: ^8.18.0
-    zod: ^3.25 || ^4.0
-  peerDependenciesMeta:
-    ws:
-      optional: true
-    zod:
-      optional: true
-  bin:
-    openai: bin/cli
-  checksum: 10c0/31a506a79410a4e2a42bd4183143450fb468359733bf3458178bb8dd3ce4b125b2324940969a92862ad9e620e3a9be6710c875c856f9c422c9c35d6e81791848
   languageName: node
   linkType: hard
 

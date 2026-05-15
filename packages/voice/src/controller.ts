@@ -38,6 +38,13 @@ import {
   type VoiceAgentToolMap,
 } from "./types.js";
 import uiHtml from "./ui/index.html";
+import type {
+  XAIClientEvent,
+  XAIServerEvent,
+  XAISessionConfig,
+  XAIRealtimeModel,
+  XAIVoice,
+} from "./xai-realtime-api.js";
 
 type MutableConversation<TTools extends VoiceAgentToolMap> = {
   id: string;
@@ -65,10 +72,12 @@ type BrowserEnvelope =
   | { type: "voice.event"; data?: { event?: unknown } }
   | { type: "browser.debug"; data?: { label?: unknown; info?: unknown; t?: unknown } };
 
+type RealtimeGate = "playback-drained";
+
 type RealtimeConnection = {
-  send(event: Record<string, unknown>): void;
+  send(event: XAIClientEvent, gate?: RealtimeGate): void;
   close(props?: { code: number; reason: string }): void;
-  on(eventName: string, handler: (event: unknown) => void): unknown;
+  on(eventName: string, handler: (event: XAIServerEvent) => void): unknown;
   socket?: { readyState: number };
 };
 
@@ -84,7 +93,7 @@ interface XaiClientSecretResponse {
 }
 
 type RealtimeConnectionEmitter = {
-  emit(eventName: string, payload: unknown): void;
+  emit(eventName: string, payload: XAIServerEvent): void;
   emitClose(): void;
 };
 
@@ -92,7 +101,7 @@ type SocketRef = { readyState: number };
 
 class BrowserProxiedVoiceConnection implements RealtimeConnection {
   readonly socket: SocketRef;
-  readonly #handlers = new Map<string, Array<(event: unknown) => void>>();
+  readonly #handlers = new Map<string, Array<(event: XAIServerEvent) => void>>();
   readonly #sendToBrowser: (envelope: { type: string; data?: unknown }) => void;
   #closed = false;
 
@@ -101,9 +110,9 @@ class BrowserProxiedVoiceConnection implements RealtimeConnection {
     this.socket = input.socket;
   }
 
-  send(event: Record<string, unknown>): void {
+  send(event: XAIClientEvent, gate?: RealtimeGate): void {
     if (this.#closed) return;
-    this.#sendToBrowser({ type: "voice.send", data: { event } });
+    this.#sendToBrowser({ type: "voice.send", data: gate ? { event, gate } : { event } });
   }
 
   close(props?: { code: number; reason: string }): void {
@@ -115,7 +124,7 @@ class BrowserProxiedVoiceConnection implements RealtimeConnection {
     });
   }
 
-  on(eventName: string, handler: (event: unknown) => void): () => void {
+  on(eventName: string, handler: (event: XAIServerEvent) => void): () => void {
     const list = this.#handlers.get(eventName) ?? [];
     list.push(handler);
     this.#handlers.set(eventName, list);
@@ -130,7 +139,7 @@ class BrowserProxiedVoiceConnection implements RealtimeConnection {
 
   controller(): RealtimeConnectionEmitter {
     return {
-      emit: (eventName: string, payload: unknown) => {
+      emit: (eventName: string, payload: XAIServerEvent) => {
         const list = this.#handlers.get(eventName);
         if (!list) return;
         for (const handler of [...list]) {
@@ -343,33 +352,11 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
   }
 
   async setAutoResponse(enabled: boolean): Promise<void> {
-    if (this.#autoResponseEnabled === enabled) return;
+    // xAI's `turn_detection` schema does not include `create_response` /
+    // `interrupt_response` (OpenAI-only). Auto-response gating is enforced
+    // locally via the `#sendToolResult` `response.create` gate; no network
+    // call is needed to honor this flag.
     this.#autoResponseEnabled = enabled;
-    if (!this.#realtime) return;
-    try {
-      this.#realtime.send({
-        type: "session.update",
-        session: {
-          turn_detection: {
-            type: "server_vad",
-            create_response: enabled,
-            interrupt_response: enabled,
-          },
-        },
-      });
-    } catch (cause) {
-      // xAI may not support create_response/interrupt_response on server_vad;
-      // treat schema-rejection as "feature unavailable" — auto-response state
-      // is still tracked locally (affects #sendToolResult response.create gate).
-      // Public contract: no throw.
-      this.emit("log", {
-        level: "warn",
-        code: "SESSION_UPDATE_FAILED",
-        message: "setAutoResponse session.update rejected; auto-response tracked locally only.",
-        details: { enabled, cause: String(cause) },
-        createdAt: new Date(),
-      });
-    }
   }
 
   async endConversation(options?: { shutdownTimeoutMs?: number }): Promise<void> {
@@ -595,8 +582,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     realtime.on("error", (error) => {
       // Benign: a `response.cancel` arrived while no response was in flight.
       // Swallow it instead of surfacing as conversation.error.
-      const realtimeCode = (error as { error?: { code?: string } } | undefined)?.error?.code;
-      if (realtimeCode === "response_cancel_not_active") return;
+      if (error.error?.code === "response_cancel_not_active") return;
 
       const wrapped = toVoiceError("SESSION_ERROR", "Voice Agent session reported an error.", undefined, error);
       this.#log("error", wrapped);
@@ -607,11 +593,9 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       });
     });
 
-    // xAI does not expose input audio transcription events equivalent to
-    // OpenAI's conversation.item.input_audio_transcription.* without explicit
-    // input transcription config. User-side transcript.item events will be
-    // absent in live sessions — this is expected, not a bug.
-    // voice watch --events transcript.item returns only assistant items.
+    realtime.on("conversation.item.input_audio_transcription.completed", (event) =>
+      this.#handleUserTranscriptCompleted(event),
+    );
 
     realtime.on("response.created", () => {
       this.#responseInFlight = true;
@@ -626,18 +610,27 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     });
     // xAI event names per notes/xai-api-surface.md.
     realtime.on("response.output_audio_transcript.delta", (event) =>
-      this.#handleAssistantTranscriptDelta(event as { item_id: string; delta: string }),
+      this.#handleAssistantTranscriptDelta(event, "assistantAudio"),
     );
     realtime.on("response.output_audio_transcript.done", (event) =>
-      this.#handleAssistantTranscriptDone(event as { item_id: string; transcript: string }),
+      this.#handleAssistantTranscriptDone(event, "assistantAudio"),
+    );
+    // xAI's beta name for the text-only assistant transcript channel.
+    // OpenAI GA emits `response.output_text.{delta,done}`; xAI emits
+    // `response.text.{delta,done}` with functionally identical payloads.
+    realtime.on("response.text.delta", (event) =>
+      this.#handleAssistantTranscriptDelta(event, "assistantText"),
+    );
+    realtime.on("response.text.done", (event) =>
+      this.#handleAssistantTranscriptDone(event, "assistantText"),
     );
     realtime.on("response.output_audio.delta", (event) =>
       // Relay to browser for visualizer only. Playback is driven by the
       // browser's xAI WS message handler directly — not by this relay.
-      this.#broadcast({ type: "audio.output.delta", data: { audio: (event as { delta: string }).delta } }),
+      this.#broadcast({ type: "audio.output.delta", data: { audio: event.delta } }),
     );
     realtime.on("response.function_call_arguments.done", (event) => {
-      void this.#handleToolCall(event as { item_id: string; call_id: string; name: string; arguments: string });
+      void this.#handleToolCall(event);
     });
 
     // Catch-all: log any xAI event type not matched by an existing handler.
@@ -649,17 +642,19 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       "response.done",
       "response.output_audio_transcript.delta",
       "response.output_audio_transcript.done",
+      "response.text.delta",
+      "response.text.done",
       "response.output_audio.delta",
       "response.function_call_arguments.done",
+      "conversation.item.input_audio_transcription.completed",
     ]);
     realtime.on("*", (event) => {
-      const eventType = (event as Record<string, unknown> | undefined)?.type;
-      if (typeof eventType === "string" && !knownEventTypes.has(eventType)) {
+      if (!knownEventTypes.has(event.type)) {
         this.emit("log", {
           level: "warn",
           code: "VOICE_UNKNOWN_EVENT",
-          message: `Unrecognized xAI event type: ${eventType}`,
-          details: { eventType },
+          message: `Unrecognized xAI event type: ${event.type}`,
+          details: { eventType: event.type },
           createdAt: new Date(),
         });
       }
@@ -674,10 +669,12 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         instructions: this.#instructions,
         model: this.#config.realtime.model,
         voice: this.#config.realtime.voice,
+        audio: {
+          input: { format: { type: "audio/pcm", rate: 48000 } },
+          output: { format: { type: "audio/pcm", rate: 48000 } },
+        },
         turn_detection: {
           type: "server_vad",
-          create_response: this.#autoResponseEnabled,
-          interrupt_response: this.#autoResponseEnabled,
         },
         tools: toolsToRealtimeTools(this.#tools, this.#toolDescriptions),
       },
@@ -720,16 +717,17 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     pending.reject(cause);
   }
 
-  #handleAssistantTranscriptDelta(event: { item_id: string; delta: string }): void {
+  #handleAssistantTranscriptDelta(event: XAIServerEvent, source: "assistantAudio" | "assistantText"): void {
     const conversation = this.#conversation;
     if (!conversation) return;
+    if (!event.item_id || event.delta === undefined) return;
     const fullTextSoFar = (this.#streamingAssistantText.get(event.item_id) ?? "") + event.delta;
     this.#streamingAssistantText.set(event.item_id, fullTextSoFar);
     this.emit("transcript.delta", {
       conversationId: conversation.id,
       itemId: event.item_id,
       role: "assistant",
-      source: "assistantAudio",
+      source,
       delta: event.delta,
       fullTextSoFar,
       createdAt: new Date(),
@@ -739,22 +737,49 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       data: {
         itemId: event.item_id,
         role: "assistant",
-        source: "assistantAudio",
+        source,
         delta: event.delta,
         fullTextSoFar,
       },
     });
   }
 
-  #handleAssistantTranscriptDone(event: { item_id: string; transcript: string }): void {
+  #handleAssistantTranscriptDone(event: XAIServerEvent, source: "assistantAudio" | "assistantText"): void {
     const conversation = this.#conversation;
-    if (!conversation) return;
+    if (!conversation || !event.item_id) return;
     const accumulated = this.#streamingAssistantText.get(event.item_id);
     this.#streamingAssistantText.delete(event.item_id);
-    const text = normalizeText(event.transcript) || (accumulated ? normalizeText(accumulated) : "");
+    // `response.text.done` carries `event.text`; `response.output_audio_transcript.done`
+    // carries `event.transcript`. Accept either, falling back to the accumulated deltas.
+    const text =
+      normalizeText(event.transcript ?? event.text ?? "") || (accumulated ? normalizeText(accumulated) : "");
     if (!text && accumulated === undefined) return;
-    this.#appendTranscriptItemWithId(conversation, event.item_id, "assistant", "assistantAudio", text);
+    this.#appendTranscriptItemWithId(conversation, event.item_id, "assistant", source, text);
     this.#broadcastState();
+  }
+
+  #handleUserTranscriptCompleted(event: XAIServerEvent): void {
+    const conversation = this.#conversation;
+    if (!conversation || !event.item_id) return;
+    const text = normalizeText(event.transcript ?? event.text ?? "");
+    if (!text) return;
+    this.#upsertUserTranscript(conversation, event.item_id, text);
+  }
+
+  // xAI emits `conversation.item.input_audio_transcription.completed` for both
+  // partial and final transcripts under the same item_id. The first completed
+  // creates the item; subsequent completeds must overwrite `text` in place and
+  // re-broadcast so the UI re-renders the updated value.
+  #upsertUserTranscript(conversation: MutableConversation<TTools>, id: string, text: string): TranscriptItem {
+    const existing = conversation.transcript.find((item) => item.id === id);
+    if (existing) {
+      if (existing.text === text) return existing;
+      existing.text = text;
+      this.emit("transcript.item", { item: existing, createdAt: new Date() });
+      this.#broadcast({ type: "transcript.item", data: existing });
+      return existing;
+    }
+    return this.#appendTranscriptItemWithId(conversation, id, "user", "microphone", text);
   }
 
   #appendTranscriptItemWithId(
@@ -793,9 +818,10 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     );
   }
 
-  async #handleToolCall(event: { item_id: string; call_id: string; name: string; arguments: string }): Promise<void> {
+  async #handleToolCall(event: XAIServerEvent): Promise<void> {
     const conversation = this.#conversation;
     if (!conversation) return;
+    if (!event.item_id || !event.call_id || !event.name || event.arguments === undefined) return;
     const toolName = event.name;
     const tool = this.#tools[toolName as keyof TTools];
     const failedAt = new Date();
@@ -1003,7 +1029,10 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     // The wait_for_context tool disables auto-response so the model stays silent
     // until fresh context/topics arrive.
     if (this.#status.conversation === "active" && this.#autoResponseEnabled && this.#pendingToolResultCount === 0) {
-      this.#realtime?.send({ type: "response.create" });
+      // Gate on playback-drained: the browser holds this response.create until
+      // any in-flight assistant audio has finished, preventing overlap of the
+      // post-tool turn with the previous turn's tail.
+      this.#realtime?.send({ type: "response.create" }, "playback-drained");
     }
   }
 
@@ -1394,7 +1423,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         this.#failPendingVoiceSession(error);
         // If the session failed mid-conversation (after connect), mark a
         // session error so the controller's wired error handler runs.
-        this.#browserProxiedEmitter?.emit("error", error);
+        this.#browserProxiedEmitter?.emit("error", { type: "error", error: { message: error.message, code: error.code } });
         break;
       }
       case "voice.event": {
@@ -1402,7 +1431,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         if (event && typeof event === "object") {
           const eventRecord = event as Record<string, unknown>;
           const eventType = typeof eventRecord.type === "string" ? eventRecord.type : undefined;
-          if (eventType) this.#browserProxiedEmitter?.emit(eventType, event);
+          if (eventType) this.#browserProxiedEmitter?.emit(eventType, eventRecord as XAIServerEvent);
         }
         break;
       }

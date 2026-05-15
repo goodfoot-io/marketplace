@@ -243,8 +243,11 @@ async function cmdInject(
 
 async function cmdContext(port: number): Promise<void> {
   const text = await readStdin();
-  const wrapped = `<context>${text}</context>`;
-  const res = await postJson(controlPort(port), "/inject/system", { text: wrapped, triggerResponse: true });
+  const res = await postJson(controlPort(port), "/instructions/segment", {
+    kind: "context",
+    text,
+    triggerResponse: true,
+  });
   printJson(JSON.parse(res.body));
 }
 
@@ -254,8 +257,11 @@ async function cmdContext(port: number): Promise<void> {
 
 async function cmdTopics(port: number): Promise<void> {
   const text = await readStdin();
-  const wrapped = `<topics>${text}</topics>`;
-  const res = await postJson(controlPort(port), "/inject/system", { text: wrapped, triggerResponse: true });
+  const res = await postJson(controlPort(port), "/instructions/segment", {
+    kind: "topics",
+    text,
+    triggerResponse: true,
+  });
   printJson(JSON.parse(res.body));
 }
 
@@ -388,13 +394,16 @@ SUBROUTINES (event dispatch)
   §CONTEXT
     When: you have background knowledge, facts, or state the voice
     should absorb silently — without speaking it aloud.
-    Use \`voice context\` — the voice agent will know but will not say.
+    Use \`voice context\` — updates the agent's live instructions with a
+    <context>...</context> block (latest wins, replaces any prior block).
+    The voice agent will know but will not say.
 
   §TOPICS
     When: you want to describe what the voice should talk about next —
     subjects to raise, threads to pick up, directions to steer toward.
-    Use \`voice topics\` — the voice will fold them in naturally.
-    Describe subject matter, not a script.
+    Use \`voice topics\` — updates the agent's live instructions with a
+    <topics>...</topics> block (latest wins). The voice will fold them
+    in naturally. Describe subject matter, not a script.
 
   §CONV_ERROR
     When: event is \`conversation.error\`. Tell the user the voice
@@ -442,15 +451,18 @@ COMMANDS
     steering — \`inject\` is the low-level primitive.
 
   voice context < text
-    System message wrapped in <context>...</context>. The voice absorbs
-    this silently as background knowledge — does NOT speak it aloud.
-    Use this for facts, state, names, numbers, definitions.
+    Updates the agent's live instructions with a <context>...</context>
+    block (latest invocation replaces any prior block). The voice
+    absorbs this silently as background knowledge — does NOT speak it
+    aloud. The avatar will respond to the refresh. Use this for facts,
+    state, names, numbers, definitions.
 
   voice topics < text
-    System message wrapped in <topics>...</topics>. Subjects the voice
-    should talk about; the voice will weave them into the conversation
-    in its own words. Use this to steer what comes next — describe the
-    subject matter, not a script.
+    Updates the agent's live instructions with a <topics>...</topics>
+    block (latest invocation replaces any prior block). Subjects the
+    voice should talk about; the voice will weave them into the
+    conversation in its own words. Use this to steer what comes next —
+    describe the subject matter, not a script.
 
   voice cancel-tool <callId>
     Cancel an in-flight tool call by its call ID.

@@ -86,6 +86,36 @@ interface StagedSystemMessage {
 
 const stagedSystemMessages: StagedSystemMessage[] = [];
 
+// Latest <context> / <topics> segments. These are folded into the agent's
+// live instructions via `controller.updateVoiceSession({ instructions })`
+// rather than injected as conversation history. Each new `voice context` /
+// `voice topics` invocation REPLACES the previous block (latest-wins).
+let latestContext: string | null = null;
+let latestTopics: string | null = null;
+
+// Set when a /instructions/segment arrives while a response is in flight.
+// Drained on `response.completed` alongside `queuedInjections`.
+let queuedInstructionsUpdate = false;
+
+function rebuildInstructions(): string {
+  let result = instructions;
+  if (latestContext !== null) result += `\n\n<context>${latestContext}</context>`;
+  if (latestTopics !== null) result += `\n\n<topics>${latestTopics}</topics>`;
+  return result;
+}
+
+function flushStagedInstructions(): void {
+  if (latestContext === null && latestTopics === null) return;
+  controller
+    .updateVoiceSession({ instructions: rebuildInstructions() })
+    .then(() => {
+      scheduleResponse();
+    })
+    .catch((err: unknown) => {
+      appendEvent("conversation.error", { error: String(err) });
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Client registry & lifecycle
 // ---------------------------------------------------------------------------
@@ -281,14 +311,28 @@ controller.on("conversation.ended", clearQueuedInjections);
 controller.on("conversation.reset", clearQueuedInjections);
 
 controller.on("response.completed", () => {
-  if (queuedInjections.length === 0) return;
-  const drained = queuedInjections.splice(0);
-  for (const text of drained) {
-    controller.injectSystemMessage({ text, triggerResponse: false }).catch((err: unknown) => {
-      appendEvent("conversation.error", { error: String(err) });
-    });
+  const hadInjections = queuedInjections.length > 0;
+  if (hadInjections) {
+    const drained = queuedInjections.splice(0);
+    for (const text of drained) {
+      controller.injectSystemMessage({ text, triggerResponse: false }).catch((err: unknown) => {
+        appendEvent("conversation.error", { error: String(err) });
+      });
+    }
   }
-  scheduleResponse();
+  if (queuedInstructionsUpdate) {
+    queuedInstructionsUpdate = false;
+    controller
+      .updateVoiceSession({ instructions: rebuildInstructions() })
+      .then(() => {
+        scheduleResponse();
+      })
+      .catch((err: unknown) => {
+        appendEvent("conversation.error", { error: String(err) });
+      });
+  } else if (hadInjections) {
+    scheduleResponse();
+  }
 });
 
 // Flush staged system messages when a conversation becomes active
@@ -302,11 +346,13 @@ controller.on("conversation.started", () => {
     });
   }
   if (anyTrigger) scheduleResponse();
+  flushStagedInstructions();
 });
 
 // Auto-start a conversation once the browser is ready, if messages are staged.
 function tryAutoStartForStaged(): void {
-  if (stagedSystemMessages.length === 0) return;
+  const hasStagedInstructions = latestContext !== null || latestTopics !== null;
+  if (stagedSystemMessages.length === 0 && !hasStagedInstructions) return;
   if (controller.status.conversation !== "none") return;
   controller.startConversation().catch((err: unknown) => {
     appendEvent("conversation.error", { error: String(err) });
@@ -494,6 +540,74 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
       });
       if (parsed.triggerResponse === true) scheduleResponse();
       sendJson(res, 200, serializeData(item as unknown as Record<string, unknown>));
+      return;
+    }
+
+    if (method === "POST" && pathname === "/instructions/segment") {
+      const raw = await readBody(req);
+      const parsed = JSON.parse(raw) as { kind?: string; text?: unknown; triggerResponse?: boolean };
+      if (parsed.kind !== "context" && parsed.kind !== "topics") {
+        sendJson(res, 400, { error: "invalid kind" });
+        return;
+      }
+      if (typeof parsed.text !== "string") {
+        sendJson(res, 400, { error: "text must be a string" });
+        return;
+      }
+      const kind = parsed.kind;
+      const trimmed = parsed.text.trim();
+      if (trimmed.length === 0) {
+        if (kind === "context") latestContext = null;
+        else latestTopics = null;
+      } else {
+        if (kind === "context") latestContext = trimmed;
+        else latestTopics = trimmed;
+      }
+
+      let convStatus = controller.status.conversation;
+      if (convStatus === "none") {
+        try {
+          await controller.startConversation();
+          convStatus = controller.status.conversation;
+        } catch (err: unknown) {
+          sendJson(res, 200, { staged: true, startError: String(err) });
+          return;
+        }
+      }
+      if (convStatus !== "active" && convStatus !== "paused") {
+        sendJson(res, 200, { staged: true });
+        return;
+      }
+
+      // wait_for_context re-entry: fresh context/topics has arrived, so
+      // re-enable auto-response for subsequent VAD-driven turns.
+      if (waitingForContext && (latestContext !== null || latestTopics !== null)) {
+        waitingForContext = false;
+        controller.broadcastToBrowser({ type: "wait_for_context.end" });
+        try {
+          await controller.setAutoResponse(true);
+        } catch (err: unknown) {
+          appendEvent("conversation.error", { error: String(err) });
+        }
+      }
+
+      // If a response is currently streaming, defer the session.update so
+      // the refreshed instructions take effect against the post-response
+      // state, not mid-stream.
+      if (controller.responseInFlight) {
+        queuedInstructionsUpdate = true;
+        sendJson(res, 200, { queued: true, kind, latestContext: latestContext !== null, latestTopics: latestTopics !== null });
+        return;
+      }
+
+      try {
+        await controller.updateVoiceSession({ instructions: rebuildInstructions() });
+      } catch (err: unknown) {
+        sendJson(res, 500, { error: String(err) });
+        return;
+      }
+      if (parsed.triggerResponse !== false) scheduleResponse();
+      sendJson(res, 200, { ok: true, kind, latestContext: latestContext !== null, latestTopics: latestTopics !== null });
       return;
     }
 

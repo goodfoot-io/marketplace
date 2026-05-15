@@ -531,6 +531,38 @@
         display: none !important;
       }
 
+      .thinking {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        padding: 6px 10px;
+        margin: 0 16px 8px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      .thinking[hidden] {
+        display: none;
+      }
+
+      .thinking .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        opacity: 0.4;
+        animation: thinking-pulse 1s ease-in-out infinite;
+      }
+
+      .thinking .dot:nth-child(2) { animation-delay: 0.15s; }
+      .thinking .dot:nth-child(3) { animation-delay: 0.3s; }
+
+      @keyframes thinking-pulse {
+        0%, 100% { opacity: 0.3; transform: scale(0.85); }
+        50% { opacity: 1; transform: scale(1.1); }
+      }
+
     </style>
   </head>
   <body>
@@ -561,6 +593,9 @@
         </div>
       </section>
       <section class="transcript" id="transcript" role="log" aria-live="polite" aria-label="Conversation transcript"></section>
+      <div id="thinking" class="thinking" hidden aria-live="polite">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
       <audio id="remoteAudio" autoplay playsinline class="hidden"></audio>
       <footer class="input-bar">
         <div class="input-row">
@@ -585,14 +620,17 @@
           micStream: undefined,
           micTrack: undefined,
           micSourceNode: undefined,
-          processorNode: undefined,
+          workletNode: undefined,
           inputCtx: undefined,
           outputCtx: undefined,
           nextPlaybackTime: 0,
+          playbackEndsAt: 0,
           analyser: undefined,
           analyserCtx: undefined,
           metersStarted: false,
           pendingSends: [],
+          preOpenAudio: [],
+          deferredSends: [],
           sessionInFlight: false,
           tokenExpiresAt: 0,
           paused: false,
@@ -786,7 +824,7 @@
           teardownVoice();
         }
         if (message.type === "voice.send") {
-          forwardVoiceSend(message.data?.event);
+          forwardVoiceSend(message.data?.event, message.data?.gate);
         }
         // audio.output.delta is broadcast by the daemon for visualizer use
         // only — playback is driven directly by the xAI WS message handler in
@@ -977,7 +1015,7 @@
           let ctx = state.voice.outputCtx;
           if (!ctx) {
             const Ctx = window.AudioContext || window.webkitAudioContext;
-            ctx = new Ctx({ sampleRate: 24000 });
+            ctx = new Ctx({ sampleRate: 48000 });
             state.voice.outputCtx = ctx;
           }
           if (ctx.state === "suspended") {
@@ -985,7 +1023,7 @@
               dlog("outputCtx.resume.failed", { message: String(error?.message ?? error) });
             });
           }
-          const buffer = ctx.createBuffer(1, samples.length, 24000);
+          const buffer = ctx.createBuffer(1, samples.length, 48000);
           buffer.copyToChannel(samples, 0);
           const source = ctx.createBufferSource();
           source.buffer = buffer;
@@ -993,7 +1031,10 @@
           const now = ctx.currentTime;
           const startAt = Math.max(now, state.voice.nextPlaybackTime);
           source.start(startAt);
-          state.voice.nextPlaybackTime = startAt + buffer.duration;
+          const endsAt = startAt + buffer.duration;
+          state.voice.nextPlaybackTime = endsAt;
+          state.voice.playbackEndsAt = Math.max(state.voice.playbackEndsAt || 0, endsAt);
+          source.addEventListener("ended", checkPlaybackDrained);
         } catch (error) {
           sendMessage("browser.audio.error", {
             code: "AUDIO_DECODE_FAILED",
@@ -1029,6 +1070,15 @@
           state.voice.micTrack = track;
           startMeters(stream);
 
+          // Start mic encoder IMMEDIATELY (in parallel with WS connect) so we
+          // never miss the user's opening utterance. Frames captured before WS
+          // open are buffered in state.voice.preOpenAudio and flushed AFTER the
+          // session.update lands (which declares the 48 kHz PCM format) — order
+          // matters: a server-side audio buffer interpreted under the default
+          // 24 kHz rate would garble the input.
+          state.voice.preOpenAudio = [];
+          await startMicEncoder(stream);
+
           const safeToken = sanitizeSubprotocolToken(token.clientSecret);
           // xAI tokens may be JWT-style (base64url) — already subprotocol-safe;
           // sanitization is a defensive no-op in that case but surfaces format
@@ -1040,16 +1090,25 @@
           state.voice.xaiWs = ws;
 
           ws.addEventListener("open", () => {
-            dlog("xaiWs.open", { readyState: ws.readyState });
+            dlog("xaiWs.open", { readyState: ws.readyState, queuedAudioFrames: state.voice.preOpenAudio.length });
             state.voice.xaiOpen = true;
-            // Start the mic encoder pipeline now that the channel is open.
-            startMicEncoder(stream);
+            // 1) Flush pendingSends first — this is where the daemon's
+            //    session.update lives (declaring the 48 kHz PCM format).
+            //    Per the xAI doc, session.update MUST precede any
+            //    input_audio_buffer.append, otherwise the server interprets
+            //    audio under the 24 kHz default and the input is garbled.
             for (const payload of state.voice.pendingSends) {
               try { ws.send(payload); } catch (error) {
                 dlog("xaiWs.send.pending.failed", { message: String(error?.message ?? error) });
               }
             }
             state.voice.pendingSends = [];
+            // 2) Drain buffered mic audio captured before WS open.
+            for (const b64 of state.voice.preOpenAudio) {
+              try { ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 })); }
+              catch (error) { dlog("xaiWs.send.preOpenAudio.failed", { message: String(error?.message ?? error) }); }
+            }
+            state.voice.preOpenAudio = [];
             if (!state.voice.connectedSent) {
               state.voice.connectedSent = true;
               state.voice.sessionInFlight = false;
@@ -1065,8 +1124,16 @@
             }
             if (parsed?.type === "response.created") {
               state.realtime.responseActive = true;
+              setThinking(false);
             } else if (parsed?.type === "response.done" || parsed?.type === "response.cancelled" || parsed?.type === "response.failed") {
               state.realtime.responseActive = false;
+            }
+            if (parsed?.type === "response.cancelled") {
+              // Barge-in / cancel: drop any deferred (gated) sends since the
+              // user has already started a new turn — a stale post-tool
+              // response.create would replay the previous turn's intent.
+              state.voice.deferredSends = [];
+              setThinking(false);
             }
             // output_audio_buffer.{started,stopped,cleared} are WebRTC/SIP only —
             // not emitted on the WS path. The pending pause cut is driven by a
@@ -1122,30 +1189,73 @@
         }
       }
 
-      function startMicEncoder(stream) {
+      // AudioWorklet PCM16 encoder: runs off the main thread, emits 100 ms
+      // chunks (4800 samples @ 48 kHz mono). Defined inline via a Blob URL so
+      // the single-file UI is preserved.
+      const PCM16_WORKLET_SRC = `
+        class Pcm16Encoder extends AudioWorkletProcessor {
+          constructor() { super(); this.buf = []; this.target = 4800; }
+          process(inputs) {
+            const ch = inputs[0] && inputs[0][0];
+            if (!ch) return true;
+            this.buf.push(new Float32Array(ch));
+            let total = 0;
+            for (const b of this.buf) total += b.length;
+            while (total >= this.target) {
+              const out = new Int16Array(this.target);
+              let written = 0;
+              while (written < this.target) {
+                const head = this.buf[0];
+                const take = Math.min(head.length, this.target - written);
+                for (let i = 0; i < take; i++) {
+                  const s = Math.max(-1, Math.min(1, head[i]));
+                  out[written + i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+                }
+                if (take === head.length) this.buf.shift();
+                else this.buf[0] = head.subarray(take);
+                written += take;
+              }
+              total -= this.target;
+              this.port.postMessage(out.buffer, [out.buffer]);
+            }
+            return true;
+          }
+        }
+        registerProcessor("pcm16-encoder", Pcm16Encoder);
+      `;
+
+      async function startMicEncoder(stream) {
         try {
           const Ctx = window.AudioContext || window.webkitAudioContext;
-          const ctx = new Ctx({ sampleRate: 24000 });
+          const ctx = new Ctx({ sampleRate: 48000 });
           state.voice.inputCtx = ctx;
           if (ctx.state === "suspended") {
             ctx.resume().catch((error) => dlog("inputCtx.resume.failed", { message: String(error?.message ?? error) }));
           }
           const source = ctx.createMediaStreamSource(stream);
           state.voice.micSourceNode = source;
-          // ScriptProcessor: deprecated but universally supported. AudioWorklet
-          // would require a separate module URL which complicates the bundled
-          // single-file UI; ScriptProcessor is acceptable for 24 kHz mono PCM.
-          const bufferSize = 2048;
-          const processor = ctx.createScriptProcessor(bufferSize, 1, 1);
-          state.voice.processorNode = processor;
-          processor.onaudioprocess = (event) => {
+          const blob = new Blob([PCM16_WORKLET_SRC], { type: "application/javascript" });
+          const url = URL.createObjectURL(blob);
+          try {
+            await ctx.audioWorklet.addModule(url);
+          } finally {
+            URL.revokeObjectURL(url);
+          }
+          const node = new AudioWorkletNode(ctx, "pcm16-encoder");
+          state.voice.workletNode = node;
+          node.port.onmessage = (event) => {
             if (state.voice.paused) return;
-            const ws = state.voice.xaiWs;
-            if (!ws || ws.readyState !== WebSocket.OPEN) return;
-            const input = event.inputBuffer.getChannelData(0);
             try {
-              const b64 = float32ToPcm16Base64(input);
-              ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 }));
+              const b64 = bytesToBase64Buf(new Uint8Array(event.data));
+              const ws = state.voice.xaiWs;
+              if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 }));
+              } else {
+                // Pre-open: buffer with a bounded cap to keep memory tame in
+                // case WS open is unusually delayed (e.g. slow handshake).
+                state.voice.preOpenAudio.push(b64);
+                if (state.voice.preOpenAudio.length > 50) state.voice.preOpenAudio.shift();
+              }
             } catch (error) {
               sendMessage("browser.audio.error", {
                 code: "AUDIO_ENCODE_FAILED",
@@ -1154,8 +1264,10 @@
               });
             }
           };
-          source.connect(processor);
-          processor.connect(ctx.destination);
+          // Intentional: do NOT connect node to ctx.destination — the encoder
+          // is a pure tap, output goes via postMessage. Connecting to
+          // destination would echo mic input to the local speakers.
+          source.connect(node);
         } catch (error) {
           dlog("startMicEncoder.failed", { message: String(error?.message ?? error) });
           sendMessage("browser.audio.error", {
@@ -1166,8 +1278,13 @@
         }
       }
 
-      function forwardVoiceSend(event) {
+      function forwardVoiceSend(event, gate) {
         if (!event) return;
+        if (gate === "playback-drained" && !isPlaybackDrained()) {
+          state.voice.deferredSends.push(event);
+          setThinking(true);
+          return;
+        }
         const payload = JSON.stringify(event);
         const ws = state.voice.xaiWs;
         if (ws && state.voice.xaiOpen) {
@@ -1182,6 +1299,37 @@
         state.voice.pendingSends.push(payload);
       }
 
+      function isPlaybackDrained() {
+        const ctx = state.voice.outputCtx;
+        const endsAt = state.voice.playbackEndsAt;
+        if (!endsAt) return true;
+        if (!ctx) return true;
+        return ctx.currentTime >= endsAt - 0.01;
+      }
+
+      function checkPlaybackDrained() {
+        if (!isPlaybackDrained()) return;
+        // Flush any sends gated on playback completion.
+        const ws = state.voice.xaiWs;
+        if (state.voice.deferredSends.length === 0) {
+          setThinking(false);
+          return;
+        }
+        if (ws && state.voice.xaiOpen) {
+          for (const event of state.voice.deferredSends) {
+            try { ws.send(JSON.stringify(event)); }
+            catch (error) { dlog("xaiWs.send.deferred.failed", { message: String(error?.message ?? error) }); }
+          }
+          state.voice.deferredSends = [];
+        }
+        setThinking(false);
+      }
+
+      function setThinking(visible) {
+        const node = $("thinking");
+        if (node) node.hidden = !visible;
+      }
+
       function failVoice(code, message) {
         dlog("failVoice", { code, message });
         sendMessage("voice.session.failed", { error: { code, message } });
@@ -1189,12 +1337,15 @@
       }
 
       function teardownVoice() {
-        const { xaiWs, micStream, analyserCtx, processorNode, micSourceNode, inputCtx, outputCtx } = state.voice;
+        const { xaiWs, micStream, analyserCtx, workletNode, micSourceNode, inputCtx, outputCtx } = state.voice;
         if (xaiWs) {
           try { xaiWs.close(); } catch (error) { dlog("teardown.xaiWs.close.failed", { message: String(error?.message ?? error) }); }
         }
-        if (processorNode) {
-          try { processorNode.disconnect(); } catch (error) { dlog("teardown.processor.disconnect.failed", { message: String(error?.message ?? error) }); }
+        if (workletNode) {
+          try {
+            workletNode.port.onmessage = null;
+            workletNode.disconnect();
+          } catch (error) { dlog("teardown.worklet.disconnect.failed", { message: String(error?.message ?? error) }); }
         }
         if (micSourceNode) {
           try { micSourceNode.disconnect(); } catch (error) { dlog("teardown.micSource.disconnect.failed", { message: String(error?.message ?? error) }); }
@@ -1217,16 +1368,20 @@
         state.voice.micStream = undefined;
         state.voice.micTrack = undefined;
         state.voice.micSourceNode = undefined;
-        state.voice.processorNode = undefined;
+        state.voice.workletNode = undefined;
         state.voice.inputCtx = undefined;
         state.voice.outputCtx = undefined;
         state.voice.nextPlaybackTime = 0;
+        state.voice.playbackEndsAt = 0;
         state.voice.analyser = undefined;
         state.voice.analyserCtx = undefined;
         state.voice.pendingSends = [];
+        state.voice.preOpenAudio = [];
+        state.voice.deferredSends = [];
         state.voice.sessionInFlight = false;
         state.voice.tokenExpiresAt = 0;
         state.voice.paused = false;
+        setThinking(false);
       }
 
       function applyPauseState(status, previousStatus) {
@@ -1296,8 +1451,12 @@
           const stream = await acquireMicStream(deviceId);
           // Tear down the existing mic encoder pipeline and rebuild it on the
           // new stream. The xAI WS stays open; only the mic capture changes.
-          if (state.voice.processorNode) {
-            try { state.voice.processorNode.disconnect(); } catch (error) { dlog("switchMic.processor.disconnect.failed", { message: String(error?.message ?? error) }); }
+          if (state.voice.workletNode) {
+            try {
+              state.voice.workletNode.port.onmessage = null;
+              state.voice.workletNode.disconnect();
+            } catch (error) { dlog("switchMic.worklet.disconnect.failed", { message: String(error?.message ?? error) }); }
+            state.voice.workletNode = undefined;
           }
           if (state.voice.micSourceNode) {
             try { state.voice.micSourceNode.disconnect(); } catch (error) { dlog("switchMic.micSource.disconnect.failed", { message: String(error?.message ?? error) }); }
@@ -1311,7 +1470,7 @@
           }
           state.voice.micStream = stream;
           state.voice.micTrack = stream.getAudioTracks()[0];
-          startMicEncoder(stream);
+          await startMicEncoder(stream);
           startMeters(stream);
         } catch (error) {
           renderAudioError({
