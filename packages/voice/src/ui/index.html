@@ -625,6 +625,7 @@
           outputCtx: undefined,
           nextPlaybackTime: 0,
           playbackEndsAt: 0,
+          scheduledSources: [],
           analyser: undefined,
           analyserCtx: undefined,
           metersStarted: false,
@@ -1034,7 +1035,12 @@
           const endsAt = startAt + buffer.duration;
           state.voice.nextPlaybackTime = endsAt;
           state.voice.playbackEndsAt = Math.max(state.voice.playbackEndsAt || 0, endsAt);
-          source.addEventListener("ended", checkPlaybackDrained);
+          state.voice.scheduledSources.push(source);
+          source.addEventListener("ended", () => {
+            const idx = state.voice.scheduledSources.indexOf(source);
+            if (idx !== -1) state.voice.scheduledSources.splice(idx, 1);
+            checkPlaybackDrained();
+          });
         } catch (error) {
           sendMessage("browser.audio.error", {
             code: "AUDIO_DECODE_FAILED",
@@ -1128,10 +1134,11 @@
             } else if (parsed?.type === "response.done" || parsed?.type === "response.cancelled" || parsed?.type === "response.failed") {
               state.realtime.responseActive = false;
             }
-            if (parsed?.type === "response.cancelled") {
-              // Barge-in / cancel: drop any deferred (gated) sends since the
-              // user has already started a new turn — a stale post-tool
-              // response.create would replay the previous turn's intent.
+            if (parsed?.type === "input_audio_buffer.speech_started" || parsed?.type === "response.cancelled") {
+              // Barge-in: stop in-flight playback immediately. speech_started
+              // is the leading-edge signal from xAI's server VAD; response.cancelled
+              // is the after-effect. Whichever lands first cuts the audio tail.
+              stopScheduledPlayback();
               state.voice.deferredSends = [];
               setThinking(false);
             }
@@ -1323,6 +1330,17 @@
           state.voice.deferredSends = [];
         }
         setThinking(false);
+      }
+
+      function stopScheduledPlayback() {
+        const sources = state.voice.scheduledSources;
+        if (!sources) return;
+        for (const source of sources.splice(0)) {
+          try { source.stop(); } catch (error) { /* already ended */ }
+          try { source.disconnect(); } catch (error) { /* noop */ }
+        }
+        state.voice.nextPlaybackTime = 0;
+        state.voice.playbackEndsAt = 0;
       }
 
       function setThinking(visible) {
