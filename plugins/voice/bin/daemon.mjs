@@ -36,9 +36,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/constants.js
+// ../../node_modules/ws/lib/constants.js
 var require_constants = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/constants.js"(exports, module) {
+  "../../node_modules/ws/lib/constants.js"(exports, module) {
     "use strict";
     var BINARY_TYPES = ["nodebuffer", "arraybuffer", "fragments"];
     var hasBlob = typeof Blob !== "undefined";
@@ -58,9 +58,9 @@ var require_constants = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/buffer-util.js
+// ../../node_modules/ws/lib/buffer-util.js
 var require_buffer_util = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/buffer-util.js"(exports, module) {
+  "../../node_modules/ws/lib/buffer-util.js"(exports, module) {
     "use strict";
     var { EMPTY_BUFFER } = require_constants();
     var FastBuffer = Buffer[Symbol.species];
@@ -133,9 +133,9 @@ var require_buffer_util = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/limiter.js
+// ../../node_modules/ws/lib/limiter.js
 var require_limiter = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/limiter.js"(exports, module) {
+  "../../node_modules/ws/lib/limiter.js"(exports, module) {
     "use strict";
     var kDone = Symbol("kDone");
     var kRun = Symbol("kRun");
@@ -183,9 +183,9 @@ var require_limiter = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/permessage-deflate.js
+// ../../node_modules/ws/lib/permessage-deflate.js
 var require_permessage_deflate = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/permessage-deflate.js"(exports, module) {
+  "../../node_modules/ws/lib/permessage-deflate.js"(exports, module) {
     "use strict";
     var zlib = __require("zlib");
     var bufferUtil = require_buffer_util();
@@ -566,9 +566,9 @@ var require_permessage_deflate = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/validation.js
+// ../../node_modules/ws/lib/validation.js
 var require_validation = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/validation.js"(exports, module) {
+  "../../node_modules/ws/lib/validation.js"(exports, module) {
     "use strict";
     var { isUtf8 } = __require("buffer");
     var { hasBlob } = require_constants();
@@ -767,9 +767,9 @@ var require_validation = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/receiver.js
+// ../../node_modules/ws/lib/receiver.js
 var require_receiver = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/receiver.js"(exports, module) {
+  "../../node_modules/ws/lib/receiver.js"(exports, module) {
     "use strict";
     var { Writable } = __require("stream");
     var PerMessageDeflate = require_permessage_deflate();
@@ -1359,9 +1359,9 @@ var require_receiver = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/sender.js
+// ../../node_modules/ws/lib/sender.js
 var require_sender = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/sender.js"(exports, module) {
+  "../../node_modules/ws/lib/sender.js"(exports, module) {
     "use strict";
     var { Duplex } = __require("stream");
     var { randomFillSync } = __require("crypto");
@@ -1847,9 +1847,9 @@ var require_sender = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/event-target.js
+// ../../node_modules/ws/lib/event-target.js
 var require_event_target = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/event-target.js"(exports, module) {
+  "../../node_modules/ws/lib/event-target.js"(exports, module) {
     "use strict";
     var { kForOnEventAttribute, kListener } = require_constants();
     var kCode = Symbol("kCode");
@@ -2076,9 +2076,9 @@ var require_event_target = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/extension.js
+// ../../node_modules/ws/lib/extension.js
 var require_extension = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/extension.js"(exports, module) {
+  "../../node_modules/ws/lib/extension.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function push(dest, name, elem) {
@@ -2229,9 +2229,9 @@ var require_extension = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/websocket.js
+// ../../node_modules/ws/lib/websocket.js
 var require_websocket = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/websocket.js"(exports, module) {
+  "../../node_modules/ws/lib/websocket.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var https = __require("https");
@@ -3112,9 +3112,9 @@ var require_websocket = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/stream.js
+// ../../node_modules/ws/lib/stream.js
 var require_stream = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/stream.js"(exports, module) {
+  "../../node_modules/ws/lib/stream.js"(exports, module) {
     "use strict";
     var WebSocket2 = require_websocket();
     var { Duplex } = __require("stream");
@@ -3210,9 +3210,9 @@ var require_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/subprotocol.js
+// ../../node_modules/ws/lib/subprotocol.js
 var require_subprotocol = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/subprotocol.js"(exports, module) {
+  "../../node_modules/ws/lib/subprotocol.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function parse(header) {
@@ -3255,9 +3255,9 @@ var require_subprotocol = __commonJS({
   }
 });
 
-// ../../../../../../../../../../workspace/node_modules/ws/lib/websocket-server.js
+// ../../node_modules/ws/lib/websocket-server.js
 var require_websocket_server = __commonJS({
-  "../../../../../../../../../../workspace/node_modules/ws/lib/websocket-server.js"(exports, module) {
+  "../../node_modules/ws/lib/websocket-server.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var http = __require("http");
@@ -3648,7 +3648,7 @@ var require_websocket_server = __commonJS({
 import { appendFileSync, closeSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer as createServer2 } from "node:http";
 
-// ../../../../../../../../../../workspace/node_modules/zod/v3/external.js
+// ../../node_modules/zod/v3/external.js
 var external_exports = {};
 __export(external_exports, {
   BRAND: () => BRAND,
@@ -3760,7 +3760,7 @@ __export(external_exports, {
   void: () => voidType
 });
 
-// ../../../../../../../../../../workspace/node_modules/zod/v3/helpers/util.js
+// ../../node_modules/zod/v3/helpers/util.js
 var util;
 (function(util2) {
   util2.assertEqual = (_) => {
@@ -3894,7 +3894,7 @@ var getParsedType = (data) => {
   }
 };
 
-// ../../../../../../../../../../workspace/node_modules/zod/v3/ZodError.js
+// ../../node_modules/zod/v3/ZodError.js
 var ZodIssueCode = util.arrayToEnum([
   "invalid_type",
   "invalid_literal",
@@ -4012,7 +4012,7 @@ ZodError.create = (issues) => {
   return error;
 };
 
-// ../../../../../../../../../../workspace/node_modules/zod/v3/locales/en.js
+// ../../node_modules/zod/v3/locales/en.js
 var errorMap = (issue, _ctx) => {
   let message;
   switch (issue.code) {
@@ -4115,7 +4115,7 @@ var errorMap = (issue, _ctx) => {
 };
 var en_default = errorMap;
 
-// ../../../../../../../../../../workspace/node_modules/zod/v3/errors.js
+// ../../node_modules/zod/v3/errors.js
 var overrideErrorMap = en_default;
 function setErrorMap(map) {
   overrideErrorMap = map;
@@ -4124,7 +4124,7 @@ function getErrorMap() {
   return overrideErrorMap;
 }
 
-// ../../../../../../../../../../workspace/node_modules/zod/v3/helpers/parseUtil.js
+// ../../node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
   const { data, path, errorMaps, issueData } = params;
   const fullPath = [...path, ...issueData.path || []];
@@ -4234,14 +4234,14 @@ var isDirty = (x) => x.status === "dirty";
 var isValid = (x) => x.status === "valid";
 var isAsync = (x) => typeof Promise !== "undefined" && x instanceof Promise;
 
-// ../../../../../../../../../../workspace/node_modules/zod/v3/helpers/errorUtil.js
+// ../../node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
 (function(errorUtil2) {
   errorUtil2.errToObj = (message) => typeof message === "string" ? { message } : message || {};
   errorUtil2.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
 
-// ../../../../../../../../../../workspace/node_modules/zod/v3/types.js
+// ../../node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
   constructor(parent, value, path, key) {
     this._cachedPath = [];
@@ -7692,7 +7692,7 @@ var NEVER = INVALID;
 // src/controller.ts
 import { createServer } from "node:http";
 
-// ../../../../../../../../../../workspace/node_modules/ws/wrapper.mjs
+// ../../node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
 var import_receiver = __toESM(require_receiver(), 1);
 var import_sender = __toESM(require_sender(), 1);
