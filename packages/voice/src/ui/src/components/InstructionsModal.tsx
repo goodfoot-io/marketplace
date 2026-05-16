@@ -58,7 +58,7 @@ export function InstructionsModal(): React.JSX.Element | null {
             <span className="codicon codicon-close" aria-hidden="true" />
           </button>
         </div>
-        <div className="modal-body">
+        <div className="modal-body instructions-body">
           {instructions === undefined ? (
             <p className="loading-state">Loading instructions…</p>
           ) : (

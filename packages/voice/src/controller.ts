@@ -440,8 +440,15 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         server: this.#status.server,
       });
     }
+    const knownKeys = new Set(["instructions", "tools"]);
+    const unknownKeys = Object.keys(input).filter((k) => !knownKeys.has(k));
+    if (unknownKeys.length > 0) {
+      throw this.#fail("SESSION_UPDATE_FAILED", "Realtime update input contains unknown keys.", {
+        unknownKeys,
+      });
+    }
     const toolEntries = Object.entries(input.tools ?? {});
-    if ((input.instructions === undefined || input.instructions === "") && toolEntries.length === 0) {
+    if (input.instructions === undefined && toolEntries.length === 0) {
       throw this.#fail("SESSION_UPDATE_FAILED", "Realtime update input cannot be empty.");
     }
     for (const [toolName] of toolEntries) {

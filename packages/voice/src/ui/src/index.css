@@ -321,6 +321,28 @@ select {
   font-style: italic;
 }
 
+/* Q4/instructions-context-unreadable: preserve newlines in folded <context>/
+   <topics> segments that react-markdown renders as text nodes. Normal markdown
+   elements (p, ul, etc.) are block-level and unaffected by pre-wrap. */
+.instructions-body {
+  white-space: pre-wrap;
+}
+
+/* Block-level markdown elements reset wrapping so prose flows normally. */
+.instructions-body p,
+.instructions-body ul,
+.instructions-body ol,
+.instructions-body li,
+.instructions-body blockquote,
+.instructions-body h1,
+.instructions-body h2,
+.instructions-body h3,
+.instructions-body h4,
+.instructions-body h5,
+.instructions-body h6 {
+  white-space: normal;
+}
+
 /* ── Transcript content ───────────────────────────────────────────────── */
 .empty-state,
 .ended-state {

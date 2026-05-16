@@ -112,6 +112,11 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
   let mintRetryCount = 0;
   let metronomeCtx: AudioContext | undefined;
   let metronomeTimer: ReturnType<typeof setInterval> | undefined;
+  // Detaches the close/error listeners from the live xAI socket so a clean
+  // teardown of a CONNECTED session does not re-enter failVoice via the
+  // close handler reading the (already reset) refs (spurious
+  // voice.session.failed). Reset on every fresh socket.
+  let detachXaiWsListeners: (() => void) | undefined;
 
   const reportAudioError = (code: string, message: string, suggestedAction: string): void => {
     sendToHost("browser.audio.error", { code, message, suggestedAction });
@@ -417,6 +422,35 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
     sendToHost("voice.session.requested");
   };
 
+  /**
+   * Ports the vanilla SPA's `voice.session.start` message handler: when the
+   * daemon asks the browser to start a voice session (e.g. connectOnPageLoad
+   * or a fresh conversation) and one is not already in flight, reply with
+   * `voice.session.requested` so the daemon mints a token. Vanilla did NOT
+   * send `conversation.start` here and did NOT gate on autoplay — the daemon
+   * already owns the conversation; this is purely the token handshake.
+   *
+   * Q22 coexistence: `host/voice/session/start` is ALSO dispatched by the
+   * probe-pending click sub-case (autoplayAllowed === null), where the intent
+   * is only to capture pendingSessionStart, not to start. Distinguish the two:
+   * the server-driven start is only honored once the xAI WS is not already
+   * open and a session is not already in flight — matching vanilla's single
+   * `!sessionInFlight` guard while not double-starting the click path.
+   */
+  const onServerSessionStart = (): void => {
+    const { voice, audio } = getState();
+    // The probe-pending click sub-case (Q22) dispatches the SAME action while
+    // autoplayAllowed === null purely to capture pendingSessionStart; the
+    // autoplayRunner replays the click once the probe resolves. Do not treat
+    // that as a server-driven start — wait until the probe has resolved (which
+    // also means the boot probe has had a chance to mark audio ready, exactly
+    // as the vanilla SPA required before its voice.session.start handshake).
+    if (audio.autoplayAllowed === null) return;
+    if (voice.sessionInFlight || voice.xaiOpen || refs.xaiWs) return;
+    dispatch({ type: "voice/session/in-flight", inFlight: true });
+    sendToHost("voice.session.requested");
+  };
+
   // Q12 / Q22 / Q45: interpret the primary click against voice + audio slices.
   const onPrimaryClick = (): void => {
     const { voice, audio } = getState();
@@ -448,14 +482,18 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
       return;
     }
 
-    // Pause branch.
+    // Pause branch. Vanilla sent conversation.pause on the click so the
+    // daemon's conversation.status round-trip drives server-side
+    // conversation.paused events; the rebuild ALSO applies the local cut.
     if (voice.xaiOpen && !voice.paused) {
+      sendToHost("conversation.pause");
       applyPause();
       return;
     }
 
-    // Resume branch.
+    // Resume branch. Vanilla sent conversation.resume on the click.
     if (voice.xaiOpen && voice.paused) {
+      sendToHost("conversation.resume");
       applyResume();
     }
   };
@@ -584,7 +622,7 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
         }
       });
 
-      ws.addEventListener("close", (event) => {
+      const onWsClose = (event: CloseEvent): void => {
         lastCloseCode = event.code;
         lastCloseReason = event.reason;
         dispatch({
@@ -603,9 +641,9 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
           });
           teardownVoice();
         }
-      });
+      };
 
-      ws.addEventListener("error", () => {
+      const onWsError = (): void => {
         dispatch({ type: "xai/ws/error" });
         if (!refs.connectedSent) {
           const closeInfo =
@@ -617,7 +655,20 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
             `xAI WebSocket handshake failed. Attempted: wss://api.x.ai/v1/realtime with subprotocol prefix "xai-client-secret" (token not logged).${closeInfo} Possible causes: CORS policy, invalid/expired token, wrong subprotocol format, or origin not allowlisted.`,
           );
         }
-      });
+      };
+
+      ws.addEventListener("close", onWsClose);
+      ws.addEventListener("error", onWsError);
+      // Bind the lifetime guard to THIS socket. teardownVoice() reassigns
+      // `refs = freshRefs()` (connectedSent → false); without detaching, the
+      // close handler of a cleanly torn-down CONNECTED session would read the
+      // reset refs, see !connectedSent, and emit a spurious
+      // voice.session.failed (VOICE_WS_REJECTED) + recursive teardown. Detach
+      // before close so a clean teardown is silent on the wire.
+      detachXaiWsListeners = () => {
+        ws.removeEventListener("close", onWsClose);
+        ws.removeEventListener("error", onWsError);
+      };
     } catch (error) {
       failVoice("VOICE_SETUP_FAILED", errStr(error));
     }
@@ -811,6 +862,12 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
 
   function teardownVoice(): void {
     const { xaiWs, micStream, analyserCtx, workletNode, micSourceNode, inputCtx, outputCtx } = refs;
+    // Detach the per-socket close/error guards BEFORE closing so a clean
+    // teardown of a connected session does not re-enter failVoice.
+    if (detachXaiWsListeners) {
+      detachXaiWsListeners();
+      detachXaiWsListeners = undefined;
+    }
     if (xaiWs) {
       try {
         xaiWs.close();
@@ -899,6 +956,21 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
     switch (action.type) {
       case "ui/click/primary":
         onPrimaryClick();
+        break;
+      case "host/voice/session/start":
+        // Server-driven start handshake (ports vanilla's voice.session.start
+        // message handler). The audioReducer independently consumes this
+        // action for the Q22 pendingSessionStart capture; these two are
+        // disjoint by onServerSessionStart's autoplay/in-flight guards.
+        onServerSessionStart();
+        break;
+      case "browser/autoplay/probed":
+        // Vanilla connect()'s open handler: when autoplay is allowed it
+        // immediately ran refreshAudio() (getUserMedia + enumerate +
+        // audio.device.state{ready:true}) WITHOUT starting a voice session,
+        // so the daemon's connectOnPageLoad gate could fire and the mic list
+        // was populated at boot. Blocked autoplay still waits for the click.
+        if (action.allowed) void getUserMedia();
         break;
       case "ui/click/reset":
         // Teardown + tell the daemon to reset its server-side conversation.
@@ -1017,6 +1089,14 @@ function dispatchXaiServerEvent(parsed: { type?: string; item_id?: unknown }, di
     case "conversation.created":
       dispatch({ type: "xai/conversation/created" });
       return;
+    case "conversation.item.added": {
+      // Vanilla cleared speakingItemId on conversation.item.added; the
+      // reducer keys off this action.
+      const rawItem = (parsed as { item?: { role?: unknown } }).item;
+      const role = typeof rawItem?.role === "string" ? rawItem.role : "";
+      dispatch({ type: "xai/conversation/item/added", itemId, role });
+      return;
+    }
     case "input_audio_buffer.speech_started":
       dispatch({ type: "xai/input-audio-buffer/speech-started", itemId });
       return;

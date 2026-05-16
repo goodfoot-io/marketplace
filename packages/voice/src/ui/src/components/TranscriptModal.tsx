@@ -13,6 +13,8 @@ export function TranscriptModal(): React.JSX.Element | null {
   const open = useStore((s) => s.ui.modal === "transcript");
   const atBottom = useStore((s) => s.conversation.atBottom);
   const responseActive = useStore((s) => s.voice.responseActive);
+  const transcript = useStore((s) => s.conversation.conversation?.transcript);
+  const streamDrafts = useStore((s) => s.conversation.streamDrafts);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -29,13 +31,14 @@ export function TranscriptModal(): React.JSX.Element | null {
     };
   }, [open]);
 
-  // Q5: scroll anchor — runs on open and whenever atBottom is re-asserted
-  // (e.g. a reset that re-anchors scroll while the modal is open).
+  // Q5: scroll anchor — runs on open, whenever atBottom is re-asserted,
+  // and whenever transcript content changes (streaming deltas or new items)
+  // so live content stays followed while the modal is open.
   useEffect(() => {
     if (open && atBottom && bodyRef.current !== null) {
       bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
     }
-  }, [open, atBottom]);
+  }, [open, atBottom, transcript, streamDrafts]);
 
   if (!open) {
     return null;

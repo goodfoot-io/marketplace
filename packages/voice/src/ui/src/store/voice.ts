@@ -39,11 +39,22 @@ export function voiceReducer(state: VoiceState, action: Action): VoiceState {
         deferredSendsPending: false,
       };
     case "xai/response/created":
-      return { ...state, responseActive: true };
+      // Vanilla cleared speakingItemId on response.created.
+      return { ...state, responseActive: true, speakingItemId: null };
     case "xai/response/done":
-    case "xai/response/cancelled":
     case "xai/response/failed":
       return { ...state, responseActive: false };
+    case "xai/response/cancelled":
+      // Vanilla cleared speakingItemId on response.cancelled.
+      return { ...state, responseActive: false, speakingItemId: null };
+    case "xai/input-audio-buffer/speech-started":
+      // Vanilla set speakingItemId to the in-progress user item id.
+      return { ...state, speakingItemId: action.itemId || null };
+    case "xai/input-audio-buffer/speech-stopped":
+    case "xai/conversation/item/added":
+      // Vanilla cleared speakingItemId on speech_stopped / conversation.item.added.
+      if (state.speakingItemId === null) return state;
+      return { ...state, speakingItemId: null };
     case "xai/response/output-item/added":
       return { ...state, speakingItemId: action.itemId };
     case "voice/session/in-flight":

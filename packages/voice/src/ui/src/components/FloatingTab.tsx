@@ -72,15 +72,6 @@ export function FloatingTab(): React.JSX.Element {
         </button>
       ) : null}
 
-      {tabState === "active" || tabState === "paused" ? (
-        <EqBars dimmed={tabState === "paused"} />
-      ) : null}
-
-      <div className="connection">
-        <span className={`dot ${connectionStatus}`} />
-        {tabState === "connecting" ? <span>connecting…</span> : null}
-      </div>
-
       <button
         className="icon-btn"
         type="button"
@@ -98,6 +89,19 @@ export function FloatingTab(): React.JSX.Element {
       >
         <span className="codicon codicon-book" aria-hidden="true" />
       </button>
+
+      {tabState === "active" ? <EqBars dimmed={false} /> : null}
+
+      <div className="connection">
+        <span className={`dot ${connectionStatus}`} />
+        {connectionStatus === "connecting" ? (
+          <span>Connecting...</span>
+        ) : connectionStatus === "disconnected" ? (
+          <span>Disconnected</span>
+        ) : connectionStatus === "error" ? (
+          <span>Connection Error</span>
+        ) : null}
+      </div>
 
       <div style={{ position: "relative" }}>
         <button
