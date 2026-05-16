@@ -1,0 +1,1074 @@
+import type { XAIClientEvent } from "../../../xai-realtime-api.js";
+import type { VoiceToken } from "../actions.js";
+import { watchMicTrack } from "./deviceRunner.js";
+import { recordRawXaiFrame, sendToHost } from "./hostSocketRunner.js";
+import type { RunnerDeps } from "./types.js";
+
+/**
+ * voiceSessionRunner owns every audio-system native ref and the xAI WebSocket.
+ * It is a faithful port of the vanilla SPA's voice pipeline:
+ * `refreshAudio`/getUserMedia, `acquireMicStream`, `startMeters`,
+ * `startConversation`, `establishVoiceSession`, `startMicEncoder`,
+ * `playPcmDelta`, `forwardVoiceSend`, drain detection, barge-in cut,
+ * pause/resume, `switchMicDevice`, the wait-for-context metronome, and
+ * `teardownVoice`.
+ *
+ * Runner-private refs (NOT in the store): pendingSends, preOpenAudio,
+ * deferredSends, all native refs, pauseCutTimer, drainCheckTimer,
+ * mintRetryCount, levelsRef.
+ *
+ * The store mirrors only outcome state via dispatched actions.
+ */
+
+// 5-bar equalizer levels — read by EqBars' RAF loop. NEVER dispatched (Q26).
+export const levelsRef = new Float32Array(5);
+
+// session.update (carrying the 48 kHz PCM format) MUST precede any
+// input_audio_buffer.append, otherwise xAI interprets audio at the 24 kHz
+// default and the input is garbled (Q17).
+const PCM16_WORKLET_SRC = `
+  class Pcm16Encoder extends AudioWorkletProcessor {
+    constructor() { super(); this.buf = []; this.target = 4800; }
+    process(inputs) {
+      const ch = inputs[0] && inputs[0][0];
+      if (!ch) return true;
+      this.buf.push(new Float32Array(ch));
+      let total = 0;
+      for (const b of this.buf) total += b.length;
+      while (total >= this.target) {
+        const out = new Int16Array(this.target);
+        let written = 0;
+        while (written < this.target) {
+          const head = this.buf[0];
+          const take = Math.min(head.length, this.target - written);
+          for (let i = 0; i < take; i++) {
+            const s = Math.max(-1, Math.min(1, head[i]));
+            out[written + i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          }
+          if (take === head.length) this.buf.shift();
+          else this.buf[0] = head.subarray(take);
+          written += take;
+        }
+        total -= this.target;
+        this.port.postMessage(out.buffer, [out.buffer]);
+      }
+      return true;
+    }
+  }
+  registerProcessor("pcm16-encoder", Pcm16Encoder);
+`;
+
+const PRE_OPEN_AUDIO_CAP = 50;
+const PAUSE_CUT_MS = 500;
+const TOKEN_PRE_EXPIRY_MS = 5000;
+const MAX_MINT_RETRIES = 3;
+const DRAIN_SAFETY_MARGIN = 0.01;
+
+interface VoiceRefs {
+  xaiWs?: WebSocket;
+  micStream?: MediaStream;
+  micTrack?: MediaStreamTrack;
+  micSourceNode?: MediaStreamAudioSourceNode;
+  workletNode?: AudioWorkletNode;
+  inputCtx?: AudioContext;
+  outputCtx?: AudioContext;
+  analyser?: AnalyserNode;
+  analyserCtx?: AudioContext;
+  nextPlaybackTime: number;
+  playbackEndsAt: number;
+  scheduledSources: AudioBufferSourceNode[];
+  pendingSends: string[];
+  preOpenAudio: string[];
+  deferredSends: XAIClientEvent[];
+  connectedSent: boolean;
+  tokenExpiresAt: number;
+  paused: boolean;
+}
+
+function freshRefs(): VoiceRefs {
+  return {
+    nextPlaybackTime: 0,
+    playbackEndsAt: 0,
+    scheduledSources: [],
+    pendingSends: [],
+    preOpenAudio: [],
+    deferredSends: [],
+    connectedSent: false,
+    tokenExpiresAt: 0,
+    paused: false,
+  };
+}
+
+function errStr(error: unknown): string {
+  return String(error instanceof Error ? error.message : error);
+}
+
+export function createVoiceSessionRunner({ dispatch, subscribeToActions, getState }: RunnerDeps): () => void {
+  let refs = freshRefs();
+  let metersStarted = false;
+  let metersRaf = 0;
+  let pauseCutTimer: ReturnType<typeof setTimeout> | undefined;
+  let drainCheckTimer: ReturnType<typeof setTimeout> | undefined;
+  let mintRetryCount = 0;
+  let metronomeCtx: AudioContext | undefined;
+  let metronomeTimer: ReturnType<typeof setInterval> | undefined;
+
+  const reportAudioError = (code: string, message: string, suggestedAction: string): void => {
+    sendToHost("browser.audio.error", { code, message, suggestedAction });
+    dispatch({
+      type: "browser/mic/stream-failed",
+      error: { code, message },
+    });
+  };
+
+  // ── Mic acquisition (ports refreshAudio + acquireMicStream) ──────────────
+
+  const acquireMicStream = (deviceId: string | null): Promise<MediaStream> => {
+    const audio: MediaTrackConstraints = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    };
+    if (deviceId) audio.deviceId = { exact: deviceId };
+    return navigator.mediaDevices.getUserMedia({ audio });
+  };
+
+  /**
+   * Ports the vanilla SPA's `refreshAudio`: probe getUserMedia, enumerate
+   * input devices, broadcast `audio.device.state`, mark permission granted.
+   * Returns true on success.
+   */
+  const getUserMedia = async (): Promise<boolean> => {
+    if (!navigator.mediaDevices?.getUserMedia) return false;
+    try {
+      const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+      for (const track of probe.getTracks()) track.stop();
+      const devices = (await navigator.mediaDevices.enumerateDevices())
+        .filter((device) => device.kind === "audioinput")
+        .map((device) => ({
+          deviceId: device.deviceId,
+          label: device.label || "Microphone",
+          groupId: device.groupId,
+        }));
+      const previous = getState().audio.selectedDeviceId;
+      const selected = devices.find((device) => device.deviceId === previous)?.deviceId ?? devices[0]?.deviceId ?? null;
+      dispatch({ type: "browser/devices/enumerated", devices });
+      if (selected) dispatch({ type: "ui/select/mic-device", deviceId: selected });
+      dispatch({ type: "browser/permission/granted" });
+      sendToHost("audio.device.state", {
+        permission: "granted",
+        devices,
+        selectedDeviceId: selected ?? undefined,
+        ready: true,
+      });
+      return true;
+    } catch (error) {
+      reportAudioError(
+        "MICROPHONE_DEVICE_ERROR",
+        "Could not access the selected microphone.",
+        "Allow microphone access and try again.",
+      );
+      dispatch({ type: "browser/permission/denied" });
+      void error;
+      return false;
+    }
+  };
+
+  // ── Meters (ports startMeters) ───────────────────────────────────────────
+
+  const startMeters = (stream: MediaStream): void => {
+    if (refs.analyserCtx) {
+      try {
+        void refs.analyserCtx.close();
+      } catch (error) {
+        dispatch({
+          type: "browser/window/error",
+          message: `startMeters.analyserCtx.close.failed: ${errStr(error)}`,
+        });
+      }
+    }
+    const audioCtx = new AudioContext();
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume().catch((error: unknown) => {
+        dispatch({
+          type: "browser/window/error",
+          message: `startMeters.audioCtx.resume.failed: ${errStr(error)}`,
+        });
+      });
+    }
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
+    refs.analyser = analyser;
+    refs.analyserCtx = audioCtx;
+    if (metersStarted) return;
+    metersStarted = true;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const updateBars = (): void => {
+      const current = refs.analyser;
+      if (current) {
+        current.getByteFrequencyData(data);
+        for (let i = 0; i < levelsRef.length; i += 1) {
+          // Q26: write meter levels straight to the shared ref. Never dispatch.
+          levelsRef[i] = Math.max(0.1, (data[i * 10] ?? 0) / 255);
+        }
+      }
+      metersRaf = requestAnimationFrame(updateBars);
+    };
+    updateBars();
+  };
+
+  // ── PCM playback (ports playPcmDelta) ────────────────────────────────────
+
+  const pcm16Base64ToFloat32 = (b64: string): Float32Array => {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    const view = new DataView(bytes.buffer);
+    const samples = new Float32Array(bytes.length / 2);
+    for (let i = 0; i < samples.length; i += 1) {
+      const s = view.getInt16(i * 2, true);
+      samples[i] = s < 0 ? s / 0x8000 : s / 0x7fff;
+    }
+    return samples;
+  };
+
+  const bytesToBase64 = (uint8: Uint8Array): string => {
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let i = 0; i < uint8.length; i += chunkSize) {
+      binary += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  };
+
+  const isPlaybackDrained = (): boolean => {
+    const ctx = refs.outputCtx;
+    const endsAt = refs.playbackEndsAt;
+    if (!endsAt) return true;
+    if (!ctx) return true;
+    return ctx.currentTime >= endsAt - DRAIN_SAFETY_MARGIN;
+  };
+
+  // Q16: after playback completes, flush deferred (playback-gated) sends.
+  const flushDeferredIfDrained = (): void => {
+    if (!isPlaybackDrained()) {
+      // Reschedule a one-shot probe near the predicted drain time.
+      if (refs.deferredSends.length === 0) return;
+      const ctx = refs.outputCtx;
+      const delayMs = ctx ? Math.max(0, (refs.playbackEndsAt - ctx.currentTime + 0.015) * 1000) : 50;
+      if (drainCheckTimer !== undefined) clearTimeout(drainCheckTimer);
+      drainCheckTimer = setTimeout(flushDeferredIfDrained, delayMs);
+      return;
+    }
+    if (drainCheckTimer !== undefined) {
+      clearTimeout(drainCheckTimer);
+      drainCheckTimer = undefined;
+    }
+    if (refs.deferredSends.length === 0) return;
+    // Reducer clears deferredSendsPending; the runner's drained listener
+    // flushes the private payloads.
+    dispatch({ type: "voice/playback/drained" });
+  };
+
+  const playPcmDelta = (b64: string): void => {
+    try {
+      const samples = pcm16Base64ToFloat32(b64);
+      if (samples.length === 0) return;
+      let ctx = refs.outputCtx;
+      if (!ctx) {
+        ctx = new AudioContext({ sampleRate: 48000 });
+        refs.outputCtx = ctx;
+      }
+      if (ctx.state === "suspended") {
+        ctx.resume().catch((error: unknown) => {
+          dispatch({
+            type: "browser/window/error",
+            message: `outputCtx.resume.failed: ${errStr(error)}`,
+          });
+        });
+      }
+      const buffer = ctx.createBuffer(1, samples.length, 48000);
+      buffer.getChannelData(0).set(samples);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      const now = ctx.currentTime;
+      const startAt = Math.max(now, refs.nextPlaybackTime);
+      source.start(startAt);
+      const endsAt = startAt + buffer.duration;
+      refs.nextPlaybackTime = endsAt;
+      refs.playbackEndsAt = Math.max(refs.playbackEndsAt || 0, endsAt);
+      refs.scheduledSources.push(source);
+      dispatch({
+        type: "voice/playback/cursor",
+        nextPlaybackTime: refs.nextPlaybackTime,
+        playbackEndsAt: refs.playbackEndsAt,
+      });
+      source.addEventListener("ended", () => {
+        const idx = refs.scheduledSources.indexOf(source);
+        if (idx !== -1) refs.scheduledSources.splice(idx, 1);
+        flushDeferredIfDrained();
+      });
+      // Q16: schedule a drain probe after each delta if deferred sends wait.
+      if (refs.deferredSends.length > 0) {
+        const delayMs = Math.max(0, (refs.playbackEndsAt - ctx.currentTime + 0.015) * 1000);
+        if (drainCheckTimer !== undefined) clearTimeout(drainCheckTimer);
+        drainCheckTimer = setTimeout(flushDeferredIfDrained, delayMs);
+      }
+    } catch (error) {
+      reportAudioError(
+        "AUDIO_DECODE_FAILED",
+        errStr(error),
+        "Refresh the page; if the problem persists check audio device permissions.",
+      );
+    }
+  };
+
+  // Q18: idempotent on an already-empty array.
+  const stopScheduledPlayback = (): void => {
+    for (const source of refs.scheduledSources.splice(0)) {
+      try {
+        source.stop();
+      } catch {
+        // already ended — expected; not an error condition.
+        void 0;
+      }
+      try {
+        source.disconnect();
+      } catch (error) {
+        dispatch({
+          type: "browser/window/error",
+          message: `stopScheduledPlayback.disconnect.failed: ${errStr(error)}`,
+        });
+      }
+    }
+    refs.nextPlaybackTime = 0;
+    refs.playbackEndsAt = 0;
+  };
+
+  // ── Mic encoder (ports startMicEncoder) ──────────────────────────────────
+
+  const startMicEncoder = async (stream: MediaStream): Promise<void> => {
+    try {
+      const ctx = new AudioContext({ sampleRate: 48000 });
+      refs.inputCtx = ctx;
+      if (ctx.state === "suspended") {
+        ctx.resume().catch((error: unknown) =>
+          dispatch({
+            type: "browser/window/error",
+            message: `inputCtx.resume.failed: ${errStr(error)}`,
+          }),
+        );
+      }
+      const source = ctx.createMediaStreamSource(stream);
+      refs.micSourceNode = source;
+      const blob = new Blob([PCM16_WORKLET_SRC], {
+        type: "application/javascript",
+      });
+      const url = URL.createObjectURL(blob);
+      try {
+        await ctx.audioWorklet.addModule(url);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      const node = new AudioWorkletNode(ctx, "pcm16-encoder");
+      refs.workletNode = node;
+      node.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
+        if (refs.paused) return;
+        try {
+          const b64 = bytesToBase64(new Uint8Array(event.data));
+          const ws = refs.xaiWs;
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 }));
+          } else {
+            // Q20: pre-open FIFO with a bounded cap.
+            refs.preOpenAudio.push(b64);
+            if (refs.preOpenAudio.length > PRE_OPEN_AUDIO_CAP) {
+              refs.preOpenAudio.shift();
+              dispatch({ type: "voice/queue/pre-open-cap-hit" });
+            }
+          }
+        } catch (error) {
+          reportAudioError(
+            "AUDIO_ENCODE_FAILED",
+            errStr(error),
+            "Refresh the page; if the problem persists check microphone permissions.",
+          );
+        }
+      };
+      // Intentional: do NOT connect node → ctx.destination (pure tap).
+      source.connect(node);
+    } catch (error) {
+      reportAudioError("AUDIO_ENCODER_INIT_FAILED", errStr(error), "Try a different browser or device.");
+    }
+  };
+
+  // ── Session lifecycle ────────────────────────────────────────────────────
+
+  const failVoice = (code: string, message: string): void => {
+    sendToHost("voice.session.failed", { error: { code, message } });
+    teardownVoice();
+  };
+
+  const startSessionRequest = (): void => {
+    dispatch({ type: "voice/session/in-flight", inFlight: true });
+    sendToHost("conversation.start");
+    sendToHost("voice.session.requested");
+  };
+
+  // Q12 / Q22 / Q45: interpret the primary click against voice + audio slices.
+  const onPrimaryClick = (): void => {
+    const { voice, audio } = getState();
+
+    // Start branch.
+    if (!voice.xaiOpen && !voice.sessionInFlight) {
+      if (audio.autoplayAllowed === null) {
+        // Probe pending: capture intent (Q22 null sub-case). The reducer's
+        // host/voice/session/start case sets pendingSessionStart.
+        dispatch({ type: "host/voice/session/start" });
+        return;
+      }
+      if (audio.autoplayAllowed === false) {
+        // Blocked: the click is the user gesture — getUserMedia unblocks
+        // autoplay and the session starts in the SAME click (Q45).
+        void getUserMedia().then((ok) => {
+          if (ok) startSessionRequest();
+        });
+        return;
+      }
+      // Allowed (or permission already granted): start directly.
+      if (!audio.ready) {
+        void getUserMedia().then((ok) => {
+          if (ok) startSessionRequest();
+        });
+        return;
+      }
+      startSessionRequest();
+      return;
+    }
+
+    // Pause branch.
+    if (voice.xaiOpen && !voice.paused) {
+      applyPause();
+      return;
+    }
+
+    // Resume branch.
+    if (voice.xaiOpen && voice.paused) {
+      applyResume();
+    }
+  };
+
+  const startConversationGuard = (): boolean => {
+    // Ports startConversation()'s guards.
+    if (refs.xaiWs) return false;
+    const { voice, audio } = getState();
+    if (voice.sessionInFlight && voice.xaiOpen) return false;
+    if (!audio.ready) {
+      reportAudioError("MICROPHONE_NOT_READY", "Microphone is not ready.", "Grant microphone access and try again.");
+      return false;
+    }
+    return true;
+  };
+
+  const establishVoiceSession = async (token: VoiceToken): Promise<void> => {
+    if (!token?.clientSecret || !token?.model) {
+      failVoice("VOICE_TOKEN_INVALID", "Missing client secret or model.");
+      return;
+    }
+    if (refs.xaiWs) return;
+
+    // Q21: pre-expiry re-mint. Keep sessionInFlight=true (no idle flicker).
+    if (typeof token.expiresAt === "number" && Date.now() > token.expiresAt * 1000 - TOKEN_PRE_EXPIRY_MS) {
+      mintRetryCount += 1;
+      if (mintRetryCount > MAX_MINT_RETRIES) {
+        // Bounded-retry guard: surface the hang, re-enable the play button.
+        mintRetryCount = 0;
+        dispatch({ type: "connection/status", status: "error" });
+        dispatch({ type: "voice/session/in-flight", inFlight: false });
+        return;
+      }
+      sendToHost("voice.session.requested");
+      return;
+    }
+    mintRetryCount = 0;
+    refs.tokenExpiresAt = token.expiresAt ?? 0;
+
+    if (!startConversationGuard() && !getState().voice.sessionInFlight) {
+      return;
+    }
+
+    try {
+      const stream = await acquireMicStream(getState().audio.selectedDeviceId);
+      refs.micStream = stream;
+      const track = stream.getAudioTracks()[0];
+      refs.micTrack = track;
+      watchMicTrack(track, dispatch);
+      if (track) {
+        dispatch({
+          type: "browser/mic/stream-acquired",
+          deviceId: getState().audio.selectedDeviceId ?? "",
+          trackId: track.id,
+        });
+      }
+      startMeters(stream);
+
+      // Start mic encoder immediately (parallel with WS connect) so the
+      // opening utterance is never missed. Frames buffer in preOpenAudio.
+      refs.preOpenAudio = [];
+      await startMicEncoder(stream);
+
+      const safeToken = sanitizeSubprotocolToken(token.clientSecret, dispatch);
+      const ws = new WebSocket(`wss://api.x.ai/v1/realtime?model=${encodeURIComponent(token.model)}`, [
+        `xai-client-secret.${safeToken}`,
+      ]);
+      refs.xaiWs = ws;
+
+      let lastCloseCode: number | undefined;
+      let lastCloseReason = "";
+
+      ws.addEventListener("open", () => {
+        dispatch({ type: "xai/ws/open" });
+        // Q17: flush pendingSends (the daemon's session.update declaring the
+        // 48 kHz PCM format) FIRST, then preOpenAudio. Two explicit loops.
+        // session.update MUST precede input_audio_buffer.append.
+        for (const payload of refs.pendingSends) {
+          try {
+            ws.send(payload);
+          } catch (error) {
+            dispatch({
+              type: "browser/window/error",
+              message: `xaiWs.send.pending.failed: ${errStr(error)}`,
+            });
+          }
+        }
+        refs.pendingSends = [];
+        for (const b64 of refs.preOpenAudio) {
+          try {
+            ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 }));
+          } catch (error) {
+            dispatch({
+              type: "browser/window/error",
+              message: `xaiWs.send.preOpenAudio.failed: ${errStr(error)}`,
+            });
+          }
+        }
+        refs.preOpenAudio = [];
+        if (!refs.connectedSent) {
+          refs.connectedSent = true;
+          dispatch({ type: "voice/session/in-flight", inFlight: false });
+          sendToHost("voice.session.connected");
+        }
+      });
+
+      ws.addEventListener("message", (event) => {
+        let parsed: { type?: string; delta?: unknown; item_id?: unknown };
+        try {
+          parsed = JSON.parse(String(event.data));
+        } catch (error) {
+          dispatch({
+            type: "browser/window/error",
+            message: `xaiWs.in.parseError: ${errStr(error)}`,
+          });
+          return;
+        }
+        // Record the raw frame so hostSocketRunner can forward it as
+        // voice.event when it sees the synthesized xai/* action (Q28).
+        recordRawXaiFrame(parsed);
+        dispatchXaiServerEvent(parsed, dispatch);
+        // Single authoritative playback path (Q15): decode + play PCM deltas
+        // directly here; the daemon's audio.output.delta relay is ignored.
+        if (parsed?.type === "response.output_audio.delta" && typeof parsed.delta === "string" && !refs.paused) {
+          playPcmDelta(parsed.delta);
+        }
+      });
+
+      ws.addEventListener("close", (event) => {
+        lastCloseCode = event.code;
+        lastCloseReason = event.reason;
+        dispatch({
+          type: "xai/ws/close",
+          code: event.code,
+          reason: event.reason,
+        });
+        if (!refs.connectedSent) {
+          failVoice("VOICE_WS_REJECTED", `xAI WS closed before open: code=${event.code} reason=${event.reason}`);
+        } else {
+          sendToHost("voice.session.failed", {
+            error: {
+              code: "VOICE_WS_CLOSED",
+              message: `xAI WS closed: code=${event.code}`,
+            },
+          });
+          teardownVoice();
+        }
+      });
+
+      ws.addEventListener("error", () => {
+        dispatch({ type: "xai/ws/error" });
+        if (!refs.connectedSent) {
+          const closeInfo =
+            lastCloseCode !== undefined
+              ? ` WS close code=${lastCloseCode}${lastCloseReason ? ` reason="${lastCloseReason}"` : ""}.`
+              : " No close frame received before error.";
+          failVoice(
+            "VOICE_WS_REJECTED",
+            `xAI WebSocket handshake failed. Attempted: wss://api.x.ai/v1/realtime with subprotocol prefix "xai-client-secret" (token not logged).${closeInfo} Possible causes: CORS policy, invalid/expired token, wrong subprotocol format, or origin not allowlisted.`,
+          );
+        }
+      });
+    } catch (error) {
+      failVoice("VOICE_SETUP_FAILED", errStr(error));
+    }
+  };
+
+  // ── Deferred / pending sends (ports forwardVoiceSend) ────────────────────
+
+  const forwardVoiceSend = (event: XAIClientEvent, gate?: "playback-drained"): void => {
+    if (!event) return;
+    if (gate === "playback-drained" && !isPlaybackDrained()) {
+      // Q16: payload stays in the private ref; reducer holds only the flag.
+      refs.deferredSends.push(event);
+      return;
+    }
+    const payload = JSON.stringify(event);
+    const ws = refs.xaiWs;
+    if (ws && getState().voice.xaiOpen) {
+      try {
+        ws.send(payload);
+      } catch (error) {
+        dispatch({
+          type: "browser/window/error",
+          message: `xaiWs.send.failed.requeue: ${errStr(error)}`,
+        });
+        refs.pendingSends.push(payload);
+      }
+      return;
+    }
+    refs.pendingSends.push(payload);
+  };
+
+  // ── Pause / resume (ports applyPauseState + applyPauseAudioCut) ───────────
+
+  const applyPauseAudioCut = (): void => {
+    refs.paused = true;
+    if (refs.micTrack) refs.micTrack.enabled = false;
+    if (refs.outputCtx?.state === "running") {
+      refs.outputCtx.suspend().catch((error: unknown) =>
+        dispatch({
+          type: "browser/window/error",
+          message: `outputCtx.suspend.failed: ${errStr(error)}`,
+        }),
+      );
+    }
+    if (refs.xaiWs && getState().voice.xaiOpen && getState().voice.responseActive) {
+      try {
+        refs.xaiWs.send(JSON.stringify({ type: "response.cancel" }));
+      } catch (error) {
+        dispatch({
+          type: "browser/window/error",
+          message: `xaiWs.send.responseCancel.failed: ${errStr(error)}`,
+        });
+      }
+    }
+  };
+
+  const applyPause = (): void => {
+    refs.paused = true;
+    if (refs.micTrack) refs.micTrack.enabled = false;
+    dispatch({ type: "voice/paused", paused: true });
+    // Q19: if a response is being spoken, defer the audio cut by a bounded
+    // timer (output_audio_buffer.stopped never fires on the WS path).
+    if (getState().voice.responseActive) {
+      if (pauseCutTimer !== undefined) clearTimeout(pauseCutTimer);
+      pauseCutTimer = setTimeout(() => {
+        if (pauseCutTimer !== undefined) {
+          pauseCutTimer = undefined;
+          applyPauseAudioCut();
+        }
+      }, PAUSE_CUT_MS);
+      return;
+    }
+    applyPauseAudioCut();
+  };
+
+  const applyResume = (): void => {
+    if (pauseCutTimer !== undefined) {
+      clearTimeout(pauseCutTimer);
+      pauseCutTimer = undefined;
+    }
+    refs.paused = false;
+    if (refs.micTrack) refs.micTrack.enabled = true;
+    if (refs.outputCtx?.state === "suspended") {
+      refs.outputCtx.resume().catch((error: unknown) =>
+        dispatch({
+          type: "browser/window/error",
+          message: `outputCtx.resume.failed: ${errStr(error)}`,
+        }),
+      );
+    }
+    dispatch({ type: "voice/paused", paused: false });
+  };
+
+  // ── Device switching (ports switchMicDevice) ─────────────────────────────
+
+  const switchMicDevice = async (deviceId: string): Promise<void> => {
+    sendToHost("audio.device.select", { deviceId });
+    if (!refs.xaiWs) return;
+    try {
+      const stream = await acquireMicStream(deviceId);
+      if (refs.workletNode) {
+        try {
+          refs.workletNode.port.onmessage = null;
+          refs.workletNode.disconnect();
+        } catch (error) {
+          dispatch({
+            type: "browser/window/error",
+            message: `switchMic.worklet.disconnect.failed: ${errStr(error)}`,
+          });
+        }
+        refs.workletNode = undefined;
+      }
+      if (refs.micSourceNode) {
+        try {
+          refs.micSourceNode.disconnect();
+        } catch (error) {
+          dispatch({
+            type: "browser/window/error",
+            message: `switchMic.micSource.disconnect.failed: ${errStr(error)}`,
+          });
+        }
+      }
+      if (refs.inputCtx) {
+        try {
+          void refs.inputCtx.close();
+        } catch (error) {
+          dispatch({
+            type: "browser/window/error",
+            message: `switchMic.inputCtx.close.failed: ${errStr(error)}`,
+          });
+        }
+        refs.inputCtx = undefined;
+      }
+      if (refs.micStream) {
+        for (const existing of refs.micStream.getTracks()) existing.stop();
+      }
+      refs.micStream = stream;
+      refs.micTrack = stream.getAudioTracks()[0];
+      watchMicTrack(refs.micTrack, dispatch);
+      await startMicEncoder(stream);
+      startMeters(stream);
+    } catch (error) {
+      reportAudioError(
+        "MICROPHONE_SWITCH_FAILED",
+        errStr(error) || "Could not switch microphone.",
+        "Try a different device.",
+      );
+    }
+  };
+
+  // ── Wait-for-context metronome (ports startMetronome/stopMetronome) ──────
+
+  const startMetronome = (): void => {
+    if (metronomeTimer) return;
+    if (!metronomeCtx) metronomeCtx = new AudioContext();
+    if (metronomeCtx.state === "suspended") {
+      metronomeCtx.resume().catch((error: unknown) =>
+        dispatch({
+          type: "browser/window/error",
+          message: `metronome.resume.failed: ${errStr(error)}`,
+        }),
+      );
+    }
+    const click = (): void => {
+      const ctx = metronomeCtx;
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      const now = ctx.currentTime;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.05, now + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    };
+    click();
+    metronomeTimer = setInterval(click, 2000);
+  };
+
+  const stopMetronome = (): void => {
+    if (metronomeTimer) {
+      clearInterval(metronomeTimer);
+      metronomeTimer = undefined;
+    }
+  };
+
+  // ── Teardown (ports teardownVoice — Q11 / Q47) ───────────────────────────
+
+  function teardownVoice(): void {
+    const { xaiWs, micStream, analyserCtx, workletNode, micSourceNode, inputCtx, outputCtx } = refs;
+    if (xaiWs) {
+      try {
+        xaiWs.close();
+      } catch (error) {
+        dispatch({
+          type: "browser/window/error",
+          message: `teardown.xaiWs.close.failed: ${errStr(error)}`,
+        });
+      }
+    }
+    if (workletNode) {
+      try {
+        workletNode.port.onmessage = null;
+        workletNode.disconnect();
+      } catch (error) {
+        dispatch({
+          type: "browser/window/error",
+          message: `teardown.worklet.disconnect.failed: ${errStr(error)}`,
+        });
+      }
+    }
+    if (micSourceNode) {
+      try {
+        micSourceNode.disconnect();
+      } catch (error) {
+        dispatch({
+          type: "browser/window/error",
+          message: `teardown.micSource.disconnect.failed: ${errStr(error)}`,
+        });
+      }
+    }
+    if (inputCtx) {
+      try {
+        void inputCtx.close();
+      } catch (error) {
+        dispatch({
+          type: "browser/window/error",
+          message: `teardown.inputCtx.close.failed: ${errStr(error)}`,
+        });
+      }
+    }
+    if (outputCtx) {
+      try {
+        void outputCtx.close();
+      } catch (error) {
+        dispatch({
+          type: "browser/window/error",
+          message: `teardown.outputCtx.close.failed: ${errStr(error)}`,
+        });
+      }
+    }
+    if (micStream) {
+      for (const track of micStream.getTracks()) track.stop();
+    }
+    if (analyserCtx) {
+      try {
+        void analyserCtx.close();
+      } catch (error) {
+        dispatch({
+          type: "browser/window/error",
+          message: `teardown.analyserCtx.close.failed: ${errStr(error)}`,
+        });
+      }
+    }
+    if (drainCheckTimer !== undefined) {
+      clearTimeout(drainCheckTimer);
+      drainCheckTimer = undefined;
+    }
+    if (pauseCutTimer !== undefined) {
+      clearTimeout(pauseCutTimer);
+      pauseCutTimer = undefined;
+    }
+    if (metersRaf) {
+      cancelAnimationFrame(metersRaf);
+      metersRaf = 0;
+    }
+    metersStarted = false;
+    watchMicTrack(undefined, dispatch);
+    refs = freshRefs();
+    levelsRef.fill(0);
+  }
+
+  // ── Action subscription ──────────────────────────────────────────────────
+
+  const unsubscribe = subscribeToActions((action) => {
+    switch (action.type) {
+      case "ui/click/primary":
+        onPrimaryClick();
+        break;
+      case "ui/click/reset":
+        // Teardown + tell the daemon to reset its server-side conversation.
+        sendToHost("conversation.reset");
+        teardownVoice();
+        dispatch({ type: "voice/session/in-flight", inFlight: false });
+        break;
+      case "ui/select/mic-device":
+        void switchMicDevice(action.deviceId);
+        break;
+      case "host/voice/session/token":
+        void establishVoiceSession(action.token).catch((error: unknown) => {
+          failVoice("VOICE_SETUP_FAILED", errStr(error));
+        });
+        break;
+      case "host/voice/send":
+        forwardVoiceSend(action.event, action.gate);
+        break;
+      case "host/voice/session/close":
+        teardownVoice();
+        break;
+      case "host/duplicate-client":
+        // Q11: full synchronous audio teardown BEFORE React swaps the screen.
+        teardownVoice();
+        break;
+      case "host/state": {
+        const status = action.data.conversationStatus;
+        if ((status === "none" || status === "ending") && getState().voice.xaiOpen) {
+          teardownVoice();
+        }
+        break;
+      }
+      case "host/wait-for-context/start":
+        startMetronome();
+        break;
+      case "host/wait-for-context/end":
+        stopMetronome();
+        break;
+      // Q18: barge-in. The raw xAI action is dispatched first by the WS
+      // handler; this listener then enqueues voice/playback/cut, which the
+      // queue drains after all raw-action listeners (incl. voice.event
+      // forwarding) complete — daemon sees the cause before the effect.
+      case "xai/input-audio-buffer/speech-started":
+      case "xai/response/cancelled":
+        dispatch({ type: "voice/playback/cut" });
+        break;
+      case "voice/playback/cut":
+        // Idempotent: stop playback, cancel the drain timer, clear deferred.
+        stopScheduledPlayback();
+        if (drainCheckTimer !== undefined) {
+          clearTimeout(drainCheckTimer);
+          drainCheckTimer = undefined;
+        }
+        refs.deferredSends = [];
+        break;
+      case "voice/playback/drained": {
+        // Q16: flush the private deferred sends now that playback is done.
+        const ws = refs.xaiWs;
+        if (ws && getState().voice.xaiOpen) {
+          for (const event of refs.deferredSends) {
+            try {
+              ws.send(JSON.stringify(event));
+            } catch (error) {
+              dispatch({
+                type: "browser/window/error",
+                message: `xaiWs.send.deferred.failed: ${errStr(error)}`,
+              });
+            }
+          }
+        }
+        refs.deferredSends = [];
+        break;
+      }
+      default:
+        break;
+    }
+  });
+
+  return () => {
+    unsubscribe();
+    stopMetronome();
+    teardownVoice();
+  };
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+// RFC 6455 §4.1: Sec-WebSocket-Protocol values must be RFC 7230 token chars.
+const SUBPROTOCOL_SAFE = /^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$/;
+
+function sanitizeSubprotocolToken(token: string, dispatch: RunnerDeps["dispatch"]): string {
+  if (SUBPROTOCOL_SAFE.test(token)) return token;
+  const unsafe = [...new Set(token.split("").filter((c) => !SUBPROTOCOL_SAFE.test(c)))].join("");
+  dispatch({
+    type: "browser/window/error",
+    message: `voice.session.token.sanitized: unsafeChars=${unsafe}`,
+  });
+  return btoa(token).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
+/** Map a raw xAI server frame to its `xai/*` action(s). */
+function dispatchXaiServerEvent(parsed: { type?: string; item_id?: unknown }, dispatch: RunnerDeps["dispatch"]): void {
+  const type = parsed?.type;
+  if (typeof type !== "string") {
+    dispatch({ type: "xai/unknown", raw: parsed });
+    return;
+  }
+  const itemId = typeof parsed.item_id === "string" ? parsed.item_id : "";
+  switch (type) {
+    case "session.created":
+      dispatch({ type: "xai/session/created" });
+      return;
+    case "session.updated":
+      dispatch({ type: "xai/session/updated" });
+      return;
+    case "conversation.created":
+      dispatch({ type: "xai/conversation/created" });
+      return;
+    case "input_audio_buffer.speech_started":
+      dispatch({ type: "xai/input-audio-buffer/speech-started", itemId });
+      return;
+    case "input_audio_buffer.speech_stopped":
+      dispatch({ type: "xai/input-audio-buffer/speech-stopped" });
+      return;
+    case "input_audio_buffer.committed":
+      dispatch({ type: "xai/input-audio-buffer/committed" });
+      return;
+    case "input_audio_buffer.cleared":
+      dispatch({ type: "xai/input-audio-buffer/cleared" });
+      return;
+    case "response.created":
+      dispatch({ type: "xai/response/created" });
+      return;
+    case "response.done":
+      dispatch({ type: "xai/response/done" });
+      return;
+    case "response.cancelled":
+      dispatch({ type: "xai/response/cancelled" });
+      return;
+    case "response.failed":
+      dispatch({ type: "xai/response/failed" });
+      return;
+    case "response.output_audio.delta":
+      // The actual b64 lives on the raw frame; the reducer ignores this
+      // action's payload (playback is the runner's job). Pass through for
+      // the wire-log/forwarding contract.
+      dispatch({ type: "xai/response/output-audio/delta", b64: "" });
+      return;
+    case "response.output_audio.done":
+      dispatch({ type: "xai/response/output-audio/done" });
+      return;
+    case "response.output_audio_transcript.delta":
+      dispatch({
+        type: "xai/response/output-audio-transcript/delta",
+        delta: "",
+      });
+      return;
+    case "response.output_audio_transcript.done":
+      dispatch({ type: "xai/response/output-audio-transcript/done" });
+      return;
+    case "response.text.delta":
+      dispatch({ type: "xai/response/text/delta", delta: "" });
+      return;
+    case "response.text.done":
+      dispatch({ type: "xai/response/text/done" });
+      return;
+    case "error":
+      dispatch({ type: "xai/error", code: "", message: "" });
+      return;
+    default:
+      dispatch({ type: "xai/unknown", raw: parsed });
+  }
+}
