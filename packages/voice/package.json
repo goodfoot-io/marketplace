@@ -48,11 +48,21 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.1",
     "@types/node": "^25",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@types/ws": "^8.18.1",
     "@typescript/native-preview": "^7.0.0-beta.20260501.1",
+    "@vitejs/plugin-react": "^4.0.0",
     "esbuild": "^0.24.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^9.0.0",
+    "remark-gfm": "^4.0.0",
     "tsx": "^4.20.6",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.5"
+    "vite": "^6.0.0",
+    "vite-plugin-singlefile": "^2.0.0",
+    "vitest": "^4.1.5",
+    "zustand": "^5.0.0"
   }
 }

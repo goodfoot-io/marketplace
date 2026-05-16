@@ -210,3 +210,5 @@ scripts/ssh/
 
 # Claude Code runtime
 .claude/scheduled_tasks.lock
+
+packages/voice/src/ui-dist/
