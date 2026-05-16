@@ -38,13 +38,7 @@ import {
   type VoiceAgentToolMap,
 } from "./types.js";
 import uiHtml from "./ui/index.html";
-import type {
-  XAIClientEvent,
-  XAIServerEvent,
-  XAISessionConfig,
-  XAIRealtimeModel,
-  XAIVoice,
-} from "./xai-realtime-api.js";
+import type { XAIClientEvent, XAIServerEvent } from "./xai-realtime-api.js";
 
 type MutableConversation<TTools extends VoiceAgentToolMap> = {
   id: string;
@@ -620,12 +614,8 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     // xAI's beta name for the text-only assistant transcript channel.
     // OpenAI GA emits `response.output_text.{delta,done}`; xAI emits
     // `response.text.{delta,done}` with functionally identical payloads.
-    realtime.on("response.text.delta", (event) =>
-      this.#handleAssistantTranscriptDelta(event, "assistantText"),
-    );
-    realtime.on("response.text.done", (event) =>
-      this.#handleAssistantTranscriptDone(event, "assistantText"),
-    );
+    realtime.on("response.text.delta", (event) => this.#handleAssistantTranscriptDelta(event, "assistantText"));
+    realtime.on("response.text.done", (event) => this.#handleAssistantTranscriptDone(event, "assistantText"));
     realtime.on("response.output_audio.delta", (event) =>
       // Relay to browser for visualizer only. Playback is driven by the
       // browser's xAI WS message handler directly — not by this relay.
@@ -781,8 +771,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     this.#streamingAssistantText.delete(event.item_id);
     // `response.text.done` carries `event.text`; `response.output_audio_transcript.done`
     // carries `event.transcript`. Accept either, falling back to the accumulated deltas.
-    const text =
-      normalizeText(event.transcript ?? event.text ?? "") || (accumulated ? normalizeText(accumulated) : "");
+    const text = normalizeText(event.transcript ?? event.text ?? "") || (accumulated ? normalizeText(accumulated) : "");
     if (!text && accumulated === undefined) return;
     this.#appendTranscriptItemWithId(conversation, event.item_id, "assistant", source, text);
     this.#broadcastState();
@@ -1473,7 +1462,10 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         this.#failPendingVoiceSession(error);
         // If the session failed mid-conversation (after connect), mark a
         // session error so the controller's wired error handler runs.
-        this.#browserProxiedEmitter?.emit("error", { type: "error", error: { message: error.message, code: error.code } });
+        this.#browserProxiedEmitter?.emit("error", {
+          type: "error",
+          error: { message: error.message, code: error.code },
+        });
         break;
       }
       case "voice.event": {
@@ -1582,6 +1574,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         // currentConversation is not yet populated.
         conversationStatus: this.#status.conversation,
         conversation: this.currentConversation,
+        instructions: this.#instructions,
       },
     });
   }

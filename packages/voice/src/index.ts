@@ -35,6 +35,7 @@ export {
   type LogEvent,
   type LogLevel,
   type ResetConversationOptions,
+  type ServerEnvelope,
   type ServerStartedEvent,
   type ServerStatus,
   type ServerStoppedEvent,

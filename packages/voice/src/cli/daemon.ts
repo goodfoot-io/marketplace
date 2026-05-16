@@ -596,7 +596,12 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
       // state, not mid-stream.
       if (controller.responseInFlight) {
         queuedInstructionsUpdate = true;
-        sendJson(res, 200, { queued: true, kind, latestContext: latestContext !== null, latestTopics: latestTopics !== null });
+        sendJson(res, 200, {
+          queued: true,
+          kind,
+          latestContext: latestContext !== null,
+          latestTopics: latestTopics !== null,
+        });
         return;
       }
 
@@ -607,7 +612,12 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
         return;
       }
       if (parsed.triggerResponse !== false) scheduleResponse();
-      sendJson(res, 200, { ok: true, kind, latestContext: latestContext !== null, latestTopics: latestTopics !== null });
+      sendJson(res, 200, {
+        ok: true,
+        kind,
+        latestContext: latestContext !== null,
+        latestTopics: latestTopics !== null,
+      });
       return;
     }
 

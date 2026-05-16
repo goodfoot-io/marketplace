@@ -228,6 +228,43 @@ runIfSourceExists("createVoiceAgentServer", () => {
     });
     browser.close();
   });
+
+  it("state broadcast includes instructions field with the configured instructions string", async () => {
+    const instructions = "You are a test assistant.";
+    const controller = await makeController({ realtime: { instructions } });
+    await controller.start();
+    controllers.push(controller);
+
+    const port = (controller as TestConversationController).__testPort;
+    const socket = await openBrowserClient(port);
+
+    const stateMessage = await new Promise<unknown>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        socket.terminate();
+        reject(new Error("Timed out waiting for state message"));
+      }, 500);
+
+      socket.on("message", (raw) => {
+        const msg = JSON.parse(raw.toString()) as { type: string; data?: unknown };
+        if (msg.type === "state") {
+          clearTimeout(timer);
+          resolve(msg);
+        }
+      });
+    });
+
+    socket.close();
+
+    expect(stateMessage).toMatchObject({
+      type: "state",
+      data: {
+        instructions,
+        server: expect.any(String),
+        browserClient: expect.any(String),
+        conversationStatus: expect.any(String),
+      },
+    });
+  });
 });
 
 async function makeController(

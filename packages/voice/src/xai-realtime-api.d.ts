@@ -1,18 +1,18 @@
-export type XAIRealtimeModel = 'grok-voice-think-fast-1.0' | 'grok-voice-fast-1.0' | (string & {});
+export type XAIRealtimeModel = "grok-voice-think-fast-1.0" | "grok-voice-fast-1.0" | (string & {});
 
-export type XAIVoice = 'eve' | 'ara' | 'rex' | 'sal' | 'leo' | (string & {});
+export type XAIVoice = "eve" | "ara" | "rex" | "sal" | "leo" | (string & {});
 
-export type XAIAudioFormatType = 'audio/pcm' | 'audio/pcmu' | 'audio/pcma';
+export type XAIAudioFormatType = "audio/pcm" | "audio/pcmu" | "audio/pcma";
 
 export type XAIPCMSampleRate = 8000 | 16000 | 22050 | 24000 | 32000 | 44100 | 48000;
 
 export type XAIAudioFormat =
   | {
-      type: 'audio/pcm';
+      type: "audio/pcm";
       rate?: XAIPCMSampleRate;
     }
   | {
-      type: 'audio/pcmu' | 'audio/pcma';
+      type: "audio/pcmu" | "audio/pcma";
       rate?: 8000;
     };
 
@@ -26,36 +26,36 @@ export interface XAIAudioConfig {
 }
 
 export interface XAITurnDetection {
-  type: 'server_vad' | null;
+  type: "server_vad" | null;
   threshold?: number;
   silence_duration_ms?: number;
   prefix_padding_ms?: number;
 }
 
 export interface XAIFunctionTool {
-  type: 'function';
+  type: "function";
   name: string;
   description?: string;
   parameters: Record<string, unknown>;
 }
 
 export interface XAIFileSearchTool {
-  type: 'file_search';
+  type: "file_search";
   vector_store_ids: string[];
   max_num_results?: number;
 }
 
 export interface XAIWebSearchTool {
-  type: 'web_search';
+  type: "web_search";
 }
 
 export interface XAIXSearchTool {
-  type: 'x_search';
+  type: "x_search";
   allowed_x_handles?: string[];
 }
 
 export interface XAIMCPTool {
-  type: 'mcp';
+  type: "mcp";
   server_url: string;
   server_label: string;
   server_description?: string;
@@ -87,7 +87,7 @@ export interface XAIRealtimeVoiceConfig {
   turnDetection?: XAITurnDetection;
   audio?: XAIAudioConfig;
   serverTools?: XAIServerTool[];
-  session?: Omit<XAISessionConfig, 'instructions' | 'voice' | 'tools'> & {
+  session?: Omit<XAISessionConfig, "instructions" | "voice" | "tools"> & {
     tools?: XAIServerTool[];
   };
   debug?: boolean;
@@ -111,18 +111,18 @@ export interface XAIRealtimeAnswerOptions {
 export interface XAISpeaker {
   voiceId: string;
   name: string;
-  gender?: 'female' | 'male' | 'neutral';
+  gender?: "female" | "male" | "neutral";
   description: string;
 }
 
 export type XAIClientEvent =
-  | { type: 'session.update'; session: XAISessionConfig }
-  | { type: 'conversation.item.create'; item: Record<string, unknown> }
-  | { type: 'input_audio_buffer.append'; audio: string; event_id?: string }
-  | { type: 'input_audio_buffer.commit'; event_id?: string }
-  | { type: 'input_audio_buffer.clear'; event_id?: string }
-  | { type: 'response.create'; response?: Record<string, unknown> }
-  | { type: 'response.cancel'; response_id?: string; event_id?: string }
+  | { type: "session.update"; session: XAISessionConfig }
+  | { type: "conversation.item.create"; item: Record<string, unknown> }
+  | { type: "input_audio_buffer.append"; audio: string; event_id?: string }
+  | { type: "input_audio_buffer.commit"; event_id?: string }
+  | { type: "input_audio_buffer.clear"; event_id?: string }
+  | { type: "response.create"; response?: Record<string, unknown> }
+  | { type: "response.cancel"; response_id?: string; event_id?: string }
   | ({ type: string } & Record<string, unknown>);
 
 export interface XAIServerEvent {
@@ -131,12 +131,12 @@ export interface XAIServerEvent {
   previous_item_id?: string;
   item?: {
     id?: string;
-    object?: 'realtime.item';
-    type?: 'message' | 'function_call' | 'function_call_output';
-    status?: 'completed' | 'in_progress' | 'incomplete';
-    role?: 'user' | 'assistant' | 'system';
+    object?: "realtime.item";
+    type?: "message" | "function_call" | "function_call_output";
+    status?: "completed" | "in_progress" | "incomplete";
+    role?: "user" | "assistant" | "system";
     content?: Array<{
-      type?: 'input_audio' | 'input_text' | 'output_text' | 'audio' | 'text';
+      type?: "input_audio" | "input_text" | "output_text" | "audio" | "text";
       transcript?: string;
       text?: string;
     }>;
