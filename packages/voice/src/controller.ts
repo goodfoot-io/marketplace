@@ -37,7 +37,7 @@ import {
   type VoiceAgentToolExecute,
   type VoiceAgentToolMap,
 } from "./types.js";
-import uiHtml from "./ui/index.html";
+import uiHtml from "./ui-dist/index.html";
 import type { XAIClientEvent, XAIServerEvent } from "./xai-realtime-api.js";
 
 type MutableConversation<TTools extends VoiceAgentToolMap> = {
@@ -441,7 +441,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       });
     }
     const toolEntries = Object.entries(input.tools ?? {});
-    if (input.instructions === undefined && toolEntries.length === 0) {
+    if ((input.instructions === undefined || input.instructions === "") && toolEntries.length === 0) {
       throw this.#fail("SESSION_UPDATE_FAILED", "Realtime update input cannot be empty.");
     }
     for (const [toolName] of toolEntries) {

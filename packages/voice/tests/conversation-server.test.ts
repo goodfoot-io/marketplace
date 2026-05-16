@@ -236,8 +236,11 @@ runIfSourceExists("createVoiceAgentServer", () => {
     controllers.push(controller);
 
     const port = (controller as TestConversationController).__testPort;
-    const socket = await openBrowserClient(port);
 
+    // Build the socket and wire the message listener BEFORE awaiting open, so the
+    // connect-time state broadcast (emitted synchronously on the server side when
+    // the connection handler fires) is never missed.
+    const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
     const stateMessage = await new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
         socket.terminate();

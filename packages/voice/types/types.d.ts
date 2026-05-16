@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { XAIClientEvent } from "./xai-realtime-api.js";
 export declare const DEFAULT_REALTIME_MODEL = "grok-voice-latest";
 export declare const DEFAULT_REALTIME_VOICE = "eve";
 export declare const DEFAULT_UI_TITLE = "Voice Agent";
@@ -399,4 +400,61 @@ export type UpdateVoiceSessionToolPatch<TDef> = TDef extends VoiceAgentToolDefin
     description?: string;
     execute?: VoiceAgentToolExecute<TParameters>;
 } : never;
+export type ServerEnvelope = {
+    type: "state";
+    data: {
+        server: ServerStatus;
+        browserClient: BrowserClientStatus;
+        conversation?: ConversationSnapshot<VoiceAgentToolMap>;
+        conversationStatus: ConversationControllerStatus;
+        instructions: string;
+    };
+} | {
+    type: "transcript.item";
+    data: TranscriptItem;
+} | {
+    type: "transcript.delta";
+    data: TranscriptDeltaEvent;
+} | {
+    type: "browser.audio.deviceChange";
+    data: BrowserAudioDeviceState;
+} | {
+    type: "voice.session.start";
+} | {
+    type: "voice.session.token";
+    data: {
+        clientSecret: string;
+        model: string;
+        expiresAt?: number;
+    };
+} | {
+    type: "voice.session.close";
+    data: {
+        code: number;
+        reason: string;
+    };
+} | {
+    type: "voice.send";
+    data: {
+        event: XAIClientEvent;
+        gate?: "playback-drained";
+    };
+} | {
+    type: "audio.output.delta";
+    data: {
+        audio: string;
+    };
+} | {
+    type: "duplicate.client";
+} | {
+    type: "wait_for_context.start";
+} | {
+    type: "wait_for_context.end";
+} | {
+    type: "error";
+    data: {
+        code: string;
+        message: string;
+    };
+};
 export {};

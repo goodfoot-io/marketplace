@@ -25,7 +25,7 @@
     "bundle": "node esbuild.config.mjs",
     "demo": "tsx example/server.ts",
     "typecheck": "tsgo --noEmit",
-    "build": "tsc --build tsconfig.build.json && node esbuild.config.mjs",
+    "build": "vite build && tsc --build tsconfig.build.json && node esbuild.config.mjs",
     "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests ./example",
     "test": "vitest run",
     "release": "bash ../../scripts/release-package.sh voice",
