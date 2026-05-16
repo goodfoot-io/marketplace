@@ -110,6 +110,11 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
   let pauseCutTimer: ReturnType<typeof setTimeout> | undefined;
   let drainCheckTimer: ReturnType<typeof setTimeout> | undefined;
   let mintRetryCount = 0;
+  // Fires getUserMedia at most once when the server reports connectOnPageLoad,
+  // surfacing the browser mic-permission prompt without waiting for a click.
+  // The autoplay probe still gates the click-driven start path; this only
+  // bypasses the gate for the server-driven page-load connect.
+  let connectOnPageLoadPrompted = false;
   let metronomeCtx: AudioContext | undefined;
   let metronomeTimer: ReturnType<typeof setInterval> | undefined;
   // Detaches the close/error listeners from the live xAI socket so a clean
@@ -558,6 +563,7 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
       await startMicEncoder(stream);
 
       const safeToken = sanitizeSubprotocolToken(token.clientSecret, dispatch);
+      dispatch({ type: "xai/ws/connecting" });
       const ws = new WebSocket(`wss://api.x.ai/v1/realtime?model=${encodeURIComponent(token.model)}`, [
         `xai-client-secret.${safeToken}`,
       ]);
@@ -1000,6 +1006,22 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
         const status = action.data.conversationStatus;
         if ((status === "none" || status === "ending") && getState().voice.xaiOpen) {
           teardownVoice();
+        }
+        // Browser-side auto-prompt: when the server is configured to connect on
+        // page load, acquire the mic immediately so the browser permission
+        // prompt appears without a user gesture. Vanilla deferred this behind
+        // the autoplay gate / play click, which left connectOnPageLoad +
+        // topics/context start attempts flooding MICROPHONE_DEVICE_UNAVAILABLE
+        // during the entire pre-gesture window. Fire once; if denied the user
+        // can still retry via the play button (onPrimaryClick). The resulting
+        // audio.device.state{ready:true} lets the controller's connectOnPageLoad
+        // gate auto-start the conversation.
+        if (action.data.connectOnPageLoad && !connectOnPageLoadPrompted) {
+          const { audio, voice } = getState();
+          if (!audio.ready && audio.permission !== "denied" && !voice.xaiOpen && !voice.sessionInFlight) {
+            connectOnPageLoadPrompted = true;
+            void getUserMedia();
+          }
         }
         break;
       }

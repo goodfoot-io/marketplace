@@ -13,9 +13,10 @@ type TabState = "idle" | "connecting" | "active" | "paused";
  * voiceSessionRunner; this component only dispatches `ui/*`.
  */
 export function FloatingTab(): React.JSX.Element {
-  const { xaiOpen, sessionInFlight, paused } = useStore(
+  const { xaiOpen, xaiStatus, sessionInFlight, paused } = useStore(
     useShallow((s) => ({
       xaiOpen: s.voice.xaiOpen,
+      xaiStatus: s.voice.xaiStatus,
       sessionInFlight: s.voice.sessionInFlight,
       paused: s.voice.paused,
     })),
@@ -92,15 +93,11 @@ export function FloatingTab(): React.JSX.Element {
 
       {tabState === "active" ? <EqBars dimmed={false} /> : null}
 
-      <div className="connection">
-        <span className={`dot ${connectionStatus}`} />
-        {connectionStatus === "connecting" ? (
-          <span>Connecting...</span>
-        ) : connectionStatus === "disconnected" ? (
-          <span>Disconnected</span>
-        ) : connectionStatus === "error" ? (
-          <span>Connection Error</span>
-        ) : null}
+      <div className="connection" title={`Local: ${connectionStatus} · xAI: ${xaiStatus}`}>
+        <span className="split-dot">
+          <span className={`split-dot-half top ${connectionStatus}`} />
+          <span className={`split-dot-half bottom ${xaiStatus}`} />
+        </span>
       </div>
 
       <div style={{ position: "relative" }}>

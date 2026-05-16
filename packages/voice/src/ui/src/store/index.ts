@@ -1,5 +1,5 @@
 import { useStore as useZustandStore } from "zustand";
-import { redux } from "zustand/middleware";
+import { persist, redux } from "zustand/middleware";
 import { createStore } from "zustand/vanilla";
 import type { Action } from "../actions.js";
 import { type AudioState, audioReducer, initialAudioState } from "./audio.js";
@@ -43,7 +43,22 @@ export function reducer(state: RootState, action: Action): RootState {
   return { connection, conversation, audio, voice, ui };
 }
 
-const store = createStore(redux(reducer, initialState));
+const store = createStore(
+  persist(redux(reducer, initialState), {
+    name: "voice:audio",
+    // Only the chosen input device survives reloads/reconnects; everything
+    // else (permission, device list, readiness) must be re-derived live.
+    partialize: (state) => ({ audio: { selectedDeviceId: state.audio.selectedDeviceId } }),
+    // Default persist merge is a shallow top-level spread, which would
+    // replace the entire `audio` slice with just `{ selectedDeviceId }`.
+    // Deep-merge so the rest of the freshly-initialized audio state stays intact.
+    merge: (persisted, current) => {
+      const saved = persisted as { audio?: { selectedDeviceId?: string | null } } | undefined;
+      const selectedDeviceId = saved?.audio?.selectedDeviceId ?? current.audio.selectedDeviceId;
+      return { ...current, audio: { ...current.audio, selectedDeviceId } };
+    },
+  }),
+);
 
 export type Store = typeof store;
 

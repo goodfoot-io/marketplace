@@ -137,6 +137,38 @@ button:active:enabled {
   background: var(--dot-error);
 }
 
+.split-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.split-dot-half {
+  display: block;
+  width: 8px;
+  height: 4px;
+  background: var(--dot-disconnected);
+}
+
+.split-dot-half.connected {
+  background: var(--dot-connected);
+}
+
+.split-dot-half.connecting {
+  background: var(--dot-connecting);
+}
+
+.split-dot-half.disconnected {
+  background: var(--dot-disconnected);
+}
+
+.split-dot-half.error {
+  background: var(--dot-error);
+}
+
 /* ── Equalizer bars ───────────────────────────────────────────────────── */
 .meters {
   display: flex;

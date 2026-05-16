@@ -1582,6 +1582,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         conversationStatus: this.#status.conversation,
         conversation: this.currentConversation,
         instructions: this.#instructions,
+        connectOnPageLoad: this.#config.browserSession.connectOnPageLoad,
       },
     });
   }

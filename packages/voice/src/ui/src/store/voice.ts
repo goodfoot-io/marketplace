@@ -2,6 +2,7 @@ import type { Action } from "../actions.js";
 
 export interface VoiceState {
   xaiOpen: boolean;
+  xaiStatus: "connecting" | "connected" | "disconnected" | "error";
   connectedSent: boolean;
   sessionInFlight: boolean;
   paused: boolean;
@@ -14,6 +15,7 @@ export interface VoiceState {
 
 export const initialVoiceState: VoiceState = {
   xaiOpen: false,
+  xaiStatus: "disconnected",
   connectedSent: false,
   sessionInFlight: false,
   paused: false,
@@ -26,13 +28,21 @@ export const initialVoiceState: VoiceState = {
 
 export function voiceReducer(state: VoiceState, action: Action): VoiceState {
   switch (action.type) {
+    case "xai/ws/connecting":
+      if (state.xaiStatus === "connecting") return state;
+      return { ...state, xaiStatus: "connecting" };
     case "xai/ws/open":
-      return { ...state, xaiOpen: true };
+      return { ...state, xaiOpen: true, xaiStatus: "connected" };
+    case "xai/ws/error":
+      // Only flag status; the close handler that follows performs teardown.
+      if (state.xaiStatus === "error") return state;
+      return { ...state, xaiStatus: "error" };
     case "xai/ws/close":
       // Teardown: xAI session closed.
       return {
         ...state,
         xaiOpen: false,
+        xaiStatus: "disconnected",
         responseActive: false,
         nextPlaybackTime: 0,
         playbackEndsAt: 0,

@@ -18,6 +18,7 @@ export type AudioDevice = BrowserAudioInputDevice;
 
 export type Action =
   // xAI WS lifecycle (browser-synthesized; NOT forwarded as voice.event to host)
+  | { type: "xai/ws/connecting" }
   | { type: "xai/ws/open" }
   | { type: "xai/ws/close"; code: number; reason: string }
   | { type: "xai/ws/error" }

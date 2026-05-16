@@ -560,6 +560,7 @@ export type ServerEnvelope =
         conversation?: ConversationSnapshot<VoiceAgentToolMap>;
         conversationStatus: ConversationControllerStatus;
         instructions: string;
+        connectOnPageLoad: boolean;
       };
     }
   | { type: "transcript.item"; data: TranscriptItem }
