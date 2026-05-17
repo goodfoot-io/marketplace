@@ -46,7 +46,10 @@ Stdin is read to EOF when no path argument is given. If the content is non-empty
 </invoke>
 ```
 
-Running `voice html` with no argument and empty or closed stdin (including `/dev/null`) clears the stage and unmounts the iframe. The browser returns to an empty background. Works from agents and non-TTY callers — no TTY required.
+Running `voice html` with no argument clears the stage and unmounts the iframe. The browser returns to an empty background.
+
+- **Interactive terminal**: clears immediately — no stdin read, no Ctrl-D required.
+- **Non-TTY caller** (agent, script, closed or `/dev/null` stdin): reads stdin to EOF; empty/whitespace clears the stage.
 
 **Path wins** when both a path argument and piped stdin are present.
 

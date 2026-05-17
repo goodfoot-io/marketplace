@@ -275,8 +275,12 @@ async function cmdHtml(port: number): Promise<void> {
   if (pathArg !== undefined) {
     // Path wins over piped stdin when both are present.
     body = { path: resolve(process.cwd(), pathArg) };
+  } else if (process.stdin.isTTY) {
+    // Interactive terminal with no path arg: clear immediately without reading stdin.
+    body = { clear: true };
   } else {
-    // Read stdin to EOF (returns "" immediately on /dev/null or closed pipe).
+    // Non-TTY (piped/redirected/closed): read stdin to EOF.
+    // Returns "" immediately on /dev/null or closed pipe.
     // Use raw (untrimmed) bytes for the document; trim only to decide clear-vs-content.
     const raw = await readStdinRaw();
     if (raw.trim().length === 0) {
@@ -498,14 +502,16 @@ COMMANDS
   voice html [path]
     Render an HTML document full-viewport behind the voice UI (the voice
     overlays remain above it and stay interactive).
-      path given   — serve the file at that path verbatim; the daemon
-                     watches the file and live-reloads on every save.
-      piped stdin  — \`cat page.html | voice html\` — sets the stage to
-                     the piped document (verbatim, untrimmed).
-      bare / empty — \`voice html\` with no argument and no real piped
-                     content (empty or closed stdin) — clears the stage
-                     and unmounts the iframe. Works from agents and
-                     scripts where stdin is not a TTY.
+      path given        — serve the file at that path verbatim; the daemon
+                          watches the file and live-reloads on every save.
+      piped non-empty   — \`cat page.html | voice html\` — sets the stage to
+                          the piped document (verbatim, untrimmed).
+      piped empty       — empty or whitespace-only stdin (e.g. /dev/null or
+                          closed pipe) — clears the stage and unmounts the
+                          iframe.
+      interactive bare  — \`voice html\` at a terminal with no path arg —
+                          clears the stage immediately without reading stdin
+                          (no Ctrl-D required).
     Path wins when both a path argument and piped stdin are present.
     IMPORTANT: only absolute URLs or CDN URLs work inside the iframe —
     the daemon serves no asset server, so relative-path <script>/<link>

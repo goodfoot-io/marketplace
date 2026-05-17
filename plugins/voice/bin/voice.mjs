@@ -308,6 +308,8 @@ async function cmdHtml(port2) {
   let body;
   if (pathArg !== void 0) {
     body = { path: resolve(process.cwd(), pathArg) };
+  } else if (process.stdin.isTTY) {
+    body = { clear: true };
   } else {
     const raw = await readStdinRaw();
     if (raw.trim().length === 0) {
@@ -504,14 +506,16 @@ COMMANDS
   voice html [path]
     Render an HTML document full-viewport behind the voice UI (the voice
     overlays remain above it and stay interactive).
-      path given   \u2014 serve the file at that path verbatim; the daemon
-                     watches the file and live-reloads on every save.
-      piped stdin  \u2014 \`cat page.html | voice html\` \u2014 sets the stage to
-                     the piped document (verbatim, untrimmed).
-      bare / empty \u2014 \`voice html\` with no argument and no real piped
-                     content (empty or closed stdin) \u2014 clears the stage
-                     and unmounts the iframe. Works from agents and
-                     scripts where stdin is not a TTY.
+      path given        \u2014 serve the file at that path verbatim; the daemon
+                          watches the file and live-reloads on every save.
+      piped non-empty   \u2014 \`cat page.html | voice html\` \u2014 sets the stage to
+                          the piped document (verbatim, untrimmed).
+      piped empty       \u2014 empty or whitespace-only stdin (e.g. /dev/null or
+                          closed pipe) \u2014 clears the stage and unmounts the
+                          iframe.
+      interactive bare  \u2014 \`voice html\` at a terminal with no path arg \u2014
+                          clears the stage immediately without reading stdin
+                          (no Ctrl-D required).
     Path wins when both a path argument and piped stdin are present.
     IMPORTANT: only absolute URLs or CDN URLs work inside the iframe \u2014
     the daemon serves no asset server, so relative-path <script>/<link>
