@@ -7841,6 +7841,11 @@ var VoiceAgentServerControllerImpl = class extends StrictEventEmitter {
   #injectedWatcher;
   #injectedGeneration = 0;
   #injectedWatchDebounce;
+  #injectedPoll;
+  // True while the watched path is absent/unreadable and the error document is
+  // already served — used to de-duplicate the error render/broadcast/event so a
+  // file that stays missing does not produce a per-poll storm.
+  #injectedAbsent = false;
   #activeToolAbortControllers = /* @__PURE__ */ new Map();
   #streamingAssistantText = /* @__PURE__ */ new Map();
   constructor(config) {
@@ -8062,10 +8067,11 @@ var VoiceAgentServerControllerImpl = class extends StrictEventEmitter {
       } catch (cause) {
         if (gen !== this.#injectedGeneration) return;
         this.#serveInjectedError(abs, cause);
-        this.#installInjectedWatcher(abs, gen);
+        this.#pollForInjectedFile(abs, gen);
         return;
       }
       if (gen !== this.#injectedGeneration) return;
+      this.#injectedAbsent = false;
       this.#injectedHtml = body;
       this.#injectedVersion += 1;
       this.#broadcastInjected();
@@ -8081,12 +8087,19 @@ var VoiceAgentServerControllerImpl = class extends StrictEventEmitter {
       clearTimeout(this.#injectedWatchDebounce);
       this.#injectedWatchDebounce = void 0;
     }
+    if (this.#injectedPoll) {
+      clearInterval(this.#injectedPoll);
+      this.#injectedPoll = void 0;
+    }
     if (this.#injectedWatcher) {
       this.#injectedWatcher.close();
       this.#injectedWatcher = void 0;
     }
+    this.#injectedAbsent = false;
   }
   #serveInjectedError(abs, cause) {
+    if (this.#injectedAbsent) return;
+    this.#injectedAbsent = true;
     const error = this.#fail(
       "INJECTED_FILE_UNREADABLE",
       `Injected HTML file is unreadable: ${abs}`,
@@ -8118,8 +8131,9 @@ var VoiceAgentServerControllerImpl = class extends StrictEventEmitter {
       let watcher;
       try {
         watcher = watch(abs);
-      } catch {
-        rerun();
+      } catch (cause) {
+        this.#serveInjectedError(abs, cause);
+        this.#pollForInjectedFile(abs, gen);
         return;
       }
       this.#injectedWatcher = watcher;
@@ -8142,10 +8156,11 @@ var VoiceAgentServerControllerImpl = class extends StrictEventEmitter {
     } catch (cause) {
       if (gen !== this.#injectedGeneration) return;
       this.#serveInjectedError(abs, cause);
-      this.#rearmInjectedWatcher(abs, gen);
+      this.#pollForInjectedFile(abs, gen);
       return;
     }
     if (gen !== this.#injectedGeneration) return;
+    this.#injectedAbsent = false;
     this.#injectedHtml = body;
     this.#injectedVersion += 1;
     this.#broadcastInjected();
@@ -8158,6 +8173,46 @@ var VoiceAgentServerControllerImpl = class extends StrictEventEmitter {
       this.#injectedWatcher = void 0;
     }
     this.#installInjectedWatcher(abs, gen);
+  }
+  // Quiet recovery path for a missing/unreadable watched file. The error
+  // document has already been served exactly once (#serveInjectedError is
+  // idempotent via #injectedAbsent). Here we drop the dead fs.watch
+  // handle/debounce and poll at a low frequency: each tick only does anything
+  // when the file becomes readable again, at which point we re-render once and
+  // hand back to the normal fs.watch happy path. While the file stays absent a
+  // tick is a single failed readFile with no version bump, broadcast, or event.
+  #pollForInjectedFile(abs, gen) {
+    if (gen !== this.#injectedGeneration) return;
+    if (this.#injectedWatchDebounce) {
+      clearTimeout(this.#injectedWatchDebounce);
+      this.#injectedWatchDebounce = void 0;
+    }
+    if (this.#injectedWatcher) {
+      this.#injectedWatcher.close();
+      this.#injectedWatcher = void 0;
+    }
+    if (this.#injectedPoll) clearInterval(this.#injectedPoll);
+    this.#injectedPoll = setInterval(() => {
+      void (async () => {
+        if (gen !== this.#injectedGeneration) return;
+        let body;
+        try {
+          body = await readFile(abs, "utf-8");
+        } catch {
+          return;
+        }
+        if (gen !== this.#injectedGeneration) return;
+        if (this.#injectedPoll) {
+          clearInterval(this.#injectedPoll);
+          this.#injectedPoll = void 0;
+        }
+        this.#injectedAbsent = false;
+        this.#injectedHtml = body;
+        this.#injectedVersion += 1;
+        this.#broadcastInjected();
+        this.#installInjectedWatcher(abs, gen);
+      })();
+    }, 1e3);
   }
   #broadcastInjected() {
     this.#broadcastState();

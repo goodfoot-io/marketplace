@@ -203,6 +203,11 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
   #injectedWatcher?: FSWatcher;
   #injectedGeneration = 0;
   #injectedWatchDebounce?: ReturnType<typeof setTimeout>;
+  #injectedPoll?: ReturnType<typeof setInterval>;
+  // True while the watched path is absent/unreadable and the error document is
+  // already served — used to de-duplicate the error render/broadcast/event so a
+  // file that stays missing does not produce a per-poll storm.
+  #injectedAbsent = false;
   readonly #activeToolAbortControllers = new Map<string, AbortController>();
   readonly #streamingAssistantText = new Map<string, string>();
 
@@ -460,11 +465,15 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       } catch (cause) {
         if (gen !== this.#injectedGeneration) return;
         this.#serveInjectedError(abs, cause);
-        // Watch even when the initial read fails — the file may appear later.
-        this.#installInjectedWatcher(abs, gen);
+        // Do NOT fs.watch a path that does not exist / is unreadable: that
+        // throws synchronously and would spin a tight re-arm loop. Instead
+        // enter a quiet low-frequency stat poll that resumes once the file
+        // becomes readable again.
+        this.#pollForInjectedFile(abs, gen);
         return;
       }
       if (gen !== this.#injectedGeneration) return;
+      this.#injectedAbsent = false;
       this.#injectedHtml = body;
       this.#injectedVersion += 1;
       this.#broadcastInjected();
@@ -482,13 +491,24 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       clearTimeout(this.#injectedWatchDebounce);
       this.#injectedWatchDebounce = undefined;
     }
+    if (this.#injectedPoll) {
+      clearInterval(this.#injectedPoll);
+      this.#injectedPoll = undefined;
+    }
     if (this.#injectedWatcher) {
       this.#injectedWatcher.close();
       this.#injectedWatcher = undefined;
     }
+    this.#injectedAbsent = false;
   }
 
   #serveInjectedError(abs: string, cause: unknown): void {
+    // De-duplicate: if the path is already in the absent/unreadable state and
+    // the error document is served, do not bump the version, re-broadcast, or
+    // re-emit. This collapses a permanently-missing file to a single stable
+    // state instead of a per-poll/per-event storm.
+    if (this.#injectedAbsent) return;
+    this.#injectedAbsent = true;
     const error = this.#fail(
       "INJECTED_FILE_UNREADABLE",
       `Injected HTML file is unreadable: ${abs}`,
@@ -521,9 +541,12 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       let watcher: FSWatcher;
       try {
         watcher = watch(abs);
-      } catch {
-        // File may not exist yet; retry on the debounce schedule.
-        rerun();
+      } catch (cause) {
+        // The file vanished between read and (re-)arm: serve the error once,
+        // then quietly poll instead of tight-looping fs.watch on a missing
+        // path (which throws synchronously).
+        this.#serveInjectedError(abs, cause);
+        this.#pollForInjectedFile(abs, gen);
         return;
       }
       this.#injectedWatcher = watcher;
@@ -549,10 +572,13 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     } catch (cause) {
       if (gen !== this.#injectedGeneration) return;
       this.#serveInjectedError(abs, cause);
-      this.#rearmInjectedWatcher(abs, gen);
+      // The watched file was deleted/renamed away. Stop fs.watch (the handle is
+      // dead) and switch to the quiet poll until it reappears.
+      this.#pollForInjectedFile(abs, gen);
       return;
     }
     if (gen !== this.#injectedGeneration) return;
+    this.#injectedAbsent = false;
     this.#injectedHtml = body;
     this.#injectedVersion += 1;
     this.#broadcastInjected();
@@ -566,6 +592,51 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       this.#injectedWatcher = undefined;
     }
     this.#installInjectedWatcher(abs, gen);
+  }
+
+  // Quiet recovery path for a missing/unreadable watched file. The error
+  // document has already been served exactly once (#serveInjectedError is
+  // idempotent via #injectedAbsent). Here we drop the dead fs.watch
+  // handle/debounce and poll at a low frequency: each tick only does anything
+  // when the file becomes readable again, at which point we re-render once and
+  // hand back to the normal fs.watch happy path. While the file stays absent a
+  // tick is a single failed readFile with no version bump, broadcast, or event.
+  #pollForInjectedFile(abs: string, gen: number): void {
+    if (gen !== this.#injectedGeneration) return;
+    if (this.#injectedWatchDebounce) {
+      clearTimeout(this.#injectedWatchDebounce);
+      this.#injectedWatchDebounce = undefined;
+    }
+    if (this.#injectedWatcher) {
+      this.#injectedWatcher.close();
+      this.#injectedWatcher = undefined;
+    }
+    if (this.#injectedPoll) clearInterval(this.#injectedPoll);
+    this.#injectedPoll = setInterval(() => {
+      void (async (): Promise<void> => {
+        if (gen !== this.#injectedGeneration) return;
+        let body: string;
+        try {
+          body = await readFile(abs, "utf-8");
+        } catch {
+          // Still absent/unreadable: stay in the single stable error state.
+          // No render, no broadcast, no event — this is the de-duplicated tick.
+          return;
+        }
+        if (gen !== this.#injectedGeneration) return;
+        if (this.#injectedPoll) {
+          clearInterval(this.#injectedPoll);
+          this.#injectedPoll = undefined;
+        }
+        // File is back: clear absent state, re-render exactly once, then
+        // resume the normal fs.watch + debounce happy path.
+        this.#injectedAbsent = false;
+        this.#injectedHtml = body;
+        this.#injectedVersion += 1;
+        this.#broadcastInjected();
+        this.#installInjectedWatcher(abs, gen);
+      })();
+    }, 1000);
   }
 
   #broadcastInjected(): void {

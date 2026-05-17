@@ -216,7 +216,8 @@ runIfSourceExists("setHtml — injected stage", () => {
     const errorEvents: unknown[] = [];
     controller.on("injected.error", (e) => errorEvents.push(e));
 
-    const missingPath = "/tmp/voice-test-does-not-exist-XXXXXXXX.html";
+    const dir = await makeTmpDir();
+    const missingPath = join(dir, "voice-test-does-not-exist.html");
 
     // Must not throw
     await expect(controller.setHtml({ path: missingPath })).resolves.toBeUndefined();
@@ -232,11 +233,31 @@ runIfSourceExists("setHtml — injected stage", () => {
     // The error document must mention the path
     expect(body).toContain(missingPath);
 
+    // No storm: while the file stays absent the error state must be a SINGLE
+    // stable state — no per-cycle version bumps, no repeated injected.error.
+    // Wait well past the prior ~75ms debounce window and a full ~1s poll tick.
+    const versionAtError = await readStateInjectedVersion(port);
+    const eventCountAtError = errorEvents.length;
+    await new Promise((r) => setTimeout(r, 1300));
+    expect(await readStateInjectedVersion(port)).toBe(versionAtError);
+    expect(errorEvents.length).toBe(eventCountAtError);
+
     // Server must still accept new connections
     const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
     const state = await waitForOpenOrClose(socket);
     socket.close();
     expect(state).toBe("open");
+
+    // File reappearance resumes normal rendering exactly once.
+    await writeFile(missingPath, "<p>recovered</p>", "utf-8");
+    const recovered = await pollUntil(
+      () => readStateInjectedVersion(port),
+      (v) => typeof v === "number" && v !== versionAtError,
+      2500,
+    );
+    expect(typeof recovered).toBe("number");
+    const recoveredRes = await fetch(`http://127.0.0.1:${port}/__injected?v=${recovered as number}`);
+    expect(await recoveredRes.text()).toBe("<p>recovered</p>");
   });
 
   it("setHtml(null) clears: /__injected returns 404, injectedVersion is null on state envelope", async () => {
