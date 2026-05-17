@@ -71,7 +71,7 @@ afterEach(async () => {
 });
 
 runIfSourceExists("setHtml — injected stage", () => {
-  it.skip("setHtml({ html }) serves the body verbatim at /__injected with no-store and no title substitution", async () => {
+  it("setHtml({ html }) serves the body verbatim at /__injected with no-store and no title substitution", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);
@@ -89,7 +89,7 @@ runIfSourceExists("setHtml — injected stage", () => {
     expect(body).toBe(rawHtml);
   });
 
-  it.skip("injectedVersion increments on each setHtml call and is present on the state envelope", async () => {
+  it("injectedVersion increments on each setHtml call and is present on the state envelope", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);
@@ -109,7 +109,7 @@ runIfSourceExists("setHtml — injected stage", () => {
     expect(v2 as number).toBeGreaterThan(v1 as number);
   });
 
-  it.skip("setHtml({ html }) broadcasts a stage.injected delta to connected sockets", async () => {
+  it("setHtml({ html }) broadcasts a stage.injected delta to connected sockets", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);
@@ -130,7 +130,7 @@ runIfSourceExists("setHtml — injected stage", () => {
     });
   });
 
-  it.skip("setHtml({ path }) reads the file and serves its contents at /__injected", async () => {
+  it("setHtml({ path }) reads the file and serves its contents at /__injected", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);
@@ -148,7 +148,7 @@ runIfSourceExists("setHtml — injected stage", () => {
     expect(await res.text()).toBe(content);
   });
 
-  it.skip("editing the watched file produces a new injectedVersion (live re-render)", async () => {
+  it("editing the watched file produces a new injectedVersion (live re-render)", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);
@@ -178,7 +178,7 @@ runIfSourceExists("setHtml — injected stage", () => {
     expect(await res.text()).toBe("<p>v2</p>");
   });
 
-  it.skip("watcher survives an atomic replace (write-to-temp + rename)", async () => {
+  it("watcher survives an atomic replace (write-to-temp + rename)", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);
@@ -207,7 +207,7 @@ runIfSourceExists("setHtml — injected stage", () => {
     expect(await res.text()).toBe("<p>replaced</p>");
   });
 
-  it.skip("missing/unreadable path: error doc served, injected.error emitted, setHtml does not throw, server stays up", async () => {
+  it("missing/unreadable path: error doc served, injected.error emitted, setHtml does not throw, server stays up", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);
@@ -239,7 +239,7 @@ runIfSourceExists("setHtml — injected stage", () => {
     expect(state).toBe("open");
   });
 
-  it.skip("setHtml(null) clears: /__injected returns 404, injectedVersion is null on state envelope", async () => {
+  it("setHtml(null) clears: /__injected returns 404, injectedVersion is null on state envelope", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);
@@ -258,7 +258,7 @@ runIfSourceExists("setHtml — injected stage", () => {
     expect(res.status).toBe(404);
   });
 
-  it.skip("a freshly-connected socket after a prior setHtml receives the current injectedVersion via initial state broadcast", async () => {
+  it("a freshly-connected socket after a prior setHtml receives the current injectedVersion via initial state broadcast", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);
@@ -279,7 +279,7 @@ runIfSourceExists("setHtml — injected stage", () => {
     });
   });
 
-  it.skip("overlapping setHtml calls: only the last watcher and version remain (no leaked watcher)", async () => {
+  it("overlapping setHtml calls: only the last watcher and version remain (no leaked watcher)", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);
@@ -311,7 +311,7 @@ runIfSourceExists("setHtml — injected stage", () => {
     expect(versionAfterAEdit).toBe(versionSnapshot);
   });
 
-  it.skip("stop() releases the watcher so the process can exit cleanly (no leaked handle)", async () => {
+  it("stop() releases the watcher so the process can exit cleanly (no leaked handle)", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);

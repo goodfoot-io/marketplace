@@ -1,4 +1,7 @@
+import { type FSWatcher, watch } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { resolve as resolvePath } from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import { z } from "zod";
 import { StrictEventEmitter } from "./emitter.js";
@@ -195,6 +198,11 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
   #responseInFlight = false;
   #instructions: string;
   #pendingToolResultCount = 0;
+  #injectedHtml: string | null = null;
+  #injectedVersion = 0;
+  #injectedWatcher?: FSWatcher;
+  #injectedGeneration = 0;
+  #injectedWatchDebounce?: ReturnType<typeof setTimeout>;
   readonly #activeToolAbortControllers = new Map<string, AbortController>();
   readonly #streamingAssistantText = new Map<string, string>();
 
@@ -297,6 +305,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         this.#server?.closeAllConnections?.();
         this.#server?.close((error) => (error ? reject(error) : resolve()));
       });
+      this.#teardownInjected();
       this.#server = undefined;
       this.#wss = undefined;
       this.#clearBrowserClient();
@@ -421,8 +430,157 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     return item;
   }
 
-  async setHtml(_input: { html: string } | { path: string } | null): Promise<void> {
-    throw new Error("Not Implemented");
+  async setHtml(input: { html: string } | { path: string } | null): Promise<void> {
+    // Serialize overlapping calls synchronously before any await: tear down any
+    // prior watcher/debounce, bump the generation, and capture it. A superseded
+    // in-flight read observes gen !== this.#injectedGeneration and discards.
+    this.#teardownInjected();
+    this.#injectedGeneration += 1;
+    const gen = this.#injectedGeneration;
+
+    if (input === null) {
+      this.#injectedHtml = null;
+      this.#injectedVersion += 1;
+      this.#broadcastInjected();
+      return;
+    }
+
+    if (typeof input === "object" && "html" in input && typeof input.html === "string") {
+      this.#injectedHtml = input.html;
+      this.#injectedVersion += 1;
+      this.#broadcastInjected();
+      return;
+    }
+
+    if (typeof input === "object" && "path" in input && typeof input.path === "string") {
+      const abs = resolvePath(input.path);
+      let body: string;
+      try {
+        body = await readFile(abs, "utf-8");
+      } catch (cause) {
+        if (gen !== this.#injectedGeneration) return;
+        this.#serveInjectedError(abs, cause);
+        // Watch even when the initial read fails — the file may appear later.
+        this.#installInjectedWatcher(abs, gen);
+        return;
+      }
+      if (gen !== this.#injectedGeneration) return;
+      this.#injectedHtml = body;
+      this.#injectedVersion += 1;
+      this.#broadcastInjected();
+      this.#installInjectedWatcher(abs, gen);
+      return;
+    }
+
+    throw this.#fail("CONFIG_INVALID", "setHtml() requires { html }, { path }, or null.", {
+      received: input === null ? "null" : typeof input,
+    });
+  }
+
+  #teardownInjected(): void {
+    if (this.#injectedWatchDebounce) {
+      clearTimeout(this.#injectedWatchDebounce);
+      this.#injectedWatchDebounce = undefined;
+    }
+    if (this.#injectedWatcher) {
+      this.#injectedWatcher.close();
+      this.#injectedWatcher = undefined;
+    }
+  }
+
+  #serveInjectedError(abs: string, cause: unknown): void {
+    const error = this.#fail(
+      "INJECTED_FILE_UNREADABLE",
+      `Injected HTML file is unreadable: ${abs}`,
+      { path: abs },
+      cause,
+    );
+    this.#injectedHtml = this.#injectedErrorDocument(abs, error);
+    this.#injectedVersion += 1;
+    this.#broadcastInjected();
+    this.emit("injected.error", {
+      path: abs,
+      code: error.code,
+      message: error.message,
+      error,
+      createdAt: new Date(),
+    });
+  }
+
+  #installInjectedWatcher(abs: string, gen: number): void {
+    if (gen !== this.#injectedGeneration) return;
+    const rerun = (): void => {
+      if (this.#injectedWatchDebounce) clearTimeout(this.#injectedWatchDebounce);
+      this.#injectedWatchDebounce = setTimeout(() => {
+        this.#injectedWatchDebounce = undefined;
+        void this.#reloadInjectedFile(abs, gen);
+      }, 75);
+    };
+    const arm = (): void => {
+      if (gen !== this.#injectedGeneration) return;
+      let watcher: FSWatcher;
+      try {
+        watcher = watch(abs);
+      } catch {
+        // File may not exist yet; retry on the debounce schedule.
+        rerun();
+        return;
+      }
+      this.#injectedWatcher = watcher;
+      watcher.on("change", rerun);
+      // Editor atomic saves replace the inode, killing the handle — re-arm.
+      watcher.on("error", () => {
+        watcher.close();
+        rerun();
+      });
+      watcher.on("close", () => {
+        // Re-arm only if this watcher is still the active one.
+        if (gen === this.#injectedGeneration && this.#injectedWatcher === watcher) rerun();
+      });
+    };
+    arm();
+  }
+
+  async #reloadInjectedFile(abs: string, gen: number): Promise<void> {
+    if (gen !== this.#injectedGeneration) return;
+    let body: string;
+    try {
+      body = await readFile(abs, "utf-8");
+    } catch (cause) {
+      if (gen !== this.#injectedGeneration) return;
+      this.#serveInjectedError(abs, cause);
+      this.#rearmInjectedWatcher(abs, gen);
+      return;
+    }
+    if (gen !== this.#injectedGeneration) return;
+    this.#injectedHtml = body;
+    this.#injectedVersion += 1;
+    this.#broadcastInjected();
+    this.#rearmInjectedWatcher(abs, gen);
+  }
+
+  #rearmInjectedWatcher(abs: string, gen: number): void {
+    if (gen !== this.#injectedGeneration) return;
+    if (this.#injectedWatcher) {
+      this.#injectedWatcher.close();
+      this.#injectedWatcher = undefined;
+    }
+    this.#installInjectedWatcher(abs, gen);
+  }
+
+  #broadcastInjected(): void {
+    this.#broadcastState();
+    this.#broadcast({
+      type: "stage.injected",
+      data: { injectedVersion: this.#injectedHtml === null ? null : this.#injectedVersion },
+    });
+  }
+
+  #injectedErrorDocument(path: string, error: VoiceAgentServerError): string {
+    const safePath = escapeHtml(path);
+    const safeCode = escapeHtml(error.code);
+    const safeMessage = escapeHtml(error.message);
+    return `<!doctype html><html><head><meta charset="utf-8"><title>Injected HTML error</title></head><body style="margin:0;font-family:system-ui,sans-serif;background:#1a1a1a;color:#f5f5f5;display:flex;align-items:center;justify-content:center;height:100vh;"><div style="max-width:40rem;padding:2rem;"><h1 style="font-size:1.25rem;margin:0 0 1rem;color:#ff6b6b;">Injected HTML unavailable</h1><p style="margin:0 0 0.5rem;">Could not read the injected HTML file:</p><pre style="background:#000;padding:0.75rem;border-radius:0.25rem;overflow:auto;">${safePath}</pre><p style="margin:1rem 0 0;opacity:0.8;">${safeCode}: ${safeMessage}</p></div></body></html>`;
   }
 
   async cancelToolCall(callId: string): Promise<void> {
@@ -1344,7 +1502,30 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     return uiHtml;
   }
 
+  #requestPath(url: string | undefined): string {
+    try {
+      return new URL(url ?? "/", "http://localhost").pathname;
+    } catch {
+      return url ?? "/";
+    }
+  }
+
   #handleHttpRequest(request: IncomingMessage, response: ServerResponse, html: string): void {
+    if (request.method === "GET" && this.#requestPath(request.url) === "/__injected") {
+      if (this.#injectedHtml === null) {
+        response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+        response.end("Not found");
+        return;
+      }
+      response.writeHead(200, {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      // Verbatim — no __REALTIME_VOICE_TITLE__ substitution. Served from the
+      // mutable field, not the start()-captured html closure param.
+      response.end(this.#injectedHtml);
+      return;
+    }
     if (request.method !== "GET" || (request.url !== "/" && request.url !== "/index.html")) {
       response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
       response.end("Not found");
@@ -1587,6 +1768,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         conversation: this.currentConversation,
         instructions: this.#instructions,
         connectOnPageLoad: this.#config.browserSession.connectOnPageLoad,
+        injectedVersion: this.#injectedHtml === null ? null : this.#injectedVersion,
       },
     });
   }
