@@ -79,3 +79,15 @@ export async function readStdin(): Promise<string> {
     process.stdin.on("error", reject);
   });
 }
+
+/**
+ * Read all of stdin as a string without trimming (verbatim bytes).
+ */
+export async function readStdinRaw(): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    process.stdin.on("data", (chunk: Buffer) => chunks.push(chunk));
+    process.stdin.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    process.stdin.on("error", reject);
+  });
+}

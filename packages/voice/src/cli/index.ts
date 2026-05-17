@@ -7,7 +7,7 @@ import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { getBoolean, getPort, getString, parseArgs, readStdin } from "./args.js";
+import { getBoolean, getPort, getString, parseArgs, readStdin, readStdinRaw } from "./args.js";
 import { getStatus, postEmpty, postJson, watchOnce } from "./control-client.js";
 
 // ---------------------------------------------------------------------------
@@ -275,14 +275,25 @@ async function cmdHtml(port: number): Promise<void> {
   if (pathArg !== undefined) {
     // Path wins over piped stdin when both are present.
     body = { path: resolve(process.cwd(), pathArg) };
-  } else if (!process.stdin.isTTY) {
-    const html = await readStdin();
-    body = { html };
   } else {
-    body = { clear: true };
+    // Read stdin to EOF (returns "" immediately on /dev/null or closed pipe).
+    // Use raw (untrimmed) bytes for the document; trim only to decide clear-vs-content.
+    const raw = await readStdinRaw();
+    if (raw.trim().length === 0) {
+      body = { clear: true };
+    } else {
+      body = { html: raw };
+    }
   }
   const res = await postJson(controlPort(port), "/html/set", body);
-  printJson(JSON.parse(res.body));
+  const parsed2 = JSON.parse(res.body) as { ok: boolean; error?: { code: string; message: string } };
+  if (!parsed2.ok) {
+    process.stderr.write(
+      `${JSON.stringify({ error: parsed2.error?.message ?? "unknown error", code: parsed2.error?.code })}\n`,
+    );
+    process.exit(1);
+  }
+  printJson(parsed2);
 }
 
 // ---------------------------------------------------------------------------
@@ -487,12 +498,14 @@ COMMANDS
   voice html [path]
     Render an HTML document full-viewport behind the voice UI (the voice
     overlays remain above it and stay interactive).
-      path given  — serve the file at that path verbatim; the daemon
-                    watches the file and live-reloads on every save.
-      piped stdin — \`cat page.html | voice html\` — sets the stage to
-                    the piped document.
-      bare TTY    — \`voice html\` with no argument and no pipe — clears
-                    the stage and unmounts the iframe.
+      path given   — serve the file at that path verbatim; the daemon
+                     watches the file and live-reloads on every save.
+      piped stdin  — \`cat page.html | voice html\` — sets the stage to
+                     the piped document (verbatim, untrimmed).
+      bare / empty — \`voice html\` with no argument and no real piped
+                     content (empty or closed stdin) — clears the stage
+                     and unmounts the iframe. Works from agents and
+                     scripts where stdin is not a TTY.
     Path wins when both a path argument and piped stdin are present.
     IMPORTANT: only absolute URLs or CDN URLs work inside the iframe —
     the daemon serves no asset server, so relative-path <script>/<link>

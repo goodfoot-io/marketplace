@@ -18,3 +18,7 @@ export declare function getBoolean(flags: Record<string, string | boolean>, key:
  * Read all of stdin as a string.
  */
 export declare function readStdin(): Promise<string>;
+/**
+ * Read all of stdin as a string without trimming (verbatim bytes).
+ */
+export declare function readStdinRaw(): Promise<string>;

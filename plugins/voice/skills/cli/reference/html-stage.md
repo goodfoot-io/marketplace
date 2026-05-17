@@ -36,7 +36,7 @@ EOF</parameter>
 </invoke>
 ```
 
-Stdin is used when no path argument is given and stdin is not a TTY.
+Stdin is read to EOF when no path argument is given. If the content is non-empty, the stage is set to that document (verbatim). If the content is empty or whitespace-only, the stage is cleared. This works from agents and scripts where stdin is not a TTY.
 
 ### Clear (bare invocation)
 
@@ -46,7 +46,7 @@ Stdin is used when no path argument is given and stdin is not a TTY.
 </invoke>
 ```
 
-Running `voice html` with no argument and no piped input clears the stage and unmounts the iframe. The browser returns to an empty background.
+Running `voice html` with no argument and empty or closed stdin (including `/dev/null`) clears the stage and unmounts the iframe. The browser returns to an empty background. Works from agents and non-TTY callers — no TTY required.
 
 **Path wins** when both a path argument and piped stdin are present.
 

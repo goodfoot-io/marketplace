@@ -64,6 +64,14 @@ async function readStdin() {
     process.stdin.on("error", reject);
   });
 }
+async function readStdinRaw() {
+  return new Promise((resolve2, reject) => {
+    const chunks = [];
+    process.stdin.on("data", (chunk) => chunks.push(chunk));
+    process.stdin.on("end", () => resolve2(Buffer.concat(chunks).toString("utf8")));
+    process.stdin.on("error", reject);
+  });
+}
 
 // src/cli/control-client.ts
 import http from "node:http";
@@ -300,14 +308,24 @@ async function cmdHtml(port2) {
   let body;
   if (pathArg !== void 0) {
     body = { path: resolve(process.cwd(), pathArg) };
-  } else if (!process.stdin.isTTY) {
-    const html = await readStdin();
-    body = { html };
   } else {
-    body = { clear: true };
+    const raw = await readStdinRaw();
+    if (raw.trim().length === 0) {
+      body = { clear: true };
+    } else {
+      body = { html: raw };
+    }
   }
   const res = await postJson(controlPort(port2), "/html/set", body);
-  printJson(JSON.parse(res.body));
+  const parsed2 = JSON.parse(res.body);
+  if (!parsed2.ok) {
+    process.stderr.write(
+      `${JSON.stringify({ error: parsed2.error?.message ?? "unknown error", code: parsed2.error?.code })}
+`
+    );
+    process.exit(1);
+  }
+  printJson(parsed2);
 }
 async function cmdCancelTool(port2, callId) {
   const res = await postJson(controlPort(port2), "/tool/cancel", { callId });
@@ -486,12 +504,14 @@ COMMANDS
   voice html [path]
     Render an HTML document full-viewport behind the voice UI (the voice
     overlays remain above it and stay interactive).
-      path given  \u2014 serve the file at that path verbatim; the daemon
-                    watches the file and live-reloads on every save.
-      piped stdin \u2014 \`cat page.html | voice html\` \u2014 sets the stage to
-                    the piped document.
-      bare TTY    \u2014 \`voice html\` with no argument and no pipe \u2014 clears
-                    the stage and unmounts the iframe.
+      path given   \u2014 serve the file at that path verbatim; the daemon
+                     watches the file and live-reloads on every save.
+      piped stdin  \u2014 \`cat page.html | voice html\` \u2014 sets the stage to
+                     the piped document (verbatim, untrimmed).
+      bare / empty \u2014 \`voice html\` with no argument and no real piped
+                     content (empty or closed stdin) \u2014 clears the stage
+                     and unmounts the iframe. Works from agents and
+                     scripts where stdin is not a TTY.
     Path wins when both a path argument and piped stdin are present.
     IMPORTANT: only absolute URLs or CDN URLs work inside the iframe \u2014
     the daemon serves no asset server, so relative-path <script>/<link>

@@ -9830,10 +9830,23 @@ var controlServer = createServer2(async (req, res) => {
     if (method === "POST" && pathname === "/html/set") {
       const raw = await readBody(req);
       const parsed = JSON.parse(raw);
-      await controller.setHtml(
-        parsed.path !== void 0 ? { path: parsed.path } : parsed.clear === true ? null : { html: parsed.html ?? "" }
-      );
-      sendJson(res, 200, { ok: true });
+      let injectedError;
+      const onInjectedError = (evt) => {
+        injectedError = { code: evt.code, message: evt.message };
+      };
+      controller.once("injected.error", onInjectedError);
+      try {
+        await controller.setHtml(
+          parsed.path !== void 0 ? { path: parsed.path } : parsed.clear === true ? null : { html: parsed.html ?? "" }
+        );
+      } finally {
+        controller.off("injected.error", onInjectedError);
+      }
+      if (injectedError !== void 0) {
+        sendJson(res, 200, { ok: false, error: { code: injectedError.code, message: injectedError.message } });
+      } else {
+        sendJson(res, 200, { ok: true });
+      }
       return;
     }
     if (method === "POST" && pathname === "/instructions/segment") {

@@ -546,10 +546,27 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
     if (method === "POST" && pathname === "/html/set") {
       const raw = await readBody(req);
       const parsed = JSON.parse(raw) as { html?: string; path?: string; clear?: boolean };
-      await controller.setHtml(
-        parsed.path !== undefined ? { path: parsed.path } : parsed.clear === true ? null : { html: parsed.html ?? "" },
-      );
-      sendJson(res, 200, { ok: true });
+      let injectedError: { code: string; message: string } | undefined;
+      const onInjectedError = (evt: { code: string; message: string }): void => {
+        injectedError = { code: evt.code, message: evt.message };
+      };
+      controller.once("injected.error", onInjectedError);
+      try {
+        await controller.setHtml(
+          parsed.path !== undefined
+            ? { path: parsed.path }
+            : parsed.clear === true
+              ? null
+              : { html: parsed.html ?? "" },
+        );
+      } finally {
+        controller.off("injected.error", onInjectedError);
+      }
+      if (injectedError !== undefined) {
+        sendJson(res, 200, { ok: false, error: { code: injectedError.code, message: injectedError.message } });
+      } else {
+        sendJson(res, 200, { ok: true });
+      }
       return;
     }
 
