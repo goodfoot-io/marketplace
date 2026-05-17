@@ -2,8 +2,46 @@
  * Shared utilities for E2E tests.
  */
 
-import { execSync } from "node:child_process";
+import { execSync, type SpawnSyncReturns, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
+import { createRequire } from "node:module";
+
+/**
+ * Resolves the tsx CLI entrypoint (a `.mjs` file) so it can be executed
+ * directly with the current Node binary. This avoids spawning the `npx` /
+ * `tsx` shell shims, which on Windows are `.cmd` files that `spawnSync`
+ * cannot launch without `shell: true` (and `shell: true` with an args array
+ * introduces Windows quoting hazards). Resolving the JS entrypoint and
+ * running it with `process.execPath` is byte-identical across platforms.
+ */
+// Use the package's public `./cli` export, not the internal `./dist/cli.mjs`
+// path: tsx's `exports` map only exposes `./cli`, so resolving the internal
+// subpath throws ERR_PACKAGE_PATH_NOT_EXPORTED at module load.
+const tsxCliPath = createRequire(import.meta.url).resolve("tsx/cli");
+
+/**
+ * Runs the library CLI under tsx using the current Node binary.
+ *
+ * Cross-platform replacement for `spawnSync("npx", ["tsx", ...])`. Behaviour
+ * on POSIX is identical to invoking `npx tsx <cliPath> <args>` since the same
+ * tsx entrypoint and Node runtime are used; only the executable resolution
+ * differs (and only to remain functional on Windows).
+ * @param cliPath - Absolute path to the CLI source/entry to execute under tsx
+ * @param args - Arguments passed to the CLI
+ * @param options - spawnSync options (cwd, env, etc.)
+ * @returns The spawnSync result
+ */
+export function runTsxCli(
+  cliPath: string,
+  args: string[],
+  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
+): SpawnSyncReturns<string> {
+  return spawnSync(process.execPath, [tsxCliPath, cliPath, ...args], {
+    encoding: "utf-8",
+    stdio: "pipe",
+    ...options,
+  });
+}
 
 /**
  * Represents a compiled hook entry in hooks.json.

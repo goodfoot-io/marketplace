@@ -19,6 +19,7 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import * as esbuild from "esbuild";
 import { glob } from "glob";
 import ts from "typescript";
@@ -595,7 +596,12 @@ function analyzeHookFile(sourcePath: string): HookMetadata | undefined {
  * @returns Array of absolute paths to hook files
  */
 async function discoverHookFiles(pattern: string, cwd: string): Promise<string[]> {
-  const files = await glob(pattern, {
+  // `glob` treats backslashes as escape characters and requires POSIX
+  // separators even on Windows. Callers routinely build patterns with
+  // `path.join` (native separators), so normalize before matching. This is
+  // a no-op on POSIX where paths already use forward slashes.
+  const globPattern = pattern.replace(/\\/g, "/");
+  const files = await glob(globPattern, {
     cwd,
     absolute: true,
     nodir: true,
@@ -652,8 +658,11 @@ interface CompileHookResult {
 async function compileHook(options: CompileHookOptions): Promise<CompileHookResult> {
   const { sourcePath, logFilePath, logEnvVar, loaders } = options;
 
-  // Get the path to the runtime module (absolute, then converted to relative)
-  const runtimePathAbsolute = path.resolve(path.dirname(new URL(import.meta.url).pathname), "./runtime.js");
+  // Get the path to the runtime module (absolute, then converted to relative).
+  // Use fileURLToPath, not `new URL(...).pathname`: on Windows the latter
+  // yields `/C:/...` (leading slash before the drive letter), which corrupts
+  // path.resolve/path.relative and emits a broken `../../../C:/...` import.
+  const runtimePathAbsolute = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./runtime.js");
 
   // Compute relative paths from resolveDir to avoid absolute paths in source maps.
   // This ensures reproducible builds regardless of checkout directory.
@@ -917,9 +926,13 @@ function detectHookContext(outputPath: string): HookContextInfo {
   // This matches paths like: /project/.claude/hooks/hooks.json
   const claudeMatch = normalizedPath.match(/^(.+)\/\.claude\//);
   if (claudeMatch !== null) {
+    // Slice the original (native-separator) path to preserve OS-appropriate
+    // separators in the returned rootDir. The match group length equals the
+    // length of the root prefix in the normalized path, which has the same
+    // length as the original since normalization is a 1:1 character swap.
     return {
       context: "agent",
-      rootDir: claudeMatch[1],
+      rootDir: outputPath.slice(0, claudeMatch[1].length),
     };
   }
 

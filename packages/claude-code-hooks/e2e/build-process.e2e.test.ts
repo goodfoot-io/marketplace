@@ -11,6 +11,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { runTsxCli } from "./test-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,10 +65,8 @@ function runCli(
   outputPath: string,
   extraArgs: string[] = [],
 ): { success: boolean; stdout: string; stderr: string } {
-  const result = spawnSync("npx", ["tsx", CLI_PATH, "-i", inputPattern, "-o", outputPath, ...extraArgs], {
+  const result = runTsxCli(CLI_PATH, ["-i", inputPattern, "-o", outputPath, ...extraArgs], {
     cwd: path.dirname(CLI_PATH),
-    encoding: "utf-8",
-    stdio: "pipe",
   });
 
   return {

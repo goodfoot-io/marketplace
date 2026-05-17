@@ -10,6 +10,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { runTsxCli } from "./test-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,7 +65,7 @@ function runCli(
   outputPath: string,
   options: { logPath?: string; logEnvVar?: string } = {},
 ): { success: boolean; stdout: string; stderr: string } {
-  const args = ["tsx", CLI_PATH, "-i", inputPattern, "-o", outputPath];
+  const args = ["-i", inputPattern, "-o", outputPath];
   if (options.logPath) {
     args.push("--log", options.logPath);
   }
@@ -72,10 +73,9 @@ function runCli(
     args.push("--log-env-var", options.logEnvVar);
   }
 
-  const result = spawnSync("npx", args, {
+  // `npx tsx <cli>` equivalent, resolved Windows-safely (see runTsxCli).
+  const result = runTsxCli(CLI_PATH, args, {
     cwd: path.dirname(CLI_PATH),
-    encoding: "utf-8",
-    stdio: "pipe",
   });
 
   return {
@@ -326,13 +326,16 @@ describe("E2E: --log CLI Parameter", () => {
       // Read compiled hook content to verify the path was injected
       const content = fs.readFileSync(commandPath, "utf-8");
 
-      // Should contain an absolute path (starts with /) and the log filename
-      expect(content).toMatch(/CLAUDE_CODE_HOOKS_LOG_FILE.*=.*"\/.*relative-test\.log"/);
+      // Should inject an absolute path ending in the log filename. The path
+      // is a JSON-encoded JS string literal (backslash-escaped on Windows),
+      // so don't assume a leading "/"; absoluteness is asserted below.
+      expect(content).toMatch(/CLAUDE_CODE_HOOKS_LOG_FILE.*=.*relative-test\.log/);
 
-      // Extract the actual resolved path from the compiled content
-      const pathMatch = content.match(/process\.env\['CLAUDE_CODE_HOOKS_LOG_FILE'\]\s*=\s*"([^"]+)"/);
+      // Extract and JSON-decode the injected literal back to a real path so
+      // the checks below work cross-platform (Windows escapes backslashes).
+      const pathMatch = content.match(/process\.env\['CLAUDE_CODE_HOOKS_LOG_FILE'\]\s*=\s*("(?:[^"\\]|\\.)*")/);
       expect(pathMatch).toBeTruthy();
-      const resolvedLogPath = pathMatch?.[1];
+      const resolvedLogPath = pathMatch ? (JSON.parse(pathMatch[1]) as string) : "";
       if (!resolvedLogPath) {
         throw new Error("Expected resolvedLogPath to be defined");
       }
@@ -381,7 +384,10 @@ describe("E2E: --log CLI Parameter", () => {
 
       // Banner should set CLAUDE_CODE_HOOKS_LOG_FILE to the hardcoded path
       expect(content).toContain("CLAUDE_CODE_HOOKS_LOG_FILE");
-      expect(content).toContain(logPath);
+      // The path is embedded as a JS string literal via JSON.stringify, so
+      // backslashes are escaped on Windows (`C:\\...`). Compare against the
+      // same encoding; on POSIX this is the unchanged quoted path.
+      expect(content).toContain(JSON.stringify(logPath));
       // Should not use the old CLI_LOG_FILE var
       expect(content).not.toContain("CLAUDE_CODE_HOOKS_CLI_LOG_FILE");
     });
