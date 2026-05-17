@@ -151,7 +151,21 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
   const getUserMedia = async (): Promise<boolean> => {
     if (!navigator.mediaDevices?.getUserMedia) return false;
     try {
-      const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Probe with the persisted/selected device when one exists, so a page
+      // load never briefly opens the OS-default mic (e.g. an iPhone Continuity
+      // mic) before the real session switches. An unconstrained probe always
+      // grabs the system default, which is what made reloads "reconnect" to
+      // the wrong device despite a correctly persisted selection. Fall back to
+      // the default probe only when nothing was chosen, or the chosen device
+      // is currently unavailable (its absence must not clobber the selection).
+      const persisted = getState().audio.selectedDeviceId;
+      let probe: MediaStream;
+      try {
+        probe = await acquireMicStream(persisted);
+      } catch (probeError) {
+        if (!persisted) throw probeError;
+        probe = await acquireMicStream(null);
+      }
       for (const track of probe.getTracks()) track.stop();
       const devices = (await navigator.mediaDevices.enumerateDevices())
         .filter((device) => device.kind === "audioinput")
@@ -161,9 +175,17 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
           groupId: device.groupId,
         }));
       const previous = getState().audio.selectedDeviceId;
-      const selected = devices.find((device) => device.deviceId === previous)?.deviceId ?? devices[0]?.deviceId ?? null;
+      // Preserve a persisted selection even when its device is momentarily
+      // absent (dock asleep, USB/Bluetooth still enumerating, device-id salt
+      // not yet warmed). Only auto-pick the first device on genuine first run,
+      // when the user never chose one. Falling back to devices[0] for an
+      // absent-but-persisted device would overwrite the saved choice — and,
+      // because that choice is itself persisted, "stick" the picker on the
+      // first enumerated mic. The devicechange re-enumerate path restores the
+      // real device once it reappears.
+      const selected = previous ?? devices[0]?.deviceId ?? null;
       dispatch({ type: "browser/devices/enumerated", devices });
-      if (selected) dispatch({ type: "ui/select/mic-device", deviceId: selected });
+      if (selected && selected !== previous) dispatch({ type: "ui/select/mic-device", deviceId: selected });
       dispatch({ type: "browser/permission/granted" });
       sendToHost("audio.device.state", {
         permission: "granted",
