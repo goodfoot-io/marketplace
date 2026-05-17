@@ -15,7 +15,7 @@ export declare function getPort(flags: Record<string, string | boolean>): number
 export declare function getString(flags: Record<string, string | boolean>, key: string): string | undefined;
 export declare function getBoolean(flags: Record<string, string | boolean>, key: string): boolean;
 /**
- * Read all of stdin as a string.
+ * Read all of stdin as a string (trimmed).
  */
 export declare function readStdin(): Promise<string>;
 /**

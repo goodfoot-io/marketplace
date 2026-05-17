@@ -434,6 +434,12 @@ select {
   vertical-align: middle;
 }
 
+/* Assistant speaking placeholder: green pulsing dot to match the assistant
+   role color (the user placeholder keeps the purple --role-user dot). */
+.transcript-item.role-assistant.speaking::before {
+  background: var(--role-assistant);
+}
+
 @keyframes speaking-pulse {
   0%, 100% { opacity: 0.3; transform: scale(0.85); }
   50% { opacity: 1; transform: scale(1.15); }

@@ -3,11 +3,12 @@ import { createRequire as __banner_createRequire } from 'node:module';import { f
 
 // src/cli/index.ts
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/cli/args.ts
+import { readFileSync } from "node:fs";
 function parseArgs(argv) {
   const args = argv.slice(2);
   const positional = [];
@@ -56,21 +57,30 @@ function getString(flags, key) {
 function getBoolean(flags, key) {
   return flags[key] === true || flags[key] === "true";
 }
-async function readStdin() {
-  return new Promise((resolve2, reject) => {
-    const chunks = [];
-    process.stdin.on("data", (chunk) => chunks.push(chunk));
-    process.stdin.on("end", () => resolve2(Buffer.concat(chunks).toString("utf8").trim()));
-    process.stdin.on("error", reject);
-  });
+function readStdinSync() {
+  try {
+    return readFileSync(0, "utf8");
+  } catch {
+    return null;
+  }
 }
-async function readStdinRaw() {
+async function readStdinStream() {
   return new Promise((resolve2, reject) => {
     const chunks = [];
     process.stdin.on("data", (chunk) => chunks.push(chunk));
     process.stdin.on("end", () => resolve2(Buffer.concat(chunks).toString("utf8")));
     process.stdin.on("error", reject);
   });
+}
+async function readStdin() {
+  const sync = readStdinSync();
+  if (sync !== null) return sync.trim();
+  return (await readStdinStream()).trim();
+}
+async function readStdinRaw() {
+  const sync = readStdinSync();
+  if (sync !== null) return sync;
+  return readStdinStream();
 }
 
 // src/cli/control-client.ts
@@ -179,7 +189,7 @@ function cursorFile(port2) {
 }
 function readCursor(port2) {
   try {
-    const raw = readFileSync(cursorFile(port2), "utf8").trim();
+    const raw = readFileSync2(cursorFile(port2), "utf8").trim();
     const n = parseInt(raw, 10);
     return Number.isNaN(n) ? 0 : n;
   } catch {

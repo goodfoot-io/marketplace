@@ -1,18 +1,17 @@
 import { useEffect, useRef } from "react";
 import { dispatch, useStore } from "../store/index.js";
-import { ThinkingDots } from "./ThinkingDots.js";
 import { TranscriptContent } from "./TranscriptContent.js";
 
 /**
  * Q4: role="dialog", aria-modal, focus on mount, focus restore on unmount,
  * tab trap. Q5: scroll-anchor — on open, if conversation.atBottom, scroll
- * the body to the bottom. Q6: ThinkingDots render inside while
- * voice.responseActive.
+ * the body to the bottom. Q6: the "assistant is responding" affordance is now
+ * an assistant-style placeholder bubble rendered by TranscriptContent (the
+ * green counterpart to the user speaking placeholder), not a separate strip.
  */
 export function TranscriptModal(): React.JSX.Element | null {
   const open = useStore((s) => s.ui.modal === "transcript");
   const atBottom = useStore((s) => s.conversation.atBottom);
-  const responseActive = useStore((s) => s.voice.responseActive);
   const transcript = useStore((s) => s.conversation.conversation?.transcript);
   const streamDrafts = useStore((s) => s.conversation.streamDrafts);
 
@@ -112,7 +111,6 @@ export function TranscriptModal(): React.JSX.Element | null {
           }}
         >
           <TranscriptContent />
-          {responseActive ? <ThinkingDots /> : null}
         </div>
       </div>
     </div>

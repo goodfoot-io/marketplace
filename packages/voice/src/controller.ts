@@ -1648,6 +1648,30 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     socket.on("close", () => {
       const clientId = this.#browserClient.clientId;
       this.#clearBrowserClient();
+      // The realtime connection is browser-proxied, so a disconnected browser
+      // means its xAI socket is dead and unrecoverable. The conversation MUST
+      // be torn down here: otherwise #conversation lingers, the reloaded
+      // browser's startConversation() throws CONVERSATION_ALREADY_ACTIVE
+      // before #sendSessionUpdate() runs, and the fresh xAI socket never
+      // receives turn_detection (server VAD) — yielding a zombie session that
+      // emits speech_started but never speech_stopped. The transcript is
+      // archived by #endConversationLocked, not lost.
+      const conversation = this.#conversation;
+      if (conversation && (conversation.status === "active" || conversation.status === "paused")) {
+        this.#endConversationLocked(undefined, "ending").catch((error: unknown) => {
+          this.#log(
+            "warn",
+            error instanceof VoiceAgentServerError
+              ? error
+              : toVoiceError(
+                  "INTERNAL_INVARIANT_VIOLATION",
+                  "Conversation teardown on browser disconnect failed.",
+                  undefined,
+                  error,
+                ),
+          );
+        });
+      }
       this.#broadcastState();
       if (clientId) this.emit("browser.client.disconnected", { clientId, disconnectedAt: new Date() });
     });

@@ -629,7 +629,7 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
       });
 
       ws.addEventListener("message", (event) => {
-        let parsed: { type?: string; delta?: unknown; item_id?: unknown };
+        let parsed: { type?: string; delta?: unknown; item_id?: unknown; event_id?: unknown };
         try {
           parsed = JSON.parse(String(event.data));
         } catch (error) {
@@ -637,6 +637,24 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
             type: "browser/window/error",
             message: `xaiWs.in.parseError: ${errStr(error)}`,
           });
+          return;
+        }
+        // xAI sends an application-level `{type:"ping",event_id}` heartbeat
+        // every 10s. It MUST be answered with a `pong` echoing the event_id;
+        // unanswered, xAI keeps the socket open but stops servicing the
+        // session (no VAD/transcription/responses) — observed as a zombie
+        // session that only receives pings. Reply immediately and short-
+        // circuit (no xai/* action — it is pure transport bookkeeping).
+        if (parsed?.type === "ping") {
+          try {
+            const eventId = typeof parsed.event_id === "string" ? parsed.event_id : undefined;
+            ws.send(JSON.stringify(eventId ? { type: "pong", event_id: eventId } : { type: "pong" }));
+          } catch (error) {
+            dispatch({
+              type: "browser/window/error",
+              message: `xaiWs.send.pong.failed: ${errStr(error)}`,
+            });
+          }
           return;
         }
         // Record the raw frame so hostSocketRunner can forward it as

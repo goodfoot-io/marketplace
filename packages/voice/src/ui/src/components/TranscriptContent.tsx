@@ -21,11 +21,16 @@ interface RenderItem {
 function TranscriptItemView({
   item,
   speakingItemId,
+  forceSpeaking = false,
 }: {
   item: RenderItem;
   speakingItemId: string | null;
+  // The synthetic placeholder forces the `speaking` class for its whole life
+  // so the pulsing-dot indicator stays visible until real text replaces it
+  // (the dot is the placeholder — there is no ellipsis text).
+  forceSpeaking?: boolean;
 }): React.JSX.Element {
-  const speaking = item.role === "user" && item.id === speakingItemId;
+  const speaking = forceSpeaking || (item.role === "user" && item.id === speakingItemId);
   const className = [
     "transcript-item",
     `role-${item.role}`,
@@ -35,7 +40,7 @@ function TranscriptItemView({
   ]
     .filter(Boolean)
     .join(" ");
-  return <article className={className}>{item.text || (item.role === "user" ? "…" : "")}</article>;
+  return <article className={className}>{item.text}</article>;
 }
 
 function ToolCallView({ tool }: { tool: ToolCall }): React.JSX.Element {
@@ -82,11 +87,13 @@ function ToolCallView({ tool }: { tool: ToolCall }): React.JSX.Element {
  * purely local useState.
  */
 export function TranscriptContent(): React.JSX.Element {
-  const { conversation, streamDrafts, speakingItemId } = useStore(
+  const { conversation, streamDrafts, speakingItemId, pendingUserItemId, responseActive } = useStore(
     useShallow((s) => ({
       conversation: s.conversation.conversation,
       streamDrafts: s.conversation.streamDrafts,
       speakingItemId: s.voice.speakingItemId,
+      pendingUserItemId: s.voice.pendingUserItemId,
+      responseActive: s.voice.responseActive,
     })),
   );
 
@@ -141,9 +148,57 @@ export function TranscriptContent(): React.JSX.Element {
       }
     }
   }
+  // Defensive: a stream draft normally never carries the pending USER id
+  // (drafts are assistant transcripts), but suppress the synthetic if it does.
+  let pendingHasNode = false;
+  for (const draft of streamDrafts.values()) {
+    if (!byTranscript.has(draft.itemId) && draft.itemId === pendingUserItemId) {
+      pendingHasNode = true;
+      break;
+    }
+  }
+
+  // The controller only materializes the user transcript slot AFTER speech is
+  // committed (and it arrives already carrying final text), so from
+  // speech_started until that slot lands there is nothing real to render.
+  // Synthesize a pulsing placeholder keyed to `pendingUserItemId` (which
+  // outlives speech_stopped) so the bubble stays continuously visible and is
+  // replaced atomically when the real item — same xAI id — appears.
+  //
+  // It is pushed BEFORE the assistant stream drafts: the user spoke first and
+  // the assistant's streaming reply comes after. xAI can emit response.created
+  // (and stream the answer) before the user's transcription finalizes, so
+  // ordering by arrival would otherwise render the assistant's reply ABOVE the
+  // user's own utterance. The placeholder anchors the user turn in its correct
+  // chronological slot.
+  if (
+    pendingUserItemId !== null &&
+    !pendingHasNode &&
+    !byTranscript.has(pendingUserItemId)
+  ) {
+    nodes.push(
+      <TranscriptItemView
+        key={`pending-${pendingUserItemId}`}
+        item={{
+          id: pendingUserItemId,
+          role: "user",
+          source: "microphone",
+          text: "",
+          streaming: false,
+        }}
+        speakingItemId={speakingItemId}
+        forceSpeaking
+      />,
+    );
+  }
+
+  let assistantHasNode = false;
   for (const draft of streamDrafts.values()) {
     if (byTranscript.has(draft.itemId)) {
       continue;
+    }
+    if (draft.role === "assistant") {
+      assistantHasNode = true;
     }
     nodes.push(
       <TranscriptItemView
@@ -156,6 +211,29 @@ export function TranscriptContent(): React.JSX.Element {
           streaming: true,
         }}
         speakingItemId={speakingItemId}
+      />,
+    );
+  }
+
+  // Assistant counterpart to the user speaking placeholder: while the model
+  // is generating its reply (responseActive) but has not yet emitted any
+  // transcript text, show a green assistant-style placeholder bubble in the
+  // assistant's chronological slot (last). The moment the assistant's
+  // streaming transcript draft appears it takes over, exactly as the user
+  // placeholder hands off to the real user item.
+  if (responseActive && !assistantHasNode) {
+    nodes.push(
+      <TranscriptItemView
+        key="pending-assistant"
+        item={{
+          id: "pending-assistant",
+          role: "assistant",
+          source: "assistantAudio",
+          text: "",
+          streaming: false,
+        }}
+        speakingItemId={speakingItemId}
+        forceSpeaking
       />,
     );
   }
