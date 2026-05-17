@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.3
+- Added Windows support: the CLI now works cross-platform
+
 ## 1.3.2
 - Added `UserPromptExpansion` hook type for intercepting and expanding user prompts
 
