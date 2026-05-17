@@ -11,6 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { runTsxCli } from "./test-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,10 +37,9 @@ const SCAFFOLD_TEST_OUTPUT = path.join(__dirname, "dist", "scaffold-test");
  * @returns Object with exit code and captured stdout/stderr
  */
 function runScaffoldCli(args: string[]): { exitCode: number; stdout: string; stderr: string } {
-  const result = spawnSync("npx", ["tsx", CLI_PATH, ...args], {
+  // `npx tsx <cli>` equivalent, resolved Windows-safely (see runTsxCli).
+  const result = runTsxCli(CLI_PATH, args, {
     cwd: path.dirname(CLI_PATH),
-    encoding: "utf-8",
-    stdio: "pipe",
   });
 
   return {
@@ -270,11 +270,14 @@ describe("E2E: Scaffold Command", () => {
       useLocalPackage(testDir);
 
       // Run npm install in scaffolded project (as recommended by scaffold command)
+      // shell: true so Windows resolves `npm` -> `npm.cmd` (Node refuses to
+      // spawn .cmd without a shell); args are fixed literals, no glob/space.
       const installResult = spawnSync("npm", ["install"], {
         cwd: testDir,
         encoding: "utf-8",
         stdio: "pipe",
         timeout: 120000,
+        shell: true,
       });
 
       expect(installResult.status).toBe(0);
@@ -285,6 +288,7 @@ describe("E2E: Scaffold Command", () => {
         encoding: "utf-8",
         stdio: "pipe",
         timeout: 120000,
+        shell: true,
       });
 
       expect(buildResult.status).toBe(0);
@@ -320,11 +324,14 @@ describe("E2E: Scaffold Command", () => {
       useLocalPackage(testDir);
 
       // Run npm install (as recommended by scaffold command)
+      // shell: true so Windows resolves `npm` -> `npm.cmd` (Node refuses to
+      // spawn .cmd without a shell); args are fixed literals, no glob/space.
       const installResult = spawnSync("npm", ["install"], {
         cwd: testDir,
         encoding: "utf-8",
         stdio: "pipe",
         timeout: 120000,
+        shell: true,
       });
 
       expect(installResult.status).toBe(0);
@@ -335,6 +342,7 @@ describe("E2E: Scaffold Command", () => {
         encoding: "utf-8",
         stdio: "pipe",
         timeout: 60000,
+        shell: true,
       });
 
       expect(testResult.status).toBe(0);

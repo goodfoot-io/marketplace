@@ -7,11 +7,11 @@
  * - Writes hooks.json atomically
  */
 
-import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { runTsxCli } from "./test-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,10 +61,9 @@ interface HooksJson {
  * @returns Object with success status and captured stdout/stderr
  */
 function runCli(inputPattern: string, outputPath: string): { success: boolean; stdout: string; stderr: string } {
-  const result = spawnSync("npx", ["tsx", CLI_PATH, "-i", inputPattern, "-o", outputPath], {
+  // `npx tsx <cli>` equivalent, resolved Windows-safely (see runTsxCli).
+  const result = runTsxCli(CLI_PATH, ["-i", inputPattern, "-o", outputPath], {
     cwd: path.dirname(CLI_PATH),
-    encoding: "utf-8",
-    stdio: "pipe",
   });
 
   return {
