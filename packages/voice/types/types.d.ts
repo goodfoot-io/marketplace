@@ -60,6 +60,11 @@ export interface VoiceAgentServerController<TTools extends VoiceAgentToolMap> ex
     injectUserMessage(input: InjectUserMessageInput): Promise<TranscriptItem>;
     injectAssistantMessage(input: InjectAssistantMessageInput): Promise<TranscriptItem>;
     injectSystemMessage(input: InjectSystemMessageInput): Promise<TranscriptItem>;
+    setHtml(input: {
+        html: string;
+    } | {
+        path: string;
+    } | null): Promise<void>;
     cancelToolCall(callId: string): Promise<void>;
     updateVoiceSession(input: UpdateVoiceSessionInput<TTools>): Promise<void>;
     broadcastToBrowser(envelope: {
@@ -217,6 +222,7 @@ export interface VoiceAgentServerEvents<TTools extends VoiceAgentToolMap> {
     "tool.call.completed": ToolCallCompletedEvent<TTools>;
     "tool.call.failed": ToolCallFailedEvent<TTools>;
     "tool.call.interrupted": ToolCallInterruptedEvent<TTools>;
+    "injected.error": InjectedErrorEvent;
     log: LogEvent;
 }
 export interface ServerStartedEvent {
@@ -361,7 +367,14 @@ export interface LogEvent {
     error?: VoiceAgentServerError;
     createdAt: Date;
 }
-export type VoiceAgentServerErrorCode = "SERVER_ALREADY_STARTED" | "SERVER_NOT_STARTED" | "SERVER_START_FAILED" | "SERVER_STOP_FAILED" | "BROWSER_CLIENT_REQUIRED" | "BROWSER_CLIENT_ALREADY_CONNECTED" | "BROWSER_CLIENT_DISCONNECTED" | "MICROPHONE_PERMISSION_DENIED" | "MICROPHONE_DEVICE_UNAVAILABLE" | "MICROPHONE_DEVICE_ERROR" | "NO_CURRENT_CONVERSATION" | "CONVERSATION_ALREADY_ACTIVE" | "CONVERSATION_NOT_ACTIVE" | "CONVERSATION_NOT_PAUSED" | "CONVERSATION_START_FAILED" | "CONVERSATION_END_FAILED" | "CONVERSATION_RESET_FAILED" | "CONVERSATION_INVALID_STATE" | "MESSAGE_INJECTION_INVALID_STATE" | "MESSAGE_INJECTION_EMPTY_TEXT" | "MESSAGE_INJECTION_FAILED" | "MESSAGE_RESPONSE_TRIGGER_FAILED" | "TOOL_NOT_FOUND" | "TOOL_ARGUMENT_VALIDATION_FAILED" | "TOOL_EXECUTION_FAILED" | "TOOL_RESULT_SERIALIZATION_FAILED" | "TOOL_CALL_INTERRUPTED" | "SESSION_ERROR" | "SESSION_UPDATE_FAILED" | "CONFIG_INVALID" | "INTERNAL_INVARIANT_VIOLATION";
+export interface InjectedErrorEvent {
+    path: string;
+    code: string;
+    message: string;
+    error: VoiceAgentServerError;
+    createdAt: Date;
+}
+export type VoiceAgentServerErrorCode = "SERVER_ALREADY_STARTED" | "SERVER_NOT_STARTED" | "SERVER_START_FAILED" | "SERVER_STOP_FAILED" | "BROWSER_CLIENT_REQUIRED" | "BROWSER_CLIENT_ALREADY_CONNECTED" | "BROWSER_CLIENT_DISCONNECTED" | "MICROPHONE_PERMISSION_DENIED" | "MICROPHONE_DEVICE_UNAVAILABLE" | "MICROPHONE_DEVICE_ERROR" | "NO_CURRENT_CONVERSATION" | "CONVERSATION_ALREADY_ACTIVE" | "CONVERSATION_NOT_ACTIVE" | "CONVERSATION_NOT_PAUSED" | "CONVERSATION_START_FAILED" | "CONVERSATION_END_FAILED" | "CONVERSATION_RESET_FAILED" | "CONVERSATION_INVALID_STATE" | "MESSAGE_INJECTION_INVALID_STATE" | "MESSAGE_INJECTION_EMPTY_TEXT" | "MESSAGE_INJECTION_FAILED" | "MESSAGE_RESPONSE_TRIGGER_FAILED" | "TOOL_NOT_FOUND" | "TOOL_ARGUMENT_VALIDATION_FAILED" | "TOOL_EXECUTION_FAILED" | "TOOL_RESULT_SERIALIZATION_FAILED" | "TOOL_CALL_INTERRUPTED" | "SESSION_ERROR" | "SESSION_UPDATE_FAILED" | "CONFIG_INVALID" | "INTERNAL_INVARIANT_VIOLATION" | "INJECTED_FILE_UNREADABLE";
 export interface VoiceAgentServerErrorInput {
     code: VoiceAgentServerErrorCode;
     message: string;
@@ -409,6 +422,12 @@ export type ServerEnvelope = {
         conversationStatus: ConversationControllerStatus;
         instructions: string;
         connectOnPageLoad: boolean;
+        injectedVersion: number | null;
+    };
+} | {
+    type: "stage.injected";
+    data: {
+        injectedVersion: number | null;
     };
 } | {
     type: "transcript.item";

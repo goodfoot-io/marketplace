@@ -65,6 +65,7 @@ export type Action =
   | { type: "xai/unknown"; raw: unknown }
   // Host daemon events
   | { type: "host/state"; data: BroadcastState }
+  | { type: "host/stage"; data: { injectedVersion: number | null } }
   | { type: "host/transcript/item"; item: TranscriptItem }
   | { type: "host/transcript/delta"; delta: TranscriptDeltaEvent }
   | { type: "host/voice/session/start" }

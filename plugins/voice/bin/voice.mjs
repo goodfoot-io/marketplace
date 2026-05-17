@@ -4,7 +4,7 @@ import { createRequire as __banner_createRequire } from 'node:module';import { f
 // src/cli/index.ts
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/cli/args.ts
@@ -57,10 +57,10 @@ function getBoolean(flags, key) {
   return flags[key] === true || flags[key] === "true";
 }
 async function readStdin() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve2, reject) => {
     const chunks = [];
     process.stdin.on("data", (chunk) => chunks.push(chunk));
-    process.stdin.on("end", () => resolve(Buffer.concat(chunks).toString("utf8").trim()));
+    process.stdin.on("end", () => resolve2(Buffer.concat(chunks).toString("utf8").trim()));
     process.stdin.on("error", reject);
   });
 }
@@ -68,12 +68,12 @@ async function readStdin() {
 // src/cli/control-client.ts
 import http from "node:http";
 function request(options, body) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve2, reject) => {
     const req = http.request(options, (res) => {
       const chunks = [];
       res.on("data", (chunk) => chunks.push(chunk));
       res.on("end", () => {
-        resolve({
+        resolve2({
           statusCode: res.statusCode ?? 0,
           body: Buffer.concat(chunks).toString("utf8")
         });
@@ -208,7 +208,7 @@ async function cmdStart(port2, title, model, voice) {
     stdio: ["ignore", "pipe", "ignore"],
     env
   });
-  const startupJson = await new Promise((resolve, reject) => {
+  const startupJson = await new Promise((resolve2, reject) => {
     let buf = "";
     const stdout = child.stdout;
     if (stdout === null) {
@@ -220,7 +220,7 @@ async function cmdStart(port2, title, model, voice) {
       buf += chunk;
       const nl = buf.indexOf("\n");
       if (nl !== -1) {
-        resolve(buf.slice(0, nl).trim());
+        resolve2(buf.slice(0, nl).trim());
       }
     });
     child.on("error", reject);
@@ -293,6 +293,20 @@ async function cmdTopics(port2) {
     text,
     triggerResponse: true
   });
+  printJson(JSON.parse(res.body));
+}
+async function cmdHtml(port2) {
+  const pathArg = parsed.subcommand ?? parsed.positional[0];
+  let body;
+  if (pathArg !== void 0) {
+    body = { path: resolve(process.cwd(), pathArg) };
+  } else if (!process.stdin.isTTY) {
+    const html = await readStdin();
+    body = { html };
+  } else {
+    body = { clear: true };
+  }
+  const res = await postJson(controlPort(port2), "/html/set", body);
   printJson(JSON.parse(res.body));
 }
 async function cmdCancelTool(port2, callId) {
@@ -469,6 +483,21 @@ COMMANDS
     conversation in its own words. Use this to steer what comes next \u2014
     describe the subject matter, not a script.
 
+  voice html [path]
+    Render an HTML document full-viewport behind the voice UI (the voice
+    overlays remain above it and stay interactive).
+      path given  \u2014 serve the file at that path verbatim; the daemon
+                    watches the file and live-reloads on every save.
+      piped stdin \u2014 \`cat page.html | voice html\` \u2014 sets the stage to
+                    the piped document.
+      bare TTY    \u2014 \`voice html\` with no argument and no pipe \u2014 clears
+                    the stage and unmounts the iframe.
+    Path wins when both a path argument and piped stdin are present.
+    IMPORTANT: only absolute URLs or CDN URLs work inside the iframe \u2014
+    the daemon serves no asset server, so relative-path <script>/<link>
+    references will 404. Use inline styles or CDN links (e.g. Tailwind v4
+    + DaisyUI v5 CDN). The iframe is same-origin and unsandboxed.
+
   voice cancel-tool <callId>
     Cancel an in-flight tool call by its call ID.
 
@@ -511,6 +540,8 @@ REFERENCE GUIDES
     \u2192 @reference/shutdown.md
   When the server fails to start, becomes unresponsive, or crashes
     \u2192 @reference/startup-failure.md
+  When rendering HTML full-viewport behind the voice UI
+    \u2192 @reference/html-stage.md
 `;
 function printHelp() {
   process.stdout.write(HELP_TEXT);
@@ -570,6 +601,10 @@ async function main() {
       await cmdTopics(port);
       break;
     }
+    case "html": {
+      await cmdHtml(port);
+      break;
+    }
     case "cancel-tool": {
       const callId = parsed.subcommand ?? parsed.positional[0];
       if (callId === void 0) fatal("Usage: voice cancel-tool <callId>");
@@ -585,7 +620,7 @@ async function main() {
     }
     default: {
       fatal(
-        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, context, topics, cancel-tool, watch`
+        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, context, topics, html, cancel-tool, watch`
       );
     }
   }

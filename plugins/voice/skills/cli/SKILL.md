@@ -81,6 +81,7 @@ You **must** load the relevant guide before acting on any of these situations.
 **When:** the avatar says something wrong, goes off-track, or needs redirecting → ./reference/intervention.md
 **When:** the user signals they are done and the session should end → ./reference/shutdown.md
 **When:** the server fails to start, becomes unresponsive, or crashes → ./reference/startup-failure.md
+**When:** rendering an HTML document full-viewport behind the voice UI → ./reference/html-stage.md
 
 ---
 

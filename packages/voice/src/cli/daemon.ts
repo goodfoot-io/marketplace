@@ -543,6 +543,16 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
       return;
     }
 
+    if (method === "POST" && pathname === "/html/set") {
+      const raw = await readBody(req);
+      const parsed = JSON.parse(raw) as { html?: string; path?: string; clear?: boolean };
+      await controller.setHtml(
+        parsed.path !== undefined ? { path: parsed.path } : parsed.clear === true ? null : { html: parsed.html ?? "" },
+      );
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+
     if (method === "POST" && pathname === "/instructions/segment") {
       const raw = await readBody(req);
       const parsed = JSON.parse(raw) as { kind?: string; text?: unknown; triggerResponse?: boolean };

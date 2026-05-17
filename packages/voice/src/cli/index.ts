@@ -5,7 +5,7 @@
 
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getBoolean, getPort, getString, parseArgs, readStdin } from "./args.js";
 import { getStatus, postEmpty, postJson, watchOnce } from "./control-client.js";
@@ -266,6 +266,26 @@ async function cmdTopics(port: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// `voice html [path]`
+// ---------------------------------------------------------------------------
+
+async function cmdHtml(port: number): Promise<void> {
+  const pathArg = parsed.subcommand ?? parsed.positional[0];
+  let body: { html?: string; path?: string; clear?: boolean };
+  if (pathArg !== undefined) {
+    // Path wins over piped stdin when both are present.
+    body = { path: resolve(process.cwd(), pathArg) };
+  } else if (!process.stdin.isTTY) {
+    const html = await readStdin();
+    body = { html };
+  } else {
+    body = { clear: true };
+  }
+  const res = await postJson(controlPort(port), "/html/set", body);
+  printJson(JSON.parse(res.body));
+}
+
+// ---------------------------------------------------------------------------
 // `voice cancel-tool <callId>`
 // ---------------------------------------------------------------------------
 
@@ -464,6 +484,21 @@ COMMANDS
     conversation in its own words. Use this to steer what comes next —
     describe the subject matter, not a script.
 
+  voice html [path]
+    Render an HTML document full-viewport behind the voice UI (the voice
+    overlays remain above it and stay interactive).
+      path given  — serve the file at that path verbatim; the daemon
+                    watches the file and live-reloads on every save.
+      piped stdin — \`cat page.html | voice html\` — sets the stage to
+                    the piped document.
+      bare TTY    — \`voice html\` with no argument and no pipe — clears
+                    the stage and unmounts the iframe.
+    Path wins when both a path argument and piped stdin are present.
+    IMPORTANT: only absolute URLs or CDN URLs work inside the iframe —
+    the daemon serves no asset server, so relative-path <script>/<link>
+    references will 404. Use inline styles or CDN links (e.g. Tailwind v4
+    + DaisyUI v5 CDN). The iframe is same-origin and unsandboxed.
+
   voice cancel-tool <callId>
     Cancel an in-flight tool call by its call ID.
 
@@ -506,6 +541,8 @@ REFERENCE GUIDES
     → @reference/shutdown.md
   When the server fails to start, becomes unresponsive, or crashes
     → @reference/startup-failure.md
+  When rendering HTML full-viewport behind the voice UI
+    → @reference/html-stage.md
 `;
 
 function printHelp(): void {
@@ -573,6 +610,10 @@ async function main(): Promise<void> {
       await cmdTopics(port);
       break;
     }
+    case "html": {
+      await cmdHtml(port);
+      break;
+    }
     case "cancel-tool": {
       const callId = parsed.subcommand ?? parsed.positional[0];
       if (callId === undefined) fatal("Usage: voice cancel-tool <callId>");
@@ -589,7 +630,7 @@ async function main(): Promise<void> {
     }
     default: {
       fatal(
-        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, context, topics, cancel-tool, watch`,
+        `Unknown command: ${parsed.command || "(none)"}. Available commands: start, stop, status, open, conversation, inject, context, topics, html, cancel-tool, watch`,
       );
     }
   }

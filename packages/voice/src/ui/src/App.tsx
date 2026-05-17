@@ -48,12 +48,17 @@ export function App(): React.JSX.Element {
     };
   }, [moreActionsOpen]);
 
+  const injectedVersion = useStore((s) => s.stage.injectedVersion);
+
   if (duplicateClient) {
     return <DuplicateClientScreen />;
   }
 
   return (
     <>
+      {injectedVersion != null && (
+        <iframe className="injected-stage" src={`/__injected?v=${injectedVersion}`} />
+      )}
       <FloatingTab />
       <TranscriptModal />
       <InstructionsModal />

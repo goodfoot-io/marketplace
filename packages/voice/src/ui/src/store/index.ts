@@ -5,6 +5,7 @@ import type { Action } from "../actions.js";
 import { type AudioState, audioReducer, initialAudioState } from "./audio.js";
 import { type ConnectionState, connectionReducer, initialConnectionState } from "./connection.js";
 import { type ConversationState, conversationReducer, initialConversationState } from "./conversation.js";
+import { initialStageState, type StageState, stageReducer } from "./stage.js";
 import { initialUiState, type UiState, uiReducer } from "./ui.js";
 import { initialVoiceState, type VoiceState, voiceReducer } from "./voice.js";
 
@@ -14,6 +15,7 @@ export interface RootState {
   audio: AudioState;
   voice: VoiceState;
   ui: UiState;
+  stage: StageState;
 }
 
 const initialState: RootState = {
@@ -22,25 +24,28 @@ const initialState: RootState = {
   audio: initialAudioState,
   voice: initialVoiceState,
   ui: initialUiState,
+  stage: initialStageState,
 };
 
-/** Top-level reducer fanning out to the five slice reducers. */
+/** Top-level reducer fanning out to the six slice reducers. */
 export function reducer(state: RootState, action: Action): RootState {
   const connection = connectionReducer(state.connection, action);
   const conversation = conversationReducer(state.conversation, action);
   const audio = audioReducer(state.audio, action);
   const voice = voiceReducer(state.voice, action);
   const ui = uiReducer(state.ui, action);
+  const stage = stageReducer(state.stage, action);
   if (
     connection === state.connection &&
     conversation === state.conversation &&
     audio === state.audio &&
     voice === state.voice &&
-    ui === state.ui
+    ui === state.ui &&
+    stage === state.stage
   ) {
     return state;
   }
-  return { connection, conversation, audio, voice, ui };
+  return { connection, conversation, audio, voice, ui, stage };
 }
 
 const store = createStore(

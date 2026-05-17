@@ -108,6 +108,8 @@ function envelopeToActions(message: ServerEnvelope): Action[] {
           gate: message.data.gate,
         },
       ];
+    case "stage.injected":
+      return [{ type: "host/stage", data: message.data }];
     case "wait_for_context.start":
       return [{ type: "host/wait-for-context/start" }];
     case "wait_for_context.end":
