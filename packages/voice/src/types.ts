@@ -75,6 +75,7 @@ export interface VoiceAgentServerController<TTools extends VoiceAgentToolMap>
   injectUserMessage(input: InjectUserMessageInput): Promise<TranscriptItem>;
   injectAssistantMessage(input: InjectAssistantMessageInput): Promise<TranscriptItem>;
   injectSystemMessage(input: InjectSystemMessageInput): Promise<TranscriptItem>;
+  setHtml(input: { html: string } | { path: string } | null): Promise<void>;
   cancelToolCall(callId: string): Promise<void>;
   updateVoiceSession(input: UpdateVoiceSessionInput<TTools>): Promise<void>;
   broadcastToBrowser(envelope: { type: string; data?: unknown }): void;
@@ -275,6 +276,7 @@ export interface VoiceAgentServerEvents<TTools extends VoiceAgentToolMap> {
   "tool.call.completed": ToolCallCompletedEvent<TTools>;
   "tool.call.failed": ToolCallFailedEvent<TTools>;
   "tool.call.interrupted": ToolCallInterruptedEvent<TTools>;
+  "injected.error": InjectedErrorEvent;
   log: LogEvent;
 }
 
@@ -466,6 +468,14 @@ export interface LogEvent {
   createdAt: Date;
 }
 
+export interface InjectedErrorEvent {
+  path: string;
+  code: string;
+  message: string;
+  error: VoiceAgentServerError;
+  createdAt: Date;
+}
+
 export type VoiceAgentServerErrorCode =
   | "SERVER_ALREADY_STARTED"
   | "SERVER_NOT_STARTED"
@@ -497,7 +507,8 @@ export type VoiceAgentServerErrorCode =
   | "SESSION_ERROR"
   | "SESSION_UPDATE_FAILED"
   | "CONFIG_INVALID"
-  | "INTERNAL_INVARIANT_VIOLATION";
+  | "INTERNAL_INVARIANT_VIOLATION"
+  | "INJECTED_FILE_UNREADABLE";
 
 export interface VoiceAgentServerErrorInput {
   code: VoiceAgentServerErrorCode;
@@ -561,8 +572,10 @@ export type ServerEnvelope =
         conversationStatus: ConversationControllerStatus;
         instructions: string;
         connectOnPageLoad: boolean;
+        injectedVersion: number | null;
       };
     }
+  | { type: "stage.injected"; data: { injectedVersion: number | null } }
   | { type: "transcript.item"; data: TranscriptItem }
   | { type: "transcript.delta"; data: TranscriptDeltaEvent }
   | { type: "browser.audio.deviceChange"; data: BrowserAudioDeviceState }

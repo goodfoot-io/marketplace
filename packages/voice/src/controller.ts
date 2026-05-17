@@ -421,6 +421,10 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     return item;
   }
 
+  async setHtml(_input: { html: string } | { path: string } | null): Promise<void> {
+    throw new Error("Not Implemented");
+  }
+
   async cancelToolCall(callId: string): Promise<void> {
     const conversation = this.#requireInjectableConversation("CONVERSATION_INVALID_STATE");
     const toolCall = conversation.toolCalls.find((record) => record.callId === callId);
