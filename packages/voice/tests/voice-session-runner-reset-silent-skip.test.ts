@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Action, VoiceToken } from "../src/ui/src/actions.js";
-import type { RootState } from "../src/ui/src/store/index.js";
 import { createVoiceSessionRunner } from "../src/ui/src/runners/voiceSessionRunner.js";
+import type { RootState } from "../src/ui/src/store/index.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Repro for: "voice reset detaches the browser mic from the audio pipeline,

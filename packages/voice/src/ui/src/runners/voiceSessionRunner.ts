@@ -122,6 +122,29 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
   // close handler reading the (already reset) refs (spurious
   // voice.session.failed). Reset on every fresh socket.
   let detachXaiWsListeners: (() => void) | undefined;
+  // Monotonic establish epoch. teardownVoice() bumps this so an
+  // establishVoiceSession() that was suspended across a teardown (token /
+  // worklet load racing reset) detects it is stale and aborts instead of
+  // silently re-owning the fresh refs with a dead socket (Test 1).
+  let establishEpoch = 0;
+  // Bounded post-reset rebuild watchdog. Armed by ui/click/reset; if the
+  // pipeline is not live again within the window the runner surfaces an
+  // observable mic-disconnected signal instead of staying silent forever
+  // (Test 2). Cleared on a successful rebuild and on teardown/unsubscribe so
+  // a normal session never sees a spurious signal.
+  let resetWatchdog: ReturnType<typeof setTimeout> | undefined;
+  const RESET_REBUILD_WATCHDOG_MS = 8000;
+  // True between a ui/click/reset and the next successful rebuild (xai/ws
+  // open). Scopes the post-reset rebuild diagnostics to the genuinely-reset
+  // case so a normal session/establish stays quiet.
+  let awaitingResetRebuild = false;
+
+  const clearResetWatchdog = (): void => {
+    if (resetWatchdog !== undefined) {
+      clearTimeout(resetWatchdog);
+      resetWatchdog = undefined;
+    }
+  };
 
   const reportAudioError = (code: string, message: string, suggestedAction: string): void => {
     sendToHost("browser.audio.error", { code, message, suggestedAction });
@@ -221,12 +244,27 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
     }
     const audioCtx = new AudioContext();
     if (audioCtx.state === "suspended") {
-      audioCtx.resume().catch((error: unknown) => {
-        dispatch({
-          type: "browser/window/error",
-          message: `startMeters.audioCtx.resume.failed: ${errStr(error)}`,
+      audioCtx
+        .resume()
+        .then(() => {
+          // resume() resolving does NOT guarantee the context started — with
+          // no user gesture it can stay "suspended", leaving the analyser
+          // frozen and the equalizer flat with no error. Surface that so the
+          // UI can recover instead of forcing a page reload (Test 3).
+          if (audioCtx.state === "suspended") {
+            dispatch({
+              type: "browser/window/error",
+              message:
+                "startMeters.audioCtx.resume.noop: AudioContext stayed suspended after resume(); metering is not live (mic pipeline detached)",
+            });
+          }
+        })
+        .catch((error: unknown) => {
+          dispatch({
+            type: "browser/window/error",
+            message: `startMeters.audioCtx.resume.failed: ${errStr(error)}`,
+          });
         });
-      });
     }
     const analyser = audioCtx.createAnalyser();
     analyser.fftSize = 256;
@@ -542,7 +580,39 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
       failVoice("VOICE_TOKEN_INVALID", "Missing client secret or model.");
       return;
     }
-    if (refs.xaiWs) return;
+    if (refs.xaiWs) {
+      // A live socket already owns refs. This fires for benign concurrent-
+      // establish dedup too, so only surface a signal when the socket is
+      // actually a stale leftover that raced a teardown (never reached OPEN
+      // and the store does not believe the session is live). In that case the
+      // post-reset rebuild was silently skipped — make it observable and
+      // re-enable recovery instead of leaving a flat equalizer.
+      const { voice } = getState();
+      const staleSocket = !refs.connectedSent && !voice.xaiOpen && refs.xaiWs.readyState !== WebSocket.OPEN;
+      if (staleSocket) {
+        dispatch({
+          type: "browser/window/error",
+          message:
+            "voice.reset.rebuild.skipped: a stale xAI socket from an establish that raced reset is still owning the audio refs; rebuild aborted",
+        });
+        dispatch({ type: "voice/session/in-flight", inFlight: false });
+      }
+      return;
+    }
+
+    if (awaitingResetRebuild) {
+      // A post-reset rebuild is genuinely underway (scoped to the reset case,
+      // not benign concurrent establishes). Surface it so the UI reflects the
+      // rebuild instead of a silent flat equalizer; the watchdog still guards
+      // the case where this attempt never reaches a live socket.
+      dispatch({ type: "voice/session/in-flight", inFlight: true });
+    }
+
+    // Bind this establish attempt to the current epoch. If teardownVoice()
+    // runs before this async chain reassigns refs, the epoch advances and
+    // this attempt must abort rather than re-own the fresh refs.
+    const epoch = establishEpoch;
+    const isStale = (): boolean => epoch !== establishEpoch;
 
     // Q21: pre-expiry re-mint. Keep sessionInFlight=true (no idle flicker).
     if (typeof token.expiresAt === "number" && Date.now() > token.expiresAt * 1000 - TOKEN_PRE_EXPIRY_MS) {
@@ -566,6 +636,13 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
 
     try {
       const stream = await acquireMicStream(getState().audio.selectedDeviceId);
+      if (isStale()) {
+        // A teardown (reset) ran while we awaited the mic. Do not re-own the
+        // fresh refs with this attempt's socket/stream; stop the just-acquired
+        // tracks and abort. The post-reset token will drive a clean rebuild.
+        for (const track of stream.getTracks()) track.stop();
+        return;
+      }
       refs.micStream = stream;
       const track = stream.getAudioTracks()[0];
       refs.micTrack = track;
@@ -583,6 +660,12 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
       // opening utterance is never missed. Frames buffer in preOpenAudio.
       refs.preOpenAudio = [];
       await startMicEncoder(stream);
+      if (isStale()) {
+        // Reset raced the worklet load. Abort before creating the socket so a
+        // stale xaiWs can never re-own the post-teardown refs (Test 1 root
+        // cause). The fresh post-reset token rebuilds cleanly.
+        return;
+      }
 
       const safeToken = sanitizeSubprotocolToken(token.clientSecret, dispatch);
       dispatch({ type: "xai/ws/connecting" });
@@ -595,6 +678,10 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
       let lastCloseReason = "";
 
       ws.addEventListener("open", () => {
+        // The pipeline is live again — disarm the post-reset watchdog so a
+        // successfully rebuilt session never sees a spurious timeout signal.
+        awaitingResetRebuild = false;
+        clearResetWatchdog();
         dispatch({ type: "xai/ws/open" });
         // Q17: flush pendingSends (the daemon's session.update declaring the
         // 48 kHz PCM format) FIRST, then preOpenAudio. Two explicit loops.
@@ -991,6 +1078,15 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
       metersRaf = 0;
     }
     metersStarted = false;
+    // Clear a stale post-reset watchdog. The ui/click/reset handler re-arms a
+    // fresh one *after* calling teardownVoice(), so the active reset's
+    // watchdog survives; this only cancels a watchdog from a prior reset and
+    // ensures unsubscribe()'s teardown leaves no timer behind.
+    clearResetWatchdog();
+    // Invalidate any establishVoiceSession() suspended across this teardown so
+    // a resumed attempt aborts instead of re-owning the fresh refs with a
+    // stale socket.
+    establishEpoch += 1;
     watchMicTrack(undefined, dispatch);
     refs = freshRefs();
     levelsRef.fill(0);
@@ -1018,12 +1114,33 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
         // was populated at boot. Blocked autoplay still waits for the click.
         if (action.allowed) void getUserMedia();
         break;
-      case "ui/click/reset":
+      case "ui/click/reset": {
         // Teardown + tell the daemon to reset its server-side conversation.
         sendToHost("conversation.reset");
         teardownVoice();
         dispatch({ type: "voice/session/in-flight", inFlight: false });
+        // The only rebuild trigger is an inbound host/voice/session/token. If
+        // it never arrives (or the rebuild silently fails) the mic stays
+        // detached forever with no indication. Arm a bounded watchdog: if the
+        // pipeline is not live again within the window, surface an observable
+        // mic-disconnected signal so the UI can recover instead of requiring a
+        // page reload. teardownVoice() bumped establishEpoch, so this is the
+        // current pending teardown; the watchdog is cleared on a successful
+        // rebuild (xai/ws/open) and on the next teardown / unsubscribe.
+        awaitingResetRebuild = true;
+        clearResetWatchdog();
+        resetWatchdog = setTimeout(() => {
+          resetWatchdog = undefined;
+          if (refs.xaiWs && getState().voice.xaiOpen) return;
+          dispatch({
+            type: "browser/window/error",
+            message:
+              "voice.reset.rebuild.timeout: no live voice session was rebuilt after reset; the microphone is detached from the audio pipeline",
+          });
+          dispatch({ type: "voice/session/in-flight", inFlight: false });
+        }, RESET_REBUILD_WATCHDOG_MS);
         break;
+      }
       case "ui/select/mic-device":
         void switchMicDevice(action.deviceId);
         break;

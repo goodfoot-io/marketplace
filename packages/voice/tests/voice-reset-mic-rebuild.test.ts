@@ -217,9 +217,7 @@ describe("voice reset leaves the mic detached when the rebuilt AudioContext stay
     // NOTHING (resume() resolved, so the lone window/error path never fires).
     const signalsMeteringNotLive = dispatched.some(
       (a) =>
-        a.type === "browser/mic/stream-failed" ||
-        a.type === "browser/window/error" ||
-        a.type === "connection/status",
+        a.type === "browser/mic/stream-failed" || a.type === "browser/window/error" || a.type === "connection/status",
     );
 
     expect(signalsMeteringNotLive).toBe(true);

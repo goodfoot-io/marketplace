@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Action } from "../src/ui/src/actions.js";
 import { createVoiceSessionRunner } from "../src/ui/src/runners/voiceSessionRunner.js";
-import type { RootState } from "../src/ui/src/store/index.js";
 import { initialAudioState } from "../src/ui/src/store/audio.js";
 import { initialConnectionState } from "../src/ui/src/store/connection.js";
 import { initialConversationState } from "../src/ui/src/store/conversation.js";
+import type { RootState } from "../src/ui/src/store/index.js";
 import { initialStageState } from "../src/ui/src/store/stage.js";
 import { initialUiState } from "../src/ui/src/store/ui.js";
 import { initialVoiceState } from "../src/ui/src/store/voice.js";
