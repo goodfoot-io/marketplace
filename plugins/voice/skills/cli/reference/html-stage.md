@@ -53,6 +53,17 @@ Running `voice html` with no argument clears the stage and unmounts the iframe. 
 
 **Path wins** when both a path argument and piped stdin are present.
 
+## When to clear
+
+The stage is a transient aid that tracks the conversation, not a poster that stays up until manually removed. Clear it the moment the visual it carries stops matching what is being discussed. Concretely, issue a bare `voice html` when:
+
+- The conversation moves to a subject the current stage no longer illustrates.
+- The user signals they are done with the visual ("you can take that down", or simply moving on).
+- The conversation is reset or ended (see §RESET/§END in ./conversation-lifecycle.md).
+- A new visual is needed — render the replacement directly (latest-wins); do not stack stale stages.
+
+Heuristic: if you can't say why the stage is still up, take it down.
+
 ## Recommended CDN stack
 
 Tailwind v4 + DaisyUI v5 loads from CDN with no build step:

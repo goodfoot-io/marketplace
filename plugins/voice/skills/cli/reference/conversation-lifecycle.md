@@ -48,9 +48,11 @@ Requires browser connected and audio ready — apply @reference/browser-audio.md
 **When:** the current conversation is done; user wants to stop but keep the server running.
 The transcript is archived in `previousConversations`.
 
+If the HTML stage is up, clear it first — it must not outlive the conversation it illustrated (see §STAGE in ../SKILL.md):
+
 ```xml
 <invoke name="Bash">
-<parameter name="command">voice conversation end</parameter>
+<parameter name="command">voice html && voice conversation end</parameter>
 </invoke>
 ```
 
@@ -69,9 +71,11 @@ Decide whether to carry forward context. If yes, apply §CONTEXT_REFRESH from @r
 
 Ends and restarts atomically with no audible gap. **A bare reset drops continuity — always re-seed.** `voice context` and `voice topics` replace prior blocks latest-wins, so re-seeding immediately after reset is cheap and preserves the thread. Apply the canonical reset + re-seed pattern from [SKILL.md §RESET](../SKILL.md):
 
+If the HTML stage is up, clear it as part of the reset — the new conversation starts with a clean background unless the visual still applies (see §STAGE in ../SKILL.md):
+
 ```xml
 <invoke name="Bash">
-<parameter name="command">voice conversation reset && voice context <<'EOF'
+<parameter name="command">voice html && voice conversation reset && voice context <<'EOF'
 [TIGHT SUMMARY OF WHAT CARRIES FORWARD]
 EOF && voice topics <<'EOF'
 [NEXT DIRECTION]
