@@ -40,8 +40,15 @@ type CreateVoiceAgentServer = (options: {
 class FakeRealtimeConnection {
   readonly sent: unknown[] = [];
   readonly handlers = new Map<string, Set<(event: unknown) => void>>();
+  // When set, the next send() throws once (then clears) — models a transient
+  // upstream send failure without tearing the socket down.
+  failNextSend = false;
 
   send(event: unknown): void {
+    if (this.failNextSend) {
+      this.failNextSend = false;
+      throw new Error("simulated transient send failure");
+    }
     this.sent.push(event);
   }
 
@@ -408,6 +415,53 @@ runIfSourceExists("createVoiceAgentServer", () => {
     const browser = await openReadyBrowserClient(controller);
 
     fakeRealtime.emit("error", { error: { code: "response_cancel_not_active" } });
+    expect(controller.realtimeConnected).toBe(true);
+    browser.close();
+  });
+
+  // The daemon's round-4 scoped force-close gates its fast reset-episode
+  // teardown on `controller.realtimeConnected === false`, distinguishing a
+  // genuinely-dead socket (fatal) from a non-fatal conversation.error that
+  // leaves the connection live. The only non-realtime-channel
+  // conversation.error sources are the injection-failure paths
+  // (controller.ts ~L1526 / ~L1552); by construction they emit
+  // conversation.error WITHOUT touching #realtimeLive (only the fatal
+  // realtime `error` handler ~L869 and the close path ~L1017-1018 clear it).
+  // This pins the observable half of that invariant: an injection that fails
+  // its invalid-state check while the realtime connection is otherwise live
+  // surfaces conversation.error but does NOT, by itself, mark the connection
+  // dead — only the subsequent close does. If a non-fatal injection failure
+  // ever started flipping liveness on its own, the daemon would force-close a
+  // healthy in-flight reset opening and re-open the chain-double-open path
+  // this card forbids.
+  it("an injection-failure conversation.error is emitted without itself clearing realtimeConnected", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant." },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    expect(controller.realtimeConnected).toBe(true);
+
+    const errors: unknown[] = [];
+    let liveAtError: boolean | undefined;
+    controller.on("conversation.error", (e) => {
+      errors.push(e);
+      if (liveAtError === undefined) liveAtError = controller.realtimeConnected;
+    });
+
+    // Force the next realtime send to throw once: injectSystemMessage's
+    // #sendTranscriptItemToRealtime fails, emitting MESSAGE_INJECTION_FAILED
+    // conversation.error (controller.ts ~L1552). This is a non-fatal path —
+    // the socket is not torn down — so liveness must remain true at emit time.
+    fakeRealtime.failNextSend = true;
+    await expectCallToFail(() => controller.injectSystemMessage({ text: "hello" }));
+
+    expect(errors).toHaveLength(1);
+    expect(liveAtError).toBe(true);
     expect(controller.realtimeConnected).toBe(true);
     browser.close();
   });

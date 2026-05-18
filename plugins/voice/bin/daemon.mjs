@@ -9780,6 +9780,7 @@ function clearResetOpening() {
 function clearResetEpisode() {
   resetOpeningInFlight = false;
   resetEpisodeRefreshPending = false;
+  queuedInstructionsUpdate = false;
   if (resetOpeningWatchdog) {
     clearTimeout(resetOpeningWatchdog);
     resetOpeningWatchdog = null;
@@ -9867,7 +9868,7 @@ controller.on("conversation.paused", () => {
   }
 });
 controller.on("conversation.error", () => {
-  if (resetOpeningInFlight) {
+  if (resetOpeningInFlight && !controller.realtimeConnected) {
     clearResetEpisode();
     appendEvent("conversation.opening.skipped", {
       reason: "realtime connection failed during in-flight reset opening"
@@ -9888,13 +9889,14 @@ controller.on("response.completed", () => {
   }
   const wasResetOpening = resetOpeningInFlight;
   const hadEpisodeRefresh = resetEpisodeRefreshPending;
+  const hadQueuedInstructions = queuedInstructionsUpdate;
   clearResetEpisode();
-  if (wasResetOpening && (queuedInstructionsUpdate || hadEpisodeRefresh)) {
+  if (wasResetOpening && (hadQueuedInstructions || hadEpisodeRefresh)) {
     queuedInstructionsUpdate = false;
     refreshInstructionsOnly();
     return;
   }
-  if (queuedInstructionsUpdate) {
+  if (hadQueuedInstructions) {
     queuedInstructionsUpdate = false;
     controller.updateVoiceSession({ instructions: rebuildInstructions() }).then(() => {
       scheduleResponse();

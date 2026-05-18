@@ -346,6 +346,17 @@ function clearResetOpening(): void {
 function clearResetEpisode(): void {
   resetOpeningInFlight = false;
   resetEpisodeRefreshPending = false;
+  // A segment that arrived while the reset opening streamed set
+  // queuedInstructionsUpdate (and resetEpisodeRefreshPending) so it would
+  // coalesce on the opening's response.completed. If the episode is torn down
+  // mid-flight (error/pause/ended/watchdog) BEFORE that response.completed, a
+  // surviving queuedInstructionsUpdate would later drain through the legacy
+  // response.completed `if (queuedInstructionsUpdate)` branch into a SECOND
+  // requestResponse() — the double-fire this card forbids. The segment's
+  // instructions are already folded into rebuildInstructions() (latestContext/
+  // latestTopics were set when it arrived); discarding the queued *response*
+  // here keeps latest-wins context live without a duplicate opening.
+  queuedInstructionsUpdate = false;
   if (resetOpeningWatchdog) {
     clearTimeout(resetOpeningWatchdog);
     resetOpeningWatchdog = null;
@@ -493,18 +504,26 @@ controller.on("conversation.paused", () => {
   }
 });
 
-// Realtime failure during an in-flight reset opening: the controller marks
-// the connection not-live and emits conversation.error when the underlying
-// socket can no longer be trusted to deliver response.create (it deliberately
-// does NOT transition conversation status). If the failure lands AFTER the
-// fire-time liveness check, the opening's response.completed will never
-// arrive — so without this the episode would stay in flight until the
-// watchdog. Surface the lost opening immediately and force-close the episode
-// so later context/topics can drive responses without waiting out the
-// watchdog. Guarded on resetOpeningInFlight so unrelated benign errors don't
-// emit a spurious skip.
+// Realtime failure during an in-flight reset opening. The controller emits
+// conversation.error for MANY conditions — only the fatal socket-error path
+// (controller.ts ~L869) marks the connection not-live; non-fatal injection
+// failures (~L1526/~L1552) emit conversation.error WITHOUT clearing liveness
+// and do NOT cancel the in-flight opening, which still streams to completion.
+// Force-closing the episode on every error would tear down a healthy in-flight
+// opening: a queued post-reset segment would then drain through the legacy
+// response.completed path into a SECOND opening, and a spurious
+// `opening.skipped` would be emitted for an opening that actually completed.
+// So gate the fast force-close on actual connection death — the same liveness
+// signal the fire-time gate and round-3 fix use. A truly dead connection
+// (realtimeConnected === false) genuinely cannot deliver the opening: clear the
+// episode fast and surface it. A non-fatal error that leaves the connection
+// live is left to the normal paths — the opening's own response.completed
+// coalesces it, and a genuine silent stall is still bounded by the 30s
+// RESET_OPENING_WATCHDOG_MS watchdog. (clearResetEpisode() now also clears
+// queuedInstructionsUpdate, so even the fatal-path teardown cannot leak a
+// second opening.)
 controller.on("conversation.error", () => {
-  if (resetOpeningInFlight) {
+  if (resetOpeningInFlight && !controller.realtimeConnected) {
     clearResetEpisode();
     appendEvent("conversation.opening.skipped", {
       reason: "realtime connection failed during in-flight reset opening",
@@ -536,13 +555,18 @@ controller.on("response.completed", () => {
   // treated normally.
   const wasResetOpening = resetOpeningInFlight;
   const hadEpisodeRefresh = resetEpisodeRefreshPending;
+  // Capture BEFORE clearResetEpisode() — it now also clears
+  // queuedInstructionsUpdate so a mid-flight episode teardown cannot drain a
+  // second opening. On THIS (normal completion) path the queued segment still
+  // belongs to the just-finished reset opening and must coalesce.
+  const hadQueuedInstructions = queuedInstructionsUpdate;
   clearResetEpisode();
-  if (wasResetOpening && (queuedInstructionsUpdate || hadEpisodeRefresh)) {
+  if (wasResetOpening && (hadQueuedInstructions || hadEpisodeRefresh)) {
     queuedInstructionsUpdate = false;
     refreshInstructionsOnly();
     return;
   }
-  if (queuedInstructionsUpdate) {
+  if (hadQueuedInstructions) {
     queuedInstructionsUpdate = false;
     controller
       .updateVoiceSession({ instructions: rebuildInstructions() })
