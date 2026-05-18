@@ -9766,6 +9766,8 @@ var RESET_RESPONSE_DELAY_MS = 600;
 var pendingResponseTimer = null;
 var resetOpeningPending = false;
 var resetOpeningTimer = null;
+var resetOpeningInFlight = false;
+var resetEpisodeRefreshPending = false;
 function clearResetOpening() {
   resetOpeningPending = false;
   if (resetOpeningTimer) {
@@ -9773,8 +9775,23 @@ function clearResetOpening() {
     resetOpeningTimer = null;
   }
 }
+function clearResetEpisode() {
+  resetOpeningInFlight = false;
+  resetEpisodeRefreshPending = false;
+}
+function refreshInstructionsOnly() {
+  controller.updateVoiceSession({ instructions: rebuildInstructions() }).then(() => {
+    appendEvent("conversation.opening.coalesced", { reason: "post-reset segment folded into reset episode" });
+  }).catch((err) => {
+    appendEvent("conversation.error", { error: String(err) });
+  });
+}
 function scheduleResponse() {
   if (resetOpeningPending) clearResetOpening();
+  if (resetOpeningInFlight) {
+    refreshInstructionsOnly();
+    return;
+  }
   if (pendingResponseTimer) clearTimeout(pendingResponseTimer);
   pendingResponseTimer = setTimeout(() => {
     pendingResponseTimer = null;
@@ -9802,6 +9819,7 @@ controller.on("conversation.reset", clearQueuedInjections);
 controller.on("conversation.reset", () => {
   queuedInstructionsUpdate = false;
   clearResetOpening();
+  clearResetEpisode();
   if (latestContext === null && latestTopics === null) return;
   resetOpeningPending = true;
   resetOpeningTimer = setTimeout(() => {
@@ -9818,7 +9836,9 @@ controller.on("conversation.reset", () => {
       return;
     }
     appendEvent("conversation.opening.requested", {});
+    resetOpeningInFlight = true;
     controller.requestResponse().catch((err) => {
+      resetOpeningInFlight = false;
       appendEvent("conversation.error", { error: String(err) });
     });
   }, RESET_RESPONSE_DELAY_MS);
@@ -9830,6 +9850,7 @@ controller.on("conversation.paused", () => {
   }
 });
 controller.on("conversation.ended", clearResetOpening);
+controller.on("conversation.ended", clearResetEpisode);
 controller.on("response.completed", () => {
   const hadInjections = queuedInjections.length > 0;
   if (hadInjections) {
@@ -9839,6 +9860,14 @@ controller.on("response.completed", () => {
         appendEvent("conversation.error", { error: String(err) });
       });
     }
+  }
+  const wasResetOpening = resetOpeningInFlight;
+  const hadEpisodeRefresh = resetEpisodeRefreshPending;
+  clearResetEpisode();
+  if (wasResetOpening && (queuedInstructionsUpdate || hadEpisodeRefresh)) {
+    queuedInstructionsUpdate = false;
+    refreshInstructionsOnly();
+    return;
   }
   if (queuedInstructionsUpdate) {
     queuedInstructionsUpdate = false;
@@ -10082,6 +10111,7 @@ var controlServer = createServer2(async (req, res) => {
       }
       if (controller.responseInFlight) {
         queuedInstructionsUpdate = true;
+        if (resetOpeningInFlight) resetEpisodeRefreshPending = true;
         sendJson(res, 200, {
           queued: true,
           kind,

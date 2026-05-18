@@ -297,12 +297,48 @@ let pendingResponseTimer: NodeJS.Timeout | null = null;
 let resetOpeningPending = false;
 let resetOpeningTimer: NodeJS.Timeout | null = null;
 
+// Post-fallback reset-episode memory. The `resetOpeningPending` flag only
+// survives until the fallback timer fires its opening (it then sets the flag
+// false and calls requestResponse). A post-reset `voice context`/`voice topics`
+// segment that arrives AFTER the fallback fired would otherwise find
+// `resetOpeningPending` already false and drive a SECOND opening — directly via
+// scheduleResponse(), or via queuedInstructionsUpdate draining on
+// response.completed. `resetOpeningInFlight` extends the reset episode across
+// the fallback opening: it is set the moment the fallback fires its opening and
+// cleared when that opening's response.completed arrives. While set, a
+// post-reset segment refreshes the realtime session instructions (latest-wins)
+// WITHOUT a second requestResponse(). `resetEpisodeRefreshPending` carries a
+// deferred refresh that arrived while the fallback opening was still streaming;
+// it is drained — instructions-only, no response — on response.completed.
+let resetOpeningInFlight = false;
+let resetEpisodeRefreshPending = false;
+
 function clearResetOpening(): void {
   resetOpeningPending = false;
   if (resetOpeningTimer) {
     clearTimeout(resetOpeningTimer);
     resetOpeningTimer = null;
   }
+}
+
+function clearResetEpisode(): void {
+  resetOpeningInFlight = false;
+  resetEpisodeRefreshPending = false;
+}
+
+// Refresh the realtime session instructions to the latest context/topics
+// WITHOUT triggering a model response. Used when a post-reset segment is
+// coalesced into the in-flight reset episode: the avatar must not open a
+// second time, but the new context must still be live for subsequent turns.
+function refreshInstructionsOnly(): void {
+  controller
+    .updateVoiceSession({ instructions: rebuildInstructions() })
+    .then(() => {
+      appendEvent("conversation.opening.coalesced", { reason: "post-reset segment folded into reset episode" });
+    })
+    .catch((err: unknown) => {
+      appendEvent("conversation.error", { error: String(err) });
+    });
 }
 
 function scheduleResponse(): void {
@@ -312,6 +348,15 @@ function scheduleResponse(): void {
   // post-reset instructions. Order-independent — true whether the segment
   // arrived before or after the reset fallback would have fired.
   if (resetOpeningPending) clearResetOpening();
+  // The fallback reset opening already fired and is streaming (or just
+  // completed in the same tick). A post-reset segment driving this
+  // scheduleResponse() belongs to the SAME reset episode — it must NOT open a
+  // second time. Refresh the session instructions (latest-wins) without a
+  // response; the in-flight opening already speaks for this episode.
+  if (resetOpeningInFlight) {
+    refreshInstructionsOnly();
+    return;
+  }
   if (pendingResponseTimer) clearTimeout(pendingResponseTimer);
   pendingResponseTimer = setTimeout(() => {
     pendingResponseTimer = null;
@@ -350,6 +395,10 @@ controller.on("conversation.reset", () => {
   // has already cleared any stale pre-reset debounce timer; clear any prior
   // reset-opening state too so a rapid double reset cannot stack timers.
   clearResetOpening();
+  // A new reset starts a new episode — discard any prior episode memory so a
+  // rapid double reset cannot leave a stale in-flight flag suppressing the new
+  // episode's opening.
+  clearResetEpisode();
   if (latestContext === null && latestTopics === null) return; // bare reset stays silent (mirrors flushStagedInstructions)
   resetOpeningPending = true;
   resetOpeningTimer = setTimeout(() => {
@@ -376,7 +425,12 @@ controller.on("conversation.reset", () => {
       return;
     }
     appendEvent("conversation.opening.requested", {});
+    // The episode now spans this opening. Until its response.completed, any
+    // post-reset segment must coalesce (instructions-only) rather than open
+    // again. Cleared in the response.completed handler below.
+    resetOpeningInFlight = true;
     controller.requestResponse().catch((err: unknown) => {
+      resetOpeningInFlight = false;
       appendEvent("conversation.error", { error: String(err) });
     });
   }, RESET_RESPONSE_DELAY_MS);
@@ -393,6 +447,7 @@ controller.on("conversation.paused", () => {
 
 // A reset-opening that is still pending when the conversation ends is moot.
 controller.on("conversation.ended", clearResetOpening);
+controller.on("conversation.ended", clearResetEpisode);
 
 controller.on("response.completed", () => {
   const hadInjections = queuedInjections.length > 0;
@@ -403,6 +458,22 @@ controller.on("response.completed", () => {
         appendEvent("conversation.error", { error: String(err) });
       });
     }
+  }
+  // If this completing response IS the in-flight reset opening, the reset
+  // episode is now closing. Any instructions update that was deferred while it
+  // streamed (queuedInstructionsUpdate, or resetEpisodeRefreshPending set by a
+  // post-reset segment that arrived during the opening) belongs to the SAME
+  // episode: refresh instructions, but do NOT scheduleResponse() — that would
+  // be the duplicate second opening. Clearing resetOpeningInFlight before the
+  // queued-drain block ensures any subsequent (genuinely later) segment is
+  // treated normally.
+  const wasResetOpening = resetOpeningInFlight;
+  const hadEpisodeRefresh = resetEpisodeRefreshPending;
+  clearResetEpisode();
+  if (wasResetOpening && (queuedInstructionsUpdate || hadEpisodeRefresh)) {
+    queuedInstructionsUpdate = false;
+    refreshInstructionsOnly();
+    return;
   }
   if (queuedInstructionsUpdate) {
     queuedInstructionsUpdate = false;
@@ -707,6 +778,10 @@ const controlServer = createServer(async (req: IncomingMessage, res: ServerRespo
       // state, not mid-stream.
       if (controller.responseInFlight) {
         queuedInstructionsUpdate = true;
+        // If the in-flight response is the reset-episode opening, mark this
+        // segment as an episode refresh so response.completed coalesces it
+        // (instructions-only) instead of draining into a second opening.
+        if (resetOpeningInFlight) resetEpisodeRefreshPending = true;
         sendJson(res, 200, {
           queued: true,
           kind,

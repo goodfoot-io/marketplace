@@ -295,6 +295,37 @@ runIfSourceExists("createVoiceAgentServer", () => {
     browser.close();
   });
 
+  // Contract the daemon's reset-episode coalescing depends on: refreshing the
+  // session instructions (the path refreshInstructionsOnly() uses to fold a
+  // post-fallback post-reset segment into the in-flight reset episode) must
+  // NOT itself emit a response.create. If updateVoiceSession ever started
+  // triggering a model turn, the daemon's "refresh without a second opening"
+  // suppression would silently become a double-fire again.
+  it("updateVoiceSession after reset refreshes instructions without emitting a response.create", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant.\n<context>old</context>" },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    await controller.resetConversation();
+    const sentBefore = fakeRealtime.sent.length;
+    await controller.updateVoiceSession({
+      instructions: "You are a test assistant.\n<context>new post-reset</context>",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const sentAfter = fakeRealtime.sent.slice(sentBefore);
+    const responseCreates = sentAfter.filter((msg) => (msg as { type: string }).type === "response.create");
+    expect(responseCreates).toHaveLength(0);
+    const sessionUpdates = sentAfter.filter((msg) => (msg as { type: string }).type === "session.update");
+    expect(sessionUpdates.length).toBeGreaterThanOrEqual(1);
+    browser.close();
+  });
+
   it("realtimeConnected is true after a connected conversation and a reset", async () => {
     const fakeRealtime = new FakeRealtimeConnection();
     const controller = await makeController({
