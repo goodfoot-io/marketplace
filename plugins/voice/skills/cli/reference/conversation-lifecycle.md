@@ -65,14 +65,21 @@ Decide whether to carry forward context. If yes, apply §CONTEXT_REFRESH from @r
 ```
 
 ### §RESET
-**When:** conversation must restart immediately — e.g. after a mid-conversation error.
-Ends and restarts atomically with no gap.
+**When:** proactively and frequently throughout a sustained conversation — on topic change, on noticeable avatar drift or repetition, and periodically during any long conversation (roughly every 8–12 exchanges). Recovering from a mid-conversation error is one case among these, not the primary one. Frequent reset is the healthy default, not an exception path: it keeps the avatar coherent and latency low by preventing an ever-growing transcript from dragging the model.
+
+Ends and restarts atomically with no audible gap. **A bare reset drops continuity — always re-seed.** `voice context` and `voice topics` replace prior blocks latest-wins, so re-seeding immediately after reset is cheap and preserves the thread. Apply the canonical reset + re-seed pattern from [SKILL.md §RESET](../SKILL.md):
 
 ```xml
 <invoke name="Bash">
-<parameter name="command">voice conversation reset</parameter>
+<parameter name="command">voice conversation reset && voice context <<'EOF'
+[TIGHT SUMMARY OF WHAT CARRIES FORWARD]
+EOF && voice topics <<'EOF'
+[NEXT DIRECTION]
+EOF</parameter>
 </invoke>
 ```
+
+To preserve the exact running session instead of resetting, see §SUMMARY_INJECT in @reference/context-management.md for when to prefer each.
 
 ## Events
 

@@ -53,19 +53,26 @@ EOF</parameter>
 ```
 
 ### §RESET
-Use `voice reset` to start a new voice conversation if the subject matter changes substantially.
+Resetting frequently is the default hygiene for a sustained conversation — not a last resort. `voice conversation reset` ends and restarts the session atomically with no audible gap, so a fresh session keeps the avatar coherent, latency low, and the model free of stale earlier turns. Prefer reset over letting one session accumulate an ever-growing transcript.
 
-Provide a summary of the previous voice conversation using `voice context` and the new topics using `voice topics`.
+Reset proactively when any of these hold — do not wait for an error:
+- **Topic change** — the subject matter has moved on from what the running session was seeded with.
+- **Drift or repetition** — the avatar repeats itself, contradicts earlier turns, or seems confused about earlier content.
+- **Long conversation** — periodically during any extended conversation, roughly every 8–12 exchanges, even when nothing is visibly wrong.
+
+**Always pair a reset with a re-seed.** A reset alone drops continuity; `voice context` and `voice topics` replace prior blocks latest-wins, so re-seeding immediately after reset is cheap and preserves the thread. This is the canonical pattern — reset, then carry forward a tight summary and the next direction in a single atomic step:
 
 ```xml
 <invoke name="Bash">
-<parameter name="command">voice reset && voice context <<'EOF'
-[RELEVANT INFORMATION FROM PREVIOUS CONVERSATION]
-EOF && voice topic <<'EOF'
-[NEXT TOPICS TO COVER]
+<parameter name="command">voice conversation reset && voice context <<'EOF'
+[TIGHT SUMMARY OF WHAT CARRIES FORWARD — key facts, decisions, and the user's goals]
+EOF && voice topics <<'EOF'
+[NEXT DIRECTION — one to three sentences guiding where the conversation goes next]
 EOF</parameter>
 </invoke>
 ```
+
+When the transcript is long but you want to preserve the exact running session (no reset), inject a summary instead — see §SUMMARY_INJECT in ./reference/context-management.md for when to prefer each. Full lifecycle details: ./reference/conversation-lifecycle.md
 
 ### §STAGE
 Use `voice html` to paint a full-viewport HTML document **behind** the voice overlays. Use it to show the user anything visual the conversation calls for — diagrams, data, illustrations, slides.
