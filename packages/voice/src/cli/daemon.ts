@@ -417,6 +417,29 @@ function flushOwedPostResetInstructions(owed: boolean): void {
     });
 }
 
+// Reset-episode variant used by the conversation.resumed defense-in-depth
+// path, which (unlike every teardown caller) does NOT run clearResetEpisode()
+// first. It must therefore zero the reset-scoped owed flag itself
+// (resetEpisodeRefreshPending) in addition to queuedInstructionsUpdate, so the
+// resumed handler is idempotent / self-terminating (Finding 3): once flushed,
+// resetEpisodeRefreshPending is false, postResetInstructionsOwed() is false,
+// and a subsequent conversation.resumed is a strict no-op. Double-clearing on
+// a later clearResetEpisode() is a harmless no-op.
+function flushOwedResetEpisodeInstructions(): void {
+  queuedInstructionsUpdate = false;
+  resetEpisodeRefreshPending = false;
+  controller
+    .updateVoiceSession({ instructions: rebuildInstructions() })
+    .then(() => {
+      appendEvent("conversation.opening.coalesced", {
+        reason: "owed reset-episode context delivered on resume (no opening)",
+      });
+    })
+    .catch((err: unknown) => {
+      appendEvent("conversation.error", { error: String(err) });
+    });
+}
+
 function scheduleResponse(): void {
   // A real context/topics segment is driving a response. If a reset opening is
   // still pending, this segment supersedes it: cancel the reset fallback and
@@ -573,15 +596,27 @@ controller.on("conversation.paused", () => {
 // The controller's realtime `error` handler sets #realtimeLive = false for
 // EVERY non-`response_cancel_not_active` error (fatal OR transient) and does
 // NOT cancel the in-flight response — a transient error's opening may still
-// stream to completion. Emitting `conversation.opening.skipped` here
-// immediately would be a false signal for an opening the user actually hears
-// (Finding 2). Instead defer: arm a short re-check timer. If the opening's
-// response.completed arrives first, the response.completed handler retracts
-// this pending skip (and delivers any owed queued context as a coalesce, not a
-// skip). If the connection is still genuinely dead when the timer fires and no
-// completion has arrived, the connection truly cannot deliver the opening:
-// fast-clear the episode, emit a truthful skip, and still flush owed context
-// (round-3 fatal-error fast-clear preserved; Finding 1 honored).
+// stream to completion. `#realtimeLive` is restored to true ONLY by a fresh
+// connection/restart, never on a still-open socket after a transient error,
+// so `controller.realtimeConnected` LATCHES false for the rest of the episode
+// and cannot distinguish "opening still streaming" from "opening lost". A
+// healthy opening streams for seconds (> the 750ms re-check), so gating the
+// recovery on `realtimeConnected` would make a false `opening.skipped` (and a
+// compound double-fire via mid-stream teardown) the DEFAULT outcome of any
+// transient error during a normal-length opening (Finding 1).
+//
+// Instead, gate recovery on the controller's NON-latching progress signal
+// `controller.responseInFlight`: it is set true on the opening's
+// `response.created` and false on `response.done` (which also emits the
+// `response.completed` that closes the episode). If the opening is still
+// streaming when the re-check fires, `responseInFlight` is true → the opening
+// is NOT lost; retract the pending skip and leave the episode intact so the
+// opening's own `response.completed` coalesces any queued post-reset segment
+// (no skip, no second requestResponse). Only when the opening genuinely never
+// started/streamed (no `response.created`; `responseInFlight` false) AND the
+// episode is still in flight do we emit a single truthful skip + teardown
+// (round-3 stuck-mute fast-clear preserved; the 30s watchdog still backstops
+// a silent stall that never raises an error).
 const FATAL_ERROR_RECHECK_MS = 750;
 let resetErrorSkipTimer: NodeJS.Timeout | null = null;
 
@@ -600,9 +635,13 @@ controller.on("conversation.error", () => {
     // response.completed already closed the episode (opening delivered) —
     // nothing to skip; it retracted this path.
     if (!resetOpeningInFlight) return;
-    // Connection recovered and the opening is still legitimately in flight —
-    // let the normal completion/watchdog paths own it; do not emit a skip.
-    if (controller.realtimeConnected) return;
+    // The opening's response is still progressing (response.created arrived,
+    // response.done has not) — a transient error did NOT lose the opening the
+    // user is hearing. Retract the pending skip; the opening's own
+    // response.completed will close the episode and coalesce any queued
+    // post-reset segment (no skip, no second requestResponse). Also retract if
+    // the connection genuinely recovered (a fresh restart relit liveness).
+    if (controller.responseInFlight || controller.realtimeConnected) return;
     const owed = postResetInstructionsOwed();
     clearResetEpisode();
     appendEvent("conversation.opening.skipped", {
@@ -614,16 +653,33 @@ controller.on("conversation.error", () => {
 
 // Defense-in-depth (Finding 1): controller.resumeConversation() only flips
 // status + emits conversation.resumed; it does NOT re-send the session update.
-// If a pause→resume happened while a post-reset instructions push was still
-// owed and the teardown flush was somehow bypassed, recover here: push the
-// queued context response-lessly. Guarded so a normal resume with nothing
-// pending is a strict no-op (no spurious session.update, no double-push — the
-// paused-in-flight handler already flushed-and-cleared the flags, so
-// postResetInstructionsOwed() reads false on the common path).
+// If a pause→resume happened while a RESET-EPISODE post-reset instructions
+// push was still owed and the teardown flush was somehow bypassed, recover
+// here: push the queued context response-lessly.
+//
+// CRITICAL (Finding 2): gate on the reset-SCOPED owed flag
+// (resetEpisodeRefreshPending), NOT the bare global queuedInstructionsUpdate.
+// `/instructions/segment` sets queuedInstructionsUpdate for ANY segment that
+// arrives while a response streams — including a plain non-reset
+// mid-stream `voice context` with no reset episode active. Keying the resume
+// recovery on the global flag would response-lessly flush that non-reset
+// segment and clear queuedInstructionsUpdate, so the normal
+// response.completed spoken drain (updateVoiceSession → scheduleResponse) is
+// skipped and the avatar goes silent on the agent's new subject — the exact
+// failure this card eliminates, masked by a success-shaped event. A non-reset
+// queued segment must keep its normal post-response.completed spoken drain
+// across pause/resume; pause/resume must not consume it. resetEpisodeRefreshPending
+// is set ONLY by a segment that arrived while resetOpeningInFlight, so it is
+// true exclusively inside a genuine reset episode.
+//
+// Finding 3: flush via the reset-episode variant which also zeroes
+// resetEpisodeRefreshPending, so postResetInstructionsOwed()/this handler are
+// self-terminating — a subsequent conversation.resumed is a strict no-op
+// instead of re-pushing a redundant updateVoiceSession + spurious
+// opening.coalesced until an unrelated clearResetEpisode().
 controller.on("conversation.resumed", () => {
-  const owed = postResetInstructionsOwed();
-  if (!owed) return;
-  flushOwedPostResetInstructions(owed);
+  if (!resetEpisodeRefreshPending) return;
+  flushOwedResetEpisodeInstructions();
 });
 
 // A reset-opening that is still pending when the conversation ends is moot.

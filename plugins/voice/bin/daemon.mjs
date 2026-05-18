@@ -9808,6 +9808,17 @@ function flushOwedPostResetInstructions(owed) {
     appendEvent("conversation.error", { error: String(err) });
   });
 }
+function flushOwedResetEpisodeInstructions() {
+  queuedInstructionsUpdate = false;
+  resetEpisodeRefreshPending = false;
+  controller.updateVoiceSession({ instructions: rebuildInstructions() }).then(() => {
+    appendEvent("conversation.opening.coalesced", {
+      reason: "owed reset-episode context delivered on resume (no opening)"
+    });
+  }).catch((err) => {
+    appendEvent("conversation.error", { error: String(err) });
+  });
+}
 function scheduleResponse() {
   if (resetOpeningPending) clearResetOpening();
   if (resetOpeningInFlight) {
@@ -9902,7 +9913,7 @@ controller.on("conversation.error", () => {
   resetErrorSkipTimer = setTimeout(() => {
     resetErrorSkipTimer = null;
     if (!resetOpeningInFlight) return;
-    if (controller.realtimeConnected) return;
+    if (controller.responseInFlight || controller.realtimeConnected) return;
     const owed = postResetInstructionsOwed();
     clearResetEpisode();
     appendEvent("conversation.opening.skipped", {
@@ -9912,9 +9923,8 @@ controller.on("conversation.error", () => {
   }, FATAL_ERROR_RECHECK_MS);
 });
 controller.on("conversation.resumed", () => {
-  const owed = postResetInstructionsOwed();
-  if (!owed) return;
-  flushOwedPostResetInstructions(owed);
+  if (!resetEpisodeRefreshPending) return;
+  flushOwedResetEpisodeInstructions();
 });
 controller.on("conversation.ended", clearResetOpening);
 controller.on("conversation.ended", clearResetEpisode);

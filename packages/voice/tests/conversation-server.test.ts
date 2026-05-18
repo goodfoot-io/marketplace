@@ -22,6 +22,7 @@ type ConversationController = {
   resumeConversation: () => Promise<void>;
   requestResponse: () => Promise<void>;
   readonly realtimeConnected: boolean;
+  readonly responseInFlight: boolean;
   readonly status: { conversation: string };
 };
 
@@ -504,6 +505,83 @@ runIfSourceExists("createVoiceAgentServer", () => {
     expect(errors).toHaveLength(1);
     expect(liveAtError).toBe(true);
     expect(controller.realtimeConnected).toBe(true);
+    browser.close();
+  });
+
+  // Finding 1 contract: the daemon's conversation.error re-check no longer
+  // gates recovery on the LATCHING controller.realtimeConnected (which stays
+  // false for the rest of the episode after any transient error and so cannot
+  // tell "opening still streaming" from "opening lost"). It now gates on the
+  // NON-latching controller.responseInFlight. This asserts the controller
+  // surface that switch depends on: after a transient realtime error has
+  // latched realtimeConnected false, responseInFlight still independently
+  // tracks an in-progress response (true on response.created, false on
+  // response.done) — so the daemon can distinguish a streaming opening from a
+  // genuinely-lost one even while liveness is latched dead.
+  it("responseInFlight tracks response progress independently of latched realtimeConnected", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant.\n<context>brevity</context>" },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    expect(controller.responseInFlight).toBe(false);
+
+    // Transient error: latches realtimeConnected false WITHOUT cancelling an
+    // in-flight response (controller.ts ~L857-878).
+    fakeRealtime.emit("error", { error: { code: "session_error", message: "transient" } });
+    expect(controller.realtimeConnected).toBe(false);
+
+    // The opening response then actually starts and streams.
+    fakeRealtime.emit("response.created", { type: "response.created" });
+    expect(controller.responseInFlight).toBe(true);
+    // realtimeConnected is LATCHED false and cannot recover on the open socket;
+    // responseInFlight is the only signal that says "the opening is alive".
+    expect(controller.realtimeConnected).toBe(false);
+
+    fakeRealtime.emit("response.done", { type: "response.done" });
+    expect(controller.responseInFlight).toBe(false);
+    browser.close();
+  });
+
+  // Finding 2 contract: a NON-reset queued context segment must keep its
+  // normal spoken drain across pause/resume. The daemon defers a mid-stream
+  // segment's session.update and drives the spoken turn on response.completed
+  // via updateVoiceSession → requestResponse. pauseConversation/
+  // resumeConversation only flip status (they do NOT consume that pending
+  // spoken update). This asserts the controller surface: a resumed
+  // conversation still accepts updateVoiceSession followed by requestResponse
+  // and produces exactly one response.create — so the agent's new subject is
+  // voiced, not silently swallowed by the resume.
+  it("a queued instructions update then requestResponse across pause/resume still yields one response.create", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant.\n<context>old</context>" },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    await controller.pauseConversation();
+    await controller.resumeConversation();
+    expect(controller.status.conversation).toBe("active");
+
+    const sentBefore = fakeRealtime.sent.length;
+    await controller.updateVoiceSession({
+      instructions: "You are a test assistant.\n<context>new subject the agent set mid-stream</context>",
+    });
+    await controller.requestResponse();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const sentAfter = fakeRealtime.sent.slice(sentBefore);
+    const responseCreates = sentAfter.filter((msg) => (msg as { type: string }).type === "response.create");
+    expect(responseCreates).toHaveLength(1);
+    const sessionUpdates = sentAfter.filter((msg) => (msg as { type: string }).type === "session.update");
+    expect(sessionUpdates.length).toBeGreaterThanOrEqual(1);
     browser.close();
   });
 
