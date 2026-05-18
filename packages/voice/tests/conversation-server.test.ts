@@ -367,6 +367,36 @@ runIfSourceExists("createVoiceAgentServer", () => {
     browser.close();
   });
 
+  // The daemon's reset-episode watchdog backstop relies on conversation.error
+  // being emitted whenever the realtime session errors — that is the signal
+  // the daemon hooks to force-close a stuck in-flight reset opening (so a
+  // lost/stalled opening degrades to one observable skip, not a session-long
+  // mute) WITHOUT waiting out the full watchdog timeout. If a realtime error
+  // ever stopped surfacing as conversation.error, that fast-path clear would
+  // silently regress to relying solely on the timeout.
+  it("a realtime session error surfaces as conversation.error while status stays active", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant.\n<context>user prefers brevity</context>" },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    const errors: unknown[] = [];
+    controller.on("conversation.error", (e) => {
+      errors.push(e);
+    });
+
+    fakeRealtime.emit("error", { error: { code: "session_error", message: "upstream xAI failure" } });
+
+    expect(errors).toHaveLength(1);
+    expect(controller.realtimeConnected).toBe(false);
+    expect(controller.status.conversation).toBe("active");
+    browser.close();
+  });
+
   it("a benign response_cancel_not_active error does not mark the connection dead", async () => {
     const fakeRealtime = new FakeRealtimeConnection();
     const controller = await makeController({

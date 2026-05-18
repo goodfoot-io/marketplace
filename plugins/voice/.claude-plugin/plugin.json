@@ -1,6 +1,6 @@
 {
   "name": "voice",
-  "version": "1.0.41",
+  "version": "1.0.42",
   "description": "Voice conversation SDK skills and CLI tools for launching and interacting with realtime voice agents.",
   "author": {
     "name": "Goodfoot",

@@ -9768,6 +9768,8 @@ var resetOpeningPending = false;
 var resetOpeningTimer = null;
 var resetOpeningInFlight = false;
 var resetEpisodeRefreshPending = false;
+var resetOpeningWatchdog = null;
+var RESET_OPENING_WATCHDOG_MS = 3e4;
 function clearResetOpening() {
   resetOpeningPending = false;
   if (resetOpeningTimer) {
@@ -9778,6 +9780,10 @@ function clearResetOpening() {
 function clearResetEpisode() {
   resetOpeningInFlight = false;
   resetEpisodeRefreshPending = false;
+  if (resetOpeningWatchdog) {
+    clearTimeout(resetOpeningWatchdog);
+    resetOpeningWatchdog = null;
+  }
 }
 function refreshInstructionsOnly() {
   controller.updateVoiceSession({ instructions: rebuildInstructions() }).then(() => {
@@ -9837,8 +9843,15 @@ controller.on("conversation.reset", () => {
     }
     appendEvent("conversation.opening.requested", {});
     resetOpeningInFlight = true;
+    if (resetOpeningWatchdog) clearTimeout(resetOpeningWatchdog);
+    resetOpeningWatchdog = setTimeout(() => {
+      resetOpeningWatchdog = null;
+      if (!resetOpeningInFlight) return;
+      clearResetEpisode();
+      appendEvent("conversation.opening.skipped", { reason: "reset opening watchdog timeout \u2014 no response.completed" });
+    }, RESET_OPENING_WATCHDOG_MS);
     controller.requestResponse().catch((err) => {
-      resetOpeningInFlight = false;
+      clearResetEpisode();
       appendEvent("conversation.error", { error: String(err) });
     });
   }, RESET_RESPONSE_DELAY_MS);
@@ -9847,6 +9860,18 @@ controller.on("conversation.paused", () => {
   if (resetOpeningPending) {
     clearResetOpening();
     appendEvent("conversation.opening.skipped", { reason: "conversation paused during reset window" });
+  }
+  if (resetOpeningInFlight) {
+    clearResetEpisode();
+    appendEvent("conversation.opening.skipped", { reason: "conversation paused during in-flight reset opening" });
+  }
+});
+controller.on("conversation.error", () => {
+  if (resetOpeningInFlight) {
+    clearResetEpisode();
+    appendEvent("conversation.opening.skipped", {
+      reason: "realtime connection failed during in-flight reset opening"
+    });
   }
 });
 controller.on("conversation.ended", clearResetOpening);

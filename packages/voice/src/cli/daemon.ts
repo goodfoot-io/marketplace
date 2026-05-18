@@ -313,6 +313,28 @@ let resetOpeningTimer: NodeJS.Timeout | null = null;
 let resetOpeningInFlight = false;
 let resetEpisodeRefreshPending = false;
 
+// Watchdog bounding the lifetime of `resetOpeningInFlight`. The fallback
+// opening goes out over a BrowserProxiedVoiceConnection whose send() is
+// fire-and-forget: requestResponse() resolves even if the upstream socket
+// stalls/dies AFTER the fire-time liveness check, so the opening's
+// response.completed may never arrive and none of the normal clear sites
+// (response.completed / reset / ended / synchronous .catch) ever run. Without
+// a bound, resetOpeningInFlight stays true forever and every later
+// scheduleResponse() is downgraded to instructions-only — a session-long
+// silent mute. This timer degrades that to a single observable missed
+// opening: if the opening's response.completed has not arrived within the
+// bound, the episode is force-closed and conversation.opening.skipped is
+// emitted so subsequent context/topics can again drive model responses.
+let resetOpeningWatchdog: NodeJS.Timeout | null = null;
+
+// 30s. RESET_RESPONSE_DELAY_MS (600ms) is the time to *fire* the opening; a
+// normal realtime opening response then streams to completion in at most a
+// few seconds. 30s is comfortably longer than any healthy opening (so the
+// watchdog can never preempt a normal or coalesced opening — the round-2
+// no-double-fire guarantee holds) while still bounding a stalled socket to a
+// brief, recoverable mute rather than a permanent one.
+const RESET_OPENING_WATCHDOG_MS = 30_000;
+
 function clearResetOpening(): void {
   resetOpeningPending = false;
   if (resetOpeningTimer) {
@@ -324,6 +346,10 @@ function clearResetOpening(): void {
 function clearResetEpisode(): void {
   resetOpeningInFlight = false;
   resetEpisodeRefreshPending = false;
+  if (resetOpeningWatchdog) {
+    clearTimeout(resetOpeningWatchdog);
+    resetOpeningWatchdog = null;
+  }
 }
 
 // Refresh the realtime session instructions to the latest context/topics
@@ -429,8 +455,20 @@ controller.on("conversation.reset", () => {
     // post-reset segment must coalesce (instructions-only) rather than open
     // again. Cleared in the response.completed handler below.
     resetOpeningInFlight = true;
+    // Bound the in-flight lifetime: if the opening's response.completed never
+    // arrives (fire-and-forget send into a stalled/dead browser-proxied
+    // socket), force-close the episode so later scheduleResponse() calls are
+    // no longer suppressed. Cleared on the normal completed/reset/ended paths
+    // via clearResetEpisode().
+    if (resetOpeningWatchdog) clearTimeout(resetOpeningWatchdog);
+    resetOpeningWatchdog = setTimeout(() => {
+      resetOpeningWatchdog = null;
+      if (!resetOpeningInFlight) return;
+      clearResetEpisode();
+      appendEvent("conversation.opening.skipped", { reason: "reset opening watchdog timeout — no response.completed" });
+    }, RESET_OPENING_WATCHDOG_MS);
     controller.requestResponse().catch((err: unknown) => {
-      resetOpeningInFlight = false;
+      clearResetEpisode();
       appendEvent("conversation.error", { error: String(err) });
     });
   }, RESET_RESPONSE_DELAY_MS);
@@ -442,6 +480,35 @@ controller.on("conversation.paused", () => {
   if (resetOpeningPending) {
     clearResetOpening();
     appendEvent("conversation.opening.skipped", { reason: "conversation paused during reset window" });
+  }
+  // A pause can land AFTER the fallback already fired its opening, with the
+  // episode still in flight (resetOpeningPending is structurally false here —
+  // the fallback consumed it before setting resetOpeningInFlight). Clearing
+  // the full episode on pause guarantees resetOpeningInFlight can never be
+  // left stuck true by a pause, so post-resume scheduleResponse() calls are
+  // not permanently downgraded to instructions-only.
+  if (resetOpeningInFlight) {
+    clearResetEpisode();
+    appendEvent("conversation.opening.skipped", { reason: "conversation paused during in-flight reset opening" });
+  }
+});
+
+// Realtime failure during an in-flight reset opening: the controller marks
+// the connection not-live and emits conversation.error when the underlying
+// socket can no longer be trusted to deliver response.create (it deliberately
+// does NOT transition conversation status). If the failure lands AFTER the
+// fire-time liveness check, the opening's response.completed will never
+// arrive — so without this the episode would stay in flight until the
+// watchdog. Surface the lost opening immediately and force-close the episode
+// so later context/topics can drive responses without waiting out the
+// watchdog. Guarded on resetOpeningInFlight so unrelated benign errors don't
+// emit a spurious skip.
+controller.on("conversation.error", () => {
+  if (resetOpeningInFlight) {
+    clearResetEpisode();
+    appendEvent("conversation.opening.skipped", {
+      reason: "realtime connection failed during in-flight reset opening",
+    });
   }
 });
 
