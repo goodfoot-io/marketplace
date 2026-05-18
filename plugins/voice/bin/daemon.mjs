@@ -9785,10 +9785,25 @@ function clearResetEpisode() {
     clearTimeout(resetOpeningWatchdog);
     resetOpeningWatchdog = null;
   }
+  clearResetErrorSkipTimer();
 }
 function refreshInstructionsOnly() {
   controller.updateVoiceSession({ instructions: rebuildInstructions() }).then(() => {
     appendEvent("conversation.opening.coalesced", { reason: "post-reset segment folded into reset episode" });
+  }).catch((err) => {
+    appendEvent("conversation.error", { error: String(err) });
+  });
+}
+function postResetInstructionsOwed() {
+  return queuedInstructionsUpdate || resetEpisodeRefreshPending;
+}
+function flushOwedPostResetInstructions(owed) {
+  if (!owed) return;
+  queuedInstructionsUpdate = false;
+  controller.updateVoiceSession({ instructions: rebuildInstructions() }).then(() => {
+    appendEvent("conversation.opening.coalesced", {
+      reason: "queued post-reset context delivered on episode teardown (no opening)"
+    });
   }).catch((err) => {
     appendEvent("conversation.error", { error: String(err) });
   });
@@ -9848,12 +9863,16 @@ controller.on("conversation.reset", () => {
     resetOpeningWatchdog = setTimeout(() => {
       resetOpeningWatchdog = null;
       if (!resetOpeningInFlight) return;
+      const owed = postResetInstructionsOwed();
       clearResetEpisode();
       appendEvent("conversation.opening.skipped", { reason: "reset opening watchdog timeout \u2014 no response.completed" });
+      flushOwedPostResetInstructions(owed);
     }, RESET_OPENING_WATCHDOG_MS);
     controller.requestResponse().catch((err) => {
+      const owed = postResetInstructionsOwed();
       clearResetEpisode();
       appendEvent("conversation.error", { error: String(err) });
+      flushOwedPostResetInstructions(owed);
     });
   }, RESET_RESPONSE_DELAY_MS);
 });
@@ -9863,17 +9882,39 @@ controller.on("conversation.paused", () => {
     appendEvent("conversation.opening.skipped", { reason: "conversation paused during reset window" });
   }
   if (resetOpeningInFlight) {
+    const owed = postResetInstructionsOwed();
     clearResetEpisode();
     appendEvent("conversation.opening.skipped", { reason: "conversation paused during in-flight reset opening" });
+    flushOwedPostResetInstructions(owed);
   }
 });
+var FATAL_ERROR_RECHECK_MS = 750;
+var resetErrorSkipTimer = null;
+function clearResetErrorSkipTimer() {
+  if (resetErrorSkipTimer) {
+    clearTimeout(resetErrorSkipTimer);
+    resetErrorSkipTimer = null;
+  }
+}
 controller.on("conversation.error", () => {
-  if (resetOpeningInFlight && !controller.realtimeConnected) {
+  if (!resetOpeningInFlight || controller.realtimeConnected) return;
+  if (resetErrorSkipTimer) return;
+  resetErrorSkipTimer = setTimeout(() => {
+    resetErrorSkipTimer = null;
+    if (!resetOpeningInFlight) return;
+    if (controller.realtimeConnected) return;
+    const owed = postResetInstructionsOwed();
     clearResetEpisode();
     appendEvent("conversation.opening.skipped", {
       reason: "realtime connection failed during in-flight reset opening"
     });
-  }
+    flushOwedPostResetInstructions(owed);
+  }, FATAL_ERROR_RECHECK_MS);
+});
+controller.on("conversation.resumed", () => {
+  const owed = postResetInstructionsOwed();
+  if (!owed) return;
+  flushOwedPostResetInstructions(owed);
 });
 controller.on("conversation.ended", clearResetOpening);
 controller.on("conversation.ended", clearResetEpisode);

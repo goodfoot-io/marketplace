@@ -18,6 +18,8 @@ type ConversationController = {
   updateVoiceSession: (config: unknown) => Promise<void> | void;
   cancelToolCall: (toolCallId: string) => Promise<void> | void;
   resetConversation: (options?: { shutdownTimeoutMs?: number }) => Promise<void>;
+  pauseConversation: () => Promise<void>;
+  resumeConversation: () => Promise<void>;
   requestResponse: () => Promise<void>;
   readonly realtimeConnected: boolean;
   readonly status: { conversation: string };
@@ -330,6 +332,45 @@ runIfSourceExists("createVoiceAgentServer", () => {
     expect(responseCreates).toHaveLength(0);
     const sessionUpdates = sentAfter.filter((msg) => (msg as { type: string }).type === "session.update");
     expect(sessionUpdates.length).toBeGreaterThanOrEqual(1);
+    browser.close();
+  });
+
+  // Finding-1 contract: the daemon's teardown / conversation.resumed flush
+  // delivers a stranded post-reset segment by calling
+  // updateVoiceSession(rebuildInstructions()) WITHOUT requestResponse(), even
+  // after the episode was torn down by a pause. This asserts the controller
+  // surface that flush depends on: a paused conversation still accepts an
+  // instructions-only session.update and pushes it to the realtime session
+  // with ZERO response.create — so the agent's steer reaches the session
+  // without a duplicate spoken opening (no double-fire regression).
+  it("updateVoiceSession on a paused (post-teardown) conversation pushes instructions with no response.create", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant.\n<context>old</context>" },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    await controller.resetConversation();
+    await controller.pauseConversation();
+    expect(controller.status.conversation).toBe("paused");
+
+    const sentBefore = fakeRealtime.sent.length;
+    await controller.updateVoiceSession({
+      instructions: "You are a test assistant.\n<context>new post-reset steer</context>",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const sentAfter = fakeRealtime.sent.slice(sentBefore);
+    const responseCreates = sentAfter.filter((msg) => (msg as { type: string }).type === "response.create");
+    expect(responseCreates).toHaveLength(0);
+    const sessionUpdates = sentAfter.filter((msg) => (msg as { type: string }).type === "session.update");
+    expect(sessionUpdates.length).toBeGreaterThanOrEqual(1);
+
+    await controller.resumeConversation();
+    expect(controller.status.conversation).toBe("active");
     browser.close();
   });
 

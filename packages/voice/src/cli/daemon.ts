@@ -361,6 +361,11 @@ function clearResetEpisode(): void {
     clearTimeout(resetOpeningWatchdog);
     resetOpeningWatchdog = null;
   }
+  // A deferred fatal-error re-check timer (Finding 2) is scoped to the episode
+  // it was armed in. Tearing the episode down (normal completion / reset /
+  // ended / pause / watchdog) cancels it so it can never fire a stale skip
+  // against a later episode or after the opening was in fact delivered.
+  clearResetErrorSkipTimer();
 }
 
 // Refresh the realtime session instructions to the latest context/topics
@@ -372,6 +377,40 @@ function refreshInstructionsOnly(): void {
     .updateVoiceSession({ instructions: rebuildInstructions() })
     .then(() => {
       appendEvent("conversation.opening.coalesced", { reason: "post-reset segment folded into reset episode" });
+    })
+    .catch((err: unknown) => {
+      appendEvent("conversation.error", { error: String(err) });
+    });
+}
+
+// True when a post-reset segment's instructions update is owed but has not yet
+// been pushed to the realtime session. The queued branch of
+// /instructions/segment sets queuedInstructionsUpdate (and, inside a reset
+// episode, resetEpisodeRefreshPending) but defers the actual session.update to
+// response.completed. If the episode is torn down mid-flight before that
+// completion, the push must still happen on the teardown path — otherwise the
+// agent's explicitly-set post-reset context is stranded in latestContext/
+// latestTopics and never reaches the session.
+function postResetInstructionsOwed(): boolean {
+  return queuedInstructionsUpdate || resetEpisodeRefreshPending;
+}
+
+// Push the queued post-reset instructions to the realtime session WITHOUT a
+// response — separating "drop the duplicate spoken opening" (no second
+// requestResponse) from "deliver the queued context" (the agent's steer must
+// still take effect). Used on every mid-flight teardown path that discards a
+// pending post-reset segment, and as defense-in-depth on conversation.resumed.
+// Caller must capture `postResetInstructionsOwed()` BEFORE clearResetEpisode()
+// zeroes the flags and pass the result here.
+function flushOwedPostResetInstructions(owed: boolean): void {
+  if (!owed) return;
+  queuedInstructionsUpdate = false;
+  controller
+    .updateVoiceSession({ instructions: rebuildInstructions() })
+    .then(() => {
+      appendEvent("conversation.opening.coalesced", {
+        reason: "queued post-reset context delivered on episode teardown (no opening)",
+      });
     })
     .catch((err: unknown) => {
       appendEvent("conversation.error", { error: String(err) });
@@ -475,12 +514,16 @@ controller.on("conversation.reset", () => {
     resetOpeningWatchdog = setTimeout(() => {
       resetOpeningWatchdog = null;
       if (!resetOpeningInFlight) return;
+      const owed = postResetInstructionsOwed();
       clearResetEpisode();
       appendEvent("conversation.opening.skipped", { reason: "reset opening watchdog timeout — no response.completed" });
+      flushOwedPostResetInstructions(owed);
     }, RESET_OPENING_WATCHDOG_MS);
     controller.requestResponse().catch((err: unknown) => {
+      const owed = postResetInstructionsOwed();
       clearResetEpisode();
       appendEvent("conversation.error", { error: String(err) });
+      flushOwedPostResetInstructions(owed);
     });
   }, RESET_RESPONSE_DELAY_MS);
 });
@@ -499,8 +542,13 @@ controller.on("conversation.paused", () => {
   // left stuck true by a pause, so post-resume scheduleResponse() calls are
   // not permanently downgraded to instructions-only.
   if (resetOpeningInFlight) {
+    // Capture whether a post-reset instructions push is owed BEFORE
+    // clearResetEpisode() zeroes the flags. The duplicate spoken opening is
+    // dropped (no requestResponse), but the agent's steer must still land.
+    const owed = postResetInstructionsOwed();
     clearResetEpisode();
     appendEvent("conversation.opening.skipped", { reason: "conversation paused during in-flight reset opening" });
+    flushOwedPostResetInstructions(owed);
   }
 });
 
@@ -522,13 +570,60 @@ controller.on("conversation.paused", () => {
 // RESET_OPENING_WATCHDOG_MS watchdog. (clearResetEpisode() now also clears
 // queuedInstructionsUpdate, so even the fatal-path teardown cannot leak a
 // second opening.)
+// The controller's realtime `error` handler sets #realtimeLive = false for
+// EVERY non-`response_cancel_not_active` error (fatal OR transient) and does
+// NOT cancel the in-flight response — a transient error's opening may still
+// stream to completion. Emitting `conversation.opening.skipped` here
+// immediately would be a false signal for an opening the user actually hears
+// (Finding 2). Instead defer: arm a short re-check timer. If the opening's
+// response.completed arrives first, the response.completed handler retracts
+// this pending skip (and delivers any owed queued context as a coalesce, not a
+// skip). If the connection is still genuinely dead when the timer fires and no
+// completion has arrived, the connection truly cannot deliver the opening:
+// fast-clear the episode, emit a truthful skip, and still flush owed context
+// (round-3 fatal-error fast-clear preserved; Finding 1 honored).
+const FATAL_ERROR_RECHECK_MS = 750;
+let resetErrorSkipTimer: NodeJS.Timeout | null = null;
+
+function clearResetErrorSkipTimer(): void {
+  if (resetErrorSkipTimer) {
+    clearTimeout(resetErrorSkipTimer);
+    resetErrorSkipTimer = null;
+  }
+}
+
 controller.on("conversation.error", () => {
-  if (resetOpeningInFlight && !controller.realtimeConnected) {
+  if (!resetOpeningInFlight || controller.realtimeConnected) return;
+  if (resetErrorSkipTimer) return; // already armed for this episode
+  resetErrorSkipTimer = setTimeout(() => {
+    resetErrorSkipTimer = null;
+    // response.completed already closed the episode (opening delivered) —
+    // nothing to skip; it retracted this path.
+    if (!resetOpeningInFlight) return;
+    // Connection recovered and the opening is still legitimately in flight —
+    // let the normal completion/watchdog paths own it; do not emit a skip.
+    if (controller.realtimeConnected) return;
+    const owed = postResetInstructionsOwed();
     clearResetEpisode();
     appendEvent("conversation.opening.skipped", {
       reason: "realtime connection failed during in-flight reset opening",
     });
-  }
+    flushOwedPostResetInstructions(owed);
+  }, FATAL_ERROR_RECHECK_MS);
+});
+
+// Defense-in-depth (Finding 1): controller.resumeConversation() only flips
+// status + emits conversation.resumed; it does NOT re-send the session update.
+// If a pause→resume happened while a post-reset instructions push was still
+// owed and the teardown flush was somehow bypassed, recover here: push the
+// queued context response-lessly. Guarded so a normal resume with nothing
+// pending is a strict no-op (no spurious session.update, no double-push — the
+// paused-in-flight handler already flushed-and-cleared the flags, so
+// postResetInstructionsOwed() reads false on the common path).
+controller.on("conversation.resumed", () => {
+  const owed = postResetInstructionsOwed();
+  if (!owed) return;
+  flushOwedPostResetInstructions(owed);
 });
 
 // A reset-opening that is still pending when the conversation ends is moot.
