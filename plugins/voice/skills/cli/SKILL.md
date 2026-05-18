@@ -105,7 +105,7 @@ EOF</parameter>
 </invoke>
 ```
 
-Render proactively when it helps the user see what is being discussed; clear it when the visual is no longer relevant. Inject only HTML you control or trust. Full details: ./reference/html-stage.md
+Render proactively when it helps the user see what is being discussed; clear it when the visual is no longer relevant. Inject only HTML you control or trust. Default to a full-viewport, one-idea-per-stage slide — copy a template from [§Slide-style stages](./reference/html-stage.md#slide-style-stages) rather than hand-rolling layout. Full details: ./reference/html-stage.md
 
 ## Background-first rule
 
