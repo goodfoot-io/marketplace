@@ -19,6 +19,8 @@ type ConversationController = {
   cancelToolCall: (toolCallId: string) => Promise<void> | void;
   resetConversation: (options?: { shutdownTimeoutMs?: number }) => Promise<void>;
   requestResponse: () => Promise<void>;
+  readonly realtimeConnected: boolean;
+  readonly status: { conversation: string };
 };
 
 type TestConversationController = ConversationController & { __testPort: number };
@@ -290,6 +292,62 @@ runIfSourceExists("createVoiceAgentServer", () => {
     const sentAfter = fakeRealtime.sent.slice(sentBefore);
     const responseCreates = sentAfter.filter((msg) => (msg as { type: string }).type === "response.create");
     expect(responseCreates).toHaveLength(1);
+    browser.close();
+  });
+
+  it("realtimeConnected is true after a connected conversation and a reset", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant.\n<context>user prefers brevity</context>" },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    expect(controller.realtimeConnected).toBe(true);
+    await controller.resetConversation();
+    // Reset restarts the connection synchronously; it must read live so the
+    // daemon's deferred reset opening is not falsely suppressed.
+    expect(controller.realtimeConnected).toBe(true);
+    expect(controller.status.conversation).toBe("active");
+    browser.close();
+  });
+
+  it("realtimeConnected goes false when the realtime session reports an error while status stays active", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant.\n<context>user prefers brevity</context>" },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    expect(controller.realtimeConnected).toBe(true);
+    // Simulate the post-reset socket erroring within the deferred window.
+    fakeRealtime.emit("error", { error: { code: "session_error", message: "upstream xAI failure" } });
+
+    // The error handler intentionally does NOT transition conversation status.
+    expect(controller.status.conversation).toBe("active");
+    // ...but liveness must reflect that a response.create can no longer be
+    // delivered, so the daemon gates the proactive opening on this.
+    expect(controller.realtimeConnected).toBe(false);
+    browser.close();
+  });
+
+  it("a benign response_cancel_not_active error does not mark the connection dead", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant." },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    fakeRealtime.emit("error", { error: { code: "response_cancel_not_active" } });
+    expect(controller.realtimeConnected).toBe(true);
     browser.close();
   });
 

@@ -58,6 +58,14 @@ export interface VoiceAgentToolContext {
 export interface VoiceAgentServerController<TTools extends VoiceAgentToolMap> extends TypedEventEmitter<VoiceAgentServerEvents<TTools>> {
     readonly status: ControllerStatus;
     readonly responseInFlight: boolean;
+    /**
+     * True only while a realtime connection is established and has not been
+     * closed or reported a session-level error. `status.conversation` can read
+     * `"active"` even after the underlying socket has errored (the error handler
+     * does not transition status), so callers that must know whether a
+     * `response.create` can actually reach the model gate on this instead.
+     */
+    readonly realtimeConnected: boolean;
     readonly currentConversation?: ConversationSnapshot<TTools>;
     readonly previousConversations: Readonly<Record<string, ConversationSnapshot<TTools>>>;
     readonly browserClient: BrowserClientState;

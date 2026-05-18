@@ -284,7 +284,34 @@ const RESPONSE_DEBOUNCE_MS = 250;
 const RESET_RESPONSE_DELAY_MS = 600;
 let pendingResponseTimer: NodeJS.Timeout | null = null;
 
+// Reset-opening coalescing state. `resetOpeningPending` is true from the moment
+// the `conversation.reset` handler arms a proactive opening until that opening
+// is either fired by the fallback timer or *superseded* by a post-reset
+// context/topics segment. It makes the single-opening guarantee
+// order-independent: the question "did a segment join this reset episode?" is
+// answered by inspecting this flag, not by racing a fixed timer window. A
+// post-reset segment that calls `scheduleResponse()` while the flag is set
+// cancels the reset fallback and drives the one opening from the *post-reset*
+// instructions (latest-wins), regardless of whether it arrives before or after
+// the fallback would have fired.
+let resetOpeningPending = false;
+let resetOpeningTimer: NodeJS.Timeout | null = null;
+
+function clearResetOpening(): void {
+  resetOpeningPending = false;
+  if (resetOpeningTimer) {
+    clearTimeout(resetOpeningTimer);
+    resetOpeningTimer = null;
+  }
+}
+
 function scheduleResponse(): void {
+  // A real context/topics segment is driving a response. If a reset opening is
+  // still pending, this segment supersedes it: cancel the reset fallback and
+  // let this single debounced response be THE opening, grounded in the
+  // post-reset instructions. Order-independent — true whether the segment
+  // arrived before or after the reset fallback would have fired.
+  if (resetOpeningPending) clearResetOpening();
   if (pendingResponseTimer) clearTimeout(pendingResponseTimer);
   pendingResponseTimer = setTimeout(() => {
     pendingResponseTimer = null;
@@ -319,17 +346,53 @@ controller.on("conversation.reset", clearQueuedInjections);
 
 controller.on("conversation.reset", () => {
   queuedInstructionsUpdate = false; // stale after reset; instructions re-sent by #sendSessionUpdate
-  if (latestContext !== null || latestTopics !== null) {
-    if (pendingResponseTimer) clearTimeout(pendingResponseTimer);
-    pendingResponseTimer = setTimeout(() => {
-      pendingResponseTimer = null;
-      if (controller.status.conversation !== "active" && controller.status.conversation !== "paused") return;
-      controller.requestResponse().catch((err: unknown) => {
-        appendEvent("conversation.error", { error: String(err) });
-      });
-    }, RESET_RESPONSE_DELAY_MS);
+  // Re-arm cleanly: cancelPendingResponse (registered earlier on this event)
+  // has already cleared any stale pre-reset debounce timer; clear any prior
+  // reset-opening state too so a rapid double reset cannot stack timers.
+  clearResetOpening();
+  if (latestContext === null && latestTopics === null) return; // bare reset stays silent (mirrors flushStagedInstructions)
+  resetOpeningPending = true;
+  resetOpeningTimer = setTimeout(() => {
+    resetOpeningTimer = null;
+    // Superseded by a post-reset segment (scheduleResponse cleared the flag)
+    // or by a user pause: that path owns / suppressed the single opening.
+    if (!resetOpeningPending) return;
+    resetOpeningPending = false;
+    const status = controller.status.conversation;
+    // Finding 4: a user pause during the deferred window must suppress the
+    // proactive opening — only fire into an active conversation.
+    if (status !== "active") {
+      appendEvent("conversation.opening.skipped", { reason: `conversation ${status}` });
+      return;
+    }
+    // Finding 3: status can read "active" even after the post-reset socket
+    // errored (the realtime error handler does not transition status). Gating
+    // only on status would `send()` into a dead browser-proxied socket and
+    // resolve silently — the avatar would be silent forever, masked as
+    // success. Gate on actual connection liveness and surface a distinct
+    // observable signal when the opening cannot be delivered.
+    if (!controller.realtimeConnected) {
+      appendEvent("conversation.opening.skipped", { reason: "realtime connection not live" });
+      return;
+    }
+    appendEvent("conversation.opening.requested", {});
+    controller.requestResponse().catch((err: unknown) => {
+      appendEvent("conversation.error", { error: String(err) });
+    });
+  }, RESET_RESPONSE_DELAY_MS);
+});
+
+// Finding 4: a user-initiated pause (or any pause) during the deferred reset
+// window suppresses the proactive opening — the user asked for silence.
+controller.on("conversation.paused", () => {
+  if (resetOpeningPending) {
+    clearResetOpening();
+    appendEvent("conversation.opening.skipped", { reason: "conversation paused during reset window" });
   }
 });
+
+// A reset-opening that is still pending when the conversation ends is moot.
+controller.on("conversation.ended", clearResetOpening);
 
 controller.on("response.completed", () => {
   const hadInjections = queuedInjections.length > 0;

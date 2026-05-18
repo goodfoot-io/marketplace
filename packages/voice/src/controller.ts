@@ -188,6 +188,13 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
   #wss?: WebSocketServer;
   #browserSocket?: WebSocket;
   #realtime?: RealtimeConnection;
+  // Tracks whether the realtime connection can currently carry a
+  // `response.create`. The realtime `error` handler does NOT transition
+  // conversation status (status stays "active" after a session error), so a
+  // proactive opening gated only on status would `send()` into a dead
+  // browser-proxied socket and resolve silently. This flips false on close and
+  // on a surfaced session error so callers can detect that condition.
+  #realtimeLive = false;
   #browserProxiedEmitter?: RealtimeConnectionEmitter;
   #pendingVoiceSession?: {
     resolve: () => void;
@@ -279,6 +286,10 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
 
   get responseInFlight(): boolean {
     return this.#responseInFlight;
+  }
+
+  get realtimeConnected(): boolean {
+    return this.#realtimeLive && this.#realtime !== undefined;
   }
 
   get currentConversation(): ConversationSnapshot<TTools> | undefined {
@@ -867,6 +878,15 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       // Swallow it instead of surfacing as conversation.error.
       if (error.error?.code === "response_cancel_not_active") return;
 
+      // A surfaced session error means the underlying socket can no longer be
+      // trusted to deliver a `response.create`. We deliberately do NOT
+      // transition conversation status or tear down #realtime here (that
+      // belongs to the existing close/reset paths and would change observable
+      // behavior for in-flight conversations); we only mark the connection not
+      // live so liveness-gated callers (e.g. the daemon's proactive reset
+      // opening) do not fire into a dead socket and resolve silently.
+      this.#realtimeLive = false;
+
       const wrapped = toVoiceError("SESSION_ERROR", "Voice Agent session reported an error.", undefined, error);
       this.#log("error", wrapped);
       this.emit("conversation.error", {
@@ -1016,6 +1036,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     this.#pendingToolResultCount = 0;
     this.#realtime?.close({ code: 1000, reason });
     this.#realtime = undefined;
+    this.#realtimeLive = false;
     this.#browserProxiedEmitter = undefined;
     this.#failPendingVoiceSession(new Error(`Voice connection closed: ${reason}`));
   }
@@ -1487,6 +1508,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     try {
       const realtime = await this.#createRealtimeConnection();
       this.#realtime = realtime;
+      this.#realtimeLive = true;
       this.#wireRealtimeConnection(realtime);
       this.#sendSessionUpdate();
       const conversation: MutableConversation<TTools> = {
