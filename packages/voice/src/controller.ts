@@ -16,6 +16,7 @@ import {
   DEFAULT_REALTIME_MODEL,
   DEFAULT_REALTIME_VOICE,
   DEFAULT_UI_TITLE,
+  DEFAULT_WAKE_WORD,
   type InjectAssistantMessageInput,
   type InjectSystemMessageInput,
   type InjectUserMessageInput,
@@ -211,6 +212,31 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
   readonly #activeToolAbortControllers = new Map<string, AbortController>();
   readonly #streamingAssistantText = new Map<string, string>();
 
+  // SDK built-in tools — always advertised to the model and dispatchable,
+  // independent of the CLI/daemon. `pause_conversation` has exactly the same
+  // effect as the user pressing the pause control (mic + audio output stop
+  // until resumed). A user-supplied tool of the same name overrides the
+  // built-in (built-ins are registered before config tools in the ctor).
+  readonly #builtinTools: VoiceAgentToolMap = {
+    pause_conversation: {
+      description:
+        "Pause the voice conversation now — exactly as if the user pressed the pause control: the microphone stops capturing and audio output halts until the user resumes. Call this when the user asks to pause, hold on, take a break, or wants silence; not for ordinary turn-taking.",
+      parameters: z.object({}),
+      execute: async (): Promise<JsonValue> => {
+        if (this.#status.conversation !== "active") {
+          return { ok: false, reason: `conversation is ${this.#status.conversation}` };
+        }
+        await this.pauseConversation();
+        return { ok: true, paused: true };
+      },
+    },
+  };
+
+  // Built-ins first so an explicit user tool of the same name overrides.
+  #allTools(): VoiceAgentToolMap {
+    return { ...this.#builtinTools, ...(this.#tools as VoiceAgentToolMap) };
+  }
+
   constructor(config: InternalConfig<TTools>) {
     super();
     validateConfig(config);
@@ -218,6 +244,10 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     this.#voiceFactory = config.__voiceFactory;
     this.#tools = config.tools;
     this.#instructions = config.realtime.instructions;
+    for (const [name, definition] of Object.entries(this.#builtinTools)) {
+      this.#toolDescriptions.set(name, definition.description);
+      this.#toolExecutors.set(name, definition.execute);
+    }
     for (const [name, definition] of Object.entries(config.tools)) {
       this.#toolDescriptions.set(name, definition.description);
       this.#toolExecutors.set(name, definition.execute);
@@ -936,7 +966,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         turn_detection: {
           type: "server_vad",
         },
-        tools: toolsToRealtimeTools(this.#tools, this.#toolDescriptions),
+        tools: toolsToRealtimeTools(this.#allTools(), this.#toolDescriptions),
       },
     });
   }
@@ -1102,7 +1132,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     if (!conversation) return;
     if (!event.item_id || !event.call_id || !event.name || event.arguments === undefined) return;
     const toolName = event.name;
-    const tool = this.#tools[toolName as keyof TTools];
+    const tool = this.#allTools()[toolName];
     const failedAt = new Date();
     if (!tool) {
       const error = toVoiceError("TOOL_NOT_FOUND", "Voice Agent requested an unknown tool.", { toolName });
@@ -1863,6 +1893,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         conversation: this.currentConversation,
         instructions: this.#instructions,
         connectOnPageLoad: this.#config.browserSession.connectOnPageLoad,
+        wakeWord: this.#config.browserSession.wakeWord,
         injectedVersion: this.#injectedHtml === null ? null : this.#injectedVersion,
       },
     });
@@ -1916,11 +1947,29 @@ function normalizeConfig<TTools extends VoiceAgentToolMap>(
       connectOnPageLoad: config.browserSession?.connectOnPageLoad ?? false,
       firstMessage: config.browserSession?.firstMessage ?? "",
       firstMessageRole: config.browserSession?.firstMessageRole ?? "user",
+      // `undefined` (omitted) → the default phrase; an explicit `null`
+      // disables wake-word listening. A blank/whitespace-only string is
+      // treated as disabled (an unmatchable phrase would just spin the
+      // recognizer for nothing).
+      wakeWord: normalizeWakeWord(config.browserSession?.wakeWord),
     },
     ui: {
       title: config.ui?.title ?? DEFAULT_UI_TITLE,
     },
   };
+}
+
+/**
+ * Resolve the browser-session wake phrase. `undefined` (omitted) yields the
+ * default ("Hey Computer"); `null` disables the feature; a blank string is
+ * also treated as disabled. The trimmed phrase is what the browser listens
+ * for.
+ */
+function normalizeWakeWord(wakeWord: string | null | undefined): string | null {
+  if (wakeWord === undefined) return DEFAULT_WAKE_WORD;
+  if (wakeWord === null) return null;
+  const trimmed = wakeWord.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function validateConfig<TTools extends VoiceAgentToolMap>(config: VoiceAgentServerConfig<TTools>): void {

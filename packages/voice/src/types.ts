@@ -4,6 +4,12 @@ import type { XAIClientEvent } from "./xai-realtime-api.js";
 export const DEFAULT_REALTIME_MODEL = "grok-voice-latest";
 export const DEFAULT_REALTIME_VOICE = "eve";
 export const DEFAULT_UI_TITLE = "Voice Agent";
+/**
+ * Default wake phrase the browser listens for while the conversation is
+ * paused. Detecting it resumes the conversation, exactly as pressing Play.
+ * Configurable via `browserSession.wakeWord`; `null` disables the feature.
+ */
+export const DEFAULT_WAKE_WORD = "Hey Computer";
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
@@ -17,6 +23,13 @@ export interface BrowserSessionConfig {
   connectOnPageLoad?: boolean;
   firstMessage?: string;
   firstMessageRole?: FirstMessageRole;
+  /**
+   * Wake phrase the browser listens for (via the Web Speech API) while the
+   * conversation is paused; detecting it resumes the conversation, exactly
+   * like pressing Play. Omitted → defaults to {@link DEFAULT_WAKE_WORD}
+   * ("Hey Computer"). Pass `null` to disable wake-word listening entirely.
+   */
+  wakeWord?: string | null;
 }
 
 export type FirstMessageRole = "user" | "system" | "assistant";
@@ -572,6 +585,8 @@ export type ServerEnvelope =
         conversationStatus: ConversationControllerStatus;
         instructions: string;
         connectOnPageLoad: boolean;
+        // Resolved wake phrase, or null when wake-word resume is disabled.
+        wakeWord: string | null;
         injectedVersion: number | null;
       };
     }

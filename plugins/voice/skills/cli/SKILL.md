@@ -67,6 +67,39 @@ EOF</parameter>
 </invoke>
 ```
 
+### §STAGE
+Use `voice html` to paint a full-viewport HTML document **behind** the voice overlays. Use it to show the user anything visual the conversation calls for — diagrams, data, illustrations, slides.
+
+The stage is an unsandboxed, same-origin iframe: full DOM and script access. **Only absolute or CDN URLs load** — there is no asset server, so relative `<script>`/`<link>`/`<img>` paths 404. Use inline styles or CDN libraries (Tailwind v4 + DaisyUI v5, Three.js, Mermaid all work from CDN).
+
+**File mode (preferred — live reload).** Write to an absolute path, then point the stage at it. The daemon watches the file and re-renders on every save, so you can iterate by rewriting the file:
+
+```xml
+<invoke name="Bash">
+<parameter name="command">voice html /tmp/stage.html</parameter>
+</invoke>
+```
+
+**Stdin mode (one-shot).** Pipe the document directly:
+
+```xml
+<invoke name="Bash">
+<parameter name="command">voice html <<'EOF'
+<!doctype html><html>...</html>
+EOF</parameter>
+</invoke>
+```
+
+**Clear the stage.** Bare invocation removes the iframe and returns to an empty background:
+
+```xml
+<invoke name="Bash">
+<parameter name="command">voice html</parameter>
+</invoke>
+```
+
+Render proactively when it helps the user see what is being discussed; clear it when the visual is no longer relevant. Inject only HTML you control or trust. Full details: ./reference/html-stage.md
+
 ## Background-first rule
 
 Any substantial work — memory lookups, file reads, Agent calls, Bash commands — should use `run_in_background: true`. Fire them in parallel with the next `voice watch` call. 

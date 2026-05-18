@@ -7,18 +7,22 @@ import { createDeviceRunner } from "./runners/deviceRunner.js";
 import { createErrorRunner } from "./runners/errorRunner.js";
 import { createHostSocketRunner } from "./runners/hostSocketRunner.js";
 import { createVoiceSessionRunner } from "./runners/voiceSessionRunner.js";
+import { createWakeWordRunner } from "./runners/wakeWordRunner.js";
 import { dispatch, getState, type RootState, subscribeToActions } from "./store/index.js";
 
-// Boot the five effect runners BEFORE React mounts so every runner is
+// Boot the six effect runners BEFORE React mounts so every runner is
 // subscribed to the action stream before the first dispatched action
 // (the autoplay probe result) fires. Runners are plain modules — never
-// React hooks, never imported by components.
+// React hooks, never imported by components. (wakeWordRunner publishes a
+// listening intent the headless WakeWordListener component drives `use-ear`
+// from; the runner itself stays React-free.)
 const deps = { dispatch, subscribeToActions, getState };
 createHostSocketRunner(deps);
 createVoiceSessionRunner(deps);
 createDeviceRunner(deps);
 createErrorRunner(deps);
 createAutoplayRunner(deps);
+createWakeWordRunner(deps);
 
 // ── Remote debug hook ────────────────────────────────────────────────────
 // Exposes a JSON-safe store snapshot plus the recent action stream so a

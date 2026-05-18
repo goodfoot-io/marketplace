@@ -3,6 +3,7 @@ import { DuplicateClientScreen } from "./components/DuplicateClientScreen.js";
 import { FloatingTab } from "./components/FloatingTab.js";
 import { InstructionsModal } from "./components/InstructionsModal.js";
 import { TranscriptModal } from "./components/TranscriptModal.js";
+import { WakeWordListener } from "./components/WakeWordListener.js";
 import { dispatch, useStore } from "./store/index.js";
 
 /**
@@ -62,6 +63,7 @@ export function App(): React.JSX.Element {
       <FloatingTab />
       <TranscriptModal />
       <InstructionsModal />
+      <WakeWordListener />
     </>
   );
 }

@@ -1047,6 +1047,17 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
         if ((status === "none" || status === "ending") && getState().voice.xaiOpen) {
           teardownVoice();
         }
+        // Honor a server-initiated pause/resume (the pause_conversation tool,
+        // `voice` CLI, or any non-click source). The click path already cuts
+        // audio locally before the round-trip; this makes a purely
+        // server-driven status change cut/restore the browser mic + output
+        // too. Idempotent — guarded on the local paused flag so the click
+        // path and echoes are no-ops.
+        if (status === "paused" && getState().voice.xaiOpen && !getState().voice.paused) {
+          applyPause();
+        } else if (status === "active" && getState().voice.xaiOpen && getState().voice.paused) {
+          applyResume();
+        }
         // Browser-side auto-prompt: when the server is configured to connect on
         // page load, acquire the mic immediately so the browser permission
         // prompt appears without a user gesture. Vanilla deferred this behind
