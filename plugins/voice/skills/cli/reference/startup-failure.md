@@ -17,8 +17,8 @@ ECONNREFUSED means the daemon is not running at all.
 ## Subroutines
 
 ### §MISSING_API_KEY
-**When:** startup fails with an API key error, or `OPENAI_API_KEY` is not set in the environment.
-Tell the user to set `OPENAI_API_KEY` and reload the skill. The key is read automatically on start.
+**When:** startup fails with an API key error, or no API key is set in the environment.
+Tell the user to set `XAI_API_KEY` (or `VOICE_API_KEY`) and reload the skill. The key is read automatically on start.
 
 ### §PORT_IN_USE
 **When:** startup output indicates the port is already bound.
@@ -26,11 +26,11 @@ The daemon may already be running — `voice status` will respond if so. If heal
 
 ### §DAEMON_DIED
 **When:** `voice status` returns ECONNREFUSED after a previously successful start.
-The daemon exited unexpectedly. Common causes: API key rejected by OpenAI, port conflict resolved mid-run, Node version below 20.11.0. Fix the cause, then reload the skill.
+The daemon exited unexpectedly. Common causes: API key rejected by xAI, port conflict resolved mid-run, Node version below 20.11.0. Fix the cause, then reload the skill.
 
 ### §SERVER_ERROR
 **When:** `server.status` is `"error"`, or a `log` event with `level: "error"` appears.
-Show the error details to the user. Apply §MISSING_API_KEY or §DAEMON_DIED as appropriate, or ask the user to check their OpenAI account status.
+Show the error details to the user. Apply §MISSING_API_KEY or §DAEMON_DIED as appropriate, or ask the user to check their xAI account status.
 
 ## Events
 

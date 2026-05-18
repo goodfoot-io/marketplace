@@ -14,9 +14,9 @@ The transcript is under `currentConversation.transcript`. Each item has `role`, 
 
 ## Subroutines
 
-When the transcript is long, there are two moves. **Reset-and-re-seed is the preferred default** for a sustained conversation: `voice conversation reset` followed by `voice context` + `voice topics` discards the accumulated transcript entirely and starts a fresh session, so the model is never dragged by stale earlier turns. It is atomic with no audible gap — see §RESET in [SKILL.md](../SKILL.md) and @reference/conversation-lifecycle.md for the canonical pattern.
+When the transcript is long, there are two moves. **Reset-and-re-seed is the preferred default** for routine long-conversation hygiene and on topic changes — see §RESET in [SKILL.md](../SKILL.md) and @reference/conversation-lifecycle.md.
 
-§SUMMARY_INJECT below is the move when you must preserve the exact running session — an unbroken transcript matters (e.g. the avatar is mid-thought, or recent turns must stay verbatim in context) and only earlier content needs reinforcing. Prefer reset-and-re-seed for routine long-conversation hygiene and on topic changes; prefer §SUMMARY_INJECT when the live session itself must continue uninterrupted.
+§SUMMARY_INJECT below is the move when you must preserve the exact running session — an unbroken transcript matters (e.g. the avatar is mid-thought, or recent turns must stay verbatim in context) and only earlier content needs reinforcing. Prefer it only when the live session itself must continue uninterrupted.
 
 ### §SUMMARY_INJECT
 **When:** the transcript is long or the avatar shows signs of losing context — repetition, confusion about earlier content, inconsistent recall — **and** the running session must be preserved rather than reset (otherwise prefer reset-and-re-seed, above).

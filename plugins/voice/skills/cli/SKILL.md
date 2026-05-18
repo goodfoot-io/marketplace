@@ -27,6 +27,8 @@ The voice has no access to files or the things you know. Provide a clearly state
 
 Avoid mentioning artifacts created solely to support the conversation - such as your notes or todo list items - unless they are actionable for the user.
 
+Both `voice context` and `voice topics` nudge the avatar to respond to the refresh — you don't need `voice inject --trigger-response` to make the new material land.
+
 ```xml
 <invoke name="Bash">
 <parameter name="command">voice context <<'EOF'
@@ -58,7 +60,7 @@ Resetting frequently is the default hygiene for a sustained conversation — not
 Reset proactively when any of these hold — do not wait for an error:
 - **Topic change** — the subject matter has moved on from what the running session was seeded with.
 - **Drift or repetition** — the avatar repeats itself, contradicts earlier turns, or seems confused about earlier content.
-- **Long conversation** — periodically during any extended conversation, roughly every 8–12 exchanges, even when nothing is visibly wrong.
+- **Transcript getting long** — when the running session has accumulated enough that the avatar is starting to drag, even with nothing visibly wrong.
 
 **Always pair a reset with a re-seed.** A reset alone drops continuity; `voice context` and `voice topics` replace prior blocks latest-wins, so re-seeding immediately after reset is cheap and preserves the thread. This is the canonical pattern — reset, then carry forward a tight summary and the next direction in a single atomic step:
 
@@ -105,14 +107,7 @@ EOF</parameter>
 </invoke>
 ```
 
-Render proactively when it helps the user see what is being discussed. Default to a full-viewport, one-idea-per-stage slide — copy a template from [§Slide-style stages](./reference/html-stage.md#slide-style-stages) rather than hand-rolling layout. The stage is a transient aid that tracks the conversation, not a poster that stays up until manually removed — **clear it the moment the visual it carries stops matching what is being discussed.** Clear the stage when:
-
-- The conversation moves to a subject the current stage no longer illustrates.
-- The user signals they are done with the visual ("you can take that down", or simply moving on).
-- The conversation is reset or ended (see §RESET/§END in ./reference/conversation-lifecycle.md).
-- A new visual is needed — render the replacement directly (latest-wins); do not stack stale stages.
-
-Heuristic: if you can't say why the stage is still up, take it down. Inject only HTML you control or trust. Full details: ./reference/html-stage.md
+Render proactively when it helps the user see what is being discussed. Default to a full-viewport, one-idea-per-stage slide — copy a template from [§Slide-style stages](./reference/html-stage.md#slide-style-stages) rather than hand-rolling layout. The stage is a transient aid that tracks the conversation, not a poster that stays up until manually removed — **clear it the moment the visual it carries stops matching what is being discussed.** Heuristic: if you can't say why the stage is still up, take it down. Inject only HTML you control or trust. Concrete clear-when triggers and full details: ./reference/html-stage.md
 
 ## Background-first rule
 

@@ -30,8 +30,8 @@ Or inline:
 
 ```xml
 <invoke name="Bash">
-<parameter name="command">voice html &lt;&lt;'EOF'
-&lt;!doctype html&gt;...
+<parameter name="command">voice html <<'EOF'
+<!doctype html>...
 EOF</parameter>
 </invoke>
 ```

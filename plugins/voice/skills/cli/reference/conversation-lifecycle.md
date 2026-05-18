@@ -2,7 +2,7 @@ Use when managing conversation state — starting, pausing, resuming, ending, re
 
 ## State
 
-Conversations move through: `starting` → `active` ⇄ `paused` → `ending` → `ended`. `reset` ends and immediately restarts atomically.
+Conversations move through: `starting` → `active` ⇄ `paused` → `ending` → `ended`, with `resetting` (during an atomic reset) and `error` as off-path states. `reset` ends and immediately restarts atomically.
 
 Check current state:
 
@@ -12,7 +12,7 @@ Check current state:
 </invoke>
 ```
 
-Relevant field: `conversation` — `"none"` | `"starting"` | `"active"` | `"paused"` | `"ending"` | `"resetting"` | `"error"`.
+Relevant field: `conversation` — `"none"` | `"starting"` | `"active"` | `"paused"` | `"ending"` | `"ended"` | `"resetting"` | `"error"`.
 
 ## Subroutines
 
@@ -67,11 +67,7 @@ Decide whether to carry forward context. If yes, apply §CONTEXT_REFRESH from @r
 ```
 
 ### §RESET
-**When:** proactively and frequently throughout a sustained conversation — on topic change, on noticeable avatar drift or repetition, and periodically during any long conversation (roughly every 8–12 exchanges). Recovering from a mid-conversation error is one case among these, not the primary one. Frequent reset is the healthy default, not an exception path: it keeps the avatar coherent and latency low by preventing an ever-growing transcript from dragging the model.
-
-Ends and restarts atomically with no audible gap. **A bare reset drops continuity — always re-seed.** `voice context` and `voice topics` replace prior blocks latest-wins, so re-seeding immediately after reset is cheap and preserves the thread. Apply the canonical reset + re-seed pattern from [SKILL.md §RESET](../SKILL.md):
-
-If the HTML stage is up, clear it as part of the reset — the new conversation starts with a clean background unless the visual still applies (see §STAGE in ../SKILL.md):
+**When:** proactively throughout a sustained conversation — on topic change, on noticeable avatar drift or repetition, and when the transcript has grown long enough that the avatar drags. Recovering from a mid-conversation error is one case among these, not the primary one. Rationale and the canonical reset + re-seed pattern: [SKILL.md §RESET](../SKILL.md) — the essentials are that a bare reset drops continuity, so always re-seed, and the stage must be cleared as part of the reset unless the visual still applies.
 
 ```xml
 <invoke name="Bash">

@@ -199,12 +199,20 @@ export interface ConversationTranscriptTimelineItem {
     type: "transcript";
     transcriptItemId: string;
     createdAt: Date;
+    /**
+     * Logical conversational position, independent of xAI event arrival order.
+     * Reserved at assistant-turn start (`response.created`) so a late-arriving
+     * user slot still sorts ahead of the assistant reply it triggered.
+     */
+    sequence: number;
 }
 export interface ConversationToolCallTimelineItem {
     id: string;
     type: "toolCall";
     toolCallId: string;
     createdAt: Date;
+    /** Logical conversational position. See {@link ConversationTranscriptTimelineItem.sequence}. */
+    sequence: number;
 }
 export type EventMap = object;
 export type Unsubscribe = () => void;
