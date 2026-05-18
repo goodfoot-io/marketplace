@@ -121,8 +121,8 @@ runIfSourceExists("transcript ordering — injected turn under the ASR/response 
     const snapshot = controller.currentConversation;
     expect(snapshot).toBeDefined();
 
-    const textById = new Map(snapshot!.transcript.map((t) => [t.id, t]));
-    const renderedOrder = snapshot!.timeline
+    const textById = new Map(snapshot?.transcript.map((t) => [t.id, t]));
+    const renderedOrder = snapshot?.timeline
       .filter((e) => e.type === "transcript" && e.transcriptItemId)
       .map((e) => textById.get(e.transcriptItemId!)?.text ?? "<missing>");
 

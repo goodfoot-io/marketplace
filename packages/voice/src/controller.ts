@@ -212,6 +212,25 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
   readonly #activeToolAbortControllers = new Map<string, AbortController>();
   readonly #streamingAssistantText = new Map<string, string>();
 
+  // Monotonic logical clock for timeline ordering. Decoupled from xAI event
+  // arrival time so a late ASR/user-slot event still lands in its true
+  // conversational slot. See `#nextSequence` / `#assignSequence`.
+  #sequenceCounter = 0;
+  // Open while an assistant response is in flight. `response.created` reserves
+  // a sequence slot for the (possibly late) user turn that triggered the
+  // response and one for the assistant reply itself; anything else appended
+  // during the window (injections, tool calls) slots strictly between them.
+  #responseWindow: {
+    userSeq: number;
+    assistantSeq: number;
+    userAssigned: boolean;
+    assistantAssigned: boolean;
+    midCount: number;
+    // Set once `response.done` arrived while the user slot was still pending;
+    // the window closes as soon as that late user slot is finally assigned.
+    draining: boolean;
+  } | null = null;
+
   // SDK built-in tools — always advertised to the model and dispatchable,
   // independent of the CLI/daemon. `pause_conversation` has exactly the same
   // effect as the user pressing the pause control (mic + audio output stop
@@ -865,8 +884,10 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
 
     realtime.on("response.created", () => {
       this.#responseInFlight = true;
+      this.#openResponseWindow();
     });
     realtime.on("response.done", () => {
+      this.#closeResponseWindow();
       if (!this.#responseInFlight) return;
       this.#responseInFlight = false;
       this.emit("response.completed", {
@@ -1091,6 +1112,68 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     return this.#appendTranscriptItemWithId(conversation, id, "user", "microphone", text);
   }
 
+  #nextSequence(): number {
+    this.#sequenceCounter += 1;
+    return this.#sequenceCounter;
+  }
+
+  // Open the ordering window for a new assistant turn. Reserves a slot for the
+  // user turn that triggered it (which may arrive late, after the assistant
+  // transcript) and a strictly-later slot for the assistant reply. The two
+  // reserved integers are adjacent, so window-internal inserts (injections,
+  // tool calls) fall in the open interval between them via fractional offsets.
+  #openResponseWindow(): void {
+    if (this.#responseWindow) return;
+    this.#responseWindow = {
+      userSeq: this.#nextSequence(),
+      assistantSeq: this.#nextSequence(),
+      userAssigned: false,
+      assistantAssigned: false,
+      midCount: 0,
+      draining: false,
+    };
+  }
+
+  // Called on `response.done`. If the triggering user slot already arrived the
+  // turn is fully settled and the window closes. If the user
+  // `conversation.item.added` is still in flight (late ASR race), keep the
+  // window open and mark it draining so it closes the moment the user slot is
+  // assigned — that late user turn must still sort ahead of this reply.
+  #closeResponseWindow(): void {
+    const window = this.#responseWindow;
+    if (!window) return;
+    if (window.userAssigned) {
+      this.#responseWindow = null;
+      return;
+    }
+    window.draining = true;
+  }
+
+  // Resolve the logical sequence for a freshly-appended timeline item.
+  // - The user transcript slot is the reserved low value (regardless of how
+  //   late `conversation.item.added` arrives).
+  // - The assistant transcript slot is the reserved high value.
+  // - Anything else during the window slots strictly between the two.
+  #assignSequence(kind: "user" | "assistant" | "other"): number {
+    const window = this.#responseWindow;
+    if (!window) return this.#nextSequence();
+    if (kind === "user" && !window.userAssigned) {
+      window.userAssigned = true;
+      const seq = window.userSeq;
+      // The late user slot has landed; if the response already finished the
+      // turn is now fully settled and the window must stop capturing
+      // subsequent (genuinely later) items.
+      if (window.draining) this.#responseWindow = null;
+      return seq;
+    }
+    if (kind === "assistant" && !window.assistantAssigned) {
+      window.assistantAssigned = true;
+      return window.assistantSeq;
+    }
+    window.midCount += 1;
+    return window.userSeq + window.midCount / (window.midCount + 1);
+  }
+
   #appendTranscriptItemWithId(
     conversation: MutableConversation<TTools>,
     id: string,
@@ -1114,6 +1197,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       type: "transcript",
       transcriptItemId: item.id,
       createdAt: item.createdAt,
+      sequence: this.#assignSequence(role === "user" ? "user" : role === "assistant" ? "assistant" : "other"),
     });
     this.emit("transcript.item", { item, createdAt: new Date() });
     this.#broadcast({ type: "transcript.item", data: item });
@@ -1215,6 +1299,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       type: "toolCall",
       toolCallId: record.id,
       createdAt: startedAt,
+      sequence: this.#assignSequence("other"),
     });
     this.#activeToolAbortControllers.set(event.call_id, abortController);
     this.#pendingToolResultCount += 1;
@@ -1413,6 +1498,8 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         timeline: [],
       };
       this.#conversation = conversation;
+      this.#sequenceCounter = 0;
+      this.#responseWindow = null;
       this.#pendingToolResultCount = 0;
       conversation.status = "active";
       this.#setConversationStatus("active");
@@ -1484,6 +1571,10 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       type: "transcript",
       transcriptItemId: item.id,
       createdAt: item.createdAt,
+      // Injected turns carry no xAI item id; "other" slots them between the
+      // triggering user turn and the assistant reply when a response is in
+      // flight, otherwise at the next monotonic position.
+      sequence: this.#assignSequence("other"),
     });
     this.emit("transcript.item", { item, createdAt: new Date() });
     this.#broadcast({ type: "transcript.item", data: item });
@@ -2001,7 +2092,13 @@ function snapshotConversation<TTools extends VoiceAgentToolMap>(
     endedAt: conversation.endedAt,
     transcript: [...conversation.transcript],
     toolCalls: [...conversation.toolCalls],
-    timeline: [...conversation.timeline],
+    // Render in true conversational order. `sequence` is the logical position
+    // assigned when the item was appended (reserved at assistant-turn start),
+    // so a late ASR/user-slot event still sorts into its real slot regardless
+    // of xAI event arrival order. Ties fall back to arrival time for stability.
+    timeline: [...conversation.timeline].sort(
+      (a, b) => a.sequence - b.sequence || a.createdAt.getTime() - b.createdAt.getTime(),
+    ),
   };
 }
 
