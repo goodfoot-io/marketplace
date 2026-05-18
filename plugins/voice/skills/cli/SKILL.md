@@ -107,7 +107,11 @@ EOF</parameter>
 </invoke>
 ```
 
-Render proactively when it helps the user see what is being discussed. Default to a full-viewport, one-idea-per-stage slide — copy a template from [§Slide-style stages](./reference/html-stage.md#slide-style-stages) rather than hand-rolling layout. The stage is a transient aid that tracks the conversation, not a poster that stays up until manually removed — **clear it the moment the visual it carries stops matching what is being discussed.** Heuristic: if you can't say why the stage is still up, take it down. Inject only HTML you control or trust. Concrete clear-when triggers and full details: ./reference/html-stage.md
+Render proactively when it helps the user see what is being discussed. Default to a full-viewport, one-idea-per-stage slide — copy a template from [§Slide-style stages](./reference/html-stage.md#slide-style-stages) rather than hand-rolling layout.
+
+**The model is blind to the stage — stage and say.** `voice html` is visually-only; nothing about the staged HTML reaches the voice model. Every time you stage a visual, in the same step describe what is now on screen with `voice context` (see §CONTEXT above), adding `voice topics` when the visual should steer the conversation — otherwise the avatar answers "what does this show?" untethered from what the user sees. Re-describe on replace and, on clear, say the visual is gone — the same latest-wins cadence as the stage itself. Why and worked examples: [§The model can't see the stage](./reference/html-stage.md#the-model-cant-see-the-stage--say-what-you-show).
+
+The stage is a transient aid that tracks the conversation, not a poster that stays up until manually removed — **clear it the moment the visual it carries stops matching what is being discussed.** Heuristic: if you can't say why the stage is still up, take it down. Inject only HTML you control or trust. Concrete clear-when triggers and full details: ./reference/html-stage.md
 
 ## Background-first rule
 

@@ -6,6 +6,22 @@ Use when rendering an HTML document full-viewport behind the voice UI.
 
 **Important:** only absolute URLs or CDN URLs work inside the iframe. The daemon serves no asset server, so relative-path `<script>`/`<link>`/`<img>` references will 404. Use inline styles or CDN-hosted libraries.
 
+## The model can't see the stage — say what you show
+
+`voice html` is a *visually-only* primitive. The voice model has zero awareness of the stage: the runtime sends only the session `instructions` to the realtime model, and the stage broadcast to the browser carries only a version number — the HTML body never reaches the model. A user looking at a staged slide who asks the avatar "what does this show?" gets an answer untethered from what they see unless you told the model, in words, what is on screen.
+
+So staging a visual is only half the move. Treat it as one habit — **stage and say**: every time you render HTML, in the same step describe what is now on screen with `voice context` (the displayed facts/content), and, when the visual should steer the conversation, add `voice topics`. See [§CONTEXT and §TOPICS in SKILL.md](../SKILL.md#context) for the command contract.
+
+```xml
+<invoke name="Bash">
+<parameter name="command">voice html /tmp/stage.html && voice context <<'EOF'
+The stage now shows a slide titled "Q3 revenue": one figure, $4.2M, up 18% year over year, with the prior-year figure of $3.6M beneath it.
+EOF</parameter>
+</invoke>
+```
+
+Keep the spoken description on the **same latest-wins cadence** the stage itself follows (see [§When to clear](#when-to-clear)): when you replace the stage, re-describe it; when you clear the stage, say the visual is gone so the model stops referring to it. A stale description is as incoherent as a stale slide.
+
 ## Modes
 
 ### File mode (live reload)
