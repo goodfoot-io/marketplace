@@ -17,6 +17,8 @@ type ConversationController = {
   injectSystemMessage: (input: { text: string }) => Promise<{ role: string; source: string; text: string }>;
   updateVoiceSession: (config: unknown) => Promise<void> | void;
   cancelToolCall: (toolCallId: string) => Promise<void> | void;
+  resetConversation: (options?: { shutdownTimeoutMs?: number }) => Promise<void>;
+  requestResponse: () => Promise<void>;
 };
 
 type TestConversationController = ConversationController & { __testPort: number };
@@ -226,6 +228,68 @@ runIfSourceExists("createVoiceAgentServer", () => {
         output: JSON.stringify({ remembered: "alpha" }),
       },
     });
+    browser.close();
+  });
+
+  it("resetConversation then requestResponse with context instructions yields one response.create", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant.\n<context>user prefers brevity</context>" },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    const sentBefore = fakeRealtime.sent.length;
+    await controller.resetConversation();
+    await controller.requestResponse();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const sentAfter = fakeRealtime.sent.slice(sentBefore);
+    const responseCreates = sentAfter.filter((msg) => (msg as { type: string }).type === "response.create");
+    expect(responseCreates).toHaveLength(1);
+    browser.close();
+  });
+
+  it("resetConversation without requestResponse produces no response.create", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant.\n<context>user prefers brevity</context>" },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    const sentBefore = fakeRealtime.sent.length;
+    await controller.resetConversation();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const sentAfter = fakeRealtime.sent.slice(sentBefore);
+    const responseCreates = sentAfter.filter((msg) => (msg as { type: string }).type === "response.create");
+    expect(responseCreates).toHaveLength(0);
+    browser.close();
+  });
+
+  it("resetConversation followed by a single requestResponse call yields exactly one response.create", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const controller = await makeController({
+      __voiceFactory: () => fakeRealtime,
+      realtime: { instructions: "You are a test assistant.\n<context>user prefers brevity</context>" },
+    });
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    const sentBefore = fakeRealtime.sent.length;
+    await controller.resetConversation();
+    await controller.requestResponse();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const sentAfter = fakeRealtime.sent.slice(sentBefore);
+    const responseCreates = sentAfter.filter((msg) => (msg as { type: string }).type === "response.create");
+    expect(responseCreates).toHaveLength(1);
     browser.close();
   });
 

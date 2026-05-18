@@ -275,6 +275,13 @@ process.on("unhandledRejection", (reason: unknown) => {
 // injected (e.g. <context> then <topics>), debounce so the model produces a
 // single response that incorporates all newly-arrived items.
 const RESPONSE_DEBOUNCE_MS = 250;
+// Reset-driven opening uses a wider coalescing window than normal
+// RESPONSE_DEBOUNCE_MS: each `voice` CLI command is a fresh Node.js
+// cold-spawn (~100–400ms startup), so the gap between the reset HTTP
+// response and the next `voice context`/`voice topics` HTTP call is
+// dominated by Node cold-start, not loopback RTT. 600ms covers worst-case
+// startup + shell overhead while remaining imperceptible to the user.
+const RESET_RESPONSE_DELAY_MS = 600;
 let pendingResponseTimer: NodeJS.Timeout | null = null;
 
 function scheduleResponse(): void {
@@ -309,6 +316,20 @@ function clearQueuedInjections(): void {
 }
 controller.on("conversation.ended", clearQueuedInjections);
 controller.on("conversation.reset", clearQueuedInjections);
+
+controller.on("conversation.reset", () => {
+  queuedInstructionsUpdate = false; // stale after reset; instructions re-sent by #sendSessionUpdate
+  if (latestContext !== null || latestTopics !== null) {
+    if (pendingResponseTimer) clearTimeout(pendingResponseTimer);
+    pendingResponseTimer = setTimeout(() => {
+      pendingResponseTimer = null;
+      if (controller.status.conversation !== "active" && controller.status.conversation !== "paused") return;
+      controller.requestResponse().catch((err: unknown) => {
+        appendEvent("conversation.error", { error: String(err) });
+      });
+    }, RESET_RESPONSE_DELAY_MS);
+  }
+});
 
 controller.on("response.completed", () => {
   const hadInjections = queuedInjections.length > 0;
