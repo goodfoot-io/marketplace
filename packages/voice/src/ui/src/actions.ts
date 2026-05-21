@@ -80,6 +80,7 @@ export type Action =
   | { type: "host/duplicate-client" }
   | { type: "host/wait-for-context/start" }
   | { type: "host/wait-for-context/end" }
+  | { type: "host/settings/result"; id: string; ok: boolean; error?: string }
   // Browser / audio system events
   | { type: "browser/autoplay/probed"; allowed: boolean }
   | { type: "browser/devices/enumerated"; devices: AudioDevice[] }
@@ -102,6 +103,15 @@ export type Action =
   | { type: "ui/key/escape" }
   | { type: "ui/select/mic-device"; deviceId: string }
   | { type: "ui/scroll/transcript"; atBottom: boolean }
+  | { type: "ui/click/setting"; id: string }
+  | {
+      type: "ui/html/click";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      path: string;
+    }
   // Connection lifecycle (host WebSocket)
   | { type: "connection/status"; status: "connecting" | "connected" | "disconnected" | "error" }
   // Voice session lifecycle

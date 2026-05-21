@@ -267,6 +267,82 @@ select {
   font-style: italic;
 }
 
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.setting-confirm {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.setting-confirm-text {
+  color: var(--text-bright);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.setting-confirm-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.setting-confirm-btn {
+  flex: 1;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-bright);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 150ms, color 150ms, background 150ms;
+}
+
+.setting-confirm-btn:hover:enabled {
+  border-color: #3f3f46;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.setting-confirm-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.setting-confirm-btn.danger {
+  border-color: rgba(248, 113, 113, 0.4);
+  color: var(--state-error);
+}
+
+.setting-confirm-btn.danger:hover:enabled {
+  border-color: rgba(248, 113, 113, 0.6);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.setting-result {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.setting-result.error {
+  color: var(--state-error);
+}
+
+.setting-result.ok {
+  color: var(--text-muted);
+}
+
 .error-block {
   background: rgba(248, 113, 113, 0.07);
   border: 1px solid rgba(248, 113, 113, 0.2);

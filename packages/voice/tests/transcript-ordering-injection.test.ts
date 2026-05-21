@@ -75,34 +75,19 @@ afterEach(async () => {
 });
 
 runIfSourceExists("transcript ordering — injected turn under the ASR/response race", () => {
-  it("keeps an injected turn in its true chronological slot when the user's conversation.item.added is delayed", async () => {
+  it("keeps an injected turn in its true chronological slot — the user slot anchors first, its final ASR text fills late", async () => {
     const fakeRealtime = new FakeRealtimeConnection();
     const controller = await makeController({ __voiceFactory: () => fakeRealtime });
     await controller.start();
     controllers.push(controller);
     const browser = await openReadyBrowserClient(controller);
 
-    // 1. The user speaks. xAI signals speech start/stop, but the
-    //    `conversation.item.added` slot for the user utterance is NOT yet
-    //    emitted — ASR is still finalizing the transcript.
+    // 1. The user speaks; xAI commits the utterance and emits the user slot
+    //    anchor (conversation.item.added) right away — its final ASR text is
+    //    still pending. This is xAI's real event order.
     fakeRealtime.emit("input_audio_buffer.speech_started", {});
     fakeRealtime.emit("input_audio_buffer.speech_stopped", {});
-
-    // 2. The assistant response begins and completes while the user slot is
-    //    still pending (the race window).
-    fakeRealtime.emit("response.created", {});
-    fakeRealtime.emit("response.output_audio_transcript.done", {
-      item_id: "assistant_1",
-      transcript: "Sure, here is the answer.",
-    });
-    fakeRealtime.emit("response.done", {});
-
-    // 3. Mid-flight, an injected system turn is added (e.g. `voice context`
-    //    / `voice topics`). It is appended to the timeline immediately.
-    await controller.injectSystemMessage({ text: "voice context: user is on the billing page" });
-
-    // 4. The delayed user slot finally arrives, followed by the final
-    //    transcription text under the same item id.
+    fakeRealtime.emit("input_audio_buffer.committed", {});
     fakeRealtime.emit("conversation.item.added", {
       item: {
         id: "user_1",
@@ -110,6 +95,21 @@ runIfSourceExists("transcript ordering — injected turn under the ASR/response 
         content: [{ type: "input_audio", transcript: "" }],
       },
     });
+
+    // 2. An injected system turn is added next (e.g. `voice context` /
+    //    `voice topics`), appended to the timeline immediately.
+    await controller.injectSystemMessage({ text: "voice context: user is on the billing page" });
+
+    // 3. The assistant response begins and completes.
+    fakeRealtime.emit("response.created", {});
+    fakeRealtime.emit("response.output_audio_transcript.done", {
+      item_id: "assistant_1",
+      transcript: "Sure, here is the answer.",
+    });
+    fakeRealtime.emit("response.done", {});
+
+    // 4. The user's final ASR transcript fills the already-anchored slot in
+    //    place under the same item id — it must NOT reorder the turn.
     fakeRealtime.emit("conversation.item.input_audio_transcription.completed", {
       item_id: "user_1",
       transcript: "What is my balance?",

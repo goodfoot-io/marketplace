@@ -12,6 +12,7 @@ const outdir = join(__dirname, "../../plugins/voice/bin");
 const entryPoints = [
   { in: "src/cli/index.ts", out: "voice" },
   { in: "src/cli/daemon.ts", out: "daemon" },
+  { in: "src/mcp/index.ts", out: "voice-mcp-server" },
 ];
 
 await esbuild.build({

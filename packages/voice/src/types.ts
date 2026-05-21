@@ -36,6 +36,35 @@ export type FirstMessageRole = "user" | "system" | "assistant";
 
 export interface VoiceAgentUiConfig {
   title?: string;
+  settings?: VoiceAgentSettingItem[];
+}
+
+export type VoiceAgentSettingItem = VoiceAgentSettingButton;
+
+export interface VoiceAgentSettingButton {
+  type: "button";
+  label: string;
+  confirmation?: VoiceAgentSettingConfirmation;
+  callback: () => void | Promise<void>;
+}
+
+export interface VoiceAgentSettingConfirmation {
+  text: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+}
+
+/**
+ * Serializable projection of a {@link VoiceAgentSettingItem} sent to the
+ * browser in the `state` envelope. The `callback` is stripped (it cannot cross
+ * the wire) and a stable `id` is assigned by the controller; the browser sends
+ * that id back via a `settings.invoke` message to fire the callback.
+ */
+export interface VoiceAgentSettingDescriptor {
+  id: string;
+  type: "button";
+  label: string;
+  confirmation?: VoiceAgentSettingConfirmation;
 }
 
 export interface VoiceAgentServerConfig<TTools extends VoiceAgentToolMap> {
@@ -258,9 +287,12 @@ export interface ConversationTranscriptTimelineItem {
   transcriptItemId: string;
   createdAt: Date;
   /**
-   * Logical conversational position, independent of xAI event arrival order.
-   * Reserved at assistant-turn start (`response.created`) so a late-arriving
-   * user slot still sorts ahead of the assistant reply it triggered.
+   * Logical conversational position: a monotonic value stamped once when the
+   * item's slot is first created, in xAI event arrival order. xAI emits a
+   * user turn's `conversation.item.added` before the following assistant
+   * response's transcript, so creation order is the true conversational
+   * order; a late `input_audio_transcription.completed` updates text only and
+   * keeps the sequence assigned at creation.
    */
   sequence: number;
 }
@@ -306,6 +338,7 @@ export interface VoiceAgentServerEvents<TTools extends VoiceAgentToolMap> {
   "tool.call.failed": ToolCallFailedEvent<TTools>;
   "tool.call.interrupted": ToolCallInterruptedEvent<TTools>;
   "injected.error": InjectedErrorEvent;
+  "html.click": HtmlClickEvent;
   log: LogEvent;
 }
 
@@ -505,6 +538,15 @@ export interface InjectedErrorEvent {
   createdAt: Date;
 }
 
+export interface HtmlClickEvent {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  path: string;
+  createdAt: Date;
+}
+
 export type VoiceAgentServerErrorCode =
   | "SERVER_ALREADY_STARTED"
   | "SERVER_NOT_STARTED"
@@ -604,6 +646,9 @@ export type ServerEnvelope =
         // Resolved wake phrase, or null when wake-word resume is disabled.
         wakeWord: string | null;
         injectedVersion: number | null;
+        // Serializable settings items (callbacks stripped). Empty when no
+        // `ui.settings` were configured.
+        settings: VoiceAgentSettingDescriptor[];
       };
     }
   | { type: "stage.injected"; data: { injectedVersion: number | null } }
@@ -618,4 +663,5 @@ export type ServerEnvelope =
   | { type: "duplicate.client" }
   | { type: "wait_for_context.start" }
   | { type: "wait_for_context.end" }
+  | { type: "settings.result"; data: { id: string; ok: boolean; error?: string } }
   | { type: "error"; data: { code: string; message: string } };

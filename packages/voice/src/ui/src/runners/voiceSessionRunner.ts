@@ -81,6 +81,19 @@ interface VoiceRefs {
   preOpenAudio: string[];
   deferredSends: XAIClientEvent[];
   connectedSent: boolean;
+  // Q17: the daemon's session.update (declaring the 48 kHz PCM input format +
+  // server_vad turn detection) MUST reach xAI before any
+  // input_audio_buffer.append, or xAI interprets the mic at its 24 kHz default
+  // with no VAD — no speech detection, no transcription, no barge-in. The
+  // worklet only releases buffered mic frames once this is true, and it is set
+  // the moment a session.update is actually forwarded to the socket. Lives on
+  // refs so teardown/reset re-gates a rebuilt session via freshRefs().
+  sessionConfigured: boolean;
+  // True while a session.update sits in pendingSends awaiting WS open. Lets the
+  // open handler distinguish "session already configured, flush mic audio now"
+  // from "no session.update queued yet, keep buffering until one arrives via
+  // forwardVoiceSend".
+  pendingSessionUpdate: boolean;
   tokenExpiresAt: number;
   paused: boolean;
 }
@@ -94,6 +107,8 @@ function freshRefs(): VoiceRefs {
     preOpenAudio: [],
     deferredSends: [],
     connectedSent: false,
+    sessionConfigured: false,
+    pendingSessionUpdate: false,
     tokenExpiresAt: 0,
     paused: false,
   };
@@ -449,7 +464,12 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
         try {
           const b64 = bytesToBase64(new Uint8Array(event.data));
           const ws = refs.xaiWs;
-          if (ws && ws.readyState === WebSocket.OPEN) {
+          // Q17: release mic frames directly only once the socket is OPEN AND
+          // the session has been configured (session.update forwarded). Before
+          // that — including the window between WS open and the session.update
+          // reaching the socket on initial connect — keep buffering so no
+          // input_audio_buffer.append outruns the format/VAD declaration.
+          if (ws && ws.readyState === WebSocket.OPEN && refs.sessionConfigured) {
             ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 }));
           } else {
             // Q20: pre-open FIFO with a bounded cap.
@@ -575,6 +595,30 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
     return true;
   };
 
+  /**
+   * Q17: mark the session configured and release the buffered mic frames to
+   * the (open) socket exactly once, the moment a session.update has been
+   * forwarded. Ordering is preserved because the session.update is sent to the
+   * socket immediately before this runs (open-handler pendingSends loop, or the
+   * forwardVoiceSend direct send). Idempotent: a no-op once already configured.
+   */
+  const markSessionConfiguredAndFlush = (ws: WebSocket): void => {
+    if (refs.sessionConfigured) return;
+    refs.sessionConfigured = true;
+    refs.pendingSessionUpdate = false;
+    for (const b64 of refs.preOpenAudio) {
+      try {
+        ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 }));
+      } catch (error) {
+        dispatch({
+          type: "browser/window/error",
+          message: `xaiWs.send.preOpenAudio.failed: ${errStr(error)}`,
+        });
+      }
+    }
+    refs.preOpenAudio = [];
+  };
+
   const establishVoiceSession = async (token: VoiceToken): Promise<void> => {
     if (!token?.clientSecret || !token?.model) {
       failVoice("VOICE_TOKEN_INVALID", "Missing client secret or model.");
@@ -683,9 +727,8 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
         awaitingResetRebuild = false;
         clearResetWatchdog();
         dispatch({ type: "xai/ws/open" });
-        // Q17: flush pendingSends (the daemon's session.update declaring the
-        // 48 kHz PCM format) FIRST, then preOpenAudio. Two explicit loops.
-        // session.update MUST precede input_audio_buffer.append.
+        // Q17: flush pendingSends FIRST so the daemon's session.update (48 kHz
+        // PCM format + server_vad) reaches the socket before any mic audio.
         for (const payload of refs.pendingSends) {
           try {
             ws.send(payload);
@@ -697,17 +740,16 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
           }
         }
         refs.pendingSends = [];
-        for (const b64 of refs.preOpenAudio) {
-          try {
-            ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 }));
-          } catch (error) {
-            dispatch({
-              type: "browser/window/error",
-              message: `xaiWs.send.preOpenAudio.failed: ${errStr(error)}`,
-            });
-          }
+        // Only release the buffered mic frames once a session.update has
+        // actually been forwarded. On a reset/reattach the controller's
+        // session.update was already queued (pendingSessionUpdate), so flush
+        // now. On the initial page-load connect the controller does not send
+        // session.update until AFTER it observes voice.session.connected, so
+        // pendingSends carries no session.update yet — keep buffering and let
+        // forwardVoiceSend release the frames when the session.update arrives.
+        if (refs.pendingSessionUpdate) {
+          markSessionConfiguredAndFlush(ws);
         }
-        refs.preOpenAudio = [];
         if (!refs.connectedSent) {
           refs.connectedSent = true;
           dispatch({ type: "voice/session/in-flight", inFlight: false });
@@ -816,21 +858,30 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
       refs.deferredSends.push(event);
       return;
     }
+    const isSessionUpdate = event.type === "session.update";
     const payload = JSON.stringify(event);
     const ws = refs.xaiWs;
     if (ws && getState().voice.xaiOpen) {
       try {
         ws.send(payload);
+        // Q17: the session is now configured. Release any mic frames buffered
+        // since WS open — they were held precisely until this session.update
+        // reached the socket (initial page-load connect ordering).
+        if (isSessionUpdate) markSessionConfiguredAndFlush(ws);
       } catch (error) {
         dispatch({
           type: "browser/window/error",
           message: `xaiWs.send.failed.requeue: ${errStr(error)}`,
         });
         refs.pendingSends.push(payload);
+        if (isSessionUpdate) refs.pendingSessionUpdate = true;
       }
       return;
     }
     refs.pendingSends.push(payload);
+    // A session.update queued before WS open: the open handler flushes
+    // pendingSends then releases the buffered mic frames in the correct order.
+    if (isSessionUpdate) refs.pendingSessionUpdate = true;
   };
 
   // ── Pause / resume (ports applyPauseState + applyPauseAudioCut) ───────────

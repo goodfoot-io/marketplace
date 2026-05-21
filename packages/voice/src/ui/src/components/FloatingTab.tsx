@@ -2,6 +2,7 @@ import { useShallow } from "zustand/react/shallow";
 import { dispatch, useStore } from "../store/index.js";
 import { EqBars } from "./EqBars.js";
 import { MicPicker } from "./MicPicker.js";
+import { SettingsPanel } from "./SettingsPanel.js";
 
 type TabState = "idle" | "connecting" | "active" | "paused";
 
@@ -121,6 +122,7 @@ export function FloatingTab(): React.JSX.Element {
             >
               Download transcript (JSONL)
             </button>
+            <SettingsPanel />
           </div>
         ) : null}
       </div>

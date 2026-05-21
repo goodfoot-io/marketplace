@@ -32,6 +32,31 @@ export interface BrowserSessionConfig {
 export type FirstMessageRole = "user" | "system" | "assistant";
 export interface VoiceAgentUiConfig {
     title?: string;
+    settings?: VoiceAgentSettingItem[];
+}
+export type VoiceAgentSettingItem = VoiceAgentSettingButton;
+export interface VoiceAgentSettingButton {
+    type: "button";
+    label: string;
+    confirmation?: VoiceAgentSettingConfirmation;
+    callback: () => void | Promise<void>;
+}
+export interface VoiceAgentSettingConfirmation {
+    text: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+}
+/**
+ * Serializable projection of a {@link VoiceAgentSettingItem} sent to the
+ * browser in the `state` envelope. The `callback` is stripped (it cannot cross
+ * the wire) and a stable `id` is assigned by the controller; the browser sends
+ * that id back via a `settings.invoke` message to fire the callback.
+ */
+export interface VoiceAgentSettingDescriptor {
+    id: string;
+    type: "button";
+    label: string;
+    confirmation?: VoiceAgentSettingConfirmation;
 }
 export interface VoiceAgentServerConfig<TTools extends VoiceAgentToolMap> {
     port: number;
@@ -208,9 +233,12 @@ export interface ConversationTranscriptTimelineItem {
     transcriptItemId: string;
     createdAt: Date;
     /**
-     * Logical conversational position, independent of xAI event arrival order.
-     * Reserved at assistant-turn start (`response.created`) so a late-arriving
-     * user slot still sorts ahead of the assistant reply it triggered.
+     * Logical conversational position: a monotonic value stamped once when the
+     * item's slot is first created, in xAI event arrival order. xAI emits a
+     * user turn's `conversation.item.added` before the following assistant
+     * response's transcript, so creation order is the true conversational
+     * order; a late `input_audio_transcription.completed` updates text only and
+     * keeps the sequence assigned at creation.
      */
     sequence: number;
 }
@@ -252,6 +280,7 @@ export interface VoiceAgentServerEvents<TTools extends VoiceAgentToolMap> {
     "tool.call.failed": ToolCallFailedEvent<TTools>;
     "tool.call.interrupted": ToolCallInterruptedEvent<TTools>;
     "injected.error": InjectedErrorEvent;
+    "html.click": HtmlClickEvent;
     log: LogEvent;
 }
 export interface ServerStartedEvent {
@@ -403,6 +432,14 @@ export interface InjectedErrorEvent {
     error: VoiceAgentServerError;
     createdAt: Date;
 }
+export interface HtmlClickEvent {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    path: string;
+    createdAt: Date;
+}
 export type VoiceAgentServerErrorCode = "SERVER_ALREADY_STARTED" | "SERVER_NOT_STARTED" | "SERVER_START_FAILED" | "SERVER_STOP_FAILED" | "BROWSER_CLIENT_REQUIRED" | "BROWSER_CLIENT_ALREADY_CONNECTED" | "BROWSER_CLIENT_DISCONNECTED" | "MICROPHONE_PERMISSION_DENIED" | "MICROPHONE_DEVICE_UNAVAILABLE" | "MICROPHONE_DEVICE_ERROR" | "NO_CURRENT_CONVERSATION" | "CONVERSATION_ALREADY_ACTIVE" | "CONVERSATION_NOT_ACTIVE" | "CONVERSATION_NOT_PAUSED" | "CONVERSATION_START_FAILED" | "CONVERSATION_END_FAILED" | "CONVERSATION_RESET_FAILED" | "CONVERSATION_INVALID_STATE" | "MESSAGE_INJECTION_INVALID_STATE" | "MESSAGE_INJECTION_EMPTY_TEXT" | "MESSAGE_INJECTION_FAILED" | "MESSAGE_RESPONSE_TRIGGER_FAILED" | "TOOL_NOT_FOUND" | "TOOL_ARGUMENT_VALIDATION_FAILED" | "TOOL_EXECUTION_FAILED" | "TOOL_RESULT_SERIALIZATION_FAILED" | "TOOL_CALL_INTERRUPTED" | "SESSION_ERROR" | "SESSION_UPDATE_FAILED" | "CONFIG_INVALID" | "INTERNAL_INVARIANT_VIOLATION" | "INJECTED_FILE_UNREADABLE";
 export interface VoiceAgentServerErrorInput {
     code: VoiceAgentServerErrorCode;
@@ -453,6 +490,7 @@ export type ServerEnvelope = {
         connectOnPageLoad: boolean;
         wakeWord: string | null;
         injectedVersion: number | null;
+        settings: VoiceAgentSettingDescriptor[];
     };
 } | {
     type: "stage.injected";
@@ -500,6 +538,13 @@ export type ServerEnvelope = {
     type: "wait_for_context.start";
 } | {
     type: "wait_for_context.end";
+} | {
+    type: "settings.result";
+    data: {
+        id: string;
+        ok: boolean;
+        error?: string;
+    };
 } | {
     type: "error";
     data: {

@@ -27,7 +27,7 @@ services:
 
   postgres:
     image: postgres:18.1
-    restart: always
+    restart: "no"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres

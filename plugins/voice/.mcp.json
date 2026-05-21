@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "voice": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/voice-mcp-server.mjs"]
+    }
+  }
+}

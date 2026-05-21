@@ -114,6 +114,15 @@ function envelopeToActions(message: ServerEnvelope): Action[] {
       return [{ type: "host/wait-for-context/start" }];
     case "wait_for_context.end":
       return [{ type: "host/wait-for-context/end" }];
+    case "settings.result":
+      return [
+        {
+          type: "host/settings/result",
+          id: message.data.id,
+          ok: message.data.ok,
+          error: message.data.error,
+        },
+      ];
     case "audio.output.delta":
       // Visualizer-only relay; playback is driven by the xAI WS path. The
       // vanilla SPA deliberately ignores this.
@@ -206,6 +215,27 @@ export function createHostSocketRunner({ dispatch, subscribeToActions, getState 
     // Q49: download transcript — finalized items only, no stream drafts.
     if (action.type === "ui/click/download-transcript") {
       downloadTranscript(getState);
+    }
+
+    // Settings button invoke: send the id to the host, which fires the
+    // configured callback and replies with `settings.result`. The reducer
+    // already marked the id in-flight when the action dispatched.
+    if (action.type === "ui/click/setting") {
+      sendToHost("settings.invoke", { id: action.id });
+    }
+
+    // Click inside the same-origin stage iframe: forward to the host as
+    // `html.click` so the controller can emit it on the channel. Only fires
+    // while a custom-HTML stage is mounted (the listener lives on the iframe
+    // document), so conversation-UI clicks never reach here.
+    if (action.type === "ui/html/click") {
+      sendToHost("html.click", {
+        x: action.x,
+        y: action.y,
+        width: action.width,
+        height: action.height,
+        path: action.path,
+      });
     }
 
     // Wire-log middleware: every dispatched action → browser.debug, except

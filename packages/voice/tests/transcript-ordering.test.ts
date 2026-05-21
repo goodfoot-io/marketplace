@@ -72,7 +72,7 @@ afterEach(async () => {
 });
 
 runIfSourceExists("transcript chronological ordering under the xAI ASR/response race", () => {
-  it("places the user utterance before the assistant reply that answered it even when the user slot anchor (conversation.item.added) arrives after the assistant transcript done", async () => {
+  it("places the user utterance before the assistant reply that answered it — the user's conversation.item.added anchors the slot before the assistant transcript, even when the final ASR text arrives late", async () => {
     const fakeRealtime = new FakeRealtimeConnection();
     const controller = await makeController({ __voiceFactory: () => fakeRealtime });
     await controller.start();
@@ -82,23 +82,32 @@ runIfSourceExists("transcript chronological ordering under the xAI ASR/response 
     const userItemId = "item_user_1";
     const assistantItemId = "item_assistant_1";
 
-    // RACING ORDER: the assistant turn's response + transcript-done land BEFORE
-    // xAI emits the user slot anchor (conversation.item.added) and the ASR-bound
-    // transcription.completed for the utterance that actually came first.
+    // REAL xAI ORDER: the user's slot anchor (conversation.item.added) is emitted
+    // right after the utterance commits — BEFORE the assistant response — even
+    // though its final ASR transcript (transcription.completed) lands late, after
+    // the assistant has already replied.
+    fakeRealtime.emit("input_audio_buffer.speech_started", {});
+    fakeRealtime.emit("input_audio_buffer.speech_stopped", {});
+    fakeRealtime.emit("input_audio_buffer.committed", {});
+
+    // 1. The user slot is created first, with the transcript still pending.
+    fakeRealtime.emit("conversation.item.added", {
+      item: {
+        id: userItemId,
+        role: "user",
+        content: [{ type: "input_audio", transcript: "" }],
+      },
+    });
+
+    // 2. The assistant turn's response + transcript-done land next.
     fakeRealtime.emit("response.created", { response: { id: "resp_1" } });
     fakeRealtime.emit("response.output_audio_transcript.done", {
       item_id: assistantItemId,
       transcript: "The capital of France is Paris.",
     });
 
-    // The user slot / transcript arrive late (ASR latency).
-    fakeRealtime.emit("conversation.item.added", {
-      item: {
-        id: userItemId,
-        role: "user",
-        content: [{ type: "input_audio", transcript: "What is the capital of France?" }],
-      },
-    });
+    // 3. The user's final ASR transcript arrives late and fills the slot in
+    //    place — it must NOT move the user turn after the assistant reply.
     fakeRealtime.emit("conversation.item.input_audio_transcription.completed", {
       item_id: userItemId,
       transcript: "What is the capital of France?",

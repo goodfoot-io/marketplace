@@ -37,6 +37,8 @@ import {
   type VoiceAgentServerController,
   type VoiceAgentServerErrorCode,
   type VoiceAgentServerEvents,
+  type VoiceAgentSettingDescriptor,
+  type VoiceAgentSettingItem,
   type VoiceAgentToolDefinition,
   type VoiceAgentToolExecute,
   type VoiceAgentToolMap,
@@ -68,6 +70,11 @@ type BrowserEnvelope =
   | { type: "voice.session.connected" }
   | { type: "voice.session.failed"; data?: { error?: { code?: unknown; message?: unknown } } }
   | { type: "voice.event"; data?: { event?: unknown } }
+  | { type: "settings.invoke"; data?: { id?: unknown } }
+  | {
+      type: "html.click";
+      data?: { x?: unknown; y?: unknown; width?: unknown; height?: unknown; path?: unknown };
+    }
   | { type: "browser.debug"; data?: { label?: unknown; info?: unknown; t?: unknown } };
 
 type RealtimeGate = "playback-drained";
@@ -179,6 +186,11 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
   readonly #tools: { [K in keyof TTools]: TTools[K] };
   readonly #toolDescriptions = new Map<string, string>();
   readonly #toolExecutors = new Map<string, VoiceAgentToolDefinition<TTools[keyof TTools]["parameters"]>["execute"]>();
+  // Stable id → configured UI setting item. Ids are assigned in declaration
+  // order (`setting-0`, `setting-1`, …) so the browser can invoke a callback
+  // by id without the (unserializable) callback ever crossing the wire.
+  readonly #settings = new Map<string, VoiceAgentSettingItem>();
+  readonly #settingDescriptors: VoiceAgentSettingDescriptor[] = [];
   readonly #previousConversations: Record<string, ConversationSnapshot<TTools>> = {};
   readonly #browserClient: BrowserClientState = { connected: false };
 
@@ -219,24 +231,14 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
   readonly #activeToolAbortControllers = new Map<string, AbortController>();
   readonly #streamingAssistantText = new Map<string, string>();
 
-  // Monotonic logical clock for timeline ordering. Decoupled from xAI event
-  // arrival time so a late ASR/user-slot event still lands in its true
-  // conversational slot. See `#nextSequence` / `#assignSequence`.
+  // Monotonic logical clock for timeline ordering. Each transcript/timeline
+  // item is stamped exactly once, at first slot creation, in xAI event arrival
+  // order. xAI emits `conversation.item.added` for a user turn before the
+  // following assistant response's transcript, so creation-order is the true
+  // conversational order. A late `input_audio_transcription.completed` for an
+  // already-created user slot fills in text only and must not re-sequence.
+  // See `#nextSequence`.
   #sequenceCounter = 0;
-  // Open while an assistant response is in flight. `response.created` reserves
-  // a sequence slot for the (possibly late) user turn that triggered the
-  // response and one for the assistant reply itself; anything else appended
-  // during the window (injections, tool calls) slots strictly between them.
-  #responseWindow: {
-    userSeq: number;
-    assistantSeq: number;
-    userAssigned: boolean;
-    assistantAssigned: boolean;
-    midCount: number;
-    // Set once `response.done` arrived while the user slot was still pending;
-    // the window closes as soon as that late user slot is finally assigned.
-    draining: boolean;
-  } | null = null;
 
   // SDK built-in tools — always advertised to the model and dispatchable,
   // independent of the CLI/daemon. `pause_conversation` has exactly the same
@@ -278,6 +280,16 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       this.#toolDescriptions.set(name, definition.description);
       this.#toolExecutors.set(name, definition.execute);
     }
+    this.#config.ui.settings.forEach((item, index) => {
+      const id = `setting-${index}`;
+      this.#settings.set(id, item);
+      this.#settingDescriptors.push({
+        id,
+        type: item.type,
+        label: item.label,
+        confirmation: item.confirmation,
+      });
+    });
   }
 
   get status(): ControllerStatus {
@@ -904,10 +916,8 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
 
     realtime.on("response.created", () => {
       this.#responseInFlight = true;
-      this.#openResponseWindow();
     });
     realtime.on("response.done", () => {
-      this.#closeResponseWindow();
       if (!this.#responseInFlight) return;
       this.#responseInFlight = false;
       this.emit("response.completed", {
@@ -1133,66 +1143,12 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     return this.#appendTranscriptItemWithId(conversation, id, "user", "microphone", text);
   }
 
+  // Stamp the next monotonic sequence. Called once per item at first slot
+  // creation, in xAI event arrival order — that arrival order is the true
+  // conversational order, so no per-response reservation is needed.
   #nextSequence(): number {
     this.#sequenceCounter += 1;
     return this.#sequenceCounter;
-  }
-
-  // Open the ordering window for a new assistant turn. Reserves a slot for the
-  // user turn that triggered it (which may arrive late, after the assistant
-  // transcript) and a strictly-later slot for the assistant reply. The two
-  // reserved integers are adjacent, so window-internal inserts (injections,
-  // tool calls) fall in the open interval between them via fractional offsets.
-  #openResponseWindow(): void {
-    if (this.#responseWindow) return;
-    this.#responseWindow = {
-      userSeq: this.#nextSequence(),
-      assistantSeq: this.#nextSequence(),
-      userAssigned: false,
-      assistantAssigned: false,
-      midCount: 0,
-      draining: false,
-    };
-  }
-
-  // Called on `response.done`. If the triggering user slot already arrived the
-  // turn is fully settled and the window closes. If the user
-  // `conversation.item.added` is still in flight (late ASR race), keep the
-  // window open and mark it draining so it closes the moment the user slot is
-  // assigned — that late user turn must still sort ahead of this reply.
-  #closeResponseWindow(): void {
-    const window = this.#responseWindow;
-    if (!window) return;
-    if (window.userAssigned) {
-      this.#responseWindow = null;
-      return;
-    }
-    window.draining = true;
-  }
-
-  // Resolve the logical sequence for a freshly-appended timeline item.
-  // - The user transcript slot is the reserved low value (regardless of how
-  //   late `conversation.item.added` arrives).
-  // - The assistant transcript slot is the reserved high value.
-  // - Anything else during the window slots strictly between the two.
-  #assignSequence(kind: "user" | "assistant" | "other"): number {
-    const window = this.#responseWindow;
-    if (!window) return this.#nextSequence();
-    if (kind === "user" && !window.userAssigned) {
-      window.userAssigned = true;
-      const seq = window.userSeq;
-      // The late user slot has landed; if the response already finished the
-      // turn is now fully settled and the window must stop capturing
-      // subsequent (genuinely later) items.
-      if (window.draining) this.#responseWindow = null;
-      return seq;
-    }
-    if (kind === "assistant" && !window.assistantAssigned) {
-      window.assistantAssigned = true;
-      return window.assistantSeq;
-    }
-    window.midCount += 1;
-    return window.userSeq + window.midCount / (window.midCount + 1);
   }
 
   #appendTranscriptItemWithId(
@@ -1218,7 +1174,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       type: "transcript",
       transcriptItemId: item.id,
       createdAt: item.createdAt,
-      sequence: this.#assignSequence(role === "user" ? "user" : role === "assistant" ? "assistant" : "other"),
+      sequence: this.#nextSequence(),
     });
     this.emit("transcript.item", { item, createdAt: new Date() });
     this.#broadcast({ type: "transcript.item", data: item });
@@ -1320,7 +1276,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       type: "toolCall",
       toolCallId: record.id,
       createdAt: startedAt,
-      sequence: this.#assignSequence("other"),
+      sequence: this.#nextSequence(),
     });
     this.#activeToolAbortControllers.set(event.call_id, abortController);
     this.#pendingToolResultCount += 1;
@@ -1521,7 +1477,6 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       };
       this.#conversation = conversation;
       this.#sequenceCounter = 0;
-      this.#responseWindow = null;
       this.#pendingToolResultCount = 0;
       conversation.status = "active";
       this.#setConversationStatus("active");
@@ -1593,10 +1548,9 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       type: "transcript",
       transcriptItemId: item.id,
       createdAt: item.createdAt,
-      // Injected turns carry no xAI item id; "other" slots them between the
-      // triggering user turn and the assistant reply when a response is in
-      // flight, otherwise at the next monotonic position.
-      sequence: this.#assignSequence("other"),
+      // Injected/first-message turns carry no xAI item id; they are stamped at
+      // creation in arrival order like every other item.
+      sequence: this.#nextSequence(),
     });
     this.emit("transcript.item", { item, createdAt: new Date() });
     this.#broadcast({ type: "transcript.item", data: item });
@@ -1935,6 +1889,23 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         });
         break;
       }
+      case "settings.invoke": {
+        await this.#invokeSetting(typeof message.data?.id === "string" ? message.data.id : undefined);
+        break;
+      }
+      case "html.click": {
+        const data = message.data;
+        const x = typeof data?.x === "number" ? data.x : undefined;
+        const y = typeof data?.y === "number" ? data.y : undefined;
+        const width = typeof data?.width === "number" ? data.width : undefined;
+        const height = typeof data?.height === "number" ? data.height : undefined;
+        const path = typeof data?.path === "string" ? data.path : undefined;
+        if (x === undefined || y === undefined || width === undefined || height === undefined || path === undefined) {
+          break;
+        }
+        this.emit("html.click", { x, y, width, height, path, createdAt: new Date() });
+        break;
+      }
       case "browser.audio.error": {
         const error = toVoiceError("MICROPHONE_DEVICE_ERROR", "Browser reported a microphone error.", {
           code: String(message.data?.code ?? "unknown"),
@@ -1945,6 +1916,34 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         this.#log("error", error);
         break;
       }
+    }
+  }
+
+  // Resolve a browser `settings.invoke` to its configured callback, await it,
+  // and report the outcome back to the browser. A failed callback surfaces as
+  // a `conversation.error` event (the same channel other browser-driven
+  // failures use) and is reported to the browser as `{ ok: false, error }`;
+  // it never rejects out of the message loop.
+  async #invokeSetting(id: string | undefined): Promise<void> {
+    if (id === undefined) return;
+    const item = this.#settings.get(id);
+    if (!item) {
+      const error = this.#fail("CONFIG_INVALID", "Browser invoked an unknown setting.", { id });
+      this.#broadcast({ type: "settings.result", data: { id, ok: false, error: error.message } });
+      return;
+    }
+    try {
+      await item.callback();
+      this.#broadcast({ type: "settings.result", data: { id, ok: true } });
+    } catch (cause) {
+      const error = toVoiceError("INTERNAL_INVARIANT_VIOLATION", "Settings callback failed.", { id }, cause);
+      this.#log("error", error);
+      this.emit("conversation.error", {
+        conversationId: this.#conversation?.id,
+        error,
+        createdAt: new Date(),
+      });
+      this.#broadcast({ type: "settings.result", data: { id, ok: false, error: error.message } });
     }
   }
 
@@ -2008,6 +2007,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         connectOnPageLoad: this.#config.browserSession.connectOnPageLoad,
         wakeWord: this.#config.browserSession.wakeWord,
         injectedVersion: this.#injectedHtml === null ? null : this.#injectedVersion,
+        settings: this.#settingDescriptors,
       },
     });
   }
@@ -2068,6 +2068,7 @@ function normalizeConfig<TTools extends VoiceAgentToolMap>(
     },
     ui: {
       title: config.ui?.title ?? DEFAULT_UI_TITLE,
+      settings: config.ui?.settings ?? [],
     },
   };
 }
@@ -2114,10 +2115,11 @@ function snapshotConversation<TTools extends VoiceAgentToolMap>(
     endedAt: conversation.endedAt,
     transcript: [...conversation.transcript],
     toolCalls: [...conversation.toolCalls],
-    // Render in true conversational order. `sequence` is the logical position
-    // assigned when the item was appended (reserved at assistant-turn start),
-    // so a late ASR/user-slot event still sorts into its real slot regardless
-    // of xAI event arrival order. Ties fall back to arrival time for stability.
+    // Render in true conversational order. `sequence` is the monotonic
+    // position stamped when the item's slot was first created, in xAI event
+    // arrival order (which is the real conversational order). A late ASR
+    // `transcription.completed` only updates text and keeps its original
+    // sequence. Ties fall back to arrival time for stability.
     timeline: [...conversation.timeline].sort(
       (a, b) => a.sequence - b.sequence || a.createdAt.getTime() - b.createdAt.getTime(),
     ),
