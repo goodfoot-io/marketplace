@@ -3,6 +3,7 @@ import type { JsonValue } from "../../types.js";
 import { DuplicateClientScreen } from "./components/DuplicateClientScreen.js";
 import { FloatingTab } from "./components/FloatingTab.js";
 import { InstructionsModal } from "./components/InstructionsModal.js";
+import { StageAbsentNotice } from "./components/StageAbsentNotice.js";
 import { TranscriptModal } from "./components/TranscriptModal.js";
 import { WakeWordListener } from "./components/WakeWordListener.js";
 import { dispatch, useStore } from "./store/index.js";
@@ -82,6 +83,7 @@ export function App(): React.JSX.Element {
   }, [moreActionsOpen]);
 
   const injectedVersion = useStore((s) => s.stage.injectedVersion);
+  const injectedAbsentPath = useStore((s) => s.stage.injectedAbsentPath);
 
   // The stage iframe is same-origin and mounts only while a custom-HTML stage
   // is displayed, so attaching the click listener to its `contentDocument`
@@ -165,6 +167,7 @@ export function App(): React.JSX.Element {
           onLoad={(e) => attachStageClick(e.currentTarget)}
         />
       )}
+      {injectedAbsentPath != null && <StageAbsentNotice path={injectedAbsentPath} />}
       <FloatingTab />
       <TranscriptModal />
       <InstructionsModal />

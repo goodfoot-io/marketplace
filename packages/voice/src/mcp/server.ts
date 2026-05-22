@@ -17,6 +17,7 @@
  */
 
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer as createNetServer } from "node:net";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
@@ -119,6 +120,7 @@ function buildActivateMessage(watchTypes: string[]): string {
     "or a sophisticated, minimally-worded presentation slide that adds to the conversation rather than transcribing it — " +
     "then stage it with `html({ path })` and describe it with `set({ context })` (your colleague can't see the stage). " +
     "For interactive HTML, `postMessageToHtml(payload)` pushes JSON into the document and it can post back as `html.message`. " +
+    'Default to using TailwindCSS and DaisyUI by embedding the CDN: `<link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" /><script src"https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>`' +
     "Load the `voice:handbook` skill for troubleshooting and usage details. " +
     "React to the events below; do not narrate them back — the user already hears the voice.";
 
@@ -682,6 +684,94 @@ function createDisabledServer(options: CreateVoiceMcpServerOptions): VoiceMcpSer
   };
 }
 
+/** One-time instruction explaining why no voice tools are exposed. */
+function portBusyInstructions(port: number): string {
+  return (
+    `The voice server is already running on port ${port} (another Claude Code session owns it), ` +
+    "so this instance is inactive: no voice tools are available and no web server was started. " +
+    "To use voice here, end the other session (or close its browser tab) and reconnect this one."
+  );
+}
+
+/**
+ * Builds the inert server used when the configured port is already in use by
+ * another instance.
+ *
+ * Connects an empty MCP server over stdio — no tools, no `claude/channel`
+ * capability, no controller, no web server — with an instruction explaining the
+ * port conflict. Mirrors {@link createDisabledServer} but stays diagnosable via
+ * the instruction and a stderr line.
+ *
+ * @param config - Environment-derived configuration (for the port number).
+ * @param options - Optional transport override (used in tests).
+ * @returns An inert {@link VoiceMcpServer}.
+ */
+function createPortBusyServer(config: VoiceMcpConfig, options: CreateVoiceMcpServerOptions): VoiceMcpServer {
+  const mcp = new McpServer(
+    { name: "voice-mcp-server", version: "1.0.0" },
+    { instructions: portBusyInstructions(config.port) },
+  );
+
+  return {
+    mcpServer: mcp,
+    async start(): Promise<void> {
+      const transport = options.transport ?? new StdioServerTransport();
+      await mcp.connect(transport);
+      process.stderr.write(
+        `[voice-mcp] port ${config.port} already in use — another voice server is running; this instance is inactive.\n`,
+      );
+    },
+    async stop(): Promise<void> {
+      await mcp.close();
+    },
+  };
+}
+
+/**
+ * Attempts to bind `127.0.0.1:port` once — the exact thing the controller's web
+ * server does. Resolves `true` only if the bind is refused with `EADDRINUSE`
+ * (the port is genuinely held by another listener); resolves `false` if the
+ * bind succeeds (port is free — it is closed again immediately) or fails for
+ * any other reason (so a real bind error surfaces through the controller rather
+ * than being silently swallowed into inert mode).
+ *
+ * A bind probe is used rather than a connect probe because it answers the only
+ * question that matters — "can this process claim the port?" — and avoids
+ * false positives from intermediaries that accept connections on a port nothing
+ * is actually serving.
+ */
+function probePortBoundOnce(port: number): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const probe = createNetServer();
+    probe.once("error", (err: NodeJS.ErrnoException) => {
+      resolve(err.code === "EADDRINUSE");
+    });
+    probe.listen(port, "127.0.0.1", () => {
+      probe.close(() => resolve(false));
+    });
+  });
+}
+
+/**
+ * Whether `127.0.0.1:port` is held by another listener. Retries a few times
+ * before concluding it is in use: a just-exited sibling instance can still own
+ * the port for a moment, and we must not wedge this one into inert mode over a
+ * transient race. The happy path (a free port) returns `false` on the first
+ * attempt with no delay; only an occupied port pays the retry cost.
+ *
+ * @param port - The port to check.
+ * @returns `true` only if the port is occupied on every attempt.
+ */
+async function isPortInUse(port: number): Promise<boolean> {
+  const attempts = 5;
+  const delayMs = 250;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (!(await probePortBoundOnce(port))) return false;
+    if (attempt < attempts - 1) await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return true;
+}
+
 /**
  * Creates a voice MCP server bound to the given configuration.
  *
@@ -689,10 +779,10 @@ function createDisabledServer(options: CreateVoiceMcpServerOptions): VoiceMcpSer
  * @param options - Optional transport/logger overrides for tests.
  * @returns An object with `start`, `stop`, and `mcpServer`.
  */
-export function createVoiceMcpServer(
+export async function createVoiceMcpServer(
   config: VoiceMcpConfig,
   options: CreateVoiceMcpServerOptions = {},
-): VoiceMcpServer {
+): Promise<VoiceMcpServer> {
   // VOICE disabled → invisible: an empty MCP server, nothing else. Checked
   // before the logger so a disabled server has zero side effects. Takes
   // precedence over the missing-key notice.
@@ -701,6 +791,18 @@ export function createVoiceMcpServer(
   }
 
   const logger = options.logger ?? createDiagnosticLogger(config.logPath);
+
+  // The voice server uses one fixed port, but each Claude Code session spawns
+  // its own stdio subprocess. If another instance already owns the port, this
+  // one must not fight for it: binding the web server would throw EADDRINUSE,
+  // and advertising the tools would let the model drive a UI this process does
+  // not host. Detect an already-running instance and stay inert instead — no
+  // tools advertised, no web server. (The probe is a connect attempt, so it
+  // resolves immediately on a free port — no effect on the normal path.)
+  if (await isPortInUse(config.port)) {
+    logger.logError("port already in use — starting inert (no tools, no web server)", { port: config.port });
+    return createPortBusyServer(config, options);
+  }
 
   // No API key → stay inert: connect MCP with no channel and no tools, and
   // serve a configuration notice instead of the voice UI. Never throws.
@@ -1148,6 +1250,33 @@ export function createVoiceMcpServer(
   return {
     mcpServer: mcp,
     async start(): Promise<void> {
+      // The `claude/channel` capability flows one direction only: this server
+      // DECLARES it (see the McpServer construction above) and Claude Code
+      // inspects that during `initialize`, then gates delivery behind a
+      // client-side user-confirmation dialog. The approval is never reported
+      // back to the server — it is absent from the client's ClientCapabilities
+      // (`getClientCapabilities()` shows only `elicitation`/`roots`) and there
+      // is no acknowledging request or notification. Per the channels spec,
+      // notifications are fire-and-forget and silently dropped if the channel
+      // is not enabled. So we do NOT gate startup on it: declare the capability,
+      // start unconditionally, and let the client handle approval.
+      //
+      // We still log the client's full info and capabilities once the handshake
+      // completes — purely diagnostic, to make the connecting client (name,
+      // version, negotiated capabilities) visible in the JSONL log. Arm the
+      // listener BEFORE `connect()` so the handshake cannot fire ahead of it;
+      // both objects are populated by the time `oninitialized` runs.
+      mcp.server.oninitialized = (): void => {
+        logger.logEvent({
+          seq: 0,
+          event: "mcp.client.initialized",
+          timestamp: new Date().toISOString(),
+          data: {
+            clientInfo: serializeData(mcp.server.getClientVersion() ?? null),
+            capabilities: serializeData(mcp.server.getClientCapabilities() ?? null),
+          },
+        });
+      };
       const transport = options.transport ?? new StdioServerTransport();
       await mcp.connect(transport);
       await controller.start();

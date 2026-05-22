@@ -97,15 +97,17 @@ export function TranscriptContent(): React.JSX.Element {
     })),
   );
 
+  const readyToStart = (
+    <div className="empty-state">
+      <svg className="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M12 2v20M5 8v8M19 8v8" />
+      </svg>
+      <div>Ready to start</div>
+    </div>
+  );
+
   if (conversation === null) {
-    return (
-      <div className="empty-state">
-        <svg className="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M12 2v20M5 8v8M19 8v8" />
-        </svg>
-        <div>Ready to start</div>
-      </div>
-    );
+    return readyToStart;
   }
   if (conversation.status === "ended") {
     return (
@@ -236,6 +238,13 @@ export function TranscriptContent(): React.JSX.Element {
         forceSpeaking
       />,
     );
+  }
+
+  // An active conversation that has not produced any transcript items, tool
+  // calls, or live placeholders yet still reads as "no conversation" to the
+  // user — show the same Ready-to-start graphic rather than a blank panel.
+  if (nodes.length === 0) {
+    return readyToStart;
   }
 
   return <>{nodes}</>;

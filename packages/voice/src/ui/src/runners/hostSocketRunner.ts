@@ -109,7 +109,15 @@ function envelopeToActions(message: ServerEnvelope): Action[] {
         },
       ];
     case "stage.injected":
-      return [{ type: "host/stage", data: message.data }];
+      return [
+        {
+          type: "host/stage",
+          data: {
+            injectedVersion: message.data.injectedVersion,
+            injectedAbsentPath: message.data.injectedAbsentPath,
+          },
+        },
+      ];
     case "html.postMessage":
       return [{ type: "host/html/post-message", payload: message.data.payload }];
     case "wait_for_context.start":
@@ -217,6 +225,14 @@ export function createHostSocketRunner({ dispatch, subscribeToActions, getState 
     // Q49: download transcript — finalized items only, no stream drafts.
     if (action.type === "ui/click/download-transcript") {
       downloadTranscript(getState);
+    }
+
+    // Clear button on the absent-file notice: ask the host to drop the
+    // injected HTML entirely (same effect as setHtml(null) from the MCP
+    // server). The host broadcasts a fresh state with injectedAbsentPath=null,
+    // which removes the notice.
+    if (action.type === "ui/click/clear-html") {
+      sendToHost("html.clear");
     }
 
     // Settings button invoke: send the id to the host, which fires the

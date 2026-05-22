@@ -503,12 +503,14 @@ export type ServerEnvelope = {
         connectOnPageLoad: boolean;
         wakeWord: string | null;
         injectedVersion: number | null;
+        injectedAbsentPath: string | null;
         settings: VoiceAgentSettingDescriptor[];
     };
 } | {
     type: "stage.injected";
     data: {
         injectedVersion: number | null;
+        injectedAbsentPath: string | null;
     };
 } | {
     type: "html.postMessage";

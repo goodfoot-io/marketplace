@@ -76,6 +76,7 @@ type BrowserEnvelope =
       data?: { x?: unknown; y?: unknown; width?: unknown; height?: unknown; path?: unknown };
     }
   | { type: "html.message"; data?: { payload?: unknown } }
+  | { type: "html.clear" }
   | { type: "browser.debug"; data?: { label?: unknown; info?: unknown; t?: unknown } };
 
 type RealtimeGate = "playback-drained";
@@ -225,10 +226,15 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
   #injectedGeneration = 0;
   #injectedWatchDebounce?: ReturnType<typeof setTimeout>;
   #injectedPoll?: ReturnType<typeof setInterval>;
-  // True while the watched path is absent/unreadable and the error document is
-  // already served — used to de-duplicate the error render/broadcast/event so a
-  // file that stays missing does not produce a per-poll storm.
+  // True while the watched path is absent/unreadable and the "no longer
+  // present" notice is already broadcast — used to de-duplicate the
+  // render/broadcast/event so a file that stays missing does not produce a
+  // per-poll storm.
   #injectedAbsent = false;
+  // Absolute path of the currently-absent injected file, or null. Broadcast to
+  // the browser so it can show a de-emphasized notice naming the path; nulled
+  // the moment the file is read successfully or the stage is replaced/cleared.
+  #injectedAbsentPath: string | null = null;
   readonly #activeToolAbortControllers = new Map<string, AbortController>();
   readonly #streamingAssistantText = new Map<string, string>();
 
@@ -537,7 +543,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         body = await readFile(abs, "utf-8");
       } catch (cause) {
         if (gen !== this.#injectedGeneration) return;
-        this.#serveInjectedError(abs, cause);
+        this.#serveInjectedAbsent(abs, cause);
         // Do NOT fs.watch a path that does not exist / is unreadable: that
         // throws synchronously and would spin a tight re-arm loop. Instead
         // enter a quiet low-frequency stat poll that resumes once the file
@@ -547,6 +553,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       }
       if (gen !== this.#injectedGeneration) return;
       this.#injectedAbsent = false;
+      this.#injectedAbsentPath = null;
       this.#injectedHtml = body;
       this.#injectedVersion += 1;
       this.#broadcastInjected();
@@ -583,24 +590,34 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       this.#injectedWatcher = undefined;
     }
     this.#injectedAbsent = false;
+    this.#injectedAbsentPath = null;
   }
 
-  #serveInjectedError(abs: string, cause: unknown): void {
+  #serveInjectedAbsent(abs: string, cause: unknown): void {
     // De-duplicate: if the path is already in the absent/unreadable state and
-    // the error document is served, do not bump the version, re-broadcast, or
-    // re-emit. This collapses a permanently-missing file to a single stable
-    // state instead of a per-poll/per-event storm.
+    // the notice is broadcast, do not re-broadcast or re-emit. This collapses a
+    // permanently-missing file to a single stable state instead of a
+    // per-poll/per-event storm.
     if (this.#injectedAbsent) return;
     this.#injectedAbsent = true;
-    const error = this.#fail(
+    this.#injectedAbsentPath = abs;
+    // Drop any stale document and unmount the iframe: the browser shows a
+    // de-emphasized "no longer present" notice (with a clear button) keyed off
+    // injectedAbsentPath, not an error page inside the stage. The quiet poll
+    // keeps watching so a re-write of the file re-renders it automatically.
+    this.#injectedHtml = null;
+    this.#broadcastInjected();
+    // Logged at warn (not error): a watched file disappearing is an expected,
+    // self-recovering condition, not a server fault. The structured
+    // `injected.error` event is still emitted so a first-time setHtml({ path })
+    // against a missing file reports the failure to its caller.
+    const error = toVoiceError(
       "INJECTED_FILE_UNREADABLE",
-      `Injected HTML file is unreadable: ${abs}`,
+      `Injected HTML file is no longer present: ${abs}`,
       { path: abs },
       cause,
     );
-    this.#injectedHtml = this.#injectedErrorDocument(abs, error);
-    this.#injectedVersion += 1;
-    this.#broadcastInjected();
+    this.#log("warn", error);
     this.emit("injected.error", {
       path: abs,
       code: error.code,
@@ -628,7 +645,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         // The file vanished between read and (re-)arm: serve the error once,
         // then quietly poll instead of tight-looping fs.watch on a missing
         // path (which throws synchronously).
-        this.#serveInjectedError(abs, cause);
+        this.#serveInjectedAbsent(abs, cause);
         this.#pollForInjectedFile(abs, gen);
         return;
       }
@@ -654,7 +671,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       body = await readFile(abs, "utf-8");
     } catch (cause) {
       if (gen !== this.#injectedGeneration) return;
-      this.#serveInjectedError(abs, cause);
+      this.#serveInjectedAbsent(abs, cause);
       // The watched file was deleted/renamed away. Stop fs.watch (the handle is
       // dead) and switch to the quiet poll until it reappears.
       this.#pollForInjectedFile(abs, gen);
@@ -662,6 +679,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     }
     if (gen !== this.#injectedGeneration) return;
     this.#injectedAbsent = false;
+    this.#injectedAbsentPath = null;
     this.#injectedHtml = body;
     this.#injectedVersion += 1;
     this.#broadcastInjected();
@@ -677,8 +695,8 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     this.#installInjectedWatcher(abs, gen);
   }
 
-  // Quiet recovery path for a missing/unreadable watched file. The error
-  // document has already been served exactly once (#serveInjectedError is
+  // Quiet recovery path for a missing/unreadable watched file. The absent
+  // notice has already been broadcast exactly once (#serveInjectedAbsent is
   // idempotent via #injectedAbsent). Here we drop the dead fs.watch
   // handle/debounce and poll at a low frequency: each tick only does anything
   // when the file becomes readable again, at which point we re-render once and
@@ -714,6 +732,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         // File is back: clear absent state, re-render exactly once, then
         // resume the normal fs.watch + debounce happy path.
         this.#injectedAbsent = false;
+        this.#injectedAbsentPath = null;
         this.#injectedHtml = body;
         this.#injectedVersion += 1;
         this.#broadcastInjected();
@@ -726,15 +745,11 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     this.#broadcastState();
     this.#broadcast({
       type: "stage.injected",
-      data: { injectedVersion: this.#injectedHtml === null ? null : this.#injectedVersion },
+      data: {
+        injectedVersion: this.#injectedHtml === null ? null : this.#injectedVersion,
+        injectedAbsentPath: this.#injectedAbsentPath,
+      },
     });
-  }
-
-  #injectedErrorDocument(path: string, error: VoiceAgentServerError): string {
-    const safePath = escapeHtml(path);
-    const safeCode = escapeHtml(error.code);
-    const safeMessage = escapeHtml(error.message);
-    return `<!doctype html><html><head><meta charset="utf-8"><title>Injected HTML error</title></head><body style="margin:0;font-family:system-ui,sans-serif;background:#1a1a1a;color:#f5f5f5;display:flex;align-items:center;justify-content:center;height:100vh;"><div style="max-width:40rem;padding:2rem;"><h1 style="font-size:1.25rem;margin:0 0 1rem;color:#ff6b6b;">Injected HTML unavailable</h1><p style="margin:0 0 0.5rem;">Could not read the injected HTML file:</p><pre style="background:#000;padding:0.75rem;border-radius:0.25rem;overflow:auto;">${safePath}</pre><p style="margin:1rem 0 0;opacity:0.8;">${safeCode}: ${safeMessage}</p></div></body></html>`;
   }
 
   async cancelToolCall(callId: string): Promise<void> {
@@ -1932,6 +1947,12 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         this.emit("html.message", { payload, createdAt: new Date() });
         break;
       }
+      case "html.clear":
+        // The browser's "clear" button on the absent-file notice — same effect
+        // as setHtml(null) from the MCP server. Tears down the watcher/poll and
+        // clears the absent state so the notice goes away.
+        await this.setHtml(null);
+        break;
       case "browser.audio.error": {
         const error = toVoiceError("MICROPHONE_DEVICE_ERROR", "Browser reported a microphone error.", {
           code: String(message.data?.code ?? "unknown"),
@@ -2053,6 +2074,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         connectOnPageLoad: this.#config.browserSession.connectOnPageLoad,
         wakeWord: this.#config.browserSession.wakeWord,
         injectedVersion: this.#injectedHtml === null ? null : this.#injectedVersion,
+        injectedAbsentPath: this.#injectedAbsentPath,
         settings: this.#settingDescriptors,
       },
     });

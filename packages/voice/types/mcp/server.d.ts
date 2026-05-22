@@ -37,4 +37,4 @@ export interface CreateVoiceMcpServerOptions {
  * @param options - Optional transport/logger overrides for tests.
  * @returns An object with `start`, `stop`, and `mcpServer`.
  */
-export declare function createVoiceMcpServer(config: VoiceMcpConfig, options?: CreateVoiceMcpServerOptions): VoiceMcpServer;
+export declare function createVoiceMcpServer(config: VoiceMcpConfig, options?: CreateVoiceMcpServerOptions): Promise<VoiceMcpServer>;

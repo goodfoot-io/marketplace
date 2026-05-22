@@ -80,25 +80,12 @@ export function TranscriptModal(): React.JSX.Element | null {
         className="modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="transcript-title"
+        aria-label="Conversation"
         tabIndex={-1}
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onTrapKeyDown}
       >
-        <div className="modal-header">
-          <span className="modal-title" id="transcript-title">
-            Conversation
-          </span>
-          <button
-            className="modal-close"
-            type="button"
-            aria-label="Close"
-            onClick={() => dispatch({ type: "ui/click/modal-close" })}
-          >
-            <span className="codicon codicon-close" aria-hidden="true" />
-          </button>
-        </div>
         <div
           className="modal-body"
           ref={bodyRef}

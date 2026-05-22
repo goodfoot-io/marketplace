@@ -14,7 +14,7 @@ import { createVoiceMcpServer } from "./server.js";
 
 async function main(): Promise<void> {
   const config = readConfig();
-  const server = createVoiceMcpServer(config);
+  const server = await createVoiceMcpServer(config);
 
   let shuttingDown = false;
   const shutdown = (): void => {

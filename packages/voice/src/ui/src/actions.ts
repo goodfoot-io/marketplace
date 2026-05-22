@@ -71,7 +71,7 @@ export type Action =
   | { type: "xai/unknown"; raw: unknown }
   // Host daemon events
   | { type: "host/state"; data: BroadcastState }
-  | { type: "host/stage"; data: { injectedVersion: number | null } }
+  | { type: "host/stage"; data: { injectedVersion: number | null; injectedAbsentPath: string | null } }
   | { type: "host/transcript/item"; item: TranscriptItem }
   | { type: "host/transcript/delta"; delta: TranscriptDeltaEvent }
   | { type: "host/voice/session/start" }
@@ -106,6 +106,9 @@ export type Action =
   | { type: "ui/click/modal-backdrop" }
   | { type: "ui/click/modal-close" }
   | { type: "ui/click/download-transcript" }
+  // Clear button on the absent-injected-file notice: ask the host to drop the
+  // injected HTML (same as setHtml(null) from the MCP server).
+  | { type: "ui/click/clear-html" }
   | { type: "ui/key/escape" }
   | { type: "ui/select/mic-device"; deviceId: string }
   | { type: "ui/select/voice"; voice: XAIVoice | null }

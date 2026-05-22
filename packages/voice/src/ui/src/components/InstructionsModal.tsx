@@ -40,24 +40,11 @@ export function InstructionsModal(): React.JSX.Element | null {
         className="modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="instructions-title"
+        aria-label="Instructions"
         tabIndex={-1}
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-header">
-          <span className="modal-title" id="instructions-title">
-            Instructions
-          </span>
-          <button
-            className="modal-close"
-            type="button"
-            aria-label="Close"
-            onClick={() => dispatch({ type: "ui/click/modal-close" })}
-          >
-            <span className="codicon codicon-close" aria-hidden="true" />
-          </button>
-        </div>
         <div className="modal-body instructions-body">
           {instructions === undefined ? (
             <p className="loading-state">Loading instructions…</p>

@@ -65,6 +65,74 @@ button:active:enabled {
   z-index: var(--z-stage, 50);
 }
 
+/* ── Absent injected-file notice ──────────────────────────────────────────
+ * Quiet, informational state shown where the stage iframe would be when a
+ * by-path injected file is missing. Sits at the stage layer (below the tab so
+ * conversation controls stay reachable). */
+.stage-absent {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-stage, 50);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg-base);
+}
+
+.stage-absent-card {
+  max-width: 36rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.stage-absent-message {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-bright);
+}
+
+.stage-absent-path {
+  margin: 0;
+  max-width: 100%;
+  overflow: auto;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.stage-absent-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+}
+
+/* Deliberately de-emphasized: this is an escape hatch, not the expected
+ * action (the file is being polled for and may simply reappear). */
+.stage-absent-clear {
+  margin-top: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+}
+
+.stage-absent-clear:hover:enabled {
+  color: var(--text-muted);
+  border-color: var(--text-dim);
+}
+
 /* ── Floating tab (Q2/Q44) ────────────────────────────────────────────── */
 .floating-tab {
   position: fixed;
@@ -76,7 +144,7 @@ button:active:enabled {
   gap: 14px;
   pointer-events: all;
   padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(34, 34, 34, 0.6);
   border: 1px solid #fff;
   border-top: none;
   border-radius: 0 0 8px 8px;
@@ -112,15 +180,6 @@ button:active:enabled {
 }
 
 /* Q45: autoplay-blocked shield badge overlay on the play icon. */
-.shield-badge {
-  position: absolute;
-  right: -3px;
-  bottom: -3px;
-  font-size: 9px;
-  line-height: 1;
-  color: var(--dot-connecting);
-}
-
 .connection {
   display: flex;
   align-items: center;
@@ -505,6 +564,9 @@ select {
    elements (p, ul, etc.) are block-level and unaffected by pre-wrap. */
 .instructions-body {
   white-space: pre-wrap;
+  color: var(--text-white);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 /* Block-level markdown elements reset wrapping so prose flows normally. */
@@ -520,6 +582,29 @@ select {
 .instructions-body h5,
 .instructions-body h6 {
   white-space: normal;
+}
+
+/* The "line height seems off" gaps came from the browser's default 1em block
+ * margins (which scale with our larger inherited font) plus the pre-wrap
+ * newlines between blocks. Collapse to a single consistent rhythm tied to the
+ * 1.5 line-height above. */
+.instructions-body :first-child {
+  margin-top: 0;
+}
+
+.instructions-body :last-child {
+  margin-bottom: 0;
+}
+
+.instructions-body p,
+.instructions-body ul,
+.instructions-body ol,
+.instructions-body blockquote {
+  margin-block: 0.5em;
+}
+
+.instructions-body li {
+  margin-block: 0.15em;
 }
 
 /* ── Transcript content ───────────────────────────────────────────────── */

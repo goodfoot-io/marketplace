@@ -207,7 +207,7 @@ runIfSourceExists("setHtml — injected stage", () => {
     expect(await res.text()).toBe("<p>replaced</p>");
   });
 
-  it("missing/unreadable path: error doc served, injected.error emitted, setHtml does not throw, server stays up", async () => {
+  it("missing/unreadable path: absent notice broadcast (not an error doc), injected.error emitted, setHtml does not throw, server stays up", async () => {
     const controller = await makeController();
     await controller.start();
     controllers.push(controller);
@@ -222,25 +222,26 @@ runIfSourceExists("setHtml — injected stage", () => {
     // Must not throw
     await expect(controller.setHtml({ path: missingPath })).resolves.toBeUndefined();
 
-    // An error event should have been emitted
+    // An error event should have been emitted (drives the MCP-caller report)
     await pollUntilTrue(() => errorEvents.length > 0, 500);
     expect(errorEvents.length).toBeGreaterThan(0);
 
-    // Error document is served — not a 404
+    // No error document is mounted: the iframe is unmounted (injectedVersion
+    // null) and /__injected is a 404. The absent path is surfaced on state so
+    // the browser can show its quiet "no longer present" notice.
+    expect(await readStateInjectedVersion(port)).toBeNull();
+    expect(await readStateInjectedAbsentPath(port)).toBe(missingPath);
     const res = await fetch(`http://127.0.0.1:${port}/__injected?v=1`);
-    expect(res.status).toBe(200);
-    const body = await res.text();
-    // The error document must mention the path
-    expect(body).toContain(missingPath);
+    expect(res.status).toBe(404);
 
-    // No storm: while the file stays absent the error state must be a SINGLE
-    // stable state — no per-cycle version bumps, no repeated injected.error.
+    // No storm: while the file stays absent the absent state must be a SINGLE
+    // stable state — no per-cycle changes, no repeated injected.error.
     // Wait well past the prior ~75ms debounce window and a full ~1s poll tick.
-    const versionAtError = await readStateInjectedVersion(port);
-    const eventCountAtError = errorEvents.length;
+    const eventCountAtAbsent = errorEvents.length;
     await new Promise((r) => setTimeout(r, 1300));
-    expect(await readStateInjectedVersion(port)).toBe(versionAtError);
-    expect(errorEvents.length).toBe(eventCountAtError);
+    expect(await readStateInjectedVersion(port)).toBeNull();
+    expect(await readStateInjectedAbsentPath(port)).toBe(missingPath);
+    expect(errorEvents.length).toBe(eventCountAtAbsent);
 
     // Server must still accept new connections
     const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
@@ -248,14 +249,16 @@ runIfSourceExists("setHtml — injected stage", () => {
     socket.close();
     expect(state).toBe("open");
 
-    // File reappearance resumes normal rendering exactly once.
+    // File reappearance resumes normal rendering exactly once and clears the
+    // absent path.
     await writeFile(missingPath, "<p>recovered</p>", "utf-8");
     const recovered = await pollUntil(
       () => readStateInjectedVersion(port),
-      (v) => typeof v === "number" && v !== versionAtError,
+      (v) => typeof v === "number",
       2500,
     );
     expect(typeof recovered).toBe("number");
+    expect(await readStateInjectedAbsentPath(port)).toBeNull();
     const recoveredRes = await fetch(`http://127.0.0.1:${port}/__injected?v=${recovered as number}`);
     expect(await recoveredRes.text()).toBe("<p>recovered</p>");
   });
@@ -449,6 +452,18 @@ async function readStateInjectedVersion(port: number): Promise<number | null> {
     const data = msg.data as Record<string, unknown>;
     const v = data.injectedVersion;
     return v === null || v === undefined ? null : (v as number);
+  } finally {
+    socket.close();
+  }
+}
+
+async function readStateInjectedAbsentPath(port: number): Promise<string | null> {
+  const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
+  try {
+    const msg = await waitForMessage(socket, (m) => m.type === "state");
+    const data = msg.data as Record<string, unknown>;
+    const p = data.injectedAbsentPath;
+    return typeof p === "string" ? p : null;
   } finally {
     socket.close();
   }

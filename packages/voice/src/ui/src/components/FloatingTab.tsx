@@ -60,9 +60,6 @@ export function FloatingTab(): React.JSX.Element {
           className={`codicon codicon-${playPaused ? "play" : "debug-pause"}`}
           aria-hidden="true"
         />
-        {autoplayBlocked && playPaused ? (
-          <span className="shield-badge codicon codicon-shield" aria-hidden="true" />
-        ) : null}
       </button>
 
       {tabState === "active" || tabState === "paused" ? (

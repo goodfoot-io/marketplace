@@ -658,12 +658,21 @@ export type ServerEnvelope =
         // Resolved wake phrase, or null when wake-word resume is disabled.
         wakeWord: string | null;
         injectedVersion: number | null;
+        // Absolute path of an injected-by-path file that is currently
+        // missing/unreadable, or null when no path is absent. When set, the
+        // stage shows a de-emphasized "no longer present" notice (with a clear
+        // button) instead of mounting the iframe, and the server keeps polling
+        // for the file to reappear.
+        injectedAbsentPath: string | null;
         // Serializable settings items (callbacks stripped). Empty when no
         // `ui.settings` were configured.
         settings: VoiceAgentSettingDescriptor[];
       };
     }
-  | { type: "stage.injected"; data: { injectedVersion: number | null } }
+  | {
+      type: "stage.injected";
+      data: { injectedVersion: number | null; injectedAbsentPath: string | null };
+    }
   | { type: "html.postMessage"; data: { payload: JsonValue } }
   | { type: "transcript.item"; data: TranscriptItem }
   | { type: "transcript.delta"; data: TranscriptDeltaEvent }
