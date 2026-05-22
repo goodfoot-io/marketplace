@@ -833,7 +833,9 @@ describe("Hook Factory Functions", () => {
 
   describe("worktreeCreateHook", () => {
     it("returns a HookFunction with correct hookEventName", () => {
-      const hook = worktreeCreateHook({}, () => worktreeCreateOutput({}));
+      const hook = worktreeCreateHook({}, () =>
+        worktreeCreateOutput({ worktreePath: "/workspace/.worktrees/feature-branch" }),
+      );
       expect(hook.hookEventName).toBe("WorktreeCreate");
     });
 
@@ -841,7 +843,7 @@ describe("Hook Factory Functions", () => {
       let receivedInput: WorktreeCreateHookInput | undefined;
       const hook = worktreeCreateHook({}, (input) => {
         receivedInput = input;
-        return worktreeCreateOutput({});
+        return worktreeCreateOutput({ worktreePath: "/workspace/.worktrees/feature-branch" });
       });
       await hook(createWorktreeCreateHookInput(), { logger: testLogger });
       expect(receivedInput?.name).toBe("feature-branch");

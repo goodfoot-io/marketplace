@@ -1546,8 +1546,10 @@ export function instructionsLoadedHook(
  * import { worktreeCreateHook, worktreeCreateOutput } from '@goodfoot/claude-code-hooks';
  *
  * export default worktreeCreateHook({}, async (input, { logger }) => {
- *   logger.info('Worktree created', { name: input.name });
- *   return worktreeCreateOutput({});
+ *   const worktreePath = `${input.cwd}/.worktrees/${input.name}`;
+ *   logger.info('Worktree created', { name: input.name, worktreePath });
+ *   // WorktreeCreate is a command hook: the path is written to stdout as plain text.
+ *   return worktreeCreateOutput({ worktreePath });
  * });
  * ```
  * @see https://code.claude.com/docs/en/hooks#worktreecreate

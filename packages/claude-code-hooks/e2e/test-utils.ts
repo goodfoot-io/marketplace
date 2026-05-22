@@ -80,6 +80,8 @@ export interface HooksJson {
     SubagentStart?: MatcherEntry[];
     SubagentStop?: MatcherEntry[];
     Notification?: MatcherEntry[];
+    WorktreeCreate?: MatcherEntry[];
+    WorktreeRemove?: MatcherEntry[];
   };
 }
 

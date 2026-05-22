@@ -15,6 +15,7 @@ import type {
   FileChangedHookSpecificOutput as SDKFileChangedHookSpecificOutput,
   PermissionDeniedHookSpecificOutput as SDKPermissionDeniedHookSpecificOutput,
   UserPromptExpansionHookSpecificOutput as SDKUserPromptExpansionHookSpecificOutput,
+  WorktreeCreateHookSpecificOutput as SDKWorktreeCreateHookSpecificOutput,
 } from "@anthropic-ai/claude-agent-sdk";
 import type {
   NotificationHookSpecificOutput as SDKNotificationHookSpecificOutput,
@@ -257,6 +258,12 @@ export interface HookOutput {
   stdout: SyncHookJSONOutput;
   /** Optional message to write to stderr. When present, the runtime exits with code 2 (BLOCK). */
   stderr?: string;
+  /**
+   * Plain-text payload written verbatim to stdout instead of `JSON.stringify(stdout)`.
+   * When present, the runtime emits this string and ignores `stdout`. See
+   * {@link BaseSpecificOutput.rawStdout}.
+   */
+  rawStdout?: string;
 }
 
 // ============================================================================
@@ -301,6 +308,15 @@ interface BaseSpecificOutput<T extends string> {
   readonly _type: T;
   stdout: SyncHookJSONOutput;
   stderr?: string;
+  /**
+   * Plain-text payload written verbatim to stdout instead of `JSON.stringify(stdout)`.
+   *
+   * Used by command hooks whose wire protocol is a bare string rather than JSON —
+   * notably `WorktreeCreate`/`WorktreeRemove`, where Claude Code reads stdout as the
+   * worktree path and `chdir`s into it. When present, the runtime emits this string
+   * and ignores `stdout`.
+   */
+  rawStdout?: string;
 }
 
 /**
@@ -483,6 +499,26 @@ function createSimpleOutputBuilder<T extends string>(hookType: T) {
     _type: hookType,
     stdout: options,
   });
+}
+
+/**
+ * Factory for worktree hooks (WorktreeCreate, WorktreeRemove).
+ *
+ * These are command hooks whose wire protocol is a **bare path on stdout**, not JSON:
+ * Claude Code reads the hook's stdout verbatim and `chdir`s into it. The builder carries
+ * the path in `rawStdout` so the runtime emits it as plain text instead of
+ * `JSON.stringify(stdout)`.
+ * @param hookType - The hook type name used as the _type discriminator
+ * @returns A builder function that creates the output object
+ * @internal
+ */
+function createWorktreeOutputBuilder<T extends string>(hookType: T) {
+  return (
+    options: CommonOptions & { worktreePath: string },
+  ): { readonly _type: T; stdout: SyncHookJSONOutput; rawStdout: string } => {
+    const { worktreePath, ...rest } = options;
+    return { _type: hookType, stdout: rest, rawStdout: worktreePath };
+  };
 }
 
 /**
@@ -1236,20 +1272,26 @@ export const instructionsLoadedOutput =
 
 /**
  * Options for the WorktreeCreate output builder.
- * WorktreeCreate hooks only support common options.
+ *
+ * `worktreePath` is required: WorktreeCreate is a command hook whose protocol is the
+ * **bare absolute path on stdout**. The path type is derived from the SDK's
+ * `WorktreeCreateHookSpecificOutput`.
  */
-export type WorktreeCreateOptions = CommonOptions;
+export type WorktreeCreateOptions = CommonOptions & Pick<SDKWorktreeCreateHookSpecificOutput, "worktreePath">;
 
 /**
  * Creates an output for WorktreeCreate hooks.
+ *
+ * The runtime writes `worktreePath` to stdout as plain text (not JSON) so Claude Code
+ * can `chdir` into the created worktree.
  * @param options - Configuration options for the hook output
  * @returns A WorktreeCreateOutput object ready for the runtime
  * @example
  * ```typescript
- * worktreeCreateOutput({});
+ * worktreeCreateOutput({ worktreePath: '/abs/path/to/worktree' });
  * ```
  */
-export const worktreeCreateOutput = /* @__PURE__ */ createSimpleOutputBuilder<"WorktreeCreate">("WorktreeCreate");
+export const worktreeCreateOutput = /* @__PURE__ */ createWorktreeOutputBuilder<"WorktreeCreate">("WorktreeCreate");
 
 // ============================================================================
 // WorktreeRemove Output Builder
@@ -1257,20 +1299,37 @@ export const worktreeCreateOutput = /* @__PURE__ */ createSimpleOutputBuilder<"W
 
 /**
  * Options for the WorktreeRemove output builder.
- * WorktreeRemove hooks only support common options.
+ *
+ * `worktreePath` is optional: when provided it is written to stdout as plain text
+ * (matching the WorktreeCreate command-hook protocol); when omitted the builder falls
+ * back to the JSON passthrough.
  */
-export type WorktreeRemoveOptions = CommonOptions;
+export type WorktreeRemoveOptions = CommonOptions & { worktreePath?: string };
 
 /**
  * Creates an output for WorktreeRemove hooks.
+ *
+ * When `worktreePath` is supplied, the runtime writes it to stdout as plain text (not
+ * JSON), matching the worktree command-hook protocol.
  * @param options - Configuration options for the hook output
  * @returns A WorktreeRemoveOutput object ready for the runtime
  * @example
  * ```typescript
+ * // Plain-text path protocol
+ * worktreeRemoveOutput({ worktreePath: '/abs/path/to/worktree' });
+ *
+ * // No path payload
  * worktreeRemoveOutput({});
  * ```
  */
-export const worktreeRemoveOutput = /* @__PURE__ */ createSimpleOutputBuilder<"WorktreeRemove">("WorktreeRemove");
+export const worktreeRemoveOutput = (
+  options: WorktreeRemoveOptions = {},
+): { readonly _type: "WorktreeRemove"; stdout: SyncHookJSONOutput; rawStdout?: string } => {
+  const { worktreePath, ...rest } = options;
+  return worktreePath !== undefined
+    ? { _type: "WorktreeRemove", stdout: rest, rawStdout: worktreePath }
+    : { _type: "WorktreeRemove", stdout: rest };
+};
 
 // ============================================================================
 // CwdChanged Output Builder

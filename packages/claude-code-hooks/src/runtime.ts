@@ -140,8 +140,15 @@ function handleHandlerError(error: unknown): never {
  * ```
  */
 export function convertToHookOutput(specificOutput: SpecificHookOutput): HookOutput {
-  const { stdout, stderr } = specificOutput;
-  return stderr !== undefined ? { stdout, stderr } : { stdout };
+  const { stdout, stderr, rawStdout } = specificOutput;
+  const result: HookOutput = { stdout };
+  if (stderr !== undefined) {
+    result.stderr = stderr;
+  }
+  if (rawStdout !== undefined) {
+    result.rawStdout = rawStdout;
+  }
+  return result;
 }
 
 // ============================================================================
@@ -224,9 +231,15 @@ export async function execute<TInput extends HookInput, TOutput extends Specific
       handleHandlerError(error);
     }
   } finally {
-    // Write output if we have it
+    // Write output if we have it. Command hooks with a plain-text protocol (e.g.
+    // WorktreeCreate, where Claude Code reads stdout as the worktree path and chdirs
+    // into it) carry their payload in `rawStdout` and bypass JSON serialization.
     if (output !== undefined) {
-      writeStdout(output.stdout);
+      if (output.rawStdout !== undefined) {
+        process.stdout.write(output.rawStdout);
+      } else {
+        writeStdout(output.stdout);
+      }
     }
 
     // Clean up logger (single cleanup path)

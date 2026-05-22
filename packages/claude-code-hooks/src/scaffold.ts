@@ -386,9 +386,15 @@ function generateHookTemplate(eventName: HookEventName): string {
     case "ElicitationResult":
       returnStatement = `return ${outputName}({});`;
       break;
+    case "WorktreeCreate":
+      // WorktreeCreate is a command hook whose protocol is the bare worktree path on
+      // stdout. `worktreePath` is required and written to stdout as plain text.
+      returnStatement = `return ${outputName}({
+    worktreePath: \`\${input.cwd}/.worktrees/\${input.name}\`,
+  });`;
+      break;
     case "ConfigChange":
     case "InstructionsLoaded":
-    case "WorktreeCreate":
     case "WorktreeRemove":
       returnStatement = `return ${outputName}({});`;
       break;

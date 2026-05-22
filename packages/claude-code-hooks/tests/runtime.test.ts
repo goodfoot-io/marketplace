@@ -14,6 +14,8 @@ import {
   stopOutput,
   teammateIdleOutput,
   userPromptSubmitOutput,
+  worktreeCreateOutput,
+  worktreeRemoveOutput,
 } from "../src/outputs.js";
 import { convertToHookOutput } from "../src/runtime.js";
 
@@ -218,6 +220,32 @@ describe("convertToHookOutput", () => {
       const specificOutput = teammateIdleOutput({});
       const result = convertToHookOutput(specificOutput);
       expect(result.stderr).toBeUndefined();
+    });
+  });
+
+  describe("rawStdout passthrough (worktree command-hook protocol)", () => {
+    it("threads rawStdout from worktreeCreateOutput", () => {
+      const specificOutput = worktreeCreateOutput({ worktreePath: "/abs/path/to/worktree" });
+      const result = convertToHookOutput(specificOutput);
+      expect(result.rawStdout).toBe("/abs/path/to/worktree");
+    });
+
+    it("threads rawStdout from worktreeRemoveOutput when worktreePath is provided", () => {
+      const specificOutput = worktreeRemoveOutput({ worktreePath: "/abs/path/to/worktree" });
+      const result = convertToHookOutput(specificOutput);
+      expect(result.rawStdout).toBe("/abs/path/to/worktree");
+    });
+
+    it("omits rawStdout for worktreeRemoveOutput without a worktreePath", () => {
+      const specificOutput = worktreeRemoveOutput({});
+      const result = convertToHookOutput(specificOutput);
+      expect(result.rawStdout).toBeUndefined();
+    });
+
+    it("omits rawStdout for non-worktree outputs", () => {
+      const specificOutput = sessionStartOutput({});
+      const result = convertToHookOutput(specificOutput);
+      expect(result.rawStdout).toBeUndefined();
     });
   });
 
