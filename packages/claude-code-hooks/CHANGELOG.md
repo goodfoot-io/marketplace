@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.4.1
+- Minor improvements and bug fixes
+
+## 1.4.1
 - Fixed the build-process E2E test to include `WorktreeCreate` in the supported hook types
 
 ## 1.4.0
