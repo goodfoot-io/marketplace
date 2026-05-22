@@ -1945,6 +1945,7 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
         const payload = message.data?.payload;
         if (payload === undefined || !isJsonValue(payload)) break;
         this.emit("html.message", { payload, createdAt: new Date() });
+        this.#notifyVoiceOfMessage(payload);
         break;
       }
       case "html.clear":
@@ -2006,10 +2007,26 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     const xPct = click.width > 0 ? Math.round((click.x / click.width) * 100) : 0;
     const yPct = click.height > 0 ? Math.round((click.y / click.height) * 100) : 0;
     const text = `The user clicked an element on the visible screen (HTML stage): ${click.path} — at ${xPct}% from the left, ${yPct}% from the top of the viewport.`;
-    // injectSystemMessage does not trigger a model response: the click becomes
-    // context for the agent's next turn rather than forcing it to speak.
-    void this.injectSystemMessage({ text }).catch(() => {
+    // triggerResponse: the click should prompt the agent to react now, not just
+    // sit as passive context until the user's next utterance. xAI only acts on
+    // an injected item once a response.create follows it.
+    void this.injectSystemMessage({ text, triggerResponse: true }).catch(() => {
       // The click is already surfaced as an html.click event; a failed
+      // injection must not break the browser message loop.
+    });
+  }
+
+  // Mirror an HTML stage postMessage into the realtime conversation the same
+  // way clicks are mirrored: as a system message that triggers a response, so
+  // the voice agent reacts to what the mounted document just signalled. The
+  // payload is also surfaced as an `html.message` event for channel consumers.
+  // Best-effort: skip silently when there is no active/paused conversation.
+  #notifyVoiceOfMessage(payload: JsonValue): void {
+    if (!this.#conversation) return;
+    if (this.#conversation.status !== "active" && this.#conversation.status !== "paused") return;
+    const text = `The visible screen (HTML stage) sent a message: ${JSON.stringify(payload)}`;
+    void this.injectSystemMessage({ text, triggerResponse: true }).catch(() => {
+      // The payload is already surfaced as an html.message event; a failed
       // injection must not break the browser message loop.
     });
   }

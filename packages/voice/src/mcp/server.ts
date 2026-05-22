@@ -173,11 +173,16 @@ claiming a limitation is not. Fold what comes back in as your own.
 
 ## The screen
 The user sees a screen your colleague controls — images, slides, diagrams, \
-charts. You can't see it, but you're told when the user clicks something on it. \
-So you can always show, draw, or display a visual, and you can speak to what's on \
-screen or what the user clicked: just \`check_with_colleague\`. When the user \
-means "this", "that", or "which one I clicked" and you're unsure, don't guess — \
-\`check_with_colleague\`.`;
+charts. You can't see it, but you're told when the user clicks something on it or \
+when the screen sends a message. So you can always show, draw, or display a \
+visual, and you can speak to what's on screen or what the user clicked: just \
+\`check_with_colleague\`. When the user means "this", "that", or "which one I \
+clicked" and you're unsure, don't guess — \`check_with_colleague\`.
+
+If you don't know what a click or screen message represents, do not proactively \
+bring it up to the user or narrate it. Stay silent on it, or quietly \
+\`check_with_colleague\` to find out what it means before saying anything. Never \
+announce a raw click or message you can't interpret.`;
 
 /**
  * Server instructions shown at MCP connect. Kept minimal: voice is available
@@ -854,6 +859,12 @@ export async function createVoiceMcpServer(
 
   let seq = 0;
 
+  // Serializes channel-notification delivery. `mcp.server.notification()` is
+  // async and was previously fired-and-forgotten, so bursts (e.g. rapid
+  // html.click events) could land out of `seq` order on the wire. Chaining each
+  // send onto the previous one's settlement guarantees sends leave in seq order.
+  let notifyTail: Promise<void> = Promise.resolve();
+
   /**
    * Build a `{ seq, event, timestamp, data }` record (the same shape
    * `voice watch` streams), log it, and — unless filtered out — deliver it as a
@@ -888,11 +899,13 @@ export async function createVoiceMcpServer(
     }
 
     const { content, attrs } = channelMessage(record.event, record.data);
-    mcp.server
-      .notification({
-        method: CHANNEL_METHOD,
-        params: { content, meta: { type: record.event, seq: String(record.seq), ...attrs } },
-      })
+    notifyTail = notifyTail
+      .then(() =>
+        mcp.server.notification({
+          method: CHANNEL_METHOD,
+          params: { content, meta: { type: record.event, seq: String(record.seq), ...attrs } },
+        }),
+      )
       .catch((err: unknown) => {
         logger.logError("channel notification failed", { event, error: String(err) });
       });

@@ -18,7 +18,10 @@ export const DEFAULT_WATCH_TYPES = [
   "html.message",
 ] as const;
 
-/** `VOICE` values (trimmed, lower-cased) that disable the server. Anything else enables it. */
+/**
+ * Values (trimmed, lower-cased) that mean "off" for `VOICE` and
+ * `VOICE_SERVER_START_BY_DEFAULT`. Anything else means "on".
+ */
 const DISABLED_VALUES = new Set(["0", "no", "off", "false"]);
 
 /**
@@ -39,7 +42,11 @@ export function readEnv(name: string): string | undefined {
 }
 
 export interface VoiceMcpConfig {
-  /** Whether the server is enabled. `false` only when `VOICE` is an explicit falsy value. */
+  /**
+   * Whether the server is enabled. Resolution precedence:
+   * `VOICE` (runtime override) → `VOICE_SERVER_START_BY_DEFAULT` → built-in
+   * default (start). A falsy value at the winning level disables the server.
+   */
   enabled: boolean;
   /** xAI API key forwarded to the realtime session (browser-proxied). */
   apiKey: string;
@@ -61,8 +68,12 @@ export interface VoiceMcpConfig {
  * @returns Parsed configuration.
  */
 export function readConfig(): VoiceMcpConfig {
+  // `VOICE` is the runtime override; when unset, fall back to the configured
+  // default; when that is also unset, start by default.
   const voiceRaw = readEnv("VOICE");
-  const enabled = voiceRaw === undefined || !DISABLED_VALUES.has(voiceRaw.toLowerCase());
+  const defaultRaw = readEnv("VOICE_SERVER_START_BY_DEFAULT");
+  const enabledRaw = voiceRaw ?? defaultRaw;
+  const enabled = enabledRaw === undefined || !DISABLED_VALUES.has(enabledRaw.toLowerCase());
 
   // Key resolution precedence: env var → secrets file → none. `keySource`
   // records which path won so the server can decide whether to expose the

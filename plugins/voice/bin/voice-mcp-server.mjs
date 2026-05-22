@@ -10487,7 +10487,9 @@ function readEnv(name) {
 }
 function readConfig() {
   const voiceRaw = readEnv("VOICE");
-  const enabled = voiceRaw === void 0 || !DISABLED_VALUES.has(voiceRaw.toLowerCase());
+  const defaultRaw = readEnv("VOICE_SERVER_START_BY_DEFAULT");
+  const enabledRaw = voiceRaw ?? defaultRaw;
+  const enabled = enabledRaw === void 0 || !DISABLED_VALUES.has(enabledRaw.toLowerCase());
   const secretsPath = resolveSecretsPath();
   const envKey = readEnv("XAI_API_KEY");
   let apiKey;
@@ -19861,6 +19863,7 @@ var VoiceAgentServerControllerImpl = class extends StrictEventEmitter {
         const payload = message.data?.payload;
         if (payload === void 0 || !isJsonValue(payload)) break;
         this.emit("html.message", { payload, createdAt: /* @__PURE__ */ new Date() });
+        this.#notifyVoiceOfMessage(payload);
         break;
       }
       case "html.clear":
@@ -19917,7 +19920,19 @@ var VoiceAgentServerControllerImpl = class extends StrictEventEmitter {
     const xPct = click.width > 0 ? Math.round(click.x / click.width * 100) : 0;
     const yPct = click.height > 0 ? Math.round(click.y / click.height * 100) : 0;
     const text = `The user clicked an element on the visible screen (HTML stage): ${click.path} \u2014 at ${xPct}% from the left, ${yPct}% from the top of the viewport.`;
-    void this.injectSystemMessage({ text }).catch(() => {
+    void this.injectSystemMessage({ text, triggerResponse: true }).catch(() => {
+    });
+  }
+  // Mirror an HTML stage postMessage into the realtime conversation the same
+  // way clicks are mirrored: as a system message that triggers a response, so
+  // the voice agent reacts to what the mounted document just signalled. The
+  // payload is also surfaced as an `html.message` event for channel consumers.
+  // Best-effort: skip silently when there is no active/paused conversation.
+  #notifyVoiceOfMessage(payload) {
+    if (!this.#conversation) return;
+    if (this.#conversation.status !== "active" && this.#conversation.status !== "paused") return;
+    const text = `The visible screen (HTML stage) sent a message: ${JSON.stringify(payload)}`;
+    void this.injectSystemMessage({ text, triggerResponse: true }).catch(() => {
     });
   }
   #emitAudioChange() {
@@ -20285,7 +20300,9 @@ A colleague works with you the whole time, off-mic \u2014 the user only ever hea
 Reach them with \`check_with_colleague\`. Call it the moment you'd otherwise guess, stall, or say you don't know, can't do something, can't show an image, or have run out of topics. You pass nothing \u2014 they read the transcript and hand back the right \`<context>\` and \`<topics>\`, or update the screen. A short filler ("Let me check with my colleague.") while you wait is natural; refusing or claiming a limitation is not. Fold what comes back in as your own.
 
 ## The screen
-The user sees a screen your colleague controls \u2014 images, slides, diagrams, charts. You can't see it, but you're told when the user clicks something on it. So you can always show, draw, or display a visual, and you can speak to what's on screen or what the user clicked: just \`check_with_colleague\`. When the user means "this", "that", or "which one I clicked" and you're unsure, don't guess \u2014 \`check_with_colleague\`.`;
+The user sees a screen your colleague controls \u2014 images, slides, diagrams, charts. You can't see it, but you're told when the user clicks something on it or when the screen sends a message. So you can always show, draw, or display a visual, and you can speak to what's on screen or what the user clicked: just \`check_with_colleague\`. When the user means "this", "that", or "which one I clicked" and you're unsure, don't guess \u2014 \`check_with_colleague\`.
+
+If you don't know what a click or screen message represents, do not proactively bring it up to the user or narrate it. Stay silent on it, or quietly \`check_with_colleague\` to find out what it means before saying anything. Never announce a raw click or message you can't interpret.`;
 function buildChannelInstructions(port) {
   return `Voice conversations are available. The user starts one by opening http://localhost:${port} in a browser. If they cannot connect or something is not working, load the \`voice:handbook\` skill.`;
 }
@@ -20719,6 +20736,7 @@ async function createVoiceMcpServer(config, options = {}) {
   );
   const activateMessage = buildActivateMessage(config.watchTypes);
   let seq = 0;
+  let notifyTail = Promise.resolve();
   function emit(event, data, opts) {
     seq += 1;
     const record = { seq, event, timestamp: (/* @__PURE__ */ new Date()).toISOString(), data: serializeData(data) };
@@ -20730,10 +20748,12 @@ async function createVoiceMcpServer(config, options = {}) {
       emit(HTML_CLICKS_ABOUT_EVENT, { message: HTML_CLICKS_ABOUT_MESSAGE }, { forceNotify: true });
     }
     const { content, attrs } = channelMessage(record.event, record.data);
-    mcp.server.notification({
-      method: CHANNEL_METHOD,
-      params: { content, meta: { type: record.event, seq: String(record.seq), ...attrs } }
-    }).catch((err) => {
+    notifyTail = notifyTail.then(
+      () => mcp.server.notification({
+        method: CHANNEL_METHOD,
+        params: { content, meta: { type: record.event, seq: String(record.seq), ...attrs } }
+      })
+    ).catch((err) => {
       logger.logError("channel notification failed", { event, error: String(err) });
     });
   }

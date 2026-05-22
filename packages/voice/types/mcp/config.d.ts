@@ -19,7 +19,11 @@ export declare const DEFAULT_WATCH_TYPES: readonly ["transcript.item", "conversa
  */
 export declare function readEnv(name: string): string | undefined;
 export interface VoiceMcpConfig {
-    /** Whether the server is enabled. `false` only when `VOICE` is an explicit falsy value. */
+    /**
+     * Whether the server is enabled. Resolution precedence:
+     * `VOICE` (runtime override) → `VOICE_SERVER_START_BY_DEFAULT` → built-in
+     * default (start). A falsy value at the winning level disables the server.
+     */
     enabled: boolean;
     /** xAI API key forwarded to the realtime session (browser-proxied). */
     apiKey: string;

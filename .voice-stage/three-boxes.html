@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Three Boxes</title>
+<link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="min-h-screen bg-base-300 flex flex-col items-center justify-center gap-10 p-8">
+  <h1 class="text-3xl font-semibold text-base-content/80">Click a box</h1>
+  <div class="flex flex-wrap items-center justify-center gap-8">
+    <button data-box="1" class="box w-48 h-48 rounded-2xl bg-primary text-primary-content text-6xl font-bold shadow-xl transition-transform hover:scale-105 active:scale-95">1</button>
+    <button data-box="2" class="box w-48 h-48 rounded-2xl bg-secondary text-secondary-content text-6xl font-bold shadow-xl transition-transform hover:scale-105 active:scale-95">2</button>
+    <button data-box="3" class="box w-48 h-48 rounded-2xl bg-accent text-accent-content text-6xl font-bold shadow-xl transition-transform hover:scale-105 active:scale-95">3</button>
+  </div>
+  <p id="status" class="text-xl text-base-content/60 h-8">No box clicked yet</p>
+  <script>
+    document.querySelectorAll('.box').forEach(function (el) {
+      var n = el.getAttribute('data-box');
+      el.addEventListener('click', function () {
+        document.getElementById('status').textContent = 'You clicked box ' + n;
+        window.parent.postMessage({ type: 'box-click', box: n }, '*');
+      });
+      el.addEventListener('mouseenter', function () {
+        document.getElementById('status').textContent = 'Hovering box ' + n;
+        window.parent.postMessage({ type: 'box-hover', box: n }, '*');
+      });
+    });
+  </script>
+</body>
+</html>
