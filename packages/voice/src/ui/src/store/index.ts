@@ -1,6 +1,7 @@
 import { useStore as useZustandStore } from "zustand";
 import { persist, redux } from "zustand/middleware";
 import { createStore } from "zustand/vanilla";
+import type { XAIVoice } from "../../../xai-realtime-api.js";
 import type { Action } from "../actions.js";
 import { type AudioState, audioReducer, initialAudioState } from "./audio.js";
 import { type ConnectionState, connectionReducer, initialConnectionState } from "./connection.js";
@@ -51,16 +52,27 @@ export function reducer(state: RootState, action: Action): RootState {
 const store = createStore(
   persist(redux(reducer, initialState), {
     name: "voice:audio",
-    // Only the chosen input device survives reloads/reconnects; everything
-    // else (permission, device list, readiness) must be re-derived live.
-    partialize: (state) => ({ audio: { selectedDeviceId: state.audio.selectedDeviceId } }),
+    // Only the chosen input device and xAI voice survive reloads/reconnects;
+    // everything else (permission, device list, readiness, connection state)
+    // must be re-derived live.
+    partialize: (state) => ({
+      audio: { selectedDeviceId: state.audio.selectedDeviceId },
+      voice: { selectedVoice: state.voice.selectedVoice },
+    }),
     // Default persist merge is a shallow top-level spread, which would
-    // replace the entire `audio` slice with just `{ selectedDeviceId }`.
-    // Deep-merge so the rest of the freshly-initialized audio state stays intact.
+    // replace the entire `audio`/`voice` slices with just the saved fields.
+    // Deep-merge so the rest of the freshly-initialized state stays intact.
     merge: (persisted, current) => {
-      const saved = persisted as { audio?: { selectedDeviceId?: string | null } } | undefined;
+      const saved = persisted as
+        | { audio?: { selectedDeviceId?: string | null }; voice?: { selectedVoice?: XAIVoice | null } }
+        | undefined;
       const selectedDeviceId = saved?.audio?.selectedDeviceId ?? current.audio.selectedDeviceId;
-      return { ...current, audio: { ...current.audio, selectedDeviceId } };
+      const selectedVoice = saved?.voice?.selectedVoice ?? current.voice.selectedVoice;
+      return {
+        ...current,
+        audio: { ...current.audio, selectedDeviceId },
+        voice: { ...current.voice, selectedVoice },
+      };
     },
   }),
 );

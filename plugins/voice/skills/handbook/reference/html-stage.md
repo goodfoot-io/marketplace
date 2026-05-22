@@ -164,6 +164,26 @@ Use an absolute or CDN image URL — relative `<img>` paths 404 (see the no-asse
 </html>
 ```
 
+## Interactivity (`postMessageToHtml` / `html.message`)
+
+The stage is a two-way channel, not just a poster. You push arbitrary JSON in with `postMessageToHtml({ payload })` — the browser delivers it to the document's `window` `message` event — and the document pushes back out with `window.parent.postMessage(payload, location.origin)`, which arrives to you as an `html.message` channel event (default-watched). Payloads are passed verbatim; you define the contract.
+
+```html
+<script>
+  // Receive from the colleague:
+  window.addEventListener("message", (e) => {
+    if (e.origin !== location.origin) return;
+    render(e.data); // e.g. { highlight: "node-3" }
+  });
+  // Send back to the colleague (arrives as html.message):
+  document.querySelector("#buy").addEventListener("click", () => {
+    parent.postMessage({ action: "buy", id: 42 }, location.origin);
+  });
+</script>
+```
+
+`html.click` (element path + position of any click) arrives automatically; `html.message` is for the document's own structured signals. `postMessageToHtml` is a no-op when no HTML is mounted.
+
 ## Trust model
 
-The iframe is same-origin (served from the same host as the voice UI) and has no `sandbox` attribute — intentional. Scripts in the injected document can call any browser API, access `window.parent`, and interact with the page. Only inject HTML you control or trust.
+The iframe is same-origin (served from the same host as the voice UI) and has no `sandbox` attribute — intentional. Scripts in the injected document can call any browser API, access `window.parent`, and interact with the page. Only inject HTML you control or trust. The inbound `html.message` path accepts only same-origin messages whose source is the live stage window.

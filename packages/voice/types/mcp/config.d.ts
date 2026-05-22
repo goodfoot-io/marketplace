@@ -7,7 +7,7 @@
  * launched by an MCP client (e.g. Claude Code) over stdio with no arguments.
  */
 /** Default channel-notification event filter when `VOICE_SERVER_WATCH_TYPES` is unset. */
-export declare const DEFAULT_WATCH_TYPES: readonly ["transcript.item", "conversation.error", "browser.audio.error", "html.click"];
+export declare const DEFAULT_WATCH_TYPES: readonly ["transcript.item", "conversation.error", "browser.audio.error", "html.click", "html.message"];
 /**
  * Reads an environment variable, treating an empty string OR an unexpanded
  * `${VAR}` placeholder as unset. `.mcp.json` forwards optional vars as

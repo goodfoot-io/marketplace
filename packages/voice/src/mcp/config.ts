@@ -15,6 +15,7 @@ export const DEFAULT_WATCH_TYPES = [
   "conversation.error",
   "browser.audio.error",
   "html.click",
+  "html.message",
 ] as const;
 
 /** `VOICE` values (trimmed, lower-cased) that disable the server. Anything else enables it. */

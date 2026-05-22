@@ -1,5 +1,11 @@
-import type { BrowserAudioInputDevice, ServerEnvelope, TranscriptDeltaEvent, TranscriptItem } from "../../types.js";
-import type { XAIClientEvent } from "../../xai-realtime-api.js";
+import type {
+  BrowserAudioInputDevice,
+  JsonValue,
+  ServerEnvelope,
+  TranscriptDeltaEvent,
+  TranscriptItem,
+} from "../../types.js";
+import type { XAIClientEvent, XAIVoice } from "../../xai-realtime-api.js";
 
 // Wire-type name mappings (plan → actual exported names in types.ts):
 //  - plan `BroadcastState` → the `state` ServerEnvelope member's `data` payload (no such
@@ -102,6 +108,7 @@ export type Action =
   | { type: "ui/click/download-transcript" }
   | { type: "ui/key/escape" }
   | { type: "ui/select/mic-device"; deviceId: string }
+  | { type: "ui/select/voice"; voice: XAIVoice | null }
   | { type: "ui/scroll/transcript"; atBottom: boolean }
   | { type: "ui/click/setting"; id: string }
   | {
@@ -112,6 +119,10 @@ export type Action =
       height: number;
       path: string;
     }
+  // Inbound: the HTML iframe posted a message out to the parent.
+  | { type: "ui/html/message"; payload: JsonValue }
+  // Outbound: a host envelope asking us to postMessage into the HTML iframe.
+  | { type: "host/html/post-message"; payload: JsonValue }
   // Connection lifecycle (host WebSocket)
   | { type: "connection/status"; status: "connecting" | "connected" | "disconnected" | "error" }
   // Voice session lifecycle

@@ -17,6 +17,9 @@ export interface UiState {
   settingsInFlight: Set<string>;
   // Last invocation outcome per settings id (success/error surfaced inline).
   settingsResults: Map<string, SettingResult>;
+  // True while the avatar is waiting for context (wait_for_context). Drives the
+  // comet orbiting the connection indicator (replaces the old audio metronome).
+  waitingForContext: boolean;
 }
 
 export const initialUiState: UiState = {
@@ -26,6 +29,7 @@ export const initialUiState: UiState = {
   settings: [],
   settingsInFlight: new Set(),
   settingsResults: new Map(),
+  waitingForContext: false,
 };
 
 /** Shallow-equal two settings descriptor arrays by their wire-relevant fields. */
@@ -87,6 +91,10 @@ export function uiReducer(state: UiState, action: Action): UiState {
       settingsResults.set(action.id, { ok: action.ok, error: action.error });
       return { ...state, settingsInFlight, settingsResults };
     }
+    case "host/wait-for-context/start":
+      return state.waitingForContext ? state : { ...state, waitingForContext: true };
+    case "host/wait-for-context/end":
+      return state.waitingForContext ? { ...state, waitingForContext: false } : state;
     default:
       return state;
   }

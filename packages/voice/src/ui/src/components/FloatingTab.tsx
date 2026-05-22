@@ -3,6 +3,7 @@ import { dispatch, useStore } from "../store/index.js";
 import { EqBars } from "./EqBars.js";
 import { MicPicker } from "./MicPicker.js";
 import { SettingsPanel } from "./SettingsPanel.js";
+import { VoicePicker } from "./VoicePicker.js";
 
 type TabState = "idle" | "connecting" | "active" | "paused";
 
@@ -25,6 +26,7 @@ export function FloatingTab(): React.JSX.Element {
   const connectionStatus = useStore((s) => s.connection.status);
   const autoplayAllowed = useStore((s) => s.audio.autoplayAllowed);
   const moreActionsOpen = useStore((s) => s.ui.moreActionsOpen);
+  const waitingForContext = useStore((s) => s.ui.waitingForContext);
   const hasTranscript = useStore(
     (s) => (s.conversation.conversation?.transcript.length ?? 0) > 0,
   );
@@ -95,9 +97,12 @@ export function FloatingTab(): React.JSX.Element {
       {tabState === "active" ? <EqBars dimmed={false} /> : null}
 
       <div className="connection" title={`Local: ${connectionStatus} · xAI: ${xaiStatus}`}>
-        <span className="split-dot">
-          <span className={`split-dot-half top ${connectionStatus}`} />
-          <span className={`split-dot-half bottom ${xaiStatus}`} />
+        <span className="connection-dot">
+          <span className="split-dot">
+            <span className={`split-dot-half top ${connectionStatus}`} />
+            <span className={`split-dot-half bottom ${xaiStatus}`} />
+          </span>
+          {waitingForContext ? <span className="comet" aria-hidden="true" /> : null}
         </span>
       </div>
 
@@ -114,6 +119,7 @@ export function FloatingTab(): React.JSX.Element {
         {moreActionsOpen ? (
           <div className="more-actions-popover" data-more-actions>
             <MicPicker />
+            <VoicePicker />
             <button
               className="menu-item"
               type="button"

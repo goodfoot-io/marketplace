@@ -129,6 +129,12 @@ export interface VoiceAgentServerController<TTools extends VoiceAgentToolMap>
   cancelToolCall(callId: string): Promise<void>;
   updateVoiceSession(input: UpdateVoiceSessionInput<TTools>): Promise<void>;
   broadcastToBrowser(envelope: { type: string; data?: unknown }): void;
+  /**
+   * Push an arbitrary JSON payload to the mounted HTML document (via the
+   * browser, which `postMessage`s it into the same-origin iframe). Returns
+   * `{ delivered: false }` when no HTML is currently mounted.
+   */
+  postMessageToHtml(payload: JsonValue): { delivered: boolean };
 }
 
 export interface StopOptions {
@@ -339,6 +345,7 @@ export interface VoiceAgentServerEvents<TTools extends VoiceAgentToolMap> {
   "tool.call.interrupted": ToolCallInterruptedEvent<TTools>;
   "injected.error": InjectedErrorEvent;
   "html.click": HtmlClickEvent;
+  "html.message": HtmlMessageEvent;
   log: LogEvent;
 }
 
@@ -547,6 +554,11 @@ export interface HtmlClickEvent {
   createdAt: Date;
 }
 
+export interface HtmlMessageEvent {
+  payload: JsonValue;
+  createdAt: Date;
+}
+
 export type VoiceAgentServerErrorCode =
   | "SERVER_ALREADY_STARTED"
   | "SERVER_NOT_STARTED"
@@ -652,6 +664,7 @@ export type ServerEnvelope =
       };
     }
   | { type: "stage.injected"; data: { injectedVersion: number | null } }
+  | { type: "html.postMessage"; data: { payload: JsonValue } }
   | { type: "transcript.item"; data: TranscriptItem }
   | { type: "transcript.delta"; data: TranscriptDeltaEvent }
   | { type: "browser.audio.deviceChange"; data: BrowserAudioDeviceState }

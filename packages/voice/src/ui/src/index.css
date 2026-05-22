@@ -68,13 +68,18 @@ button:active:enabled {
 /* ── Floating tab (Q2/Q44) ────────────────────────────────────────────── */
 .floating-tab {
   position: fixed;
-  top: 16px;
+  top: 0;
   left: 16px;
   z-index: var(--z-tab, 100);
   display: flex;
   align-items: center;
   gap: 14px;
   pointer-events: all;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #fff;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
 }
 
 .floating-tab .icon-btn {
@@ -87,8 +92,8 @@ button:active:enabled {
   border: none;
   background: none;
   padding: 0;
-  color: var(--text-white);
-  opacity: 0.7;
+  color: #fff;
+  opacity: 1;
   cursor: pointer;
   transition: opacity 150ms, transform 80ms;
 }
@@ -155,6 +160,61 @@ button:active:enabled {
   border-radius: 50%;
   overflow: hidden;
   line-height: 0;
+}
+
+/* Wait-for-context indicator: a comet (head + fading trail) orbiting the
+   connection dot's border. Replaces the old audio metronome beep. The wrapper
+   is the orbit reference; the comet rides just outside the 8px dot. */
+.connection-dot {
+  position: relative;
+  display: inline-flex;
+  line-height: 0;
+}
+
+.connection-dot .comet {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: comet-orbit 1.8s linear infinite;
+}
+
+/* The trail: a thin ring whose opacity ramps from transparent up to the accent
+   at the head (12 o'clock); masked to just the border, not a filled disc. */
+.connection-dot .comet::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, transparent 280deg, var(--accent) 360deg);
+  -webkit-mask: radial-gradient(closest-side, #0000 calc(100% - 1.5px), #000 calc(100% - 1.5px));
+  mask: radial-gradient(closest-side, #0000 calc(100% - 1.5px), #000 calc(100% - 1.5px));
+}
+
+/* The head: a bright, glowing dot at the leading edge of the trail. */
+.connection-dot .comet::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  margin-left: -1.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 2px 0 var(--accent);
+}
+
+@keyframes comet-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connection-dot .comet {
+    animation: none;
+  }
 }
 
 .split-dot-half {

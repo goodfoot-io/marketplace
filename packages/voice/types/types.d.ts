@@ -117,6 +117,14 @@ export interface VoiceAgentServerController<TTools extends VoiceAgentToolMap> ex
         type: string;
         data?: unknown;
     }): void;
+    /**
+     * Push an arbitrary JSON payload to the mounted HTML document (via the
+     * browser, which `postMessage`s it into the same-origin iframe). Returns
+     * `{ delivered: false }` when no HTML is currently mounted.
+     */
+    postMessageToHtml(payload: JsonValue): {
+        delivered: boolean;
+    };
 }
 export interface StopOptions {
     conversationShutdownTimeoutMs?: number;
@@ -281,6 +289,7 @@ export interface VoiceAgentServerEvents<TTools extends VoiceAgentToolMap> {
     "tool.call.interrupted": ToolCallInterruptedEvent<TTools>;
     "injected.error": InjectedErrorEvent;
     "html.click": HtmlClickEvent;
+    "html.message": HtmlMessageEvent;
     log: LogEvent;
 }
 export interface ServerStartedEvent {
@@ -440,6 +449,10 @@ export interface HtmlClickEvent {
     path: string;
     createdAt: Date;
 }
+export interface HtmlMessageEvent {
+    payload: JsonValue;
+    createdAt: Date;
+}
 export type VoiceAgentServerErrorCode = "SERVER_ALREADY_STARTED" | "SERVER_NOT_STARTED" | "SERVER_START_FAILED" | "SERVER_STOP_FAILED" | "BROWSER_CLIENT_REQUIRED" | "BROWSER_CLIENT_ALREADY_CONNECTED" | "BROWSER_CLIENT_DISCONNECTED" | "MICROPHONE_PERMISSION_DENIED" | "MICROPHONE_DEVICE_UNAVAILABLE" | "MICROPHONE_DEVICE_ERROR" | "NO_CURRENT_CONVERSATION" | "CONVERSATION_ALREADY_ACTIVE" | "CONVERSATION_NOT_ACTIVE" | "CONVERSATION_NOT_PAUSED" | "CONVERSATION_START_FAILED" | "CONVERSATION_END_FAILED" | "CONVERSATION_RESET_FAILED" | "CONVERSATION_INVALID_STATE" | "MESSAGE_INJECTION_INVALID_STATE" | "MESSAGE_INJECTION_EMPTY_TEXT" | "MESSAGE_INJECTION_FAILED" | "MESSAGE_RESPONSE_TRIGGER_FAILED" | "TOOL_NOT_FOUND" | "TOOL_ARGUMENT_VALIDATION_FAILED" | "TOOL_EXECUTION_FAILED" | "TOOL_RESULT_SERIALIZATION_FAILED" | "TOOL_CALL_INTERRUPTED" | "SESSION_ERROR" | "SESSION_UPDATE_FAILED" | "CONFIG_INVALID" | "INTERNAL_INVARIANT_VIOLATION" | "INJECTED_FILE_UNREADABLE";
 export interface VoiceAgentServerErrorInput {
     code: VoiceAgentServerErrorCode;
@@ -496,6 +509,11 @@ export type ServerEnvelope = {
     type: "stage.injected";
     data: {
         injectedVersion: number | null;
+    };
+} | {
+    type: "html.postMessage";
+    data: {
+        payload: JsonValue;
     };
 } | {
     type: "transcript.item";

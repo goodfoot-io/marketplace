@@ -7,12 +7,13 @@ Detailed usage and troubleshooting for the voice MCP server. Match the situation
 
 ## Orientation
 
-The voice MCP tools may arrive deferred — load them by name with ToolSearch (`select:conversation,set,inject,html`) before calling:
+The voice MCP tools may arrive deferred — load them by name with ToolSearch (`select:conversation,set,inject,html,postMessageToHtml`) before calling:
 
 - `conversation({ action })` — `pause | resume | reset | status`. Start/end are automatic (below).
 - `set({ topics?, context?, personality?, instructions? })` — steer the live session. Use `topics`/`context`/`personality`; leave `instructions` unset (it's the startup persona).
 - `inject({ role, message, source?, triggerResponse? })` — low-level transcript insert; prefer `set` for steering.
 - `html({ path? })` — render an HTML file on disk as a full-viewport stage; call with no `path` to clear it.
+- `postMessageToHtml({ payload })` — send arbitrary JSON into the mounted HTML's `window` `message` event; it can post back as an `html.message` event. No-op if no HTML is up.
 
 Two facts shape everything below:
 

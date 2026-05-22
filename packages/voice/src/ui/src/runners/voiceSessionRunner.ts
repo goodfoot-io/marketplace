@@ -1,4 +1,4 @@
-import type { XAIClientEvent } from "../../../xai-realtime-api.js";
+import type { XAIClientEvent, XAISessionConfig } from "../../../xai-realtime-api.js";
 import type { VoiceToken } from "../actions.js";
 import { watchMicTrack } from "./deviceRunner.js";
 import { recordRawXaiFrame, sendToHost } from "./hostSocketRunner.js";
@@ -10,8 +10,7 @@ import type { RunnerDeps } from "./types.js";
  * `refreshAudio`/getUserMedia, `acquireMicStream`, `startMeters`,
  * `startConversation`, `establishVoiceSession`, `startMicEncoder`,
  * `playPcmDelta`, `forwardVoiceSend`, drain detection, barge-in cut,
- * pause/resume, `switchMicDevice`, the wait-for-context metronome, and
- * `teardownVoice`.
+ * pause/resume, `switchMicDevice`, and `teardownVoice`.
  *
  * Runner-private refs (NOT in the store): pendingSends, preOpenAudio,
  * deferredSends, all native refs, pauseCutTimer, drainCheckTimer,
@@ -130,8 +129,6 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
   // The autoplay probe still gates the click-driven start path; this only
   // bypasses the gate for the server-driven page-load connect.
   let connectOnPageLoadPrompted = false;
-  let metronomeCtx: AudioContext | undefined;
-  let metronomeTimer: ReturnType<typeof setInterval> | undefined;
   // Detaches the close/error listeners from the live xAI socket so a clean
   // teardown of a CONNECTED session does not re-enter failVoice via the
   // close handler reading the (already reset) refs (spurious
@@ -859,7 +856,21 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
       return;
     }
     const isSessionUpdate = event.type === "session.update";
-    const payload = JSON.stringify(event);
+    // Apply the user's persisted voice choice browser-side: rewrite the
+    // daemon's session.update so the daemon never has to know (or be told)
+    // which voice is selected. When no voice is chosen the daemon's configured
+    // voice passes through untouched.
+    let outgoing = event;
+    if (event.type === "session.update") {
+      const selectedVoice = getState().voice.selectedVoice;
+      if (selectedVoice) {
+        // The catch-all XAIClientEvent member widens `event.session` to
+        // `unknown` after narrowing, so re-assert the session config shape.
+        const session = event.session as XAISessionConfig;
+        outgoing = { ...event, session: { ...session, voice: selectedVoice } };
+      }
+    }
+    const payload = JSON.stringify(outgoing);
     const ws = refs.xaiWs;
     if (ws && getState().voice.xaiOpen) {
       try {
@@ -1000,45 +1011,6 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
         errStr(error) || "Could not switch microphone.",
         "Try a different device.",
       );
-    }
-  };
-
-  // ── Wait-for-context metronome (ports startMetronome/stopMetronome) ──────
-
-  const startMetronome = (): void => {
-    if (metronomeTimer) return;
-    if (!metronomeCtx) metronomeCtx = new AudioContext();
-    if (metronomeCtx.state === "suspended") {
-      metronomeCtx.resume().catch((error: unknown) =>
-        dispatch({
-          type: "browser/window/error",
-          message: `metronome.resume.failed: ${errStr(error)}`,
-        }),
-      );
-    }
-    const click = (): void => {
-      const ctx = metronomeCtx;
-      if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = 880;
-      const now = ctx.currentTime;
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.05, now + 0.005);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.1);
-    };
-    click();
-    metronomeTimer = setInterval(click, 2000);
-  };
-
-  const stopMetronome = (): void => {
-    if (metronomeTimer) {
-      clearInterval(metronomeTimer);
-      metronomeTimer = undefined;
     }
   };
 
@@ -1195,6 +1167,16 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
       case "ui/select/mic-device":
         void switchMicDevice(action.deviceId);
         break;
+      case "ui/select/voice":
+        // Apply the new voice to a live session immediately via a minimal
+        // session.update (a merge patch — only the voice field changes). xAI
+        // may ignore a mid-stream voice swap; if so it still takes on the next
+        // start/reset. When not connected, nothing is sent here — the persisted
+        // choice is applied by forwardVoiceSend on the next session.update.
+        if (action.voice && getState().voice.xaiOpen) {
+          forwardVoiceSend({ type: "session.update", session: { voice: action.voice } });
+        }
+        break;
       case "host/voice/session/token":
         void establishVoiceSession(action.token).catch((error: unknown) => {
           failVoice("VOICE_SETUP_FAILED", errStr(error));
@@ -1244,12 +1226,8 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
         }
         break;
       }
-      case "host/wait-for-context/start":
-        startMetronome();
-        break;
-      case "host/wait-for-context/end":
-        stopMetronome();
-        break;
+      // wait_for_context start/end are reduced into `ui.waitingForContext`
+      // (drives the connection-indicator comet); the runner needs no audio cue.
       // Q18: barge-in. The raw xAI action is dispatched first by the WS
       // handler; this listener then enqueues voice/playback/cut, which the
       // queue drains after all raw-action listeners (incl. voice.event
@@ -1292,7 +1270,6 @@ export function createVoiceSessionRunner({ dispatch, subscribeToActions, getStat
 
   return () => {
     unsubscribe();
-    stopMetronome();
     teardownVoice();
   };
 }

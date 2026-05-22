@@ -1,3 +1,4 @@
+import type { XAIVoice } from "../../../xai-realtime-api.js";
 import type { Action } from "../actions.js";
 
 export interface VoiceState {
@@ -19,6 +20,10 @@ export interface VoiceState {
   nextPlaybackTime: number;
   playbackEndsAt: number;
   deferredSendsPending: boolean;
+  // User-selected xAI voice, persisted across reloads like the mic device id.
+  // null = no explicit choice; the daemon's configured voice is used as-is
+  // (the runner only overrides the forwarded session.update when this is set).
+  selectedVoice: XAIVoice | null;
 }
 
 export const initialVoiceState: VoiceState = {
@@ -33,6 +38,7 @@ export const initialVoiceState: VoiceState = {
   nextPlaybackTime: 0,
   playbackEndsAt: 0,
   deferredSendsPending: false,
+  selectedVoice: null,
 };
 
 export function voiceReducer(state: VoiceState, action: Action): VoiceState {
@@ -97,6 +103,9 @@ export function voiceReducer(state: VoiceState, action: Action): VoiceState {
     case "voice/paused":
       if (state.paused === action.paused) return state;
       return { ...state, paused: action.paused };
+    case "ui/select/voice":
+      if (state.selectedVoice === action.voice) return state;
+      return { ...state, selectedVoice: action.voice };
     case "voice/playback/cursor":
       return {
         ...state,

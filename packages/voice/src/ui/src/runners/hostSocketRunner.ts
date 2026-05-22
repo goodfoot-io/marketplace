@@ -110,6 +110,8 @@ function envelopeToActions(message: ServerEnvelope): Action[] {
       ];
     case "stage.injected":
       return [{ type: "host/stage", data: message.data }];
+    case "html.postMessage":
+      return [{ type: "host/html/post-message", payload: message.data.payload }];
     case "wait_for_context.start":
       return [{ type: "host/wait-for-context/start" }];
     case "wait_for_context.end":
@@ -236,6 +238,21 @@ export function createHostSocketRunner({ dispatch, subscribeToActions, getState 
         height: action.height,
         path: action.path,
       });
+    }
+
+    // Inbound: the stage iframe posted a message out (App validated its
+    // origin+source) — relay the payload to the host as `html.message`, which
+    // the controller emits on the channel.
+    if (action.type === "ui/html/message") {
+      sendToHost("html.message", { payload: action.payload });
+    }
+
+    // Outbound: the host asked us to deliver a payload into the stage iframe.
+    // The same-origin iframe is the only `.injected-stage`; post to its window
+    // with our own origin as targetOrigin. No-op if the stage isn't mounted.
+    if (action.type === "host/html/post-message") {
+      const iframe = document.querySelector<HTMLIFrameElement>("iframe.injected-stage");
+      iframe?.contentWindow?.postMessage(action.payload, window.location.origin);
     }
 
     // Wire-log middleware: every dispatched action → browser.debug, except

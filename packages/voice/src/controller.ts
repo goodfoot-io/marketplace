@@ -75,6 +75,7 @@ type BrowserEnvelope =
       type: "html.click";
       data?: { x?: unknown; y?: unknown; width?: unknown; height?: unknown; path?: unknown };
     }
+  | { type: "html.message"; data?: { payload?: unknown } }
   | { type: "browser.debug"; data?: { label?: unknown; info?: unknown; t?: unknown } };
 
 type RealtimeGate = "playback-drained";
@@ -556,6 +557,16 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
     throw this.#fail("CONFIG_INVALID", "setHtml() requires { html }, { path }, or null.", {
       received: input === null ? "null" : typeof input,
     });
+  }
+
+  postMessageToHtml(payload: JsonValue): { delivered: boolean } {
+    // Only deliver while an HTML document is mounted — there is no iframe to
+    // receive the message otherwise. The browser `postMessage`s it into the
+    // same-origin stage iframe; an HTML document with a `message` listener
+    // reacts. Fire-and-forget: we report only that it was dispatched.
+    if (this.#injectedHtml === null) return { delivered: false };
+    this.#broadcast({ type: "html.postMessage", data: { payload } });
+    return { delivered: true };
   }
 
   #teardownInjected(): void {
@@ -1212,7 +1223,12 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
 
     let parsedJson: JsonValue;
     try {
-      parsedJson = JSON.parse(event.arguments) as JsonValue;
+      // A no-parameter tool call (e.g. pause_conversation, check_with_colleague)
+      // often arrives with empty arguments — xAI emits "" rather than "{}" — and
+      // `JSON.parse("")` throws, which would fail the call before its executor
+      // ever runs (the tool silently does nothing). Treat blank arguments as an
+      // empty object so argument-less tools execute.
+      parsedJson = JSON.parse(event.arguments.trim() === "" ? "{}" : event.arguments) as JsonValue;
     } catch (cause) {
       const error = toVoiceError(
         "TOOL_ARGUMENT_VALIDATION_FAILED",
@@ -1904,6 +1920,16 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
           break;
         }
         this.emit("html.click", { x, y, width, height, path, createdAt: new Date() });
+        this.#notifyVoiceOfClick({ x, y, width, height, path });
+        break;
+      }
+      case "html.message": {
+        // The mounted HTML document posted a message out to its parent; relay
+        // the arbitrary JSON payload as an `html.message` event (the channel
+        // notification the colleague receives). Drop non-JSON payloads.
+        const payload = message.data?.payload;
+        if (payload === undefined || !isJsonValue(payload)) break;
+        this.emit("html.message", { payload, createdAt: new Date() });
         break;
       }
       case "browser.audio.error": {
@@ -1945,6 +1971,26 @@ class VoiceAgentServerControllerImpl<const TTools extends VoiceAgentToolMap>
       });
       this.#broadcast({ type: "settings.result", data: { id, ok: false, error: error.message } });
     }
+  }
+
+  // Mirror an in-stage click into the realtime conversation as a system
+  // message so the voice agent is aware of what the user just pointed at on
+  // the visible HTML, in addition to the `html.click` event consumers (e.g.
+  // the MCP channel notification) already receive. Best-effort: when there is
+  // no active/paused conversation there is nowhere to inject, so we skip
+  // silently rather than emit a spurious conversation.error.
+  #notifyVoiceOfClick(click: { x: number; y: number; width: number; height: number; path: string }): void {
+    if (!this.#conversation) return;
+    if (this.#conversation.status !== "active" && this.#conversation.status !== "paused") return;
+    const xPct = click.width > 0 ? Math.round((click.x / click.width) * 100) : 0;
+    const yPct = click.height > 0 ? Math.round((click.y / click.height) * 100) : 0;
+    const text = `The user clicked an element on the visible screen (HTML stage): ${click.path} — at ${xPct}% from the left, ${yPct}% from the top of the viewport.`;
+    // injectSystemMessage does not trigger a model response: the click becomes
+    // context for the agent's next turn rather than forcing it to speak.
+    void this.injectSystemMessage({ text }).catch(() => {
+      // The click is already surfaced as an html.click event; a failed
+      // injection must not break the browser message loop.
+    });
   }
 
   #emitAudioChange(): void {

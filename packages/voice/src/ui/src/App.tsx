@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import type { JsonValue } from "../../types.js";
 import { DuplicateClientScreen } from "./components/DuplicateClientScreen.js";
 import { FloatingTab } from "./components/FloatingTab.js";
 import { InstructionsModal } from "./components/InstructionsModal.js";
@@ -91,7 +92,13 @@ export function App(): React.JSX.Element {
   // re-attaches cleanly. The ref keeps the detacher reachable for unmount.
   const detachStageClickRef = useRef<(() => void) | null>(null);
 
+  // The live stage iframe element, captured on load. Used to validate the
+  // source of inbound postMessages (only the real stage window may drive
+  // `ui/html/message`) — see the window `message` listener below.
+  const stageIframeRef = useRef<HTMLIFrameElement | null>(null);
+
   const attachStageClick = useCallback((iframe: HTMLIFrameElement): void => {
+    stageIframeRef.current = iframe;
     detachStageClickRef.current?.();
     detachStageClickRef.current = null;
     const doc = iframe.contentDocument;
@@ -99,7 +106,11 @@ export function App(): React.JSX.Element {
     if (!doc || !win) return;
     const onClick = (event: MouseEvent): void => {
       const target = event.composedPath()[0];
-      if (!(target instanceof Element)) return;
+      // The same-origin stage iframe is a SEPARATE JS realm, so its elements are
+      // instances of the iframe's `Element` (`win.Element`), not the parent
+      // window's. A bare `instanceof Element` is always false here, dropping
+      // every stage click. Test against the iframe realm's constructor.
+      if (!(target instanceof win.Element)) return;
       dispatch({
         type: "ui/html/click",
         x: Math.round(event.clientX),
@@ -118,12 +129,28 @@ export function App(): React.JSX.Element {
     if (injectedVersion == null) {
       detachStageClickRef.current?.();
       detachStageClickRef.current = null;
+      stageIframeRef.current = null;
     }
     return () => {
       detachStageClickRef.current?.();
       detachStageClickRef.current = null;
     };
   }, [injectedVersion]);
+
+  // Inbound HTML→colleague channel: the stage document may `postMessage` out to
+  // its parent (window.parent.postMessage(payload, origin)). Accept only
+  // same-origin messages whose source IS the live stage iframe window — this
+  // keeps other frames, extensions, and cross-origin senders from driving the
+  // channel — and relay the payload as `ui/html/message`.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent): void => {
+      if (event.origin !== window.location.origin) return;
+      if (event.source !== stageIframeRef.current?.contentWindow) return;
+      dispatch({ type: "ui/html/message", payload: event.data as JsonValue });
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   if (duplicateClient) {
     return <DuplicateClientScreen />;

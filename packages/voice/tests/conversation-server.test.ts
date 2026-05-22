@@ -21,6 +21,8 @@ type ConversationController = {
   pauseConversation: () => Promise<void>;
   resumeConversation: () => Promise<void>;
   requestResponse: () => Promise<void>;
+  setHtml: (input: { html: string } | { path: string } | null) => Promise<void>;
+  postMessageToHtml: (payload: unknown) => { delivered: boolean };
   readonly realtimeConnected: boolean;
   readonly responseInFlight: boolean;
   readonly status: { conversation: string };
@@ -201,6 +203,31 @@ runIfSourceExists("createVoiceAgentServer", () => {
     }
   });
 
+  it("pauses the conversation when the model calls the built-in pause_conversation tool", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const paused: unknown[] = [];
+    const controller = await makeController({ __voiceFactory: () => fakeRealtime });
+    controller.on("conversation.paused", (event) => paused.push(event));
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+    expect(controller.status.conversation).toBe("active");
+
+    // The model emits EMPTY arguments for an argument-less tool ("" not "{}").
+    // This must still execute the tool, not fail at JSON.parse.
+    fakeRealtime.emit("response.function_call_arguments.done", {
+      item_id: "tool_p",
+      call_id: "call_p",
+      name: "pause_conversation",
+      arguments: "",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(controller.status.conversation).toBe("paused");
+    expect(paused).toHaveLength(1);
+    browser.close();
+  });
+
   it("executes realtime function calls through configured zod-backed tools", async () => {
     const fakeRealtime = new FakeRealtimeConnection();
     const completed: unknown[] = [];
@@ -240,6 +267,116 @@ runIfSourceExists("createVoiceAgentServer", () => {
         output: JSON.stringify({ remembered: "alpha" }),
       },
     });
+    browser.close();
+  });
+
+  it("mirrors an in-stage click into a system message and still emits html.click", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const clicks: unknown[] = [];
+    const controller = await makeController({ __voiceFactory: () => fakeRealtime });
+    controller.on("html.click", (event) => clicks.push(event));
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openReadyBrowserClient(controller);
+
+    const sentBefore = fakeRealtime.sent.length;
+    browser.send(
+      JSON.stringify({
+        type: "html.click",
+        data: { x: 30, y: 90, width: 300, height: 600, path: "div.card > button.buy" },
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // The MCP-facing event still fires.
+    expect(clicks).toHaveLength(1);
+    expect(clicks[0]).toMatchObject({ path: "div.card > button.buy", x: 30, y: 90 });
+
+    // A system message describing the click is sent to the realtime connection.
+    const sentAfter = fakeRealtime.sent.slice(sentBefore);
+    const systemItem = sentAfter.find(
+      (msg) =>
+        (msg as { type?: string }).type === "conversation.item.create" &&
+        (msg as { item?: { role?: string } }).item?.role === "system",
+    ) as { item: { content: { text: string }[] } } | undefined;
+    expect(systemItem).toBeDefined();
+    expect(systemItem?.item.content[0]?.text).toContain("div.card > button.buy");
+    expect(systemItem?.item.content[0]?.text).toContain("10% from the left");
+    expect(systemItem?.item.content[0]?.text).toContain("15% from the top");
+
+    // The click must not trigger a model response on its own.
+    expect(sentAfter.some((msg) => (msg as { type?: string }).type === "response.create")).toBe(false);
+    browser.close();
+  });
+
+  it("surfaces an in-stage click with no active conversation without injecting or erroring", async () => {
+    const fakeRealtime = new FakeRealtimeConnection();
+    const errors: unknown[] = [];
+    const clicks: unknown[] = [];
+    const controller = await makeController({ __voiceFactory: () => fakeRealtime });
+    controller.on("conversation.error", (event) => errors.push(event));
+    controller.on("html.click", (event) => clicks.push(event));
+    await controller.start();
+    controllers.push(controller);
+    // Open a browser client but never start a conversation.
+    const browser = await openBrowserClient(controller.__testPort);
+
+    const sentBefore = fakeRealtime.sent.length;
+    browser.send(
+      JSON.stringify({
+        type: "html.click",
+        data: { x: 10, y: 10, width: 100, height: 100, path: "button" },
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(clicks).toHaveLength(1); // event still surfaced to consumers
+    expect(errors).toHaveLength(0); // no spurious conversation.error
+    expect(fakeRealtime.sent.slice(sentBefore)).toHaveLength(0); // nothing injected
+    browser.close();
+  });
+
+  it("postMessageToHtml broadcasts html.postMessage to the browser when HTML is mounted", async () => {
+    const controller = await makeController();
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openBrowserClient(controller.__testPort);
+    await controller.setHtml({ html: "<p>hi</p>" });
+
+    const received: Array<{ type: string; data?: { payload?: unknown } }> = [];
+    browser.on("message", (raw) => {
+      const msg = JSON.parse(String(raw)) as { type: string; data?: { payload?: unknown } };
+      if (msg.type === "html.postMessage") received.push(msg);
+    });
+
+    const result = controller.postMessageToHtml({ hello: "world" });
+    expect(result).toEqual({ delivered: true });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(received).toContainEqual({ type: "html.postMessage", data: { payload: { hello: "world" } } });
+    browser.close();
+  });
+
+  it("postMessageToHtml is a no-op returning delivered:false when no HTML is mounted", async () => {
+    const controller = await makeController();
+    await controller.start();
+    controllers.push(controller);
+    expect(controller.postMessageToHtml({ x: 1 })).toEqual({ delivered: false });
+  });
+
+  it("relays an inbound html.message browser envelope as an html.message event", async () => {
+    const controller = await makeController();
+    const messages: Array<{ payload: unknown }> = [];
+    controller.on("html.message", (event) => messages.push(event as { payload: unknown }));
+    await controller.start();
+    controllers.push(controller);
+    const browser = await openBrowserClient(controller.__testPort);
+
+    browser.send(JSON.stringify({ type: "html.message", data: { payload: { from: "html", n: 3 } } }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ payload: { from: "html", n: 3 } });
     browser.close();
   });
 
