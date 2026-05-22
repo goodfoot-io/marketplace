@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.0
+- Fixed Worktree command hooks to emit a bare path instead of a wrapped value
+
 ## 1.3.3
 - Added Windows support: the CLI now works cross-platform
 
