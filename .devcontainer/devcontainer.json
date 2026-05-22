@@ -16,7 +16,7 @@
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "jackiotyu.git-worktree-manager",
-        "yutengjing.vscode-mcp-bridge"
+        ".devcontainer/no-port-forwarding"
       ],
       "settings": {
         "git.path": "/usr/bin/git",
@@ -46,7 +46,8 @@
         "typescript.preferences.includePackageJsonAutoImports": "off",
         "typescript.disableAutomaticTypeAcquisition": false,
         "typescript.tsserver.useSyntaxServer": "auto",
-        "terminal.integrated.enableBell": true
+        "terminal.integrated.enableBell": true,
+        "remote.autoForwardPorts": false
       }
     }
   },
