@@ -1,6 +1,10 @@
 # Changelog
 
 ## 1.5.0
+- Updated to Claude Agent SDK 0.3.148, with hook input/output types regenerated to match the latest SDK
+- Minor improvements and bug fixes
+
+## 1.5.0
 - Added `PostToolBatch` hook type for handling a whole batch of tool calls in a single hook (SDK 0.3.x)
 - Added `postToolBatchHook` factory and `postToolBatchOutput` builder
 - Added first-class typed support and type guards for 16 new tools: `TaskCreate`, `TaskGet`, `TaskList`, `TaskUpdate`, `CronCreate`, `CronDelete`, `CronList`, `ScheduleWakeup`, `Monitor`, `RemoteTrigger`, `PushNotification`, `EnterPlanMode`, `EnterWorktree`, `ExitWorktree`, `REPL`, and `Workflow`
