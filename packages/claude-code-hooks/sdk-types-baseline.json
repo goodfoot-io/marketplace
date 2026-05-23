@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.2.117",
-  "extractedAt": "2026-04-21T23:10:05.082Z",
+  "sdkPackage": "@anthropic-ai/claude-agent-sdk@0.3.149",
+  "extractedAt": "2026-05-22T22:50:52.951Z",
   "types": {
     "BaseHookInput": {
       "kind": "type-alias",
@@ -20,6 +20,11 @@
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "permission_mode",
@@ -55,6 +60,11 @@
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "hook_event_name",
@@ -110,6 +120,16 @@
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "duration_ms",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "hook_event_name",
@@ -172,6 +192,16 @@
           "optional": false
         },
         {
+          "name": "duration_ms",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
+        },
+        {
           "name": "error",
           "type": "string",
           "optional": false
@@ -218,6 +248,56 @@
         }
       ]
     },
+    "PostToolBatchHookInput": {
+      "kind": "type-alias",
+      "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "agent_type",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "cwd",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
+        },
+        {
+          "name": "hook_event_name",
+          "type": "'PostToolBatch'",
+          "optional": false
+        },
+        {
+          "name": "permission_mode",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_id",
+          "type": "string",
+          "optional": false
+        },
+        {
+          "name": "tool_calls",
+          "type": "PostToolBatchToolCall[]",
+          "optional": false
+        },
+        {
+          "name": "transcript_path",
+          "type": "string",
+          "optional": false
+        }
+      ]
+    },
     "NotificationHookInput": {
       "kind": "type-alias",
       "properties": [
@@ -235,6 +315,11 @@
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "hook_event_name",
@@ -292,6 +377,11 @@
           "optional": false
         },
         {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
+        },
+        {
           "name": "hook_event_name",
           "type": "'UserPromptSubmit'",
           "optional": false
@@ -340,6 +430,11 @@
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "hook_event_name",
@@ -392,6 +487,11 @@
           "optional": false
         },
         {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
+        },
+        {
           "name": "hook_event_name",
           "type": "'SessionEnd'",
           "optional": false
@@ -432,9 +532,19 @@
           "optional": true
         },
         {
+          "name": "background_tasks",
+          "type": "BackgroundTaskSummary[]",
+          "optional": true
+        },
+        {
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "hook_event_name",
@@ -449,6 +559,11 @@
         {
           "name": "permission_mode",
           "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_crons",
+          "type": "SessionCronSummary[]",
           "optional": true
         },
         {
@@ -485,6 +600,11 @@
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "hook_event_name",
@@ -527,9 +647,19 @@
           "optional": false
         },
         {
+          "name": "background_tasks",
+          "type": "BackgroundTaskSummary[]",
+          "optional": true
+        },
+        {
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "hook_event_name",
@@ -544,6 +674,11 @@
         {
           "name": "permission_mode",
           "type": "string",
+          "optional": true
+        },
+        {
+          "name": "session_crons",
+          "type": "SessionCronSummary[]",
           "optional": true
         },
         {
@@ -585,6 +720,11 @@
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "hook_event_name",
@@ -630,6 +770,11 @@
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "hook_event_name",
@@ -687,6 +832,11 @@
           "optional": false
         },
         {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
+        },
+        {
           "name": "hook_event_name",
           "type": "'Setup'",
           "optional": false
@@ -730,6 +880,11 @@
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "hook_event_name",
@@ -780,6 +935,11 @@
           "name": "cwd",
           "type": "string",
           "optional": false
+        },
+        {
+          "name": "effort",
+          "type": "{\r\n        /**\r\n         * Active effort level for the current turn (e.g., \"low\", \"medium\", \"high\", \"xhigh\", \"max\"), after any silent downgrade for the selected model. Also exposed to hook commands and Bash as the CLAUDE_EFFORT env var.\r\n         */\r\n        level: string;\r\n    }",
+          "optional": true
         },
         {
           "name": "hook_event_name",
@@ -834,6 +994,7 @@
         "PreToolUseHookInput",
         "PostToolUseHookInput",
         "PostToolUseFailureHookInput",
+        "PostToolBatchHookInput",
         "NotificationHookInput",
         "UserPromptSubmitHookInput",
         "SessionStartHookInput",
@@ -871,7 +1032,7 @@
     },
     "HookEvent": {
       "kind": "literal",
-      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"Notification\" | \"UserPromptSubmit\" | \"UserPromptExpansion\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"StopFailure\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PostCompact\" | \"PermissionRequest\" | \"PermissionDenied\" | \"Setup\" | \"TeammateIdle\" | \"TaskCreated\" | \"TaskCompleted\" | \"Elicitation\" | \"ElicitationResult\" | \"ConfigChange\" | \"WorktreeCreate\" | \"WorktreeRemove\" | \"InstructionsLoaded\" | \"CwdChanged\" | \"FileChanged\""
+      "literalType": "\"PreToolUse\" | \"PostToolUse\" | \"PostToolUseFailure\" | \"PostToolBatch\" | \"Notification\" | \"UserPromptSubmit\" | \"UserPromptExpansion\" | \"SessionStart\" | \"SessionEnd\" | \"Stop\" | \"StopFailure\" | \"SubagentStart\" | \"SubagentStop\" | \"PreCompact\" | \"PostCompact\" | \"PermissionRequest\" | \"PermissionDenied\" | \"Setup\" | \"TeammateIdle\" | \"TaskCreated\" | \"TaskCompleted\" | \"Elicitation\" | \"ElicitationResult\" | \"ConfigChange\" | \"WorktreeCreate\" | \"WorktreeRemove\" | \"InstructionsLoaded\" | \"CwdChanged\" | \"FileChanged\""
     },
     "NotificationHookSpecificOutput": {
       "kind": "type-alias",

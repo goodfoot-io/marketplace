@@ -67,6 +67,7 @@ const EVENT_TO_OUTPUT_FUNCTION: Record<HookEventName, string> = {
   PreToolUse: "preToolUseOutput",
   PostToolUse: "postToolUseOutput",
   PostToolUseFailure: "postToolUseFailureOutput",
+  PostToolBatch: "postToolBatchOutput",
   Notification: "notificationOutput",
   UserPromptExpansion: "userPromptExpansionOutput",
   UserPromptSubmit: "userPromptSubmitOutput",
@@ -168,7 +169,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
       "@goodfoot/claude-code-hooks": "^1.0.9",
     },
     devDependencies: {
-      "@biomejs/biome": "2.4.12",
+      "@biomejs/biome": "2.4.15",
       "@types/node": "^22.0.0",
       typescript: "^5.9.3",
       vitest: "^4.0.16",
@@ -215,7 +216,7 @@ function generateTsConfig(): string {
  */
 function generateBiomeConfig(): string {
   return `{
-  "$schema": "https://biomejs.dev/schemas/2.4.12/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -345,6 +346,7 @@ function generateHookTemplate(eventName: HookEventName): string {
       break;
     case "PostToolUse":
     case "PostToolUseFailure":
+    case "PostToolBatch":
       returnStatement = `return ${outputName}({
     systemMessage: "${eventName} hook processed the result.",
     hookSpecificOutput: { additionalContext: "Hook completed successfully." },

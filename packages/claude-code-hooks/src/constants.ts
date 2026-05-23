@@ -12,6 +12,7 @@ export const HOOK_FACTORY_TO_EVENT: Record<string, HookEventName> = {
   preToolUseHook: "PreToolUse",
   postToolUseHook: "PostToolUse",
   postToolUseFailureHook: "PostToolUseFailure",
+  postToolBatchHook: "PostToolBatch",
   notificationHook: "Notification",
   userPromptExpansionHook: "UserPromptExpansion",
   userPromptSubmitHook: "UserPromptSubmit",

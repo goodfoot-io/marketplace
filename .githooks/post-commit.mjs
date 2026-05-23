@@ -554,12 +554,13 @@ async function executeTransaction(registryPath, lockPath, operation, pruner, def
 // ../../../public/packages/claude-code-sessions/src/process-tree.ts
 import { execSync } from "node:child_process";
 var PROCESS_TREE_MAX_DEPTH = 10;
-var SHELL_COMMS = /* @__PURE__ */ new Set(["bash", "zsh", "sh", "dash", "fish", "ksh"]);
-function getComm(pid) {
+var AGENT_ARGS_PATTERNS = [/((^|\s|\/)claude(\/|\s|$))/i, /((^|\s|\/)codex(\/|\s|$))/i];
+function isSupportedAgent(pid) {
   try {
-    return execSync(`ps -p ${pid} -o comm=`, { encoding: "utf8" }).trim();
+    const args = execSync(`ps -p ${pid} -o args=`, { encoding: "utf8" }).trim();
+    return AGENT_ARGS_PATTERNS.some((pattern) => pattern.test(args));
   } catch {
-    return null;
+    return false;
   }
 }
 function getParentPid(pid) {
@@ -572,17 +573,19 @@ function getParentPid(pid) {
     return null;
   }
 }
-function findAgentPid(startPid) {
+function findAllAgentPids(startPid) {
+  const results = [];
   let pid = startPid ?? process.ppid;
   for (let depth = 0; depth < PROCESS_TREE_MAX_DEPTH; depth++) {
-    if (pid <= 1) return null;
-    const comm = getComm(pid);
-    if (comm !== null && !SHELL_COMMS.has(comm)) return pid;
+    if (pid <= 1) break;
+    if (isSupportedAgent(pid)) {
+      results.push(pid);
+    }
     const parentPid = getParentPid(pid);
-    if (parentPid === null) return null;
+    if (parentPid === null) break;
     pid = parentPid;
   }
-  return null;
+  return results;
 }
 
 // ../../../public/packages/claude-code-sessions/src/index.ts
@@ -660,25 +663,19 @@ import { execFileSync as execFileSync2, spawnSync } from "node:child_process";
 import { readFileSync as readFileSync2 } from "node:fs";
 import { join as join2 } from "node:path";
 var debug = process.env["CARDS_DEBUG"] === "1";
-function readWorktreeCardIdFile(worktreeRoot) {
+function readCardBoundCardId(worktreeRoot) {
   try {
     const content = readFileSync2(join2(worktreeRoot, ".cards", "CARD_ID"), "utf-8").trim();
-    return content.length > 0 ? content : null;
+    return content.length > 0 ? content : "empty";
   } catch (error) {
-    if (error.code === "ENOENT") return null;
-    throw error;
+    if (error.code === "ENOENT") return "missing";
+    if (debug)
+      process.stderr.write(
+        `cards-hook: failed to read .cards/CARD_ID: ${error instanceof Error ? error.message : String(error)}
+`
+      );
+    return "unreadable";
   }
-}
-function resolveCardId(worktreeRoot) {
-  const envCardId = process.env["CARD_ID"]?.trim();
-  if (envCardId && envCardId.length > 0) {
-    return { cardId: envCardId, source: "env" };
-  }
-  const fileCardId = readWorktreeCardIdFile(worktreeRoot);
-  if (fileCardId !== null) {
-    return { cardId: fileCardId, source: "worktree-file" };
-  }
-  return null;
 }
 var SHA_PATTERN = /^[0-9a-f]{40}$/i;
 function isValidSha(sha) {
@@ -750,18 +747,17 @@ async function resolveSessionId(logger2) {
     });
     return envSessionId;
   }
-  const agentPid = findAgentPid();
+  const agentPids = findAllAgentPids();
   logger2?.info("workspace/hook: CARDS_SESSION_ID not set, falling back to PID walk", {
-    agentPid
+    agentPidCount: agentPids.length,
+    agentPids
   });
-  if (agentPid === null) {
-    logger2?.warn("workspace/hook: session ID could not be resolved from env or PID walk");
-    return null;
-  }
-  const sessionId = await getSessionIdForPid(agentPid);
-  if (sessionId) {
-    logger2?.info("workspace/hook: session ID resolved from PID", { pid: agentPid, sessionId });
-    return sessionId;
+  for (const pid of agentPids) {
+    const sessionId = await getSessionIdForPid(pid);
+    if (sessionId) {
+      logger2?.info("workspace/hook: session ID resolved from PID", { pid, sessionId });
+      return sessionId;
+    }
   }
   logger2?.warn("workspace/hook: session ID could not be resolved from env or PID walk");
   return null;
@@ -839,12 +835,12 @@ async function main() {
     cleanEnv ??= buildCleanEnv();
     return cleanEnv;
   };
-  const resolved = resolveCardId(worktreePath);
-  const cardId = resolved?.cardId ?? null;
+  const cardIdResult = readCardBoundCardId(worktreePath);
+  const cardId = cardIdResult !== "missing" && cardIdResult !== "empty" && cardIdResult !== "unreadable" ? cardIdResult : null;
   logger2.info("workspace/post-commit: running", {
     sha,
     cardId,
-    cardIdSource: resolved?.source ?? "unresolved"
+    markerState: cardId !== null ? "present" : cardIdResult
   });
   const sessionId = await resolveSessionId(logger2);
   logger2.info("workspace/post-commit: session ID resolution complete", {
@@ -857,50 +853,44 @@ async function main() {
     logger2.close();
     return;
   }
-  const agentPid = findAgentPid();
-  if (agentPid === null) {
+  const agentPids = findAllAgentPids();
+  if (agentPids.length === 0) {
     logger2.close();
     return;
   }
-  const association = await getPidCardAssociation(agentPid);
-  if (!association) {
-    logger2.debug("workspace/post-commit: no card association", { pid: agentPid });
-    await recordPendingCommit(agentPid, sha);
+  let anyAssociation = false;
+  for (const pid of agentPids) {
+    const association = await getPidCardAssociation(pid);
+    if (!association) {
+      logger2.debug("workspace/post-commit: no card association", { pid });
+      continue;
+    }
+    anyAssociation = true;
+    const { cardId: pidCardId, mode, workspacePath: attachedPath } = association;
+    if (mode === "attach" || attachedPath !== void 0) {
+      let canonicalAttached;
+      try {
+        canonicalAttached = attachedPath !== void 0 ? realpathSync(attachedPath) : "";
+      } catch {
+        canonicalAttached = attachedPath ?? "";
+      }
+      if (canonicalAttached !== worktreePath) {
+        logger2.info("workspace/post-commit: workspace mismatch (attach-mode)", {
+          attachedPath: canonicalAttached,
+          worktreePath,
+          cardId: pidCardId
+        });
+        continue;
+      }
+    } else {
+      if (!await cardHasWorktreeAt(baseUrl, token, pidCardId, worktreePath)) continue;
+    }
+    await processCommitForCard(baseUrl, token, pidCardId, sha, worktreePath, sessionId);
+    await checkpointSessionStream(config.reposPath, pidCardId, sha, getCleanEnv, logger2);
     logger2.close();
     return;
   }
-  const { cardId: pidCardId, mode, workspacePath: attachedPath } = association;
-  if (mode === "attach" || attachedPath !== void 0) {
-    let canonicalAttached;
-    try {
-      canonicalAttached = attachedPath !== void 0 ? realpathSync(attachedPath) : "";
-    } catch {
-      canonicalAttached = attachedPath ?? "";
-    }
-    if (canonicalAttached !== worktreePath) {
-      logger2.info("workspace/post-commit: workspace mismatch", {
-        attachedPath: canonicalAttached,
-        worktreePath,
-        cardId: pidCardId,
-        mode
-      });
-      logger2.close();
-      return;
-    }
-  } else {
-    if (!await cardHasWorktreeAt(baseUrl, token, pidCardId, worktreePath)) {
-      logger2.close();
-      return;
-    }
-  }
-  logger2.info("workspace/post-commit: attributed via PID chain", {
-    sha,
-    cardId: pidCardId,
-    pid: agentPid,
-    cardIdSource: "pid-chain"
-  });
-  await processCommitForCard(baseUrl, token, pidCardId, sha, worktreePath, sessionId);
-  await checkpointSessionStream(config.reposPath, pidCardId, sha, getCleanEnv, logger2);
+  if (!anyAssociation) await recordPendingCommit(agentPids[0], sha);
   logger2.close();
 }
 async function processCommitForCard(baseUrl, token, cardId, sha, workspacePath, sessionId) {

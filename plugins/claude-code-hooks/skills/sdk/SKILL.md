@@ -136,7 +136,7 @@ npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,Subage
 3.  `npm run build` (Compiles hooks to the specified output path)
 4.  `npm test` (Runs the generated tests)
 
-**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Notification`, `UserPromptExpansion`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`, `PermissionRequest`, `Setup`, `TeammateIdle`, `TaskCreated`, `TaskCompleted`, `CwdChanged`, `FileChanged`
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PostToolBatch`, `Notification`, `UserPromptExpansion`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`, `PermissionRequest`, `Setup`, `TeammateIdle`, `TaskCreated`, `TaskCompleted`, `CwdChanged`, `FileChanged`
 
 **Monorepo?** Use `-o` to output directly to a plugin directory:
 ```bash
@@ -153,6 +153,7 @@ Different hooks have different capabilities. This table clarifies what each hook
 | PreToolUse | No | Yes (`permissionDecision: 'deny'`) | No | No |
 | PostToolUse | No | No | Yes (`additionalContext`) | No |
 | PostToolUseFailure | No | No | Yes (`additionalContext`) | No |
+| PostToolBatch | No | No | Yes (`additionalContext`) | No |
 | Stop | Yes | N/A | No | Yes (`decision: 'block'`) |
 | SubagentStop | Yes | N/A | No | Yes (`decision: 'block'`) |
 | PermissionRequest | No | Yes (`decision.behavior: 'deny'`) | No | Yes |

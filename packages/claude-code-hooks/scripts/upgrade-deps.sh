@@ -159,13 +159,29 @@ yarn install
 echo ""
 echo "=== Running linting ==="
 cd "$PACKAGE_DIR"
-yarn lint
-echo "✓ Linting passed"
+LINT_FAILED=false
+LINT_OUTPUT="$(yarn lint 2>&1)" || LINT_FAILED=true
+echo "$LINT_OUTPUT"
+if [[ "$LINT_FAILED" == "true" ]]; then
+  echo ""
+  echo "⚠️  Linting is failing — continuing with upgrade process anyway."
+  echo "   The errors above will be passed to Claude for analysis."
+else
+  echo "✓ Linting passed"
+fi
 
 echo ""
 echo "=== Running type checking ==="
-yarn typecheck
-echo "✓ Type checking passed"
+TYPECHECK_FAILED=false
+TYPECHECK_OUTPUT="$(yarn typecheck 2>&1)" || TYPECHECK_FAILED=true
+echo "$TYPECHECK_OUTPUT"
+if [[ "$TYPECHECK_FAILED" == "true" ]]; then
+  echo ""
+  echo "⚠️  Type checking is failing — continuing with upgrade process anyway."
+  echo "   The errors above will be passed to Claude for analysis."
+else
+  echo "✓ Type checking passed"
+fi
 
 echo ""
 echo "=== Running tests ==="
@@ -207,18 +223,42 @@ else
   echo "All packages were already at latest versions."
 fi
 
-# If SDK was upgraded, invoke Claude to detect and implement new functionality
-if [[ "$SDK_CHANGED" == "true" ]]; then
+# Invoke Claude if the SDK was upgraded, or if any validation step failed.
+if [[ "$SDK_CHANGED" == "true" || "$LINT_FAILED" == "true" || "$TYPECHECK_FAILED" == "true" || "$TEST_FAILED" == "true" ]]; then
   echo ""
-  echo "=== Analyzing SDK Changes with Claude ==="
-  echo "Invoking Claude to detect new hooks, tool types, or functionality..."
-  if [[ "$TEST_FAILED" == "true" ]]; then
-    echo "⚠️  Note: Tests were failing before Claude analysis — Claude will need to fix them."
+  echo "=== Analyzing Changes with Claude ==="
+  if [[ "$SDK_CHANGED" == "true" ]]; then
+    echo "Invoking Claude to detect new hooks, tool types, or functionality..."
   fi
+  [[ "$LINT_FAILED" == "true" ]] && echo "⚠️  Note: Linting was failing before Claude analysis — Claude will need to fix it."
+  [[ "$TYPECHECK_FAILED" == "true" ]] && echo "⚠️  Note: Type checking was failing before Claude analysis — Claude will need to fix it."
+  [[ "$TEST_FAILED" == "true" ]] && echo "⚠️  Note: Tests were failing before Claude analysis — Claude will need to fix them."
   echo ""
 
   WORKSPACE_ROOT="$(cd "$PACKAGE_DIR/../.." && pwd)"
   cd "$WORKSPACE_ROOT"
+
+  LINT_FAILURE_NOTE=""
+  if [[ "$LINT_FAILED" == "true" ]]; then
+    LINT_FAILURE_NOTE="
+
+**⚠️ Linting was failing after the upgrade.** You must identify and fix the lint errors. The 'yarn lint' output was:
+
+\`\`\`
+$LINT_OUTPUT
+\`\`\`"
+  fi
+
+  TYPECHECK_FAILURE_NOTE=""
+  if [[ "$TYPECHECK_FAILED" == "true" ]]; then
+    TYPECHECK_FAILURE_NOTE="
+
+**⚠️ Type checking was failing after the upgrade.** You must identify and fix the type errors. The 'yarn typecheck' output was:
+
+\`\`\`
+$TYPECHECK_OUTPUT
+\`\`\`"
+  fi
 
   TEST_FAILURE_NOTE=""
   if [[ "$TEST_FAILED" == "true" ]]; then
@@ -227,7 +267,15 @@ if [[ "$SDK_CHANGED" == "true" ]]; then
 **⚠️ Note: Tests were already failing before this analysis.** As part of your work, you must also identify and fix the failing tests. Run 'yarn test' in packages/claude-code-hooks to see the current failures."
   fi
 
-  CLAUDE_PROMPT="The @anthropic-ai/claude-agent-sdk package has been upgraded from version $CURRENT_SDK_CLEAN to $LATEST_SDK in the @goodfoot/claude-code-hooks package.$TEST_FAILURE_NOTE
+  SDK_UPGRADE_NOTE="The @anthropic-ai/claude-agent-sdk package has been upgraded from version $CURRENT_SDK_CLEAN to $LATEST_SDK in the @goodfoot/claude-code-hooks package."
+  if [[ "$SDK_CHANGED" != "true" ]]; then
+    SDK_UPGRADE_NOTE="Dependencies in the @goodfoot/claude-code-hooks package were upgraded (the claude-agent-sdk version was unchanged)."
+  fi
+
+  # SDK-analysis instructions are only relevant when the SDK version changed.
+  SDK_INSTRUCTIONS=""
+  if [[ "$SDK_CHANGED" == "true" ]]; then
+    SDK_INSTRUCTIONS="
 
 **Your Task:** Analyze the SDK changes and update the claude-code-hooks package to support any new functionality.
 
@@ -287,6 +335,29 @@ if [[ "$SDK_CHANGED" == "true" ]]; then
 If no new functionality needs to be added, explain what you found and confirm the package is up to date.
 
 Start by reading the SDK type definitions."
+  fi
+
+  # When validation failed, the priority is to get the package green again.
+  FIX_INSTRUCTIONS=""
+  if [[ "$LINT_FAILED" == "true" || "$TYPECHECK_FAILED" == "true" || "$TEST_FAILED" == "true" ]]; then
+    FIX_INSTRUCTIONS="
+
+**Your Task:** The dependency upgrade left the @goodfoot/claude-code-hooks package failing validation. Fix the errors reported above so that 'yarn lint', 'yarn typecheck', and 'yarn test' all pass.
+
+**Package Source Files:**
+- packages/claude-code-hooks/src/*
+
+**Instructions:**
+
+1. Investigate the reported lint / type / test errors in packages/claude-code-hooks.
+2. Fix the underlying cause. Do NOT disable lint or TypeScript rules, and do NOT use the 'any' type.
+3. Re-run validation until everything passes:
+   - cd packages/claude-code-hooks && yarn lint && yarn typecheck && yarn test
+4. Bump the version number.
+5. Commit the changes."
+  fi
+
+  CLAUDE_PROMPT="$SDK_UPGRADE_NOTE$LINT_FAILURE_NOTE$TYPECHECK_FAILURE_NOTE$TEST_FAILURE_NOTE$SDK_INSTRUCTIONS$FIX_INSTRUCTIONS"
 
   claude -p "$CLAUDE_PROMPT"
 
@@ -294,9 +365,12 @@ Start by reading the SDK type definitions."
   echo "=== Claude Analysis Complete ==="
   echo "Review any changes made and run validation:"
   echo "  cd packages/claude-code-hooks"
-  echo "  yarn typecheck && yarn test"
-  if [[ "$TEST_FAILED" == "true" ]]; then
+  echo "  yarn lint && yarn typecheck && yarn test"
+  if [[ "$LINT_FAILED" == "true" || "$TYPECHECK_FAILED" == "true" || "$TEST_FAILED" == "true" ]]; then
     echo ""
-    echo "⚠️  Tests were failing at the start of this run — confirm they are now fixed."
+    echo "⚠️  The following were failing at the start of this run — confirm they are now fixed:"
+    [[ "$LINT_FAILED" == "true" ]] && echo "   - linting"
+    [[ "$TYPECHECK_FAILED" == "true" ]] && echo "   - type checking"
+    [[ "$TEST_FAILED" == "true" ]] && echo "   - tests"
   fi
 fi

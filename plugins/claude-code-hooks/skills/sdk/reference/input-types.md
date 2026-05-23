@@ -20,8 +20,9 @@ interface BaseHookInput {
 | Hook Type | Additional Fields |
 |-----------|-------------------|
 | PreToolUse | `tool_name`, `tool_input`, `tool_use_id` |
-| PostToolUse | `tool_name`, `tool_input`, `tool_response`, `tool_use_id` |
-| PostToolUseFailure | `tool_name`, `tool_input`, `tool_use_id`, `error`, `is_interrupt?` |
+| PostToolUse | `tool_name`, `tool_input`, `tool_response`, `tool_use_id`, `duration_ms?` |
+| PostToolUseFailure | `tool_name`, `tool_input`, `tool_use_id`, `error`, `is_interrupt?`, `duration_ms?` |
+| PostToolBatch | `tool_calls` (array of `{ tool_name, tool_input, tool_use_id, tool_response? }`) |
 | SessionStart | `source` ('startup' \| 'resume' \| 'clear' \| 'compact') |
 | SessionEnd | `reason` ('clear' \| 'resume' \| 'logout' \| 'prompt_input_exit' \| 'other') |
 | Stop | `stop_hook_active` |
@@ -390,6 +391,69 @@ import { isNotebookEditTool } from '@goodfoot/claude-code-hooks';
 if (isNotebookEditTool(input)) {
   console.log(input.tool_input.notebook_path);
   console.log(input.tool_input.new_source);
+}
+```
+
+### Task & Cron Type Guards
+
+```typescript
+import {
+  isTaskCreateTool,
+  isTaskGetTool,
+  isTaskListTool,
+  isTaskUpdateTool,
+  isCronCreateTool,
+  isCronDeleteTool,
+  isCronListTool
+} from '@goodfoot/claude-code-hooks';
+
+if (isTaskCreateTool(input)) {
+  console.log(input.tool_input.subject);
+  console.log(input.tool_input.description);
+}
+
+if (isTaskUpdateTool(input)) {
+  console.log(input.tool_input.taskId);
+  console.log(input.tool_input.status); // 'pending' | 'in_progress' | 'completed' | 'deleted'
+}
+
+if (isCronCreateTool(input)) {
+  console.log(input.tool_input.cron);   // 5-field cron expression
+  console.log(input.tool_input.prompt);
+}
+```
+
+### Scheduling, Monitoring & Worktree Type Guards
+
+```typescript
+import {
+  isScheduleWakeupTool,
+  isMonitorTool,
+  isRemoteTriggerTool,
+  isPushNotificationTool,
+  isEnterPlanModeTool,
+  isEnterWorktreeTool,
+  isExitWorktreeTool,
+  isReplTool,
+  isWorkflowTool
+} from '@goodfoot/claude-code-hooks';
+
+if (isScheduleWakeupTool(input)) {
+  console.log(input.tool_input.delaySeconds);
+  console.log(input.tool_input.reason);
+}
+
+if (isMonitorTool(input)) {
+  console.log(input.tool_input.command);
+  console.log(input.tool_input.persistent);
+}
+
+if (isEnterWorktreeTool(input)) {
+  console.log(input.tool_input.name); // optional new worktree name
+}
+
+if (isExitWorktreeTool(input)) {
+  console.log(input.tool_input.action); // 'keep' | 'remove'
 }
 ```
 

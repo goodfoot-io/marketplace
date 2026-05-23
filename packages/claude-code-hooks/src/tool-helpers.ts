@@ -40,7 +40,13 @@ import type {
   AskUserQuestionInput,
   BashInput,
   ConfigInput,
+  CronCreateInput,
+  CronDeleteInput,
+  CronListInput,
+  EnterPlanModeInput,
+  EnterWorktreeInput,
   ExitPlanModeInput,
+  ExitWorktreeInput,
   FileEditInput,
   FileModifyingToolInput,
   FileModifyingToolName,
@@ -51,17 +57,27 @@ import type {
   KillShellInput,
   ListMcpResourcesInput,
   McpInput,
+  MonitorInput,
   MultiEditToolInput,
   NotebookEditInput,
   PermissionRequestInput,
+  PushNotificationInput,
+  REPLInput,
   ReadMcpResourceInput,
+  RemoteTriggerInput,
+  ScheduleWakeupInput,
   SDKPostToolUseFailureHookInput,
   SDKPostToolUseHookInput,
   SDKPreToolUseHookInput,
+  TaskCreateInput,
+  TaskGetInput,
+  TaskListInput,
   TaskOutputInput,
+  TaskUpdateInput,
   TodoWriteInput,
   WebFetchInput,
   WebSearchInput,
+  WorkflowInput,
 } from "./types.js";
 
 // ============================================================================
@@ -490,6 +506,310 @@ export function isConfigTool<T extends ToolUseInput>(
   input: T,
 ): input is T & { tool_name: "Config"; tool_input: ConfigInput } {
   return input.tool_name === "Config";
+}
+
+/**
+ * Type guard for TaskCreate tool inputs.
+ *
+ * Narrows the input type to include a typed TaskCreateInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a TaskCreate tool
+ * @example
+ * ```typescript
+ * if (isTaskCreateTool(input)) {
+ *   console.log(input.tool_input.subject);
+ * }
+ * ```
+ */
+export function isTaskCreateTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "TaskCreate"; tool_input: TaskCreateInput } {
+  return input.tool_name === "TaskCreate";
+}
+
+/**
+ * Type guard for TaskGet tool inputs.
+ *
+ * Narrows the input type to include a typed TaskGetInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a TaskGet tool
+ * @example
+ * ```typescript
+ * if (isTaskGetTool(input)) {
+ *   console.log(input.tool_input.taskId);
+ * }
+ * ```
+ */
+export function isTaskGetTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "TaskGet"; tool_input: TaskGetInput } {
+  return input.tool_name === "TaskGet";
+}
+
+/**
+ * Type guard for TaskList tool inputs.
+ *
+ * Narrows the input type to include a typed TaskListInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a TaskList tool
+ * @example
+ * ```typescript
+ * if (isTaskListTool(input)) {
+ *   // input.tool_input is now typed as TaskListInput
+ * }
+ * ```
+ */
+export function isTaskListTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "TaskList"; tool_input: TaskListInput } {
+  return input.tool_name === "TaskList";
+}
+
+/**
+ * Type guard for TaskUpdate tool inputs.
+ *
+ * Narrows the input type to include a typed TaskUpdateInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a TaskUpdate tool
+ * @example
+ * ```typescript
+ * if (isTaskUpdateTool(input)) {
+ *   console.log(input.tool_input.taskId, input.tool_input.status);
+ * }
+ * ```
+ */
+export function isTaskUpdateTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "TaskUpdate"; tool_input: TaskUpdateInput } {
+  return input.tool_name === "TaskUpdate";
+}
+
+/**
+ * Type guard for CronCreate tool inputs.
+ *
+ * Narrows the input type to include a typed CronCreateInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a CronCreate tool
+ * @example
+ * ```typescript
+ * if (isCronCreateTool(input)) {
+ *   console.log(input.tool_input.cron, input.tool_input.prompt);
+ * }
+ * ```
+ */
+export function isCronCreateTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "CronCreate"; tool_input: CronCreateInput } {
+  return input.tool_name === "CronCreate";
+}
+
+/**
+ * Type guard for CronDelete tool inputs.
+ *
+ * Narrows the input type to include a typed CronDeleteInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a CronDelete tool
+ * @example
+ * ```typescript
+ * if (isCronDeleteTool(input)) {
+ *   console.log(input.tool_input.id);
+ * }
+ * ```
+ */
+export function isCronDeleteTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "CronDelete"; tool_input: CronDeleteInput } {
+  return input.tool_name === "CronDelete";
+}
+
+/**
+ * Type guard for CronList tool inputs.
+ *
+ * Narrows the input type to include a typed CronListInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a CronList tool
+ * @example
+ * ```typescript
+ * if (isCronListTool(input)) {
+ *   // input.tool_input is now typed as CronListInput
+ * }
+ * ```
+ */
+export function isCronListTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "CronList"; tool_input: CronListInput } {
+  return input.tool_name === "CronList";
+}
+
+/**
+ * Type guard for ScheduleWakeup tool inputs.
+ *
+ * Narrows the input type to include a typed ScheduleWakeupInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a ScheduleWakeup tool
+ * @example
+ * ```typescript
+ * if (isScheduleWakeupTool(input)) {
+ *   console.log(input.tool_input.delaySeconds);
+ * }
+ * ```
+ */
+export function isScheduleWakeupTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "ScheduleWakeup"; tool_input: ScheduleWakeupInput } {
+  return input.tool_name === "ScheduleWakeup";
+}
+
+/**
+ * Type guard for Monitor tool inputs.
+ *
+ * Narrows the input type to include a typed MonitorInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a Monitor tool
+ * @example
+ * ```typescript
+ * if (isMonitorTool(input)) {
+ *   console.log(input.tool_input.command);
+ * }
+ * ```
+ */
+export function isMonitorTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "Monitor"; tool_input: MonitorInput } {
+  return input.tool_name === "Monitor";
+}
+
+/**
+ * Type guard for RemoteTrigger tool inputs.
+ *
+ * Narrows the input type to include a typed RemoteTriggerInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a RemoteTrigger tool
+ * @example
+ * ```typescript
+ * if (isRemoteTriggerTool(input)) {
+ *   console.log(input.tool_input.action);
+ * }
+ * ```
+ */
+export function isRemoteTriggerTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "RemoteTrigger"; tool_input: RemoteTriggerInput } {
+  return input.tool_name === "RemoteTrigger";
+}
+
+/**
+ * Type guard for PushNotification tool inputs.
+ *
+ * Narrows the input type to include a typed PushNotificationInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a PushNotification tool
+ * @example
+ * ```typescript
+ * if (isPushNotificationTool(input)) {
+ *   console.log(input.tool_input.message);
+ * }
+ * ```
+ */
+export function isPushNotificationTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "PushNotification"; tool_input: PushNotificationInput } {
+  return input.tool_name === "PushNotification";
+}
+
+/**
+ * Type guard for EnterPlanMode tool inputs.
+ *
+ * Narrows the input type to include a typed EnterPlanModeInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for an EnterPlanMode tool
+ * @example
+ * ```typescript
+ * if (isEnterPlanModeTool(input)) {
+ *   // input.tool_input is now typed as EnterPlanModeInput
+ * }
+ * ```
+ */
+export function isEnterPlanModeTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "EnterPlanMode"; tool_input: EnterPlanModeInput } {
+  return input.tool_name === "EnterPlanMode";
+}
+
+/**
+ * Type guard for EnterWorktree tool inputs.
+ *
+ * Narrows the input type to include a typed EnterWorktreeInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for an EnterWorktree tool
+ * @example
+ * ```typescript
+ * if (isEnterWorktreeTool(input)) {
+ *   console.log(input.tool_input.name);
+ * }
+ * ```
+ */
+export function isEnterWorktreeTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "EnterWorktree"; tool_input: EnterWorktreeInput } {
+  return input.tool_name === "EnterWorktree";
+}
+
+/**
+ * Type guard for ExitWorktree tool inputs.
+ *
+ * Narrows the input type to include a typed ExitWorktreeInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for an ExitWorktree tool
+ * @example
+ * ```typescript
+ * if (isExitWorktreeTool(input)) {
+ *   console.log(input.tool_input.action);
+ * }
+ * ```
+ */
+export function isExitWorktreeTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "ExitWorktree"; tool_input: ExitWorktreeInput } {
+  return input.tool_name === "ExitWorktree";
+}
+
+/**
+ * Type guard for REPL tool inputs.
+ *
+ * Narrows the input type to include a typed REPLInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a REPL tool
+ * @example
+ * ```typescript
+ * if (isReplTool(input)) {
+ *   console.log(input.tool_input.code);
+ * }
+ * ```
+ */
+export function isReplTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "REPL"; tool_input: REPLInput } {
+  return input.tool_name === "REPL";
+}
+
+/**
+ * Type guard for Workflow tool inputs.
+ *
+ * Narrows the input type to include a typed WorkflowInput.
+ * @param input - The hook input to check
+ * @returns True if the input is for a Workflow tool
+ * @example
+ * ```typescript
+ * if (isWorkflowTool(input)) {
+ *   console.log(input.tool_input.name);
+ * }
+ * ```
+ */
+export function isWorkflowTool<T extends ToolUseInput>(
+  input: T,
+): input is T & { tool_name: "Workflow"; tool_input: WorkflowInput } {
+  return input.tool_name === "Workflow";
 }
 
 // ============================================================================

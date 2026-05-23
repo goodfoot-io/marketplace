@@ -18,17 +18,33 @@ import {
   getFilePath,
   isBashTool,
   isConfigTool,
+  isCronCreateTool,
+  isCronDeleteTool,
+  isCronListTool,
   isEditTool,
+  isEnterPlanModeTool,
+  isEnterWorktreeTool,
+  isExitWorktreeTool,
   isFileModifyingTool,
   isGlobTool,
   isGrepTool,
   isJsTsFile,
   isListMcpResourcesTool,
   isMcpTool,
+  isMonitorTool,
   isMultiEditTool,
+  isPushNotificationTool,
   isReadMcpResourceTool,
   isReadTool,
+  isRemoteTriggerTool,
+  isReplTool,
+  isScheduleWakeupTool,
+  isTaskCreateTool,
+  isTaskGetTool,
+  isTaskListTool,
+  isTaskUpdateTool,
   isTsFile,
+  isWorkflowTool,
   // Type guards
   isWriteTool,
 } from "../src/tool-helpers.js";
@@ -153,6 +169,85 @@ function createConfigInput(): PreToolUseHookInput {
     tool_input: { setting: "theme", value: "dark" },
     tool_use_id: "tu_123",
   };
+}
+
+function createToolInput(toolName: string, toolInput: unknown): PreToolUseHookInput {
+  return {
+    ...createBaseInput(),
+    hook_event_name: "PreToolUse",
+    tool_name: toolName,
+    tool_input: toolInput,
+    tool_use_id: "tu_123",
+  };
+}
+
+function createTaskCreateInput(): PreToolUseHookInput {
+  return createToolInput("TaskCreate", { subject: "Fix bug", description: "Investigate the crash" });
+}
+
+function createTaskGetInput(): PreToolUseHookInput {
+  return createToolInput("TaskGet", { taskId: "task_123" });
+}
+
+function createTaskListInput(): PreToolUseHookInput {
+  return createToolInput("TaskList", {});
+}
+
+function createTaskUpdateInput(): PreToolUseHookInput {
+  return createToolInput("TaskUpdate", { taskId: "task_123", status: "completed" });
+}
+
+function createCronCreateInput(): PreToolUseHookInput {
+  return createToolInput("CronCreate", { cron: "*/5 * * * *", prompt: "Check the deploy" });
+}
+
+function createCronDeleteInput(): PreToolUseHookInput {
+  return createToolInput("CronDelete", { id: "cron_123" });
+}
+
+function createCronListInput(): PreToolUseHookInput {
+  return createToolInput("CronList", {});
+}
+
+function createScheduleWakeupInput(): PreToolUseHookInput {
+  return createToolInput("ScheduleWakeup", { delaySeconds: 120, reason: "poll CI", prompt: "/loop" });
+}
+
+function createMonitorInput(): PreToolUseHookInput {
+  return createToolInput("Monitor", {
+    description: "watch log",
+    timeout_ms: 300000,
+    persistent: false,
+    command: "tail -f log",
+  });
+}
+
+function createRemoteTriggerInput(): PreToolUseHookInput {
+  return createToolInput("RemoteTrigger", { action: "list" });
+}
+
+function createPushNotificationInput(): PreToolUseHookInput {
+  return createToolInput("PushNotification", { message: "Build finished", status: "proactive" });
+}
+
+function createEnterPlanModeInput(): PreToolUseHookInput {
+  return createToolInput("EnterPlanMode", {});
+}
+
+function createEnterWorktreeInput(): PreToolUseHookInput {
+  return createToolInput("EnterWorktree", { name: "feature/x" });
+}
+
+function createExitWorktreeInput(): PreToolUseHookInput {
+  return createToolInput("ExitWorktree", { action: "keep" });
+}
+
+function createReplInput(): PreToolUseHookInput {
+  return createToolInput("REPL", { code: "await Promise.resolve(1)" });
+}
+
+function createWorkflowInput(): PreToolUseHookInput {
+  return createToolInput("Workflow", { name: "ci-check" });
 }
 
 describe("Type Guards", () => {
@@ -377,6 +472,264 @@ describe("Type Guards", () => {
       if (isConfigTool(input)) {
         expect(input.tool_input.setting).toBe("theme");
         expect(input.tool_input.value).toBe("dark");
+      }
+    });
+  });
+
+  describe("isTaskCreateTool", () => {
+    it("returns true for TaskCreate tool", () => {
+      expect(isTaskCreateTool(createTaskCreateInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isTaskCreateTool(createBashInput())).toBe(false);
+      expect(isTaskCreateTool(createTaskGetInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createTaskCreateInput();
+      if (isTaskCreateTool(input)) {
+        expect(input.tool_input.subject).toBe("Fix bug");
+        expect(input.tool_input.description).toBe("Investigate the crash");
+      }
+    });
+  });
+
+  describe("isTaskGetTool", () => {
+    it("returns true for TaskGet tool", () => {
+      expect(isTaskGetTool(createTaskGetInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isTaskGetTool(createTaskCreateInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createTaskGetInput();
+      if (isTaskGetTool(input)) {
+        expect(input.tool_input.taskId).toBe("task_123");
+      }
+    });
+  });
+
+  describe("isTaskListTool", () => {
+    it("returns true for TaskList tool", () => {
+      expect(isTaskListTool(createTaskListInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isTaskListTool(createTaskGetInput())).toBe(false);
+    });
+  });
+
+  describe("isTaskUpdateTool", () => {
+    it("returns true for TaskUpdate tool", () => {
+      expect(isTaskUpdateTool(createTaskUpdateInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isTaskUpdateTool(createTaskCreateInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createTaskUpdateInput();
+      if (isTaskUpdateTool(input)) {
+        expect(input.tool_input.taskId).toBe("task_123");
+        expect(input.tool_input.status).toBe("completed");
+      }
+    });
+  });
+
+  describe("isCronCreateTool", () => {
+    it("returns true for CronCreate tool", () => {
+      expect(isCronCreateTool(createCronCreateInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isCronCreateTool(createCronDeleteInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createCronCreateInput();
+      if (isCronCreateTool(input)) {
+        expect(input.tool_input.cron).toBe("*/5 * * * *");
+        expect(input.tool_input.prompt).toBe("Check the deploy");
+      }
+    });
+  });
+
+  describe("isCronDeleteTool", () => {
+    it("returns true for CronDelete tool", () => {
+      expect(isCronDeleteTool(createCronDeleteInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isCronDeleteTool(createCronListInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createCronDeleteInput();
+      if (isCronDeleteTool(input)) {
+        expect(input.tool_input.id).toBe("cron_123");
+      }
+    });
+  });
+
+  describe("isCronListTool", () => {
+    it("returns true for CronList tool", () => {
+      expect(isCronListTool(createCronListInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isCronListTool(createCronCreateInput())).toBe(false);
+    });
+  });
+
+  describe("isScheduleWakeupTool", () => {
+    it("returns true for ScheduleWakeup tool", () => {
+      expect(isScheduleWakeupTool(createScheduleWakeupInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isScheduleWakeupTool(createMonitorInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createScheduleWakeupInput();
+      if (isScheduleWakeupTool(input)) {
+        expect(input.tool_input.delaySeconds).toBe(120);
+        expect(input.tool_input.reason).toBe("poll CI");
+      }
+    });
+  });
+
+  describe("isMonitorTool", () => {
+    it("returns true for Monitor tool", () => {
+      expect(isMonitorTool(createMonitorInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isMonitorTool(createScheduleWakeupInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createMonitorInput();
+      if (isMonitorTool(input)) {
+        expect(input.tool_input.command).toBe("tail -f log");
+        expect(input.tool_input.persistent).toBe(false);
+      }
+    });
+  });
+
+  describe("isRemoteTriggerTool", () => {
+    it("returns true for RemoteTrigger tool", () => {
+      expect(isRemoteTriggerTool(createRemoteTriggerInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isRemoteTriggerTool(createMonitorInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createRemoteTriggerInput();
+      if (isRemoteTriggerTool(input)) {
+        expect(input.tool_input.action).toBe("list");
+      }
+    });
+  });
+
+  describe("isPushNotificationTool", () => {
+    it("returns true for PushNotification tool", () => {
+      expect(isPushNotificationTool(createPushNotificationInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isPushNotificationTool(createMonitorInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createPushNotificationInput();
+      if (isPushNotificationTool(input)) {
+        expect(input.tool_input.message).toBe("Build finished");
+        expect(input.tool_input.status).toBe("proactive");
+      }
+    });
+  });
+
+  describe("isEnterPlanModeTool", () => {
+    it("returns true for EnterPlanMode tool", () => {
+      expect(isEnterPlanModeTool(createEnterPlanModeInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isEnterPlanModeTool(createEnterWorktreeInput())).toBe(false);
+    });
+  });
+
+  describe("isEnterWorktreeTool", () => {
+    it("returns true for EnterWorktree tool", () => {
+      expect(isEnterWorktreeTool(createEnterWorktreeInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isEnterWorktreeTool(createExitWorktreeInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createEnterWorktreeInput();
+      if (isEnterWorktreeTool(input)) {
+        expect(input.tool_input.name).toBe("feature/x");
+      }
+    });
+  });
+
+  describe("isExitWorktreeTool", () => {
+    it("returns true for ExitWorktree tool", () => {
+      expect(isExitWorktreeTool(createExitWorktreeInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isExitWorktreeTool(createEnterWorktreeInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createExitWorktreeInput();
+      if (isExitWorktreeTool(input)) {
+        expect(input.tool_input.action).toBe("keep");
+      }
+    });
+  });
+
+  describe("isReplTool", () => {
+    it("returns true for REPL tool", () => {
+      expect(isReplTool(createReplInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isReplTool(createWorkflowInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createReplInput();
+      if (isReplTool(input)) {
+        expect(input.tool_input.code).toBe("await Promise.resolve(1)");
+      }
+    });
+  });
+
+  describe("isWorkflowTool", () => {
+    it("returns true for Workflow tool", () => {
+      expect(isWorkflowTool(createWorkflowInput())).toBe(true);
+    });
+
+    it("returns false for other tools", () => {
+      expect(isWorkflowTool(createReplInput())).toBe(false);
+    });
+
+    it("narrows type correctly", () => {
+      const input = createWorkflowInput();
+      if (isWorkflowTool(input)) {
+        expect(input.tool_input.name).toBe("ci-check");
       }
     });
   });

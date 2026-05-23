@@ -126,13 +126,14 @@ npm test        # Run tests
 
 ### Available Hook Types
 
-The `--hooks` argument accepts a comma-separated list of any of these 20 event types:
+The `--hooks` argument accepts a comma-separated list of any of these 21 event types:
 
 | Hook Type            | Description                                                              |
 | -------------------- | ------------------------------------------------------------------------ |
 | `PreToolUse`         | Before a tool executes (allow/deny/modify)                               |
 | `PostToolUse`        | After a tool completes successfully                                      |
 | `PostToolUseFailure` | After a tool fails                                                       |
+| `PostToolBatch`      | Once after every tool call in a batch resolves                          |
 | `Notification`       | When Claude requests permissions                                         |
 | `UserPromptExpansion` | When a slash command or MCP prompt is expanded                          |
 | `UserPromptSubmit`   | When user submits a prompt                                               |

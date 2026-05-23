@@ -43,6 +43,8 @@ describe("HookInput discriminated union", () => {
             return String(input.stop_hook_active);
           case "PostToolUseFailure":
             return input.error;
+          case "PostToolBatch":
+            return String(input.tool_calls.length);
           case "Notification":
             return input.message;
           case "UserPromptExpansion":

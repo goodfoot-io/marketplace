@@ -34,6 +34,7 @@ import type {
   PermissionDeniedOutput,
   PermissionRequestOutput,
   PostCompactOutput,
+  PostToolBatchOutput,
   PostToolUseFailureOutput,
   PostToolUseOutput,
   PreCompactOutput,
@@ -67,6 +68,7 @@ import type {
   PermissionDeniedInput,
   PermissionRequestInput,
   PostCompactInput,
+  PostToolBatchInput,
   PostToolUseFailureInput,
   PostToolUseInput,
   PreCompactInput,
@@ -620,6 +622,47 @@ export function postToolUseFailureHook(
   handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>,
 ): HookFunction<PostToolUseFailureInput, PostToolUseFailureOutput> {
   return createHookFunction("PostToolUseFailure", config, handler);
+}
+
+// ============================================================================
+// PostToolBatch Hook Factory
+// ============================================================================
+
+/**
+ * Creates a PostToolBatch hook handler.
+ *
+ * PostToolBatch hooks fire exactly once after every tool call in a batch has
+ * resolved, before the next model request. Unlike PostToolUse — which fires per
+ * tool and may run concurrently for parallel tool calls — PostToolBatch receives
+ * the full batch via `input.tool_calls`, allowing you to:
+ * - Inspect or summarize all tool calls in a single turn together
+ * - Inject additional context once per batch instead of once per tool
+ *
+ * **Matcher**: No matcher support - fires once per batch
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { postToolBatchHook, postToolBatchOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default postToolBatchHook({}, async (input, { logger }) => {
+ *   logger.info('Tool batch completed', { count: input.tool_calls.length });
+ *
+ *   return postToolBatchOutput({
+ *     hookSpecificOutput: {
+ *       additionalContext: `Reviewed ${input.tool_calls.length} tool calls`
+ *     }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#posttoolbatch
+ */
+export function postToolBatchHook(
+  config: HookConfig,
+  handler: HookHandler<PostToolBatchInput, PostToolBatchOutput>,
+): HookFunction<PostToolBatchInput, PostToolBatchOutput> {
+  return createHookFunction("PostToolBatch", config, handler);
 }
 
 // ============================================================================

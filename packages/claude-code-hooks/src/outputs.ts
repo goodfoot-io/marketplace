@@ -13,13 +13,10 @@ import type {
   ElicitationHookSpecificOutput as SDKElicitationHookSpecificOutput,
   ElicitationResultHookSpecificOutput as SDKElicitationResultHookSpecificOutput,
   FileChangedHookSpecificOutput as SDKFileChangedHookSpecificOutput,
-  PermissionDeniedHookSpecificOutput as SDKPermissionDeniedHookSpecificOutput,
-  UserPromptExpansionHookSpecificOutput as SDKUserPromptExpansionHookSpecificOutput,
-  WorktreeCreateHookSpecificOutput as SDKWorktreeCreateHookSpecificOutput,
-} from "@anthropic-ai/claude-agent-sdk";
-import type {
   NotificationHookSpecificOutput as SDKNotificationHookSpecificOutput,
+  PermissionDeniedHookSpecificOutput as SDKPermissionDeniedHookSpecificOutput,
   PermissionRequestHookSpecificOutput as SDKPermissionRequestHookSpecificOutput,
+  PostToolBatchHookSpecificOutput as SDKPostToolBatchHookSpecificOutput,
   PostToolUseFailureHookSpecificOutput as SDKPostToolUseFailureHookSpecificOutput,
   PostToolUseHookSpecificOutput as SDKPostToolUseHookSpecificOutput,
   PreToolUseHookSpecificOutput as SDKPreToolUseHookSpecificOutput,
@@ -27,8 +24,10 @@ import type {
   SetupHookSpecificOutput as SDKSetupHookSpecificOutput,
   SubagentStartHookSpecificOutput as SDKSubagentStartHookSpecificOutput,
   SyncHookJSONOutput as SDKSyncHookJSONOutput,
+  UserPromptExpansionHookSpecificOutput as SDKUserPromptExpansionHookSpecificOutput,
   UserPromptSubmitHookSpecificOutput as SDKUserPromptSubmitHookSpecificOutput,
-} from "@anthropic-ai/claude-agent-sdk/sdk.js";
+  WorktreeCreateHookSpecificOutput as SDKWorktreeCreateHookSpecificOutput,
+} from "@anthropic-ai/claude-agent-sdk";
 
 // ============================================================================
 // Exit Code Constants
@@ -107,6 +106,12 @@ export type PostToolUseHookSpecificOutput = Omit<SDKPostToolUseHookSpecificOutpu
  * Omits `hookEventName` which is added automatically by the builder.
  */
 export type PostToolUseFailureHookSpecificOutput = Omit<SDKPostToolUseFailureHookSpecificOutput, "hookEventName">;
+
+/**
+ * PostToolBatch hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
+ */
+export type PostToolBatchHookSpecificOutput = Omit<SDKPostToolBatchHookSpecificOutput, "hookEventName">;
 
 /**
  * UserPromptExpansion hook-specific output fields.
@@ -215,6 +220,7 @@ export type HookSpecificOutput =
   | SDKPreToolUseHookSpecificOutput
   | SDKPostToolUseHookSpecificOutput
   | SDKPostToolUseFailureHookSpecificOutput
+  | SDKPostToolBatchHookSpecificOutput
   | SDKUserPromptExpansionHookSpecificOutput
   | SDKUserPromptSubmitHookSpecificOutput
   | SDKSessionStartHookSpecificOutput
@@ -334,6 +340,10 @@ export type PostToolUseFailureOutput = BaseSpecificOutput<"PostToolUseFailure">;
 /**
  *
  */
+export type PostToolBatchOutput = BaseSpecificOutput<"PostToolBatch">;
+/**
+ *
+ */
 export type NotificationOutput = BaseSpecificOutput<"Notification">;
 /**
  *
@@ -439,6 +449,7 @@ export type SpecificHookOutput =
   | PreToolUseOutput
   | PostToolUseOutput
   | PostToolUseFailureOutput
+  | PostToolBatchOutput
   | NotificationOutput
   | UserPromptExpansionOutput
   | UserPromptSubmitOutput
@@ -668,6 +679,36 @@ export const postToolUseFailureOutput = /* @__PURE__ */ createHookSpecificOutput
   "PostToolUseFailure",
   PostToolUseFailureHookSpecificOutput
 >("PostToolUseFailure");
+
+// ============================================================================
+// PostToolBatch Output Builder
+// ============================================================================
+
+/**
+ * Options for the PostToolBatch output builder.
+ */
+export type PostToolBatchOptions = CommonOptions & {
+  /** Hook-specific output matching the wire format. */
+  hookSpecificOutput?: PostToolBatchHookSpecificOutput;
+};
+
+/**
+ * Creates an output for PostToolBatch hooks.
+ * @param options - Configuration options for the hook output
+ * @returns A PostToolBatchOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * postToolBatchOutput({
+ *   hookSpecificOutput: {
+ *     additionalContext: 'All edits in the batch were applied successfully'
+ *   }
+ * });
+ * ```
+ */
+export const postToolBatchOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  "PostToolBatch",
+  PostToolBatchHookSpecificOutput
+>("PostToolBatch");
 
 // ============================================================================
 // UserPromptExpansion Output Builder

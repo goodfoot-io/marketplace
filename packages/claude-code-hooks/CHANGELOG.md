@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0
+- Added `PostToolBatch` hook type for handling a whole batch of tool calls in a single hook (SDK 0.3.x)
+- Added `postToolBatchHook` factory and `postToolBatchOutput` builder
+- Added first-class typed support and type guards for 16 new tools: `TaskCreate`, `TaskGet`, `TaskList`, `TaskUpdate`, `CronCreate`, `CronDelete`, `CronList`, `ScheduleWakeup`, `Monitor`, `RemoteTrigger`, `PushNotification`, `EnterPlanMode`, `EnterWorktree`, `ExitWorktree`, `REPL`, and `Workflow`
+- Surfaced new SDK input fields: `effort` on all hook inputs and `duration_ms` on `PostToolUse`/`PostToolUseFailure`
+- Updated Anthropic SDK compatibility to version 0.3.149
+
 ## 1.4.1
 - Minor improvements and bug fixes
 

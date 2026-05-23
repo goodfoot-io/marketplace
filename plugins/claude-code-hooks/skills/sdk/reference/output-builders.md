@@ -266,6 +266,25 @@ export default postToolUseFailureHook({ matcher: 'Bash' }, (input, { logger }) =
 });
 ```
 
+### Summarize a Tool Batch (PostToolBatch)
+
+`postToolBatchHook` fires exactly once after every tool call in a batch resolves — unlike `PostToolUse`, which fires per tool and may run concurrently for parallel calls. Use it to inspect or summarize the whole batch and inject context once:
+
+```typescript
+import { postToolBatchHook, postToolBatchOutput } from '@goodfoot/claude-code-hooks';
+
+// No matcher support — the hook always receives the full batch.
+export default postToolBatchHook({}, (input, { logger }) => {
+  logger.info('Tool batch completed', { count: input.tool_calls.length });
+
+  return postToolBatchOutput({
+    hookSpecificOutput: {
+      additionalContext: `Reviewed ${input.tool_calls.length} tool calls in this turn.`
+    }
+  });
+});
+```
+
 ### Clean Up on Session End (SessionEnd)
 
 Use `sessionEndHook` for cleanup, logging, or metrics when a session ends:
@@ -578,13 +597,14 @@ export default taskCompletedHook({}, (input, { logger }) => {
 });
 ```
 
-## All 18 Hook Types Reference
+## All 19 Hook Types Reference
 
 | Hook Type | Factory | Builder | Input Key |
 |-----------|---------|---------|-----------|
 | PreToolUse | `preToolUseHook` | `preToolUseOutput` | `tool_name` |
 | PostToolUse | `postToolUseHook` | `postToolUseOutput` | `tool_name` |
 | PostToolUseFailure | `postToolUseFailureHook` | `postToolUseFailureOutput` | `tool_name` |
+| PostToolBatch | `postToolBatchHook` | `postToolBatchOutput` | N/A (whole batch) |
 | SessionStart | `sessionStartHook` | `sessionStartOutput` | `source` |
 | SessionEnd | `sessionEndHook` | `sessionEndOutput` | `reason` |
 | Stop | `stopHook` | `stopOutput` | N/A |

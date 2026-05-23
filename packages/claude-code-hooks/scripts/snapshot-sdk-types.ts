@@ -68,6 +68,7 @@ const TARGET_TYPES = [
   "PreToolUseHookInput",
   "PostToolUseHookInput",
   "PostToolUseFailureHookInput",
+  "PostToolBatchHookInput",
   "NotificationHookInput",
   "UserPromptSubmitHookInput",
   "SessionStartHookInput",

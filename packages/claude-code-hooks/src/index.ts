@@ -189,8 +189,16 @@ export {
   isBashTool,
   // Type guards - Config
   isConfigTool,
+  // Type guards - Cron
+  isCronCreateTool,
+  isCronDeleteTool,
+  isCronListTool,
   isEditTool,
+  // Type guards - Plan mode & Worktrees
+  isEnterPlanModeTool,
+  isEnterWorktreeTool,
   isExitPlanModeTool,
+  isExitWorktreeTool,
   isFileModifyingTool,
   // Type guards - Search
   isGlobTool,
@@ -200,18 +208,31 @@ export {
   // Type guards - MCP
   isListMcpResourcesTool,
   isMcpTool,
+  // Type guards - Monitoring & scheduling
+  isMonitorTool,
   isMultiEditTool,
   isNotebookEditTool,
+  isPushNotificationTool,
   isReadMcpResourceTool,
   isReadTool,
+  isRemoteTriggerTool,
+  // Type guards - REPL & Workflow
+  isReplTool,
+  isScheduleWakeupTool,
+  // Type guards - Task management
+  isTaskCreateTool,
+  isTaskGetTool,
+  isTaskListTool,
   isTaskOutputTool,
   // Type guards - Agents
   isTaskTool,
+  isTaskUpdateTool,
   isTodoWriteTool,
   isTsFile,
   // Type guards - Web
   isWebFetchTool,
   isWebSearchTool,
+  isWorkflowTool,
   // Type guards - File operations
   isWriteTool,
 } from "./tool-helpers.js";

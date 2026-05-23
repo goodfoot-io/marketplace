@@ -33,6 +33,7 @@ export type {
   PermissionRequestHookInput as SDKPermissionRequestHookInput,
   PermissionUpdate as SDKPermissionUpdate,
   PostCompactHookInput as SDKPostCompactHookInput,
+  PostToolBatchHookInput as SDKPostToolBatchHookInput,
   PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput,
   PostToolUseHookInput as SDKPostToolUseHookInput,
   PreCompactHookInput as SDKPreCompactHookInput,
@@ -67,6 +68,7 @@ import type {
   PermissionRequestHookInput as SDKPermissionRequestHookInput,
   PermissionUpdate as SDKPermissionUpdate,
   PostCompactHookInput as SDKPostCompactHookInput,
+  PostToolBatchHookInput as SDKPostToolBatchHookInput,
   PostToolUseFailureHookInput as SDKPostToolUseFailureHookInput,
   PostToolUseHookInput as SDKPostToolUseHookInput,
   PreCompactHookInput as SDKPreCompactHookInput,
@@ -93,8 +95,13 @@ import type {
   AgentInput,
   AskUserQuestionInput,
   BashInput,
-  ConfigInput,
+  CronCreateInput,
+  CronDeleteInput,
+  CronListInput,
+  EnterPlanModeInput,
+  EnterWorktreeInput,
   ExitPlanModeInput,
+  ExitWorktreeInput,
   FileEditInput,
   FileReadInput,
   FileWriteInput,
@@ -103,12 +110,22 @@ import type {
   TaskStopInput as KillShellInput,
   ListMcpResourcesInput,
   McpInput,
+  MonitorInput,
   NotebookEditInput,
+  PushNotificationInput,
+  REPLInput,
   ReadMcpResourceInput,
+  RemoteTriggerInput,
+  ScheduleWakeupInput,
+  TaskCreateInput,
+  TaskGetInput,
+  TaskListInput,
   TaskOutputInput,
+  TaskUpdateInput,
   TodoWriteInput,
   WebFetchInput,
   WebSearchInput,
+  WorkflowInput,
 } from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
 
 // ============================================================================
@@ -211,6 +228,16 @@ export type PostToolUseInput = { [K in keyof SDKPostToolUseHookInput]: SDKPostTo
 export type PostToolUseFailureInput = {
   [K in keyof SDKPostToolUseFailureHookInput]: SDKPostToolUseFailureHookInput[K];
 } & {};
+
+/**
+ * Input for PostToolBatch hooks.
+ *
+ * Fired once after every tool call in a batch has resolved, before the next model
+ * request. PostToolUse fires per-tool and may run concurrently for parallel tool
+ * calls; PostToolBatch fires exactly once with the full batch in `tool_calls`.
+ * @see https://code.claude.com/docs/en/hooks#posttoolbatch
+ */
+export type PostToolBatchInput = { [K in keyof SDKPostToolBatchHookInput]: SDKPostToolBatchHookInput[K] } & {};
 
 /**
  * Input for Notification hooks.
@@ -531,6 +558,7 @@ export type HookInput =
   | PreToolUseInput
   | PostToolUseInput
   | PostToolUseFailureInput
+  | PostToolBatchInput
   | NotificationInput
   | UserPromptExpansionInput
   | UserPromptSubmitInput
@@ -579,6 +607,7 @@ export const HOOK_EVENT_NAMES = [
   "PreToolUse",
   "PostToolUse",
   "PostToolUseFailure",
+  "PostToolBatch",
   "Notification",
   "UserPromptExpansion",
   "UserPromptSubmit",
@@ -625,6 +654,20 @@ export type * from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
  * @deprecated Use TaskStopInput instead
  */
 export type { KillShellInput };
+
+/**
+ * Input structure for the Config tool.
+ *
+ * The Config tool reads or updates Claude Code configuration settings. This type was
+ * removed from `@anthropic-ai/claude-agent-sdk` in 0.3.x, so it is defined locally to
+ * preserve type-safe support for the {@link isConfigTool} guard.
+ */
+export interface ConfigInput {
+  /** The setting key (e.g., "theme", "model", "permissions.defaultMode"). */
+  setting: string;
+  /** The new value. Omit to read the current value. */
+  value?: string | boolean | number;
+}
 
 /**
  * A single edit entry within a MultiEdit operation.
@@ -699,7 +742,23 @@ export type KnownToolInput =
   | ListMcpResourcesInput
   | McpInput
   | ReadMcpResourceInput
-  | ConfigInput;
+  | ConfigInput
+  | TaskCreateInput
+  | TaskGetInput
+  | TaskListInput
+  | TaskUpdateInput
+  | CronCreateInput
+  | CronDeleteInput
+  | CronListInput
+  | ScheduleWakeupInput
+  | MonitorInput
+  | RemoteTriggerInput
+  | PushNotificationInput
+  | EnterPlanModeInput
+  | EnterWorktreeInput
+  | ExitWorktreeInput
+  | REPLInput
+  | WorkflowInput;
 
 /**
  * Tool names for all known tools with typed inputs.
@@ -724,7 +783,23 @@ export type KnownToolName =
   | "ListMcpResources"
   | "Mcp"
   | "ReadMcpResource"
-  | "Config";
+  | "Config"
+  | "TaskCreate"
+  | "TaskGet"
+  | "TaskList"
+  | "TaskUpdate"
+  | "CronCreate"
+  | "CronDelete"
+  | "CronList"
+  | "ScheduleWakeup"
+  | "Monitor"
+  | "RemoteTrigger"
+  | "PushNotification"
+  | "EnterPlanMode"
+  | "EnterWorktree"
+  | "ExitWorktree"
+  | "REPL"
+  | "Workflow";
 
 /**
  * Type mapping from tool name to tool input type.
@@ -756,4 +831,20 @@ export interface ToolInputMap {
   Mcp: McpInput;
   ReadMcpResource: ReadMcpResourceInput;
   Config: ConfigInput;
+  TaskCreate: TaskCreateInput;
+  TaskGet: TaskGetInput;
+  TaskList: TaskListInput;
+  TaskUpdate: TaskUpdateInput;
+  CronCreate: CronCreateInput;
+  CronDelete: CronDeleteInput;
+  CronList: CronListInput;
+  ScheduleWakeup: ScheduleWakeupInput;
+  Monitor: MonitorInput;
+  RemoteTrigger: RemoteTriggerInput;
+  PushNotification: PushNotificationInput;
+  EnterPlanMode: EnterPlanModeInput;
+  EnterWorktree: EnterWorktreeInput;
+  ExitWorktree: ExitWorktreeInput;
+  REPL: REPLInput;
+  Workflow: WorkflowInput;
 }
