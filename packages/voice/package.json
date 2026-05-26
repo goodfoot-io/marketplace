@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/voice",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local Realtime voice conversation server and browser control surface",
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/voice",
   "repository": {

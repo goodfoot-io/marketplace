@@ -270,7 +270,7 @@ runIfSourceExists("createVoiceAgentServer", () => {
     browser.close();
   });
 
-  it("mirrors an in-stage click into a system message and still emits html.click", async () => {
+  it("mirrors an in-stage click into a system message, emits html.click, and triggers a response", async () => {
     const fakeRealtime = new FakeRealtimeConnection();
     const clicks: unknown[] = [];
     const controller = await makeController({ __voiceFactory: () => fakeRealtime });
@@ -304,8 +304,9 @@ runIfSourceExists("createVoiceAgentServer", () => {
     expect(systemItem?.item.content[0]?.text).toContain("10% from the left");
     expect(systemItem?.item.content[0]?.text).toContain("15% from the top");
 
-    // The click must not trigger a model response on its own.
-    expect(sentAfter.some((msg) => (msg as { type?: string }).type === "response.create")).toBe(false);
+    // The click triggers a model response so the agent reacts to it now, rather
+    // than leaving the injected item as passive context until the next utterance.
+    expect(sentAfter.some((msg) => (msg as { type?: string }).type === "response.create")).toBe(true);
     browser.close();
   });
 

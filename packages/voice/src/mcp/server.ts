@@ -391,6 +391,14 @@ interface ChannelMessage {
   attrs: Record<string, string>;
 }
 
+/** A logged event record (same shape `voice watch` streams) awaiting delivery. */
+interface ChannelRecord {
+  seq: number;
+  event: string;
+  timestamp: string;
+  data: JsonValue;
+}
+
 /**
  * Maps an event to its `<channel>` tag body (`content`) and event-specific
  * routing attributes (`attrs`). The caller adds `type` (the event name) and
@@ -865,6 +873,47 @@ export async function createVoiceMcpServer(
   // send onto the previous one's settlement guarantees sends leave in seq order.
   let notifyTail: Promise<void> = Promise.resolve();
 
+  // Streaming-ASR coalescing for user speech. xAI re-emits
+  // `conversation.item.input_audio_transcription.completed` repeatedly with
+  // growing text for a single spoken turn (there is no separate `.delta`
+  // channel), so the controller's `transcript.item` fires many times mid-turn —
+  // each an incremental partial under the same item id. Delivering every one to
+  // the colleague spams the channel with the same prefix (and the colleague is
+  // told `transcript.item` is "a completed spoken turn"). So we hold the latest
+  // user-microphone transcript and notify only with the SETTLED text: flushed
+  // when the turn ends (any later delivered event, or a new item id) or after a
+  // quiet window with no further updates.
+  const USER_TRANSCRIPT_QUIET_MS = 1500;
+  let pendingUserTranscript: { itemId: string; record: ChannelRecord } | null = null;
+  let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function deliverRecord(record: ChannelRecord): void {
+    const { content, attrs } = channelMessage(record.event, record.data);
+    notifyTail = notifyTail
+      .then(() =>
+        mcp.server.notification({
+          method: CHANNEL_METHOD,
+          params: { content, meta: { type: record.event, seq: String(record.seq), ...attrs } },
+        }),
+      )
+      .catch((err: unknown) => {
+        logger.logError("channel notification failed", { event: record.event, error: String(err) });
+      });
+  }
+
+  // Deliver the buffered user transcript (the final text of the turn) once, in
+  // seq order ahead of whatever event triggered the flush.
+  function flushPendingUserTranscript(): void {
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      pendingTimer = null;
+    }
+    if (!pendingUserTranscript) return;
+    const { record } = pendingUserTranscript;
+    pendingUserTranscript = null;
+    deliverRecord(record);
+  }
+
   /**
    * Build a `{ seq, event, timestamp, data }` record (the same shape
    * `voice watch` streams), log it, and — unless filtered out — deliver it as a
@@ -898,17 +947,21 @@ export async function createVoiceMcpServer(
       emit(HTML_CLICKS_ABOUT_EVENT, { message: HTML_CLICKS_ABOUT_MESSAGE }, { forceNotify: true });
     }
 
-    const { content, attrs } = channelMessage(record.event, record.data);
-    notifyTail = notifyTail
-      .then(() =>
-        mcp.server.notification({
-          method: CHANNEL_METHOD,
-          params: { content, meta: { type: record.event, seq: String(record.seq), ...attrs } },
-        }),
-      )
-      .catch((err: unknown) => {
-        logger.logError("channel notification failed", { event, error: String(err) });
-      });
+    // Buffer streaming user-speech partials; deliver only the settled turn.
+    if (event === "transcript.item" && (data as TranscriptItemEvent).item.source === "microphone") {
+      const itemId = (data as TranscriptItemEvent).item.id;
+      // A different item id means the previous user turn is final — flush it.
+      if (pendingUserTranscript && pendingUserTranscript.itemId !== itemId) flushPendingUserTranscript();
+      pendingUserTranscript = { itemId, record };
+      if (pendingTimer) clearTimeout(pendingTimer);
+      pendingTimer = setTimeout(flushPendingUserTranscript, USER_TRANSCRIPT_QUIET_MS);
+      return;
+    }
+
+    // Any other delivered event marks the in-progress user turn as settled, so
+    // flush the buffered transcript ahead of it to preserve conversational order.
+    flushPendingUserTranscript();
+    deliverRecord(record);
   }
 
   // `check_with_colleague` is exposed ONLY to the realtime voice model (via the
