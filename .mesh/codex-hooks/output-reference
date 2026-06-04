@@ -1,0 +1,4 @@
+plugins/codex-hooks/skills/sdk/reference/output-builders.md#L20-L318 sha256:91f828b7b8bd68450daf93afdf58492218eedb23df80d3e43ce4ed10d012241c
+packages/codex-hooks/src/outputs.ts#L18-L229 sha256:d4ee1bcc6b5dab1f62e43fb0082d388d5bc237adbb98a48220f46cde8de124c8
+
+Reference documentation lists all 10 output builders (preToolUseOutput, postToolUseOutput, etc.) with their option signatures; outputs.ts exports these builders. When output builders are added, renamed, or removed, the reference documentation must be updated in sync to keep developer guidance current.
