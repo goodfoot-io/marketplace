@@ -1,0 +1,4 @@
+packages/codex-hooks/README.md#L45-L56 sha256:0d719420166c15193623ae92de18ad72056bd62707f99bc317998922a9c420b4
+packages/codex-hooks/src/types.ts#L1-L11 sha256:ec19039813267c336b50f0b88fe0ecd727423ace666271582d0d307947370532
+
+README event table documents the HookEventName union. When events are added to or removed from the union type, the README table must be updated in sync; TypeScript does not enforce this constraint.

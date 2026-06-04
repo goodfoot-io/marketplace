@@ -1,0 +1,4 @@
+plugins/codex-hooks/skills/sdk/SKILL.md#L1-L227 sha256:d97d67604395d6df4937ec3ab467c7c9a0d5a378adcfa0d7cf035a8c99ebbae8
+packages/codex-hooks/src/constants.ts#L10-L21 sha256:60e0cb45442696495785b86ac993b7c3ec27be426efc7d256580fefb59c64c3e
+
+SKILL.md teaches developers to use hook factories by name (preToolUseHook, sessionStartHook, etc.) in code examples; these names must correspond to keys in HOOK_FACTORY_TO_EVENT. Documentation examples are not type-checked, so a factory name change would cause user code to fail at runtime if examples are copied unchanged.

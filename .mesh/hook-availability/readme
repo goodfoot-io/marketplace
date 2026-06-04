@@ -1,0 +1,4 @@
+packages/claude-code-hooks/src/constants.ts#L11-L42
+packages/claude-code-hooks/README.md#L129-L154
+
+Hook availability list in README must enumerate all hooks in HOOK_FACTORY_TO_EVENT constant, so users know the complete set of hooks available to scaffold.

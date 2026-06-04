@@ -1,0 +1,4 @@
+packages/claude-code-hooks/src/constants.ts#L11-L42
+plugins/claude-code-hooks/skills/sdk/reference/output-builders.md#L600-L625
+
+Reference table "All Hook Types Reference" in output-builders.md must list all hooks from constants.ts, so developers can find builder signature documentation for every hook.
