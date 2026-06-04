@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.6.0
+- Added support for the MessageDisplay hook event with type-safe inputs and output builders
+
 ## 1.5.0
 - Updated to Claude Agent SDK 0.3.148, with hook input/output types regenerated to match the latest SDK
 - Minor improvements and bug fixes
