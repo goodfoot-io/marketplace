@@ -212,3 +212,5 @@ scripts/ssh/
 .claude/scheduled_tasks.lock
 
 packages/voice/src/ui-dist/
+
+third_party/reference/
