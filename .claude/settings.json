@@ -39,7 +39,8 @@
     "code-simplifier@claude-plugins-official": false,
     "plugin-dev@claude-plugins-official": true,
     "cards@cards.management": true,
-    "voice@goodfoot": true
+    "voice@goodfoot": true,
+    "git-mesh@git-mesh": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {
@@ -52,6 +53,12 @@
       "source": {
         "source": "github",
         "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "git-mesh": {
+      "source": {
+        "source": "github",
+        "repo": "goodfoot-io/git-mesh"
       }
     },
     "goodfoot": {
