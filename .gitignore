@@ -204,6 +204,7 @@ documentation/hook-libraries
 
 packages/jsdoczoom/types
 packages/claude-code-skill-reader/types
+packages/codex-hooks/types
 
 documentation/PageIndex
 scripts/ssh/
