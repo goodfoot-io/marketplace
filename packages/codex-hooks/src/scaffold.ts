@@ -19,9 +19,14 @@ const EVENT_TO_FACTORY: Record<HookEventName, string> = Object.fromEntries(
 const EVENT_TO_OUTPUT: Record<HookEventName, string> = {
   PreToolUse: "preToolUseOutput",
   PostToolUse: "postToolUseOutput",
-  SessionStart: "sessionStartOutput",
+  PermissionRequest: "permissionRequestOutput",
   UserPromptSubmit: "userPromptSubmitOutput",
+  SessionStart: "sessionStartOutput",
+  SubagentStart: "subagentStartOutput",
   Stop: "stopOutput",
+  SubagentStop: "subagentStopOutput",
+  PreCompact: "preCompactOutput",
+  PostCompact: "postCompactOutput",
 };
 
 export function validateHookNames(
@@ -208,6 +213,55 @@ export default ${factory}({}, (input) => {
       systemMessage: "Stop hook observed an empty assistant message.",
     });
   }
+});
+`;
+    case "PermissionRequest":
+      return `import { ${importItems} } from "${PACKAGE_NAME}";
+
+export default ${factory}({ matcher: "Bash" }, (input) => {
+  return ${output}({
+    behavior: "allow",
+    message: \`Allowed \${input.tool_name} via PermissionRequest hook.\`,
+  });
+});
+`;
+    case "SubagentStart":
+      return `import { ${importItems} } from "${PACKAGE_NAME}";
+
+export default ${factory}({ matcher: ".*" }, (input) => {
+  return ${output}({
+    additionalContext: \`Subagent \${input.agent_type} (\${input.agent_id}) starting.\`,
+  });
+});
+`;
+    case "SubagentStop":
+      return `import { ${importItems} } from "${PACKAGE_NAME}";
+
+export default ${factory}({ matcher: ".*" }, (input) => {
+  if (input.last_assistant_message === null) {
+    return ${output}({
+      decision: "block",
+      reason: \`Subagent \${input.agent_type} produced no message.\`,
+    });
+  }
+});
+`;
+    case "PreCompact":
+      return `import { ${importItems} } from "${PACKAGE_NAME}";
+
+export default ${factory}({ matcher: "manual" }, () => {
+  return ${output}({
+    systemMessage: "Compaction starting.",
+  });
+});
+`;
+    case "PostCompact":
+      return `import { ${importItems} } from "${PACKAGE_NAME}";
+
+export default ${factory}({ matcher: "manual" }, () => {
+  return ${output}({
+    systemMessage: "Compaction complete.",
+  });
 });
 `;
   }

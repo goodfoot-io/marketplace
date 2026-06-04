@@ -40,4 +40,29 @@ describe("scaffold", () => {
     expect(fs.existsSync(path.join(target, "src", "pre-tool-use.ts"))).toBe(true);
     expect(fs.readFileSync(path.join(target, "package.json"), "utf-8")).toContain("@goodfoot/codex-hooks");
   });
+
+  it("scaffolds files for the new hook events", () => {
+    const root = createTempDir();
+    const target = path.join(root, "demo-extended");
+    scaffoldProject({
+      directory: target,
+      hooks: ["PermissionRequest", "SubagentStart", "SubagentStop", "PreCompact", "PostCompact"],
+      outputPath: ".codex/hooks.json",
+    });
+
+    for (const baseName of ["permission-request", "subagent-start", "subagent-stop", "pre-compact", "post-compact"]) {
+      expect(fs.existsSync(path.join(target, "src", `${baseName}.ts`))).toBe(true);
+      expect(fs.existsSync(path.join(target, "test", `${baseName}.test.ts`))).toBe(true);
+    }
+
+    const permissionRequestSource = fs.readFileSync(path.join(target, "src", "permission-request.ts"), "utf-8");
+    expect(permissionRequestSource).toContain("permissionRequestHook");
+    expect(permissionRequestSource).toContain("permissionRequestOutput");
+
+    const subagentStartSource = fs.readFileSync(path.join(target, "src", "subagent-start.ts"), "utf-8");
+    expect(subagentStartSource).toContain("subagentStartHook");
+
+    const preCompactSource = fs.readFileSync(path.join(target, "src", "pre-compact.ts"), "utf-8");
+    expect(preCompactSource).toContain("preCompactHook");
+  });
 });

@@ -10,10 +10,25 @@ export const DEFAULT_ESBUILD_LOADERS = {
 export const HOOK_FACTORY_TO_EVENT: Record<string, HookEventName> = {
   preToolUseHook: "PreToolUse",
   postToolUseHook: "PostToolUse",
-  sessionStartHook: "SessionStart",
+  permissionRequestHook: "PermissionRequest",
   userPromptSubmitHook: "UserPromptSubmit",
+  sessionStartHook: "SessionStart",
+  subagentStartHook: "SubagentStart",
   stopHook: "Stop",
+  subagentStopHook: "SubagentStop",
+  preCompactHook: "PreCompact",
+  postCompactHook: "PostCompact",
 };
 
-export const EVENTS_WITH_MATCHER = new Set<HookEventName>(["PreToolUse", "PostToolUse", "SessionStart"]);
-export const EVENTS_WITH_TEXT_OUTPUT = new Set<HookEventName>(["SessionStart", "UserPromptSubmit"]);
+export const EVENTS_WITH_MATCHER = new Set<HookEventName>([
+  "PreToolUse",
+  "PostToolUse",
+  "PermissionRequest",
+  "SessionStart",
+  "SubagentStart",
+  "SubagentStop",
+  "PreCompact",
+  "PostCompact",
+]);
+
+export const EVENTS_WITH_TEXT_OUTPUT = new Set<HookEventName>(["SessionStart", "UserPromptSubmit", "SubagentStart"]);

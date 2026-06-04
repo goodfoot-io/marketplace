@@ -1,0 +1,221 @@
+<instructions>
+
+## Quick Start: Scaffolding (Recommended)
+
+The easiest way to start is to scaffold a complete project with TypeScript, testing, and build scripts configured.
+
+```bash
+# Generate a new project in ./my-codex-hooks with SessionStart and PreToolUse hooks
+npx @goodfoot/codex-hooks --scaffold ./my-codex-hooks --hooks SessionStart,PreToolUse -o ./.codex/hooks.json
+```
+
+**What happens next:**
+1. `cd my-codex-hooks`
+2. `npm install`
+3. `npm run build` (Compiles hooks to the `-o` path)
+4. `npm test` (Runs generated tests)
+
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PermissionRequest`, `UserPromptSubmit`, `SessionStart`, `SubagentStart`, `Stop`, `SubagentStop`, `PreCompact`, `PostCompact`
+
+### Scaffolding for Monorepos
+
+Scaffolding works for monorepos — use `-o` to output directly to a plugin directory:
+
+```bash
+# Scaffold into packages/, output hooks.json to plugins/
+npx @goodfoot/codex-hooks --scaffold ./packages/my-codex-hooks \
+  --hooks PreToolUse,PostToolUse \
+  -o ../../plugins/my-plugin/.codex/hooks.json
+```
+
+This generates the build script:
+```json
+"build": "npx -y @goodfoot/codex-hooks -i \"src/**/*.ts\" -o \"../../plugins/my-plugin/.codex/hooks.json\""
+```
+
+**One manual adjustment:** If `@goodfoot/codex-hooks` is a workspace package, change the dependency:
+```diff
+- "@goodfoot/codex-hooks": "^0.1.0"
++ "@goodfoot/codex-hooks": "workspace:*"
+```
+
+## Manual Setup (Alternative)
+
+If you prefer to integrate into an existing project:
+
+### Prerequisites
+
+- Node.js v20+
+- Package manager: npm, yarn, pnpm, or bun
+- TypeScript project
+- A non-Windows host (Codex disables hooks on Windows)
+
+### Install Dependencies
+
+```bash
+yarn add @goodfoot/codex-hooks
+yarn add -D tsx typescript
+```
+
+### Project Structure
+
+We recommend this layout:
+
+```
+project/
+├── src/
+│   └── pre-tool-use.ts     # Hook source
+├── .codex/
+│   ├── hooks.json          # Manifest (Codex auto-loads this)
+│   └── bin/                # Compiled output
+```
+
+### The Build System
+
+Hooks **must be compiled**. Run the build CLI:
+
+```bash
+npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json"
+```
+
+### Asset Imports with `--loader`
+
+The compiler bundles hook code with esbuild. Non-code imports must have an esbuild loader.
+
+- `.md` works out of the box because the CLI enables `.md=text` by default.
+- Other extensions stay fail-closed until you opt in with repeated `--loader .ext=type` flags.
+- Use text imports for small static prompt assets that should become strings at bundle time.
+
+```bash
+npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json" --loader .txt=text
+```
+
+Typical pattern for prompt preambles:
+
+```typescript
+import preamble from './prompts/subagent-start.md';
+import { subagentStartHook, subagentStartOutput } from '@goodfoot/codex-hooks';
+
+export default subagentStartHook({}, () => {
+  return subagentStartOutput({
+    additionalContext: preamble
+  });
+});
+```
+
+If your project also runs Vitest/Vite, configure the same extension handling there. Otherwise source builds can pass while tests still fail on the asset import.
+
+### Custom Node Executable
+
+By default, generated commands use `node` as the executable. Use `--executable` to specify an alternative:
+
+```bash
+# Use a specific node version
+npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json" --executable /usr/local/bin/node22
+
+# Use bun instead of node
+npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json" --executable bun
+```
+
+This affects the generated `hooks.json` commands:
+- Default: `node $CLAUDE_PLUGIN_ROOT/bin/hook.mjs`
+- With `--executable bun`: `bun $CLAUDE_PLUGIN_ROOT/bin/hook.mjs`
+
+## Configuration
+
+After building (Scaffolded or Manual), tell Codex where to find the manifest.
+
+**Option A: Standalone Project**
+
+Place the compiled manifest at `.codex/hooks.json` under the project root. Codex auto-discovers it during session startup.
+
+**Option B: Codex Plugin**
+
+Plugins ship the compiled `.codex/hooks.json` inside the plugin directory.
+
+```bash
+# Build to plugin root
+npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o "./.codex/hooks.json"
+```
+
+## Verification
+
+Test the compiled hook by piping JSON. Inputs follow the wire schemas in `third_party/reference/codex/codex-rs/hooks/schema/generated/*.input.schema.json`:
+
+```bash
+echo '{
+  "hook_event_name":"PreToolUse",
+  "cwd":"/workspace",
+  "model":"gpt-5-codex",
+  "session_id":"s1",
+  "transcript_path":null,
+  "permission_mode":"default",
+  "tool_name":"shell",
+  "tool_input":{"command":"ls"},
+  "tool_use_id":"t1",
+  "turn_id":"u1"
+}' | node .codex/bin/pre-tool-use.*.mjs
+```
+
+## Monorepo Integration
+
+For monorepo workspaces where hooks are in a separate package:
+
+### Package Structure
+
+```
+packages/
+├── my-codex-hooks/                # Hook source package
+│   ├── src/
+│   │   ├── pre-tool-use.ts
+│   │   └── post-tool-use.ts
+│   ├── test/
+│   │   └── pre-tool-use.test.ts
+│   ├── package.json
+│   └── tsconfig.json
+└── ...
+plugins/
+└── my-plugin/
+    └── .codex/
+        └── hooks.json             # Build output target
+```
+
+### package.json
+
+```json
+{
+  "name": "@myorg/codex-hooks",
+  "type": "module",
+  "scripts": {
+    "build": "npx -y @goodfoot/codex-hooks -i \"src/**/*.ts\" -o \"../../plugins/my-plugin/.codex/hooks.json\"",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@goodfoot/codex-hooks": "workspace:^"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}
+```
+
+### Build Output
+
+The `-o` path is relative to the package directory. Use `../../` to output to a sibling plugin directory.
+
+**Verify the output path:**
+
+```bash
+cd packages/my-codex-hooks
+npm run build
+# Check: plugins/my-plugin/.codex/hooks.json should exist
+cat ../../plugins/my-plugin/.codex/hooks.json | jq .
+```
+
+## Platform Note
+
+Codex disables hook execution on Windows. Manifests are still parsed but no hook commands will run. Develop and deploy Codex hooks on macOS or Linux.
+
+</instructions>

@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/codex-hooks",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Type-safe Codex hooks library, runtime, and build tool",
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/codex-hooks",
   "repository": {
@@ -45,14 +45,14 @@
     }
   },
   "dependencies": {
-    "esbuild": "^0.24.0",
-    "glob": "^11.0.0",
-    "typescript": "^5.9.3"
+    "esbuild": "^0.28.0",
+    "glob": "^13.0.6",
+    "typescript": "^6.0.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.9",
-    "@types/node": "^24",
-    "tsx": "^4.20.6",
-    "vitest": "4.0.13"
+    "@biomejs/biome": "2.4.16",
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.4",
+    "vitest": "4.1.8"
   }
 }

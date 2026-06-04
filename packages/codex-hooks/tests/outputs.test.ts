@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  permissionRequestOutput,
+  postCompactOutput,
   postToolUseOutput,
+  preCompactOutput,
   preToolUseLegacyBlockOutput,
   preToolUseOutput,
   sessionStartOutput,
   stopOutput,
+  subagentStartOutput,
+  subagentStopOutput,
   userPromptSubmitOutput,
 } from "../src/outputs.js";
 
@@ -22,6 +27,40 @@ describe("output builders", () => {
         hookEventName: "PreToolUse",
         permissionDecision: "deny",
         permissionDecisionReason: "No destructive shell commands.",
+      },
+    });
+  });
+
+  it("supports permissionDecision allow with updatedInput and additionalContext", () => {
+    expect(
+      preToolUseOutput({
+        permissionDecision: "allow",
+        permissionDecisionReason: "Looks safe",
+        updatedInput: { command: "ls -la" },
+        additionalContext: "Rewrote command to be less broad",
+      }).stdout,
+    ).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "allow",
+        permissionDecisionReason: "Looks safe",
+        updatedInput: { command: "ls -la" },
+        additionalContext: "Rewrote command to be less broad",
+      },
+    });
+  });
+
+  it("supports permissionDecision ask", () => {
+    expect(
+      preToolUseOutput({
+        permissionDecision: "ask",
+        permissionDecisionReason: "Need confirmation",
+      }).stdout,
+    ).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "ask",
+        permissionDecisionReason: "Need confirmation",
       },
     });
   });
@@ -58,6 +97,80 @@ describe("output builders", () => {
     expect(postToolUseOutput({ decision: "block", reason: "Bad output" }).stdout).toEqual({
       decision: "block",
       reason: "Bad output",
+    });
+  });
+
+  it("post-tool-use can emit updatedMCPToolOutput", () => {
+    expect(
+      postToolUseOutput({
+        updatedMCPToolOutput: { content: [{ type: "text", text: "rewritten" }] },
+      }).stdout,
+    ).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse",
+        updatedMCPToolOutput: { content: [{ type: "text", text: "rewritten" }] },
+      },
+    });
+  });
+
+  it("permissionRequest emits a minimal allow decision by default", () => {
+    expect(permissionRequestOutput({ behavior: "allow" }).stdout).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "PermissionRequest",
+        decision: { behavior: "allow" },
+      },
+    });
+  });
+
+  it("permissionRequest only emits reserved fields when set", () => {
+    expect(
+      permissionRequestOutput({
+        behavior: "deny",
+        message: "Not allowed",
+        interrupt: true,
+        updatedInput: { command: "ls" },
+        updatedPermissions: { something: true },
+      }).stdout,
+    ).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "PermissionRequest",
+        decision: {
+          behavior: "deny",
+          message: "Not allowed",
+          interrupt: true,
+          updatedInput: { command: "ls" },
+          updatedPermissions: { something: true },
+        },
+      },
+    });
+  });
+
+  it("subagentStartOutput maps additionalContext", () => {
+    expect(subagentStartOutput({ additionalContext: "Booting agent" }).stdout).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "SubagentStart",
+        additionalContext: "Booting agent",
+      },
+    });
+  });
+
+  it("subagentStopOutput emits block payload", () => {
+    expect(subagentStopOutput({ decision: "block", reason: "No output" }).stdout).toEqual({
+      decision: "block",
+      reason: "No output",
+    });
+  });
+
+  it("preCompactOutput emits universal fields only", () => {
+    expect(preCompactOutput({ systemMessage: "compacting" }).stdout).toEqual({
+      systemMessage: "compacting",
+    });
+  });
+
+  it("postCompactOutput emits universal fields only", () => {
+    expect(postCompactOutput({ continue: false, stopReason: "done" }).stdout).toEqual({
+      continue: false,
+      stopReason: "done",
     });
   });
 });

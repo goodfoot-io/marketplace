@@ -1,20 +1,30 @@
 import type { Logger } from "./logger.js";
 import type {
-  MatcherHookConfig,
-  NoMatcherHookConfig,
-  PostToolUseInput,
-  PreToolUseInput,
-  SessionStartInput,
-  StopInput,
-  UserPromptSubmitInput,
-} from "./types.js";
-import type {
+  PermissionRequestOutput,
+  PostCompactOutput,
   PostToolUseOutput,
+  PreCompactOutput,
   PreToolUseOutput,
   SessionStartOutput,
   StopOutput,
+  SubagentStartOutput,
+  SubagentStopOutput,
   UserPromptSubmitOutput,
 } from "./outputs.js";
+import type {
+  MatcherHookConfig,
+  NoMatcherHookConfig,
+  PermissionRequestInput,
+  PostCompactInput,
+  PostToolUseInput,
+  PreCompactInput,
+  PreToolUseInput,
+  SessionStartInput,
+  StopInput,
+  SubagentStartInput,
+  SubagentStopInput,
+  UserPromptSubmitInput,
+} from "./types.js";
 
 export interface HookContext {
   logger: Logger;
@@ -31,16 +41,23 @@ export interface HookFunction<TInput, TOutput, TEvent extends string> extends Ho
   (input: TInput, context: HookContext): TOutput | Promise<TOutput>;
 }
 
-type SessionStartResult = SessionStartOutput | string | void;
-type UserPromptSubmitResult = UserPromptSubmitOutput | string | void;
-type StopResult = StopOutput | void;
-type PreToolUseResult = PreToolUseOutput | void;
-type PostToolUseResult = PostToolUseOutput | void;
+type PreToolUseResult = PreToolUseOutput | undefined;
+type PostToolUseResult = PostToolUseOutput | undefined;
+type PermissionRequestResult = PermissionRequestOutput | undefined;
+type UserPromptSubmitResult = UserPromptSubmitOutput | string | undefined;
+type SessionStartResult = SessionStartOutput | string | undefined;
+type SubagentStartResult = SubagentStartOutput | string | undefined;
+type StopResult = StopOutput | undefined;
+type SubagentStopResult = SubagentStopOutput | undefined;
+type PreCompactResult = PreCompactOutput | undefined;
+type PostCompactResult = PostCompactOutput | undefined;
 
 function attachMetadata<TInput, TOutput, TEvent extends string>(
   hookEventName: TEvent,
   config: MatcherHookConfig | NoMatcherHookConfig,
-  handler: HookFunction<TInput, TOutput, TEvent> | ((input: TInput, context: HookContext) => TOutput | Promise<TOutput>),
+  handler:
+    | HookFunction<TInput, TOutput, TEvent>
+    | ((input: TInput, context: HookContext) => TOutput | Promise<TOutput>),
 ): HookFunction<TInput, TOutput, TEvent> {
   const hook = handler as HookFunction<TInput, TOutput, TEvent>;
   hook.hookEventName = hookEventName;
@@ -66,6 +83,26 @@ export function postToolUseHook(
   return attachMetadata("PostToolUse", config, handler);
 }
 
+export function permissionRequestHook(
+  config: MatcherHookConfig,
+  handler: (
+    input: PermissionRequestInput,
+    context: HookContext,
+  ) => PermissionRequestResult | Promise<PermissionRequestResult>,
+): HookFunction<PermissionRequestInput, PermissionRequestResult, "PermissionRequest"> {
+  return attachMetadata("PermissionRequest", config, handler);
+}
+
+export function userPromptSubmitHook(
+  config: NoMatcherHookConfig,
+  handler: (
+    input: UserPromptSubmitInput,
+    context: HookContext,
+  ) => UserPromptSubmitResult | Promise<UserPromptSubmitResult>,
+): HookFunction<UserPromptSubmitInput, UserPromptSubmitResult, "UserPromptSubmit"> {
+  return attachMetadata("UserPromptSubmit", config, handler);
+}
+
 export function sessionStartHook(
   config: MatcherHookConfig,
   handler: (input: SessionStartInput, context: HookContext) => SessionStartResult | Promise<SessionStartResult>,
@@ -73,11 +110,11 @@ export function sessionStartHook(
   return attachMetadata("SessionStart", config, handler);
 }
 
-export function userPromptSubmitHook(
-  config: NoMatcherHookConfig,
-  handler: (input: UserPromptSubmitInput, context: HookContext) => UserPromptSubmitResult | Promise<UserPromptSubmitResult>,
-): HookFunction<UserPromptSubmitInput, UserPromptSubmitResult, "UserPromptSubmit"> {
-  return attachMetadata("UserPromptSubmit", config, handler);
+export function subagentStartHook(
+  config: MatcherHookConfig,
+  handler: (input: SubagentStartInput, context: HookContext) => SubagentStartResult | Promise<SubagentStartResult>,
+): HookFunction<SubagentStartInput, SubagentStartResult, "SubagentStart"> {
+  return attachMetadata("SubagentStart", config, handler);
 }
 
 export function stopHook(
@@ -85,4 +122,25 @@ export function stopHook(
   handler: (input: StopInput, context: HookContext) => StopResult | Promise<StopResult>,
 ): HookFunction<StopInput, StopResult, "Stop"> {
   return attachMetadata("Stop", config, handler);
+}
+
+export function subagentStopHook(
+  config: MatcherHookConfig,
+  handler: (input: SubagentStopInput, context: HookContext) => SubagentStopResult | Promise<SubagentStopResult>,
+): HookFunction<SubagentStopInput, SubagentStopResult, "SubagentStop"> {
+  return attachMetadata("SubagentStop", config, handler);
+}
+
+export function preCompactHook(
+  config: MatcherHookConfig,
+  handler: (input: PreCompactInput, context: HookContext) => PreCompactResult | Promise<PreCompactResult>,
+): HookFunction<PreCompactInput, PreCompactResult, "PreCompact"> {
+  return attachMetadata("PreCompact", config, handler);
+}
+
+export function postCompactHook(
+  config: MatcherHookConfig,
+  handler: (input: PostCompactInput, context: HookContext) => PostCompactResult | Promise<PostCompactResult>,
+): HookFunction<PostCompactInput, PostCompactResult, "PostCompact"> {
+  return attachMetadata("PostCompact", config, handler);
 }

@@ -61,6 +61,15 @@ describe("cli helpers", () => {
           timeout: 1500,
         },
       },
+      {
+        sourcePath: "/repo/src/pre-compact.ts",
+        outputPath: "/repo/.codex/bin/pre-compact.ghi789.mjs",
+        outputFilename: "pre-compact.ghi789.mjs",
+        metadata: {
+          hookEventName: "PreCompact" as const,
+          matcher: "manual",
+        },
+      },
     ];
 
     expect(generateHooksJson(compiledHooks, "/repo/.codex/hooks.json")).toEqual({
@@ -85,6 +94,17 @@ describe("cli helpers", () => {
                 type: "command",
                 command: 'node "$(git rev-parse --show-toplevel)/.codex/bin/user-prompt-submit.def456.mjs"',
                 timeout: 2,
+              },
+            ],
+          },
+        ],
+        PreCompact: [
+          {
+            matcher: "manual",
+            hooks: [
+              {
+                type: "command",
+                command: 'node "$(git rev-parse --show-toplevel)/.codex/bin/pre-compact.ghi789.mjs"',
               },
             ],
           },

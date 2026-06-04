@@ -1,7 +1,7 @@
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 
 const tempDirs: string[] = [];
@@ -68,22 +68,18 @@ describe("codex-hooks e2e", () => {
     const compiledFiles = fs.readdirSync(path.join(projectDir, ".codex")).filter((entry) => entry.endsWith(".mjs"));
     expect(compiledFiles.length).toBe(1);
 
-    const run = spawnSync(
-      "node",
-      [path.join(projectDir, ".codex", compiledFiles[0])],
-      {
-        input: JSON.stringify({
-          cwd: projectDir,
-          hook_event_name: "SessionStart",
-          model: "gpt-5",
-          permission_mode: "default",
-          session_id: "sess-1",
-          source: "startup",
-          transcript_path: null,
-        }),
-        encoding: "utf-8",
-      },
-    );
+    const run = spawnSync("node", [path.join(projectDir, ".codex", compiledFiles[0])], {
+      input: JSON.stringify({
+        cwd: projectDir,
+        hook_event_name: "SessionStart",
+        model: "gpt-5",
+        permission_mode: "default",
+        session_id: "sess-1",
+        source: "startup",
+        transcript_path: null,
+      }),
+      encoding: "utf-8",
+    });
 
     expect(run.status).toBe(0);
     expect(run.stderr).toBe("");
@@ -122,24 +118,20 @@ describe("codex-hooks e2e", () => {
     const compiledFile = fs.readdirSync(projectDir).find((entry) => entry.endsWith(".mjs"));
     expect(compiledFile).toBeDefined();
 
-    const run = spawnSync(
-      "node",
-      [path.join(projectDir, compiledFile ?? "")],
-      {
-        input: JSON.stringify({
-          cwd: projectDir,
-          hook_event_name: "Stop",
-          last_assistant_message: null,
-          model: "gpt-5",
-          permission_mode: "default",
-          session_id: "sess-1",
-          stop_hook_active: false,
-          transcript_path: null,
-          turn_id: "turn-1",
-        }),
-        encoding: "utf-8",
-      },
-    );
+    const run = spawnSync("node", [path.join(projectDir, compiledFile ?? "")], {
+      input: JSON.stringify({
+        cwd: projectDir,
+        hook_event_name: "Stop",
+        last_assistant_message: null,
+        model: "gpt-5",
+        permission_mode: "default",
+        session_id: "sess-1",
+        stop_hook_active: false,
+        transcript_path: null,
+        turn_id: "turn-1",
+      }),
+      encoding: "utf-8",
+    });
 
     expect(run.status).toBe(2);
     expect(run.stdout).toBe("");

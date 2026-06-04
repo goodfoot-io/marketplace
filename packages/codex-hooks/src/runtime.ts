@@ -1,8 +1,16 @@
-import type { HookFunction, HookContext } from "./hooks.js";
-import { logger } from "./logger.js";
-import { BlockError, EXIT_CODES, sessionStartOutput, userPromptSubmitOutput, type HookOutput, type SpecificHookOutput } from "./outputs.js";
-import type { HookEventName, HookInput } from "./types.js";
 import { EVENTS_WITH_TEXT_OUTPUT } from "./constants.js";
+import type { HookContext, HookFunction } from "./hooks.js";
+import { logger } from "./logger.js";
+import {
+  BlockError,
+  EXIT_CODES,
+  type HookOutput,
+  type SpecificHookOutput,
+  sessionStartOutput,
+  subagentStartOutput,
+  userPromptSubmitOutput,
+} from "./outputs.js";
+import type { HookEventName, HookInput } from "./types.js";
 
 async function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -28,6 +36,9 @@ function normalizeStringOutput(hookEventName: HookEventName, result: string): Sp
   }
   if (hookEventName === "SessionStart") {
     return sessionStartOutput({ additionalContext: result });
+  }
+  if (hookEventName === "SubagentStart") {
+    return subagentStartOutput({ additionalContext: result });
   }
   return userPromptSubmitOutput({ additionalContext: result });
 }

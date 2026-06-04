@@ -206,10 +206,16 @@ export function analyzeHookFile(sourcePath: string): HookMetadata | undefined {
         if (name === undefined) {
           continue;
         }
-        if (name === "matcher" && (ts.isStringLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer))) {
+        if (
+          name === "matcher" &&
+          (ts.isStringLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer))
+        ) {
           matcher = property.initializer.text;
         }
-        if (name === "statusMessage" && (ts.isStringLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer))) {
+        if (
+          name === "statusMessage" &&
+          (ts.isStringLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer))
+        ) {
           statusMessage = property.initializer.text;
         }
         if (name === "timeout" && ts.isNumericLiteral(property.initializer)) {
@@ -244,7 +250,10 @@ function generateContentHash(content: string): string {
   return crypto.createHash("sha256").update(content).digest("hex").slice(0, 8);
 }
 
-async function compileHook(sourcePath: string, loaders: HookLoaderMap): Promise<{ content: string; contentHash: string }> {
+async function compileHook(
+  sourcePath: string,
+  loaders: HookLoaderMap,
+): Promise<{ content: string; contentHash: string }> {
   const runtimePathAbsolute = path.resolve(path.dirname(new URL(import.meta.url).pathname), "./runtime.js");
   const resolveDir = path.dirname(sourcePath);
   const relativeRuntimePath = path.relative(resolveDir, runtimePathAbsolute).replace(/\\/g, "/");
@@ -350,7 +359,18 @@ function generateCommandPath(outputPath: string, hookOutputPath: string, executa
 export function generateHooksJson(compiledHooks: CompiledHook[], outputPath: string, executable = "node"): HooksJson {
   const grouped = groupHooksByEventAndMatcher(compiledHooks);
   const hooks: HooksJson["hooks"] = {};
-  for (const eventName of ["PreToolUse", "PostToolUse", "SessionStart", "UserPromptSubmit", "Stop"] as const) {
+  for (const eventName of [
+    "PreToolUse",
+    "PostToolUse",
+    "PermissionRequest",
+    "UserPromptSubmit",
+    "SessionStart",
+    "SubagentStart",
+    "Stop",
+    "SubagentStop",
+    "PreCompact",
+    "PostCompact",
+  ] as const) {
     const matcherMap = grouped.get(eventName);
     if (matcherMap === undefined) {
       continue;
@@ -391,7 +411,10 @@ export async function main(): Promise<void> {
   if (args.scaffold !== undefined && args.scaffold !== "") {
     scaffoldProject({
       directory: path.resolve(process.cwd(), args.scaffold),
-      hooks: (args.hooks ?? "").split(",").map((value) => value.trim()).filter(Boolean),
+      hooks: (args.hooks ?? "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean),
       outputPath: args.output,
     });
     return;

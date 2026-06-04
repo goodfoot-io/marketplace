@@ -94,7 +94,9 @@ export class Logger {
       ...(context !== undefined ? { context } : {}),
     };
     this.writeToFile(event);
-    this.handlers.get(level)?.forEach((handler) => handler(event));
+    this.handlers.get(level)?.forEach((handler) => {
+      handler(event);
+    });
   }
 
   private writeToFile(event: LogEvent): void {
