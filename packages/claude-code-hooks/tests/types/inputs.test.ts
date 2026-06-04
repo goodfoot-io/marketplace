@@ -9,6 +9,7 @@
 import { describe, expect, it } from "vitest";
 import type {
   HookInput,
+  MessageDisplayInput,
   NotificationInput,
   PermissionDeniedInput,
   PermissionRequestInput,
@@ -91,6 +92,8 @@ describe("HookInput discriminated union", () => {
             return input.file_path;
           case "PermissionDenied":
             return input.tool_name;
+          case "MessageDisplay":
+            return input.message_id;
           default: {
             // Exhaustiveness check
             const _exhaustive: never = input;
@@ -331,6 +334,26 @@ describe("HookInput discriminated union", () => {
       expect(input.tool_name).toBe("Bash");
       expect(input.reason).toBe("User denied the request");
       expect(input.tool_use_id).toBe("tool-1");
+    });
+
+    it("MessageDisplayInput has streaming delta fields", () => {
+      const input: MessageDisplayInput = {
+        hook_event_name: "MessageDisplay",
+        session_id: "sess-123",
+        transcript_path: "/path",
+        cwd: "/workspace",
+        turn_id: "turn-1",
+        message_id: "msg-1",
+        index: 2,
+        final: true,
+        delta: "",
+      };
+
+      expect(input.turn_id).toBe("turn-1");
+      expect(input.message_id).toBe("msg-1");
+      expect(input.index).toBe(2);
+      expect(input.final).toBe(true);
+      expect(input.delta).toBe("");
     });
 
     it("PermissionRequestInput has tool_name and permission_suggestions", () => {

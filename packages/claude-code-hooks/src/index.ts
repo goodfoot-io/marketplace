@@ -45,6 +45,7 @@ export {
   elicitationResultHook,
   fileChangedHook,
   instructionsLoadedHook,
+  messageDisplayHook,
   notificationHook,
   permissionDeniedHook,
   permissionRequestHook,
@@ -96,6 +97,8 @@ export type {
   // Hook-specific output types
   HookSpecificOutput,
   InstructionsLoadedOptions,
+  MessageDisplayHookSpecificOutput,
+  MessageDisplayOptions,
   NotificationHookSpecificOutput,
   NotificationOptions,
   PermissionDeniedHookSpecificOutput,
@@ -144,6 +147,7 @@ export {
   elicitationResultOutput,
   fileChangedOutput,
   instructionsLoadedOutput,
+  messageDisplayOutput,
   notificationOutput,
   permissionDeniedOutput,
   permissionRequestOutput,
@@ -257,6 +261,7 @@ export type {
   KnownToolName,
   ListMcpResourcesInput,
   McpInput,
+  MessageDisplayInput,
   // Tool input types
   MultiEditEntry,
   MultiEditToolInput,

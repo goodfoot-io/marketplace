@@ -126,7 +126,7 @@ npm test        # Run tests
 
 ### Available Hook Types
 
-The `--hooks` argument accepts a comma-separated list of any of these 21 event types:
+The `--hooks` argument accepts a comma-separated list of any of these 22 event types:
 
 | Hook Type            | Description                                                              |
 | -------------------- | ------------------------------------------------------------------------ |
@@ -151,6 +151,7 @@ The `--hooks` argument accepts a comma-separated list of any of these 21 event t
 | `TaskCreated`        | When a new task is created and assigned to a teammate                    |
 | `CwdChanged`         | When Claude Code's working directory changes; return `watchPaths` to register paths for `FileChanged` |
 | `FileChanged`        | When a watched file changes on disk (`change`, `add`, or `unlink`); return `watchPaths` to update the watched set |
+| `MessageDisplay`     | While an assistant message streams; display-only — replace the on-screen delta via `displayContent` |
 
 Hook names are case-insensitive: `stop`, `Stop`, and `STOP` all work.
 

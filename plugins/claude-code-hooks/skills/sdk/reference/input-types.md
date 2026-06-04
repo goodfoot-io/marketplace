@@ -37,6 +37,7 @@ interface BaseHookInput {
 | PermissionRequest | `tool_name`, `tool_input`, `tool_use_id`, `permission_suggestions?` |
 | PermissionDenied | `tool_name`, `tool_input`, `tool_use_id`, `reason` |
 | Setup | `trigger` ('init' \| 'maintenance') |
+| MessageDisplay | `turn_id`, `message_id`, `index`, `final`, `delta` |
 
 ## Tool Input Overview
 

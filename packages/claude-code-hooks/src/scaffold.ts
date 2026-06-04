@@ -93,6 +93,7 @@ const EVENT_TO_OUTPUT_FUNCTION: Record<HookEventName, string> = {
   WorktreeRemove: "worktreeRemoveOutput",
   CwdChanged: "cwdChangedOutput",
   FileChanged: "fileChangedOutput",
+  MessageDisplay: "messageDisplayOutput",
 };
 
 // ============================================================================
@@ -169,7 +170,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
       "@goodfoot/claude-code-hooks": "^1.0.9",
     },
     devDependencies: {
-      "@biomejs/biome": "2.4.15",
+      "@biomejs/biome": "2.4.16",
       "@types/node": "^22.0.0",
       typescript: "^5.9.3",
       vitest: "^4.0.16",
@@ -216,7 +217,7 @@ function generateTsConfig(): string {
  */
 function generateBiomeConfig(): string {
   return `{
-  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -398,6 +399,9 @@ function generateHookTemplate(eventName: HookEventName): string {
     case "ConfigChange":
     case "InstructionsLoaded":
     case "WorktreeRemove":
+      returnStatement = `return ${outputName}({});`;
+      break;
+    case "MessageDisplay":
       returnStatement = `return ${outputName}({});`;
       break;
     default:

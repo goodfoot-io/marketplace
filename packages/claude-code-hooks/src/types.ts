@@ -27,6 +27,7 @@ export type {
   HookEvent as SDKHookEvent,
   HookInput as SDKHookInput,
   InstructionsLoadedHookInput as SDKInstructionsLoadedHookInput,
+  MessageDisplayHookInput as SDKMessageDisplayHookInput,
   NotificationHookInput as SDKNotificationHookInput,
   PermissionDeniedHookInput as SDKPermissionDeniedHookInput,
   PermissionMode as SDKPermissionMode,
@@ -62,6 +63,7 @@ import type {
   ElicitationResultHookInput as SDKElicitationResultHookInput,
   FileChangedHookInput as SDKFileChangedHookInput,
   InstructionsLoadedHookInput as SDKInstructionsLoadedHookInput,
+  MessageDisplayHookInput as SDKMessageDisplayHookInput,
   NotificationHookInput as SDKNotificationHookInput,
   PermissionDeniedHookInput as SDKPermissionDeniedHookInput,
   PermissionMode as SDKPermissionMode,
@@ -426,6 +428,18 @@ export type WorktreeRemoveInput = { [K in keyof SDKWorktreeRemoveHookInput]: SDK
 export type CwdChangedInput = { [K in keyof SDKCwdChangedHookInput]: SDKCwdChangedHookInput[K] } & {};
 
 /**
+ * Input for MessageDisplay hooks.
+ *
+ * Fires with each batch of newly completed lines while an assistant message streams.
+ * Display-only: the stored message and what the model sees are untouched. Allows you to:
+ * - Replace the delta shown on screen with custom content (via `displayContent` output)
+ * - Observe and log message streaming
+ *
+ * @see https://code.claude.com/docs/en/hooks#messagedisplay
+ */
+export type MessageDisplayInput = { [K in keyof SDKMessageDisplayHookInput]: SDKMessageDisplayHookInput[K] } & {};
+
+/**
  * Input for FileChanged hooks.
  *
  * Fires when a watched file changes on disk, allowing you to:
@@ -583,7 +597,8 @@ export type HookInput =
   | WorktreeCreateInput
   | WorktreeRemoveInput
   | CwdChangedInput
-  | FileChangedInput;
+  | FileChangedInput
+  | MessageDisplayInput;
 
 /**
  * Hook event name literal union.
@@ -633,6 +648,7 @@ export const HOOK_EVENT_NAMES = [
   "WorktreeRemove",
   "CwdChanged",
   "FileChanged",
+  "MessageDisplay",
 ] as const satisfies readonly HookEventName[];
 
 // Re-export PermissionUpdate from SDK for convenience

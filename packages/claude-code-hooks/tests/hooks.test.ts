@@ -14,6 +14,7 @@ import type {
   ElicitationResultHookInput,
   FileChangedHookInput,
   InstructionsLoadedHookInput,
+  MessageDisplayHookInput,
   NotificationHookInput,
   PostToolUseFailureHookInput,
   PostToolUseHookInput,
@@ -36,6 +37,7 @@ import {
   elicitationResultHook,
   fileChangedHook,
   instructionsLoadedHook,
+  messageDisplayHook,
   notificationHook,
   permissionRequestHook,
   postToolUseFailureHook,
@@ -59,6 +61,7 @@ import {
   elicitationResultOutput,
   fileChangedOutput,
   instructionsLoadedOutput,
+  messageDisplayOutput,
   notificationOutput,
   permissionRequestOutput,
   postToolUseFailureOutput,
@@ -309,6 +312,20 @@ function createFileChangedHookInput(): FileChangedHookInput {
     cwd: "/workspace",
     file_path: "/workspace/src/index.ts",
     event: "change",
+  };
+}
+
+function createMessageDisplayHookInput(): MessageDisplayHookInput {
+  return {
+    hook_event_name: "MessageDisplay",
+    session_id: "test-session",
+    transcript_path: "/path/to/transcript",
+    cwd: "/workspace",
+    turn_id: "turn-123",
+    message_id: "msg-456",
+    index: 0,
+    final: false,
+    delta: "Hello, world!\n",
   };
 }
 
@@ -900,6 +917,41 @@ describe("Hook Factory Functions", () => {
       await hook(createFileChangedHookInput(), { logger: testLogger });
       expect(receivedInput?.file_path).toBe("/workspace/src/index.ts");
       expect(receivedInput?.event).toBe("change");
+    });
+  });
+
+  describe("messageDisplayHook", () => {
+    it("returns a HookFunction with correct hookEventName", () => {
+      const hook = messageDisplayHook({}, () => messageDisplayOutput({}));
+      expect(hook.hookEventName).toBe("MessageDisplay");
+    });
+
+    it("handler receives streaming delta fields", async () => {
+      let receivedInput: MessageDisplayHookInput | undefined;
+      const hook = messageDisplayHook({}, (input) => {
+        receivedInput = input;
+        return messageDisplayOutput({});
+      });
+      await hook(createMessageDisplayHookInput(), { logger: testLogger });
+      expect(receivedInput?.message_id).toBe("msg-456");
+      expect(receivedInput?.turn_id).toBe("turn-123");
+      expect(receivedInput?.index).toBe(0);
+      expect(receivedInput?.final).toBe(false);
+      expect(receivedInput?.delta).toBe("Hello, world!\n");
+    });
+
+    it("supports displayContent in hookSpecificOutput", async () => {
+      const hook = messageDisplayHook({}, () =>
+        messageDisplayOutput({
+          hookSpecificOutput: { displayContent: "[redacted]" },
+        }),
+      );
+      const result = await hook(createMessageDisplayHookInput(), { logger: testLogger });
+      assert(result !== null);
+      expect(result.stdout.hookSpecificOutput?.hookEventName).toBe("MessageDisplay");
+      if (result.stdout.hookSpecificOutput?.hookEventName === "MessageDisplay") {
+        expect(result.stdout.hookSpecificOutput.displayContent).toBe("[redacted]");
+      }
     });
   });
 });

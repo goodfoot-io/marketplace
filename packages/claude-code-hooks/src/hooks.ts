@@ -30,6 +30,7 @@ import type {
   ElicitationResultOutput,
   FileChangedOutput,
   InstructionsLoadedOutput,
+  MessageDisplayOutput,
   NotificationOutput,
   PermissionDeniedOutput,
   PermissionRequestOutput,
@@ -64,6 +65,7 @@ import type {
   HookEventName,
   InstructionsLoadedInput,
   KnownToolName,
+  MessageDisplayInput,
   NotificationInput,
   PermissionDeniedInput,
   PermissionRequestInput,
@@ -1709,4 +1711,45 @@ export function fileChangedHook(
   handler: HookHandler<FileChangedInput, FileChangedOutput>,
 ): HookFunction<FileChangedInput, FileChangedOutput> {
   return createHookFunction("FileChanged", config, handler);
+}
+
+// ============================================================================
+// MessageDisplay Hook Factory
+// ============================================================================
+
+/**
+ * Creates a MessageDisplay hook handler.
+ *
+ * MessageDisplay hooks fire with each batch of newly completed lines while an
+ * assistant message streams. Display-only: the stored message and what the model
+ * sees are untouched. Allows you to:
+ * - Replace the delta shown on screen with custom content via `displayContent`
+ * - Observe and log message streaming events
+ *
+ * The input carries `turn_id`, `message_id`, `index`, `final`, and `delta` fields.
+ * The `final` flag indicates the last flush of a message — its `delta` is empty
+ * when the message ends on a newline; treat `final` as the end-of-message signal.
+ *
+ * **Matcher**: No matcher support - fires on all message display events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { messageDisplayHook, messageDisplayOutput } from '@goodfoot/claude-code-hooks';
+ *
+ * export default messageDisplayHook({}, async (input, { logger }) => {
+ *   if (input.final) {
+ *     logger.info('Message complete', { messageId: input.message_id });
+ *   }
+ *   return messageDisplayOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#messagedisplay
+ */
+export function messageDisplayHook(
+  config: HookConfig,
+  handler: HookHandler<MessageDisplayInput, MessageDisplayOutput>,
+): HookFunction<MessageDisplayInput, MessageDisplayOutput> {
+  return createHookFunction("MessageDisplay", config, handler);
 }

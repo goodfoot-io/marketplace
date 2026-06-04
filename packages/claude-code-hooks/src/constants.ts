@@ -38,4 +38,5 @@ export const HOOK_FACTORY_TO_EVENT: Record<string, HookEventName> = {
   worktreeRemoveHook: "WorktreeRemove",
   cwdChangedHook: "CwdChanged",
   fileChangedHook: "FileChanged",
+  messageDisplayHook: "MessageDisplay",
 };

@@ -136,7 +136,7 @@ npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,Subage
 3.  `npm run build` (Compiles hooks to the specified output path)
 4.  `npm test` (Runs the generated tests)
 
-**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PostToolBatch`, `Notification`, `UserPromptExpansion`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`, `PermissionRequest`, `Setup`, `TeammateIdle`, `TaskCreated`, `TaskCompleted`, `CwdChanged`, `FileChanged`
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PostToolBatch`, `Notification`, `UserPromptExpansion`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`, `PermissionRequest`, `Setup`, `TeammateIdle`, `TaskCreated`, `TaskCompleted`, `CwdChanged`, `FileChanged`, `MessageDisplay`
 
 **Monorepo?** Use `-o` to output directly to a plugin directory:
 ```bash
@@ -172,8 +172,9 @@ Different hooks have different capabilities. This table clarifies what each hook
 | TaskCompleted | Yes (`stderr`) | No | No | No |
 | CwdChanged | No | No | No | No |
 | FileChanged | No | No | No | No |
+| MessageDisplay | No | No | No | No |
 
-**Key distinction**: `Stop` and `SubagentStop` hooks use `decision: 'block'`. `TeammateIdle`, `TaskCreated`, and `TaskCompleted` hooks use `stderr` for exit-code-based blocking (no Common Options). `CwdChanged` and `FileChanged` hooks return `hookSpecificOutput.watchPaths` to register/update paths for `FileChanged` events. Other hooks signal issues through `additionalContext`, `systemMessage`, or `permissionDecision`.
+**Key distinction**: `Stop` and `SubagentStop` hooks use `decision: 'block'`. `TeammateIdle`, `TaskCreated`, and `TaskCompleted` hooks use `stderr` for exit-code-based blocking (no Common Options). `CwdChanged` and `FileChanged` hooks return `hookSpecificOutput.watchPaths` to register/update paths for `FileChanged` events. `MessageDisplay` is display-only: return `hookSpecificOutput.displayContent` to replace the on-screen delta without changing the stored message. Other hooks signal issues through `additionalContext`, `systemMessage`, or `permissionDecision`.
 
 ## 5. Common Patterns
 

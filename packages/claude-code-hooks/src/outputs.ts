@@ -13,6 +13,7 @@ import type {
   ElicitationHookSpecificOutput as SDKElicitationHookSpecificOutput,
   ElicitationResultHookSpecificOutput as SDKElicitationResultHookSpecificOutput,
   FileChangedHookSpecificOutput as SDKFileChangedHookSpecificOutput,
+  MessageDisplayHookSpecificOutput as SDKMessageDisplayHookSpecificOutput,
   NotificationHookSpecificOutput as SDKNotificationHookSpecificOutput,
   PermissionDeniedHookSpecificOutput as SDKPermissionDeniedHookSpecificOutput,
   PermissionRequestHookSpecificOutput as SDKPermissionRequestHookSpecificOutput,
@@ -71,6 +72,7 @@ export type {
   SDKElicitationHookSpecificOutput,
   SDKElicitationResultHookSpecificOutput,
   SDKFileChangedHookSpecificOutput,
+  SDKMessageDisplayHookSpecificOutput,
   SDKNotificationHookSpecificOutput,
   SDKPermissionDeniedHookSpecificOutput,
   SDKPermissionRequestHookSpecificOutput,
@@ -209,6 +211,12 @@ export type CwdChangedHookSpecificOutput = Omit<SDKCwdChangedHookSpecificOutput,
  */
 export type FileChangedHookSpecificOutput = Omit<SDKFileChangedHookSpecificOutput, "hookEventName">;
 
+/**
+ * MessageDisplay hook-specific output fields.
+ * Omits `hookEventName` which is added automatically by the builder.
+ */
+export type MessageDisplayHookSpecificOutput = Omit<SDKMessageDisplayHookSpecificOutput, "hookEventName">;
+
 // ============================================================================
 // Wire Format Output Types
 // ============================================================================
@@ -232,7 +240,8 @@ export type HookSpecificOutput =
   | SDKElicitationHookSpecificOutput
   | SDKElicitationResultHookSpecificOutput
   | SDKCwdChangedHookSpecificOutput
-  | SDKFileChangedHookSpecificOutput;
+  | SDKFileChangedHookSpecificOutput
+  | SDKMessageDisplayHookSpecificOutput;
 
 /**
  * The JSON output format expected by Claude Code (sync hooks only).
@@ -441,6 +450,10 @@ export type CwdChangedOutput = BaseSpecificOutput<"CwdChanged">;
  *
  */
 export type FileChangedOutput = BaseSpecificOutput<"FileChanged">;
+/**
+ *
+ */
+export type MessageDisplayOutput = BaseSpecificOutput<"MessageDisplay">;
 
 /**
  * Union of all specific output types.
@@ -474,7 +487,8 @@ export type SpecificHookOutput =
   | WorktreeCreateOutput
   | WorktreeRemoveOutput
   | CwdChangedOutput
-  | FileChangedOutput;
+  | FileChangedOutput
+  | MessageDisplayOutput;
 
 // ============================================================================
 // Output Builder Factories
@@ -1439,6 +1453,42 @@ export const fileChangedOutput = /* @__PURE__ */ createHookSpecificOutputBuilder
   "FileChanged",
   FileChangedHookSpecificOutput
 >("FileChanged");
+
+// ============================================================================
+// MessageDisplay Output Builder
+// ============================================================================
+
+/**
+ * Options for the MessageDisplay output builder.
+ */
+export type MessageDisplayOptions = CommonOptions & {
+  /** Hook-specific output matching the wire format. */
+  hookSpecificOutput?: MessageDisplayHookSpecificOutput;
+};
+
+/**
+ * Creates an output for MessageDisplay hooks.
+ *
+ * MessageDisplay is display-only: the `displayContent` field replaces the delta on
+ * screen without changing the stored message or what the model sees. Omit
+ * `displayContent` (or set it to the original delta) to leave the display unchanged.
+ * @param options - Configuration options for the hook output
+ * @returns A MessageDisplayOutput object ready for the runtime
+ * @example
+ * ```typescript
+ * // Replace the delta shown on screen
+ * messageDisplayOutput({
+ *   hookSpecificOutput: { displayContent: "[redacted]" }
+ * });
+ *
+ * // Passthrough (no display modification)
+ * messageDisplayOutput({});
+ * ```
+ */
+export const messageDisplayOutput = /* @__PURE__ */ createHookSpecificOutputBuilder<
+  "MessageDisplay",
+  MessageDisplayHookSpecificOutput
+>("MessageDisplay");
 
 // ============================================================================
 // Legacy type aliases for backwards compatibility

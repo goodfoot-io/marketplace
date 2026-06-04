@@ -597,7 +597,7 @@ export default taskCompletedHook({}, (input, { logger }) => {
 });
 ```
 
-## All 19 Hook Types Reference
+## All 22 Hook Types Reference
 
 | Hook Type | Factory | Builder | Input Key |
 |-----------|---------|---------|-----------|
@@ -622,6 +622,7 @@ export default taskCompletedHook({}, (input, { logger }) => {
 | TeammateIdle | `teammateIdleHook` | `teammateIdleOutput` | `teammate_name` |
 | TaskCreated | `taskCreatedHook` | `taskCreatedOutput` | `task_subject` |
 | TaskCompleted | `taskCompletedHook` | `taskCompletedOutput` | `task_subject` |
+| MessageDisplay | `messageDisplayHook` | `messageDisplayOutput` | N/A |
 
 ## Builder Options Cheat Sheet
 
