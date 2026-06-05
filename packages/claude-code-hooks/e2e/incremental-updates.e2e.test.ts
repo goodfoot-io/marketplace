@@ -344,7 +344,7 @@ describe("E2E: Incremental Updates", () => {
 
       expect(firstTimestamp).toBeDefined();
       expect(firstFiles.length).toBe(1);
-      expect(firstFiles[0]).toMatch(/^hook-with-timeout\.[a-f0-9]+\.mjs$/);
+      expect(firstFiles[0]).toBe("hook-with-timeout.mjs");
 
       // Second build with same input
       result = runCli(inputPath, outputPath);
@@ -359,7 +359,7 @@ describe("E2E: Incremental Updates", () => {
 
       // Should still have exactly one file with the expected naming pattern
       expect(secondFiles.length).toBe(1);
-      expect(secondFiles[0]).toMatch(/^hook-with-timeout\.[a-f0-9]+\.mjs$/);
+      expect(secondFiles[0]).toBe("hook-with-timeout.mjs");
 
       // Only the new file should exist on disk in the build directory (old one removed)
       const filesOnDisk = fs.readdirSync(buildDir).filter((f) => f.endsWith(".mjs"));

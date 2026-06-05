@@ -63,6 +63,8 @@ interface CliArgs {
   executable?: string;
   /** Repeated esbuild loader flags in EXT=TYPE form. */
   loaderFlags: string[];
+  /** Emit hash-free `<name>.mjs` bundles. Defaults to true; set false with --no-stable-names. */
+  stableNames?: boolean;
 }
 
 type HookLoaderMap = Record<string, esbuild.Loader>;
@@ -223,6 +225,15 @@ Optional Arguments:
       Example: --loader .txt=text --loader .svg=dataurl
       Default loaders: .md=text
 
+  --stable-names (default)
+      Emit hash-free compiled bundles (<name>.mjs). Keeps generated hooks.json
+      byte-stable across rebuilds so Claude Code's hook trust hash stays valid
+      and users do not have to re-trust hooks after every update. Stale hashed
+      leftovers are pruned automatically.
+
+  --no-stable-names
+      Restore the pre-1.7 behavior: hashed compiled bundles (<name>.<hash>.mjs).
+
   -h, --help
       Show this help message.
 
@@ -326,6 +337,7 @@ function parseArgs(argv: string[]): CliArgs {
     help: false,
     version: false,
     loaderFlags: [],
+    stableNames: true,
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -365,6 +377,12 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case "--loader":
         args.loaderFlags.push(argv[++i] ?? "");
+        break;
+      case "--stable-names":
+        args.stableNames = true;
+        break;
+      case "--no-stable-names":
+        args.stableNames = false;
         break;
       default:
         // Unknown argument - ignore
@@ -806,6 +824,8 @@ interface CompileAllHooksOptions {
   logEnvVar?: string;
   /** Explicit esbuild loaders for non-code imports. */
   loaders: HookLoaderMap;
+  /** Emit hash-free `<name>.mjs` bundles (default true). */
+  stableNames?: boolean;
 }
 
 /**
@@ -815,7 +835,9 @@ interface CompileAllHooksOptions {
  */
 async function compileAllHooks(options: CompileAllHooksOptions): Promise<CompiledHook[]> {
   const { hookFiles, outputDir, logFilePath, logEnvVar, loaders } = options;
+  const stableNames = options.stableNames !== false;
   const compiledHooks: CompiledHook[] = [];
+  const writtenFilenames = new Set<string>();
 
   // Ensure output directory exists
   if (!fs.existsSync(outputDir)) {
@@ -841,9 +863,11 @@ async function compileAllHooks(options: CompileAllHooksOptions): Promise<Compile
     log("info", `Compiling: ${sourcePath}`);
     const { content, contentHash } = await compileHook({ sourcePath, outputDir, logFilePath, logEnvVar, loaders });
 
-    // Determine output filename using the stable content hash
+    // Determine output filename. Stable names (the default) keep generated
+    // hooks.json byte-stable across rebuilds so Claude Code's hook trust hash
+    // stays valid; --no-stable-names restores the legacy hashed form.
     const baseName = path.basename(sourcePath, path.extname(sourcePath));
-    const outputFilename = `${baseName}.${contentHash}.mjs`;
+    const outputFilename = stableNames ? `${baseName}.mjs` : `${baseName}.${contentHash}.mjs`;
     const outputPath = path.join(outputDir, outputFilename);
 
     // Write compiled output with shebang for direct execution
@@ -851,6 +875,7 @@ async function compileAllHooks(options: CompileAllHooksOptions): Promise<Compile
     const shebang = "#!/usr/bin/env -S node --enable-source-maps\n";
     fs.writeFileSync(outputPath, shebang + content, { encoding: "utf-8", mode: 0o755 });
     log("info", `Wrote: ${outputPath}`);
+    writtenFilenames.add(outputFilename);
 
     compiledHooks.push({
       sourcePath,
@@ -860,7 +885,35 @@ async function compileAllHooks(options: CompileAllHooksOptions): Promise<Compile
     });
   }
 
+  if (stableNames) {
+    pruneStaleHashedBundles(outputDir, writtenFilenames);
+  }
   return compiledHooks;
+}
+
+/**
+ * Removes hashed `<name>.<hash>.mjs` siblings of the stable bundles we just
+ * wrote, so re-running the build with --stable-names cleans up leftovers from
+ * previous --no-stable-names (or pre-1.7) runs.
+ */
+function pruneStaleHashedBundles(outputDir: string, keepFilenames: Set<string>): void {
+  if (!fs.existsSync(outputDir)) {
+    return;
+  }
+  const hashedBundlePattern = /^(.+)\.[0-9a-f]{8}\.mjs$/;
+  for (const entry of fs.readdirSync(outputDir)) {
+    if (keepFilenames.has(entry)) {
+      continue;
+    }
+    const match = entry.match(hashedBundlePattern);
+    if (match === null) {
+      continue;
+    }
+    const stableEquivalent = `${match[1]}.mjs`;
+    if (keepFilenames.has(stableEquivalent)) {
+      fs.rmSync(path.join(outputDir, entry), { force: true });
+    }
+  }
 }
 
 // ============================================================================
@@ -922,23 +975,9 @@ function detectHookContext(outputPath: string): HookContextInfo {
   // Normalize path separators for cross-platform compatibility
   const normalizedPath = outputPath.replace(/\\/g, "/");
 
-  // Check if the output path is within a .claude/ directory (agent hooks)
-  // This matches paths like: /project/.claude/hooks/hooks.json
-  const claudeMatch = normalizedPath.match(/^(.+)\/\.claude\//);
-  if (claudeMatch !== null) {
-    // Slice the original (native-separator) path to preserve OS-appropriate
-    // separators in the returned rootDir. The match group length equals the
-    // length of the root prefix in the normalized path, which has the same
-    // length as the original since normalization is a 1:1 character swap.
-    return {
-      context: "agent",
-      rootDir: outputPath.slice(0, claudeMatch[1].length),
-    };
-  }
-
-  // Check if a .claude-plugin/ directory exists relative to the output
-  // Walk up from the output directory to find .claude-plugin/, but limit to 4 levels
-  // This supports structures like: plugin-root/src/hooks/output/hooks.json
+  // Plugin marker takes precedence: if a .claude-plugin/ directory exists by
+  // walking up from the output, this is a plugin build regardless of whether
+  // the output path happens to also contain a .claude/ segment.
   let currentDir = path.dirname(outputPath);
   const root = path.parse(currentDir).root;
   const maxLevels = 4;
@@ -954,6 +993,20 @@ function detectHookContext(outputPath: string): HookContextInfo {
     }
     currentDir = path.dirname(currentDir);
     level++;
+  }
+
+  // Check if the output path is within a .claude/ directory (agent hooks)
+  // This matches paths like: /project/.claude/hooks/hooks.json
+  const claudeMatch = normalizedPath.match(/^(.+)\/\.claude\//);
+  if (claudeMatch !== null) {
+    // Slice the original (native-separator) path to preserve OS-appropriate
+    // separators in the returned rootDir. The match group length equals the
+    // length of the root prefix in the normalized path, which has the same
+    // length as the original since normalization is a 1:1 character swap.
+    return {
+      context: "agent",
+      rootDir: outputPath.slice(0, claudeMatch[1].length),
+    };
   }
 
   // Default to plugin context with output directory as root
@@ -1293,7 +1346,14 @@ async function main(): Promise<void> {
     }
 
     // Compile all hooks
-    const compiledHooks = await compileAllHooks({ hookFiles, outputDir: buildDir, logFilePath, logEnvVar, loaders });
+    const compiledHooks = await compileAllHooks({
+      hookFiles,
+      outputDir: buildDir,
+      logFilePath,
+      logEnvVar,
+      loaders,
+      stableNames: args.stableNames,
+    });
 
     if (compiledHooks.length === 0 && hookFiles.length > 0) {
       process.stderr.write("Error: No valid hooks found in discovered files.\n");

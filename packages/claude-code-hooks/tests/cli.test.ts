@@ -757,8 +757,12 @@ describe("detectHookContext", () => {
     expect(result.rootDir).toBe(outputDir);
   });
 
-  it("prioritizes .claude/ path over .claude-plugin/ directory", () => {
-    // Edge case: both indicators present (unusual but possible)
+  it("prioritizes .claude-plugin/ directory over a .claude/ path segment", () => {
+    // When both indicators are present, treat the build as a plugin: a
+    // .claude-plugin/ manifest directory is the authoritative plugin marker,
+    // and the wrong anchor (CLAUDE_PROJECT_DIR vs CLAUDE_PLUGIN_ROOT) would
+    // make the compiled hooks resolve against the user's project instead of
+    // the installed plugin.
     const pluginDir = path.join(tempDir, ".claude-plugin");
     const claudeHooksDir = path.join(tempDir, ".claude", "hooks");
     fs.mkdirSync(pluginDir, { recursive: true });
@@ -767,8 +771,7 @@ describe("detectHookContext", () => {
 
     const result = detectHookContext(outputPath);
 
-    // .claude/ in path takes priority
-    expect(result.context).toBe("agent");
+    expect(result.context).toBe("plugin");
     expect(result.rootDir).toBe(tempDir);
   });
 });

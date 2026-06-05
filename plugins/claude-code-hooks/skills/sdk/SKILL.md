@@ -20,10 +20,17 @@ npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
 *   `-i "hooks/*.ts"`: **Input Glob.** This tells the compiler where your TypeScript source files are.
     *   *Critical:* Quote the glob pattern (`"..."`) to prevent your shell from expanding it before the CLI sees it.
 *   `-o "dist/hooks.json"`: **Output Manifest.** This is the file you register in your config.
-    *   The CLI creates a `bin/` folder next to this file containing the compiled `.mjs` executables.
+    *   The CLI creates a `bin/` folder next to this file containing the compiled `.mjs` executables. As of 1.7, bundles use stable, hash-free filenames (`<name>.mjs`) by default.
 *   `--log "/tmp/hooks.log"` (Optional): **Hardcoded Log Path.** Bakes the log file path into the compiled bundle. A runtime `CLAUDE_CODE_HOOKS_LOG_FILE` env var overrides it. Cannot be combined with `--log-env-var`.
 *   `--log-env-var MY_VAR` (Optional): **Dynamic Log Path.** Bakes an env var *name* into the bundle; Logger reads `process.env[MY_VAR]` at startup. Use when the log path varies at runtime (e.g. across git worktrees). Cannot be combined with `--log`.
 *   `--loader .ext=type` (Optional, repeatable): **Explicit Asset Loader.** Registers esbuild loaders for non-code imports used by hooks. The compiler ships with `.md=text` enabled by default, so markdown prompt assets can be imported without extra flags. For other extensions, opt in explicitly, e.g. `--loader .txt=text`.
+*   `--stable-names` (default) / `--no-stable-names` (Optional): **Filename Stability.** Stable mode emits `<name>.mjs`, keeping the generated `hooks.json` byte-stable across rebuilds so Claude Code's hook trust hash stays valid — users do not have to re-review and re-trust hooks on every update. Stale hashed leftovers are pruned automatically. Pass `--no-stable-names` to restore the pre-1.7 hashed naming.
+
+**Context detection (plugin vs agent):**
+The CLI infers whether the build is a plugin or a `.claude/`-style agent install by inspecting the output path:
+*   If a `.claude-plugin/` directory exists by walking up from the output, it is a **plugin** build — commands use `$CLAUDE_PLUGIN_ROOT`.
+*   Otherwise, if the output path contains a `.claude/` segment, it is an **agent** build — commands use `"$CLAUDE_PROJECT_DIR"`.
+*   The plugin marker takes precedence over the `.claude/` segment (fixed in 1.7), so a plugin whose output happens to sit under a path containing `.claude/` is still classified correctly.
 
 **Loader guidance:**
 *   Use text imports for **small static prompt assets** that should be bundled into the compiled hook as strings.

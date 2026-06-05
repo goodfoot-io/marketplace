@@ -357,13 +357,27 @@ describe("E2E: Build Process", () => {
       expect(timestamp.getTime()).not.toBeNaN();
     });
 
-    it("generates content-hashed filenames", () => {
-      const outputDir = path.join(BUILD_TEST_OUTPUT, "hashed-names");
+    it("emits stable, hash-free filenames by default", () => {
+      const outputDir = path.join(BUILD_TEST_OUTPUT, "stable-names");
       const outputPath = path.join(outputDir, "hooks.json");
       fs.mkdirSync(outputDir, { recursive: true });
 
       const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
       const result = runCli(inputPath, outputPath);
+
+      expect(result.success).toBe(true);
+
+      const hooksJson = readHooksJson(outputPath);
+      expect(hooksJson.__generated.files[0]).toBe("hook-with-timeout.mjs");
+    });
+
+    it("generates content-hashed filenames with --no-stable-names", () => {
+      const outputDir = path.join(BUILD_TEST_OUTPUT, "hashed-names");
+      const outputPath = path.join(outputDir, "hooks.json");
+      fs.mkdirSync(outputDir, { recursive: true });
+
+      const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
+      const result = runCli(inputPath, outputPath, ["--no-stable-names"]);
 
       expect(result.success).toBe(true);
 
@@ -374,7 +388,7 @@ describe("E2E: Build Process", () => {
       expect(filename).toMatch(/^[\w-]+\.[a-f0-9]{8}\.mjs$/);
     });
 
-    it("generates unique hashes for different content", () => {
+    it("generates unique hashes for different content with --no-stable-names", () => {
       // Build two different hooks and verify they have different hashes
       const outputDir1 = path.join(BUILD_TEST_OUTPUT, "hash-test-1");
       const outputPath1 = path.join(outputDir1, "hooks.json");
@@ -385,8 +399,8 @@ describe("E2E: Build Process", () => {
       fs.mkdirSync(outputDir2, { recursive: true });
 
       // Build different hooks
-      const result1 = runCli(path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts"), outputPath1);
-      const result2 = runCli(path.join(BUILD_TEST_FIXTURES, "notification-hook.ts"), outputPath2);
+      const result1 = runCli(path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts"), outputPath1, ["--no-stable-names"]);
+      const result2 = runCli(path.join(BUILD_TEST_FIXTURES, "notification-hook.ts"), outputPath2, ["--no-stable-names"]);
 
       expect(result1.success).toBe(true);
       expect(result2.success).toBe(true);
