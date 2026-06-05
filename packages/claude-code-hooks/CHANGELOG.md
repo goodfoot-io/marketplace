@@ -1,6 +1,10 @@
 # Changelog
 
 ## 1.7.0
+- Added stable filenames for generated hook outputs
+- Fixed plugin context handling
+
+## 1.7.0
 - Added `--stable-names` (on by default) and `--no-stable-names`. Compiled bundles now emit hash-free filenames (`<name>.mjs`) so the generated `hooks.json` is byte-stable across rebuilds — Claude Code's hook trust hash stays valid and users do not have to re-trust hooks after every plugin update. Stale hashed leftovers in the build directory are pruned automatically. Pass `--no-stable-names` to restore the pre-1.7 hashed naming.
 - Fixed plugin/agent context misclassification in `detectHookContext`: a `.claude-plugin/` ancestor now takes precedence over a `.claude/` path segment, so plugin builds anchored under paths that happen to contain `.claude/` correctly use `$CLAUDE_PLUGIN_ROOT` instead of `$CLAUDE_PROJECT_DIR`.
 
