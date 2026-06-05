@@ -11,19 +11,28 @@ description: Load this skill immediately after a user mentions "@goodfoot/codex-
 
 Hooks are **compiled commands**, not raw `.ts` files. Build them into a `hooks.json` manifest plus generated `.mjs` executables before Codex can run them.
 
-**Build command:**
+**Build command (local project):**
 ```bash
 npx -y @goodfoot/codex-hooks -i "hooks/*.ts" -o ".codex/hooks.json"
 ```
 
+**Build command (plugin):**
+```bash
+npx -y @goodfoot/codex-hooks -i "hooks/*.ts" -o "./hooks/hooks.json" --plugin-root
+```
+
 **Parameters:**
 * `-i "hooks/*.ts"`: Input glob for hook source files. Quote the glob so the CLI receives it intact.
-* `-o ".codex/hooks.json"`: Output manifest path. The CLI writes hashed executables next to it and emits repo-root-relative commands when the output lives under `.codex/`.
+* `-o <path>`: Output manifest path. The CLI writes compiled executables next to it.
+* `--plugin-root` (Optional): Force plugin mode — emit `${PLUGIN_ROOT}`-relative commands and stable, hash-free filenames. Auto-enabled when a `.codex-plugin/` marker is found by walking up from the output path.
+* `--stable-names` / `--no-stable-names` (Optional): Force hash-free `<name>.mjs` (default in plugin mode) or hashed `<name>.<hash>.mjs` filenames.
 * `--executable node` (Optional): Command prefix to use in generated hook commands.
 * `--loader .ext=type` (Optional, repeatable): Additional esbuild loaders for non-code imports. `.md=text` is enabled by default.
 
-**Important runtime detail:**
-* If the manifest path is under a repo-local `.codex/` directory, generated commands use `$(git rev-parse --show-toplevel)` so the manifest stays portable across worktrees.
+**Command-emission modes:**
+* **plugin** — Triggered by `--plugin-root` or a `.codex-plugin/` ancestor. Emits `node "${PLUGIN_ROOT}/hooks/<name>.mjs"`. Stable filenames keep Codex's hook trust hash valid across rebuilds. Codex injects `PLUGIN_ROOT` (and `CLAUDE_PLUGIN_ROOT` for compatibility) into plugin hook environments and substitutes `${PLUGIN_ROOT}` before execution.
+* **codex-local** — Triggered when the output path contains a `.codex/` segment. Emits `node "$(git rev-parse --show-toplevel)/.codex/bin/<name>.<hash>.mjs"` so the manifest stays portable across worktrees within a checkout.
+* **absolute** — Fallback when neither applies. Emits an absolute build-machine path; not portable across machines.
 
 ## 2. Current Codex Hook Surface
 
@@ -162,7 +171,7 @@ Use the local package at `./packages/codex-hooks` as the authoritative implement
 * `src/hooks.ts`: factory helpers attach Codex metadata such as `hookEventName`, `matcher`, `timeout`, and `statusMessage`
 * `src/outputs.ts`: output builders encode the supported stdout JSON shape and `BlockError`
 * `src/runtime.ts`: reads hook JSON from stdin, invokes the default export, normalizes string returns, and writes structured stdout/stderr with Codex-compatible exit codes
-* `src/cli.ts`: analyzes each source file, bundles it with esbuild, writes hashed `.mjs` executables, and generates `hooks.json`
+* `src/cli.ts`: analyzes each source file, bundles it with esbuild, writes compiled `.mjs` executables (stable or hashed depending on mode), and generates `hooks.json`
 * `src/scaffold.ts`: creates starter projects for the five supported Codex events
 * `README.md`: documents the current runtime constraints and build flow
 

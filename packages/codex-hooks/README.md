@@ -33,10 +33,22 @@ export default preToolUseHook({ matcher: "Bash" }, (input) => {
 Compile hooks and generate `hooks.json`:
 
 ```bash
+# Local project hooks
 codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json"
+
+# Plugin hooks (portable, install-relative commands)
+codex-hooks -i "src/**/*.ts" -o "my-plugin/hooks/hooks.json" --plugin-root
 ```
 
-If the output is under a repo-local `.codex/` directory, generated commands are rooted at `$(git rev-parse --show-toplevel)`. Otherwise the CLI emits absolute command paths.
+The CLI picks one of three command-emission modes based on the output path and flags:
+
+| Mode | Trigger | Command form | Filename |
+| --- | --- | --- | --- |
+| **plugin** | `--plugin-root`, or a `.codex-plugin/` marker found by walking up from the output path | `node "${PLUGIN_ROOT}/hooks/<name>.mjs"` | stable (no hash) |
+| **codex-local** | Output path contains a `.codex/` segment | `node "$(git rev-parse --show-toplevel)/.codex/bin/<name>.<hash>.mjs"` | hashed |
+| **absolute** | Anything else | `node "/abs/path/to/<name>.<hash>.mjs"` | hashed |
+
+Plugin mode emits hash-free filenames by default so the generated `hooks.json` is byte-stable across rebuilds — this keeps Codex's hook trust hash valid, so users do not have to re-review and re-trust hooks on every plugin update. Use `--stable-names` to force stable names in any mode, or `--no-stable-names` to opt back into hashed filenames.
 
 ## Supported Events
 

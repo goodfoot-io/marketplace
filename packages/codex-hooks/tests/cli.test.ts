@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { analyzeHookFile, generateHooksJson } from "../src/cli.js";
+import { analyzeHookFile, detectCommandContext, generateHooksJson } from "../src/cli.js";
 
 const tempDirs: string[] = [];
 
@@ -72,7 +72,7 @@ describe("cli helpers", () => {
       },
     ];
 
-    expect(generateHooksJson(compiledHooks, "/repo/.codex/hooks.json")).toEqual({
+    expect(generateHooksJson(compiledHooks, "/repo/.codex/hooks.json", "node", { mode: "codex-local" })).toEqual({
       hooks: {
         SessionStart: [
           {
@@ -111,5 +111,70 @@ describe("cli helpers", () => {
         ],
       },
     });
+  });
+
+  it("emits ${PLUGIN_ROOT}-relative commands in plugin mode", () => {
+    const compiledHooks = [
+      {
+        sourcePath: "/build/src/session-start.ts",
+        outputPath: "/build/my-plugin/hooks/session-start.mjs",
+        outputFilename: "session-start.mjs",
+        metadata: { hookEventName: "SessionStart" as const, matcher: "startup" },
+      },
+    ];
+
+    expect(
+      generateHooksJson(compiledHooks, "/build/my-plugin/hooks/hooks.json", "node", {
+        mode: "plugin",
+        pluginRoot: "/build/my-plugin",
+      }),
+    ).toEqual({
+      hooks: {
+        SessionStart: [
+          {
+            matcher: "startup",
+            hooks: [{ type: "command", command: 'node "${PLUGIN_ROOT}/hooks/session-start.mjs"' }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("produces byte-identical output across repeated calls (trust stability)", () => {
+    const compiledHooks = [
+      {
+        sourcePath: "/build/src/pre.ts",
+        outputPath: "/build/plugin/hooks/pre.mjs",
+        outputFilename: "pre.mjs",
+        metadata: { hookEventName: "PreToolUse" as const, matcher: "Bash" },
+      },
+    ];
+    const context = { mode: "plugin" as const, pluginRoot: "/build/plugin" };
+    const outputPath = "/build/plugin/hooks/hooks.json";
+    const first = JSON.stringify(generateHooksJson(compiledHooks, outputPath, "node", context));
+    const second = JSON.stringify(generateHooksJson(compiledHooks, outputPath, "node", context));
+    expect(first).toEqual(second);
+  });
+
+  it("auto-detects plugin context by walking up to a .codex-plugin/ marker", () => {
+    const directory = createTempDir();
+    const pluginRoot = path.join(directory, "my-plugin");
+    fs.mkdirSync(path.join(pluginRoot, ".codex-plugin"), { recursive: true });
+    fs.mkdirSync(path.join(pluginRoot, "hooks"), { recursive: true });
+    const outputPath = path.join(pluginRoot, "hooks", "hooks.json");
+    expect(detectCommandContext(outputPath, false)).toEqual({ mode: "plugin", pluginRoot });
+  });
+
+  it("falls back to absolute mode outside .codex/ and without a plugin marker", () => {
+    const directory = createTempDir();
+    const outputPath = path.join(directory, "hooks", "hooks.json");
+    expect(detectCommandContext(outputPath, false)).toEqual({ mode: "absolute" });
+  });
+
+  it("treats --plugin-root as plugin mode with the parent of hooks/ as the root", () => {
+    const directory = createTempDir();
+    const pluginRoot = path.join(directory, "my-plugin");
+    const outputPath = path.join(pluginRoot, "hooks", "hooks.json");
+    expect(detectCommandContext(outputPath, true)).toEqual({ mode: "plugin", pluginRoot });
   });
 });

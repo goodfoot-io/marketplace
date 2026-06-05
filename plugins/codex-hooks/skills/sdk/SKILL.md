@@ -249,21 +249,35 @@ Before debugging hook issues, verify:
 
 ## 9. Configuration by Setup Type
 
-**Standalone Project:**
+The CLI picks one of three command-emission modes based on the output path and flags:
+
+| Mode | Trigger | Command form | Filename |
+| --- | --- | --- | --- |
+| **plugin** | `--plugin-root`, or a `.codex-plugin/` marker found by walking up from the output path | `node "${PLUGIN_ROOT}/hooks/<name>.mjs"` | stable (no hash) |
+| **codex-local** | Output path contains a `.codex/` segment | `node "$(git rev-parse --show-toplevel)/.codex/bin/<name>.<hash>.mjs"` | hashed |
+| **absolute** | Anything else | `node "/abs/path/to/<name>.<hash>.mjs"` | hashed |
+
+**Standalone Project (codex-local):**
 Place the compiled manifest at `.codex/hooks.json` in your project root. Codex auto-discovers it.
+```bash
+npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json"
+```
 
 **Codex Plugin (Recommended):**
-Build directly into the plugin root:
+Build into the plugin's `hooks/` directory and pass `--plugin-root` (or place a `.codex-plugin/` marker so it auto-detects):
 ```bash
-npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o "./.codex/hooks.json"
+npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o "./hooks/hooks.json" --plugin-root
 ```
+Plugin mode emits `${PLUGIN_ROOT}`-relative commands and stable, hash-free filenames so the built `hooks.json` is portable inside an installed plugin and Codex's hook trust hash stays valid across rebuilds. Codex injects `PLUGIN_ROOT` (and `CLAUDE_PLUGIN_ROOT` for compatibility) into plugin hook environments and substitutes `${PLUGIN_ROOT}` before execution.
 
 **Monorepo Project:**
-Output to a sibling plugin directory:
+Output to a sibling plugin directory and let `--plugin-root` anchor the command form:
 ```bash
-npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o "../../plugins/my-plugin/.codex/hooks.json"
+npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o "../../plugins/my-plugin/hooks/hooks.json" --plugin-root
 ```
 See [Monorepo Integration](@${CLAUDE_PLUGIN_ROOT}/skills/sdk/reference/installation.md).
+
+**Filename overrides:** `--stable-names` forces hash-free names in any mode; `--no-stable-names` opts back into hashed names (the pre-1.1 default).
 
 ## 10. Reference Links
 

@@ -1,6 +1,6 @@
 {
   "name": "codex-hooks",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Codex plugin with an SDK skill for building TypeScript hooks using @goodfoot/codex-hooks.",
   "author": {
     "name": "Goodfoot",

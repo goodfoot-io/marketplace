@@ -20,6 +20,15 @@ interface CliArgs {
   scaffold?: string;
   hooks?: string;
   loaderFlags: string[];
+  pluginRoot: boolean;
+  stableNames?: boolean;
+}
+
+export type CommandMode = "plugin" | "codex-local" | "absolute";
+
+export interface CommandContext {
+  mode: CommandMode;
+  pluginRoot?: string;
 }
 
 export interface HookMetadata {
@@ -60,6 +69,7 @@ ${PACKAGE_NAME}
 
 Usage:
   codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json"
+  codex-hooks -i "src/**/*.ts" -o "my-plugin/hooks/hooks.json" --plugin-root
   codex-hooks --scaffold ./my-codex-hooks --hooks SessionStart,PreToolUse -o ./.codex/hooks.json
 
 Options:
@@ -67,6 +77,12 @@ Options:
   -o, --output <path>       Output hooks.json path
   --executable <path>       Executable prefix for generated commands (default: node)
   --loader <ext=type>       Additional esbuild loader, repeatable
+  --plugin-root             Force plugin mode: emit \${PLUGIN_ROOT}-relative commands and
+                            stable, hash-free filenames. Auto-enabled when a .codex-plugin/
+                            marker is found by walking up from the output path.
+  --stable-names            Force hash-free compiled filenames (<name>.mjs). On by default
+                            in plugin mode. Use --no-stable-names to opt back into hashes.
+  --no-stable-names         Force hashed compiled filenames (<name>.<hash>.mjs).
   --scaffold <dir>          Create a starter project
   --hooks <types>           Comma-separated scaffold hook names
   -h, --help                Show help
@@ -80,6 +96,7 @@ function parseArgs(argv: string[]): CliArgs {
     help: false,
     version: false,
     loaderFlags: [],
+    pluginRoot: false,
   };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
@@ -103,6 +120,15 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case "--hooks":
         args.hooks = argv[++index] ?? "";
+        break;
+      case "--plugin-root":
+        args.pluginRoot = true;
+        break;
+      case "--stable-names":
+        args.stableNames = true;
+        break;
+      case "--no-stable-names":
+        args.stableNames = false;
         break;
       case "-h":
       case "--help":
@@ -292,11 +318,13 @@ async function compileAllHooks(
   hookFiles: string[],
   outputDir: string,
   loaders: HookLoaderMap,
+  options: { stableNames: boolean } = { stableNames: false },
 ): Promise<CompiledHook[]> {
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
   const compiledHooks: CompiledHook[] = [];
+  const writtenFilenames = new Set<string>();
   for (const sourcePath of hookFiles) {
     const metadata = analyzeHookFile(sourcePath);
     if (metadata === undefined) {
@@ -304,15 +332,63 @@ async function compileAllHooks(
     }
     const { content, contentHash } = await compileHook(sourcePath, loaders);
     const baseName = path.basename(sourcePath, path.extname(sourcePath));
-    const outputFilename = `${baseName}.${contentHash}.mjs`;
+    const outputFilename = options.stableNames ? `${baseName}.mjs` : `${baseName}.${contentHash}.mjs`;
     const outputPath = path.join(outputDir, outputFilename);
     fs.writeFileSync(outputPath, `#!/usr/bin/env -S node --enable-source-maps\n${content}`, {
       encoding: "utf-8",
       mode: 0o755,
     });
+    writtenFilenames.add(outputFilename);
     compiledHooks.push({ sourcePath, outputPath, outputFilename, metadata });
   }
+  if (options.stableNames) {
+    pruneStaleHashedBundles(outputDir, writtenFilenames);
+  }
   return compiledHooks;
+}
+
+function pruneStaleHashedBundles(outputDir: string, keepFilenames: Set<string>): void {
+  if (!fs.existsSync(outputDir)) {
+    return;
+  }
+  const hashedBundlePattern = /^(.+)\.[0-9a-f]{8}\.mjs$/;
+  for (const entry of fs.readdirSync(outputDir)) {
+    if (keepFilenames.has(entry)) {
+      continue;
+    }
+    const match = entry.match(hashedBundlePattern);
+    if (match === null) {
+      continue;
+    }
+    const stableEquivalent = `${match[1]}.mjs`;
+    if (keepFilenames.has(stableEquivalent)) {
+      fs.rmSync(path.join(outputDir, entry), { force: true });
+    }
+  }
+}
+
+export function detectCommandContext(outputPath: string, pluginRootFlag: boolean): CommandContext {
+  const normalizedOutputPath = outputPath.replace(/\\/g, "/");
+  let currentDir = path.dirname(outputPath);
+  const filesystemRoot = path.parse(currentDir).root;
+  const maxLevels = 4;
+  let level = 0;
+  while (currentDir !== filesystemRoot && level < maxLevels) {
+    const marker = path.join(currentDir, ".codex-plugin");
+    if (fs.existsSync(marker) && fs.statSync(marker).isDirectory()) {
+      return { mode: "plugin", pluginRoot: currentDir };
+    }
+    currentDir = path.dirname(currentDir);
+    level++;
+  }
+  if (pluginRootFlag) {
+    const hooksDir = path.dirname(outputPath);
+    return { mode: "plugin", pluginRoot: path.dirname(hooksDir) };
+  }
+  if (normalizedOutputPath.indexOf("/.codex") >= 0) {
+    return { mode: "codex-local" };
+  }
+  return { mode: "absolute" };
 }
 
 function timeoutMsToSeconds(timeout?: number): number | undefined {
@@ -341,22 +417,38 @@ function shellQuote(value: string): string {
   return JSON.stringify(value);
 }
 
-function generateCommandPath(outputPath: string, hookOutputPath: string, executable = "node"): string {
-  const normalizedOutputPath = outputPath.replace(/\\/g, "/");
+function generateCommandPath(
+  outputPath: string,
+  hookOutputPath: string,
+  executable: string,
+  context: CommandContext,
+): string {
   const normalizedHookPath = hookOutputPath.replace(/\\/g, "/");
-  const repoMarker = "/.codex";
-  const repoMarkerIndex = normalizedOutputPath.indexOf(repoMarker);
 
-  if (repoMarkerIndex >= 0) {
-    const repoRoot = normalizedOutputPath.slice(0, repoMarkerIndex);
-    const relativeHookPath = path.relative(repoRoot, hookOutputPath).replace(/\\/g, "/");
-    return `${executable} "$(git rev-parse --show-toplevel)/${relativeHookPath}"`;
+  if (context.mode === "plugin" && context.pluginRoot !== undefined) {
+    const relativeHookPath = path.relative(context.pluginRoot, hookOutputPath).replace(/\\/g, "/");
+    return `${executable} ${shellQuote(`\${PLUGIN_ROOT}/${relativeHookPath}`)}`;
+  }
+
+  if (context.mode === "codex-local") {
+    const normalizedOutputPath = outputPath.replace(/\\/g, "/");
+    const repoMarkerIndex = normalizedOutputPath.indexOf("/.codex");
+    if (repoMarkerIndex >= 0) {
+      const repoRoot = normalizedOutputPath.slice(0, repoMarkerIndex);
+      const relativeHookPath = path.relative(repoRoot, hookOutputPath).replace(/\\/g, "/");
+      return `${executable} "$(git rev-parse --show-toplevel)/${relativeHookPath}"`;
+    }
   }
 
   return `${executable} ${shellQuote(normalizedHookPath)}`;
 }
 
-export function generateHooksJson(compiledHooks: CompiledHook[], outputPath: string, executable = "node"): HooksJson {
+export function generateHooksJson(
+  compiledHooks: CompiledHook[],
+  outputPath: string,
+  executable: string = "node",
+  context: CommandContext = detectCommandContext(outputPath, false),
+): HooksJson {
   const grouped = groupHooksByEventAndMatcher(compiledHooks);
   const hooks: HooksJson["hooks"] = {};
   for (const eventName of [
@@ -379,7 +471,7 @@ export function generateHooksJson(compiledHooks: CompiledHook[], outputPath: str
       ...(EVENTS_WITH_MATCHER.has(eventName) && matcher !== undefined ? { matcher } : {}),
       hooks: entries.map((entry) => ({
         type: "command" as const,
-        command: generateCommandPath(outputPath, entry.outputPath, executable),
+        command: generateCommandPath(outputPath, entry.outputPath, executable, context),
         ...(timeoutMsToSeconds(entry.metadata.timeout) !== undefined
           ? { timeout: timeoutMsToSeconds(entry.metadata.timeout) }
           : {}),
@@ -424,8 +516,12 @@ export async function main(): Promise<void> {
   const hookFiles = await discoverHookFiles(args.input, cwd);
   const absoluteOutputPath = path.resolve(cwd, args.output);
   const outputDir = path.dirname(absoluteOutputPath);
-  const compiledHooks = await compileAllHooks(hookFiles, outputDir, buildLoaderMap(args.loaderFlags));
-  const hooksJson = generateHooksJson(compiledHooks, absoluteOutputPath, args.executable ?? "node");
+  const context = detectCommandContext(absoluteOutputPath, args.pluginRoot);
+  const stableNames = args.stableNames ?? context.mode === "plugin";
+  const compiledHooks = await compileAllHooks(hookFiles, outputDir, buildLoaderMap(args.loaderFlags), {
+    stableNames,
+  });
+  const hooksJson = generateHooksJson(compiledHooks, absoluteOutputPath, args.executable ?? "node", context);
   fs.writeFileSync(absoluteOutputPath, `${JSON.stringify(hooksJson, null, 2)}\n`);
 }
 
