@@ -1,4 +1,4 @@
-plugins/codex-hooks/skills/sdk/reference/logging.md#L1-L200 sha256:35f0faeff64e3f13f2ec691bfb458766eee76021c97a3d0476eb57da23872ad4
-packages/codex-hooks/src/logger.ts#L26-L78 sha256:7d44b4e8696bbe0252470d9c67a0e40d1f9f04d7d689ed51b8a6113ebef10586
+plugins/codex-hooks/skills/sdk/reference/logging.md#L1-L200 rk64:b0a740ba6b8c997b
+packages/codex-hooks/src/logger.ts#L26-L78 rk64:3b0e7bc08e27b15a
 
 Logging reference documents the Logger API (on, debug, info, warn, error, logError methods) with code examples; Logger class defines these methods. When logger methods are added, renamed, or removed, the documentation must be updated so developers using the examples maintain working code.

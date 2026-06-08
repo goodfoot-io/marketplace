@@ -1,4 +1,4 @@
-packages/codex-hooks/tsconfig.build.json#L3-L5 sha256:ba3bc4dd001c3a02a433917df633586375e4be5b84f64baa16f8993e476977a9
-packages/codex-hooks/package.json#L30-L42 sha256:078a985976787299da869c26c38e3ba7eed125b025942207c96b00c33fa28b18
+packages/codex-hooks/tsconfig.build.json#L3-L5 rk64:cb42adcafe1ab7ab
+packages/codex-hooks/package.json#L30-L42 rk64:deb6752e09ded709
 
 Build output layout matching the published package exports. TypeScript rootDir determines whether artifacts emit to dist/*.js or dist/src/*.js; package.json exports and bin declare dist/*.js as the entry points.

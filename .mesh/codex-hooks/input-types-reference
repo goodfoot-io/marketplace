@@ -1,4 +1,4 @@
-plugins/codex-hooks/skills/sdk/reference/input-types.md#L1-L200 sha256:0d322a51fdf6b1565cbfed5d11263ac84051b7667f0eb7631e451e21f2244363
-packages/codex-hooks/src/types.ts sha256:992ca111de662274376f9cbf6b336561ac277fc47b298e177f9ca5e7e40972f3
+plugins/codex-hooks/skills/sdk/reference/input-types.md#L1-L200 rk64:70b449eb933ebf69
+packages/codex-hooks/src/types.ts rk64:88ba2870512c14e6
 
 Input types reference documents all hook input interfaces (PreToolUseInput, PostToolUseInput, etc.) and their fields; types.ts defines these interfaces. When input types are added or fields are changed, the reference documentation must be updated to keep API documentation current.
