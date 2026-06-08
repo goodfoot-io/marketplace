@@ -280,7 +280,7 @@ async function compileHook(
   sourcePath: string,
   loaders: HookLoaderMap,
 ): Promise<{ content: string; contentHash: string }> {
-  const runtimePathAbsolute = path.resolve(path.dirname(new URL(import.meta.url).pathname), "./runtime.js");
+  const runtimePathAbsolute = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./runtime.js");
   const resolveDir = path.dirname(sourcePath);
   const relativeRuntimePath = path.relative(resolveDir, runtimePathAbsolute).replace(/\\/g, "/");
   const relativeSourcePath = `./${path.basename(sourcePath)}`.replace(/\\/g, "/");
