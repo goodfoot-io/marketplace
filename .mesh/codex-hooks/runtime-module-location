@@ -1,0 +1,4 @@
+packages/codex-hooks/src/cli.ts#L283-L283 sha256:3ea1fb8ae63a48bc30d8a273d2d8614c61aff7b12064632d21bb841dbe7fec14
+packages/codex-hooks/src/runtime.ts sha256:f76e9641b372e995f494634686034d15165afffcddf77591fbd4a8c3bafef3ee
+
+Hook compiler embeds the runtime module at ./runtime.js; this path must match the compiled artifact name from the TypeScript build.
