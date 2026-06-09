@@ -1022,7 +1022,7 @@ function detectHookContext(outputPath: string): HookContextInfo {
  * Calculates the relative path from the root directory to the bin directory.
  * Prepends the node executable.
  *
- * - `plugin`: Uses `node $CLAUDE_PLUGIN_ROOT/hooks/bin/filename`
+ * - `plugin`: Uses `node "$CLAUDE_PLUGIN_ROOT"/hooks/bin/filename`
  * - `agent`: Uses `node "$CLAUDE_PROJECT_DIR"/.claude/hooks/bin/filename`
  * @param filename - The compiled hook filename
  * @param buildDir - Absolute path to the bin directory
@@ -1046,7 +1046,7 @@ function generateCommandPath(
     return `${executable} "$CLAUDE_PROJECT_DIR"/${normalizedRelativePath}/${filename}`;
   }
   // Plugin hooks use $CLAUDE_PLUGIN_ROOT
-  return `${executable} $CLAUDE_PLUGIN_ROOT/${normalizedRelativePath}/${filename}`;
+  return `${executable} "$CLAUDE_PLUGIN_ROOT"/${normalizedRelativePath}/${filename}`;
 }
 
 /**

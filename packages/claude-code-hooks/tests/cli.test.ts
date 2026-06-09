@@ -782,7 +782,7 @@ describe("generateCommandPath", () => {
     const buildDir = "/workspace/plugins/my-plugin/hooks/build";
     const result = generateCommandPath("my-hook.abc123.mjs", buildDir, contextInfo);
 
-    expect(result).toBe("node $CLAUDE_PLUGIN_ROOT/hooks/build/my-hook.abc123.mjs");
+    expect(result).toBe('node "$CLAUDE_PLUGIN_ROOT"/hooks/build/my-hook.abc123.mjs');
   });
 
   it("generates agent-style path for agent context with default node executable", () => {
@@ -802,7 +802,7 @@ describe("generateCommandPath", () => {
     const agentBuildDir = "/workspace/project/.claude/hooks/build";
     const agentResult = generateCommandPath("pre-tool-use.12345678.mjs", agentBuildDir, agentContext);
 
-    expect(pluginResult).toBe("node $CLAUDE_PLUGIN_ROOT/hooks/build/pre-tool-use.12345678.mjs");
+    expect(pluginResult).toBe('node "$CLAUDE_PLUGIN_ROOT"/hooks/build/pre-tool-use.12345678.mjs');
     expect(agentResult).toBe('node "$CLAUDE_PROJECT_DIR"/.claude/hooks/build/pre-tool-use.12345678.mjs');
   });
 
@@ -811,7 +811,7 @@ describe("generateCommandPath", () => {
     const buildDir = "/workspace/plugins/simple/hooks/build";
     const result = generateCommandPath("hook.mjs", buildDir, contextInfo);
 
-    expect(result).toBe("node $CLAUDE_PLUGIN_ROOT/hooks/build/hook.mjs");
+    expect(result).toBe('node "$CLAUDE_PLUGIN_ROOT"/hooks/build/hook.mjs');
   });
 
   it("uses custom executable when provided", () => {
@@ -819,7 +819,7 @@ describe("generateCommandPath", () => {
     const buildDir = "/workspace/plugins/my-plugin/hooks/build";
     const result = generateCommandPath("my-hook.abc123.mjs", buildDir, contextInfo, "/usr/local/bin/node");
 
-    expect(result).toBe("/usr/local/bin/node $CLAUDE_PLUGIN_ROOT/hooks/build/my-hook.abc123.mjs");
+    expect(result).toBe('/usr/local/bin/node "$CLAUDE_PLUGIN_ROOT"/hooks/build/my-hook.abc123.mjs');
   });
 
   it("uses custom executable for agent context", () => {
@@ -835,6 +835,6 @@ describe("generateCommandPath", () => {
     const buildDir = "/workspace/plugins/my-plugin/hooks/build";
     const result = generateCommandPath("my-hook.abc123.mjs", buildDir, contextInfo, "bun");
 
-    expect(result).toBe("bun $CLAUDE_PLUGIN_ROOT/hooks/build/my-hook.abc123.mjs");
+    expect(result).toBe('bun "$CLAUDE_PLUGIN_ROOT"/hooks/build/my-hook.abc123.mjs');
   });
 });

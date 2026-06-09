@@ -174,7 +174,7 @@ describe("E2E: Incremental Updates", () => {
       // Find the generated hook
       const generatedEntry = hooksJson.hooks.PreToolUse.find((e) => e.matcher === "Write");
       expect(generatedEntry).toBeDefined();
-      expect(generatedEntry?.hooks[0].command).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\/hooks\/bin\//);
+      expect(generatedEntry?.hooks[0].command).toMatch(/^node "\$CLAUDE_PLUGIN_ROOT"\/hooks\/bin\//);
 
       // SessionStart external hook should also be preserved
       expect(hooksJson.hooks.SessionStart).toBeDefined();

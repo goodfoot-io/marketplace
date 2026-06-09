@@ -96,14 +96,14 @@ function readHooksJson(hooksJsonPath: string): HooksJson {
 
 /**
  * Resolves a command path that may contain $CLAUDE_PLUGIN_ROOT to an absolute path.
- * The command format is: "node $CLAUDE_PLUGIN_ROOT/build/hook.abc123.mjs"
+ * The command format is: node "$CLAUDE_PLUGIN_ROOT"/build/hook.abc123.mjs
  * @param command - The command string from hooks.json
  * @param hooksJsonDir - Directory containing hooks.json
  * @returns Resolved absolute path
  */
 function resolveCommandPath(command: string, hooksJsonDir: string): string {
-  // Extract the path from the command template (format: "executable $CLAUDE_PLUGIN_ROOT/path")
-  const match = command.match(/\$CLAUDE_PLUGIN_ROOT\/(.+)$/);
+  // Extract the path from the command template (format: 'executable "$CLAUDE_PLUGIN_ROOT"/path')
+  const match = command.match(/"?\$CLAUDE_PLUGIN_ROOT"?\/(.+)$/);
   if (match) {
     return path.join(hooksJsonDir, match[1]);
   }

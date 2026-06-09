@@ -20,8 +20,8 @@ import { CLAUDE_AVAILABLE, readHooksJson, runClaude } from "./test-utils.js";
  * @returns Resolved absolute path
  */
 function resolveCommandPath(command: string, pluginDir: string): string {
-  // Strip the node prefix if present
-  const pathPart = command.replace(/^node /, "");
+  // Strip the node prefix and any quotes
+  const pathPart = command.replace(/^node /, "").replace(/"/g, "");
   return pathPart.replace("$CLAUDE_PLUGIN_ROOT", pluginDir);
 }
 

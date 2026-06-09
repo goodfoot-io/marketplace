@@ -118,15 +118,15 @@ export function buildSingleHook(fixtureFile: string): string {
     fs.renameSync(path.join(hooksDir, mjsFile), path.join(binDir, mjsFile));
   }
 
-  // Post-process hooks.json to use node $CLAUDE_PLUGIN_ROOT paths
+  // Post-process hooks.json to use node "$CLAUDE_PLUGIN_ROOT" paths
   const hooksJson = JSON.parse(fs.readFileSync(tempHooksJsonPath, "utf-8")) as HooksJsonStructure;
 
   for (const eventType of Object.keys(hooksJson.hooks)) {
     for (const matcherEntry of hooksJson.hooks[eventType]) {
       for (const hook of matcherEntry.hooks) {
-        // Replace path with node $CLAUDE_PLUGIN_ROOT/hooks/bin/filename.mjs
+        // Replace path with node "$CLAUDE_PLUGIN_ROOT"/hooks/bin/filename.mjs
         const filename = path.basename(hook.command);
-        hook.command = `node $CLAUDE_PLUGIN_ROOT/hooks/bin/${filename}`;
+        hook.command = `node "$CLAUDE_PLUGIN_ROOT"/hooks/bin/${filename}`;
       }
     }
   }
@@ -236,15 +236,15 @@ export function buildMultipleHooks(fixtureFiles: string[], pluginName = "multi-h
     fs.renameSync(path.join(hooksDir, mjsFile), path.join(binDir, mjsFile));
   }
 
-  // Post-process hooks.json to use node $CLAUDE_PLUGIN_ROOT paths
+  // Post-process hooks.json to use node "$CLAUDE_PLUGIN_ROOT" paths
   const hooksJson = JSON.parse(fs.readFileSync(tempHooksJsonPath, "utf-8")) as HooksJsonStructure;
 
   for (const eventType of Object.keys(hooksJson.hooks)) {
     for (const matcherEntry of hooksJson.hooks[eventType]) {
       for (const hook of matcherEntry.hooks) {
-        // Replace path with node $CLAUDE_PLUGIN_ROOT/hooks/bin/filename.mjs
+        // Replace path with node "$CLAUDE_PLUGIN_ROOT"/hooks/bin/filename.mjs
         const filename = path.basename(hook.command);
-        hook.command = `node $CLAUDE_PLUGIN_ROOT/hooks/bin/${filename}`;
+        hook.command = `node "$CLAUDE_PLUGIN_ROOT"/hooks/bin/${filename}`;
       }
     }
   }

@@ -87,14 +87,14 @@ function readHooksJson(hooksJsonPath: string): HooksJson {
 
 /**
  * Resolves a command path that may contain $CLAUDE_PLUGIN_ROOT to an absolute path.
- * The command format is: "node $CLAUDE_PLUGIN_ROOT/bin/hook.abc123.mjs"
+ * The command format is: node "$CLAUDE_PLUGIN_ROOT"/bin/hook.abc123.mjs
  * @param command - The command string from hooks.json
  * @param hooksJsonDir - Directory containing hooks.json
  * @returns Resolved absolute path
  */
 function resolveCommandPath(command: string, hooksJsonDir: string): string {
-  // Extract the path from the command template (format: "executable $CLAUDE_PLUGIN_ROOT/path")
-  const match = command.match(/\$CLAUDE_PLUGIN_ROOT\/(.+)$/);
+  // Extract the path from the command template (format: 'executable "$CLAUDE_PLUGIN_ROOT"/path')
+  const match = command.match(/"?\$CLAUDE_PLUGIN_ROOT"?\/(.+)$/);
   if (match) {
     return path.join(hooksJsonDir, match[1]);
   }
@@ -175,9 +175,9 @@ describe("E2E: Build Process", () => {
       expect(entry.hooks[0].type).toBe("command");
       expect(entry.hooks[0].timeout).toBe(5000);
 
-      // Verify compiled file exists - command uses node $CLAUDE_PLUGIN_ROOT/bin/ template
+      // Verify compiled file exists - command uses node "$CLAUDE_PLUGIN_ROOT"/bin/ template
       const command = entry.hooks[0].command;
-      expect(command).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\/bin\/.+\.mjs$/);
+      expect(command).toMatch(/^node "\$CLAUDE_PLUGIN_ROOT"\/bin\/.+\.mjs$/);
       const commandPath = resolveCommandPath(command, outputDir);
       expect(fs.existsSync(commandPath)).toBe(true);
     });
@@ -253,7 +253,7 @@ describe("E2E: Build Process", () => {
           for (const hook of entry.hooks) {
             expect(hook.type).toBe("command");
             expect(typeof hook.command).toBe("string");
-            expect(hook.command).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\/bin\//);
+            expect(hook.command).toMatch(/^node "\$CLAUDE_PLUGIN_ROOT"\/bin\//);
             const resolvedPath = resolveCommandPath(hook.command, outputDir);
             expect(fs.existsSync(resolvedPath)).toBe(true);
           }
@@ -434,7 +434,7 @@ describe("E2E: Build Process", () => {
       const command = hooksJson.hooks.PreToolUse?.[0].hooks[0].command;
 
       expect(command).toBeDefined();
-      expect(command).toMatch(/^node \$CLAUDE_PLUGIN_ROOT\/bin\/.+\.mjs$/);
+      expect(command).toMatch(/^node "\$CLAUDE_PLUGIN_ROOT"\/bin\/.+\.mjs$/);
       const commandPath = resolveCommandPath(command, outputDir);
 
       // Read the compiled file
