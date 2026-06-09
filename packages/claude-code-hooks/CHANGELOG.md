@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.1
+- Fixed shell quoting of `$CLAUDE_PLUGIN_ROOT` in generated hook commands to handle paths with spaces or special characters
+
 ## 1.7.0
 - Added stable filenames for generated hook outputs
 - Fixed plugin context handling
