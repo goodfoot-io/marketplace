@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.2
+- Fixed: generated hook commands now properly quote `$CLAUDE_PLUGIN_ROOT` to handle paths with spaces or special characters
+
 ## 1.1.1
 - Fixed `compileHook` on native Windows: the generated entry wrapper now imports `runtime.js` via a valid relative path. Previously the runtime path was derived from `new URL(import.meta.url).pathname`, which yields `/C:/...` on Windows and caused esbuild to fail with `Could not resolve "../../../../C:/..."`. Switched to `fileURLToPath` so the path is correct on every platform.
 
