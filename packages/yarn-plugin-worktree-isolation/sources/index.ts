@@ -146,6 +146,9 @@ export function createInternalSymlink(symlinkPath: string, rootNodeModules: stri
   try {
     const symlinkDir = path.dirname(symlinkPath);
     const relativeTarget = path.relative(symlinkDir, rootNodeModules);
+    if (relativeTarget === '') {
+      return false;
+    }
     fs.symlinkSync(relativeTarget, symlinkPath);
     if (verbose) {
       console.log(`[worktree-isolation] Created symlink: ${symlinkPath} -> ${relativeTarget}`);
@@ -167,6 +170,7 @@ const pendingResymlinks: { symlinkPath: string; projectRoot: string }[] = [];
  */
 const hooks: Hooks = {
   validateProject(project: ValidationProject, report: ValidationReport): void {
+    pendingResymlinks.length = 0;
     if (process.env.WORKTREE_ISOLATION_DISABLE === '1') {
       return;
     }
@@ -204,7 +208,8 @@ const hooks: Hooks = {
           unlinkedPaths.push(relativePath);
           // Skip the root node_modules — Yarn will regenerate it. Only
           // per-workspace node_modules need to be re-symlinked afterward.
-          if (nodeModulesPath !== path.join(projectRoot, 'node_modules')) {
+          const rootNodeModules = path.join(projectRoot, 'node_modules');
+          if (nodeModulesPath !== rootNodeModules && path.dirname(nodeModulesPath) !== rootNodeModules) {
             pendingResymlinks.push({ symlinkPath: nodeModulesPath, projectRoot });
           }
         }

@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/yarn-plugin-worktree-isolation",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Yarn plugin that isolates git worktrees by removing external symlinks before installation",
   "sideEffects": false,
   "type": "module",

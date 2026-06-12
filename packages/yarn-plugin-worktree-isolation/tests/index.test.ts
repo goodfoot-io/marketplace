@@ -1,7 +1,13 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { isExternalSymlink, isGitWorktree, removeSymlink, findWorkspaceNodeModules, createInternalSymlink } from '../sources/index.js';
+import {
+  isExternalSymlink,
+  isGitWorktree,
+  removeSymlink,
+  findWorkspaceNodeModules,
+  createInternalSymlink
+} from '../sources/index.js';
 
 describe('yarn-plugin-worktree-isolation', () => {
   let tempDir: string;
@@ -178,6 +184,15 @@ describe('yarn-plugin-worktree-isolation', () => {
       const symlinkPath = path.join(tempDir, 'nonexistent', 'node_modules');
 
       expect(createInternalSymlink(symlinkPath, rootNodeModules, false)).toBe(false);
+    });
+
+    it('returns false when symlink would be self-referencing (symlinkDir equals rootNodeModules)', () => {
+      const rootNodeModules = path.join(tempDir, 'node_modules');
+      fs.mkdirSync(rootNodeModules);
+      const symlinkPath = path.join(rootNodeModules, 'node_modules');
+
+      expect(createInternalSymlink(symlinkPath, rootNodeModules, false)).toBe(false);
+      expect(fs.existsSync(symlinkPath)).toBe(false);
     });
 
     it('logs when verbose is true', () => {

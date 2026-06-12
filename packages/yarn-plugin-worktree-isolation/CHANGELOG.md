@@ -1,9 +1,17 @@
 # Changelog
 
+## 1.1.2
+
+- Fixed self-referencing symlink bug in `createInternalSymlink` when symlink parent directory equals root node_modules
+- Fixed stale `pendingResymlinks` state leaking across failed installs
+- Added guard to skip re-symlinking node_modules paths that are direct children of the root node_modules
+
 ## 1.1.1
+
 - Added NPM publishing URL to package metadata
 
 ## 1.1.0
+
 - Fixed workspace `node_modules` symlinks in monorepos: after removing external symlinks, the plugin now re-creates per-workspace `node_modules` as internal symlinks pointing to the worktree's own root `node_modules`
 
 ## 1.1.0
