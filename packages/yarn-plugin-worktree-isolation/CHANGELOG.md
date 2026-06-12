@@ -1,6 +1,10 @@
 # Changelog
 
 ## 1.1.2
+- Fixed self-referencing symlinks that could be created during worktree isolation
+- Fixed stale state issues when running installs across multiple worktrees
+
+## 1.1.2
 
 - Fixed self-referencing symlink bug in `createInternalSymlink` when symlink parent directory equals root node_modules
 - Fixed stale `pendingResymlinks` state leaking across failed installs
