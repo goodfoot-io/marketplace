@@ -1,0 +1,5 @@
+documentation/site-conventions.md#L13-L49 rk64:03746ee652645920
+packages/voice/src/ui/src/store/index.ts#L82-L122 rk64:c7a757b71325bd9e
+packages/voice/src/ui/src/main.tsx#L13-L25 rk64:267bb28d28bb672d
+
+The store public API (getState, useStore, dispatch, subscribeToActions) and runner boot sequence are prescribed in site-conventions.md; violations would silently break the architecture since no type, test, or schema enforces them.
