@@ -75,9 +75,11 @@ else
     echo "  then connect to http://127.0.0.1:9222. Run this in the BACKGROUND and remember to close it when done:"
     echo ""
     echo "    \"$LOCAL_BROWSER\" --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu \\"
-    echo "      --remote-debugging-port=9222 --user-data-dir=\"\${TMPDIR:-/tmp}/cc-browser-profile\" about:blank"
+    echo "      --remote-debugging-port=9222 --user-data-dir=\"\${TMPDIR:-/tmp}/cc-browser-profile\" about:blank &"
     echo ""
-    echo "  Then re-run this environment check to pick up WS_ENDPOINT."
+    echo "  No WS_ENDPOINT needed afterward — connect straight to it with browserURL:"
+    echo "      puppeteer.connect({ browserURL: \"http://127.0.0.1:9222\", defaultViewport: null })"
+    echo "  (browserURL re-derives the WS endpoint each time, so it can't go stale.)"
   else
     BLOCKED="yes"
     echo "No local browser binary found to launch. Ask the user one of:"
@@ -220,16 +222,28 @@ exists, launch your own headless instance. The `--no-sandbox` and
 launch fails (often misreported as a namespace/"Operation not permitted" error).
 
 ```bash
-# Launch headless in the background, then wait for the CDP endpoint.
+# Launch headless in the background, then wait for the CDP endpoint to come up.
 # Substitute the binary path from the environment check (e.g. /usr/bin/chromium).
 "$LOCAL_BROWSER" --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu \
   --remote-debugging-port=9222 --user-data-dir="${TMPDIR:-/tmp}/cc-browser-profile" about:blank \
   >/tmp/cc-browser.log 2>&1 &
 for i in $(seq 1 10); do
-  curl -sf -m 1 http://127.0.0.1:9222/json/version >/dev/null 2>&1 && break
+  curl -sf -m 1 http://127.0.0.1:9222/json/version >/dev/null 2>&1 && echo "✓ browser up" && break
   sleep 0.5
 done
-curl -s http://127.0.0.1:9222/json/version | grep -o '"webSocketDebuggerUrl"[^,]*'
+```
+
+Once it responds, **connect with `browserURL` — you do not need WS_ENDPOINT.** It re-derives
+the WebSocket endpoint on every connect, so it can't go stale between scripts:
+
+```bash
+tsx << 'EOF'
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.connect({ browserURL: "http://127.0.0.1:9222", defaultViewport: null });
+const page = (await browser.pages())[0] || await browser.newPage();
+// ... your actions ...
+await browser.disconnect();
+EOF
 ```
 
 **You launched it, so you must clean it up.** When the task is done, terminate it
