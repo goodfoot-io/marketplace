@@ -62,15 +62,28 @@ if [ -n "$FOUND_PORT" ]; then
   echo "✓ Browser ready: $VER ($PAGES page(s))"
   echo "  WS_ENDPOINT=$WS"
 else
-  BLOCKED="yes"
-  echo "❌ BLOCKED: No browser with remote debugging found"
+  echo "⚠️ No browser with remote debugging found (checked ports 9222-9224, 9229 on $BROWSER_HOST)."
   echo ""
-  echo "STOP. Do not attempt browser operations."
-  echo "Ask user one of:"
-  echo "  1. \"Is Chrome running with remote debugging? If not: chrome --remote-debugging-port=9222\""
-  echo "  2. \"If it's on a different port, which port?\" (then retry with that port)"
-  echo ""
-  echo "Checked ports 9222-9224, 9229 on $BROWSER_HOST"
+  # Look for a local Chrome/Chromium binary we can launch ourselves.
+  LOCAL_BROWSER=""
+  for B in google-chrome-stable google-chrome chromium chromium-browser chrome; do
+    if command -v "$B" >/dev/null 2>&1; then LOCAL_BROWSER=$(command -v "$B"); break; fi
+  done
+  if [ -n "$LOCAL_BROWSER" ]; then
+    echo "✓ Found a local browser: $LOCAL_BROWSER"
+    echo "  Launch it headless (the --no-sandbox/--disable-dev-shm-usage flags are required in containers),"
+    echo "  then connect to http://127.0.0.1:9222. Run this in the BACKGROUND and remember to close it when done:"
+    echo ""
+    echo "    \"$LOCAL_BROWSER\" --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu \\"
+    echo "      --remote-debugging-port=9222 --user-data-dir=\"\${TMPDIR:-/tmp}/cc-browser-profile\" about:blank"
+    echo ""
+    echo "  Then re-run this environment check to pick up WS_ENDPOINT."
+  else
+    BLOCKED="yes"
+    echo "No local browser binary found to launch. Ask the user one of:"
+    echo "  1. \"Is Chrome running with remote debugging? If not: chrome --remote-debugging-port=9222\""
+    echo "  2. \"If it's on a different port, which port?\" (then retry with that port)"
+  fi
 fi
 
 # 3. Runtime check
@@ -198,6 +211,30 @@ console.log("Connected! WS_ENDPOINT=" + browser.wsEndpoint());
 await browser.disconnect();
 EOF
 ```
+
+### Launch a Browser (no browser detected)
+
+If the environment check finds no running browser but a local Chrome/Chromium binary
+exists, launch your own headless instance. The `--no-sandbox` and
+`--disable-dev-shm-usage` flags are **required** inside containers — without them the
+launch fails (often misreported as a namespace/"Operation not permitted" error).
+
+```bash
+# Launch headless in the background, then wait for the CDP endpoint.
+# Substitute the binary path from the environment check (e.g. /usr/bin/chromium).
+"$LOCAL_BROWSER" --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu \
+  --remote-debugging-port=9222 --user-data-dir="${TMPDIR:-/tmp}/cc-browser-profile" about:blank \
+  >/tmp/cc-browser.log 2>&1 &
+for i in $(seq 1 10); do
+  curl -sf -m 1 http://127.0.0.1:9222/json/version >/dev/null 2>&1 && break
+  sleep 0.5
+done
+curl -s http://127.0.0.1:9222/json/version | grep -o '"webSocketDebuggerUrl"[^,]*'
+```
+
+**You launched it, so you must clean it up.** When the task is done, terminate it
+(`pkill -f cc-browser-profile`) rather than leaving an orphaned headless process. Use
+`disconnect()` (not `close()`) between scripts so it survives reconnection mid-task.
 
 ---
 
