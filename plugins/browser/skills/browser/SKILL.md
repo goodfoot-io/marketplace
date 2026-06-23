@@ -21,8 +21,18 @@ else
 fi
 
 # 1. Container detection
+# NOTE: Always connect via an IP, never an FQDN. Chrome's DevTools endpoint
+# rejects any Host header that isn't an IP or "localhost" ("Host header is
+# specified and is not an IP address or localhost"), so FQDNs must be resolved.
 CONTAINER_TYPE="" BROWSER_HOST="127.0.0.1"
-if [ -f /.dockerenv ] || grep -sq "docker\|containerd" /proc/1/cgroup 2>/dev/null; then
+if [ -n "$DEVCONTAINER_HOST" ]; then
+  # Explicit devcontainer host (e.g. Tailscale FQDN). Resolve to IP for the Host-header rule above.
+  HOST_IP=$(getent hosts "$DEVCONTAINER_HOST" 2>/dev/null | awk '{print $1}' | head -1)
+  [ -z "$HOST_IP" ] && HOST_IP=$(dig +short "$DEVCONTAINER_HOST" 2>/dev/null | head -1)
+  if [ -n "$HOST_IP" ]; then
+    CONTAINER_TYPE="Devcontainer ($DEVCONTAINER_HOST)" && BROWSER_HOST="$HOST_IP"
+  fi
+elif [ -f /.dockerenv ] || grep -sq "docker\|containerd" /proc/1/cgroup 2>/dev/null; then
   HOST_IP=$(dig host.docker.internal +short 2>/dev/null)
   [ -n "$HOST_IP" ] && CONTAINER_TYPE="Docker" && BROWSER_HOST="$HOST_IP"
 elif [ -f /run/.containerenv ]; then
@@ -150,6 +160,7 @@ runs persistently and you reconnect between script executions.
 | wsEndpoint validity | Valid while browser runs | Store and reuse across calls |
 | Page persistence | Pages survive reconnection | Reuse existing pages via `browser.pages()` |
 | Port already in use | Another process on 9222 | Ask user for correct port/endpoint |
+| FQDN rejected ("Host header is … not an IP address or localhost") | Chrome's DevTools only accepts an IP or `localhost` in the Host header | Resolve the hostname to an IP first (`getent hosts $DEVCONTAINER_HOST`) and connect to that IP |
 
 ---
 
@@ -170,10 +181,12 @@ await browser.disconnect();
 EOF
 ```
 
-### Pattern 3: Connect with Custom Port/IP
+### Connect with Custom Port/IP
 
 ```bash
-# When user specifies a different port or IP
+# When user specifies a different port or IP. Pass an IP, NOT an FQDN
+# (Chrome rejects non-IP/localhost Host headers — see Critical Gotchas).
+# In a devcontainer, resolve the host first:  BROWSER_IP=$(getent hosts "$DEVCONTAINER_HOST" | awk '{print $1}' | head -1)
 BROWSER_IP=192.168.65.254 BROWSER_PORT=9222 tsx << 'EOF'
 import puppeteer from "puppeteer-core";
 const { BROWSER_IP = "127.0.0.1", BROWSER_PORT = "9222" } = process.env;

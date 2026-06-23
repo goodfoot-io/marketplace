@@ -6,23 +6,27 @@ volumes:
 services:
   app:
     init: true
+    cap_add:
+      # Tailscale runs in TUN mode (real interface) so MagicDNS works system-wide.
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
     env_file:
-      - .env 
+      - .env
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
       - ..:/workspace:cached
-      - ~/.zsh_history:/home/node/.zsh_history
-      - ~/.claude:/home/node/.claude
+      # Persist the user's home (claude config, shell history, tool caches,
+      # Tailscale state under ~/.local/share/tailscale) across rebuilds.
+      - ${HOME}/devcontainer/marketplace:/home/node:cached
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_OPTIONS=--max-old-space-size=8192
       - CLAUDE_CONFIG_DIR=/home/node/.claude
-    dns:
-      - 1.1.1.1
-    # Host networking mode - shares host's network namespace
-    network_mode: host
+    # No dns: pin — `tailscale up --accept-dns` manages /etc/resolv.conf
+    # (MagicDNS at 100.100.100.100, with split-DNS to upstreams).
     command: sleep infinity
 
   postgres:

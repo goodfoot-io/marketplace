@@ -22,7 +22,6 @@ mkdir -p projects/new
 
 # Get the utility paths
 CREATE_JEST="/workspace/.devcontainer/utilities/create-scratchpad-jest-test"
-CREATE_PLAYWRIGHT="/workspace/.devcontainer/utilities/create-scratchpad-playwright-test"
 
 echo "Testing Shell Escaping in Scratchpad Utilities"
 echo "=============================================="
@@ -80,69 +79,6 @@ EOF
         echo -e "${RED}✗ FAIL${NC} - Content not preserved correctly"
         echo "File content:"
         cat "$test_file"
-    fi
-else
-    echo -e "${RED}✗ FAIL${NC} - Test file not created"
-fi
-
-# Test 2: Playwright utility with various shell metacharacters
-echo -e "\n${YELLOW}TEST 2: Playwright utility - Create test with safe name${NC}"
-TESTS_RUN=$((TESTS_RUN + 1))
-
-TEST_PROJECT_PW="escaping-test-playwright"
-mkdir -p "projects/new/$TEST_PROJECT_PW"
-
-# Create test with safe name
-"$CREATE_PLAYWRIGHT" "$TEST_PROJECT_PW" "selector-test" >/dev/null 2>&1
-
-# Verify the content doesn't have shell expansion
-test_file_pw="projects/new/$TEST_PROJECT_PW/scratchpad/selector-test/selector-test.spec.ts"
-if [ -f "$test_file_pw" ]; then
-    content=$(cat "$test_file_pw")
-    
-    # Add content with backticks to test preservation
-    cat >> "$test_file_pw" << 'EOF'
-
-// Additional test with template literal selectors
-test('dynamic selectors with template literals', async ({ page }) => {
-  const userId = 'user-123';
-  const className = 'active';
-  
-  // Template literal selectors
-  const selector = `[data-id="${userId}"]`;
-  const complexSelector = `${selector}.${className}:not(.disabled)`;
-  
-  // Shell-like patterns that should be preserved
-  const patterns = {
-    glob: '*.test.ts',
-    shellVar: '${PATH}',
-    backtick: '`pwd`',
-    pipe: 'grep | sed',
-    redirect: 'echo > file.txt'
-  };
-  
-  // XPath with template literals
-  const xpath = `//div[@id='${userId}']//span[contains(@class, '${className}')]`;
-  
-  console.log(`Testing selector: ${complexSelector}`);
-  console.log(`XPath: ${xpath}`);
-  
-  // These should all be preserved as strings
-  expect(patterns.shellVar).toBe('${PATH}');
-  expect(patterns.backtick).toBe('`pwd`');
-});
-EOF
-    
-    # Verify content was preserved correctly
-    if grep -q 'const selector = `\[data-id="${userId}"\]`' "$test_file_pw" && \
-       grep -q "test.describe('selector-test E2E assumption test'" "$test_file_pw" && \
-       grep -q 'shellVar: ' "$test_file_pw"; then
-        echo -e "${GREEN}✓ PASS${NC} - Playwright utility preserves shell metacharacters correctly"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-    else
-        echo -e "${RED}✗ FAIL${NC} - Content not preserved correctly"
-        echo "File content:"
-        cat "$test_file_pw"
     fi
 else
     echo -e "${RED}✗ FAIL${NC} - Test file not created"

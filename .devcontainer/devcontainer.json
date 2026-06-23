@@ -3,11 +3,13 @@
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspace",
+  // Build the shared local base image (devcontainer-base:node24.16-trixie) if it
+  // isn't already present, before the compose build references it as its FROM.
+  "initializeCommand": "bash ${localWorkspaceFolder}/../devcontainer-base/ensure-base.sh",
   "runArgs": [
     "--cap-add=SYS_PTRACE",
     "--security-opt",
-    "seccomp=unconfined",
-    "--network=host"
+    "seccomp=unconfined"
   ],
   "customizations": {
     "vscode": {
@@ -15,8 +17,7 @@
         "goodfoot.compare-branch",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "jackiotyu.git-worktree-manager",
-        ".devcontainer/no-port-forwarding"
+        "jackiotyu.git-worktree-manager"
       ],
       "settings": {
         "git.path": "/usr/bin/git",
@@ -54,7 +55,6 @@
   "remoteUser": "node",
   "mounts": [
     "source=claude-code-bashhistory,target=/commandhistory,type=volume",
-    "source=claude-code-config,target=/home/node/.claude,type=volume",
     "source=${localWorkspaceFolder}/.git,target=/workspace/.git,type=bind,consistency=cached"
   ],
   // Alternative mount configuration for worktrees (uncomment if needed):
