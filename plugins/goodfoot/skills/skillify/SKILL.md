@@ -1,7 +1,6 @@
 ---
 name: skillify
 description: This skill should be used when the user asks to "skillify this", "turn this into a skill", "make a skill out of what we just did", "generalize this task into a reusable skill", or otherwise wants to capture a just-completed session task as a new skill or fold it into an existing one.
-disable-model-invocation: true
 ---
 
 <instructions>
