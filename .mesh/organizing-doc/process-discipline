@@ -1,0 +1,4 @@
+.claude/skills/organizing-documentation-b/SKILL.md#L14-L14 rk64:956a8cfa5ebe7dd8
+.claude/skills/organizing-documentation-b/how-to/procedure.md#L5-L13 rk64:f68b1e1d8b5015c8
+
+The SKILL.md summary of process-discipline rules is a prose abstraction of procedure.md's authoritative rule list; the summary must stay consistent with the full rules so agents entering through either file receive coherent instructions.
