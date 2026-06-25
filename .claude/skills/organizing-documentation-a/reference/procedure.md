@@ -1,6 +1,6 @@
 # Procedure
 
-Scope: the audit → translate → author → validate → govern loop, ordered and tool-aware. The spine of any organizing job; run one real pass on the target repo. Each step routes to the principle or tool that owns its detail.
+Scope: the audit → translate → author → validate → govern loop, ordered and tool-aware. The spine of any organizing job; run one real pass on the target repo. Each step routes to the principle or tool that owns its detail. Tool overview at `reference/tools/index.md`; concept overview at `reference/concepts/index.md`.
 
 ## Process discipline (read before starting the loop)
 

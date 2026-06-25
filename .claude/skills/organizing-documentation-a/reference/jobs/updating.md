@@ -10,6 +10,7 @@ Every edit must succeed on the first attempt. Protocol violations and stale-stat
 - **Copy from Read output.** Construct `old_string` by copying directly from the most recent Read output. Do not reconstruct from memory. If the Read is more than two turns old, re-Read the section first.
 - **Verify counts with a command.** After adding entries to an index or hub, run `grep -c` or `wc -l` and use the exact result. Never estimate.
 - **Match index entries to source H1s.** Each entry in an alphabetical index MUST use the exact H1 title from the referenced file. Read `head -1` of each target. Do not abbreviate, shorten, or rephrase.
+- **Break work into read-phase then edit-phase.** For any scope beyond ~3 files: (1) identify the file list, (2) Read every file, (3) then Edit each. This prevents the typical failure pattern of reading file A, editing A, then attempting to edit file B without having read it.
 
 ## First moves
 

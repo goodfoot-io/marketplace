@@ -33,6 +33,7 @@ What the framework is made of — load when you must type a page, name a thing, 
 - **Typing a page along the four dimensions** (mode / topic type / genre / metadata, kept distinct): read `reference/concepts/design-dimensions.md`.
 - **Looking up a preferred term**: read `reference/concepts/glossary.md` — the framework's preferred terms, with definitions and owners.
 - **Settling a foundational distinction** (layered source of truth, durable identifier vs. canonical URL, agents as readers): read `reference/foundations.md`.
+- **Browsing the full conceptual model**: read `reference/concepts/index.md` — the concept hub that routes to all six definitional files.
 
 ## 5. The eight principles
 
@@ -53,6 +54,7 @@ The lens — why each move matters. Reach for a principle to go deep on one conc
 
 ## 7. Tools
 
+- **Tool overview and procedure-stage routing**: read `reference/tools/index.md` — the tools hub: which tool to use at each procedure stage.
 - **Inventory and baseline counts**: read `reference/tools/inventory-grep.md` — `grep`, `Glob`, `git ls-files`.
 - **Intent, staleness, and co-change coupling**: read `reference/tools/git-history.md` — `git log`/`blame`/`--follow`/`-L`.
 - **Load-bearing unenforced couplings and their drift**: read `reference/tools/git-mesh.md` — `git mesh add`/`why`/`stale`/`tree`.

@@ -1,6 +1,6 @@
 # Foundations
 
-Scope: the framework's foundational distinctions, applied to a git repository — layered source of truth, the repo-native stable identifier, and agents as first-class readers. Load before any organizing work. The four design dimensions live in `reference/concepts/design-dimensions.md`; the jobs and loop live in `reference/jobs/index.md` and `reference/procedure.md`.
+Scope: the framework's foundational distinctions, applied to a git repository — layered source of truth, the repo-native stable identifier, and agents as first-class readers. Load before any organizing work. The four design dimensions live in `reference/concepts/design-dimensions.md`; browse all concepts in `reference/concepts/index.md`. The jobs and loop live in `reference/jobs/index.md` and `reference/procedure.md`.
 
 ## 1. Layered source of truth
 

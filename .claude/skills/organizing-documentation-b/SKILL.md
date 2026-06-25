@@ -42,12 +42,16 @@ A problem you noticed — the diagnostic index ("you may be looking for…").
 | You do not know which pages are stale | `how-to/audit-the-corpus.md` — baseline counts |
 | A page mixes tutorial, how-to, and reference | `how-to/type-a-topic.md` — separate by Diátaxis mode |
 | Docs are organized around teams, not reader needs | `how-to/design-around-intent.md` — re-map to intent and lifecycle views |
+| A README is thin (≤3 lines) | `how-to/build-hubs.md` — expand to heading, scope, quick-start, and cross-refs |
+| A document is long (>500 lines) and has no table of contents | `how-to/build-hubs.md` — add both a scope statement and a table of contents |
+| Readers repeatedly ask the same question | `how-to/validate.md` + `how-to/govern.md` — convert to a source-of-truth page or FAQ |
+| You don't know where to start | `how-to/procedure.md` — the three jobs and the one loop |
 
 ## 5. Browse by mode
 
 - **`explanation/`** — why each practice matters: the four design dimensions (`explanation/foundations.md`) and the eight principles (`explanation/principles/index.md`).
 - **`how-to/`** — the procedures, by loop stage and authoring task (`how-to/procedure.md` indexes them).
-- **`reference/`** — catalogs and tool commands to look up (genres, topic types, metadata fields, validation signals, and `reference/tools/`).
+- **`reference/`** — catalogs: topic types (`reference/topic-types.md`), page genres (`reference/page-genres.md`), metadata fields (`reference/metadata-fields.md`), validation signals (`reference/validation-signals.md`); tools: inventory (`reference/tools/inventory-grep.md`), history (`reference/tools/git-history.md`), git-mesh (`reference/tools/git-mesh.md`), wiki (`reference/tools/wiki.md`).
 
 ## 6. Understand the why
 
