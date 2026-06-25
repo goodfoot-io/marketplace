@@ -11,6 +11,8 @@ Treat a git repository as a documentation corpus and make it findable, typed, an
 
 This skill is organized the way it teaches: typed topics separated by mode — `explanation/` (why), `how-to/` (doing), `reference/` (look up) — routed by what you are trying to do, with the eight principles as a concept facet rather than the file hierarchy. Start from an entry below and load one topic before acting on it; do not act from this hub alone.
 
+**Process discipline**: before any edit, Read the file. Copy `old_string` from Read output, never from memory. Verify every count with a command. Break work into read-then-edit phases. Full rules: `how-to/procedure.md` §Process discipline.
+
 ## 2. Orient
 
 - **Key distinctions** — layered source of truth, repo-native stable identifier, agents as first-class readers, the four design dimensions: `explanation/foundations.md`. Load before authoring.

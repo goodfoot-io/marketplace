@@ -6,6 +6,10 @@ Scope: check the structure with repo-native signals, treated as diagnostic. How-
 
 `wiki check` and `git mesh stale` exit clean; every inter-doc link resolves. Anchor load-bearing claims as SHA-pinned fragment links and meshes so doc↔code drift is detectable at all. These checks read the working tree — run them without committing.
 
+### Verified counts
+
+After authoring any index or header that reports a count (cheat-sheet count, page count, entry count), verify with an exact command. Use `grep -c` or `wc -l` against the working tree, then update the reported number to match. Do not hand-count or estimate. If the command output disagrees with the reported count, fix the reported count — the command is authoritative.
+
 Two boundaries on this gate. It covers only anchored claims: an unanchored load-bearing claim drifts silently — anchor what you can; for what you can't, flag the owning code area's maintainers and lean on freshness/last-verified (`govern.md`). And a clean gate means the anchors resolve, not that the prose is true: a tripped gate is a prompt to re-verify the claim, and behavior can change outside an anchored range with the gate green. Semantic staleness (stale facts shown as current) is caught by freshness and the source-of-truth review, not the gate.
 
 ## 2. Derive groupings (card-sort analog)

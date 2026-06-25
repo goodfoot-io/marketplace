@@ -15,4 +15,9 @@ Scope: route from an observed problem to the topic that owns the fix. The situat
 - **A reader or agent cannot self-orient on grep arrival**: `reference/principles/07-nonlinear-information-seeking/index.md` — self-orienting files, scope lines, and retrieval readiness.
 - **A load-bearing coupling lives only in someone's memory**: `reference/tools/git-mesh.md` — mine the coupling and record it as a mesh.
 - **Readers repeatedly ask the same question**: `reference/principles/08-validate-and-iterate/support-and-ops.md` — convert repeated questions into a source-of-truth page.
+- **A README is 3 lines or fewer — a stub**: `reference/principles/03-hubs-orientation-and-routing/index.md` — expand to heading, scope, how-to, and cross-references.
+- **A document exceeds 500 lines and has no table of contents**: `reference/principles/03-hubs-orientation-and-routing/index.md` — add both a scope statement and a table of contents.
+- **A cross-reference index file lacks context for direct arrivals**: `reference/principles/03-hubs-orientation-and-routing/index.md` — add an introductory blurb and backlink.
+- **An alphabetical index has entries that don't match source H1s**: `reference/procedure.md` — verify each entry against the target file's first heading; fix mismatches.
+- **A count in a header disagrees with `grep -c` output**: `reference/procedure.md` — the command is authoritative; update the reported number.
 - **You do not know where to start**: pick a job — `reference/jobs/index.md` — the three jobs and the shared loop.

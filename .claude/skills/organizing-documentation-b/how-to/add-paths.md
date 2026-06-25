@@ -26,4 +26,6 @@ Two complementary, user-meaningful facets; each cell links to a hub and/or a sou
 
 Orphan → link from a hub or matrix, redirect, archive, or delete. No useful outbound → add prerequisite/next/related. Buried → promote. Over-linked → prune noise. Post-task dead end → verification and next steps. Should-redirect → redirect to the source-of-truth or replacement. Retrieval dead end → summary, stable identifier, explicit relationships, source-of-truth links.
 
+**Orphan scoping**: do not flag files in well-known template directories (`.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE/`) as orphans. These are consumed by platform automation and typically do not need README links. Focus on files genuinely undocumented — policy files, standalone docs, unlinked guides.
+
 Related: why multiple paths `../explanation/principles/04-multiple-paths.md`; facets reuse metadata `set-vocabulary-and-metadata.md`; durable targets `../explanation/foundations.md`; coupling paths `../reference/tools/git-mesh.md`.

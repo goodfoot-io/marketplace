@@ -6,6 +6,8 @@ Scope: find pages with no inbound path or no useful onward path and fix them. Ow
 
 Detect orphans with the grep recipe in `reference/tools/inventory-grep.md` (a file whose name is never mentioned elsewhere). Detect dead ends by reading a page's foot for next-step links.
 
+**Orphan scoping**: do not flag files in well-known template directories (`.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE/`) as orphans. These are consumed by platform automation and typically do not need README links. Focus on files genuinely undocumented — policy files, standalone docs, unlinked guides.
+
 ## Diagnostics → actions
 
 - **A page has no inbound links**: link it from a hub, redirect it with a link, archive it, or delete it — `reference/principles/03-hubs-orientation-and-routing/link-selection.md`.

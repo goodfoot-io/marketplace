@@ -49,7 +49,7 @@ The lens — why each move matters. Reach for a principle to go deep on one conc
 
 ## 6. The workflow
 
-- **Running a full pass end to end**: read `reference/procedure.md` — the audit → translate → author → validate → govern loop that every job specializes.
+- **Running a full pass end to end**: read `reference/procedure.md` — the audit → translate → author → validate → govern loop that every job specializes. **Load this first** — it contains process discipline rules (read-before-edit, copy-from-Read-output, verify-counts-with-commands, read-phase-then-edit-phase) that apply to every edit in this skill, plus the combined checklist of what every organizing pass must consider.
 
 ## 7. Tools
 

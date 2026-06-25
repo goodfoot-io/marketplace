@@ -6,6 +6,35 @@ Scope: build hubs that tell a reader where they are, which path to choose, and w
 
 The root README is the product hub; `AGENTS.md`/`CLAUDE.md` are agent hubs; a README at each major module boundary is a local hub. A wiki hub page serves a cross-cutting domain (`reference/tools/wiki.md`). A hub routes and orients; it does not restate code facts. Inventory existing hubs with `git ls-files '**/README.md' '**/AGENTS.md' 'CLAUDE.md' '**/CLAUDE.md'` (`reference/tools/inventory-grep.md`).
 
+## Combined navigation surface
+
+Two improvements are required for any repo with cross-reference indexes:
+
+1. **Root README**: Add a dedicated navigation section listing every major navigation surface with a one-line description (alphabetical index, cross-reference indexes, preface, help guide, contributing guide). This is the comprehensive entry point for first-time visitors.
+2. **Every cross-reference / secondary index file**: Add a brief introductory blurb explaining what the index maps and linking back to the root README or alphabetical index. Use a consistent pattern across all files. A reader who lands on a cross-reference index from a search engine gets context and escape hatches.
+3. **Alphabetical index (if present)**: Add an inter-index cross-reference line below the header linking to all other indexes.
+
+Do one without the other and the navigation surface is incomplete.
+
+## Long document rule
+
+Every document over 500 lines needs BOTH a scope statement at the top AND a table of contents. Shorter documents need a scope statement. Never add only one of scope or TOC to a long document — both are required.
+
+## Thin README rule
+
+A README of 3 lines or fewer must expand to at minimum: a heading, a scope statement, a "How it works" or "Quick start" section, and cross-references to related documents. Do not leave a stub.
+
+## Alphabetical index rules
+
+When maintaining an alphabetical index:
+- Entries within each letter section MUST be in strict alphabetical order by link text. When inserting a new entry, reorder existing entries as needed — do not preserve pre-existing disorder.
+- Each entry's link text MUST match the exact H1 title of the referenced file. Verify by reading `head -1` of each target. Do not abbreviate, shorten, or rephrase.
+- After all entries are added, run a count command and update the header count to match exactly — never estimate.
+
+## Descriptive subtitles
+
+For top-level meta-documents (Preface, HelpGuide, CONTRIBUTING, GOVERNANCE), if the title is a single short phrase, add a descriptive subtitle after a double dash. This strengthens information scent for readers scanning a file listing.
+
 ## Route within this principle
 
 - **You must decide where a hub is warranted**: read `hub-necessity.md` — the three-or-more-docs threshold and the don't-build-an-empty-hub rule.

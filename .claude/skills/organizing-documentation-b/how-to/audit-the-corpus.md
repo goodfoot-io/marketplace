@@ -19,7 +19,14 @@ Commands: `../reference/tools/inventory-grep.md`, `../reference/tools/git-histor
 
 Size; stale (last-commit date vs release cadence); orphans (no inbound reference); pages with no useful outbound links; duplicates and contradictions; obsolete pages; unclassified (no topic-type / mode / genre); missing required metadata; high-churn pages (protect); never-touched pages (reassess); pages cited from tickets/alerts/code/external (protect with a stable identifier).
 
-## 3. Route each finding to the technique that fixes it
+## 3. Detect structural gaps
+
+- **Thin READMEs** (≤3 lines): flag for expansion — each needs a heading, a scope statement, a how-to or quick-start section, and cross-references. Use `wc -l` per file to identify.
+- **Long documents** (>500 lines): flag for TOC addition. Every document over 500 lines needs both a scope statement at the top AND a table of contents.
+- **Directories with 3+ .md files and no README**: flag for a directory-level hub.
+- **Orphan scoping**: when detecting orphans, skip files in well-known template directories (`.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE/`) unless the project has an explicit convention that those files should be linked. Focus on files genuinely undocumented.
+
+## 4. Route each finding to the technique that fixes it
 
 - **Orphan** → `add-paths.md`.
 - **Duplicate / contradiction** → `type-a-topic.md`.
@@ -28,6 +35,9 @@ Size; stale (last-commit date vs release cadence); orphans (no inbound reference
 - **Missing hub** → `build-hubs.md`.
 - **Weak scent** → `strengthen-scent.md`.
 - **Stale** → `govern.md`.
+- **Thin README (≤3 lines)** → `build-hubs.md`.
+- **Long document, no TOC (>500 lines)** → `build-hubs.md`.
+- **Directory with 3+ .md files, no README** → `build-hubs.md`.
 
 Treat counts as the evidence base; do not change anything not justified by a finding.
 
