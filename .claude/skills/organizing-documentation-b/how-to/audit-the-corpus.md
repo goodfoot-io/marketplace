@@ -24,6 +24,8 @@ Size; stale (last-commit date vs release cadence); orphans (no inbound reference
 - **Thin READMEs** (≤3 lines): flag for expansion — each needs a heading, a scope statement, a how-to or quick-start section, and cross-references. Use `wc -l` per file to identify.
 - **Long documents** (>500 lines): flag for TOC addition. Every document over 500 lines needs both a scope statement at the top AND a table of contents.
 - **Directories with 3+ .md files and no README**: flag for a directory-level hub.
+- **Empty or stub files** (`find . -name '*.md' -size -2c`, or near-empty): flag for populate-or-remove, not just documentation.
+- **Enumerating indexes** (any page that lists files — a translation index, a resource list, a directory table): diff against `git ls-files <dir>` to find entries the index is missing or that point to deleted files.
 - **Orphan scoping**: when detecting orphans, skip files in well-known template directories (`.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE/`) unless the project has an explicit convention that those files should be linked. Focus on files genuinely undocumented.
 
 ## 4. Route each finding to the technique that fixes it
@@ -38,6 +40,8 @@ Size; stale (last-commit date vs release cadence); orphans (no inbound reference
 - **Thin README (≤3 lines)** → `build-hubs.md`.
 - **Long document, no TOC (>500 lines)** → `build-hubs.md`.
 - **Directory with 3+ .md files, no README** → `build-hubs.md`.
+- **Empty / stub file** → `add-paths.md`.
+- **Index out of sync with the filesystem** → `build-hubs.md` (re-enumerate), `validate.md`.
 
 Treat counts as the evidence base; do not change anything not justified by a finding.
 

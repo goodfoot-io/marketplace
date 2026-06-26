@@ -12,20 +12,23 @@ Scope: stand up a repository's documentation from little — establish conventio
 
 ## Agent orientation file
 
-When creating an AGENTS.md or CLAUDE.md, include ALL of the following — not one or the other:
+The agent orientation file is a typed hub for agents and contributors (`reference/principles/03-hubs-orientation-and-routing/index.md`). Name it for the repo's existing convention — the file the toolchain already loads (`AGENTS.md`, `CLAUDE.md`); add a second only if the project wants both. Include ALL of the following — not one or the other:
 
-1. **Directory tree or table** showing the actual file layout with per-file annotations. This is the actionable reference an agent needs to find the right file for any task.
-2. **Documentation philosophy** explaining the layered source-of-truth model and how documents relate to each other. This teaches the agent the *why* behind the structure.
-3. **Working norms** covering: Python version, package manager, virtual environment, test commands, linting, CI conventions, changelog format.
-4. **Routing table** — a quick-lookup reference mapping task categories to the files that own them.
-5. **Important conventions** — the non-obvious rules that prevent common mistakes: where CLI arguments are defined, whether any documentation sections are generated, how the test suite is run, legacy format notes, meta-CLI vs. request command distinctions.
+1. **One-line repo description and type** — state whether the repo is a documentation corpus, a software project, or mixed, so an agent does not hunt for build, test, or source infrastructure that is not there.
+2. **Annotated directory tree or table** to the file level for the key directories, each file with a one-line purpose; add a size cue (line count) for any file too large to read whole, so an agent knows what to sample versus read.
+3. **Documentation philosophy** — the layered source-of-truth model and what wins when a fact has two homes (`reference/foundations.md`). This teaches the agent the *why* behind the structure.
+4. **Working norms** — language/runtime version, package manager, build, test, lint/format, CI, and commit conventions, in the project's own terms.
+5. **Routing table** by both reader intent ("understand X → …") and task ("change Y → these specific files"); both are legitimate facets — do not force one.
+6. **Important conventions** — the non-obvious rules an agent would violate blind (formatting, ordering, policy boundaries, generated sections, CI constraints), each naming the specific files it governs.
+
+State how this file relates to directory READMEs: the orientation file owns agent-specific conventions and routing; directory READMEs own navigation for both audiences; neither duplicates the other. Link the orientation file from the root README and the docs index so humans discover it.
 
 ## Thin README expansion
 
-For any README that is currently 3 lines or fewer, expand it to include at minimum: a heading, a scope statement (one sentence identifying what this directory/file owns), a "How it works" or "Quick start" section, and cross-references to related documents. Do not leave a stub.
+Expand any README too thin to orient a direct arrival — 3 lines or fewer, or any directory README that gives only a name or one-sentence purpose with no file listing, navigation, or cross-references. At minimum: a heading with a purpose clause, a scope / "where you are" statement (`reference/principles/06-information-scent/summaries-and-previews.md`), a "How it works" or "Quick start" section, a file table when the directory holds several files (below), and see-also cross-references to related documents. Do not leave a stub.
 
 ## Directory READMEs
 
-For every directory containing 3 or more .md files that lacks a README, create a directory-level README covering: what the directory contains, how to find things in it, naming conventions, and links to related resources.
+For every directory containing 3 or more .md files that lacks a README, create a directory-level hub covering: where the reader is, what the directory holds, how to find things in it, naming conventions, and links to sibling directories and the root. When the directory holds many files on a naming convention (per-language, per-component, …), make a complete file-index table its primary content — `reference/principles/03-hubs-orientation-and-routing/hub-content.md`.
 
 Then run the full loop: `reference/procedure.md`.

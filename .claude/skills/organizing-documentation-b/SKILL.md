@@ -35,14 +35,15 @@ A problem you noticed — the diagnostic index ("you may be looking for…").
 | A directory holds several docs and no overview | `how-to/build-hubs.md` — add a routing hub at the right threshold |
 | Two pages say the same thing; a fact is duplicated | `how-to/type-a-topic.md` — resolve to one source-of-truth owner |
 | A doc contradicts the code, or may have drifted | `how-to/validate.md` + `reference/tools/git-mesh.md` — anchor the claim, detect drift mechanically |
-| A page nothing links to (orphan) | `how-to/add-paths.md` — link, redirect, or retire it |
+| A page nothing links to (orphan), or an empty/stub file | `how-to/add-paths.md` — link, redirect, populate, or retire it |
+| A doc, example, and source README cover the same topic but don't link to each other | `how-to/add-paths.md` — audit cross-layer links, make them bidirectional |
 | A reader or agent cannot find a page by grep | `how-to/support-nonlinear-seeking.md` + `how-to/set-vocabulary-and-metadata.md` — aliases, scope lines, retrieval |
 | Names or paths are inconsistent | `how-to/set-vocabulary-and-metadata.md` — one naming convention |
 | A link's destination is not predictable before the click | `how-to/strengthen-scent.md` — titles, labels, summaries, headings |
 | You do not know which pages are stale | `how-to/audit-the-corpus.md` — baseline counts |
 | A page mixes tutorial, how-to, and reference | `how-to/type-a-topic.md` — separate by Diátaxis mode |
 | Docs are organized around teams, not reader needs | `how-to/design-around-intent.md` — re-map to intent and lifecycle views |
-| A README is thin (≤3 lines) | `how-to/build-hubs.md` — expand to heading, scope, quick-start, and cross-refs |
+| A README is thin (≤3 lines, or a bare one-liner with no listing or cross-refs) | `how-to/build-hubs.md` — expand to heading, scope, quick-start, file table, and cross-refs |
 | A document is long (>500 lines) and has no table of contents | `how-to/build-hubs.md` — add both a scope statement and a table of contents |
 | Readers repeatedly ask the same question | `how-to/validate.md` + `how-to/govern.md` — convert to a source-of-truth page or FAQ |
 | You don't know where to start | `how-to/procedure.md` — the three jobs and the one loop |

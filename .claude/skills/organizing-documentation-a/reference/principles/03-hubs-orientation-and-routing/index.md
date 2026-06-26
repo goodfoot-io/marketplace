@@ -10,7 +10,7 @@ The root README is the product hub; `AGENTS.md`/`CLAUDE.md` are agent hubs; a RE
 
 Two improvements are required for any repo with cross-reference indexes:
 
-1. **Root README**: Add a dedicated navigation section listing every major navigation surface with a one-line description (alphabetical index, cross-reference indexes, preface, help guide, contributing guide). This is the comprehensive entry point for first-time visitors.
+1. **Root README**: open with a one-sentence scope statement, then a dedicated navigation section routing to every major surface and content area with a one-line description and a count where relevant (alphabetical index, cross-reference indexes, content directories, preface, help guide, contributing guide). For a multi-area repo the root README is a dispatcher, not a summary: scope answers "what is this", the navigation section answers "where do I find X".
 2. **Every cross-reference / secondary index file**: Add a brief introductory blurb explaining what the index maps and linking back to the root README or alphabetical index. Use a consistent pattern across all files. A reader who lands on a cross-reference index from a search engine gets context and escape hatches.
 3. **Alphabetical index (if present)**: Add an inter-index cross-reference line below the header linking to all other indexes.
 
@@ -22,7 +22,7 @@ Every document over 500 lines needs BOTH a scope statement at the top AND a tabl
 
 ## Thin README rule
 
-A README of 3 lines or fewer must expand to at minimum: a heading, a scope statement, a "How it works" or "Quick start" section, and cross-references to related documents. Do not leave a stub.
+A README too thin to orient a direct arrival — 3 lines or fewer, or any directory README that states only a name or one-sentence purpose with no file listing, navigation, or cross-references — must expand to at minimum: a heading with a purpose clause, a scope statement, a "How it works" or "Quick start" section, a file table when the directory holds many files (`hub-content.md`), and cross-references to related documents. Do not leave a stub.
 
 ## Alphabetical index rules
 

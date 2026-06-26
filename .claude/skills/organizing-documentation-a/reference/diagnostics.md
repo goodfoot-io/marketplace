@@ -6,6 +6,9 @@ Scope: route from an observed problem to the topic that owns the fix. The situat
 - **A page mixes concept, task, and reference**: `reference/concepts/design-dimensions.md`, then `reference/principles/02-typed-source-of-truth-topics/modes-and-genres.md` — name the four dimensions, then split the mixed page.
 - **Two pages claim the same topic**: `reference/principles/02-typed-source-of-truth-topics/canonicality.md` — pick one source of truth and redirect the rest.
 - **A page has no inbound links (orphan) or dead-ends the reader**: `reference/principles/04-multiple-paths/orphans-and-dead-ends.md` — find and fix no-inbound and no-onward pages.
+- **A file is empty or a bare placeholder**: `reference/principles/04-multiple-paths/orphans-and-dead-ends.md` — populate it with a redirecting stub, redirect it, or delete it; do not just document it.
+- **An index lists files that no longer match the directory** (missing or dangling entries): `reference/principles/08-validate-and-iterate/baseline-audit.md` — reconcile every file-enumerating index against `git ls-files`.
+- **A directory of many similar files has no scannable index**: `reference/principles/03-hubs-orientation-and-routing/hub-content.md` — make a complete filename → identifier table the hub's primary content.
 - **A topic is reachable only by knowing its directory**: `reference/principles/04-multiple-paths/entry-points.md` — add non-tree entry points and aliases.
 - **A name, first line, heading, or commit subject does not predict its target**: `reference/principles/06-information-scent/index.md` — strengthen titles, labels, summaries, and headings.
 - **Names drift or there is no single convention**: `reference/principles/05-controlled-vocabulary-and-metadata/vocabulary.md` — one naming convention; map synonyms and old names to preferred terms.
@@ -15,7 +18,7 @@ Scope: route from an observed problem to the topic that owns the fix. The situat
 - **A reader or agent cannot self-orient on grep arrival**: `reference/principles/07-nonlinear-information-seeking/index.md` — self-orienting files, scope lines, and retrieval readiness.
 - **A load-bearing coupling lives only in someone's memory**: `reference/tools/git-mesh.md` — mine the coupling and record it as a mesh.
 - **Readers repeatedly ask the same question**: `reference/principles/08-validate-and-iterate/support-and-ops.md` — convert repeated questions into a source-of-truth page.
-- **A README is 3 lines or fewer — a stub**: `reference/principles/03-hubs-orientation-and-routing/index.md` — expand to heading, scope, how-to, and cross-references.
+- **A README is a stub — 3 lines or fewer, or a bare one-liner with no file listing or cross-references**: `reference/principles/03-hubs-orientation-and-routing/index.md` — expand to heading, scope, how-to, file table, and cross-references.
 - **A document exceeds 500 lines and has no table of contents**: `reference/principles/03-hubs-orientation-and-routing/index.md` — add both a scope statement and a table of contents.
 - **A cross-reference index file lacks context for direct arrivals**: `reference/principles/03-hubs-orientation-and-routing/index.md` — add an introductory blurb and backlink.
 - **An alphabetical index has entries that don't match source H1s**: `reference/procedure.md` — verify each entry against the target file's first heading; fix mismatches.

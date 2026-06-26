@@ -4,7 +4,7 @@ Scope: check the structure with repo-native signals, treated as diagnostic. How-
 
 ## 1. Mechanical checks first
 
-`wiki check` and `git mesh stale` exit clean; every inter-doc link resolves. Anchor load-bearing claims as SHA-pinned fragment links and meshes so doc↔code drift is detectable at all. These checks read the working tree — run them without committing.
+`wiki check` and `git mesh stale` exit clean; every inter-doc link resolves. Every index or hub that enumerates files resolves against the filesystem — diff each enumerating page against `git ls-files <dir>`, add the entries it is missing, drop the ones pointing at deleted files. Cross-layer links are bidirectional — re-run the cross-layer sweep (`add-paths.md` §7); a topic reachable in one layer but not its peers is a cross-layer orphan. Anchor load-bearing claims as SHA-pinned fragment links and meshes so doc↔code drift is detectable at all. These checks read the working tree — run them without committing.
 
 ### Verified counts
 

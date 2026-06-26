@@ -6,7 +6,9 @@ Scope: wire inbound and outbound links so each page connects to its prerequisite
 
 - **Add inbound links from every likely entry context** — `entry-points.md`.
 - **Add outbound links by role and place them where they help**: prerequisites before the instructions; next steps after the answer; related concepts in a related section; troubleshooting near failure points; reference near exact values; decision-history links near rationale; "do not confuse with" links in disambiguation notes — `reference/principles/06-information-scent/disambiguation.md`.
+- **Two resources in different layers cover the same topic** (a doc page and its runnable example, a source-directory README and the doc pages for that module, the root README and the agent orientation file): link them to each other, bidirectionally, each link carrying a one-line description. The rule: if X and Z both cover topic Y, X links to Z and Z links to X — `reference/principles/06-information-scent/link-labels.md`.
 - **Authors assumed a connection readers do not have**: add the explicit bridge link.
+- **A link is a bare URL where the format offers a typed construct**: use the corpus's native cross-reference for its format — reStructuredText roles and `seealso` callouts, Markdown relative links and tables — and do not mix one format's markup into another.
 - **A link is generated, cited externally, or consumed by retrieval**: use a durable identifier, not a volatile title — `reference/foundations.md` stable-identifier section.
 - **A cross-reference points at a volatile line number**: replace it with a SHA-pinned fragment link or a mesh name so it survives edits and moves — `reference/tools/git-mesh.md`.
 - **You need the set of files a change should link or notify**: run `git mesh tree <glob>` for the blast radius — `reference/tools/git-mesh.md`.

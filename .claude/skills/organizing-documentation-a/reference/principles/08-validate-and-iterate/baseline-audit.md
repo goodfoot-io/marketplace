@@ -8,9 +8,10 @@ Use `reference/tools/inventory-grep.md` for size, hubs, orphans, and duplicates;
 
 ## Structural gap detection
 
-- **Thin READMEs** (≤3 lines): flag for expansion — each needs a heading, a scope statement, a how-to or quick-start section, and cross-references. Use `wc -l` per file to identify.
+- **Thin READMEs** (≤3 lines, or any directory README that states only a name or one-sentence purpose with no file listing, navigation, or cross-references): flag for expansion — each needs a heading, a scope statement, a how-to or quick-start section, and cross-references. Use `wc -l` per file to identify the short ones; read the one-liners to catch stubs above the line threshold.
 - **Long documents** (>500 lines): flag for TOC addition. Every document over 500 lines needs both a scope statement at the top AND a table of contents.
 - **Directories with 3+ .md files and no README**: flag for a directory-level hub.
+- **Index/filesystem drift**: for every index or hub that enumerates files, diff it against `git ls-files <dir>` — flag missing entries to add and dangling entries to remove. An index is only as trustworthy as its last reconciliation.
 - **Orphan scoping**: when detecting orphans, skip files in well-known template directories (`.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE/`) unless the project has an explicit convention that those files should be linked. Focus on files genuinely undocumented — policy files, standalone docs, unlinked guides.
 
 ## Diagnostics → actions

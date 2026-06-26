@@ -4,11 +4,13 @@ Scope: open every page and hub with a one-line scope/value statement that surviv
 
 ## In the repo
 
-The first line of a README or page is its summary; the wiki `summary` frontmatter is the preview source, and `wiki check` confirms title and summary resolve (`reference/tools/wiki.md`).
+The first line of a README or page is its summary; the wiki `summary` frontmatter is the preview source, and `wiki check` confirms title and summary resolve (`reference/tools/wiki.md`). Give every touched page a scope line regardless of format — Markdown, reStructuredText, or other — not only the ones you are already rewriting.
 
 ## Diagnostics → actions
 
 - **A page has no opening summary**: add a one-sentence statement of scope and value.
+- **A directory hub does not say where the reader is**: open it with a "where you are" line locating it in the repo, so a reader who arrived from a file path or a search result knows the surrounding context.
+- **A scope line describes containment when the page owns a domain**: use ownership language for a source module ("this module owns X") and containment language for a collection, example, or index ("this directory contains X") — a source module has authority over its domain; a collection does not.
 - **A hub's scope is not immediate**: put it in the first paragraph — `reference/principles/03-hubs-orientation-and-routing/hub-scope.md`.
 - **A search or retrieval preview lacks context**: improve the summary and the metadata used in previews — `reference/principles/05-controlled-vocabulary-and-metadata/retrieval.md`.
 - **A matrix cell or link group is unclear before the click**: add a concise label or description — `reference/principles/04-multiple-paths/matrix-views.md`.

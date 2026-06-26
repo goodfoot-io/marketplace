@@ -12,11 +12,11 @@ Name the destination's value; add object/action/scope; phrase around the reader'
 
 ## 3. Add summaries and previews
 
-Open each page with a one-sentence scope-and-value summary; put a hub's scope in its first paragraph; write an informative `summary` frontmatter (used by `wiki check` and retrieval); frame matrix cells and link groups; say who-for, when, and what is not covered; distinguish current from legacy; support direct arrivals.
+Open every touched page — Markdown or reStructuredText, README or reference — with a one-sentence scope-and-value summary stating what it covers and who it is for; for a directory, also where you are in the repo. Use ownership language for a source module ("this module owns X") and containment for a collection or example ("this directory contains X"). Put a hub's scope in its first paragraph; write an informative `summary` frontmatter (used by `wiki check` and retrieval); frame matrix cells and link groups; say who-for, when, and what is not covered; distinguish current from legacy; support direct arrivals.
 
 ## 4. Make headings signposts
 
-Write informative headings matching user questions and tasks; use verbs for procedures; standardize by genre; let the outline reveal the page logic; promote buried answers; split long sections; ensure the table of contents alone predicts relevance; use specific headings that preserve scope when a chunk is extracted.
+Write informative headings that name the reader's goal rather than the page's contents, matching user questions and tasks; use verbs for procedures; standardize by genre; let the outline reveal the page logic; promote buried answers; split long sections; ensure the table of contents alone predicts relevance; use specific headings that preserve scope when a chunk is extracted.
 
 ## 5. Disambiguate the confusable
 

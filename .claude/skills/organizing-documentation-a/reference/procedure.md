@@ -61,7 +61,7 @@ Make every directory name, file name, README first line, heading, and commit sub
 
 ## 9. Validate
 
-`wiki check` and `git mesh stale` exit clean; every inter-doc link resolves; spot-check first-click scent on each hub (can a reader predict the destination before clicking?). Verify every reported count with an exact command; if the command disagrees, fix the reported number. Methods: `reference/principles/08-validate-and-iterate/index.md`. These checks read the working tree — run them without committing. Fix what fails before handoff.
+`wiki check` and `git mesh stale` exit clean; every inter-doc link resolves; spot-check first-click scent on each hub (can a reader predict the destination before clicking?). Audit cross-layer completeness: related resources across layers link to each other (a doc page and its example, a source-directory README and that module's docs, the root README and the orientation file), and every index that enumerates files matches the filesystem with no missing or dangling entries (`reference/principles/04-multiple-paths/cross-linking.md`, `reference/principles/08-validate-and-iterate/baseline-audit.md`). Verify every reported count with an exact command; if the command disagrees, fix the reported number. Methods: `reference/principles/08-validate-and-iterate/index.md`. These checks read the working tree — run them without committing. Fix what fails before handoff.
 
 ## 10. Govern and hand off
 
@@ -73,14 +73,15 @@ Every organizing pass must consider every item below, regardless of which job tr
 
 | Check | Owned by |
 |---|---|
-| Add scope statements to every README | `reference/principles/03-hubs-orientation-and-routing/index.md` |
+| Add a scope / "where you are" line to every touched doc page, any format | `reference/principles/06-information-scent/summaries-and-previews.md` |
 | Add table of contents to documents over 500 lines | `reference/principles/03-hubs-orientation-and-routing/index.md` |
-| Add cross-references between related documents | `reference/principles/04-multiple-paths/cross-linking.md` |
-| Detect and link orphaned files (skip ISSUE_TEMPLATE dirs) | `reference/principles/04-multiple-paths/orphans-and-dead-ends.md` |
+| Add cross-references between related documents, and link related resources across layers bidirectionally (doc↔example, source README↔docs, README↔orientation file) | `reference/principles/04-multiple-paths/cross-linking.md` |
+| Detect and link orphaned files (skip ISSUE_TEMPLATE dirs); populate or remove empty/placeholder files | `reference/principles/04-multiple-paths/orphans-and-dead-ends.md` |
+| Reconcile every file-enumerating index against the filesystem (no missing or dangling entries) | `reference/principles/08-validate-and-iterate/baseline-audit.md` |
 | Surface policy files (CoC, security, governance) on the landing page | `reference/principles/03-hubs-orientation-and-routing/link-selection.md` |
-| Expand thin READMEs (≤3 lines) to heading + scope + how-to + cross-refs | `reference/principles/03-hubs-orientation-and-routing/index.md` |
-| Create directory READMEs for dirs with 3+ .md files | `reference/principles/03-hubs-orientation-and-routing/hub-necessity.md` |
+| Expand thin READMEs (≤3 lines or one-liner stubs) to heading + scope + how-to + file table + cross-refs | `reference/principles/03-hubs-orientation-and-routing/index.md` |
+| Create directory READMEs for dirs with 3+ .md files; give a many-file directory a complete file-index table | `reference/principles/03-hubs-orientation-and-routing/hub-content.md` |
 | Add contextual blurbs to every cross-reference / secondary index file | `reference/principles/03-hubs-orientation-and-routing/index.md` |
-| Generate an agent orientation file (AGENTS.md or CLAUDE.md) with directory tree, doc philosophy, working norms, routing table, and important conventions | `reference/jobs/creating.md` |
+| Generate an agent orientation file (name per repo convention) with repo-type framing, annotated directory tree, doc philosophy, working norms, intent- and task-routing tables, and load-bearing conventions | `reference/jobs/creating.md` |
 | Enforce alphabetical ordering in alphabetical indexes | `reference/principles/03-hubs-orientation-and-routing/index.md` |
 | Add descriptive subtitles to meta-documents with terse titles | `reference/principles/06-information-scent/index.md` |

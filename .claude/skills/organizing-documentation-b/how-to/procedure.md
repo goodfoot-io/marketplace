@@ -24,7 +24,7 @@ Prefer breadth when the per-file change is formulaic (adding a scope line, a cro
 
 ## The stages
 
-1. **Audit** — establish the corpus's real state and counts: `audit-the-corpus.md`. Use exact command output for every count. Flag thin READMEs (≤3 lines) and long documents (>500 lines) that lack structural elements.
+1. **Audit** — establish the corpus's real state and counts: `audit-the-corpus.md`. Use exact command output for every count. Flag thin READMEs (≤3 lines) and long documents (>500 lines) that lack structural elements, empty/stub files, and indexes out of sync with the filesystem.
 2. **Translate** — read for reader intent and decision history, then map work to it: `design-around-intent.md` (history via `../reference/tools/git-history.md`).
 3. **Author** — build and repair the structure with the right technique:
    - Type and own each topic: `type-a-topic.md`.
@@ -45,12 +45,14 @@ Every organizing pass must consider every item below, regardless of which job tr
 | Add scope statements to every README | `build-hubs.md` |
 | Add table of contents to documents over 500 lines | `build-hubs.md` |
 | Add cross-references between related documents | `add-paths.md` |
-| Detect and link orphaned files (skip ISSUE_TEMPLATE dirs) | `audit-the-corpus.md` → `add-paths.md` |
+| Detect and link orphaned files (skip ISSUE_TEMPLATE dirs); populate or remove empty/stub files | `audit-the-corpus.md` → `add-paths.md` |
+| Audit cross-layer links — doc↔example, source-README↔docs, README↔orientation file, hub↔leaves — all bidirectional | `add-paths.md` |
+| Reconcile every enumerating index against the filesystem (add missing, drop dangling) | `audit-the-corpus.md` → `validate.md` |
 | Surface policy files (CoC, security, governance) on the landing page | `build-hubs.md` |
-| Expand thin READMEs (≤3 lines) to heading + scope + how-to + cross-refs | `build-hubs.md` |
-| Create directory READMEs for dirs with 3+ .md files | `build-hubs.md` |
+| Expand thin READMEs (≤3 lines) to heading + scope + file table + how-to + cross-refs | `build-hubs.md` |
+| Create directory READMEs for dirs with 3+ .md files; give a directory of many similar files a complete file-listing table from `git ls-files` | `build-hubs.md` |
 | Add contextual blurbs to every cross-reference / secondary index file | `build-hubs.md` |
-| Generate an agent orientation file (AGENTS.md or CLAUDE.md) with directory tree, doc philosophy, working norms, routing table, and important conventions | `type-a-topic.md` |
+| Generate an agent orientation file (AGENTS.md/CLAUDE.md, repo's convention): repo-type framing, annotated tree with size cues, layered source-of-truth model, working norms, intent+task routing, load-bearing conventions, relationship to directory READMEs | `build-hubs.md` |
 | Enforce alphabetical ordering in alphabetical indexes | `build-hubs.md` |
 | Add descriptive subtitles to meta-documents with terse titles | `strengthen-scent.md` |
 

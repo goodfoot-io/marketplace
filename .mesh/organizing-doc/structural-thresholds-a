@@ -1,4 +1,4 @@
-.claude/skills/organizing-documentation-a/reference/principles/03-hubs-orientation-and-routing/index.md#L21-L25 rk64:9d2d33e6d0ec337b
-.claude/skills/organizing-documentation-a/reference/principles/08-validate-and-iterate/baseline-audit.md#L11-L13 rk64:06f9da56509e14de
+.claude/skills/organizing-documentation-a/reference/principles/03-hubs-orientation-and-routing/index.md#L21-L25 rk64:46cf8977ded86c18
+.claude/skills/organizing-documentation-a/reference/principles/08-validate-and-iterate/baseline-audit.md#L11-L13 rk64:6d117d1c1b4c12de
 
 Thin README and long document structural thresholds are encoded identically in the baseline audit and the hubs principle page; a threshold change in one must propagate to the other or the detection criteria and the rule definitions will silently diverge.

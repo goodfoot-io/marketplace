@@ -31,7 +31,7 @@ Agents enter through `AGENTS.md`/`CLAUDE.md`, `grep`, and retrieval — usually 
 
 - Make every landing file self-orienting: a scope line up top, headings that survive extraction.
 - Put a cross-file relationship an agent cannot infer from one chunk into a mesh `why`, not tribal memory.
-- Put working norms and routing in root and module-level `AGENTS.md`/`CLAUDE.md`; reduce them to norms plus routing, not code facts.
+- Put working norms and routing in root and module-level `AGENTS.md`/`CLAUDE.md`; route by both reader intent and task; carry the layered source-of-truth model (§1) and the repo type so an agent knows which layer owns what and what infra exists; reduce the file to norms, routing, and conventions, not code facts. It complements directory READMEs — those own navigation for both audiences — rather than duplicating them. Author it via `../how-to/build-hubs.md`.
 - The agent organizes docs and detects/records governance gaps; it does not own or execute the human governance process — the maintainer sets cadence, authority, and approvals. Docs are ownerless by default: provenance (`CODEOWNERS`, `git log --author`) is authorship and audience signal, not accountability, and an unowned doc is not a gap.
 
 ## 4. The four design dimensions

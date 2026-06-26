@@ -1,4 +1,4 @@
 .claude/skills/organizing-documentation-a/reference/principles/04-multiple-paths/orphans-and-dead-ends.md#L9-L9 rk64:104f0f976fc3049a
-.claude/skills/organizing-documentation-a/reference/principles/08-validate-and-iterate/baseline-audit.md#L14-L14 rk64:bb5c39f08dfc4ef0
+.claude/skills/organizing-documentation-a/reference/principles/08-validate-and-iterate/baseline-audit.md#L15-L15 rk64:bb5c39f08dfc4ef0
 
 The ISSUE_TEMPLATE and PULL_REQUEST_TEMPLATE orphan exclusion list is defined identically in both the baseline audit and the orphans-and-dead-ends page; a change to the exclusion list in one must propagate to the other or the detection criteria and the fixing criteria will silently diverge.

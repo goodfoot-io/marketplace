@@ -11,6 +11,7 @@ Detect orphans with the grep recipe in `reference/tools/inventory-grep.md` (a fi
 ## Diagnostics → actions
 
 - **A page has no inbound links**: link it from a hub, redirect it with a link, archive it, or delete it — `reference/principles/03-hubs-orientation-and-routing/link-selection.md`.
+- **A file is empty or a bare placeholder**: fix it, do not just note it as an orphan in the orientation file — populate it with a minimal stub (its purpose, a redirect to the resource that supersedes it, and a contribution invite), redirect it, or delete it.
 - **A page has no useful outbound links**: add next-step, prerequisite, and related links — `cross-linking.md`.
 - **A page is discoverable only by search**: add it to relevant hubs or matrix cells if it is important — `matrix-views.md`.
 - **An important page is buried too deep**: promote it to a hub or a shortcut — `reference/principles/06-information-scent/cost-of-click.md`.
