@@ -1,4 +1,0 @@
-.claude/skills/organizing-documentation-a/reference/procedure.md#L3-L3 rk64:e0e37fa574b763ed
-.claude/skills/organizing-documentation-a/reference/tools/index.md#L18-L24 rk64:da64f7c0036b18ab
-
-The tools/index.md stage-to-tool mapping (Audit/Translate/Author/Validate/Govern) is derived from the procedure stages defined authoritatively in procedure.md; if procedure stages are reordered, renamed, or their tool assignments change, the tools hub mapping must be updated to stay consistent.
