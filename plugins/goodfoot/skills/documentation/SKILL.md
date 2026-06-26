@@ -1,5 +1,5 @@
 ---
-name: organizing-documentation
+name: documentation
 description: You must load this skill if you are creating or updating standalone documentation.
 ---
 
