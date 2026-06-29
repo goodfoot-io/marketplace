@@ -875,17 +875,29 @@ export async function createVoiceMcpServer(
 
   // Streaming-ASR coalescing for user speech. xAI re-emits
   // `conversation.item.input_audio_transcription.completed` repeatedly with
-  // growing text for a single spoken turn (there is no separate `.delta`
-  // channel), so the controller's `transcript.item` fires many times mid-turn —
-  // each an incremental partial under the same item id. Delivering every one to
-  // the colleague spams the channel with the same prefix (and the colleague is
-  // told `transcript.item` is "a completed spoken turn"). So we hold the latest
-  // user-microphone transcript and notify only with the SETTLED text: flushed
-  // when the turn ends (any later delivered event, or a new item id) or after a
-  // quiet window with no further updates.
+  // growing (then finalized) text for one spoken turn under a single item id,
+  // and the final ASR result frequently lands LATE — after the colleague's
+  // response has already produced its own `transcript.item`. The colleague is
+  // told `transcript.item` is "a completed spoken turn", so each user turn must
+  // reach the channel EXACTLY ONCE, carrying the FINAL text — never an earlier
+  // partial, never a duplicate.
+  //
+  // To guarantee that we hold the latest user-microphone transcript and deliver
+  // only the SETTLED text, settling on one of: a quiet window with no further
+  // updates to that item id, the start of a new user turn (a different item id),
+  // or session teardown (`conversation.ended`). We deliberately do NOT flush on
+  // unrelated events (an assistant turn, an html.click, an error): doing so was
+  // the source of the duplicate/partial bug, because the user's final ASR can
+  // arrive after such an event. Once an item id has been delivered, any later
+  // re-fire of that same id (a stray trailing ASR repeat) is dropped, so a
+  // settled turn can never be sent twice.
   const USER_TRANSCRIPT_QUIET_MS = 1500;
   let pendingUserTranscript: { itemId: string; record: ChannelRecord } | null = null;
   let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+  // Item ids already delivered to the channel as a settled user turn. Guards
+  // against xAI re-firing a finalized turn (which would otherwise be buffered
+  // and delivered a second time). Cleared on `conversation.ended`.
+  const deliveredUserTranscripts = new Set<string>();
 
   function deliverRecord(record: ChannelRecord): void {
     const { content, attrs } = channelMessage(record.event, record.data);
@@ -901,16 +913,18 @@ export async function createVoiceMcpServer(
       });
   }
 
-  // Deliver the buffered user transcript (the final text of the turn) once, in
-  // seq order ahead of whatever event triggered the flush.
+  // Deliver the buffered user transcript (the final text of the turn) exactly
+  // once, and remember its item id so a later re-fire of the same turn is
+  // dropped rather than delivered again.
   function flushPendingUserTranscript(): void {
     if (pendingTimer) {
       clearTimeout(pendingTimer);
       pendingTimer = null;
     }
     if (!pendingUserTranscript) return;
-    const { record } = pendingUserTranscript;
+    const { itemId, record } = pendingUserTranscript;
     pendingUserTranscript = null;
+    deliveredUserTranscripts.add(itemId);
     deliverRecord(record);
   }
 
@@ -947,9 +961,13 @@ export async function createVoiceMcpServer(
       emit(HTML_CLICKS_ABOUT_EVENT, { message: HTML_CLICKS_ABOUT_MESSAGE }, { forceNotify: true });
     }
 
-    // Buffer streaming user-speech partials; deliver only the settled turn.
+    // Buffer streaming user-speech partials; deliver only the settled, final
+    // turn (see the coalescing notes above).
     if (event === "transcript.item" && (data as TranscriptItemEvent).item.source === "microphone") {
       const itemId = (data as TranscriptItemEvent).item.id;
+      // Already settled and delivered — drop a trailing re-fire of the same turn
+      // so it is never sent twice.
+      if (deliveredUserTranscripts.has(itemId)) return;
       // A different item id means the previous user turn is final — flush it.
       if (pendingUserTranscript && pendingUserTranscript.itemId !== itemId) flushPendingUserTranscript();
       pendingUserTranscript = { itemId, record };
@@ -958,9 +976,11 @@ export async function createVoiceMcpServer(
       return;
     }
 
-    // Any other delivered event marks the in-progress user turn as settled, so
-    // flush the buffered transcript ahead of it to preserve conversational order.
-    flushPendingUserTranscript();
+    // All other events deliver immediately. We do NOT flush the buffered user
+    // turn here: its final ASR text may still be in flight, and flushing on an
+    // unrelated event would send a premature partial (and then a duplicate when
+    // the final arrives). The buffered turn settles on its own quiet window, the
+    // next user turn, or `conversation.ended`.
     deliverRecord(record);
   }
 
@@ -1070,6 +1090,11 @@ export async function createVoiceMcpServer(
   // mirroring agent.activate), reporting only the steering it had set, then
   // clear that steering so it never leaks into the next session.
   controller.on("conversation.ended", () => {
+    // Deliver any user turn still buffered at teardown so it is not lost, then
+    // forget the delivered ids — the next session reuses fresh xAI item ids.
+    flushPendingUserTranscript();
+    deliveredUserTranscripts.clear();
+
     // `personality` is NOT cleared — it persists across sessions (disk-backed).
     const cleared: string[] = [];
     if (baseInstructions !== DEFAULT_BASE_INSTRUCTIONS) cleared.push("instructions");
