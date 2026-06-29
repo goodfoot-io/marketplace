@@ -20740,6 +20740,7 @@ async function createVoiceMcpServer(config, options = {}) {
   const USER_TRANSCRIPT_QUIET_MS = 1500;
   let pendingUserTranscript = null;
   let pendingTimer = null;
+  const deliveredUserTranscripts = /* @__PURE__ */ new Set();
   function deliverRecord(record) {
     const { content, attrs } = channelMessage(record.event, record.data);
     notifyTail = notifyTail.then(
@@ -20757,8 +20758,9 @@ async function createVoiceMcpServer(config, options = {}) {
       pendingTimer = null;
     }
     if (!pendingUserTranscript) return;
-    const { record } = pendingUserTranscript;
+    const { itemId, record } = pendingUserTranscript;
     pendingUserTranscript = null;
+    deliveredUserTranscripts.add(itemId);
     deliverRecord(record);
   }
   function emit(event, data, opts) {
@@ -20773,13 +20775,13 @@ async function createVoiceMcpServer(config, options = {}) {
     }
     if (event === "transcript.item" && data.item.source === "microphone") {
       const itemId = data.item.id;
+      if (deliveredUserTranscripts.has(itemId)) return;
       if (pendingUserTranscript && pendingUserTranscript.itemId !== itemId) flushPendingUserTranscript();
       pendingUserTranscript = { itemId, record };
       if (pendingTimer) clearTimeout(pendingTimer);
       pendingTimer = setTimeout(flushPendingUserTranscript, USER_TRANSCRIPT_QUIET_MS);
       return;
     }
-    flushPendingUserTranscript();
     deliverRecord(record);
   }
   let waitingForContext = false;
@@ -20845,6 +20847,8 @@ async function createVoiceMcpServer(config, options = {}) {
     });
   });
   controller.on("conversation.ended", () => {
+    flushPendingUserTranscript();
+    deliveredUserTranscripts.clear();
     const cleared = [];
     if (baseInstructions !== DEFAULT_BASE_INSTRUCTIONS) cleared.push("instructions");
     if (latestContext !== null) cleared.push("context");
