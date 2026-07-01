@@ -549,7 +549,7 @@ export async function main(args: string[], stdin?: string): Promise<void> {
 		};
 
 		const cwd = process.cwd();
-		if (stdin !== undefined) {
+		if (stdin !== undefined && stdin.trim().length > 0) {
 			await processStdin(
 				stdin,
 				parsed.selectorArg,
