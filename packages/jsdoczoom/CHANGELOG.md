@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.2.6
+- Fixed a bug where the CLI could hang indefinitely when run with piped/idle stdin
+
+## 1.2.6
 - Fixed: `-l`/`-c` hung forever when stdin was an open, unwritten pipe (e.g. a child process spawned with default stdio), because `!process.stdin.isTTY` treated an idle pipe the same as a genuine shell pipe with real data; now only reads stdin when `isTTY === false`
 
 ## 1.2.5
