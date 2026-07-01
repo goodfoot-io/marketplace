@@ -1,0 +1,5 @@
+packages/jsdoczoom/CHANGELOG.md#L3-L4 rk64:ccf8b90a7ad08baf
+packages/jsdoczoom/package.json#L3-L3 rk64:e4aab900f8543446
+packages/jsdoczoom/src/cli.ts#L722-L725 rk64:4ecd9f60b9adef47
+
+The idle-pipe stdin guard (process.stdin.isTTY === false) is the behavioral fix that caused the 1.2.6 release; the version and changelog entry document exactly this change, so modifying the guard or its semantics requires updating the release record, and updating the release record implies the guard was changed.
