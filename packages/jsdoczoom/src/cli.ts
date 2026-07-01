@@ -719,9 +719,8 @@ function isDirectRun(): boolean {
 }
 
 if (isDirectRun()) {
-	// Only read stdin when it's explicitly piped (isTTY === false, not just undefined)
-	const stdinText =
-		process.stdin.isTTY === false ? await readStdin() : undefined;
+	// Read stdin when piped — isTTY is undefined (not false) for pipes in Node.js
+	const stdinText = !process.stdin.isTTY ? await readStdin() : undefined;
 	main(process.argv.slice(2), stdinText).catch(() => {
 		// Error already handled in main
 	});

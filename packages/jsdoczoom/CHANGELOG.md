@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.4
+- Fixed: stdin piping was ignored for all commands (`-l`, `-c`, drilldown, `--search`) because `process.stdin.isTTY` is `undefined` (not `false`) for pipes in Node.js; now correctly detects piped stdin
+
 ## 1.2.3
 - Level-3 type declarations output now renders each declaration block in its own TypeScript code fence, with the module description as plain markdown prose; the module-level import chunk is omitted
 
