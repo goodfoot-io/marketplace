@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.2.4
+- Fixed an issue where piping input via stdin was ignored across all CLI commands
+
+## 1.2.4
 - Fixed: stdin piping was ignored for all commands (`-l`, `-c`, drilldown, `--search`) because `process.stdin.isTTY` is `undefined` (not `false`) for pipes in Node.js; now correctly detects piped stdin
 
 ## 1.2.3
