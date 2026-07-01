@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.2.5
+- Fixed a bug where piping empty input to the CLI in non-interactive shells would skip the selector prompt instead of treating it as no input provided
+
+## 1.2.5
 - Fixed: empty stdin (`""`) in non-TTY shells (CI, agents) caused `-c`/`-l` to silently ignore the positional selector and exit 0; empty stdin is now treated as absent
 
 ## 1.2.4
