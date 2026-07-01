@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.5
+- Fixed: empty stdin (`""`) in non-TTY shells (CI, agents) caused `-c`/`-l` to silently ignore the positional selector and exit 0; empty stdin is now treated as absent
+
 ## 1.2.4
 - Fixed an issue where piping input via stdin was ignored across all CLI commands
 
