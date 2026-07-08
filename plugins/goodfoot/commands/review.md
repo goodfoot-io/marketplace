@@ -11,4 +11,4 @@ Walk me through any open questions using the AskUserQuestion tool. Ask questions
   - An explanation of the stakes around the answer
   - A recommendation
 
-  Output these in natural, concise prose aimed at comprehension and readability.
+Output these in natural, concise prose aimed at comprehension and readability.
