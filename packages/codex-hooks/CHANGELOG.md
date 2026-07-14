@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.3
+- Updated the bundled Codex hook schemas (permission-request, tool-use, compact, session, and subagent events) to match the latest Codex definitions
+
 ## 1.1.2
 - Fixed: generated hook commands now properly quote `$CLAUDE_PLUGIN_ROOT` to handle paths with spaces or special characters
 
