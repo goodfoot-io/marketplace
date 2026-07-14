@@ -13,6 +13,9 @@
     "agent_id": {
       "type": "string"
     },
+    "agent_transcript_path": {
+      "$ref": "#/definitions/NullableString"
+    },
     "agent_type": {
       "type": "string"
     },
@@ -20,8 +23,11 @@
       "type": "string"
     },
     "hook_event_name": {
-      "const": "PreToolUse",
+      "const": "SubagentStop",
       "type": "string"
+    },
+    "last_assistant_message": {
+      "$ref": "#/definitions/NullableString"
     },
     "model": {
       "type": "string"
@@ -39,12 +45,8 @@
     "session_id": {
       "type": "string"
     },
-    "tool_input": true,
-    "tool_name": {
-      "type": "string"
-    },
-    "tool_use_id": {
-      "type": "string"
+    "stop_hook_active": {
+      "type": "boolean"
     },
     "transcript_path": {
       "$ref": "#/definitions/NullableString"
@@ -55,17 +57,19 @@
     }
   },
   "required": [
+    "agent_id",
+    "agent_transcript_path",
+    "agent_type",
     "cwd",
     "hook_event_name",
+    "last_assistant_message",
     "model",
     "permission_mode",
     "session_id",
-    "tool_input",
-    "tool_name",
-    "tool_use_id",
+    "stop_hook_active",
     "transcript_path",
     "turn_id"
   ],
-  "title": "pre-tool-use.command.input",
+  "title": "subagent-stop.command.input",
   "type": "object"
 }

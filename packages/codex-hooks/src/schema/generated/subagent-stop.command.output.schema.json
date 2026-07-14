@@ -7,26 +7,6 @@
         "block"
       ],
       "type": "string"
-    },
-    "PostToolUseHookSpecificOutputWire": {
-      "additionalProperties": false,
-      "properties": {
-        "additionalContext": {
-          "default": null,
-          "type": "string"
-        },
-        "hookEventName": {
-          "const": "PostToolUse",
-          "type": "string"
-        },
-        "updatedMCPToolOutput": {
-          "default": null
-        }
-      },
-      "required": [
-        "hookEventName"
-      ],
-      "type": "object"
     }
   },
   "properties": {
@@ -42,16 +22,9 @@
       ],
       "default": null
     },
-    "hookSpecificOutput": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/PostToolUseHookSpecificOutputWire"
-        }
-      ],
-      "default": null
-    },
     "reason": {
       "default": null,
+      "description": "Claude requires `reason` when `decision` is `block`; we enforce that semantic rule during output parsing rather than in the JSON schema.",
       "type": "string"
     },
     "stopReason": {
@@ -67,6 +40,6 @@
       "type": "string"
     }
   },
-  "title": "post-tool-use.command.output",
+  "title": "subagent-stop.command.output",
   "type": "object"
 }

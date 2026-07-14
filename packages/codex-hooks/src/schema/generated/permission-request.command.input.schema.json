@@ -20,7 +20,7 @@
       "type": "string"
     },
     "hook_event_name": {
-      "const": "PreToolUse",
+      "const": "PermissionRequest",
       "type": "string"
     },
     "model": {
@@ -43,9 +43,6 @@
     "tool_name": {
       "type": "string"
     },
-    "tool_use_id": {
-      "type": "string"
-    },
     "transcript_path": {
       "$ref": "#/definitions/NullableString"
     },
@@ -62,10 +59,9 @@
     "session_id",
     "tool_input",
     "tool_name",
-    "tool_use_id",
     "transcript_path",
     "turn_id"
   ],
-  "title": "pre-tool-use.command.input",
+  "title": "permission-request.command.input",
   "type": "object"
 }

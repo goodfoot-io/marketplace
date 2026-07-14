@@ -20,34 +20,24 @@
       "type": "string"
     },
     "hook_event_name": {
-      "const": "PreToolUse",
+      "const": "PostCompact",
       "type": "string"
     },
     "model": {
       "type": "string"
     },
-    "permission_mode": {
-      "enum": [
-        "default",
-        "acceptEdits",
-        "plan",
-        "dontAsk",
-        "bypassPermissions"
-      ],
-      "type": "string"
-    },
     "session_id": {
-      "type": "string"
-    },
-    "tool_input": true,
-    "tool_name": {
-      "type": "string"
-    },
-    "tool_use_id": {
       "type": "string"
     },
     "transcript_path": {
       "$ref": "#/definitions/NullableString"
+    },
+    "trigger": {
+      "enum": [
+        "manual",
+        "auto"
+      ],
+      "type": "string"
     },
     "turn_id": {
       "description": "Codex extension: expose the active turn id to internal turn-scoped hooks.",
@@ -58,14 +48,11 @@
     "cwd",
     "hook_event_name",
     "model",
-    "permission_mode",
     "session_id",
-    "tool_input",
-    "tool_name",
-    "tool_use_id",
     "transcript_path",
+    "trigger",
     "turn_id"
   ],
-  "title": "pre-tool-use.command.input",
+  "title": "post-compact.command.input",
   "type": "object"
 }
