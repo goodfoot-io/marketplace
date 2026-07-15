@@ -1,5 +1,5 @@
 ---
-name: review
+name: questions
 description: Review open questions
 disable-model-invocation: "true"
 hide-from-slash-command-tool: "true"
