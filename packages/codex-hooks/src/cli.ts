@@ -306,6 +306,10 @@ execute(hook);
     external: ["node:*", "fs", "path", "os", "crypto", "module", "url"],
     mainFields: ["module", "main"],
     conditions: ["import", "node"],
+    // Preserve symlink identity so module-boundary comments and sourcemaps
+    // are computed relative to the checkout-local symlink path rather than
+    // the dereferenced realpath, which varies by checkout nesting depth.
+    preserveSymlinks: true,
   });
   const content = result.outputFiles?.[0]?.text;
   if (content === undefined) {

@@ -399,8 +399,12 @@ describe("E2E: Build Process", () => {
       fs.mkdirSync(outputDir2, { recursive: true });
 
       // Build different hooks
-      const result1 = runCli(path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts"), outputPath1, ["--no-stable-names"]);
-      const result2 = runCli(path.join(BUILD_TEST_FIXTURES, "notification-hook.ts"), outputPath2, ["--no-stable-names"]);
+      const result1 = runCli(path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts"), outputPath1, [
+        "--no-stable-names",
+      ]);
+      const result2 = runCli(path.join(BUILD_TEST_FIXTURES, "notification-hook.ts"), outputPath2, [
+        "--no-stable-names",
+      ]);
 
       expect(result1.success).toBe(true);
       expect(result2.success).toBe(true);

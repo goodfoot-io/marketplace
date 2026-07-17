@@ -751,6 +751,10 @@ execute(hook);
     treeShaking: true,
     write: false, // Return content directly via outputFiles
     banner: { js: esmRequireBanner },
+    // Preserve symlink identity so module-boundary comments and sourcemaps
+    // are computed relative to the checkout-local symlink path rather than
+    // the dereferenced realpath, which varies by checkout nesting depth.
+    preserveSymlinks: true,
     // Keep node built-ins external
     external: [
       "node:*",
