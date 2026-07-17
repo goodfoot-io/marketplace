@@ -9,6 +9,7 @@
 		"declarationDir": "./types",
 		"outDir": "./dist",
 		"baseUrl": ".",
+		"ignoreDeprecations": "6.0",
 		"types": ["node"]
 	}
 }

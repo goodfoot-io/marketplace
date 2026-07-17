@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.4
+- Fixed non-portable esbuild module-boundary comments (and inline sourcemap `sources` entries) when compiling a hook whose dependency is resolved through a symlinked `node_modules`, e.g. a hoisted install shared across checkouts at different nesting depths. Added `preserveSymlinks: true` to the esbuild config so compiled output is byte-stable across checkouts regardless of how deeply each one is nested relative to the shared install.
+
 ## 1.1.3
 - Updated the bundled Codex hook schemas (permission-request, tool-use, compact, session, and subagent events) to match the latest Codex definitions
 
