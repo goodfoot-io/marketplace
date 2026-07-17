@@ -1,0 +1,5 @@
+packages/codex-hooks/CHANGELOG.md#L3-L4 rk64:d87c64407ac3238f
+packages/codex-hooks/package.json#L3-L3 rk64:5b36c9e818d134f1
+packages/codex-hooks/src/cli.ts#L309-L312 rk64:2de293390838fced
+
+Version 1.1.4 release of codex-hooks with the preserveSymlinks fix for esbuild symlink portability. The changelog entry documents the fix; the version bump marks the release; the code fix implements the solution.
