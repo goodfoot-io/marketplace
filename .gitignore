@@ -118,6 +118,10 @@ build
 
 coverage
 
+# git-mesh files (should never be ignored)
+!.mesh/
+!.mesh/**
+
 # Yarn 4.x specific
 .yarn/*
 !.yarn/patches
@@ -146,6 +150,8 @@ dist/
 */dist/
 */build/dist/
 */build
+# Exception: git-mesh build directory should be tracked
+!.mesh/build/
 
 # Additional logs
 npm-debug.log*
