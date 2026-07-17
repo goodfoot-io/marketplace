@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.7.2
+- Fixed a bug where compiled hook output could break after checking out the repository on a different machine or path, due to non-portable references to symlinked dependencies
+
+## 1.7.2
 - Fixed non-portable esbuild module-boundary comments (and inline sourcemap `sources` entries) when compiling a hook whose dependency is resolved through a symlinked `node_modules`, e.g. a hoisted install shared across checkouts at different nesting depths. Added `preserveSymlinks: true` to the esbuild config so compiled output is byte-stable across checkouts regardless of how deeply each one is nested relative to the shared install.
 
 ## 1.7.1
