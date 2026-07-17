@@ -216,3 +216,4 @@ packages/voice/src/ui-dist/
 
 third_party/reference/
 .devcontainer/utilities/deepseek
+.devcontainer/utilities/deepseek*

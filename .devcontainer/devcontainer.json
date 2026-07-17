@@ -14,10 +14,8 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "goodfoot.compare-branch",
         "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
-        "jackiotyu.git-worktree-manager"
+        "esbenp.prettier-vscode"
       ],
       "settings": {
         "git.path": "/usr/bin/git",
