@@ -10,7 +10,7 @@ Adoption is a chain — Attention → Comprehension → Evaluation → Trust →
 ## Procedure
 
 1. Classify the task: which funnel stage, which audience, which medium. Being able to pick a classification does not mean the user asked for it: if the request itself does not name the asset type and stage (e.g. "write something about our tool" — an audience alone is not enough), your classification is a guess — either ask ONE targeted question, or state the guess (stage + asset type) in a one-line assumption note at the top of the draft. Never deliver a silent guess. If the task targets multiple stages or audiences (e.g., teach the model AND sell the upgrade), do not draft one blended asset: deliver separate messages — or, when the user wants a single asset, sections labeled with the stage each serves (e.g. "Part 1 — Comprehension") — and state the split and its reason in the same response, e.g. in a short structure note with the draft.
-2. Load the matching reference files from the table below. Load only what applies.
+2. Load the matching reference files from the table below. **You must load any files that might apply.**
 3. Draft, applying the universal rules plus the loaded rules.
 4. Self-review against the red flags below; fix every violation before presenting.
 5. If a check fails because the product cannot support the claim (no cheap reversal — including cancellation or downgrade only via a sales conversation or at term end; slow first-run; unbounded verification burden), tell the user it is a product gap — do not compensate with stronger adjectives or better footage.
