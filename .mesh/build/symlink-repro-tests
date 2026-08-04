@@ -1,0 +1,4 @@
+packages/claude-code-hooks/tests/cli-symlink-repro.test.ts rk64:944ff8da36aeb944
+packages/codex-hooks/tests/cli-symlink-repro.test.ts rk64:c80da1adabab90e5
+
+Twin reproduction tests for symlink-portable compiled output in both CLI packages: each installs a physical copy of its package's src into a shared install and compiles the same hook from checkouts at different nesting depths, asserting byte-identical output and a checkout-anchored runtime import; scenarios added to one twin must be mirrored in the other since both packages share wrapper-generation logic.
