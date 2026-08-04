@@ -276,13 +276,57 @@ function generateContentHash(content: string): string {
   return crypto.createHash("sha256").update(content).digest("hex").slice(0, 8);
 }
 
+/**
+ * Re-roots a realpath through the node_modules symlink chain visible from
+ * `resolveDir`, so relative paths computed against it do not depend on how
+ * deeply the checkout is nested below a shared install.
+ *
+ * Walks `resolveDir`'s ancestors for a `node_modules` directory whose
+ * realpath contains `realPath` (e.g. a checkout-level symlink to a shared
+ * install) and returns `realPath` as seen through that directory. Falls back
+ * to the realpath when no such node_modules exists — with no symlink
+ * involved, the realpath is already checkout-local.
+ */
+function symlinkVisiblePath(realPath: string, resolveDir: string): string {
+  for (let dir = resolveDir; ; ) {
+    const nodeModules = path.join(dir, "node_modules");
+    if (fs.existsSync(nodeModules)) {
+      const resolved = fs.realpathSync(nodeModules);
+      if (realPath.startsWith(resolved + path.sep)) {
+        return path.join(nodeModules, path.relative(resolved, realPath));
+      }
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      return realPath;
+    }
+    dir = parent;
+  }
+}
+
 async function compileHook(
   sourcePath: string,
   loaders: HookLoaderMap,
 ): Promise<{ content: string; contentHash: string }> {
-  const runtimePathAbsolute = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./runtime.js");
+  // import.meta.url is the CLI module's realpath (Node dereferences symlinks
+  // by default), which sits outside the checkout when node_modules is a
+  // symlink to a shared install. Re-root it through the checkout's own
+  // node_modules symlink so the import specifier below — and everything
+  // esbuild records about it — is identical across checkouts regardless of
+  // nesting depth.
   const resolveDir = path.dirname(sourcePath);
-  const relativeRuntimePath = path.relative(resolveDir, runtimePathAbsolute).replace(/\\/g, "/");
+  const runtimePathAbsolute = symlinkVisiblePath(
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./runtime.js"),
+    resolveDir,
+  );
+  // Ensure the specifier reads as a relative path: when the runtime is
+  // reached through the checkout's own node_modules, path.relative yields
+  // "node_modules/..." with no leading "../", which esbuild would otherwise
+  // interpret as a package path.
+  let relativeRuntimePath = path.relative(resolveDir, runtimePathAbsolute).replace(/\\/g, "/");
+  if (!relativeRuntimePath.startsWith(".")) {
+    relativeRuntimePath = `./${relativeRuntimePath}`;
+  }
   const relativeSourcePath = `./${path.basename(sourcePath)}`.replace(/\\/g, "/");
   const wrapperContent = `import hook from ${JSON.stringify(relativeSourcePath)};
 import { execute } from ${JSON.stringify(relativeRuntimePath)};
