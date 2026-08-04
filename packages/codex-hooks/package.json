@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/codex-hooks",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Type-safe Codex hooks library, runtime, and build tool",
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/codex-hooks",
   "repository": {

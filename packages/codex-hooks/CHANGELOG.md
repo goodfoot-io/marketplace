@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.5
+- Fixed the synthetic entry wrapper's `runtime.js` import specifier to be computed through the checkout's own `node_modules` symlink rather than the CLI module's realpathed `import.meta.url`, so the sourcemap's `sources` entries and the entry wrapper's `sourcesContent` stay byte-stable across checkouts sharing a symlinked install at different nesting depths (completes the 1.1.4 portability fix, whose `preserveSymlinks` change could not reach this JavaScript-computed path)
+
 ## 1.1.4
 - Fixed compiled hook output to remain portable across different checkouts of the repository
 
