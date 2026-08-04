@@ -1,0 +1,4 @@
+packages/claude-code-hooks/src/cli.ts#L661-L727 rk64:4021f26c0c85a94e
+packages/codex-hooks/src/cli.ts#L279-L326 rk64:6f4796a5089b0f96
+
+Entry-wrapper runtime import re-rooting shared by both CLI packages: symlinkVisiblePath re-roots the runtime module's realpath through the nearest enclosing node_modules symlink visible from the hook directory, so the wrapper's import specifier and its sourcemap entries are computed from checkout-local paths and stay byte-identical across nesting depths.
