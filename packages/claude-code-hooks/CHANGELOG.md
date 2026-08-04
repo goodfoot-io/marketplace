@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.7.3
+- Fixed the CLI failing to start when run from a nested or symlinked checkout (e.g., one with a symlinked `node_modules`) by resolving the runtime import through the checkout's own `node_modules` link.
+
+## 1.7.3
 - Fixed the synthetic entry wrapper's `runtime.js` import specifier to be computed through the checkout's own `node_modules` symlink rather than the CLI module's realpathed `import.meta.url`, so the sourcemap's `sources` entries and the entry wrapper's `sourcesContent` stay byte-stable across checkouts sharing a symlinked install at different nesting depths (completes the 1.7.2 portability fix, whose `preserveSymlinks` change could not reach this JavaScript-computed path)
 
 ## 1.7.2
