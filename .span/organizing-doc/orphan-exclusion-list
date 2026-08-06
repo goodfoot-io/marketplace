@@ -1,4 +1,4 @@
-.claude/skills/organizing-documentation/how-to/add-paths.md#L29-L30 rk64:795c1852e860d1b9
-.claude/skills/organizing-documentation/how-to/audit-the-corpus.md#L29-L29 rk64:287a3cfbf9422cdb
+plugins/goodfoot/skills/documentation/how-to/add-paths.md#L29-L30 rk64:795c1852e860d1b9
+plugins/goodfoot/skills/documentation/how-to/audit-the-corpus.md#L29-L29 rk64:287a3cfbf9422cdb
 
 The ISSUE_TEMPLATE and PULL_REQUEST_TEMPLATE orphan exclusion list is defined identically in both the audit detection stage and the add-paths fixing stage; a change to the exclusion list in one must propagate to the other or the detection and fix criteria will silently diverge.

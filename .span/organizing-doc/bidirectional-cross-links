@@ -1,4 +1,4 @@
-.claude/skills/organizing-documentation/how-to/add-paths.md#L40-L40 rk64:af78675b34f5a4dd
-.claude/skills/organizing-documentation/how-to/procedure.md#L47-L47 rk64:96bcfdaa3fdfce3f
+plugins/goodfoot/skills/documentation/how-to/add-paths.md#L40-L40 rk64:af78675b34f5a4dd
+plugins/goodfoot/skills/documentation/how-to/procedure.md#L47-L47 rk64:96bcfdaa3fdfce3f
 
 The cross-layer link rule — related resources link both ways, verified by grepping the target for its return path — is defined in the linking guidance and restated in the combined checklist; both must demand the same bidirectional check or one-way links pass review.

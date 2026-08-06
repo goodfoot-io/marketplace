@@ -1,0 +1,16 @@
+# Path-scoped span suppression for the agent hooks.
+#
+# Grammar (a deliberate subset of gitignore):
+#   <path-pattern>  <prefix>[,<prefix>...]
+#
+# - path-pattern: glob matched against an anchor's repo-relative path.
+#   * and ? stay within a segment; ** spans segments; trailing /
+#   restricts to directories.
+# - prefixes: comma-separated span slug prefixes to suppress for
+#   matching paths. A slug carries a prefix when it equals the prefix
+#   or begins with "<prefix>/".
+#
+# Full specification: plugins-claude/git-span/skills/git-span/sections/hookignore.md
+#
+# This file is inert when it contains no active rules (all comment and
+# blank lines). Add rules below.

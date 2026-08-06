@@ -1,4 +1,4 @@
-.claude/skills/organizing-documentation/SKILL.md#L46-L47 rk64:f067b01f7c0d03c9
-.claude/skills/organizing-documentation/how-to/build-hubs.md#L11-L15 rk64:56d1fe1f8331667e
+plugins/goodfoot/skills/documentation/SKILL.md#L46-L47 rk64:f067b01f7c0d03c9
+plugins/goodfoot/skills/documentation/how-to/build-hubs.md#L11-L15 rk64:56d1fe1f8331667e
 
 The SKILL.md trigger table restates thin README (≤3 lines) and long document (>500 lines) thresholds that are defined authoritatively in build-hubs.md; a threshold change in the technique file must propagate to the trigger table summary or agents following the symptom-to-fix routing will read stale criteria.

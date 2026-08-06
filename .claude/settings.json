@@ -40,7 +40,7 @@
     "plugin-dev@claude-plugins-official": true,
     "cards@cards.management": true,
     "voice@goodfoot": true,
-    "git-mesh@git-mesh": true
+    "git-span@git-span": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {
@@ -55,12 +55,6 @@
         "repo": "anthropics/claude-plugins-official"
       }
     },
-    "git-mesh": {
-      "source": {
-        "source": "github",
-        "repo": "goodfoot-io/git-mesh"
-      }
-    },
     "goodfoot": {
       "source": {
         "source": "directory",
@@ -71,6 +65,12 @@
       "source": {
         "source": "directory",
         "path": "/home/node/.vscode-server/data/User/globalStorage/goodfoot.cards/marketplace"
+      }
+    },
+    "git-span": {
+      "source": {
+        "source": "github",
+        "repo": "goodfoot-io/git-span"
       }
     }
   }

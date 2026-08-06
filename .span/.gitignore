@@ -1,0 +1,7 @@
+# Ignore dispatcher-generated runtime artifacts. The reconciler's
+# agent-hooks dispatcher writes log files alongside spans; these are
+# not meant to be committed.
+#
+# git-span keeps the rules above present but leaves everything else in
+# this file alone -- your own rules are safe here.
+*.log

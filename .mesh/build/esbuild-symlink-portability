@@ -1,4 +1,0 @@
-packages/claude-code-hooks/src/cli.ts#L799-L802 rk64:2de293390838fced
-packages/codex-hooks/src/cli.ts#L353-L356 rk64:2de293390838fced
-
-Both CLI packages preserve esbuild symlink identity to ensure compiled output is reproducible and portable across checkouts with different nesting depths.

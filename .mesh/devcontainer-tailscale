@@ -1,5 +1,0 @@
-.devcontainer/Dockerfile#L35-L36 rk64:115a4f96b3a053be
-.devcontainer/docker-compose.yml#L30-L30 rk64:d357552f4fde85fb
-.devcontainer/post-create.sh#L45-L81 rk64:9398efce09f2c1b2
-
-Tailscale userspace-networking setup is coupled across Dockerfile installation, docker-compose network mode, and post-create daemon startup.

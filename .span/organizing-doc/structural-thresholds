@@ -1,4 +1,4 @@
-.claude/skills/organizing-documentation/how-to/audit-the-corpus.md#L24-L25 rk64:5e35dc3fc88aebeb
-.claude/skills/organizing-documentation/how-to/build-hubs.md#L11-L15 rk64:56d1fe1f8331667e
+plugins/goodfoot/skills/documentation/how-to/audit-the-corpus.md#L24-L25 rk64:5e35dc3fc88aebeb
+plugins/goodfoot/skills/documentation/how-to/build-hubs.md#L11-L15 rk64:56d1fe1f8331667e
 
 Thin README (≤3 lines) and long document (>500 lines) structural thresholds are encoded identically in the audit detection layer and the hub-building fix layer; a threshold change in one must propagate to the other or the detection and fix criteria will silently diverge.
