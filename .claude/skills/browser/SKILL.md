@@ -1,81 +1,97 @@
 ---
 name: browser
 title: Browser
-summary: Direct browser control via CDP for web interaction using a local headless Chromium managed by this skill.
-description: Direct browser control via CDP for web interaction (automation, scraping, testing, screenshots) using the browser-use CLI against a local headless Chromium started by this skill's bin/ scripts.
+summary: Fast browser automation via the agent-browser CLI (Chrome/Chromium over CDP, accessibility-tree snapshots with @eN refs).
+description: Browser automation (navigation, forms, clicks, screenshots, data extraction, testing) using the agent-browser CLI against a Chromium binary set up by this skill's bin/ scripts. Snapshot-and-ref workflow, not raw CDP scripting.
 ---
 
 <instructions>
 
-## 1. Ensure Chrome is running
+## The core loop
+
+Always pass `--session <name>` — every command in this container shares one default browser without it, and another task's navigation can silently overwrite your page mid-task with no error (wrong content, blank screenshot, `eval` returning null, a just-seen element gone missing). Pick any short unique slug for `<name>`.
 
 ```bash
-bash /workspace/.claude/skills/browser/bin/start-chrome.sh
+export AGENT_BROWSER_SESSION=<task-slug>   # once per task; every command below inherits it
+agent-browser open <url>        # 1. Open a page
+agent-browser snapshot -i       # 2. See what's on it (interactive elements only)
+agent-browser click @e3         # 3. Act on refs from the snapshot
+agent-browser snapshot -i       # 4. Re-snapshot after any page change
+agent-browser close             # 5. Close when the task is done
 ```
 
-Idempotent — no-ops if Chrome is already up. Run it at the start of every session. If it fails because Chromium isn't installed, run:
+If a shell can't retain `export` across calls, pass `--session <task-slug>` on every single `agent-browser` invocation instead.
+
+The browser stays running across commands (its own daemon manages the Chrome process — no manual start/stop step, unlike CDP-scripting tools). It auto-shuts down after an hour of idleness and restarts on the next command. Still run `agent-browser close` when finished.
+
+Refs (`@e1`, `@e2`, ...) are assigned fresh on every `snapshot` and go stale the moment the page changes — navigation, form submit, re-render, dialog. Always re-snapshot before the next ref interaction. If a ref goes stale with no action of yours that would explain it, that's the signature of a missing `--session` — see above.
+
+## Reading and interacting
+
+Default to `read` for anything that's just extraction — it skips launching Chrome entirely, so it's both faster and cheaper. Reach for `open` + `snapshot` only when you need to click, fill, or otherwise interact.
+
+`read <url>` always fetches fresh from the server — it does not reflect an already-open session's live state (post-click, post-fill). For the current state of a page you're mid-interaction with, use `get text @eN`, `snapshot`, or `screenshot` instead.
 
 ```bash
-bash /workspace/.claude/skills/browser/bin/install-chromium.sh
+agent-browser read <url>                  # default for extraction: no Chrome, prefers markdown
+agent-browser snapshot -i --json          # machine-readable snapshot of an already-open page
+agent-browser get text @e1
+agent-browser fill @e2 "hello"            # clear then type
+agent-browser click @e1
+agent-browser select @e4 "option-value"
+agent-browser screenshot page.png
+agent-browser screenshot --annotate map.png   # numbered labels keyed to snapshot refs
 ```
 
-then retry `start-chrome.sh`.
-
-## 2. Drive it
+When refs aren't available or convenient, use semantic locators before falling back to raw CSS:
 
 ```bash
-browser-use <<'PY'
-new_tab("https://example.com")
-ensure_real_tab()   # attach to the real tab, not an invisible omnibox popup
-wait_for_load()
-print(page_info())
-PY
+agent-browser find role button click --name "Submit"
+agent-browser find text "Sign In" click
+agent-browser find label "Email" fill "user@test.com"
 ```
 
-- First navigation on a tab is `new_tab(url)`, not `goto_url(url)`. `new_tab()` always opens a **new** tab and attaches to it — calling it again does not navigate your current tab, it leaves the old tab open and attaches you to a different one. For every navigation after the first on a given tab, use `goto_url(url)`.
-- Call `ensure_real_tab()` right after `new_tab()` — a fresh session's only CDP target can be an invisible `chrome://omnibox-popup` page, which silently swallows navigation/clicks meant for the real page.
-- Helpers (`new_tab`, `page_info`, `capture_screenshot`, `click_at_xy`, `js`, `cdp`, etc.) are pre-imported — no imports needed in the heredoc.
+## Waiting (agents fail more from bad waits than bad selectors)
 
-## 3. Stop it (optional)
-
-Local process, not a billed service — fine to leave running between tasks, which also keeps the persistent profile warm. Ask the user before stopping if a task clearly isn't finished.
+After any page-changing action, pick one:
 
 ```bash
-bash /workspace/.claude/skills/browser/bin/stop-chrome.sh
+agent-browser wait @e1                     # until an element appears
+agent-browser wait --text "Success"
+agent-browser wait --url "**/dashboard"
+agent-browser wait --load networkidle      # catch-all for SPA navigation
 ```
 
-## Page workflow
+`networkidle` only catches network activity — a client-side delay with no request (a JS `setTimeout`, a CSS transition) can resolve before the content actually appears. Prefer `wait @eN` / `wait --text` for those.
 
-- Screenshots first: `capture_screenshot()` returns a file path (e.g. `/home/node/.config/browser-harness/tmp/shot.png`) — `print()` it, then `Read` the path to view the image.
-- Clicking: screenshot -> read pixel coords -> `click_at_xy(x, y)` -> screenshot again to confirm.
-- After navigation, call `wait_for_load()`.
-- If the current tab is stale, internal, or navigation/clicks seem to land on the wrong page, call `ensure_real_tab()`.
-- Native `<select>` dropdowns: don't coordinate-click the opened option — it doesn't reliably update the element's value. Set it directly: `js("document.querySelector('select#id').value='opt'; document.querySelector('select#id').dispatchEvent(new Event('change'))")`.
-- Use `js(...)` for DOM inspection/extraction when coordinates are the wrong tool. Target elements with a specific selector (`#id`, `[name=...]`, `button[type=submit]`) — a bare tag selector like `document.querySelector('button')` can silently grab the wrong element on pages with more than one match.
-- Login walls: stop and ask. Exception: available SSO can be used automatically if already signed in; still stop for passwords, MFA, consent, or ambiguous account choice.
-- Raw CDP is available via `cdp("Domain.method", ...)` — except file inputs, see `reference/uploads.md`.
+Avoid bare `agent-browser wait 2000` except when debugging — it makes scripts slow and flaky.
 
-## Interaction skills — load only when needed
+## Sharp gotchas
 
-| File | Load when... |
-|---|---|
-| `reference/connection.md` | A tab seems attached but invisible/wrong, or `new_tab`/`goto_url` act on the wrong target |
-| `reference/dialogs.md` | `page_info()` returns a `dialog` key, or a flow triggers `alert`/`confirm`/`prompt`/`beforeunload` |
-| `reference/uploads.md` | Task needs a file upload (`cdp("Input.setInputFiles", ...)` does not work) |
-| `reference/profile-sync.md` | The task needs a logged-in session (reuse the persistent local Chrome profile), or you need to reset it |
-| `reference/screenshots.md` | Screenshots come back oversized, or click coordinates from a screenshot land in the wrong place |
-| `reference/tabs.md` | Managing more than one tab in a session |
+- **Ref not found**: page changed since the last snapshot — re-run `agent-browser snapshot -i`.
+- **Click does nothing / `covered by <...>`**: a modal or cookie banner is intercepting it. Try `agent-browser find text "Close" click` (or whatever the dismiss control's text is) rather than a ref click — the overlay's ref is often the thing covering itself. Then re-snapshot and retry the original action.
+- **Native `<select>` dropdowns**: never `click` an option ref — it fails with a box-model error. Use `agent-browser select @eN "option text or value"` directly on the `<select>` element.
+- **Fill/type silently no-ops** on custom input components: `agent-browser focus @e1` then `agent-browser keyboard inserttext "text"` (bypasses key events) or `agent-browser keyboard type "text"`.
+- **JS with quotes/backticks**: use `eval --stdin` with a heredoc, not inline `agent-browser eval "..."`.
+- **Dialogs**: `alert`/`beforeunload` auto-accept. For `confirm`/`prompt`: `agent-browser dialog status`, `dialog accept`, `dialog dismiss`.
+- **Login walls**: stop and ask. Exception: already-authenticated SSO can proceed automatically; still stop for passwords, MFA, consent, or ambiguous account choice. Never put credentials in a shell command — use `agent-browser auth save`/`auth login` (see `agent-browser skills get core --full` for the auth vault workflow).
+- **Screenshots**: headless screenshots hide native scrollbars by design; that's expected, not a bug.
+- **Something's broken** (`Unknown command`, `Failed to connect`, missing Chrome, stale daemon): run `agent-browser doctor` first — `agent-browser doctor --fix` for destructive repairs (reinstall Chrome, purge stale state).
 
-Upstream source (for updates, or to check for newly-filled-in topics not yet mirrored here): https://github.com/browser-use/browser-harness/tree/main/interaction-skills
+## Loading deeper docs on demand
 
-## Design constraints
+For anything not covered above (auth vault, network mocking, video recording, Electron/Slack automation, ...), run `agent-browser skills get core --full` or `agent-browser skills list` — served live from the installed CLI, so it's always version-accurate.
 
-- Coordinate clicks are the default — CDP mouse events pass through iframes/shadow DOM/cross-origin content at the compositor level.
-- Connection model: `browser-use` always connects via `BU_CDP_URL` to the local Chrome managed by `bin/start-chrome.sh` — no cloud fallback.
+Upstream source: https://github.com/vercel-labs/agent-browser
 
-## Gotchas
+## Appendix: install
 
-- Omnibox popups are not real work tabs.
-- All sessions in this container share the one local Chrome instance and its tabs/state — if concurrent work needs isolation, deliberately use separate tabs/contexts rather than assuming separate browsers.
+`agent-browser` and its Chromium binary are expected to already be installed. If a command fails with "command not found" or a missing-browser error, run:
+
+```bash
+bash bin/install-agent-browser.sh   # relative to this skill's base directory
+```
+
+Idempotent — safe to re-run.
 
 </instructions>
