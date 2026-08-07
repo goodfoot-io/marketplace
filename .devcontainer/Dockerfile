@@ -47,4 +47,5 @@ ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN npm install -g claude-code-templates @sasazame/ccresume @img/sharp-linux-arm64 @anthropic-ai/claude-code @openai/codex && \
   npm install -g tsx && \
   npm install -g @ast-grep/cli ts-morph cyclomatic-complexity fast-check eslintcc typescript-language-server typescript @phenomnomnominal/tsquery chokidar-cli && \
-  npm install -g dotenv-cli
+  npm install -g dotenv-cli && \
+  npm install -g agent-browser git-span
