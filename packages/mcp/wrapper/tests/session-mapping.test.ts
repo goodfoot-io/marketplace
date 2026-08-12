@@ -13,24 +13,25 @@ describe('session mapping storage', () => {
   let testMappingPath: string;
   let originalEnv: string | undefined;
 
+  let testConfigDir: string;
+
   beforeEach(async () => {
     originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    // Use a unique temp directory for testing (mkdtemp guarantees no collisions with
-    // concurrently running test files that use the same claude-test- prefix)
-    process.env.CLAUDE_CONFIG_DIR = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-test-'));
+    // mkdtemp guarantees a unique directory. A millisecond-precision name in
+    // the shared /tmp can collide with a concurrent session's wrapper suite
+    // (the same Date.now() within the same millisecond — this host runs
+    // multiple card sessions in parallel), and that session's cleanup would
+    // then delete this session's directory mid-test.
+    testConfigDir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-test-'));
+    process.env.CLAUDE_CONFIG_DIR = testConfigDir;
     const workspaceName = getWorkspaceName(testWorkspace);
     testMappingPath = path.join(getClaudeConfigDir(), 'mcp-wrapper-server', workspaceName, 'session-mappings.json');
   });
 
   afterEach(async () => {
-    // Clean up test files
-    if (process.env.CLAUDE_CONFIG_DIR) {
-      try {
-        await fs.rm(process.env.CLAUDE_CONFIG_DIR, { recursive: true, force: true });
-      } catch {
-        // Ignore cleanup errors
-      }
-    }
+    // Clean up test files. `force: true` ignores missing paths, so a thrown
+    // error here is a real failure that must surface.
+    await fs.rm(testConfigDir, { recursive: true, force: true });
 
     // Restore original environment
     if (originalEnv !== undefined) {
