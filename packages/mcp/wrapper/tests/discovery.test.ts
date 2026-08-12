@@ -3,7 +3,8 @@
  */
 
 import type { ServerConfig } from '../src/types/wrapper.js';
-import { rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readCacheFile, writeCacheFile, generateConfigHash } from '../src/cache.js';
@@ -16,6 +17,23 @@ const fixturesDir = join(__dirname, 'fixtures');
 describe('discoverTools', () => {
   let originalEnv: string | undefined;
   let originalIgnoreCacheEnv: string | undefined;
+  let cacheDir: string;
+
+  beforeAll(async () => {
+    // Isolate the discovery cache to a per-run temp directory. The default
+    // cache lives under the user's home directory — shared by every checkout
+    // and session on this machine. Concurrent test runs (e.g. multiple card
+    // worktrees validating in parallel) would otherwise write into each
+    // other's cache mid-delete, and one suite's cleanup could delete another
+    // suite's freshly written cache file (ENOTEMPTY on the shared dir).
+    cacheDir = await mkdtemp(join(tmpdir(), 'mcp-wrapper-discovery-'));
+    process.env.MCP_WRAPPER_CACHE_DIR = cacheDir;
+  });
+
+  afterAll(async () => {
+    delete process.env.MCP_WRAPPER_CACHE_DIR;
+    await rm(cacheDir, { recursive: true, force: true });
+  });
 
   beforeEach(() => {
     // Save original env
@@ -38,12 +56,10 @@ describe('discoverTools', () => {
       process.env.MCP_WRAPPER_IGNORE_CACHE = originalIgnoreCacheEnv;
     }
 
-    // Clean up cache directory to prevent test pollution
-    try {
-      await rm('/home/node/.mcp-wrapper-server/descriptions', { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
+    // Clean up the isolated cache directory to prevent test pollution.
+    // `force: true` ignores missing paths, so a thrown error here is a real
+    // failure that must surface.
+    await rm(cacheDir, { recursive: true, force: true });
   });
 
   describe('cache behavior', () => {

@@ -26,9 +26,14 @@ export function generateConfigHash(configs: ServerConfig[]): string {
 
 /**
  * Get cache file path for given configuration hash
+ *
+ * The cache root defaults to the user's home directory, but can be overridden
+ * with `MCP_WRAPPER_CACHE_DIR` — e.g. to isolate per-run state in tests or
+ * containers that share a home directory across concurrent processes.
  */
 export function getCacheFilePath(hash: string): string {
-  return join(homedir(), '.mcp-wrapper-server', 'descriptions', `${hash}.json`);
+  const cacheRoot = process.env.MCP_WRAPPER_CACHE_DIR ?? homedir();
+  return join(cacheRoot, '.mcp-wrapper-server', 'descriptions', `${hash}.json`);
 }
 
 /**
