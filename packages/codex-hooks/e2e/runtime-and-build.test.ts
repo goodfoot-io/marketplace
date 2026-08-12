@@ -191,9 +191,7 @@ describe("codex-hooks e2e", () => {
     });
   });
 
-  // Skipped until plan Phase 4 lands: --version asserts the post-bump version
-  // (1.2.0), which a later group ships with the VERSION constant sync.
-  it.skip("reports the new package version via --version", () => {
+  it("reports the new package version via --version", () => {
     const version = spawnSync(tsxBin, [path.join(packageRoot, "src", "cli.ts"), "--version"], {
       encoding: "utf-8",
     });

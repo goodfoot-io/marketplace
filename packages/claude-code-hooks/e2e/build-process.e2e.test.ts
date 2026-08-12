@@ -924,9 +924,7 @@ describe("E2E: Build Process", () => {
   });
 
   describe("Version Output", () => {
-    // Skipped until the Phase 4 version bump lands (claude-code-hooks 1.8.0):
-    // the hardcoded VERSION constant in src/cli.ts is synced there.
-    it.skip("--version reports the current package version", () => {
+    it("--version reports the current package version", () => {
       const result = runTsxCli(CLI_PATH, ["--version"], { cwd: path.dirname(CLI_PATH) });
 
       expect(result.status).toBe(0);

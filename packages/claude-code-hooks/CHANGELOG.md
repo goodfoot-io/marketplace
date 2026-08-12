@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.8.0
+- Added a `--no-sourcemap` flag that compiles hooks without inline sourcemaps, shrinking output by roughly 85–90% and skipping the redundant second esbuild pass so builds run about twice as fast. Default behavior (sourcemaps on) is byte-for-byte unchanged, so existing plugins keep their hook trust hashes.
+
 ## 1.7.3
 - Fixed the CLI failing to start when run from a nested or symlinked checkout (e.g., one with a symlinked `node_modules`) by resolving the runtime import through the checkout's own `node_modules` link.
 

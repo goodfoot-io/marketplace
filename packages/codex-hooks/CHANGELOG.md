@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.0
+- Added `--no-sourcemap` to compile hooks without the embedded inline sourcemap, shrinking bundled output by ~85–90%. Default output is byte-for-byte unchanged; pass `--sourcemap` (the default) to restore the previous behavior.
+
 ## 1.1.5
 - Fixed the entry wrapper's runtime import to resolve through the node_modules symlink, restoring portability and reproducible behavior in symlinked (workspace/monorepo) installs
 
