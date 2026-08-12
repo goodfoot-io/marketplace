@@ -35,6 +35,9 @@ beforeEach(() => {
 const fixtureRoot = path.join(__dirname, "fixtures/monorepo-fixture");
 
 describe("MetricsRunner", () => {
+  // runner.run() compiles the fixture tree — ~2s idle, ~8s under concurrent
+  // full-suite validation on a shared host. The 5000ms default killed these
+  // mid-run; the named-option style matches cli.test.ts's heavy invocations.
   it("should run all metrics by default", { timeout: 30000 }, async () => {
     const runner = new MetricsRunner({
       rootDir: fixtureRoot,
