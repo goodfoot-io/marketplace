@@ -88,6 +88,7 @@ await esbuild.build({
   external: externalDependencies,
   minify: false,
   treeShaking: true,
+  preserveSymlinks: true,
   logLevel: 'info',
   banner: {
     js: `import { createRequire as __banner_createRequire } from 'node:module';import { fileURLToPath as __banner_fileURLToPath } from 'node:url';import { dirname as __banner_dirname } from 'node:path';const require = __banner_createRequire(import.meta.url);const __filename = __banner_fileURLToPath(import.meta.url);const __dirname = __banner_dirname(__filename);`

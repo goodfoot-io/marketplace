@@ -23,6 +23,7 @@ await esbuild.build({
   outExtension: { ".js": ".mjs" },
   minify: false,
   treeShaking: true,
+  preserveSymlinks: true,
   loader: { ".html": "text" },
   logLevel: "info",
   banner: {
