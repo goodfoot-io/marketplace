@@ -1,0 +1,6 @@
+packages/typescript-metrics/src/lib/MetricsRunner.ts rk64:75b473339e69894d
+packages/voice/src/index.ts rk64:97fc8438199c6653
+plugins/goodfoot/bin/typescript-metrics.mjs rk64:20d95c97266144d1
+plugins/voice/bin/voice-mcp-server.mjs rk64:defce40ff50ab2fa
+
+Each committed plugin bundle is compiled from its package sources by the repo build (packages/typescript-metrics into plugins/goodfoot/bin, packages/voice into plugins/voice/bin), and a source change without regenerating and committing the bundles leaves the shipped plugins stale; no test or CI step compares committed bundles against sources, so these two pairs stand for the whole tree of generated bundle artifacts.
