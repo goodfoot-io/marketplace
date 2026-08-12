@@ -5,14 +5,10 @@
 
 ## 1.1.5
 - Fixed the entry wrapper's runtime import to resolve through the node_modules symlink, restoring portability and reproducible behavior in symlinked (workspace/monorepo) installs
-
-## 1.1.5
 - Fixed the synthetic entry wrapper's `runtime.js` import specifier to be computed through the checkout's own `node_modules` symlink rather than the CLI module's realpathed `import.meta.url`, so the sourcemap's `sources` entries and the entry wrapper's `sourcesContent` stay byte-stable across checkouts sharing a symlinked install at different nesting depths (completes the 1.1.4 portability fix, whose `preserveSymlinks` change could not reach this JavaScript-computed path)
 
 ## 1.1.4
 - Fixed compiled hook output to remain portable across different checkouts of the repository
-
-## 1.1.4
 - Fixed non-portable esbuild module-boundary comments (and inline sourcemap `sources` entries) when compiling a hook whose dependency is resolved through a symlinked `node_modules`, e.g. a hoisted install shared across checkouts at different nesting depths. Added `preserveSymlinks: true` to the esbuild config so compiled output is byte-stable across checkouts regardless of how deeply each one is nested relative to the shared install.
 
 ## 1.1.3

@@ -5,14 +5,10 @@
 
 ## 1.7.3
 - Fixed the CLI failing to start when run from a nested or symlinked checkout (e.g., one with a symlinked `node_modules`) by resolving the runtime import through the checkout's own `node_modules` link.
-
-## 1.7.3
 - Fixed the synthetic entry wrapper's `runtime.js` import specifier to be computed through the checkout's own `node_modules` symlink rather than the CLI module's realpathed `import.meta.url`, so the sourcemap's `sources` entries and the entry wrapper's `sourcesContent` stay byte-stable across checkouts sharing a symlinked install at different nesting depths (completes the 1.7.2 portability fix, whose `preserveSymlinks` change could not reach this JavaScript-computed path)
 
 ## 1.7.2
 - Fixed a bug where compiled hook output could break after checking out the repository on a different machine or path, due to non-portable references to symlinked dependencies
-
-## 1.7.2
 - Fixed non-portable esbuild module-boundary comments (and inline sourcemap `sources` entries) when compiling a hook whose dependency is resolved through a symlinked `node_modules`, e.g. a hoisted install shared across checkouts at different nesting depths. Added `preserveSymlinks: true` to the esbuild config so compiled output is byte-stable across checkouts regardless of how deeply each one is nested relative to the shared install.
 
 ## 1.7.1

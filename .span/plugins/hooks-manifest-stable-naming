@@ -1,5 +1,5 @@
-packages/claude-code-hooks/src/cli.ts#L228-L235 rk64:88ab4cb0b8968322
-packages/claude-code-hooks/src/cli.ts#L1457-L1465 rk64:8bd648aecf5c4535
+packages/claude-code-hooks/src/cli.ts#L230-L237 rk64:88ab4cb0b8968322
+packages/claude-code-hooks/src/cli.ts#L1494-L1502 rk64:8bd648aecf5c4535
 plugins/expansion/hooks/hooks.json rk64:5b648b93428e9d34
 plugins/typescript-hooks/hooks/hooks.json rk64:5069021b0dac0848
 
