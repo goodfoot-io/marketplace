@@ -172,6 +172,20 @@ describe("parseArgs", () => {
   });
 });
 
+describe("parseArgs sourcemap flag", () => {
+  it("defaults sourcemap to true", () => {
+    expect(parseArgs([]).sourcemap).toBe(true);
+  });
+
+  it("parses --sourcemap flag", () => {
+    expect(parseArgs(["--sourcemap"]).sourcemap).toBe(true);
+  });
+
+  it("parses --no-sourcemap flag", () => {
+    expect(parseArgs(["--no-sourcemap"]).sourcemap).toBe(false);
+  });
+});
+
 describe("validateArgs", () => {
   it("returns undefined for valid args with input and output", () => {
     const args: CliArgs = {

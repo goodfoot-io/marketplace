@@ -137,4 +137,67 @@ describe("codex-hooks e2e", () => {
     expect(run.stdout).toBe("");
     expect(run.stderr).toContain("blocked");
   });
+
+  it("builds with --no-sourcemap and the compiled hook still runs", () => {
+    const projectDir = createTempDir();
+    fs.mkdirSync(path.join(projectDir, "src"), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, ".codex"), { recursive: true });
+
+    fs.writeFileSync(
+      path.join(projectDir, "src", "session-start.ts"),
+      `
+        import { sessionStartHook } from ${JSON.stringify(path.join(packageRoot, "src", "index.ts"))};
+        export default sessionStartHook({ matcher: "startup" }, () => "No sourcemap");
+      `,
+    );
+
+    const build = spawnSync(
+      tsxBin,
+      [path.join(packageRoot, "src", "cli.ts"), "-i", "src/**/*.ts", "-o", ".codex/hooks.json", "--no-sourcemap"],
+      {
+        cwd: projectDir,
+        encoding: "utf-8",
+      },
+    );
+    expect(build.status).toBe(0);
+    expect(build.stderr).toBe("");
+
+    const compiledFiles = fs.readdirSync(path.join(projectDir, ".codex")).filter((entry) => entry.endsWith(".mjs"));
+    expect(compiledFiles.length).toBe(1);
+
+    const bundle = fs.readFileSync(path.join(projectDir, ".codex", compiledFiles[0] ?? ""), "utf-8");
+    expect(bundle).not.toContain("sourceMappingURL");
+
+    const run = spawnSync("node", [path.join(projectDir, ".codex", compiledFiles[0] ?? "")], {
+      input: JSON.stringify({
+        cwd: projectDir,
+        hook_event_name: "SessionStart",
+        model: "gpt-5",
+        permission_mode: "default",
+        session_id: "sess-1",
+        source: "startup",
+        transcript_path: null,
+      }),
+      encoding: "utf-8",
+    });
+
+    expect(run.status).toBe(0);
+    expect(run.stderr).toBe("");
+    expect(JSON.parse(run.stdout)).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "SessionStart",
+        additionalContext: "No sourcemap",
+      },
+    });
+  });
+
+  // Skipped until plan Phase 4 lands: --version asserts the post-bump version
+  // (1.2.0), which a later group ships with the VERSION constant sync.
+  it.skip("reports the new package version via --version", () => {
+    const version = spawnSync(tsxBin, [path.join(packageRoot, "src", "cli.ts"), "--version"], {
+      encoding: "utf-8",
+    });
+    expect(version.status).toBe(0);
+    expect(version.stdout.trim()).toBe("1.2.0");
+  });
 });

@@ -923,6 +923,17 @@ describe("E2E: Build Process", () => {
     });
   });
 
+  describe("Version Output", () => {
+    // Skipped until the Phase 4 version bump lands (claude-code-hooks 1.8.0):
+    // the hardcoded VERSION constant in src/cli.ts is synced there.
+    it.skip("--version reports the current package version", () => {
+      const result = runTsxCli(CLI_PATH, ["--version"], { cwd: path.dirname(CLI_PATH) });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("1.8.0");
+    });
+  });
+
   describe("Error Handling", () => {
     it("fails gracefully for non-existent input files", () => {
       const outputDir = path.join(BUILD_TEST_OUTPUT, "error-missing");

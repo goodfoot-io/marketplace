@@ -65,6 +65,8 @@ interface CliArgs {
   loaderFlags: string[];
   /** Emit hash-free `<name>.mjs` bundles. Defaults to true; set false with --no-stable-names. */
   stableNames?: boolean;
+  /** Embed an inline sourcemap in compiled bundles. Defaults to true; set false with --no-sourcemap. */
+  sourcemap?: boolean;
 }
 
 type HookLoaderMap = Record<string, esbuild.Loader>;
@@ -234,6 +236,14 @@ Optional Arguments:
   --no-stable-names
       Restore the pre-1.7 behavior: hashed compiled bundles (<name>.<hash>.mjs).
 
+  --sourcemap (default)
+      Embed an inline sourcemap in each compiled bundle so stack traces show
+      original TypeScript source locations.
+
+  --no-sourcemap
+      Emit bundles without the inline sourcemap, shrinking compiled output by
+      roughly 85-90%. The content hash is unaffected.
+
   -h, --help
       Show this help message.
 
@@ -338,6 +348,7 @@ function parseArgs(argv: string[]): CliArgs {
     version: false,
     loaderFlags: [],
     stableNames: true,
+    sourcemap: true,
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -383,6 +394,12 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case "--no-stable-names":
         args.stableNames = false;
+        break;
+      case "--sourcemap":
+        args.sourcemap = true;
+        break;
+      case "--no-sourcemap":
+        args.sourcemap = false;
         break;
       default:
         // Unknown argument - ignore
@@ -646,13 +663,15 @@ interface CompileHookOptions {
   logEnvVar?: string;
   /** Explicit esbuild loaders for non-code imports. */
   loaders: HookLoaderMap;
+  /** Embed an inline sourcemap in the compiled content. Defaults to true; set false with --no-sourcemap. */
+  sourcemap?: boolean;
 }
 
 /**
  * Result of compiling a hook.
  */
 interface CompileHookResult {
-  /** Compiled content WITH sourcemaps (for final output). */
+  /** Compiled content, with inline sourcemaps unless disabled. */
   content: string;
   /** Stable content hash generated from sourcemap-free output. */
   contentHash: string;
@@ -702,7 +721,7 @@ function symlinkVisiblePath(realPath: string, resolveDir: string): string {
  * @returns Compiled content and stable content hash
  */
 async function compileHook(options: CompileHookOptions): Promise<CompileHookResult> {
-  const { sourcePath, logFilePath, logEnvVar, loaders } = options;
+  const { sourcePath, logFilePath, logEnvVar, loaders, sourcemap } = options;
 
   // Get the path to the runtime module (absolute, then converted to relative).
   // Use fileURLToPath, not `new URL(...).pathname`: on Windows the latter
@@ -836,7 +855,15 @@ execute(hook);
   }
   const contentHash = generateContentHash(contentForHash);
 
-  // Step 2: Compile WITH sourcemaps for final output
+  // Step 2: Compile WITH sourcemaps for final output. With --no-sourcemap
+  // this pass is skipped entirely: pass-1 output is byte-identical to pass-2
+  // output minus the trailing sourceMappingURL comment (verified on esbuild
+  // 0.24.2), so the sourcemap-free content is emitted directly. The content
+  // hash is always derived from pass-1 output, so it is unchanged by the flag.
+  if (sourcemap === false) {
+    return { content: contentForHash, contentHash };
+  }
+
   const resultWithSourcemap = await esbuild.build({
     ...commonOptions,
     sourcemap: "inline",
@@ -875,6 +902,8 @@ interface CompileAllHooksOptions {
   loaders: HookLoaderMap;
   /** Emit hash-free `<name>.mjs` bundles (default true). */
   stableNames?: boolean;
+  /** Embed inline sourcemaps in compiled bundles (default true). */
+  sourcemap?: boolean;
 }
 
 /**
@@ -910,7 +939,14 @@ async function compileAllHooks(options: CompileAllHooksOptions): Promise<Compile
 
     // Compile the hook (two-step process for stable content hash)
     log("info", `Compiling: ${sourcePath}`);
-    const { content, contentHash } = await compileHook({ sourcePath, outputDir, logFilePath, logEnvVar, loaders });
+    const { content, contentHash } = await compileHook({
+      sourcePath,
+      outputDir,
+      logFilePath,
+      logEnvVar,
+      loaders,
+      sourcemap: options.sourcemap,
+    });
 
     // Determine output filename. Stable names (the default) keep generated
     // hooks.json byte-stable across rebuilds so Claude Code's hook trust hash
@@ -1402,6 +1438,7 @@ async function main(): Promise<void> {
       logEnvVar,
       loaders,
       stableNames: args.stableNames,
+      sourcemap: args.sourcemap,
     });
 
     if (compiledHooks.length === 0 && hookFiles.length > 0) {

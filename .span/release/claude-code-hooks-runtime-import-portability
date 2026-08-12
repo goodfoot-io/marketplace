@@ -1,5 +1,5 @@
 packages/claude-code-hooks/CHANGELOG.md#L6-L7 rk64:4b65ae8f7815ad89
 packages/claude-code-hooks/package.json#L3-L3 rk64:1b136c1a1e10bd2e
-packages/claude-code-hooks/src/cli.ts#L661-L727 rk64:4021f26c0c85a94e
+packages/claude-code-hooks/src/cli.ts#L672-L738 rk64:4021f26c0c85a94e
 
 Version 1.7.3 release of claude-code-hooks with the runtime-import re-rooting fix for symlink portability: the changelog entry documents the fix; the version bump marks the release; the code fix implements the solution.

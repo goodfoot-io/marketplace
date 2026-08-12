@@ -22,6 +22,7 @@ interface CliArgs {
   loaderFlags: string[];
   pluginRoot: boolean;
   stableNames?: boolean;
+  sourcemap?: boolean;
 }
 
 export type CommandMode = "plugin" | "codex-local" | "absolute";
@@ -83,13 +84,16 @@ Options:
   --stable-names            Force hash-free compiled filenames (<name>.mjs). On by default
                             in plugin mode. Use --no-stable-names to opt back into hashes.
   --no-stable-names         Force hashed compiled filenames (<name>.<hash>.mjs).
+  --sourcemap               Embed an inline sourcemap in compiled bundles. On by default.
+                            Use --no-sourcemap to disable and shrink output size.
+  --no-sourcemap            Compile without an inline sourcemap.
   --scaffold <dir>          Create a starter project
   --hooks <types>           Comma-separated scaffold hook names
   -h, --help                Show help
   -v, --version             Show version
 `;
 
-function parseArgs(argv: string[]): CliArgs {
+export function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
     input: "",
     output: "",
@@ -97,6 +101,7 @@ function parseArgs(argv: string[]): CliArgs {
     version: false,
     loaderFlags: [],
     pluginRoot: false,
+    sourcemap: true,
   };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
@@ -129,6 +134,12 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case "--no-stable-names":
         args.stableNames = false;
+        break;
+      case "--sourcemap":
+        args.sourcemap = true;
+        break;
+      case "--no-sourcemap":
+        args.sourcemap = false;
         break;
       case "-h":
       case "--help":
@@ -304,9 +315,10 @@ function symlinkVisiblePath(realPath: string, resolveDir: string): string {
   }
 }
 
-async function compileHook(
+export async function compileHook(
   sourcePath: string,
   loaders: HookLoaderMap,
+  sourcemap: boolean = true,
 ): Promise<{ content: string; contentHash: string }> {
   // import.meta.url is the CLI module's realpath (Node dereferences symlinks
   // by default), which sits outside the checkout when node_modules is a
@@ -345,7 +357,7 @@ execute(hook);
     platform: "node",
     target: "node20",
     bundle: true,
-    sourcemap: "inline",
+    sourcemap: sourcemap ? "inline" : false,
     write: false,
     external: ["node:*", "fs", "path", "os", "crypto", "module", "url"],
     mainFields: ["module", "main"],
@@ -366,7 +378,7 @@ async function compileAllHooks(
   hookFiles: string[],
   outputDir: string,
   loaders: HookLoaderMap,
-  options: { stableNames: boolean } = { stableNames: false },
+  options: { stableNames: boolean; sourcemap: boolean } = { stableNames: false, sourcemap: true },
 ): Promise<CompiledHook[]> {
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -378,7 +390,7 @@ async function compileAllHooks(
     if (metadata === undefined) {
       continue;
     }
-    const { content, contentHash } = await compileHook(sourcePath, loaders);
+    const { content, contentHash } = await compileHook(sourcePath, loaders, options.sourcemap);
     const baseName = path.basename(sourcePath, path.extname(sourcePath));
     const outputFilename = options.stableNames ? `${baseName}.mjs` : `${baseName}.${contentHash}.mjs`;
     const outputPath = path.join(outputDir, outputFilename);
@@ -566,8 +578,10 @@ export async function main(): Promise<void> {
   const outputDir = path.dirname(absoluteOutputPath);
   const context = detectCommandContext(absoluteOutputPath, args.pluginRoot);
   const stableNames = args.stableNames ?? context.mode === "plugin";
+  const sourcemap = args.sourcemap ?? true;
   const compiledHooks = await compileAllHooks(hookFiles, outputDir, buildLoaderMap(args.loaderFlags), {
     stableNames,
+    sourcemap,
   });
   const hooksJson = generateHooksJson(compiledHooks, absoluteOutputPath, args.executable ?? "node", context);
   fs.writeFileSync(absoluteOutputPath, `${JSON.stringify(hooksJson, null, 2)}\n`);

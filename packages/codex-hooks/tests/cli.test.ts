@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { analyzeHookFile, detectCommandContext, generateHooksJson } from "../src/cli.js";
+import { analyzeHookFile, detectCommandContext, generateHooksJson, parseArgs } from "../src/cli.js";
 
 const tempDirs: string[] = [];
 
@@ -113,7 +113,7 @@ describe("cli helpers", () => {
     });
   });
 
-  it("emits ${PLUGIN_ROOT}-relative commands in plugin mode", () => {
+  it(`emits \${PLUGIN_ROOT}-relative commands in plugin mode`, () => {
     const compiledHooks = [
       {
         sourcePath: "/build/src/session-start.ts",
@@ -133,7 +133,7 @@ describe("cli helpers", () => {
         SessionStart: [
           {
             matcher: "startup",
-            hooks: [{ type: "command", command: 'node "${PLUGIN_ROOT}/hooks/session-start.mjs"' }],
+            hooks: [{ type: "command", command: `node "\${PLUGIN_ROOT}/hooks/session-start.mjs"` }],
           },
         ],
       },
@@ -176,5 +176,19 @@ describe("cli helpers", () => {
     const pluginRoot = path.join(directory, "my-plugin");
     const outputPath = path.join(pluginRoot, "hooks", "hooks.json");
     expect(detectCommandContext(outputPath, true)).toEqual({ mode: "plugin", pluginRoot });
+  });
+});
+
+describe("parseArgs", () => {
+  it("defaults sourcemap to true", () => {
+    expect(parseArgs([]).sourcemap).toBe(true);
+  });
+
+  it("parses --sourcemap as true", () => {
+    expect(parseArgs(["--sourcemap"]).sourcemap).toBe(true);
+  });
+
+  it("parses --no-sourcemap as false", () => {
+    expect(parseArgs(["--no-sourcemap"]).sourcemap).toBe(false);
   });
 });
