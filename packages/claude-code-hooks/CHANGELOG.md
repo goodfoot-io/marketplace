@@ -1,6 +1,11 @@
 # Changelog
 
 ## 1.8.0
+- Added a `--no-sourcemap` CLI flag to build hooks without generating source maps
+- Fixed inconsistent build output when the package is used across symlinked or nested `node_modules` layouts
+- Scaffolded templates now pin the released versions of the hook packages for more reliable project setup
+
+## 1.8.0
 - Added a `--no-sourcemap` flag that compiles hooks without inline sourcemaps, shrinking output by roughly 85–90% and skipping the redundant second esbuild pass so builds run about twice as fast. Default behavior (sourcemaps on) is byte-for-byte unchanged, so existing plugins keep their hook trust hashes.
 
 ## 1.7.3
