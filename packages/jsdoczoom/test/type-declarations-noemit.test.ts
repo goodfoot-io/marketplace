@@ -33,19 +33,24 @@ describe("generateTypeDeclarations with noEmit tsconfig", () => {
 		expect(result.options.noEmit).toBe(false);
 	});
 
+	// Each of these invokes generateTypeDeclarations, which loads the
+	// TypeScript compiler and emits declarations — ~1.5s of wall time when
+	// idle, ~4.5s under concurrent full-suite validation on a shared host.
+	// The 5000ms default killed them mid-compile under that load; the
+	// generous timeout matches the established pattern for heavy calls.
 	it("produces non-empty declaration output when tsconfig has noEmit: true", async () => {
 		const declarations = await generateTypeDeclarations(samplePath);
 
 		// The file has exports, so declarations should NOT be empty
 		expect(declarations).not.toBe("");
 		expect(declarations.length).toBeGreaterThan(0);
-	});
+	}, 15000);
 
 	it("includes exported type alias from noEmit project", async () => {
 		const declarations = await generateTypeDeclarations(samplePath);
 
 		expect(declarations).toContain("export type Greeting");
-	});
+	}, 15000);
 
 	it("includes exported interface from noEmit project", async () => {
 		const declarations = await generateTypeDeclarations(samplePath);
@@ -54,7 +59,7 @@ describe("generateTypeDeclarations with noEmit tsconfig", () => {
 		expect(declarations).toContain("host: string");
 		expect(declarations).toContain("port: number");
 		expect(declarations).toContain("debug?: boolean");
-	});
+	}, 15000);
 
 	it("includes exported function signature from noEmit project", async () => {
 		const declarations = await generateTypeDeclarations(samplePath);
@@ -62,7 +67,7 @@ describe("generateTypeDeclarations with noEmit tsconfig", () => {
 		expect(declarations).toContain("export declare function greet");
 		expect(declarations).toContain("name: string");
 		expect(declarations).toContain(": Greeting");
-	});
+	}, 15000);
 
 	it("preserves JSDoc comments from noEmit project", async () => {
 		const declarations = await generateTypeDeclarations(samplePath);
@@ -72,5 +77,5 @@ describe("generateTypeDeclarations with noEmit tsconfig", () => {
 		expect(declarations).toContain("Creates a greeting message");
 		expect(declarations).toContain("@param name - The name to greet");
 		expect(declarations).toContain("@returns A greeting string");
-	});
+	}, 15000);
 });
