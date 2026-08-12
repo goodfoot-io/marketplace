@@ -223,7 +223,7 @@ const hooks: Hooks = {
     }
   },
 
-  afterAllInstalled(project: Project): void {
+  afterAllInstalled(_project: Project): void {
     if (process.env.WORKTREE_ISOLATION_DISABLE === '1') {
       pendingResymlinks.length = 0;
       return;

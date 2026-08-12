@@ -123,8 +123,11 @@ runIfSourceExists("transcript ordering — injected turn under the ASR/response 
 
     const textById = new Map(snapshot?.transcript.map((t) => [t.id, t]));
     const renderedOrder = snapshot?.timeline
-      .filter((e) => e.type === "transcript" && e.transcriptItemId)
-      .map((e) => textById.get(e.transcriptItemId!)?.text ?? "<missing>");
+      .filter(
+        (e): e is TimelineEntry & { transcriptItemId: string } =>
+          e.type === "transcript" && e.transcriptItemId !== undefined,
+      )
+      .map((e) => textById.get(e.transcriptItemId)?.text ?? "<missing>");
 
     // True chronological order: the user spoke first, the injected context
     // turn was added next, and the assistant reply followed.
