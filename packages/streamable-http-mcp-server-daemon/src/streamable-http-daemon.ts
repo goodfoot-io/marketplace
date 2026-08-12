@@ -102,8 +102,11 @@ export class StreamableHttpDaemon {
         const clientsContent = await fs.readFile(this.clientsFile, 'utf-8');
         const clients = JSON.parse(clientsContent) as ClientRecord;
         clientCount = Object.keys(clients).length;
-      } catch {
-        // File might not exist
+      } catch (error) {
+        const errnoError = error as ErrnoException;
+        if (errnoError.code !== 'ENOENT') {
+          this.log('Error reading clients file:', error);
+        }
       }
       return { pid, port: this.config.port, startedAt: 0, clientCount };
     } catch (error) {
@@ -121,8 +124,11 @@ export class StreamableHttpDaemon {
     try {
       const content = await fs.readFile(this.clientsFile, 'utf-8');
       clients = JSON.parse(content) as ClientRecord;
-    } catch {
-      // File doesn't exist
+    } catch (error) {
+      const errnoError = error as ErrnoException;
+      if (errnoError.code !== 'ENOENT') {
+        this.log('Error reading clients file:', error);
+      }
     }
     clients[this.clientId] = process.pid;
     await fs.writeFile(this.clientsFile, JSON.stringify(clients, null, 2), 'utf-8');
@@ -138,8 +144,22 @@ export class StreamableHttpDaemon {
         await fs.writeFile(this.clientsFile, JSON.stringify(clients, null, 2), 'utf-8');
         this.log(`Unregistered client ${this.clientId}, ${Object.keys(clients).length} clients remaining`);
       } else {
-        await fs.unlink(this.clientsFile).catch(() => {});
-        await fs.unlink(this.pidFile).catch(() => {});
+        try {
+          await fs.unlink(this.clientsFile);
+        } catch (error) {
+          const errnoError = error as ErrnoException;
+          if (errnoError.code !== 'ENOENT') {
+            this.log('Error removing clients file:', error);
+          }
+        }
+        try {
+          await fs.unlink(this.pidFile);
+        } catch (error) {
+          const errnoError = error as ErrnoException;
+          if (errnoError.code !== 'ENOENT') {
+            this.log('Error removing pid file:', error);
+          }
+        }
         this.log('Last client unregistered, cleaned up daemon files');
       }
     } catch (error) {
@@ -156,15 +176,25 @@ export class StreamableHttpDaemon {
         try {
           process.kill(pid, 0);
           aliveClients[id] = pid;
-        } catch {
-          // Process is dead
+        } catch (error) {
+          const errnoError = error as ErrnoException;
+          if (errnoError.code !== 'ESRCH') {
+            this.log('Error checking client process:', error);
+          }
         }
       }
       if (Object.keys(aliveClients).length !== Object.keys(clients).length) {
         if (Object.keys(aliveClients).length > 0) {
           await fs.writeFile(this.clientsFile, JSON.stringify(aliveClients, null, 2), 'utf-8');
         } else {
-          await fs.unlink(this.clientsFile).catch(() => {});
+          try {
+            await fs.unlink(this.clientsFile);
+          } catch (error) {
+            const errnoError = error as ErrnoException;
+            if (errnoError.code !== 'ENOENT') {
+              this.log('Error removing clients file:', error);
+            }
+          }
         }
       }
       return Object.keys(aliveClients).length;
@@ -194,6 +224,9 @@ export class StreamableHttpDaemon {
         const clientCount = await this.getRemainingClientCount();
         if (clientCount === 0) {
           this.log('No clients remaining, shutting down server');
+          // close() waits for open connections (keep-alive sockets from dead
+          // clients included); force them closed so shutdown is prompt.
+          this.server.closeAllConnections();
           await new Promise<void>((resolve) => {
             this.server?.close(() => resolve());
           });
@@ -204,10 +237,13 @@ export class StreamableHttpDaemon {
     };
     const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP'];
     for (const signal of signals) {
-      process.on(signal, async () => {
+      process.on(signal, () => {
         this.log(`Received ${signal}`);
-        await cleanup();
-        process.exit(0);
+        // A signal handler must never pin the process open indefinitely —
+        // graceful cleanup is best-effort, bounded by a hard deadline. A
+        // lingering daemon would hold the port and corrupt later starts.
+        const deadline = new Promise((resolve) => global.setTimeout(resolve, 1000).unref());
+        void Promise.race([cleanup(), deadline]).finally(() => process.exit(0));
       });
     }
     process.on('uncaughtException', async (error) => {

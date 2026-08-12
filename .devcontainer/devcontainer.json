@@ -64,11 +64,11 @@
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
     "PATH": "${containerEnv:PATH}:/home/node/.local/bin:/workspace/.devcontainer/claude-code:/workspace/.devcontainer/utilities",
-    "PGHOST": "localhost",
+    "PGHOST": "postgres",
     "PGUSER": "postgres",
     "PGPASSWORD": "postgres",
     "PGDATABASE": "postgres",
-    "PGPORT": "54321"
+    "PGPORT": "5432"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "postCreateCommand": "/workspace/.devcontainer/post-create.sh"

@@ -64,35 +64,31 @@ function raceProcessAgainstTimeout(
 }
 
 describe("idle pipe stdin (bug reproduction)", () => {
-	it(
-		"should not hang on -l when stdin is an open, unwritten pipe",
-		async () => {
-			const result = await raceProcessAgainstTimeout(
-				["-l", "description-only.ts"],
-				leafFilesDir,
-				2500,
-			);
+	it("should not hang on -l when stdin is an open, unwritten pipe", async () => {
+		const result = await raceProcessAgainstTimeout(
+			["-l", "description-only.ts"],
+			leafFilesDir,
+			// A real hang blocks forever, so a generous budget still detects
+			// it — but under concurrent test runs (other sessions sharing
+			// this host) the CLI can take well over 2.5s just to start up,
+			// which previously produced a false "timed-out".
+			10000,
+		);
 
-			// BUG: readStdin() blocks forever waiting for EOF that never
-			// arrives, so the timeout wins and this is "timed-out".
-			// CORRECT: isTTY===false check means readStdin() is skipped for an
-			// idle pipe, main() runs and exits, so this is "exited".
-			expect(result).toBe("exited");
-		},
-		5000,
-	);
+		// BUG: readStdin() blocks forever waiting for EOF that never
+		// arrives, so the timeout wins and this is "timed-out".
+		// CORRECT: isTTY===false check means readStdin() is skipped for an
+		// idle pipe, main() runs and exits, so this is "exited".
+		expect(result).toBe("exited");
+	}, 15000);
 
-	it(
-		"should not hang on -c when stdin is an open, unwritten pipe",
-		async () => {
-			const result = await raceProcessAgainstTimeout(
-				["-c", "description-only.ts"],
-				leafFilesDir,
-				2500,
-			);
+	it("should not hang on -c when stdin is an open, unwritten pipe", async () => {
+		const result = await raceProcessAgainstTimeout(
+			["-c", "description-only.ts"],
+			leafFilesDir,
+			10000,
+		);
 
-			expect(result).toBe("exited");
-		},
-		5000,
-	);
+		expect(result).toBe("exited");
+	}, 15000);
 });

@@ -6,8 +6,24 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 describe('StreamableHttpDaemon', () => {
   const serverPath = path.join(process.cwd(), 'build/dist/src/example-http-server.js');
-  const serverUrl = 'http://127.0.0.1:47127/mcp';
+  // The default daemon port (47127) is a machine-global resource — concurrent
+  // sessions running this suite in parallel worktrees on the same host would
+  // race each other's daemons on it, and whichever session's main daemon
+  // happened to be alive would turn the other session's "started a new
+  // server" assertions into flaky failures. Derive a per-session port from
+  // this worker's PID instead and hand it to the spawned servers via
+  // MCP_DAEMON_PORT (see example-http-server.ts).
+  const daemonPort = 47127 + (process.pid % 1000);
+  const serverUrl = `http://127.0.0.1:${daemonPort}/mcp`;
   let serverProcesses: ChildProcess[] = [];
+
+  beforeAll(() => {
+    process.env.MCP_DAEMON_PORT = String(daemonPort);
+  });
+
+  afterAll(() => {
+    delete process.env.MCP_DAEMON_PORT;
+  });
 
   const startServerProcess = async (): Promise<{ process: ChildProcess; output: string[] }> => {
     const output: string[] = [];
@@ -57,11 +73,19 @@ describe('StreamableHttpDaemon', () => {
 
   afterEach(async () => {
     for (const proc of serverProcesses) {
-      if (proc.pid && !proc.killed) {
+      if (proc.pid) {
+        // Graceful shutdown first, then force-kill if it stalls. A lingering
+        // daemon would occupy the shared test port and corrupt the next test
+        // ("should reuse existing server when port is already in use" would
+        // connect to the zombie instead of starting a fresh main). Note that
+        // `proc.killed` cannot gate the SIGKILL — it flips on the first kill()
+        // call — so wait for the exit event (or timeout) instead.
+        const exited = new Promise<void>((resolve) => proc.once('exit', () => resolve()));
         proc.kill('SIGTERM');
-        await new Promise((resolve) => global.setTimeout(resolve, 500));
-        if (!proc.killed) {
+        await Promise.race([exited, new Promise((resolve) => global.setTimeout(resolve, 500))]);
+        if (proc.exitCode === null && proc.signalCode === null) {
           proc.kill('SIGKILL');
+          await Promise.race([exited, new Promise((resolve) => global.setTimeout(resolve, 500))]);
         }
       }
     }

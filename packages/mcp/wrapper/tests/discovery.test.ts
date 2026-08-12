@@ -138,7 +138,7 @@ describe('discoverTools', () => {
       expect(result.description).toBeTruthy();
       expect(typeof result.description).toBe('string');
       expect(result.description.length).toBeGreaterThan(0);
-    });
+    }, 15000); // 15 second timeout for AI description generation
 
     it('should handle stdio server that times out', async () => {
       const scriptPath = join(fixturesDir, 'hanging-server.mjs');
@@ -241,7 +241,7 @@ describe('discoverTools', () => {
       expect(result.allTools).toHaveLength(1);
       expect(result.allTools[0].serverName).toBe('working-server');
       expect(result.allowedTools).toContain('mcp__working-server__working_tool');
-    });
+    }, 15000); // 15 second timeout for AI description generation
   });
 
   describe('description generation', () => {
@@ -477,6 +477,6 @@ describe('discoverTools', () => {
       expect(cached?.allTools).toHaveLength(1);
       expect(cached?.allTools[0].tool.name).toBe('test_tool'); // Updated cache
       expect(cached?.description).not.toBe('Old cached description'); // Updated description
-    });
+    }, 15000); // 15 second timeout for AI description generation
   });
 });

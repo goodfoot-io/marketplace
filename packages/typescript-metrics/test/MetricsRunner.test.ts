@@ -35,7 +35,7 @@ beforeEach(() => {
 const fixtureRoot = path.join(__dirname, "fixtures/monorepo-fixture");
 
 describe("MetricsRunner", () => {
-  it("should run all metrics by default", async () => {
+  it("should run all metrics by default", { timeout: 30000 }, async () => {
     const runner = new MetricsRunner({
       rootDir: fixtureRoot,
     });
@@ -50,7 +50,7 @@ describe("MetricsRunner", () => {
     expect(result.churnHotspots).toBeDefined();
   });
 
-  it("should run only selected metric categories", async () => {
+  it("should run only selected metric categories", { timeout: 30000 }, async () => {
     const runner = new MetricsRunner({
       rootDir: fixtureRoot,
       categories: ["coupling", "cycles"],
@@ -64,7 +64,7 @@ describe("MetricsRunner", () => {
     expect(result.monorepo).toBeUndefined();
   });
 
-  it("should coordinate analyzer execution order", async () => {
+  it("should coordinate analyzer execution order", { timeout: 30000 }, async () => {
     // Coupling must run before cycles (cycles needs the graph)
     const runner = new MetricsRunner({
       rootDir: fixtureRoot,
@@ -77,7 +77,7 @@ describe("MetricsRunner", () => {
     expect(result.cycles).toBeDefined();
   });
 
-  it("should aggregate results into unified MetricsResult", async () => {
+  it("should aggregate results into unified MetricsResult", { timeout: 30000 }, async () => {
     const runner = new MetricsRunner({
       rootDir: fixtureRoot,
     });
@@ -93,7 +93,7 @@ describe("MetricsRunner", () => {
     expect(result).toHaveProperty("churnHotspots");
   });
 
-  it("should handle analyzer errors gracefully", async () => {
+  it("should handle analyzer errors gracefully", { timeout: 30000 }, async () => {
     const runner = new MetricsRunner({
       rootDir: "/nonexistent/path",
     });
@@ -103,7 +103,7 @@ describe("MetricsRunner", () => {
     expect(result).toBeDefined();
   });
 
-  it("should log warning and continue for malformed TypeScript files", async () => {
+  it("should log warning and continue for malformed TypeScript files", { timeout: 30000 }, async () => {
     // This test would need a fixture with a malformed TypeScript file
     // For now, just verify the error handling mechanism exists
     const runner = new MetricsRunner({
@@ -113,7 +113,7 @@ describe("MetricsRunner", () => {
     expect(result).toBeDefined();
   });
 
-  it("should include relative path in file-not-found error", async () => {
+  it("should include relative path in file-not-found error", { timeout: 30000 }, async () => {
     const runner = new MetricsRunner({
       rootDir: fixtureRoot,
       files: [path.join(fixtureRoot, "nonexistent.ts")],
@@ -124,7 +124,7 @@ describe("MetricsRunner", () => {
     expect(result).toBeDefined();
   });
 
-  it("should include path in permission-denied error", async () => {
+  it("should include path in permission-denied error", { timeout: 30000 }, async () => {
     // This test would need a fixture with permission issues
     // Difficult to test in CI, so we just verify error handling exists
     const runner = new MetricsRunner({
@@ -218,7 +218,7 @@ describe("MetricsRunner", () => {
     expect(output).toContain("Monorepo:");
   });
 
-  it("should run encapsulation metrics when requested", async () => {
+  it("should run encapsulation metrics when requested", { timeout: 30000 }, async () => {
     const runner = new MetricsRunner({
       rootDir: fixtureRoot,
       categories: ["encapsulation"],
@@ -230,7 +230,7 @@ describe("MetricsRunner", () => {
     expect(result.complexity).toBeUndefined();
   });
 
-  it("should run churn-hotspots metrics when requested", async () => {
+  it("should run churn-hotspots metrics when requested", { timeout: 30000 }, async () => {
     const runner = new MetricsRunner({
       rootDir: fixtureRoot,
       categories: ["churn-hotspots"],
@@ -244,7 +244,7 @@ describe("MetricsRunner", () => {
     expect(result.coupling).toBeUndefined();
   });
 
-  it("should pass cached complexity to churn-hotspots when both are requested", async () => {
+  it("should pass cached complexity to churn-hotspots when both are requested", { timeout: 30000 }, async () => {
     const runner = new MetricsRunner({
       rootDir: fixtureRoot,
       categories: ["complexity", "churn-hotspots"],

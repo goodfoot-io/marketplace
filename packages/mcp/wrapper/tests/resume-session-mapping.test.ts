@@ -15,10 +15,11 @@ describe('resume with session ID mapping', () => {
   const testWorkspace = '/test/workspace/resume';
   let originalEnv: string | undefined;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     originalEnv = process.env.CLAUDE_CONFIG_DIR;
-    // Use a temp directory for testing
-    process.env.CLAUDE_CONFIG_DIR = path.join(os.tmpdir(), `claude-test-${Date.now()}`);
+    // Use a unique temp directory for testing (mkdtemp guarantees no collisions with
+    // concurrently running test files that use the same claude-test- prefix)
+    process.env.CLAUDE_CONFIG_DIR = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-test-'));
   });
 
   afterEach(async () => {
