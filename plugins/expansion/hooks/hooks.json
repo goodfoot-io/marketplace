@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $CLAUDE_PLUGIN_ROOT/hooks/bin/user-prompt-submit.813c686d.mjs"
+            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/hooks/bin/user-prompt-submit.mjs"
           }
         ]
       }
@@ -13,8 +13,8 @@
   },
   "__generated": {
     "files": [
-      "user-prompt-submit.813c686d.mjs"
+      "user-prompt-submit.mjs"
     ],
-    "timestamp": "2026-04-19T16:03:21.823Z"
+    "timestamp": "2026-08-12T16:01:29.335Z"
   }
 }
