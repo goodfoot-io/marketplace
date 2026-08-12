@@ -1,6 +1,11 @@
 # Changelog
 
 ## 1.2.0
+- Added `--no-sourcemap` CLI option to disable sourcemap generation on build
+- Fixed runtime resolution to work correctly across sibling-source-tree and symlinked package layouts, ensuring consistent behavior regardless of how packages are installed
+- Scaffolded projects now pin the released versions of both hook packages
+
+## 1.2.0
 - Added `--no-sourcemap` to compile hooks without the embedded inline sourcemap, shrinking bundled output by ~85–90%. Default output is byte-for-byte unchanged; pass `--sourcemap` (the default) to restore the previous behavior.
 
 ## 1.1.5
