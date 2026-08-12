@@ -1,4 +1,4 @@
-packages/codex-hooks/src/cli.ts#L331-L331 rk64:b4ab37318bf5b5aa
+packages/codex-hooks/src/cli.ts#L368-L368 rk64:b4ab37318bf5b5aa
 packages/codex-hooks/src/runtime.ts rk64:eb44c8f7780ac159
 
 Hook compiler embeds the runtime module at ./runtime.js; this path must match the compiled artifact name from the TypeScript build.

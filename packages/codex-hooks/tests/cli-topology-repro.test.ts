@@ -185,9 +185,7 @@ describe("compileHook install-topology reproducibility", () => {
     // runtime is reached through the checkout's node_modules symlink form, so
     // esbuild records one module identity regardless of install topology.
     const dualPathEntry = extractEntryWrapperSource(dualPathContent);
-    expect(dualPathEntry).toContain(
-      `import { execute } from "./node_modules/@goodfoot/codex-hooks/src/runtime`,
-    );
+    expect(dualPathEntry).toContain(`import { execute } from "./node_modules/@goodfoot/codex-hooks/src/runtime`);
 
     // Both checkouts compile the same logical hook against the same physical
     // package copy; every byte of the compiled output must be independent of
