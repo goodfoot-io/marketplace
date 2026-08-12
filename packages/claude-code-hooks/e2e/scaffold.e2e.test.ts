@@ -271,8 +271,9 @@ describe("E2E: Scaffold Command", () => {
 
       // Run npm install in scaffolded project (as recommended by scaffold command)
       // shell: true so Windows resolves `npm` -> `npm.cmd` (Node refuses to
-      // spawn .cmd without a shell); args are fixed literals, no glob/space.
-      const installResult = spawnSync("npm", ["install"], {
+      // spawn .cmd without a shell); the command is a fixed literal with no
+      // args array, so there is no shell quoting hazard (DEP0190).
+      const installResult = spawnSync("npm install", {
         cwd: testDir,
         encoding: "utf-8",
         stdio: "pipe",
@@ -283,7 +284,7 @@ describe("E2E: Scaffold Command", () => {
       expect(installResult.status).toBe(0);
 
       // Run npm run build in scaffolded project
-      const buildResult = spawnSync("npm", ["run", "build"], {
+      const buildResult = spawnSync("npm run build", {
         cwd: testDir,
         encoding: "utf-8",
         stdio: "pipe",
@@ -325,8 +326,9 @@ describe("E2E: Scaffold Command", () => {
 
       // Run npm install (as recommended by scaffold command)
       // shell: true so Windows resolves `npm` -> `npm.cmd` (Node refuses to
-      // spawn .cmd without a shell); args are fixed literals, no glob/space.
-      const installResult = spawnSync("npm", ["install"], {
+      // spawn .cmd without a shell); the command is a fixed literal with no
+      // args array, so there is no shell quoting hazard (DEP0190).
+      const installResult = spawnSync("npm install", {
         cwd: testDir,
         encoding: "utf-8",
         stdio: "pipe",
@@ -337,7 +339,7 @@ describe("E2E: Scaffold Command", () => {
       expect(installResult.status).toBe(0);
 
       // Run npm test
-      const testResult = spawnSync("npm", ["test"], {
+      const testResult = spawnSync("npm test", {
         cwd: testDir,
         encoding: "utf-8",
         stdio: "pipe",

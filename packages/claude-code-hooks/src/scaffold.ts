@@ -167,7 +167,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
       typecheck: "tsc --noEmit",
     },
     dependencies: {
-      "@goodfoot/claude-code-hooks": "^1.0.9",
+      "@goodfoot/claude-code-hooks": "^1.8.0",
     },
     devDependencies: {
       "@biomejs/biome": "2.4.16",
