@@ -686,7 +686,9 @@ interface CompileHookResult {
  * realpath contains `realPath` (e.g. a checkout-level symlink to a shared
  * install) and returns `realPath` as seen through that directory. Also
  * recognizes the package directory itself being symlinked into that
- * `node_modules` (pnpm-style store link, npx cache, external install) and
+ * `node_modules` — whether the package lives in a store (pnpm-style store
+ * link, npx cache, external install) or in the checkout's own source tree
+ * (`packages/` with a `node_modules` entry symlinked back into it) — and
  * re-roots through the symlink form, so esbuild records one module identity
  * regardless of install topology. Falls back to the realpath when no such
  * node_modules exists — with no symlink involved, the realpath is already
@@ -709,6 +711,34 @@ function symlinkVisiblePath(realPath: string, resolveDir: string): string {
     dir = parent;
   }
 
+  // The runtime's package entry name (`[scope/]name`) from its own nearest
+  // package.json, and the runtime's position within that package's tree,
+  // used below to recognize the same package reached through its usual
+  // node_modules entry when the package directory itself is not under any
+  // node_modules — the checkout's own source tree.
+  let pkgEntry: string | undefined;
+  let pkgRel: string | undefined;
+  for (let dir = path.dirname(realPath); ; ) {
+    const pkgJsonPath = path.join(dir, "package.json");
+    if (fs.existsSync(pkgJsonPath)) {
+      try {
+        const manifest = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8")) as { name?: unknown };
+        if (typeof manifest.name === "string" && /^(@[^/]+\/)?[^/]+$/.test(manifest.name)) {
+          pkgEntry = manifest.name;
+          pkgRel = path.relative(dir, realPath);
+        }
+      } catch {
+        // Not a readable package.json — the realpath is not under a package.
+      }
+      break;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      break;
+    }
+    dir = parent;
+  }
+
   // The runtime's real on-disk path: the `.js` specifier maps to the `.ts`
   // source when the CLI runs from its TypeScript sources (tsx); the `.js`
   // form is the compiled artifact in an installed package. Identity checks
@@ -722,11 +752,27 @@ function symlinkVisiblePath(realPath: string, resolveDir: string): string {
       if (realPath.startsWith(resolved + path.sep)) {
         return path.join(nodeModules, path.relative(resolved, realPath));
       }
-      if (pkgRelPath !== undefined) {
+      if (pkgEntry !== undefined && pkgRel !== undefined) {
         // The package directory itself is symlinked into this node_modules
-        // (pnpm-style store link, npx cache, external install): reach the
-        // runtime through the same symlink form so esbuild records one
-        // module identity regardless of install topology.
+        // under its own name (pnpm-style store link, npx cache, external
+        // install, or the checkout's own source tree): reach the runtime
+        // through the same symlink form so esbuild records one module
+        // identity regardless of install topology. The identity check is
+        // file-level (realpath equality), so it also covers the package's
+        // own tree reaching the shared install through nested symlinks
+        // (e.g. a `dist/` directory linked into the store).
+        const visible = path.join(nodeModules, pkgEntry, pkgRel);
+        const visibleOnDisk = fs.existsSync(visible) ? visible : visible.replace(/\.js$/, ".ts");
+        if (fs.existsSync(visibleOnDisk) && fs.realpathSync(visibleOnDisk) === realPathOnDisk) {
+          return visible;
+        }
+      }
+      if (pkgRelPath !== undefined) {
+        // A store link under a different entry name than the package's own:
+        // the runtime's position within its nearest node_modules matches a
+        // symlink in this one. Reach the runtime through the same symlink
+        // form so esbuild records one module identity regardless of install
+        // topology.
         const visible = path.join(nodeModules, pkgRelPath);
         const visibleOnDisk = fs.existsSync(visible) ? visible : visible.replace(/\.js$/, ".ts");
         if (fs.existsSync(visibleOnDisk) && fs.realpathSync(visibleOnDisk) === realPathOnDisk) {

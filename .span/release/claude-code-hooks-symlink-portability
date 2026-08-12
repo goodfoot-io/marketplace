@@ -1,4 +1,4 @@
 packages/claude-code-hooks/CHANGELOG.md#L10-L12 rk64:ece5eb62ceebf8ee
-packages/claude-code-hooks/src/cli.ts#L856-L860 rk64:417ae2c24bb1794f
+packages/claude-code-hooks/src/cli.ts#L902-L906 rk64:417ae2c24bb1794f
 
 Version 1.7.2 release record of claude-code-hooks' preserveSymlinks fix for esbuild symlink portability: the changelog entry documents the fix and the code fix implements it.

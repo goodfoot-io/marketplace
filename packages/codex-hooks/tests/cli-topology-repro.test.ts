@@ -26,9 +26,21 @@
  *   twice, interleaved, with collision-suffix renames (`EXIT_CODES2`) and a
  *   substantially larger bundle.
  *
+ * - **Sibling-source-tree topology** — the package directory is the checkout's
+ *   OWN source tree: a physical `packages/codex-hooks` copy, with the
+ *   checkout's `node_modules/@goodfoot/codex-hooks` a directory symlink back
+ *   into it (`../../packages/codex-hooks`). This is the workspace-monorepo
+ *   shape the repo itself uses. Node dereferences the symlink, so the CLI's
+ *   `import.meta.url` is again the physical realpath — but here the runtime's
+ *   nearest `node_modules` ancestor does not exist at all (the package lives
+ *   under `packages/`, not under any `node_modules`), so a realpath fallback
+ *   would make the wrapper's specifier — and the module-boundary comments of
+ *   the runtime subtree — depend on how deeply the checkout is nested below
+ *   the shared install.
+ *
  * The invariant under test: for a fixed CLI version, fixed source tree, and
  * fixed hook, the emitted bundle bytes must be identical regardless of install
- * topology. Today they are not — the byte-identity assertion below fails.
+ * topology.
  *
  * Like the sibling depth repro, this test runs the CLI as a real child process
  * from each checkout so that `import.meta.url` is genuinely resolved through
@@ -114,6 +126,39 @@ describe("compileHook install-topology reproducibility", () => {
     return checkoutDir;
   }
 
+  /**
+   * Sibling-source-tree topology: the package directory is the checkout's own
+   * source tree — a physical `packages/codex-hooks` copy, with the checkout's
+   * node_modules entry a directory symlink back into it. The runtime's
+   * realpath is inside the checkout, yet under no node_modules at all.
+   */
+  function createSiblingTreeCheckout(): string {
+    const checkoutDir = path.join(baseDir, "checkout-sibling-tree");
+    const pkgDir = path.join(checkoutDir, "packages", "codex-hooks");
+    fs.mkdirSync(pkgDir, { recursive: true });
+    fs.cpSync(PACKAGE_SRC_DIR, path.join(pkgDir, "src"), { recursive: true });
+    fs.writeFileSync(
+      path.join(pkgDir, "package.json"),
+      JSON.stringify({
+        name: "@goodfoot/codex-hooks",
+        version: "0.0.0-test",
+        type: "module",
+        // Point the package entry at the copied sources so a hook importing
+        // `@goodfoot/codex-hooks` resolves into the physical copy.
+        exports: { ".": "./src/index.ts" },
+      }),
+      "utf-8",
+    );
+    fs.symlinkSync(WORKSPACE_NODE_MODULES, path.join(pkgDir, "node_modules"), "dir");
+    fs.mkdirSync(path.join(checkoutDir, "node_modules", "@goodfoot"), { recursive: true });
+    fs.symlinkSync(
+      path.join("..", "..", "packages", "codex-hooks"),
+      path.join(checkoutDir, "node_modules", "@goodfoot", "codex-hooks"),
+      "dir",
+    );
+    return checkoutDir;
+  }
+
   /** Writes the same hook source into the given checkout and returns its path. */
   function writeHook(checkoutDir: string): string {
     const hookPath = path.join(checkoutDir, "my-hook.ts");
@@ -171,9 +216,11 @@ describe("compileHook install-topology reproducibility", () => {
   it("produces byte-identical compiled output regardless of install topology", () => {
     const singlePathCheckout = createSinglePathCheckout();
     const dualPathCheckout = createDualPathCheckout(singlePathCheckout);
+    const siblingTreeCheckout = createSiblingTreeCheckout();
 
     const singlePathContent = compileViaCli(singlePathCheckout, writeHook(singlePathCheckout));
     const dualPathContent = compileViaCli(dualPathCheckout, writeHook(dualPathCheckout));
+    const siblingTreeContent = compileViaCli(siblingTreeCheckout, writeHook(siblingTreeCheckout));
 
     // Mechanism pin: in the single-path topology the wrapper's runtime import
     // is anchored inside the checkout through its own node_modules. (codex-hooks'
@@ -187,10 +234,13 @@ describe("compileHook install-topology reproducibility", () => {
     const dualPathEntry = extractEntryWrapperSource(dualPathContent);
     expect(dualPathEntry).toContain(`import { execute } from "./node_modules/@goodfoot/codex-hooks/src/runtime`);
 
-    // Both checkouts compile the same logical hook against the same physical
-    // package copy; every byte of the compiled output must be independent of
-    // whether the package directory sits inside the checkout or is reached
-    // through a symlink to an external install.
+    // All three checkouts compile the same logical hook against the same
+    // physical package copy; every byte of the compiled output must be
+    // independent of whether the package directory sits inside the checkout,
+    // is reached through a symlink to an external install, or is the
+    // checkout's own source tree with the node_modules entry symlinked back
+    // into it.
     expect(dualPathContent).toBe(singlePathContent);
+    expect(siblingTreeContent).toBe(singlePathContent);
   }, 60000);
 });

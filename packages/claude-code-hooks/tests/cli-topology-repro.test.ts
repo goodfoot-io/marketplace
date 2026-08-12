@@ -29,6 +29,20 @@
  *    `logger.ts`, `outputs.ts`), with esbuild collision-suffix renames
  *    (`EXIT_CODES` vs `EXIT_CODES2`) and a measurably larger bundle.
  *
+ * 3. **Sibling-source-tree topology (checkoutE)** — the package directory is
+ *    the checkout's OWN source tree: a physical `packages/claude-code-hooks`
+ *    directory, with the checkout's `node_modules/@goodfoot/claude-code-hooks`
+ *    a directory symlink back into it (`../../packages/claude-code-hooks`).
+ *    This is the workspace-monorepo shape the repo itself uses. Node
+ *    dereferences the symlink, so the CLI's `import.meta.url` is again the
+ *    physical realpath — but here the runtime's nearest `node_modules`
+ *    ancestor does not exist at all (the package lives under `packages/`,
+ *    not under any `node_modules`), so both the ancestor walk and the
+ *    store-link recognition miss it and the wrapper specifier falls back to
+ *    a realpath whose relative form depends on the checkout's nesting depth
+ *    below the shared install. The same sources compiled from checkouts at
+ *    different depths emit different boundary-comment bytes.
+ *
  * The invariant under test: for a fixed CLI version, fixed source tree, and
  * fixed hook, the emitted bundle bytes must be identical regardless of
  * install topology.
@@ -70,16 +84,18 @@ describe("compileHook install-topology reproducibility", () => {
   let baseDir: string;
   let checkoutS: string;
   let checkoutD: string;
+  let checkoutE: string;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "cli-topology-repro-"));
     checkoutS = path.join(baseDir, "checkoutS");
     checkoutD = path.join(baseDir, "checkoutD");
+    checkoutE = path.join(baseDir, "checkoutE");
 
     // checkoutS: the package directory is a physical copy under the
     // checkout's own node_modules — the single-path topology.
     fs.mkdirSync(path.join(checkoutS, "node_modules", "@goodfoot"), { recursive: true });
-    installPhysicalCliPackage(checkoutS);
+    installPhysicalCliPackage(path.join(checkoutS, "node_modules", "@goodfoot", "claude-code-hooks"));
 
     // checkoutD: an identical checkout, but the package directory is a
     // directory symlink to the same physical copy — the dual-path topology.
@@ -91,6 +107,20 @@ describe("compileHook install-topology reproducibility", () => {
       path.join(checkoutD, "node_modules", "@goodfoot", "claude-code-hooks"),
       "dir",
     );
+
+    // checkoutE: the package directory is the checkout's own source tree —
+    // a physical `packages/claude-code-hooks` copy, with the checkout's
+    // node_modules entry a directory symlink back into it. The sibling-
+    // source-tree topology (the workspace-monorepo shape the repo itself
+    // uses): the runtime's realpath is inside the checkout, yet under no
+    // node_modules at all.
+    fs.mkdirSync(path.join(checkoutE, "node_modules", "@goodfoot"), { recursive: true });
+    installPhysicalCliPackage(path.join(checkoutE, "packages", "claude-code-hooks"));
+    fs.symlinkSync(
+      path.join("..", "..", "packages", "claude-code-hooks"),
+      path.join(checkoutE, "node_modules", "@goodfoot", "claude-code-hooks"),
+      "dir",
+    );
   });
 
   afterEach(() => {
@@ -98,14 +128,13 @@ describe("compileHook install-topology reproducibility", () => {
   });
 
   /**
-   * Installs a physical copy of this package's `src/` into the given
-   * checkout's node_modules, like a published package installed locally. The
-   * copy must be physical, not a symlink: the whole bug rests on the CLI's
+   * Installs a physical copy of this package's `src/` at the given package
+   * directory, like a published package installed locally. The copy must be
+   * physical, not a symlink: the whole bug rests on the CLI's
    * `import.meta.url` being the physical copy's realpath when the package
    * directory is symlinked out of the checkout.
    */
-  function installPhysicalCliPackage(checkoutDir: string): void {
-    const cliPkgDir = path.join(checkoutDir, "node_modules", "@goodfoot", "claude-code-hooks");
+  function installPhysicalCliPackage(cliPkgDir: string): void {
     fs.cpSync(PACKAGE_SRC_DIR, path.join(cliPkgDir, "src"), { recursive: true });
     fs.writeFileSync(
       path.join(cliPkgDir, "package.json"),
@@ -183,19 +212,26 @@ describe("compileHook install-topology reproducibility", () => {
   }
 
   /**
-   * Compiles the same hook from both checkouts — single-path (physical
-   * package install) and dual-path (package directory symlinked out of the
-   * checkout) — and returns the two compiled outputs.
+   * Compiles the same hook from every checkout — single-path (physical
+   * package install), dual-path (package directory symlinked out of the
+   * checkout), and sibling-source-tree (package directory symlinked out of
+   * node_modules into the checkout's own source tree) — and returns the
+   * compiled outputs.
    */
-  function compileFromBothTopologies(): { checkoutSContent: string; checkoutDContent: string } {
+  function compileFromEveryTopology(): {
+    checkoutSContent: string;
+    checkoutDContent: string;
+    checkoutEContent: string;
+  } {
     return {
       checkoutSContent: compileViaCli(checkoutS, createHookFile(checkoutS)),
       checkoutDContent: compileViaCli(checkoutD, createHookFile(checkoutD)),
+      checkoutEContent: compileViaCli(checkoutE, createHookFile(checkoutE)),
     };
   }
 
   it("produces byte-identical compiled output regardless of install topology", () => {
-    const { checkoutSContent, checkoutDContent } = compileFromBothTopologies();
+    const { checkoutSContent, checkoutDContent } = compileFromEveryTopology();
 
     // Both checkouts compile the same hook from the same physical package
     // sources with the same CLI version and the same locked deps; only the
@@ -205,8 +241,22 @@ describe("compileHook install-topology reproducibility", () => {
     expect(checkoutDContent).toBe(checkoutSContent);
   }, 60000);
 
+  it("produces byte-identical output when the package is symlinked out of node_modules into the checkout's own source tree", () => {
+    const { checkoutSContent, checkoutEContent } = compileFromEveryTopology();
+
+    // The sibling-source-tree topology: the package directory is the
+    // checkout's own `packages/claude-code-hooks` physical copy and the
+    // checkout's node_modules entry is a symlink back into it (the shape the
+    // repo itself uses). The runtime's realpath is under no node_modules at
+    // all, so a realpath fallback would make the wrapper specifier — and the
+    // module-boundary comments of the runtime subtree — depend on how deeply
+    // the checkout is nested. The output must match the single-path topology
+    // byte for byte.
+    expect(checkoutEContent).toBe(checkoutSContent);
+  }, 60000);
+
   it("anchors the single-path wrapper's runtime import inside the checkout's node_modules", () => {
-    const { checkoutSContent } = compileFromBothTopologies();
+    const { checkoutSContent } = compileFromEveryTopology();
 
     const entryWrapper = extractEntryWrapperSource(checkoutSContent);
 
