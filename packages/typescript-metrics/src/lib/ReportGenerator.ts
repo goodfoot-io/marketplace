@@ -133,9 +133,7 @@ export class ReportGenerator {
         const avgPerCommit = fileChurn?.avgLinesPerCommit ?? 0;
         const avgLabel =
           avgPerCommit > 100 ? `${Math.round(avgPerCommit)} (refactor?)` : Math.round(avgPerCommit).toString();
-        lines.push(
-          `| ${relPath} | ${commits} | ${linesChanged} | ${avgLabel} | ${hotspot.complexityScore} |`,
-        );
+        lines.push(`| ${relPath} | ${commits} | ${linesChanged} | ${avgLabel} | ${hotspot.complexityScore} |`);
       }
       lines.push("");
       lines.push(
@@ -358,7 +356,9 @@ export class ReportGenerator {
           const allTestFixtures = result.cycles.sccs.every((scc) => scc.every((f) => isTestFixture(f)));
 
           if (allTestFixtures) {
-            lines.push(`No production cycles (${result.cycles.sccs.length} test fixture cycle${result.cycles.sccs.length === 1 ? "" : "s"} omitted)`);
+            lines.push(
+              `No production cycles (${result.cycles.sccs.length} test fixture cycle${result.cycles.sccs.length === 1 ? "" : "s"} omitted)`,
+            );
             lines.push("");
           } else {
             lines.push("**Circular dependencies:**");

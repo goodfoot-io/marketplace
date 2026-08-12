@@ -159,9 +159,7 @@ describe("empty stdin bypasses selector (bug reproduction)", () => {
 			// CORRECT: at least one file entry for description-only.ts with diagnostics.
 			// BUG: output.files is [] because no files were linted.
 			expect(output.files.length).toBeGreaterThan(0);
-			const paths = output.files.map(
-				(f: { filePath: string }) => f.filePath,
-			);
+			const paths = output.files.map((f: { filePath: string }) => f.filePath);
 			expect(paths.some((p: string) => p.endsWith("description-only.ts"))).toBe(
 				true,
 			);

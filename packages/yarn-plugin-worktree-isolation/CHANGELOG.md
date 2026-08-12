@@ -1,6 +1,7 @@
 # Changelog
 
 ## 1.1.2
+
 - Fixed self-referencing symlinks that could be created during worktree isolation
 - Fixed stale state issues when running installs across multiple worktrees
 
