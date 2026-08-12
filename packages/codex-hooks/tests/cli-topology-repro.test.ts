@@ -17,14 +17,12 @@
  * - **Dual-path topology** — the checkout's `node_modules/@goodfoot/codex-hooks`
  *   is a directory symlink to the physical copy inside the first checkout (an
  *   external install / npx cache reached through a symlink). Node dereferences
- *   the symlink, so the CLI's `import.meta.url` is the *external* realpath.
- *   `symlinkVisiblePath` in `compileHook` walks `resolveDir`'s ancestors for a
- *   `node_modules` whose realpath contains the runtime's realpath; nothing
- *   matches (the checkout's own `node_modules` does not contain the external
- *   realpath), so it falls back to the raw absolute realpath. The wrapper's
- *   runtime import specifier therefore climbs out of the checkout
- *   (`../checkout-single-path/node_modules/...`), and esbuild sees the runtime
- *   subtree under a second, distinct path identity — emitting the whole graph
+ *   the symlink, so the CLI's `import.meta.url` is the *external* realpath, and
+ *   `symlinkVisiblePath` in `compileHook` must re-root the runtime through the
+ *   checkout's own `node_modules` symlink. The wrapper's runtime import must be
+ *   anchored inside the checkout through that symlink form (never a `../`
+ *   climb to the external realpath) — otherwise esbuild sees the runtime
+ *   subtree under a second, distinct path identity, emitting the whole graph
  *   twice, interleaved, with collision-suffix renames (`EXIT_CODES2`) and a
  *   substantially larger bundle.
  *
@@ -183,12 +181,12 @@ describe("compileHook install-topology reproducibility", () => {
     const singlePathEntry = extractEntryWrapperSource(singlePathContent);
     expect(singlePathEntry).toContain(`import { execute } from "./node_modules/@goodfoot/codex-hooks/src/runtime`);
 
-    // The dual-path wrapper escapes the checkout: symlinkVisiblePath falls
-    // back to the raw external realpath, so the specifier climbs out via `../`
-    // to the sibling physical copy.
+    // The dual-path wrapper must anchor inside its own checkout too — the
+    // runtime is reached through the checkout's node_modules symlink form, so
+    // esbuild records one module identity regardless of install topology.
     const dualPathEntry = extractEntryWrapperSource(dualPathContent);
     expect(dualPathEntry).toContain(
-      `import { execute } from "../checkout-single-path/node_modules/@goodfoot/codex-hooks/src/runtime`,
+      `import { execute } from "./node_modules/@goodfoot/codex-hooks/src/runtime`,
     );
 
     // Both checkouts compile the same logical hook against the same physical
