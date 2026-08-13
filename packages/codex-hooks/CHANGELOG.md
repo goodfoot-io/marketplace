@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.3.0
+- Added opt-in fail-open execution mode for advisory Codex hooks, allowing hooks to be configured as non-blocking so failures don't interrupt the workflow
+
+## 1.3.0
 - Added an opt-in `unexpectedError: "continue"` hook config option so advisory hooks (e.g. `UserPromptSubmit` context nudges) can fail open: unexpected runtime failures in stdin reading, parsing, handler execution, output serialization, the stdout write, or logger cleanup are caught, reported to an optional `onUnexpectedError(error, phase)` callback and the runtime logger, and swallowed, emitting the event's valid empty output (`{}`) and exiting `0` instead of surfacing Codex's failed-hook banner. `BlockError` and the existing non-zero default are unaffected. See the README's "Fail-Open Execution" section.
 
 ## 1.2.0
