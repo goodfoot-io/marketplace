@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.0
+- Added an opt-in `unexpectedError: "continue"` hook config option so advisory hooks (e.g. `UserPromptSubmit` context nudges) can fail open: unexpected runtime failures in stdin reading, output serialization, the stdout write, or logger cleanup are caught, reported to an optional `onUnexpectedError(error, phase)` callback and the runtime logger, and swallowed, emitting the empty output (`{}`) and exiting `0` instead of surfacing a failed-hook error. A thrown handler exception under this policy no longer exits with code 2. The existing non-zero/BLOCK default is unaffected. See the README's "Fail-Open Execution" section.
+- Fixed `teammateIdleOutput`/`taskCreatedOutput`/`taskCompletedOutput`'s `stderr`-based blocking: the runtime previously wrote `{}` to stdout before writing `stderr` and exiting with code 2, but Claude Code's hook-result parser treats any stdout that parses as valid JSON as success regardless of exit code, so the block never actually took effect. The runtime now skips the stdout write entirely on this path, matching how a thrown handler error is already handled.
+
 ## 1.8.0
 - Added a `--no-sourcemap` CLI flag to build hooks without generating source maps
 - Fixed inconsistent build output when the package is used across symlinked or nested `node_modules` layouts

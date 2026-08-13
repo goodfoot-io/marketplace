@@ -1,11 +1,19 @@
 /**
  * Unit tests for the runtime module.
  *
- * Tests wire format output conversion for hook outputs.
+ * Tests wire format output conversion for hook outputs, plus the execute()
+ * entrypoint's phase-by-phase error handling under both the default "error"
+ * policy and the opt-in "continue" fail-open policy.
  */
 
-import { describe, expect, it } from "vitest";
+import { EventEmitter } from "node:events";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { HookFunction } from "../src/hooks.js";
+import { userPromptSubmitHook } from "../src/hooks.js";
+import { logger } from "../src/logger.js";
+import type { SpecificHookOutput } from "../src/outputs.js";
 import {
+  EXIT_CODES,
   notificationOutput,
   permissionRequestOutput,
   postToolUseOutput,
@@ -17,7 +25,8 @@ import {
   worktreeCreateOutput,
   worktreeRemoveOutput,
 } from "../src/outputs.js";
-import { convertToHookOutput } from "../src/runtime.js";
+import { convertToHookOutput, execute } from "../src/runtime.js";
+import type { HookInput, UserPromptSubmitInput } from "../src/types.js";
 
 describe("convertToHookOutput", () => {
   /**
@@ -272,6 +281,239 @@ describe("convertToHookOutput", () => {
       const result = convertToHookOutput(specificOutput);
 
       expect(result.stdout.stopReason).toBe("Notification blocked");
+    });
+  });
+});
+
+class ProcessExitSignal extends Error {
+  public constructor(public readonly code: number | undefined) {
+    super(`process.exit(${String(code)})`);
+  }
+}
+
+class FakeStdin extends EventEmitter {
+  public setEncoding(): this {
+    return this;
+  }
+}
+
+function baseInput(overrides: Partial<UserPromptSubmitInput> = {}): UserPromptSubmitInput {
+  return {
+    hook_event_name: "UserPromptSubmit",
+    session_id: "test-session",
+    cwd: "/tmp",
+    transcript_path: "/tmp/transcript.jsonl",
+    prompt: "hello",
+    ...overrides,
+  } as UserPromptSubmitInput;
+}
+
+interface RunResult {
+  exitCode: number | undefined;
+  stdout: string;
+  stderr: string;
+}
+
+async function runExecuteWithStdin<TInput extends HookInput, TOutput extends SpecificHookOutput>(
+  hookFn: HookFunction<TInput, TOutput>,
+  stdinContent: string | "error",
+): Promise<RunResult> {
+  const fakeStdin = new FakeStdin();
+  Object.defineProperty(process, "stdin", { value: fakeStdin, configurable: true });
+
+  let stdout = "";
+  let stderr = "";
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk: unknown) => {
+    stdout += String(chunk);
+    return true;
+  });
+  const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation((chunk: unknown) => {
+    stderr += String(chunk);
+    return true;
+  });
+  const exitSpy = vi.spyOn(process, "exit").mockImplementation((code?: number | string | null): never => {
+    throw new ProcessExitSignal(typeof code === "number" ? code : undefined);
+  });
+
+  const runPromise = execute(hookFn).catch((error) => {
+    if (error instanceof ProcessExitSignal) {
+      return error;
+    }
+    throw error;
+  });
+
+  queueMicrotask(() => {
+    if (stdinContent === "error") {
+      fakeStdin.emit("error", new Error("stdin read failed"));
+    } else {
+      fakeStdin.emit("data", stdinContent);
+      fakeStdin.emit("end");
+    }
+  });
+
+  const result = await runPromise;
+  const exitCode = result instanceof ProcessExitSignal ? result.code : undefined;
+
+  stdoutSpy.mockRestore();
+  stderrSpy.mockRestore();
+  exitSpy.mockRestore();
+
+  return { exitCode, stdout, stderr };
+}
+
+const originalStdin = process.stdin;
+
+describe("execute", () => {
+  afterEach(() => {
+    Object.defineProperty(process, "stdin", { value: originalStdin, configurable: true });
+    vi.restoreAllMocks();
+  });
+
+  describe("default (error) policy", () => {
+    it("writes structured output and exits 0 on success", async () => {
+      const hook = userPromptSubmitHook({}, () =>
+        userPromptSubmitOutput({ hookSpecificOutput: { additionalContext: "extra context" } }),
+      );
+      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()));
+      expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect(JSON.parse(result.stdout)).toEqual({
+        hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: "extra context" },
+      });
+      expect(result.stderr).toBe("");
+    });
+
+    it("writes a stack trace and exits 2 (BLOCK) when the handler throws", async () => {
+      const hook = userPromptSubmitHook({}, () => {
+        throw new Error("handler exploded");
+      });
+      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()));
+      expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
+      expect(result.stderr).toContain("handler exploded");
+      expect(result.stdout).toBe("");
+    });
+
+    it("fails open unconditionally (independent of policy) on malformed stdin JSON", async () => {
+      const hook = userPromptSubmitHook({}, () => userPromptSubmitOutput({}));
+      const result = await runExecuteWithStdin(hook, "{not json");
+      expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect(JSON.parse(result.stdout)).toEqual({});
+    });
+
+    it("fails open unconditionally (independent of policy) when stdin itself errors", async () => {
+      const hook = userPromptSubmitHook({}, () => userPromptSubmitOutput({}));
+      const result = await runExecuteWithStdin(hook, "error");
+      expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect(JSON.parse(result.stdout)).toEqual({});
+    });
+
+    it("never writes stdout on the intentional stderr/BLOCK path, so Claude Code cannot mistake it for success", async () => {
+      const hook = userPromptSubmitHook({}, () => ({ ...teammateIdleOutput({ stderr: "please continue" }) }) as never);
+      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()));
+      expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
+      expect(result.stderr).toBe("please continue");
+      expect(result.stdout).toBe("");
+    });
+  });
+
+  describe("continue policy", () => {
+    it("emits {} and exits 0 when the handler throws", async () => {
+      const onUnexpectedError = vi.fn();
+      const hook = userPromptSubmitHook({ unexpectedError: "continue", onUnexpectedError }, () => {
+        throw new Error("handler exploded");
+      });
+      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()));
+      expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect(result.stdout).toBe("{}");
+      expect(onUnexpectedError).toHaveBeenCalledTimes(1);
+      expect(onUnexpectedError).toHaveBeenCalledWith(expect.any(Error), "handler");
+    });
+
+    it("emits {} and exits 0 for malformed stdin (already unconditional, but still holds under continue)", async () => {
+      const hook = userPromptSubmitHook({ unexpectedError: "continue" }, () => userPromptSubmitOutput({}));
+      const result = await runExecuteWithStdin(hook, "{not json");
+      expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect(JSON.parse(result.stdout)).toEqual({});
+    });
+
+    it("still honors an explicit stderr/BLOCK return from the handler", async () => {
+      const onUnexpectedError = vi.fn();
+      const hook = userPromptSubmitHook(
+        { unexpectedError: "continue", onUnexpectedError },
+        () => ({ ...teammateIdleOutput({ stderr: "blocked on purpose" }) }) as never,
+      );
+      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()));
+      expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
+      expect(result.stderr).toBe("blocked on purpose");
+      expect(result.stdout).toBe("");
+      expect(onUnexpectedError).not.toHaveBeenCalled();
+    });
+
+    it("emits {} and exits 0 when stdout.write fails", async () => {
+      const onUnexpectedError = vi.fn();
+      const hook = userPromptSubmitHook({ unexpectedError: "continue", onUnexpectedError }, () =>
+        userPromptSubmitOutput({ hookSpecificOutput: { additionalContext: "context" } }),
+      );
+
+      const fakeStdin = new FakeStdin();
+      Object.defineProperty(process, "stdin", { value: fakeStdin, configurable: true });
+      const exitSpy = vi.spyOn(process, "exit").mockImplementation((code?: number | string | null): never => {
+        throw new ProcessExitSignal(typeof code === "number" ? code : undefined);
+      });
+      const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+      let writeAttempts = 0;
+      const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => {
+        writeAttempts += 1;
+        throw new Error("EPIPE");
+      });
+
+      const runPromise = execute(hook).catch((error) => {
+        if (error instanceof ProcessExitSignal) {
+          return error;
+        }
+        throw error;
+      });
+      queueMicrotask(() => {
+        fakeStdin.emit("data", JSON.stringify(baseInput()));
+        fakeStdin.emit("end");
+      });
+      const result = await runPromise;
+
+      expect(result).toBeInstanceOf(ProcessExitSignal);
+      expect((result as ProcessExitSignal).code).toBe(EXIT_CODES.SUCCESS);
+      // Never retries with a fallback payload once a write was attempted, so
+      // stdout can never end up with concatenated/invalid JSON.
+      expect(writeAttempts).toBe(1);
+      expect(onUnexpectedError).toHaveBeenCalledWith(expect.any(Error), "write");
+
+      stdoutSpy.mockRestore();
+      stderrSpy.mockRestore();
+      exitSpy.mockRestore();
+    });
+
+    it("does not let a failing diagnostic sink escape or block cleanup", async () => {
+      const onUnexpectedError = vi.fn(() => {
+        throw new Error("diagnostic sink is broken too");
+      });
+      const hook = userPromptSubmitHook({ unexpectedError: "continue", onUnexpectedError }, () => {
+        throw new Error("handler exploded");
+      });
+      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()));
+      expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect(result.stdout).toBe("{}");
+    });
+
+    it("does not let logger cleanup failures escape", async () => {
+      const closeSpy = vi.spyOn(logger, "close").mockImplementation(() => {
+        throw new Error("close failed");
+      });
+      const onUnexpectedError = vi.fn();
+      const hook = userPromptSubmitHook({ unexpectedError: "continue", onUnexpectedError }, () =>
+        userPromptSubmitOutput({ hookSpecificOutput: { additionalContext: "context" } }),
+      );
+      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()));
+      expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+      expect(onUnexpectedError).toHaveBeenCalledWith(expect.any(Error), "cleanup");
+      closeSpy.mockRestore();
     });
   });
 });

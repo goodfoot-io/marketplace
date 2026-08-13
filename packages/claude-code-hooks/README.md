@@ -279,6 +279,39 @@ fileLogger.close();
 
 See the skill documentation for event subscription, log levels, and debugging tips.
 
+### Fail-Open Execution (`unexpectedError: "continue"`)
+
+By default, any unexpected runtime failure — malformed stdin, a thrown handler exception, output serialization, the stdout write, or logger cleanup — writes a stack trace to stderr and exits non-zero. For a handler throw specifically, that means exit code 2 (BLOCK), which Claude sees as a blocking failure — disproportionate for a hook whose only job is to add optional context.
+
+Opt a hook into fail-open behavior by passing `unexpectedError: "continue"` in its config:
+
+```typescript
+import { userPromptSubmitHook } from '@goodfoot/claude-code-hooks';
+
+export default userPromptSubmitHook(
+  {
+    unexpectedError: 'continue',
+    onUnexpectedError(error, phase) {
+      // Best-effort diagnostics. This callback itself can never fail the
+      // invocation — thrown errors here are swallowed.
+    },
+  },
+  async (input, { logger }) => {
+    // ...
+  },
+);
+```
+
+Under `unexpectedError: "continue"`:
+
+- Malformed/unreadable stdin already fails open unconditionally for every hook (independent of this setting) — that behavior is unchanged.
+- A thrown handler exception, an output-serialization error, a stdout write failure, or a logger-cleanup failure is caught, reported to `onUnexpectedError` (if provided) and the runtime logger, and swallowed.
+- The empty output (`{}`, valid for every hook event) is emitted and the process exits `0`.
+- An explicit blocking response the handler itself returns (e.g. `teammateIdleOutput({ stderr: '...' })`) is unaffected — it always writes that message and exits `2`. Only *unexpected* exceptions are ever swallowed, never the handler's own intentional decision.
+- `onUnexpectedError` and the runtime logger are both best-effort: if either one throws, that failure is swallowed too.
+
+`unexpectedError` defaults to `"error"` (today's behavior), so existing hooks are unaffected. Only opt in for **advisory enrichment hooks** — ones that add optional context and whose failure should be invisible to the user (`UserPromptSubmit`, `SessionStart`/`SubagentStart` context nudges, `PostToolUse`/`Notification` observers). Do not use it for hooks that make permission, safety, or policy decisions (`PreToolUse`, `PermissionRequest`, blocking `Stop`/`SubagentStop` checks) — a swallowed failure there silently grants the decision the hook was supposed to make. Also avoid it on `WorktreeCreate`/`WorktreeRemove`: their plain-text `rawStdout` wire protocol has no safe generic fallback, so a swallowed failure would write literal `{}` where Claude Code expects a path.
+
 ---
 
 ## 📁 Recommended Plugin Structure
@@ -333,7 +366,7 @@ You can safely:
 **"Claude shows an error when my hook runs."**
 
 1.  Did you `console.log`? (Check your code).
-2.  Did your hook throw an error? (Uncaught errors exit with code 2, which blocks Claude).
+2.  Did your hook throw an error? (Uncaught errors exit with code 2, which blocks Claude — unless the hook opts into `unexpectedError: 'continue'`; see "Fail-Open Execution" above).
 3.  Check the log file defined in `CLAUDE_CODE_HOOKS_LOG_FILE`.
 
 **"I can't see the tool input."**
@@ -359,6 +392,6 @@ You can safely:
     - Injects context (`logger`, and `persistEnvVar`/`persistEnvVars` for SessionStart hooks).
     - Executes your handler.
     - Formats the output.
-    - Writes to `stdout`.
+    - Writes to `stdout` — except on an intentional block (a handler-returned `stderr`, e.g. `teammateIdleOutput({ stderr })`), where nothing is written to `stdout` at all: Claude Code's hook-result parser treats any stdout that parses as valid JSON as success regardless of exit code, so blocking only takes effect when stdout carries no JSON.
 
 This separation ensures your hooks are fast, type-safe, and isolated.

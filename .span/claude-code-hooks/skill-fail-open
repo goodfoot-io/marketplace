@@ -1,0 +1,4 @@
+packages/claude-code-hooks/src/hooks.ts#L135-L230 rk64:d4d7945827242ea0
+plugins/claude-code-hooks/skills/sdk/SKILL.md#L186-L186 rk64:86309483a28e1ad2
+
+SKILL.md teaches the unexpectedError/onUnexpectedError fail-open config surface by name; hooks.ts's UnexpectedErrorPolicy/UnexpectedErrorHandler types and HookConfig fields define that surface. SKILL.md examples are not type-checked, so a field rename or removal would leave agent guidance recommending code that fails to compile.

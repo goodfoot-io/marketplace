@@ -132,6 +132,40 @@ import type {
  * preToolUseHook({ timeout: 5000 }, handler);
  * ```
  */
+/**
+ * "error" (default) preserves existing behavior: an unhandled exception
+ * anywhere in the runtime (stdin read/parse already fail open unconditionally;
+ * this governs handler throws, output serialization, the stdout write, and
+ * logger cleanup) writes a stack trace to stderr and exits non-zero.
+ *
+ * "continue" is an opt-in fail-open policy for advisory hooks whose only
+ * purpose is to enrich context (e.g. UserPromptSubmit additionalContext).
+ * Under this policy, unexpected runtime failures are swallowed, the empty
+ * output (`{}`) is emitted if no response was already produced, and the
+ * process exits 0 instead of surfacing a failed-hook banner to the user.
+ * An explicit `stderr`/blocking response returned by the handler itself is
+ * unaffected: it always writes that message and exits with code 2 (BLOCK).
+ * Do not use "continue" for hooks that enforce permission, safety, or
+ * policy decisions (PreToolUse, PermissionRequest, blocking Stop/
+ * SubagentStop checks) — a swallowed failure there silently grants the
+ * decision the hook was supposed to make. Also avoid it for hooks that use
+ * `rawStdout` (WorktreeCreate, WorktreeRemove): their plain-text wire
+ * protocol has no safe generic fallback, so a swallowed failure there would
+ * write literal `{}` where a path string is expected.
+ */
+export type UnexpectedErrorPolicy = "error" | "continue";
+
+/** The runtime phase in which an unexpected error occurred. */
+export type HookErrorPhase = "read" | "parse" | "handler" | "serialize" | "write" | "cleanup";
+
+/**
+ * Best-effort diagnostic sink for unexpected errors under the "continue"
+ * policy. Called in addition to (not instead of) the runtime's own logger.
+ * Errors thrown by this handler are swallowed — a broken diagnostic sink
+ * must never itself fail the invocation.
+ */
+export type UnexpectedErrorHandler = (error: unknown, phase: HookErrorPhase) => void;
+
 export interface HookConfig {
   /**
    * Regular expression pattern for matching hook events.
@@ -181,6 +215,18 @@ export interface HookConfig {
    * ```
    */
   timeout?: number;
+
+  /**
+   * Opt-in fail-open policy for unexpected runtime failures. Defaults to
+   * `"error"`. See {@link UnexpectedErrorPolicy} for the full contract.
+   */
+  unexpectedError?: UnexpectedErrorPolicy;
+
+  /**
+   * Best-effort diagnostic callback invoked when `unexpectedError: "continue"`
+   * swallows an unexpected runtime failure. See {@link UnexpectedErrorHandler}.
+   */
+  onUnexpectedError?: UnexpectedErrorHandler;
 }
 
 // ============================================================================
@@ -212,6 +258,16 @@ export interface TypedHookConfig<T extends KnownToolName> {
    * Handler execution timeout in milliseconds.
    */
   timeout?: number;
+  /**
+   * Opt-in fail-open policy for unexpected runtime failures. See
+   * {@link UnexpectedErrorPolicy}.
+   */
+  unexpectedError?: UnexpectedErrorPolicy;
+  /**
+   * Best-effort diagnostic callback for the "continue" policy. See
+   * {@link UnexpectedErrorHandler}.
+   */
+  onUnexpectedError?: UnexpectedErrorHandler;
 }
 
 /**
@@ -413,6 +469,17 @@ export interface HookFunction<TInput, TOutput extends SpecificHookOutput, TConte
    * The timeout in milliseconds, if configured.
    */
   timeout?: number;
+
+  /**
+   * The fail-open policy, if configured. See {@link UnexpectedErrorPolicy}.
+   */
+  unexpectedError?: UnexpectedErrorPolicy;
+
+  /**
+   * The diagnostic callback for the "continue" policy, if configured. See
+   * {@link UnexpectedErrorHandler}.
+   */
+  onUnexpectedError?: UnexpectedErrorHandler;
 }
 
 // ============================================================================
@@ -445,6 +512,8 @@ function createHookFunction<TInput, TOutput extends SpecificHookOutput, TContext
   hookFn.hookEventName = hookEventName;
   hookFn.matcher = config.matcher;
   hookFn.timeout = config.timeout;
+  hookFn.unexpectedError = config.unexpectedError;
+  hookFn.onUnexpectedError = config.onUnexpectedError;
 
   return hookFn;
 }

@@ -305,6 +305,9 @@ export interface CommonOptions {
  *
  * These hooks use exit codes only, not JSON decision control.
  * When `stderr` is provided, the runtime writes it to stderr and exits with code 2 (BLOCK).
+ * No stdout is written on this path: Claude Code's hook-result parser treats any stdout
+ * that parses as valid JSON as a success outcome regardless of exit code, so blocking
+ * only takes effect when stdout carries no JSON at all.
  * When absent, the hook exits with code 0 (SUCCESS).
  */
 export interface ExitCodeOptions {

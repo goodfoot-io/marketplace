@@ -27,6 +27,7 @@ export {
 export type {
   HookConfig,
   HookContext,
+  HookErrorPhase,
   HookFunction,
   HookHandler,
   SessionStartContext,
@@ -36,6 +37,8 @@ export type {
   TypedPostToolUseFailureHookInput,
   TypedPostToolUseHookInput,
   TypedPreToolUseHookInput,
+  UnexpectedErrorHandler,
+  UnexpectedErrorPolicy,
 } from "./hooks.js";
 // Hook factory functions - all 26 hook types
 export {
