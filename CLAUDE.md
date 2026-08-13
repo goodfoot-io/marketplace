@@ -1,9 +1,7 @@
 <golden-rule>
-After changing code or config (not markdown, JSON, or CSS): lint, typecheck, and run all tests. Lint and typecheck the whole project often; keep test runs tight, re-running a single failure alone until it passes. Validate from the changed package via its `package.json` scripts; for final checks run `yarn validate` from the root — exactly that, no `2>&1`/`echo $?` wrappers.
+Run the smallest set of checks that covers the credible failure modes of the change; expand validation at dependency boundaries, under uncertainty, and at integration gates.
 
-Resolve every warning and failure validation surfaces, including ones you didn't cause — never dismiss them as "pre-existing" or "unrelated".
-
-**A test blocked by an infrastructure error is a blocking condition; do not proceed.**
+Resolve every warning and failure from the required checks, including ones you did not cause; never dismiss them as "pre-existing" or "unrelated". A required check blocked by an infrastructure error is a blocking condition; do not proceed.
 </golden-rule>
 
 <workspace>
