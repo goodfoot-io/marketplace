@@ -225,3 +225,4 @@ third_party/reference/
 .devcontainer/utilities/deepseek*
 
 .env.*
+.claude/settings.local.json

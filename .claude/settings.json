@@ -1,31 +1,37 @@
 {
   "env": {
-    "MAX_MCP_OUTPUT_TOKENS": "100000",
-    "VOICE_SERVER_START_BY_DEFAULT": "0",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CARDS_CLAUDE_CODE_HOOKS_LOG_FILE": "/workspace/.cards/logs/claude-code-cards-api-hooks.log"
+    "VOICE_SERVER_HTTP_PORT": "5555",
+    "VOICE_SERVER_START_BY_DEFAULT": "0",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "250000"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
   },
   "permissions": {
     "allow": [],
     "deny": [
-      "NotebookRead",
-      "NotebookEdit"
+      "EnterPlanMode",
+      "ExitPlanMode",
+      "DesignSync",
+      "NotebookEdit",
+      "PushNotification",
+      "RemoteTrigger",
+      "ReportFindings"
     ],
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "bypassPermissions",
+    "disableAutoMode": "disable"
   },
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "printf '\\a'"
-          }
-        ]
-      }
-    ]
+  "disableClaudeAiConnectors": true,
+  "disableBundledSkills": true,
+  "worktree": {
+    "bgIsolation": "none"
   },
-  "enabledPlugins": {
+  "disableWorkflows": true,
+  "disableArtifact": false,
+"enabledPlugins": {
     "typescript-hooks@goodfoot": true,
     "typescript-claude-code-for-web-setup@goodfoot": false,
     "project@goodfoot": false,
@@ -38,7 +44,6 @@
     "claude-code-hooks@goodfoot": true,
     "code-simplifier@claude-plugins-official": false,
     "plugin-dev@claude-plugins-official": true,
-    "cards@cards.management": true,
     "voice@goodfoot": true,
     "git-span@git-span": true
   },
@@ -61,17 +66,14 @@
         "path": "./."
       }
     },
-    "cards.management": {
-      "source": {
-        "source": "directory",
-        "path": "/home/node/.vscode-server/data/User/globalStorage/goodfoot.cards/marketplace"
-      }
-    },
     "git-span": {
       "source": {
         "source": "github",
         "repo": "goodfoot-io/git-span"
       }
     }
-  }
+  },
+  "effortLevel": "medium",
+  "askUserQuestionTimeout": "never",
+  "autoMemoryEnabled": false
 }
