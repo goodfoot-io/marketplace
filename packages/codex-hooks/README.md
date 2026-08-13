@@ -108,6 +108,39 @@ Universal fields on every output: `continue`, `stopReason`, `suppressOutput`, `s
 - Unhandled exceptions write the stack trace to stderr and exit non-zero.
 - Plain-text return values are only accepted for `SessionStart`, `SubagentStart`, and `UserPromptSubmit`, where they are normalized into `additionalContext`.
 
+### Fail-Open Execution (`unexpectedError: "continue"`)
+
+By default, any unexpected runtime failure — malformed stdin, a thrown handler exception, a serialization error, a failed stdout write, or a logger cleanup failure — writes a stack trace to stderr and exits non-zero. Codex then shows a `hook (failed)` banner to the user, even though a handler that only adds optional context to a turn shouldn't be able to interrupt it.
+
+Opt a hook into fail-open behavior by passing `unexpectedError: "continue"` in its config:
+
+```ts
+import { userPromptSubmitHook } from "@goodfoot/codex-hooks";
+
+export default userPromptSubmitHook(
+  {
+    unexpectedError: "continue",
+    onUnexpectedError(error, phase) {
+      // Best-effort diagnostics. This callback itself can never fail the
+      // invocation — thrown errors here are swallowed.
+    },
+  },
+  async (input, { logger }) => {
+    // ...
+  },
+);
+```
+
+Under `unexpectedError: "continue"`:
+
+- `BlockError` is unaffected — it always writes its reason to stderr and exits `2`, regardless of policy.
+- Every other unexpected failure — in stdin reading, input parsing, handler execution, output serialization, the stdout write, or logger cleanup — is caught, reported to `onUnexpectedError` (if provided) and to the runtime logger, and swallowed.
+- If no response was written yet, the runtime emits the event's valid empty output (`{}`, valid for every hook event's schema) and exits `0`.
+- The response is always buffered and serialized before the first write, so a failure can never produce output concatenated onto a partially written response.
+- `onUnexpectedError` and the runtime logger are both best-effort: if either one throws, that failure is swallowed too — a broken diagnostic sink can never itself fail the invocation.
+
+`unexpectedError` defaults to `"error"` (the behavior above the fold), so existing hooks are unaffected. Only opt in for **advisory enrichment hooks** — ones that add optional context and whose failure should be invisible to the user (e.g. `UserPromptSubmit`, `SessionStart`, `SubagentStart` context nudges). Do not use `"continue"` for hooks that make permission, safety, or policy decisions (`PreToolUse`, `PermissionRequest`, blocking `PostToolUse`/`Stop`/`SubagentStop` checks) — silently swallowing a failure there means the hook's decision was silently skipped.
+
 ## Scaffolding
 
 ```bash

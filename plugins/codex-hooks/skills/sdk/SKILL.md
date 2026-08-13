@@ -170,6 +170,7 @@ These constraints are unique to Codex (not present in Claude Code):
 - **`permissionDecision: 'ask'`: reserved.** The wire schema permits it, but some Codex versions treat it as fail-closed. Treat `ask` as best-effort and verify against the target Codex build's `output_parser.rs` `unsupported_*` helpers.
 - **`updatedInput` (PreToolUse): only honored when `permissionDecision: 'allow'`.** Emitting it with `deny` or `ask` is a no-op (and may fail-closed in stricter builds).
 - **PermissionRequest `interrupt: true`, `updatedInput`, `updatedPermissions`: reserved (fail-closed).** Emit them only if you have confirmed the target Codex build supports them; otherwise omit.
+- **Unexpected runtime failures exit non-zero by default**, which Codex surfaces as a failed-hook banner even for a hook whose only job is to add optional context. Advisory hooks (context nudges on `UserPromptSubmit`, `SessionStart`, `SubagentStart`) can opt into `unexpectedError: 'continue'` in the factory config to fail open instead — see Pattern D below. Never set this on hooks that make permission, safety, or policy decisions (`PreToolUse`, `PermissionRequest`, blocking `Stop`/`SubagentStop`/`PostToolUse`): a swallowed failure there silently grants the decision the hook was supposed to make.
 
 ## 6. Common Patterns
 
@@ -224,6 +225,32 @@ export default sessionStartHook({ matcher: 'startup' }, () => {
   });
 });
 ```
+
+### Pattern D: Fail-open advisory context (UserPromptSubmit)
+
+```typescript
+import { userPromptSubmitHook } from '@goodfoot/codex-hooks';
+
+export default userPromptSubmitHook(
+  {
+    unexpectedError: 'continue',
+    onUnexpectedError(error, phase) {
+      // Best-effort diagnostics only — this callback can never fail the invocation.
+    }
+  },
+  async (input, { logger }) => {
+    try {
+      if (input.prompt.includes('cards-extension')) {
+        return 'Consider loading the cards skill.';
+      }
+    } catch (error) {
+      logger.warn('nudge hook failed (fail-open)', { error });
+    }
+  }
+);
+```
+
+`unexpectedError: 'continue'` covers failures the handler's own `try`/`catch` cannot: stdin reading, JSON parsing, output serialization, the stdout write, and logger cleanup. On any of those, the runtime emits `{}` and exits `0` instead of the default non-zero exit. `BlockError` still exits `2` regardless of this setting.
 
 ## 7. Agent Protocol: The "Forensic" Method
 

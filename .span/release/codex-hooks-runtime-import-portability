@@ -1,5 +1,5 @@
-packages/codex-hooks/CHANGELOG.md#L6-L8 rk64:bf0ca242ca237c10
-packages/codex-hooks/package.json#L3-L3 rk64:fb23ddf06efb64de
-packages/codex-hooks/src/cli.ts#L305-L371 rk64:0b905a0b22b2087f
+packages/codex-hooks/CHANGELOG.md#L14-L16 rk64:bf0ca242ca237c10
+packages/codex-hooks/package.json#L3-L3 rk64:9b1e89f8c531216f
+packages/codex-hooks/src/cli.ts#L307-L399 rk64:4263d3e6baaf353d
 
 Version 1.1.5 release of codex-hooks with the runtime-import re-rooting fix for symlink portability: the changelog entry documents the fix; the version bump marks the release; the code fix implements the solution.

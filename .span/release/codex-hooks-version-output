@@ -1,5 +1,5 @@
-packages/codex-hooks/e2e/runtime-and-build.test.ts#L194-L200 rk64:4a98fcd23b7488e9
-packages/codex-hooks/package.json#L3-L3 rk64:fb23ddf06efb64de
-packages/codex-hooks/src/cli.ts#L67-L67 rk64:6a6227cfd16e0b6a
+packages/codex-hooks/e2e/runtime-and-build.test.ts#L273-L279 rk64:7b525eca5c9ecaf4
+packages/codex-hooks/package.json#L3-L3 rk64:9b1e89f8c531216f
+packages/codex-hooks/src/cli.ts#L67-L67 rk64:0a5cd3d827a3c7fb
 
 The e2e version guard asserts the CLI's --version output matches the package version; the VERSION constant and the package.json version field must stay in agreement with the guard when a release bumps the version.

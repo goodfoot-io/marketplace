@@ -84,6 +84,7 @@ export {
 export { convertToHookOutput, execute } from "./runtime.js";
 export type {
   BaseHookInput,
+  HookErrorPhase,
   HookEventName,
   HookInput,
   MatcherHookConfig,
@@ -100,5 +101,7 @@ export type {
   StopInput,
   SubagentStartInput,
   SubagentStopInput,
+  UnexpectedErrorHandler,
+  UnexpectedErrorPolicy,
   UserPromptSubmitInput,
 } from "./types.js";

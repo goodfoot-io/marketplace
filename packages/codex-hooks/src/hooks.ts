@@ -23,6 +23,8 @@ import type {
   StopInput,
   SubagentStartInput,
   SubagentStopInput,
+  UnexpectedErrorHandler,
+  UnexpectedErrorPolicy,
   UserPromptSubmitInput,
 } from "./types.js";
 
@@ -35,6 +37,8 @@ interface HookMetadata<TEvent extends string> {
   matcher?: string;
   timeout?: number;
   statusMessage?: string;
+  unexpectedError?: UnexpectedErrorPolicy;
+  onUnexpectedError?: UnexpectedErrorHandler;
 }
 
 export interface HookFunction<TInput, TOutput, TEvent extends string> extends HookMetadata<TEvent> {
@@ -63,6 +67,8 @@ function attachMetadata<TInput, TOutput, TEvent extends string>(
   hook.hookEventName = hookEventName;
   hook.timeout = config.timeout;
   hook.statusMessage = config.statusMessage;
+  hook.unexpectedError = config.unexpectedError;
+  hook.onUnexpectedError = config.onUnexpectedError;
   if ("matcher" in config && typeof config.matcher === "string") {
     hook.matcher = config.matcher;
   }

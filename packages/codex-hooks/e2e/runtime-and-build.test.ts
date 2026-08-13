@@ -138,6 +138,85 @@ describe("codex-hooks e2e", () => {
     expect(run.stderr).toContain("blocked");
   });
 
+  it("continue policy emits {} and exits 0 for a compiled UserPromptSubmit hook that throws", () => {
+    const projectDir = createTempDir();
+    fs.mkdirSync(path.join(projectDir, "src"), { recursive: true });
+
+    fs.writeFileSync(
+      path.join(projectDir, "src", "user-prompt-submit.ts"),
+      `
+        import { userPromptSubmitHook } from ${JSON.stringify(path.join(packageRoot, "src", "index.ts"))};
+        export default userPromptSubmitHook({ unexpectedError: "continue" }, () => {
+          throw new Error("advisory enrichment blew up");
+        });
+      `,
+    );
+
+    const build = spawnSync(
+      tsxBin,
+      [path.join(packageRoot, "src", "cli.ts"), "-i", "src/**/*.ts", "-o", "hooks.json"],
+      {
+        cwd: projectDir,
+        encoding: "utf-8",
+      },
+    );
+    expect(build.status).toBe(0);
+
+    const compiledFile = fs.readdirSync(projectDir).find((entry) => entry.endsWith(".mjs"));
+    expect(compiledFile).toBeDefined();
+
+    const run = spawnSync("node", [path.join(projectDir, compiledFile ?? "")], {
+      input: JSON.stringify({
+        cwd: projectDir,
+        hook_event_name: "UserPromptSubmit",
+        model: "gpt-5",
+        permission_mode: "default",
+        prompt: "hello",
+        session_id: "sess-1",
+        transcript_path: null,
+        turn_id: "turn-1",
+      }),
+      encoding: "utf-8",
+    });
+
+    expect(run.status).toBe(0);
+    expect(JSON.parse(run.stdout)).toEqual({});
+  });
+
+  it("continue policy emits {} and exits 0 for a compiled hook fed malformed stdin", () => {
+    const projectDir = createTempDir();
+    fs.mkdirSync(path.join(projectDir, "src"), { recursive: true });
+
+    fs.writeFileSync(
+      path.join(projectDir, "src", "user-prompt-submit.ts"),
+      `
+        import { userPromptSubmitHook } from ${JSON.stringify(path.join(packageRoot, "src", "index.ts"))};
+        export default userPromptSubmitHook({ unexpectedError: "continue" }, () => undefined);
+      `,
+    );
+
+    const build = spawnSync(
+      tsxBin,
+      [path.join(packageRoot, "src", "cli.ts"), "-i", "src/**/*.ts", "-o", "hooks.json"],
+      {
+        cwd: projectDir,
+        encoding: "utf-8",
+      },
+    );
+    expect(build.status).toBe(0);
+
+    const compiledFile = fs.readdirSync(projectDir).find((entry) => entry.endsWith(".mjs"));
+    expect(compiledFile).toBeDefined();
+
+    const run = spawnSync("node", [path.join(projectDir, compiledFile ?? "")], {
+      input: "not valid json",
+      encoding: "utf-8",
+    });
+
+    expect(run.status).toBe(0);
+    expect(JSON.parse(run.stdout)).toEqual({});
+  });
+
   it("builds with --no-sourcemap and the compiled hook still runs", () => {
     const projectDir = createTempDir();
     fs.mkdirSync(path.join(projectDir, "src"), { recursive: true });
@@ -196,6 +275,6 @@ describe("codex-hooks e2e", () => {
       encoding: "utf-8",
     });
     expect(version.status).toBe(0);
-    expect(version.stdout.trim()).toBe("1.2.0");
+    expect(version.stdout.trim()).toBe("1.3.0");
   });
 });
