@@ -49,3 +49,14 @@ RUN npm install -g claude-code-templates @sasazame/ccresume @img/sharp-linux-arm
   npm install -g @ast-grep/cli ts-morph cyclomatic-complexity fast-check eslintcc typescript-language-server typescript @phenomnomnominal/tsquery chokidar-cli && \
   npm install -g dotenv-cli && \
   npm install -g agent-browser git-span
+
+# Guarantee the named-volume mountpoints exist node-owned in the final image
+# even if built against a stale devcontainer-base: fresh volumes initialize
+# content and ownership from these image paths, and a root-owned mountpoint
+# would break opencode/cards (uid 1000) on first run. Top-level paths, not
+# nested in /home/node: libkrun attaches the home virtiofs bind after start,
+# shadowing nested mounts; the base entrypoint symlinks the home paths here.
+USER root
+RUN mkdir -p /var/lib/coaxial/opencode /var/lib/coaxial/cards-worktrees \
+  && chown -R node:node /var/lib/coaxial
+USER node

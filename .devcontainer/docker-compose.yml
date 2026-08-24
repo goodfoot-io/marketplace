@@ -1,7 +1,7 @@
-version: '3.8'
-
 volumes:
   db_storage_pg18:
+  opencode-data:
+  cards-worktrees:
 
 services:
   app:
@@ -22,6 +22,13 @@ services:
       # Tailscale state under ~/.local/share/tailscale) across rebuilds.
       - ${HOME}/devcontainer/marketplace:/home/node:cached
       - /var/run/docker.sock:/var/run/docker.sock
+      # opencode data (WAL-mode SQLite + logs) and card worktrees are the heavy
+      # virtiofs writers; both move to container-native named volumes. Mounted at
+      # top-level /var/lib/coaxial paths — NOT nested inside /home/node — because
+      # libkrun attaches the home virtiofs bind after start, silently shadowing
+      # nested mounts. The base entrypoint symlinks the home paths here.
+      - opencode-data:/var/lib/coaxial/opencode
+      - cards-worktrees:/var/lib/coaxial/cards-worktrees
     environment:
       - NODE_OPTIONS=--max-old-space-size=8192
       - CLAUDE_CONFIG_DIR=/home/node/.claude
