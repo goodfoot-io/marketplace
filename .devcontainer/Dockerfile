@@ -58,5 +58,6 @@ RUN npm install -g claude-code-templates @sasazame/ccresume @img/sharp-linux-arm
 # shadowing nested mounts; the base entrypoint symlinks the home paths here.
 USER root
 RUN mkdir -p /var/lib/coaxial/opencode /var/lib/coaxial/cards-worktrees \
+    /var/lib/coaxial/rustup /var/lib/coaxial/cargo \
   && chown -R node:node /var/lib/coaxial
 USER node
