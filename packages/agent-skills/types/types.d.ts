@@ -57,6 +57,7 @@ export interface BuildFileSystem {
     }): Promise<unknown>;
     mkdtemp(prefix: string): Promise<string>;
     writeFile(path: string, data: Uint8Array | string): Promise<unknown>;
+    readFile(path: string, encoding: "utf8"): Promise<string>;
     chmod(path: string, mode: number): Promise<unknown>;
     lstat(path: string): Promise<unknown>;
     rename(from: string, to: string): Promise<unknown>;
@@ -71,6 +72,12 @@ export interface BuildResult {
         readonly target: OutputTarget;
         readonly files: readonly string[];
     }[];
+    readonly residues: readonly TransactionResidue[];
+}
+export interface TransactionResidue {
+    readonly kind: "backup" | "stage" | "lock";
+    readonly path: string;
+    readonly error: string;
 }
 export interface LintOptions extends BuildOptions {
 }

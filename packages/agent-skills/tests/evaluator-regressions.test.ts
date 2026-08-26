@@ -1,5 +1,5 @@
 import * as fs from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { build, createHelpers, lint, renderTemplate } from "../src/index.js";
@@ -29,6 +29,7 @@ function injectedFileSystem(fail: { operation: "rename" | "write"; position: num
   let writes = 0;
   return {
     mkdir: fs.mkdir,
+    readFile: fs.readFile,
     mkdtemp: fs.mkdtemp,
     chmod: fs.chmod,
     lstat: fs.lstat,
@@ -54,6 +55,7 @@ function renameFailureFileSystem(positions: readonly number[]): BuildFileSystem 
     chmod: fs.chmod,
     lstat: fs.lstat,
     rm: fs.rm,
+    readFile: fs.readFile,
     writeFile: fs.writeFile,
     rename: async (...args) => {
       renames += 1;
@@ -62,6 +64,21 @@ function renameFailureFileSystem(positions: readonly number[]): BuildFileSystem 
     },
   };
 }
+
+async function writeLock(lock: string, owner: unknown): Promise<void> {
+  await fs.mkdir(lock, { recursive: true });
+  await fs.writeFile(join(lock, "owner.json"), typeof owner === "string" ? owner : `${JSON.stringify(owner)}\n`);
+}
+
+const owner = (overrides: Record<string, unknown> = {}) => ({
+  version: 1,
+  pid: process.pid,
+  host: hostname(),
+  processStart: null,
+  startedAt: new Date().toISOString(),
+  transactionId: "foreign-transaction",
+  ...overrides,
+});
 
 describe("coordinated target transaction", () => {
   for (const position of [1, 2, 3, 4])
@@ -119,7 +136,7 @@ describe("coordinated target transaction", () => {
       (reason: unknown) => reason,
     )) as AggregateError;
     expect(error).toBeInstanceOf(AggregateError);
-    expect(error.message).toMatch(/injected rename failure 4.*rollback failed.*Recoverable backup paths/);
+    expect(error.message).toMatch(/injected rename failure 4.*rollback\/cleanup failed.*Recoverable paths/);
     const backups = (await fs.readdir(parent)).filter((name) => name.includes("agent-skills-backup"));
     expect(backups).toHaveLength(1);
     const backup = backups[0];
@@ -147,9 +164,10 @@ describe("coordinated target transaction", () => {
       lstat: fs.lstat,
       rename: fs.rename,
       rm: fs.rm,
+      readFile: fs.readFile,
       writeFile: async (...args) => {
         const result = await fs.writeFile(...args);
-        if (!held && String(args[0]).endsWith("/owner")) {
+        if (!held && String(args[0]).endsWith("/owner.json")) {
           held = true;
           signalOwner?.();
           await hold;
@@ -175,6 +193,135 @@ describe("coordinated target transaction", () => {
       await expect(fs.lstat(`${target}.agent-skills.lock`)).rejects.toThrow();
     }
     expect((await fs.readdir(parent)).some((name) => name.includes("agent-skills-backup"))).toBe(false);
+  });
+
+  it("atomically reclaims a lock whose local owner is proven dead", async () => {
+    const { root, targets } = await fixture();
+    const lock = `${targets[0]}.agent-skills.lock`;
+    await writeLock(lock, owner({ pid: 2_000_000_000, processStart: "dead" }));
+    const result = await build({
+      root,
+      patterns: ["one/SKILL.md.eta"],
+      targets: [{ platform: "codex", outDir: targets[0] }],
+    });
+    expect(result.residues).toEqual([]);
+    await expect(fs.readFile(join(targets[0], "one", "SKILL.md"), "utf8")).resolves.toBe("# codex\n");
+    await expect(fs.lstat(lock)).rejects.toThrow();
+  });
+
+  it.each([
+    ["live", owner()],
+    ["foreign", owner({ host: "foreign.example", pid: 2_000_000_000, startedAt: "1970-01-01T00:00:00.000Z" })],
+    ["malformed", "not-json"],
+  ])("fails safe for %s lock ownership", async (_name, metadata) => {
+    const { root, targets } = await fixture();
+    const lock = `${targets[0]}.agent-skills.lock`;
+    await writeLock(lock, metadata);
+    await expect(
+      build({ root, patterns: ["one/SKILL.md.eta"], targets: [{ platform: "codex", outDir: targets[0] }] }),
+    ).rejects.toThrow(/lock contention/);
+    await expect(fs.lstat(lock)).resolves.toBeDefined();
+    await expect(fs.readFile(join(targets[0], "old.txt"), "utf8")).resolves.toBe("old\n");
+  });
+
+  it("releases its partial sorted lock set without deleting the foreign lock", async () => {
+    const { root, targets } = await fixture();
+    const foreign = `${targets[1]}.agent-skills.lock`;
+    await writeLock(foreign, owner({ host: "foreign.example" }));
+    await expect(
+      build({
+        root,
+        patterns: ["one/SKILL.md.eta"],
+        targets: [
+          { platform: "codex", outDir: targets[0] },
+          { platform: "codex", outDir: targets[1] },
+        ],
+      }),
+    ).rejects.toThrow(/lock contention/);
+    await expect(fs.lstat(`${targets[0]}.agent-skills.lock`)).rejects.toThrow();
+    await expect(fs.lstat(foreign)).resolves.toBeDefined();
+  });
+
+  for (const kind of ["backup", "lock"] as const)
+    for (const position of [1, 2])
+      it(`keeps published targets when ${kind} cleanup ${position} fails`, async () => {
+        const { root, targets } = await fixture();
+        let seen = 0;
+        const adapter: BuildFileSystem = {
+          mkdir: fs.mkdir,
+          mkdtemp: fs.mkdtemp,
+          chmod: fs.chmod,
+          lstat: fs.lstat,
+          rename: fs.rename,
+          writeFile: fs.writeFile,
+          readFile: fs.readFile,
+          rm: async (path, options) => {
+            const matches =
+              kind === "backup"
+                ? String(path).includes("agent-skills-backup")
+                : String(path).endsWith("agent-skills.lock");
+            if (matches) {
+              seen += 1;
+              if (seen === position) throw new Error(`injected ${kind} cleanup`);
+            }
+            return fs.rm(path, options);
+          },
+        };
+        const result = await build({
+          root,
+          patterns: ["one/SKILL.md.eta"],
+          targets: [
+            { platform: "codex", outDir: targets[0] },
+            { platform: "opencode", outDir: targets[1] },
+          ],
+          fileSystem: adapter,
+        });
+        expect(result.residues).toHaveLength(1);
+        expect(result.residues[0]).toMatchObject({ kind });
+        await expect(fs.lstat(result.residues[0]?.path ?? "missing")).resolves.toBeDefined();
+        await expect(fs.readFile(join(targets[0], "one", "SKILL.md"), "utf8")).resolves.toBe("# codex\n");
+        await expect(fs.readFile(join(targets[1], "one", "SKILL.md"), "utf8")).resolves.toBe("# opencode\n");
+      });
+
+  it("reports an existing stage residue without changing old targets before commit", async () => {
+    const { root, targets } = await fixture();
+    let stageWrite = 0;
+    const adapter: BuildFileSystem = {
+      mkdir: fs.mkdir,
+      mkdtemp: fs.mkdtemp,
+      chmod: fs.chmod,
+      lstat: fs.lstat,
+      rename: fs.rename,
+      readFile: fs.readFile,
+      writeFile: async (path, data) => {
+        if (String(path).includes("agent-skills-stage")) {
+          stageWrite += 1;
+          if (stageWrite === 2) throw new Error("injected staging failure");
+        }
+        return fs.writeFile(path, data);
+      },
+      rm: async (path, options) => {
+        if (String(path).includes("agent-skills-stage")) throw new Error("injected stage cleanup");
+        return fs.rm(path, options);
+      },
+    };
+    const error = (await build({
+      root,
+      patterns: ["one/SKILL.md.eta"],
+      targets: [
+        { platform: "codex", outDir: targets[0] },
+        { platform: "codex", outDir: targets[1] },
+      ],
+      fileSystem: adapter,
+    }).then(
+      () => undefined,
+      (reason: unknown) => reason,
+    )) as AggregateError;
+    expect(error.message).toMatch(/staging failure.*cleanup failed.*Recoverable paths/);
+    const stagePath = error.message.split("Recoverable paths: ")[1]?.split(", ")[0];
+    expect(stagePath).toBeDefined();
+    await expect(fs.lstat(stagePath ?? "missing")).resolves.toBeDefined();
+    for (const target of targets) await expect(fs.readFile(join(target, "old.txt"), "utf8")).resolves.toBe("old\n");
   });
 });
 

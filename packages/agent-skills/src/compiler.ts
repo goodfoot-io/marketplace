@@ -1,4 +1,5 @@
 import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import { hostname } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { Eta } from "eta";
 import { glob } from "glob";
@@ -18,6 +19,7 @@ import type {
   RenderedTemplate,
   RenderTemplateOptions,
   TemplateFrontConfig,
+  TransactionResidue,
 } from "./types.js";
 import { PLATFORMS } from "./types.js";
 
@@ -176,7 +178,7 @@ async function manifests(options: BuildOptions): Promise<ReadonlyMap<Platform, P
   return result;
 }
 
-const DEFAULT_FS: BuildFileSystem = { mkdir, mkdtemp, writeFile, chmod, lstat, rename, rm };
+const DEFAULT_FS: BuildFileSystem = { mkdir, mkdtemp, writeFile, readFile, chmod, lstat, rename, rm };
 async function physicalPath(path: string): Promise<string> {
   const suffix: string[] = [];
   let cursor = resolve(path);
@@ -229,28 +231,110 @@ interface PreparedTarget {
   swapped: boolean;
   restored: boolean;
 }
+interface LockOwner {
+  readonly version: 1;
+  readonly pid: number;
+  readonly host: string;
+  readonly processStart: string | null;
+  readonly startedAt: string;
+  readonly transactionId: string;
+}
+async function processStart(pid: number, fileSystem: BuildFileSystem): Promise<string | null> {
+  try {
+    const statLine = await fileSystem.readFile(`/proc/${pid}/stat`, "utf8");
+    return (
+      statLine
+        .slice(statLine.lastIndexOf(")") + 2)
+        .trim()
+        .split(/\s+/)[19] ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+function pidIsDead(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
+  }
+}
+async function reclaimableLock(lock: string, fileSystem: BuildFileSystem): Promise<boolean> {
+  let owner: LockOwner;
+  try {
+    const parsed = JSON.parse(await fileSystem.readFile(join(lock, "owner.json"), "utf8")) as Partial<LockOwner>;
+    if (
+      parsed.version !== 1 ||
+      !Number.isSafeInteger(parsed.pid) ||
+      Number(parsed.pid) <= 0 ||
+      typeof parsed.host !== "string" ||
+      typeof parsed.startedAt !== "string" ||
+      typeof parsed.transactionId !== "string" ||
+      !(typeof parsed.processStart === "string" || parsed.processStart === null)
+    )
+      return false;
+    owner = parsed as LockOwner;
+  } catch {
+    return false;
+  }
+  if (owner.host !== hostname()) return false;
+  if (pidIsDead(owner.pid)) return true;
+  const actualStart = await processStart(owner.pid, fileSystem);
+  return owner.processStart !== null && actualStart !== null && owner.processStart !== actualStart;
+}
+async function acquireLock(lock: string, transactionId: string, fileSystem: BuildFileSystem): Promise<void> {
+  await fileSystem.mkdir(dirname(lock), { recursive: true });
+  for (;;) {
+    try {
+      await fileSystem.mkdir(lock);
+      try {
+        const owner: LockOwner = {
+          version: 1,
+          pid: process.pid,
+          host: hostname(),
+          processStart: await processStart(process.pid, fileSystem),
+          startedAt: new Date().toISOString(),
+          transactionId,
+        };
+        await fileSystem.writeFile(join(lock, "owner.json"), `${JSON.stringify(owner)}\n`);
+      } catch (error) {
+        await fileSystem.rm(lock, { recursive: true, force: true });
+        throw error;
+      }
+      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      if (!(await reclaimableLock(lock, fileSystem))) throw new Error(`Target lock contention: ${lock}`);
+      const quarantine = `${lock}.stale-${transactionId}`;
+      try {
+        await fileSystem.rename(lock, quarantine);
+      } catch (renameError) {
+        if ((renameError as NodeJS.ErrnoException).code === "ENOENT") continue;
+        throw renameError;
+      }
+      await fileSystem.rm(quarantine, { recursive: true, force: true });
+    }
+  }
+}
 async function materializeAll(
   targets: readonly { target: string; manifest: PlatformManifest }[],
   fileSystem: BuildFileSystem,
-): Promise<void> {
+): Promise<readonly TransactionResidue[]> {
   const prepared: PreparedTarget[] = [];
   const transactionId = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const locks = (
     await Promise.all(targets.map(async (item) => `${await physicalPath(item.target)}.agent-skills.lock`))
   ).sort();
   const acquiredLocks: string[] = [];
-  let transactionFailed = false;
+  let committed = false;
+  let primaryError: unknown;
+  const rollbackErrors: Error[] = [];
+  const residues: TransactionResidue[] = [];
   try {
     for (const lock of locks) {
-      try {
-        await fileSystem.mkdir(dirname(lock), { recursive: true });
-        await fileSystem.mkdir(lock);
-        acquiredLocks.push(lock);
-        await fileSystem.writeFile(join(lock, "owner"), transactionId);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new Error(`Target lock contention: ${lock}`);
-        throw error;
-      }
+      await acquireLock(lock, transactionId, fileSystem);
+      acquiredLocks.push(lock);
     }
     for (const item of targets) {
       const target = resolve(item.target);
@@ -283,11 +367,9 @@ async function materializeAll(
       await fileSystem.rename(state.stage, state.target);
       state.swapped = true;
     }
-    for (const state of prepared)
-      if (state.existed) await fileSystem.rm(state.backup, { recursive: true, force: true });
+    committed = true;
   } catch (error) {
-    transactionFailed = true;
-    const rollbackErrors: Error[] = [];
+    primaryError = error;
     for (const state of [...prepared].reverse()) {
       if (state.swapped) {
         try {
@@ -310,22 +392,58 @@ async function materializeAll(
         }
       }
     }
-    if (rollbackErrors.length) {
-      const backups = prepared.filter((state) => state.existed && !state.restored).map((state) => state.backup);
-      throw new AggregateError(
-        [error, ...rollbackErrors],
-        `Transaction failed: ${error instanceof Error ? error.message : String(error)}; rollback failed. Recoverable backup paths: ${backups.join(", ")}`,
-      );
-    }
-    throw error;
-  } finally {
-    for (const state of prepared) {
-      await fileSystem.rm(state.stage, { recursive: true, force: true });
-      if (!state.existed || state.restored || !transactionFailed)
-        await fileSystem.rm(state.backup, { recursive: true, force: true });
-    }
-    for (const lock of acquiredLocks.reverse()) await fileSystem.rm(lock, { recursive: true, force: true });
   }
+  if (committed) {
+    for (const state of prepared)
+      if (state.existed) {
+        try {
+          await fileSystem.rm(state.backup, { recursive: true, force: true });
+        } catch (error) {
+          residues.push({
+            kind: "backup",
+            path: state.backup,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+  } else {
+    for (const state of prepared) {
+      if (!state.swapped)
+        try {
+          await fileSystem.rm(state.stage, { recursive: true, force: true });
+        } catch (error) {
+          residues.push({
+            kind: "stage",
+            path: state.stage,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      if (state.existed && state.restored)
+        try {
+          await fileSystem.rm(state.backup, { recursive: true, force: true });
+        } catch {
+          /* rename normally consumed it */
+        }
+    }
+  }
+  for (const lock of acquiredLocks.reverse()) {
+    try {
+      await fileSystem.rm(lock, { recursive: true, force: true });
+    } catch (error) {
+      residues.push({ kind: "lock", path: lock, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  if (!committed) {
+    const backups = prepared.filter((state) => state.existed && !state.restored).map((state) => state.backup);
+    const details = [...backups, ...residues.map((item) => item.path)];
+    if (rollbackErrors.length || residues.length)
+      throw new AggregateError(
+        [primaryError, ...rollbackErrors],
+        `Transaction failed: ${primaryError instanceof Error ? primaryError.message : String(primaryError)}; rollback/cleanup failed. Recoverable paths: ${details.join(", ")}`,
+      );
+    throw primaryError;
+  }
+  return residues;
 }
 
 export async function build(options: BuildOptions): Promise<BuildResult> {
@@ -338,10 +456,11 @@ export async function build(options: BuildOptions): Promise<BuildResult> {
     if (!manifest) throw new Error(`Missing manifest for ${target.platform}`);
     swaps.push({ target: target.outDir, manifest });
   }
-  await materializeAll(swaps, options.fileSystem ?? DEFAULT_FS);
+  const residues = await materializeAll(swaps, options.fileSystem ?? DEFAULT_FS);
   return {
     manifests: rendered,
     written: targets.map((target) => ({ target, files: [...(rendered.get(target.platform)?.files.keys() ?? [])] })),
+    residues,
   };
 }
 

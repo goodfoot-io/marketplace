@@ -54,4 +54,6 @@ The generated reference model covers `it.platform`, `it.is`, `it.variant`, `it.s
 
 The closed export map exposes the root API plus `./types`, `./platforms`, and `./helper-reference`. Companion documentation should import `getHelperReferenceModel()` or `renderHelperReferenceMarkdown()` from `@goodfoot/agent-skills/helper-reference`.
 
+`build()` reports post-commit cleanup failures in `BuildResult.residues` as typed backup, stage, or lock paths. A non-empty residue list means every target was already published atomically; the listed paths are intentionally retained for operator cleanup and are never used to roll back committed output.
+
 Run `typecheck`, `lint`, `build`, and `test` through `yarn workspace @goodfoot/agent-skills`. Use `release:dry-run` before release.
