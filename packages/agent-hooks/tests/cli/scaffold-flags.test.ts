@@ -97,7 +97,7 @@ describe("usage lines carry the required flag", () => {
     const usageBlock = help.slice(usageIndex, usageIndex + 400);
     expect(usageBlock).toContain("--agent <agent>");
     expect(help).toContain("Required Arguments:");
-    expect(help).toContain("--agent <claude-code|codex|antigravity>");
+    expect(help).toContain("--agent <claude-code|codex|antigravity|opencode>");
     // Every numbered example compiles or scaffolds through the flag.
     const exampleLines = help.split("\n").filter((line) => /npx -y @goodfoot\/agent-hooks/.test(line));
     expect(exampleLines.length).toBeGreaterThan(0);

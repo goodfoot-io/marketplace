@@ -184,10 +184,12 @@ Usage:
                             under a .codex/ directory use git-toplevel-relative commands.
 
 Required Arguments:
-  --agent <claude-code|codex|antigravity>
+  --agent <claude-code|codex|antigravity|opencode>
       The agent runtime the hooks are built for. Determines the hook surface
       validated at build time and the runtime module linked into each compiled
       bundle. There is no default: omitting this flag is an error.
+      With --agent opencode, -o/--output is treated as a plugin artifact
+      directory (no hooks.json manifest is generated).
       Example: --agent claude-code
 
 Build Mode (compile existing hooks):
@@ -456,13 +458,13 @@ function validateArgs(args: CliArgs): string | undefined {
   // --agent is required and never inferred (plan step 2.3). Validate the
   // value against the agents this release knows, so a typo fails closed
   // instead of silently building for the wrong runtime.
-  const VALID_AGENTS = ["claude-code", "codex", "antigravity"] as const;
+  const VALID_AGENTS = ["claude-code", "codex", "antigravity", "opencode"] as const;
   type ValidAgent = (typeof VALID_AGENTS)[number];
   const isKnownAgent = (value: string): value is ValidAgent => (VALID_AGENTS as readonly string[]).includes(value);
 
   if (!isKnownAgent(args.agent)) {
     return args.agent === ""
-      ? "Missing required argument: --agent <claude-code|codex|antigravity>"
+      ? "Missing required argument: --agent <claude-code|codex|antigravity|opencode>"
       : `Invalid --agent value: ${args.agent}. Valid agents: ${VALID_AGENTS.join(", ")}`;
   }
 
@@ -1526,10 +1528,44 @@ async function main(): Promise<void> {
     }
   }
 
+  if (args.agent === "opencode") {
+    const { runOpenCodeCli, validateOpenCodeArgs } = await import("./agents/opencode/cli-support.js");
+    const openCodeValidationError = validateOpenCodeArgs({
+      input: args.input,
+      output: args.output,
+      loaderFlags: args.loaderFlags ?? [],
+      sourcemap: args.sourcemap,
+    });
+    if (openCodeValidationError !== undefined) {
+      process.stderr.write(`Error: ${openCodeValidationError}\n\n`);
+      process.stdout.write(HELP_TEXT);
+      process.exit(1);
+    }
+    try {
+      const compiled = await runOpenCodeCli({
+        input: args.input,
+        output: args.output,
+        loaderFlags: args.loaderFlags ?? [],
+        sourcemap: args.sourcemap,
+      });
+      process.stdout.write(
+        `Generated ${compiled.length} plugin artifact(s) in ${path.resolve(process.cwd(), args.output)}\n`,
+      );
+      process.exit(0);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log("error", "OpenCode build failed", { error: message });
+      process.stderr.write(`Error: ${message}\n`);
+      process.exit(1);
+    } finally {
+      closeLog();
+    }
+  }
+
   // Antigravity ships in step 5; fail closed until then.
   if (args.agent !== "claude-code") {
     process.stderr.write(
-      `Error: --agent ${args.agent} is not implemented in this release; only "claude-code" and "codex" build today (antigravity ships in step 5).\n`,
+      `Error: --agent ${args.agent} is not implemented in this release; only "claude-code", "codex", and "opencode" build today (antigravity ships in step 5).\n`,
     );
     process.exit(1);
   }
