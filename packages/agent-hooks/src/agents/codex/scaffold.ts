@@ -73,7 +73,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
         typecheck: "tsc --noEmit",
       },
       dependencies: {
-        [PACKAGE_NAME]: "^1.0.3",
+        [PACKAGE_NAME]: "^1.0.4",
       },
       devDependencies: {
         "@biomejs/biome": "2.4.9",
@@ -123,6 +123,16 @@ function generateBiomeConfig(): string {
     "rules": {
       "recommended": true
     }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "files": {
+    "includes": ["src/**/*.ts", "test/**/*.ts", "*.ts"]
   }
 }
 `;
@@ -271,8 +281,8 @@ export default ${factory}({ matcher: "manual" }, () => {
 
 function generateHookTest(eventName: HookEventName): string {
   const filename = toKebabCase(eventName);
-  return `import hook from "../src/${filename}.js";
-import { describe, expect, it } from "vitest";
+  return `import { describe, expect, it } from "vitest";
+import hook from "../src/${filename}.js";
 
 describe("${eventName} hook", () => {
   it("exports a ${eventName} hook", () => {

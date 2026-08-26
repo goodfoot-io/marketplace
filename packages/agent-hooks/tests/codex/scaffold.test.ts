@@ -50,6 +50,17 @@ describe("scaffold", () => {
     const sessionStartSource = fs.readFileSync(path.join(target, "src", "session-start.ts"), "utf-8");
     expect(sessionStartSource).toContain('from "@goodfoot/agent-hooks/codex"');
 
+    // Without `files.includes` scoping, the scaffold's own `npm run lint`
+    // script lints its build output (dist/*.mjs) and non-TS config files
+    // (tsconfig.json) and fails out of the box; without `organizeImports`,
+    // it also flags the scaffold's own generated test file import order.
+    const generatedBiomeConfig = JSON.parse(fs.readFileSync(path.join(target, "biome.json"), "utf-8")) as {
+      files?: { includes: string[] };
+      assist?: { actions?: { source?: { organizeImports?: string } } };
+    };
+    expect(generatedBiomeConfig.files?.includes).toEqual(["src/**/*.ts", "test/**/*.ts", "*.ts"]);
+    expect(generatedBiomeConfig.assist?.actions?.source?.organizeImports).toBe("on");
+
     const generatedPackageJson = JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf-8")) as {
       dependencies: Record<string, string>;
     };
