@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.3
+- Minor improvements and bug fixes
+
 ## 1.3.2
 - Fixed hardcoded version strings that could cause CLI and scaffold output to report an incorrect package version
 
