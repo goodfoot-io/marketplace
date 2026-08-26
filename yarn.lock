@@ -2815,6 +2815,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@goodfoot/plugin-layout-checks@workspace:packages/plugin-layout-checks":
+  version: 0.0.0-use.local
+  resolution: "@goodfoot/plugin-layout-checks@workspace:packages/plugin-layout-checks"
+  dependencies:
+    "@biomejs/biome": "npm:2.3.11"
+    "@types/node": "npm:^24"
+    typescript: "npm:^5.9.3"
+    vitest: "npm:^4.0.16"
+  languageName: unknown
+  linkType: soft
+
 "@goodfoot/print@workspace:packages/print":
   version: 0.0.0-use.local
   resolution: "@goodfoot/print@workspace:packages/print"
