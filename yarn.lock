@@ -2610,6 +2610,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@goodfoot/agent-hooks@workspace:packages/agent-hooks":
+  version: 0.0.0-use.local
+  resolution: "@goodfoot/agent-hooks@workspace:packages/agent-hooks"
+  dependencies:
+    "@biomejs/biome": "npm:2.4.16"
+    "@types/node": "npm:^24"
+    typescript: "npm:^5.9.3"
+    vitest: "npm:4.0.13"
+  languageName: unknown
+  linkType: soft
+
 "@goodfoot/browser-mcp-server@workspace:packages/mcp/browser":
   version: 0.0.0-use.local
   resolution: "@goodfoot/browser-mcp-server@workspace:packages/mcp/browser"
