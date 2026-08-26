@@ -6,10 +6,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BINARY_PATH = path.resolve(
-  __dirname,
-  "../../../plugins-claude/goodfoot/bin/print-type-analysis.mjs",
-);
+const BINARY_PATH = path.resolve(__dirname, "../../../plugins-claude/goodfoot/bin/print-type-analysis.mjs");
 const FIXTURES_DIR = path.resolve(__dirname, "fixtures/type-analysis-project");
 
 function runTypeAnalysis(args: string[], cwd: string = FIXTURES_DIR): string {

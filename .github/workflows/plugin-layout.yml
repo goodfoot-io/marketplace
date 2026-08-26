@@ -1,0 +1,75 @@
+name: Plugin Layout Checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  layout-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Run tri-platform layout checks
+        run: yarn workspace @goodfoot/plugin-layout-checks test
+
+      - name: Validate Claude skills tree (strict)
+        run: |
+          if command -v claude >/dev/null 2>&1; then
+            claude plugin validate ./skills --strict
+          else
+            echo "claude CLI not available on this runner, skipping strict validation"
+          fi
+
+      - name: Validate Claude goodfoot plugin
+        run: |
+          if command -v claude >/dev/null 2>&1; then
+            # A symlink-following warning is expected here (claude plugin validate
+            # does not follow symlinked skill entries); anything else is a failure.
+            claude plugin validate ./plugins-claude/goodfoot
+          else
+            echo "claude CLI not available on this runner, skipping validation"
+          fi
+
+      - name: Claude install smoke
+        run: |
+          if command -v claude >/dev/null 2>&1; then
+            claude plugin marketplace add .
+            claude plugin install goodfoot@goodfoot
+            claude plugin details goodfoot@goodfoot
+            claude plugin uninstall goodfoot@goodfoot || true
+            claude plugin marketplace remove . || true
+          else
+            echo "claude CLI not available on this runner, skipping install smoke"
+          fi
+
+      - name: Codex install smoke
+        run: |
+          if command -v codex >/dev/null 2>&1; then
+            codex plugin marketplace add .agents/plugins/marketplace.json
+            codex plugin add goodfoot
+          else
+            echo "codex CLI not available on this runner, skipping install smoke"
+          fi
+
+      - name: OpenCode boot smoke
+        run: |
+          if command -v opencode >/dev/null 2>&1; then
+            opencode --version
+          else
+            echo "opencode CLI not available on this runner, skipping boot smoke"
+          fi
