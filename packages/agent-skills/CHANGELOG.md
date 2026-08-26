@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.3
+
+- Keeps package and companion-plugin release surfaces aligned after the adversarial-review fixes.
+
+## 1.0.2
+
+- Expands transactional, lint, helper, and path-safety coverage from the first evaluator pass.
+
 ## 1.0.1
 
 - Makes multi-target replacement coordinated and rollback-safe, hardens target alias and discovery boundaries, completes portability lint and helper validation, and documents configurable platform directories.

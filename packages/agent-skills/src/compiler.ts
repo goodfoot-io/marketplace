@@ -4,6 +4,7 @@ import { Eta } from "eta";
 import { glob } from "glob";
 import { parse } from "yaml";
 import { createHelpers } from "./helpers.js";
+import { PLATFORM_DEFINITIONS } from "./platforms.js";
 import type {
   BuildFileSystem,
   BuildOptions,
@@ -318,7 +319,7 @@ function diagnose(content: string, sourcePath: string, platform: Platform, outpu
   const front = content.match(/^---\n([\s\S]*?)\n---/);
   if (front) {
     const data = parse(front[1] ?? "") as Record<string, unknown>;
-    const allowed = PLATFORM_DEFINITIONS_KEYS[platform];
+    const allowed = PLATFORM_DEFINITIONS[platform].frontmatterKeys.value ?? [];
     for (const key of Object.keys(data ?? {}))
       if (!allowed.includes(key))
         add("frontmatter-key", `Unsupported frontmatter key ${key}`, content.indexOf(`${key}:`));
@@ -401,13 +402,6 @@ function applySuppressions(diagnostics: readonly Diagnostic[], config?: Template
       ),
   );
 }
-const PLATFORM_DEFINITIONS_KEYS: Record<Platform, readonly string[]> = {
-  "claude-code": ["name", "description", "allowed-tools", "argument-hint", "model"],
-  codex: ["name", "description"],
-  opencode: ["name", "description"],
-  antigravity: ["name", "description"],
-};
-
 export async function lint(options: LintOptions): Promise<LintResult> {
   await validateTargets(options);
   let rendered: ReadonlyMap<Platform, PlatformManifest>;

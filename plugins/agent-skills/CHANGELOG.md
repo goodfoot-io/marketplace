@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.3
+
+Synchronizes the companion release with the corrected compiler contracts and complete generated helper catalog.
+
+## 1.0.2
+
+Carries the evaluator-driven documentation and release-alignment updates.
+
 ## 1.0.1
 
 Synchronizes the companion plugin's shared helper reference from the executable `@goodfoot/agent-skills` platform model and documents the namespaced `skills-src/goodfoot` authoring root used by the repository generator. Antigravity guidance continues to preserve the model's explicit provisional and unavailable classifications without borrowing another platform's conventions.

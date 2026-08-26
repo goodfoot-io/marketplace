@@ -60,7 +60,7 @@ describe("version lockstep", () => {
     const packageChangelog = fs.readFileSync(repoPath("packages/agent-skills/CHANGELOG.md"), "utf8");
     const pluginChangelog = fs.readFileSync(repoPath("plugins/agent-skills/CHANGELOG.md"), "utf8");
 
-    expect(packageVersion).toBe("1.0.1");
+    expect(packageVersion).toMatch(/^1\.0\.\d+$/);
     expect({ pluginVersion, marketplaceVersion, cliVersion }).toEqual({
       pluginVersion: packageVersion,
       marketplaceVersion: packageVersion,

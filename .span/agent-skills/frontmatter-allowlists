@@ -1,4 +1,0 @@
-packages/agent-skills/src/compiler.ts#L206-L237 rk64:da95b489e9a8cc03
-packages/agent-skills/src/platforms.ts#L35-L98 rk64:980c70f19efc6ffa
-
-The typed platform table is authoritative for per-platform frontmatter keys, and lint's duplicated allowlist preserves the same accepted keys until it is derived directly from that table.
