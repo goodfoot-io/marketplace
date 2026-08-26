@@ -6,7 +6,6 @@ import {
   CODEX_TREE,
   EXPECTED_AGENTS,
   EXPECTED_COMMANDS,
-  EXPECTED_RESIDUAL_BIN,
   EXPECTED_SKILL_BIN,
   EXPECTED_SKILLS,
   indexMode,
@@ -21,7 +20,6 @@ describe("claude tree inventory", () => {
     expect(fs.readdirSync(repoPath(CLAUDE_TREE)).sort()).toEqual([
       ".claude-plugin",
       "agents",
-      "bin",
       "commands",
       "hooks",
       "skills",
@@ -38,14 +36,9 @@ describe("claude tree inventory", () => {
     expect(fs.readdirSync(commandsDir).sort()).toEqual([...EXPECTED_COMMANDS].sort());
   });
 
-  it("ships the two agents verbatim", () => {
+  it("ships the one agent verbatim", () => {
     const agentsDir = repoPath(CLAUDE_TREE, "agents");
     expect(fs.readdirSync(agentsDir).sort()).toEqual([...EXPECTED_AGENTS].sort());
-  });
-
-  it("hosts the residual, non-skill-owned bin scripts physically, no test files left", () => {
-    const binDir = repoPath(CLAUDE_TREE, "bin");
-    expect(fs.readdirSync(binDir).sort()).toEqual([...EXPECTED_RESIDUAL_BIN].sort());
   });
 
   it("declares a claude manifest for goodfoot", () => {
@@ -96,7 +89,7 @@ describe("codex tree inventory", () => {
 
 describe("opencode tree inventory", () => {
   it("carries exactly the expected top-level components", () => {
-    expect(fs.readdirSync(repoPath(OPENCODE_TREE)).sort()).toEqual(["bin", "index.js", "package.json", "skills"]);
+    expect(fs.readdirSync(repoPath(OPENCODE_TREE)).sort()).toEqual(["index.js", "package.json", "skills"]);
   });
 
   it("declares a private local plugin package exporting index.js", () => {
@@ -111,12 +104,6 @@ describe("opencode tree inventory", () => {
   it("exposes all six skills as directory entries", () => {
     const skillsDir = repoPath(OPENCODE_TREE, "skills");
     expect(fs.readdirSync(skillsDir).sort()).toEqual([...EXPECTED_SKILLS].sort());
-  });
-
-  it("reaches the shared bin through its symlink", () => {
-    const binLink = repoPath(OPENCODE_TREE, "bin");
-    expect(fs.readlinkSync(binLink)).toBe("../../plugins-claude/goodfoot/bin");
-    expect(fs.realpathSync(binLink)).toBe(fs.realpathSync(repoPath(CLAUDE_TREE, "bin")));
   });
 });
 
@@ -138,9 +125,5 @@ describe("git link integrity", () => {
   it.each([...EXPECTED_SKILLS])("records plugins-opencode/goodfoot/skills/%s at symlink mode 120000", (skill) => {
     const rel = path.join(OPENCODE_TREE, "skills", skill);
     expect(indexMode(rel)).toBe("120000");
-  });
-
-  it("records the opencode bin link at symlink mode 120000", () => {
-    expect(indexMode(path.join(OPENCODE_TREE, "bin"))).toBe("120000");
   });
 });

@@ -1003,7 +1003,6 @@ plugins-claude/goodfoot/
   .claude-plugin/plugin.json
   commands/   (Claude-only component)
   agents/     (Claude-only component)
-  bin/        (physical — residual, non-skill-owned scripts only; Claude/OpenCode-only, absent from Codex)
   hooks/hooks.json + hooks/bin/post-tool-use.mjs
   skills/<name> -> ../../../skills/<name>       # relative symlink, mode 120000 (carries typescript-metrics/bin/ along)
 plugins-codex/goodfoot/
@@ -1011,11 +1010,9 @@ plugins-codex/goodfoot/
   skills/<name>/SKILL.md                        # real, byte-identical copies — NOT symlinks
   skills/typescript-metrics/bin/typescript-metrics.mjs  # real, byte-identical copy of the skill's own bin/
   hooks/hooks.json + hooks/post-tool-use.mjs
-  (no residual bin/)
 plugins-opencode/goodfoot/
   package.json                                  # @goodfoot/opencode-goodfoot, private
   index.js                                      # default-export factory, hook transport only
-  bin -> ../../plugins-claude/goodfoot/bin       # relative symlink, mode 120000 (residual scripts only)
   skills/<name> -> ../../../skills/<name>        # relative symlink, mode 120000
 ```
 
@@ -1029,7 +1026,7 @@ This carve-out exists because Codex's installer silently drops symlinked skill e
 
 ### Symlink convention and the Windows hazard
 
-Symlinks are relative (`../../../skills/<name>`, `../../plugins-claude/goodfoot/bin`) so the tree stays portable across clone locations. On a Windows checkout without Developer Mode (or without `git config core.symlinks true`), git materializes these as plain text-file stubs containing the link target string, not real symlinks — silently breaking the skill/bin surface for that checkout. `packages/plugin-layout-checks`'s index-mode assertions (`git ls-files -s` reporting mode `120000`) catch a stub committed *into the repo*, but cannot detect a stub materialized only in a broken local checkout; that failure mode surfaces at runtime instead (missing `SKILL.md`, broken `bin` resolution).
+Symlinks are relative (`../../../skills/<name>`) so the tree stays portable across clone locations. On a Windows checkout without Developer Mode (or without `git config core.symlinks true`), git materializes these as plain text-file stubs containing the link target string, not real symlinks — silently breaking the skill surface for that checkout. `packages/plugin-layout-checks`'s index-mode assertions (`git ls-files -s` reporting mode `120000`) catch a stub committed *into the repo*, but cannot detect a stub materialized only in a broken local checkout; that failure mode surfaces at runtime instead (missing `SKILL.md`, broken `bin` resolution).
 
 ### Hook transports
 
@@ -1055,8 +1052,8 @@ Source of truth is `plugins-claude/goodfoot/.claude-plugin/plugin.json`. `script
 | Codex | `.agents/plugins/marketplace.json` | `goodfoot` (local source) → `./plugins-codex/goodfoot` |
 | OpenCode | `opencode.json` | `plugin: ["./plugins-opencode/goodfoot"]`, `skills.paths: ["./skills"]` |
 
-### Skill-owned bin/ vs. the residual bin/ home
+### Skill-owned bin/
 
-A `bin/` script belongs to exactly one goodfoot skill (referenced only from that skill's own content) lives inside that skill's own directory — `skills/<name>/bin/` — and travels with the skill through whatever mechanism already carries the rest of its content: the Claude/OpenCode symlink, or the Codex byte-copy. It is addressed from the skill's own content with a plain skill-relative path (e.g. `./bin/typescript-metrics.mjs`), never `${CLAUDE_PLUGIN_ROOT}` — that variable is Claude-specific and undefined on Codex and OpenCode, so no skill's instructions may reference it. `packages/typescript-metrics/esbuild.config.mjs` builds directly into `skills/typescript-metrics/bin/`; syncing the Codex tree's byte-copy of that output remains a manual step, guarded by `packages/plugin-layout-checks`'s single-source byte-equality walk.
+A `bin/` script belongs to exactly one goodfoot skill, lives inside that skill's own directory — `skills/<name>/bin/` — and travels with the skill through whatever mechanism already carries the rest of its content: the Claude/OpenCode symlink, or the Codex byte-copy. It is addressed from the skill's own content with a plain skill-relative path (e.g. `./bin/typescript-metrics.mjs`), never `${CLAUDE_PLUGIN_ROOT}` — that variable is Claude-specific and undefined on Codex and OpenCode, so no skill's instructions may reference it. `packages/typescript-metrics/esbuild.config.mjs` builds directly into `skills/typescript-metrics/bin/`; syncing the Codex tree's byte-copy of that output remains a manual step, guarded by `packages/plugin-layout-checks`'s single-source byte-equality walk.
 
-A script with no skill of its own — used only by Claude-only content such as the `tracer` agent — has nowhere skill-relative to live, so it stays in the residual `bin/` at `plugins-claude/goodfoot/bin/`, physically present there, symlinked into OpenCode, and **absent entirely** from the Codex tree: a symlink there would vanish on install exactly like the skill symlinks did, and a real copy would triple roughly 59MB of generated bundles for scripts Codex has no documented way to invoke regardless. Revisit the residual-bin Codex omission once openai/codex#24770 lands upstream.
+goodfoot carries no non-skill-owned `bin/` scripts today: the `tracer` agent and the `print-*` scripts it alone consumed (built by the now-deleted `packages/print`) were removed together, since neither had a skill to live inside and nothing else in the repo depended on them. Should Claude-only content need its own tooling again, it needs a fresh skill-relative or Claude-only home — not a shared, cross-platform `bin/` that other trees have to route around.

@@ -35,18 +35,7 @@ export const EXPECTED_COMMANDS = [
   "structured-english.md",
 ] as const;
 
-export const EXPECTED_AGENTS = ["history.md", "tracer.md"] as const;
-
-/** The 7 residual bin/ scripts, used only by the Claude-only tracer agent; no test files remain. */
-export const EXPECTED_RESIDUAL_BIN = [
-  "print-call-sites.mjs",
-  "print-dependencies",
-  "print-dependencies.mjs",
-  "print-inverse-dependencies",
-  "print-inverse-dependencies.mjs",
-  "print-type-analysis",
-  "print-type-analysis.mjs",
-] as const;
+export const EXPECTED_AGENTS = ["history.md"] as const;
 
 /** Per-skill bin/ content that travels with its owning skill on every platform tree. */
 export const EXPECTED_SKILL_BIN: Record<string, readonly string[]> = {

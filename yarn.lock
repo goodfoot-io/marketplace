@@ -2826,21 +2826,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@goodfoot/print@workspace:packages/print":
-  version: 0.0.0-use.local
-  resolution: "@goodfoot/print@workspace:packages/print"
-  dependencies:
-    "@biomejs/biome": "npm:2.3.11"
-    "@manypkg/get-packages": "npm:^2.2.2"
-    "@types/node": "npm:^24"
-    dependency-tree: "npm:^11.1.1"
-    esbuild: "npm:^0.24.0"
-    glob: "npm:^11.0.0"
-    typescript: "npm:^5.9.3"
-    vitest: "npm:^4.0.16"
-  languageName: unknown
-  linkType: soft
-
 "@goodfoot/streamable-http-mcp-server-daemon@workspace:packages/streamable-http-mcp-server-daemon":
   version: 0.0.0-use.local
   resolution: "@goodfoot/streamable-http-mcp-server-daemon@workspace:packages/streamable-http-mcp-server-daemon"
@@ -8713,7 +8698,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dependency-tree@npm:^11.1.1, dependency-tree@npm:^11.2.0":
+"dependency-tree@npm:^11.2.0":
   version: 11.2.0
   resolution: "dependency-tree@npm:11.2.0"
   dependencies:
