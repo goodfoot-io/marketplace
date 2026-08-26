@@ -63,12 +63,25 @@ describe("--agent is required", () => {
     expect(result.stderr).toContain("Invalid --agent value: claudecode");
   });
 
-  it("accepts codex/antigravity at validation but fails closed until their steps land", () => {
-    for (const agent of ["codex", "antigravity"]) {
-      const result = runCli(["--agent", agent, "-i", "nonexistent-hook.ts", "-o", "hooks.json"]);
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain(`--agent ${agent} is not implemented in this release`);
-    }
+  it("codex builds for real (un-stubbed in step 3)", () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-hooks-codex-cli-"));
+    const srcDir = path.join(outDir, "src");
+    fs.mkdirSync(srcDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(srcDir, "stop.ts"),
+      `import { stopHook } from "${path.resolve(__dirname, "..", "..", "src", "agents", "codex", "index.js")}";\n` +
+        `export default stopHook({}, () => undefined);\n`,
+    );
+    const result = runCli(["--agent", "codex", "-i", `${srcDir}/*.ts`, "-o", path.join(outDir, "hooks.json")]);
+    expect(result.status).toBe(0);
+    expect(fs.existsSync(path.join(outDir, "hooks.json"))).toBe(true);
+    fs.rmSync(outDir, { recursive: true, force: true });
+  });
+
+  it("antigravity still fails closed until step 5 lands", () => {
+    const result = runCli(["--agent", "antigravity", "-i", "nonexistent-hook.ts", "-o", "hooks.json"]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("--agent antigravity is not implemented in this release");
   });
 });
 
@@ -91,6 +104,8 @@ describe("usage lines carry the required flag", () => {
     for (const line of exampleLines) {
       expect(line).toContain("--agent");
     }
+    // Codex branch documents its plugin-root option under the unified help.
+    expect(help).toContain("Codex-specific options");
   });
 
   it("--version reports this package's binary identity", () => {

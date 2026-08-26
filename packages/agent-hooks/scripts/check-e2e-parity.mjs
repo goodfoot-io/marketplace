@@ -61,6 +61,24 @@ function counterpartFor(relativePath) {
 const failures = [];
 let mappedFiles = 0;
 
+/**
+ * Codex-hooks mapping: unit tests land under tests/codex/ (filenames
+ * preserved), the single e2e file under e2e/codex/, and the snapshot script
+ * under scripts/ (existence-only — it is not a test file).
+ */
+function codexCounterpartFor(relativePath) {
+  if (relativePath.startsWith("tests/")) {
+    return path.join("tests", "codex", relativePath.slice("tests/".length));
+  }
+  if (relativePath === "e2e/runtime-and-build.test.ts") {
+    return path.join("e2e", "codex", "runtime-and-build.test.ts");
+  }
+  if (relativePath.startsWith("scripts/") && relativePath.endsWith(".ts")) {
+    return path.join("scripts", relativePath.slice("scripts/".length));
+  }
+  return undefined;
+}
+
 for (const relative of ["tests", "e2e"]) {
   for (const sourceFile of listFilesRecursive(path.join(sourceRoot, relative))) {
     const relFromSourceRoot = path.relative(sourceRoot, sourceFile);
@@ -83,11 +101,45 @@ for (const relative of ["tests", "e2e"]) {
   }
 }
 
+// Codex-hooks parity (plan step 3.2): same assertion-count rule.
+{
+  const codexSourceRoot = path.join(repoRoot, "packages", "codex-hooks");
+  for (const relative of ["tests", "e2e", "scripts"]) {
+    for (const sourceFile of listFilesRecursive(path.join(codexSourceRoot, relative))) {
+      const relFromSourceRoot = path.relative(codexSourceRoot, sourceFile);
+      const targetRel = codexCounterpartFor(relFromSourceRoot);
+      if (targetRel === undefined) {
+        continue;
+      }
+      const targetFile = path.join(targetRoot, targetRel);
+      mappedFiles++;
+
+      if (!existsSync(targetFile)) {
+        failures.push(`MISSING counterpart: ${relFromSourceRoot} -> ${targetRel}`);
+        continue;
+      }
+
+      if (relFromSourceRoot.endsWith(".test.ts")) {
+        const sourceCount = countTestBlocks(readFileSync(sourceFile, "utf-8"));
+        const targetCount = countTestBlocks(readFileSync(targetFile, "utf-8"));
+        if (targetCount < sourceCount) {
+          failures.push(
+            `LOWER assertion count: ${relFromSourceRoot} (${sourceCount}) -> ${targetRel} (${targetCount})`,
+          );
+        }
+      }
+    }
+  }
+}
+
 if (mappedFiles === 0) {
   failures.push("No source files discovered — mapping is empty, the check proves nothing.");
 }
 if (!existsSync(path.join(targetRoot, "e2e", "claude-code"))) {
   failures.push("e2e/claude-code/ directory absent — the ported suite is missing entirely.");
+}
+if (!existsSync(path.join(targetRoot, "e2e", "codex"))) {
+  failures.push("e2e/codex/ directory absent — the ported Codex suite is missing entirely.");
 }
 
 if (failures.length > 0) {

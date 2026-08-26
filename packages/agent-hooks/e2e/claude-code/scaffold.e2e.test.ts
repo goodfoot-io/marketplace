@@ -8,6 +8,7 @@
 
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -29,7 +30,11 @@ const PACKAGE_ROOT = path.join(__dirname, "..", "..");
 /**
  * Output directory for scaffold test results.
  */
-const SCAFFOLD_TEST_OUTPUT = path.join(__dirname, "dist", "scaffold-test");
+// Base the scratch output on the user's home directory: npm installs inside
+// generated projects pull down typescript/vitest/biome (~100 MB unpacked per
+// run), which exceeds small container overlay filesystems — os.tmpdir() may
+// sit on one. Artifacts here are throwaway either way.
+const SCAFFOLD_TEST_OUTPUT = path.join(os.homedir(), ".agent-hooks-scaffold-e2e");
 
 /**
  * Runs the CLI with scaffold arguments.

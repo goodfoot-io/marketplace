@@ -19,7 +19,7 @@ export default defineConfig({
           globals: true,
           reporters: 'verbose',
           environment: 'node',
-          include: ['e2e/claude-code/*.e2e.test.ts'],
+          include: ['e2e/**/*.test.ts'],
           exclude: ['**/node_modules/**', '**/dist/**', '**/build/**'],
           // Ported from claude-code-hooks' e2e project: e2e tests spawn the CLI
           // via tsx (and scaffold tests run npm installs inside generated

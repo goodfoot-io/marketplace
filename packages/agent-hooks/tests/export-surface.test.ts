@@ -71,10 +71,10 @@ describe("root-export lint", () => {
 
   it("package.json exports declares exactly the closed entry list with no wildcard", () => {
     const pkg = JSON.parse(readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf-8")) as PackageExportsFixture;
-    // Step 1 ships "." (core only); step 2.3 adds the explicit "./claude-code"
-    // subpath in the same step its target files first exist. The list stays
-    // closed — no "./*" wildcard, ever.
-    expect(Object.keys(pkg.exports)).toStrictEqual([".", "./claude-code"]);
+    // Step 1 ships "." (core only); steps 2.3/3.8 add explicit per-agent
+    // subpaths in the same steps their target files first exist. The list
+    // stays closed — no "./*" wildcard, ever.
+    expect(Object.keys(pkg.exports)).toStrictEqual([".", "./claude-code", "./codex"]);
     expect(pkg.exports["."]).toStrictEqual({
       import: "./dist/index.js",
       types: "./types/index.d.ts",
@@ -82,6 +82,10 @@ describe("root-export lint", () => {
     expect(pkg.exports["./claude-code"]).toStrictEqual({
       import: "./dist/agents/claude-code/index.js",
       types: "./types/agents/claude-code/index.d.ts",
+    });
+    expect(pkg.exports["./codex"]).toStrictEqual({
+      import: "./dist/agents/codex/index.js",
+      types: "./types/agents/codex/index.d.ts",
     });
     expect(() => assertClosedExportMap(pkg.exports)).not.toThrow();
   });

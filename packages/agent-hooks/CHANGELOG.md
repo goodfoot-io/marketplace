@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0
+
+Codex parity: the full `@goodfoot/codex-hooks` 1.3.0 surface now ships behind `@goodfoot/agent-hooks/codex`.
+
+- **All 10 hook factories** ported with their config shapes (`matcher`, `timeout`, `statusMessage`), result unions, output builders (reserved fields emitted only when passed), input types, constants, and the runtime `execute` entry point. Factory results carry both `.hookEventName` (source name) and `.eventName` (core).
+- **`BlockError` preserved as a subclass of the core `HookBlockError`**, so the shared driver classifies it before consulting policy — carrying an ordering the source runtime already implemented. Public surface unchanged: `name`, `reason`, `instanceof BlockError`.
+- **Wire semantics verbatim:** BlockError → reason on stderr + exit 2 regardless of policy, for every event including SubagentStart (no per-event table — Codex has no narrower native deny); every other unexpected failure → stacktrace + exit 1 under the default policy (Codex exits 1 where Claude Code exits 2), `{}` at exit 0 under `"continue"`; malformed stdin is policy-gated on Codex (NOT unconditionally fail-open — that is Claude Code's rule). Returned-string normalization for the three text-output events is unchanged; other events reject plain text through the same policy path.
+- **Deliberate narrowing — advisory allow-list transcribed from codex-hooks README.md** (Fail-Open Execution): advisory = exactly {UserPromptSubmit, SessionStart, SubagentStart}; never = {PreToolUse, PermissionRequest, blocking PostToolUse/Stop/SubagentStop}; PreCompact/PostCompact are named nowhere in the README and are excluded by default, fail-closed, pending doc clarification. Enforced at factory-call time (runtime gate) and compile time (`MatcherHookConfigFor`/`NoMatcherHookConfigFor`). This intentionally breaks code passing `"continue"` to non-advisory Codex events; no shipped test exercised that gap.
+- **CLI:** `--agent codex` un-stubbed — Codex AST analysis (statusMessage-aware), command-context detection (`.codex-plugin` marker / `--plugin-root` / `.codex` git-toplevel mode / absolute), plugin-mode stable-names default, timeout-in-seconds and statusMessage hooks.json entries; `--plugin-root` flag added to the unified CLI. Codex scaffold templates emit `@goodfoot/agent-hooks` dependencies and `--agent codex` build scripts.
+- **Exports:** closed map grows by one explicit `./codex` subpath (still no wildcard).
+- **Test estate:** all 9 codex unit test files + e2e/runtime-and-build.test.ts ported under tests/codex/ and e2e/codex/ with import-specifier adaptation; parity checker extended to map codex-hooks sources; new conformance matrix documents the three NON-uniform advisory rows (SessionStart/UserPromptSubmit halt vs SubagentStart ignored) from the host-behaviour notes; cross-agent duplication check wired into `test`.
+
 ## 0.2.0
 
 Claude Code parity: the full `@goodfoot/claude-code-hooks` 1.9.0 surface now ships behind `@goodfoot/agent-hooks/claude-code`, with one deliberate API narrowing.

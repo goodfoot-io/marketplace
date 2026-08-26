@@ -65,6 +65,8 @@ interface CliArgs {
   executable?: string;
   /** Repeated esbuild loader flags in EXT=TYPE form. */
   loaderFlags: string[];
+  /** Force Codex plugin mode: ${PLUGIN_ROOT}-relative commands + stable names default. */
+  pluginRoot?: boolean;
   /** Emit hash-free `<name>.mjs` bundles. Defaults to true; set false with --no-stable-names. */
   stableNames?: boolean;
   /** Embed an inline sourcemap in compiled bundles. Defaults to true; set false with --no-sourcemap. */
@@ -142,7 +144,7 @@ interface HooksJson {
 // Constants
 // ============================================================================
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 const DEFAULT_ESBUILD_LOADERS: HookLoaderMap = {
   ".md": "text",
 };
@@ -174,6 +176,12 @@ Description:
 Usage:
   npx -y @goodfoot/agent-hooks --agent <agent> -i <glob> -o <path> [options]
   npx -y @goodfoot/agent-hooks --agent <agent> --scaffold <dir> --hooks <types> -o <path>
+
+  Codex-specific options (with --agent codex):
+  --plugin-root             Force plugin mode: emit \${PLUGIN_ROOT}-relative commands and
+                            stable, hash-free filenames. Auto-enabled when a .codex-plugin/
+                            marker is found by walking up from the output path. Outputs
+                            under a .codex/ directory use git-toplevel-relative commands.
 
 Required Arguments:
   --agent <claude-code|codex|antigravity>
@@ -278,7 +286,11 @@ Examples:
   4b. With Text Assets:
      npx -y @goodfoot/agent-hooks --agent claude-code -i "hooks/**/*.ts" -o "dist/hooks.json" --loader .txt=text
 
-  5. Configure Claude to use the hooks:
+  5. Build Codex hooks (plugin mode via .codex-plugin marker or --plugin-root):
+     npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o ".codex/hooks.json"
+     npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o "my-plugin/hooks/hooks.json" --plugin-root
+
+  6. Configure Claude to use the hooks:
      After building, add this to your ~/.claude/config.json:
      {
        "hooks": "/absolute/path/to/your/project/dist/hooks.json"
@@ -358,7 +370,11 @@ function parseArgs(argv: string[]): CliArgs {
     help: false,
     version: false,
     loaderFlags: [],
-    stableNames: true,
+    pluginRoot: false,
+    // Undefined unless explicitly passed: the Claude Code branch treats it
+    // as true, while the Codex branch defaults by command context
+    // (plugin mode → stable, otherwise hashed).
+    stableNames: undefined,
     sourcemap: true,
   };
 
@@ -402,6 +418,9 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case "--loader":
         args.loaderFlags.push(argv[++i] ?? "");
+        break;
+      case "--plugin-root":
+        args.pluginRoot = true;
         break;
       case "--stable-names":
         args.stableNames = true;
@@ -1478,13 +1497,39 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Codex and Antigravity parity ship in later steps of the consolidation
-  // plan (steps 3 and 5). Their --agent values are accepted by validation —
-  // the flag is required regardless — but fail closed here rather than
-  // compiling hooks against a runtime module that does not exist yet.
+  // Codex parity (plan step 3): its own AST analysis (statusMessage-aware),
+  // command-context detection (.codex-plugin marker / .codex local mode),
+  // plugin-mode stable-names default, and hooks.json shape.
+  if (args.agent === "codex") {
+    const { runCodexCli } = await import("./agents/codex/cli-support.js");
+    try {
+      await runCodexCli({
+        input: args.input,
+        output: args.output,
+        executable: args.executable,
+        loaderFlags: args.loaderFlags,
+        pluginRoot: args.pluginRoot === true,
+        stableNames: args.stableNames,
+        sourcemap: args.sourcemap,
+        scaffold: args.scaffold,
+        hooks: args.hooks,
+      });
+      process.stdout.write(`Generated ${path.resolve(process.cwd(), args.output)}\n`);
+      process.exit(0);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log("error", "Codex build failed", { error: message });
+      process.stderr.write(`Error: ${message}\n`);
+      process.exit(1);
+    } finally {
+      closeLog();
+    }
+  }
+
+  // Antigravity ships in step 5; fail closed until then.
   if (args.agent !== "claude-code") {
     process.stderr.write(
-      `Error: --agent ${args.agent} is not implemented in this release; only "claude-code" builds today (codex ships in step 3, antigravity in step 5).\n`,
+      `Error: --agent ${args.agent} is not implemented in this release; only "claude-code" and "codex" build today (antigravity ships in step 5).\n`,
     );
     process.exit(1);
   }
@@ -1646,22 +1691,31 @@ if (isDirectExecution) {
 
 export type { CliArgs, CompiledHook, HookConfig, HookLoaderMap, HookMetadata, HooksJson, MatcherEntry };
 // Export for testing
+// Shared build primitives reused by the per-agent CLI branches (single
+// source for driver logic — the duplication check forbids re-deriving these
+// inside agents/*).
 export {
   analyzeHookFile,
   buildLoaderMap,
+  buildLoaderMap as buildEsbuildLoaderMap,
   compileHook,
   detectHookContext,
   discoverHookFiles,
+  discoverHookFiles as discoverHookSourceFiles,
   extractPreservedHooks,
   generateCommandPath,
   generateContentHash,
+  generateContentHash as sha256Prefix8,
   generateHooksJson,
   groupHooksByEventAndMatcher,
   HOOK_FACTORY_TO_EVENT,
   mergeHooksJson,
   parseArgs,
   parseLoaderFlag,
+  parseLoaderFlag as parseEsbuildLoaderFlag,
+  pruneStaleHashedBundles,
   readExistingHooksJson,
   removeOldGeneratedFiles,
+  symlinkVisiblePath,
   validateArgs,
 };
