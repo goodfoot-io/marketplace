@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.9.1
+- Simplified the deprecation notice by removing the six-month security-fix-only timeline language
+
+## 1.9.1
 - **Deprecated.** Superseded by `@goodfoot/agent-hooks` (`@goodfoot/agent-hooks/claude-code`).
 
 ## 1.9.0
