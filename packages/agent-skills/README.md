@@ -1,0 +1,51 @@
+# @goodfoot/agent-skills
+
+Compile one Eta skill source tree into deterministic platform-specific trees, and lint templates and rendered Markdown for portability defects.
+
+## Quick start
+
+```eta
+---
+name: demo
+description: Portable demonstration
+---
+
+Load <%= it.skillRef("cards:markdown") %>.
+```
+
+```sh
+agent-skills build --root skills-src --target claude-code=plugins-claude/goodfoot/skills --target codex=plugins-codex/goodfoot/skills '**/*.md.eta'
+agent-skills lint --root skills-src --target claude-code=plugins-claude/goodfoot/skills --target codex=plugins-codex/goodfoot/skills '**/*.md.eta'
+```
+
+Build renders each selected platform once, transactionally replaces target trees, removes stale generated files, and copies opaque inputs byte-for-byte. Destinations are always explicit.
+
+## Templates
+
+Eta uses `autoEscape: false` and `autoTrim: false`. Helpers are available on `it`: platform predicates and variants, skill and agent references, subagent/worktree operations, logical platform directories, and stable frontmatter. Unsupported facts fail only when read and identify the helper and platform.
+
+Optional configuration starts at byte zero and is stripped before rendering:
+
+```markdown
+<!-- agent-skills
+platforms: [codex, opencode]
+outputName: AGENTS.md
+kind: documentation
+-->
+```
+
+Only `platforms`, `outputName`, `kind`, and line-bounded `lintSuppressions` are accepted. `@codex` is the only variant alias and expands to Codex and OpenCode. Antigravity facts remain visibly verified, provisional, or unavailable and never fall through to another dialect.
+
+## CLI
+
+```text
+agent-skills <build|lint> [--root DIR] --target PLATFORM=DIR [--target ...] [--platform PLATFORM] <file-or-glob...>
+```
+
+Platforms are `claude-code`, `codex`, `opencode`, and `antigravity`. Help, version, successful build, and clean lint exit 0. Invalid arguments, zero matches, render failures, unsafe/colliding paths, and lint findings exit 1. Clean lint is silent; diagnostics use stderr.
+
+## API and development
+
+The closed export map exposes the root API plus `./types`, `./platforms`, and `./helper-reference`. Companion documentation should import `getHelperReferenceModel()` or `renderHelperReferenceMarkdown()` from `@goodfoot/agent-skills/helper-reference`.
+
+Run `typecheck`, `lint`, `build`, and `test` through `yarn workspace @goodfoot/agent-skills`. Use `release:dry-run` before release.

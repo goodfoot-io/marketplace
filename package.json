@@ -8,6 +8,7 @@
     ]
   },
   "scripts": {
+    "build:agent-skills": "node scripts/build-agent-skills.mjs",
     "reset": "find . -type d -name node_modules | xargs rm -rf && rm -rf yarn.lock",
     "knip": "knip --config ./knip.config.json",
     "knip:fix": "knip --fix --config ./knip.config.json",

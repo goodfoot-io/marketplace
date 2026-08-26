@@ -2,7 +2,7 @@
   "name": "@goodfoot/plugin-layout-checks",
   "version": "0.0.1",
   "private": true,
-  "description": "Fail-closed structural checks for the tri-platform plugin layout (skills, symlinks, versions, hooks)",
+  "description": "Fail-closed structural checks for generated tri-platform plugin layouts, versions, and hooks",
   "type": "module",
   "sideEffects": false,
   "engines": {

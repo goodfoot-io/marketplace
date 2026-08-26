@@ -8,7 +8,6 @@ import {
   EXPECTED_COMMANDS,
   EXPECTED_SKILL_BIN,
   EXPECTED_SKILLS,
-  indexMode,
   OPENCODE_TREE,
   readJson,
   repoPath,
@@ -116,14 +115,14 @@ describe("shared skill source", () => {
   });
 });
 
-describe("git link integrity", () => {
-  it.each([...EXPECTED_SKILLS])("records plugins-claude/goodfoot/skills/%s at symlink mode 120000", (skill) => {
+describe("generated file integrity", () => {
+  it.each([...EXPECTED_SKILLS])("records plugins-claude/goodfoot/skills/%s as regular files", (skill) => {
     const rel = path.join(CLAUDE_TREE, "skills", skill);
-    expect(indexMode(rel)).toBe("120000");
+    expect(fs.lstatSync(repoPath(rel, "SKILL.md")).isFile()).toBe(true);
   });
 
-  it.each([...EXPECTED_SKILLS])("records plugins-opencode/goodfoot/skills/%s at symlink mode 120000", (skill) => {
+  it.each([...EXPECTED_SKILLS])("records plugins-opencode/goodfoot/skills/%s as regular files", (skill) => {
     const rel = path.join(OPENCODE_TREE, "skills", skill);
-    expect(indexMode(rel)).toBe("120000");
+    expect(fs.lstatSync(repoPath(rel, "SKILL.md")).isFile()).toBe(true);
   });
 });

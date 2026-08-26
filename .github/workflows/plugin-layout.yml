@@ -27,49 +27,44 @@ jobs:
       - name: Run tri-platform layout checks
         run: yarn workspace @goodfoot/plugin-layout-checks test
 
+      - name: Verify generated agent skills are fresh
+        run: yarn build:agent-skills && git diff --exit-code -- skills plugins-claude/goodfoot/skills plugins-codex/goodfoot/skills plugins-opencode/goodfoot/skills
+
       - name: Validate Claude skills tree (strict)
         run: |
-          if command -v claude >/dev/null 2>&1; then
-            claude plugin validate ./skills --strict
-          else
-            echo "claude CLI not available on this runner, skipping strict validation"
-          fi
+          yarn claude --version
+          yarn claude plugin validate ./skills --strict
+          yarn claude plugin validate ./plugins/agent-skills --strict
 
       - name: Validate Claude goodfoot plugin
         run: |
-          if command -v claude >/dev/null 2>&1; then
-            # A symlink-following warning is expected here (claude plugin validate
-            # does not follow symlinked skill entries); anything else is a failure.
-            claude plugin validate ./plugins-claude/goodfoot
-          else
-            echo "claude CLI not available on this runner, skipping validation"
-          fi
+          yarn claude plugin validate ./plugins-claude/goodfoot
 
       - name: Claude install smoke
         run: |
-          if command -v claude >/dev/null 2>&1; then
-            claude plugin marketplace add .
-            claude plugin install goodfoot@goodfoot
-            claude plugin details goodfoot@goodfoot
-            claude plugin uninstall goodfoot@goodfoot || true
-            claude plugin marketplace remove . || true
-          else
-            echo "claude CLI not available on this runner, skipping install smoke"
-          fi
+          smoke_home="$(mktemp -d)"
+          trap 'rm -rf "$smoke_home"' EXIT
+          HOME="$smoke_home" yarn claude plugin marketplace add .
+          HOME="$smoke_home" yarn claude plugin install goodfoot@goodfoot
+          HOME="$smoke_home" yarn claude plugin details goodfoot@goodfoot
+          HOME="$smoke_home" yarn claude plugin uninstall goodfoot@goodfoot
+          HOME="$smoke_home" yarn claude plugin marketplace remove .
 
       - name: Codex install smoke
         run: |
-          if command -v codex >/dev/null 2>&1; then
-            codex plugin marketplace add .agents/plugins/marketplace.json
-            codex plugin add goodfoot
-          else
-            echo "codex CLI not available on this runner, skipping install smoke"
-          fi
+          command -v codex >/dev/null 2>&1 || { echo "unsupported runner: pinned codex CLI is unavailable" >&2; exit 1; }
+          codex --version
+          smoke_home="$(mktemp -d)"
+          trap 'rm -rf "$smoke_home"' EXIT
+          HOME="$smoke_home" codex plugin marketplace add .agents/plugins/marketplace.json
+          HOME="$smoke_home" codex plugin add goodfoot
+          installed_skill="$(find "$smoke_home" -path '*/skills/documentation/SKILL.md' -print -quit)"
+          test -n "$installed_skill"
+          test -f "$installed_skill"
+          test ! -L "$installed_skill"
 
       - name: OpenCode boot smoke
         run: |
-          if command -v opencode >/dev/null 2>&1; then
-            opencode --version
-          else
-            echo "opencode CLI not available on this runner, skipping boot smoke"
-          fi
+          command -v opencode >/dev/null 2>&1 || { echo "unsupported runner: pinned OpenCode CLI is unavailable" >&2; exit 1; }
+          opencode --version
+          find plugins-opencode/goodfoot/skills -name SKILL.md -print0 | xargs -0 -n1 sh -c 'grep -Eq "^name: [a-z0-9]+(-[a-z0-9]+)*$" "$0"'

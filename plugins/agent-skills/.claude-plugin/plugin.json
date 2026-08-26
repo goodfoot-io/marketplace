@@ -1,0 +1,9 @@
+{
+  "name": "agent-skills",
+  "version": "1.0.1",
+  "description": "Author, build, lint, and port portable agent skills with @goodfoot/agent-skills",
+  "author": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io"
+  }
+}

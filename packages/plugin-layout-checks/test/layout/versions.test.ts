@@ -1,5 +1,7 @@
+import { execFileSync } from "node:child_process";
+import * as fs from "node:fs";
 import { describe, expect, it } from "vitest";
-import { CLAUDE_TREE, CODEX_TREE, readJson } from "../helpers.js";
+import { CLAUDE_TREE, CODEX_TREE, readJson, repoPath } from "../helpers.js";
 
 interface Surface {
   label: string;
@@ -40,5 +42,31 @@ describe("version lockstep", () => {
     ).toHaveLength(1);
 
     expect(distinct[0]).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it("reports agent-skills 1.0.0 across package, CLI, companion plugin, marketplace, and changelogs", () => {
+    const packageVersion = readJson<{ version: string }>("packages/agent-skills/package.json").version;
+    const pluginVersion = readJson<{ version: string }>("plugins/agent-skills/.claude-plugin/plugin.json").version;
+    const registry = readJson<{ plugins: { name: string; version?: string }[] }>(".claude-plugin/marketplace.json");
+    const marketplaceVersion = registry.plugins.find(({ name }) => name === "agent-skills")?.version;
+    const cliVersion = execFileSync(
+      process.execPath,
+      ["node_modules/tsx/dist/cli.mjs", "packages/agent-skills/src/cli.ts", "--version"],
+      {
+        cwd: repoPath(),
+        encoding: "utf8",
+      },
+    ).trim();
+    const packageChangelog = fs.readFileSync(repoPath("packages/agent-skills/CHANGELOG.md"), "utf8");
+    const pluginChangelog = fs.readFileSync(repoPath("plugins/agent-skills/CHANGELOG.md"), "utf8");
+
+    expect({ packageVersion, pluginVersion, marketplaceVersion, cliVersion }).toEqual({
+      packageVersion: "1.0.0",
+      pluginVersion: "1.0.0",
+      marketplaceVersion: "1.0.0",
+      cliVersion: "1.0.0",
+    });
+    expect(packageChangelog).toMatch(/^## 1\.0\.0$/m);
+    expect(pluginChangelog).toMatch(/^## 1\.0\.0$/m);
   });
 });

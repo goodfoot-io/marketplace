@@ -1,0 +1,409 @@
+{
+  "sourceRevision": "2a131e7a7958ea33b1d370e77ab004054768dd29",
+  "skills": [
+    "documentation",
+    "instructions",
+    "marketing",
+    "skillify",
+    "typescript-metrics",
+    "worktree-cleanup"
+  ],
+  "files": [
+    {
+      "path": "documentation/SKILL.md",
+      "mode": 420,
+      "gitObject": "eeb69bb3a0b8675573eb8736a411369eceb09725",
+      "sha256": "b42c98bf0024711460e8d08b69826e8ef1a9d8e76c81c301c65bccffb1b2a388"
+    },
+    {
+      "path": "documentation/explanation/foundations.md",
+      "mode": 420,
+      "gitObject": "a4ada079021574250f4fa1e227a51f599cc25165",
+      "sha256": "e2c41eda6feb991acaa62287b21cc016c011dbc6bc6c5e7b737ea335716f724a"
+    },
+    {
+      "path": "documentation/explanation/principles/01-organize-around-user-intent.md",
+      "mode": 420,
+      "gitObject": "694433a209f445a2293ceacb636077bfddbd5203",
+      "sha256": "559d578f8a88ad3e66404d9a05634a6673c3d28b7ec8b9348769e19a6767f298"
+    },
+    {
+      "path": "documentation/explanation/principles/02-typed-source-of-truth-topics.md",
+      "mode": 420,
+      "gitObject": "6d32aa2aa80a4a2ca674c24ea206bfa0358c7ff7",
+      "sha256": "1c33383cf84433dec28c9f37a59189070a3f5004e87ca1e99fa47d2b08a749c3"
+    },
+    {
+      "path": "documentation/explanation/principles/03-hubs-orientation-and-routing.md",
+      "mode": 420,
+      "gitObject": "a9909f6b08de33dceb3b308807078a162a6629d8",
+      "sha256": "6a9df17482513c6c979e45cdb541820432f60aa3b16c58d14b19055b11de2d1f"
+    },
+    {
+      "path": "documentation/explanation/principles/04-multiple-paths.md",
+      "mode": 420,
+      "gitObject": "885f3d4bc370f3da2e0def6dd01e415f1e294dc1",
+      "sha256": "68523be8e2108d40421877551c6dacf61273c04f4325dc3893c70bd03de72370"
+    },
+    {
+      "path": "documentation/explanation/principles/05-controlled-vocabulary-and-metadata.md",
+      "mode": 420,
+      "gitObject": "cee855597ede15a99b2af8afe34e8c405774d138",
+      "sha256": "9cafb8d8e92b2fab03d0bdb2165d44d37fbec0ce62a2fff926e2d5dfb9f17da6"
+    },
+    {
+      "path": "documentation/explanation/principles/06-information-scent.md",
+      "mode": 420,
+      "gitObject": "ade670241b738dbb958340f02234bf702557815c",
+      "sha256": "28ab168bf9108ab59473ffc3ec9e9c981676af98afb2b8fdda3be44701241140"
+    },
+    {
+      "path": "documentation/explanation/principles/07-nonlinear-information-seeking.md",
+      "mode": 420,
+      "gitObject": "a36fab072ca392eed5862849053bcc1045215de7",
+      "sha256": "d17d09572d4fa45d10d9644df290c10cd91747b1370beed30dffc7d5599b9831"
+    },
+    {
+      "path": "documentation/explanation/principles/08-validate-and-iterate.md",
+      "mode": 420,
+      "gitObject": "3c2843e29d6664978206587d08c664049c2fb3d5",
+      "sha256": "8d183b10deb1c0b952715835538a042005e134a0a0ced70e701d0833fcbaf33a"
+    },
+    {
+      "path": "documentation/explanation/principles/index.md",
+      "mode": 420,
+      "gitObject": "dfc3dbf9a21862fe02344c4897f9c3126a8fc50b",
+      "sha256": "20018f6ea9312996635420319d087fc64bc1b30fa0bf931ac3a266014ad3bfb5"
+    },
+    {
+      "path": "documentation/how-to/add-paths.md",
+      "mode": 420,
+      "gitObject": "54c734c6996b13aa9446de23def68788eed888dd",
+      "sha256": "70d5324ab74eaabf856d5c562567a94c52c4708967d61ab34e29865042e7c85b"
+    },
+    {
+      "path": "documentation/how-to/audit-the-corpus.md",
+      "mode": 420,
+      "gitObject": "f044ad30e255a258624daf7b7b77212a245a7d6d",
+      "sha256": "d01748c8f0caec79c78a12ec4721e10576ecdb46900d8557becc9288de56445d"
+    },
+    {
+      "path": "documentation/how-to/build-hubs.md",
+      "mode": 420,
+      "gitObject": "d007b89eac29d83bdfc66339e4a500f72fa26877",
+      "sha256": "0b1d1307ca1ae9247f2456461538c537f527a41961a162ea530ce04263c2a7f0"
+    },
+    {
+      "path": "documentation/how-to/design-around-intent.md",
+      "mode": 420,
+      "gitObject": "2cc29b1fa5c72cfdce4e838ff59de111f74a3cf7",
+      "sha256": "e55546e60a0fbcb78b920fc95dc67994bcb6566b691284ed57d5f9446134271b"
+    },
+    {
+      "path": "documentation/how-to/govern.md",
+      "mode": 420,
+      "gitObject": "af22bb9f542d571ba62346265dfb2e401a76e776",
+      "sha256": "d64a0852af879ae36e34048c8fc68dd695ede7fecdc529fb7c96dafb8516fdfb"
+    },
+    {
+      "path": "documentation/how-to/procedure.md",
+      "mode": 420,
+      "gitObject": "84e9304151fd428572a2f823cfabeec7695a15b3",
+      "sha256": "d692b92e74e70b27db1f7ce65b1f5dff751713f5c9bef1612b2b0247d7fd6629"
+    },
+    {
+      "path": "documentation/how-to/set-vocabulary-and-metadata.md",
+      "mode": 420,
+      "gitObject": "ff623a4381e34145e0d8570c6e6c18666460ae0d",
+      "sha256": "1ee24bd50b8dde3e839ca40b609d191980180d09ea517cc74b0b602053efbce5"
+    },
+    {
+      "path": "documentation/how-to/strengthen-scent.md",
+      "mode": 420,
+      "gitObject": "5bfa7f83601826796505069281eb434b5c9fc143",
+      "sha256": "a804ebbd49611ab57efaf4987f22b8cffe15b6f0c72e5c939805190693328902"
+    },
+    {
+      "path": "documentation/how-to/support-nonlinear-seeking.md",
+      "mode": 420,
+      "gitObject": "ee7966564b7c8f200a73a35b78f01c685138a077",
+      "sha256": "0cc16c94125a66a5c562a7823e4611f0fff142b56d0e6a87a587c8e8d6898c43"
+    },
+    {
+      "path": "documentation/how-to/type-a-topic.md",
+      "mode": 420,
+      "gitObject": "c41580e56cdba921b4115f62ed221486f4c3d1ea",
+      "sha256": "f74978b3306ae87fd444e1cdc9d570c52bf101d5a5fef32a7257e89c3906661d"
+    },
+    {
+      "path": "documentation/how-to/validate.md",
+      "mode": 420,
+      "gitObject": "7ead4752fc7d28267534dcc63c2fc879ebcba911",
+      "sha256": "888287e82bc31ef84efc086ca1e7b874939d5e9bca9a98753ebff3b183ad2961"
+    },
+    {
+      "path": "documentation/reference/metadata-fields.md",
+      "mode": 420,
+      "gitObject": "590313806e990dbd63f9fd1f21b83e40e5d42373",
+      "sha256": "cdbfb359285231502c34bf84f87df9197be3d52e3894e426a43240ef297f4f17"
+    },
+    {
+      "path": "documentation/reference/page-genres.md",
+      "mode": 420,
+      "gitObject": "679499709f369a6e402718ff939e817ab26925cc",
+      "sha256": "d141591b6e75910c467ea6d28d0c2fa5c5b025cde2fb494f7b78cfb00c0d06c4"
+    },
+    {
+      "path": "documentation/reference/tools/git-history.md",
+      "mode": 420,
+      "gitObject": "cad802f5a5697d82f84823312409ca8f98ca6147",
+      "sha256": "f5c7374284bf89d547feb19cb0b7dc761c7a7b350ee5b0c6b1d88fbf90797228"
+    },
+    {
+      "path": "documentation/reference/tools/git-mesh.md",
+      "mode": 420,
+      "gitObject": "909d57182965699a7c64a67bdb2609f981c55da3",
+      "sha256": "51f39ff220f9860743d8d6cd436b29dcf8cb32cc88e2b2403f47dad5c5a7acbe"
+    },
+    {
+      "path": "documentation/reference/tools/inventory-grep.md",
+      "mode": 420,
+      "gitObject": "bb3391cd35ee508a76f0294f3f62a9ef0b32fc91",
+      "sha256": "0760cf32320f0fd9a4867ed71462215195ea89da1c0bbf2e2fbadba897a34746"
+    },
+    {
+      "path": "documentation/reference/tools/wiki.md",
+      "mode": 420,
+      "gitObject": "f8fdb312a00aa21235220c0e82e3ba0c676b9ce4",
+      "sha256": "c4051e8588f43c09896db6057fffbf6cb8a927cfb58c4ebe40774ec0040d1168"
+    },
+    {
+      "path": "documentation/reference/topic-types.md",
+      "mode": 420,
+      "gitObject": "ec3fc9d044660b0ce37a5d85d4edec388c16ea83",
+      "sha256": "dab9a725a912b84d14d5af954bf5d51e6fc5899094bb9ae4c3b5f4fa6e718e80"
+    },
+    {
+      "path": "documentation/reference/validation-signals.md",
+      "mode": 420,
+      "gitObject": "75f9b42c5d157d9d5407ece20411289d5829cf14",
+      "sha256": "369340a75c53cd59cc7780fcacee0733e32600a1c69f4b56b159f640af1efb32"
+    },
+    {
+      "path": "instructions/SKILL.md",
+      "mode": 420,
+      "gitObject": "f25ec8fa150a1e484ff7819af129d7fb88cfaa28",
+      "sha256": "73820052c688859fb3284b10cf419b9f86074b5dc955927e8631880e33be3e08"
+    },
+    {
+      "path": "marketing/SKILL.md",
+      "mode": 420,
+      "gitObject": "3866a242e99976a0daecfc66279402c2fb44f505",
+      "sha256": "45bf5e8572739b5adebb0f05670554968040f45fc148bfa8475ab96c3cdd4f12"
+    },
+    {
+      "path": "marketing/audiences/buying-center.md",
+      "mode": 420,
+      "gitObject": "221730beb634088e128be639c5d3d54bd628f898",
+      "sha256": "35ec1773bc63f24141289ba9dae7a051265bb2edddf315b5ae96a0991420d89c"
+    },
+    {
+      "path": "marketing/audiences/developers.md",
+      "mode": 420,
+      "gitObject": "87565670e6bcaced01a0717cdcfc3186bf6c5bb3",
+      "sha256": "607319e9c03b6bd7902d9948298f745fcf2b694733a4d330eb80a3b689a2a402"
+    },
+    {
+      "path": "marketing/audiences/end-users.md",
+      "mode": 420,
+      "gitObject": "9a300860817f8d1b054a305b99011f5f04ea3c69",
+      "sha256": "2a4a0cdf584e398dc8b527fc369635bbee04d04e623c26099e9bfcab469713e0"
+    },
+    {
+      "path": "marketing/audiences/open-source.md",
+      "mode": 420,
+      "gitObject": "3ff554dd6e656c4efc70868a5d202c42f12fbedc",
+      "sha256": "14b33464ae087018bda2f965c232771008f1cd81521a7a7cb4c8ef45c5aadc38"
+    },
+    {
+      "path": "marketing/measurement.md",
+      "mode": 420,
+      "gitObject": "508d0b4d17f8c04004d35c8c5c360040c022a07b",
+      "sha256": "0992f0c51bfe0a6b22720ab2ed41deaea023cc91acbc3708d639d86e05b9ee0f"
+    },
+    {
+      "path": "marketing/media/audio.md",
+      "mode": 420,
+      "gitObject": "079802328f29f4de3abdfefa49af7f479a068d49",
+      "sha256": "ef771c5ab689944b487a3ecb241347757c298304af8b58f0d0872e9917056c09"
+    },
+    {
+      "path": "marketing/media/cross-media.md",
+      "mode": 420,
+      "gitObject": "c0cba74733df1462b30918dfe2e49d5495d5cffb",
+      "sha256": "48fc97eb89927870c646c607b00f258c7599d41d92f92d5ff3581af2103043a3"
+    },
+    {
+      "path": "marketing/media/demo.md",
+      "mode": 420,
+      "gitObject": "a8a6a75ce6c486893f56038405a708854e6b3ba2",
+      "sha256": "63f12caf01595b4c8ace2075a06286212f624f740d5193a0a198cf29a31f428e"
+    },
+    {
+      "path": "marketing/media/imagery.md",
+      "mode": 420,
+      "gitObject": "5df0669650104fcec516c4a153be5f6c1ae50d08",
+      "sha256": "ec0256f4d11c264ccd26793f91e8a14e56126d71a6c19dfabb85b4a783725467"
+    },
+    {
+      "path": "marketing/media/text.md",
+      "mode": 420,
+      "gitObject": "eb6d1b222b8fa84a0b5b4b5619bbd25927c7ac12",
+      "sha256": "d55b369411f4585c15c74512dc2a2e90e560bfca6c941fe0383d0d5446647e4c"
+    },
+    {
+      "path": "marketing/media/video.md",
+      "mode": 420,
+      "gitObject": "1b3e8d33a25947f733ffc0241d3df9f231a4d92e",
+      "sha256": "06848c7376bcb2b90cc1fad52d6807636ea362eee7d6db887b1664e321027f7f"
+    },
+    {
+      "path": "marketing/references.md",
+      "mode": 420,
+      "gitObject": "1b3070f221a22e565d0144026543faaa6d8ef3be",
+      "sha256": "baa677aacd978ffdd4af3503013cc7499def03c7cc15ab029b2cd8910deadd73"
+    },
+    {
+      "path": "marketing/sources/index.md",
+      "mode": 420,
+      "gitObject": "ddb30948d3743472927b7d5055d281394e84d5e8",
+      "sha256": "be9719f65173f01956542285f197c6ca0f935d58045b7ff7e93597e629b67f01"
+    },
+    {
+      "path": "marketing/sources/marketing-audience-segments.md",
+      "mode": 420,
+      "gitObject": "084fd7d4a784143ebbc510aeb53d5aaec9810278",
+      "sha256": "6a3bef1780e8dd024c5a6e6c5f3284095ebce54c6ac5473a2dc2c586c619e81a"
+    },
+    {
+      "path": "marketing/sources/marketing-funnel-stages.md",
+      "mode": 420,
+      "gitObject": "46a052a00863e796d1c5063775d34311d9757927",
+      "sha256": "7d588ef9a24514460bf81eb710bb529752557909d696451a608b018df4c5729d"
+    },
+    {
+      "path": "marketing/sources/marketing-medium-execution.md",
+      "mode": 420,
+      "gitObject": "c04c0b31bb76a6cbf54bbd54a8c617920fbcbc7d",
+      "sha256": "0354ec2456e63da7dae11f89ffe0c1a34f95c58188f28ab2973efa6d6006b4c6"
+    },
+    {
+      "path": "marketing/sources/marketing-message-checklist.md",
+      "mode": 420,
+      "gitObject": "5d2bf3a2cb5681b23581884ff4c29e13c73f613c",
+      "sha256": "e6ad7b66b9922c4b2a0ef445251f23256e2f971e9132d4e9420843ba581ab431"
+    },
+    {
+      "path": "marketing/sources/marketing-psychology-claims.md",
+      "mode": 420,
+      "gitObject": "0bf5809d993b88b900a4c62066334b38d42c5e6c",
+      "sha256": "ecc0311c44011ef00873a4b9b7753ead01d78b7027ef25fd41b2892df1a1d3c0"
+    },
+    {
+      "path": "marketing/stages/attention.md",
+      "mode": 420,
+      "gitObject": "1546585696ce3b04aaa2758e1ccb660331c19c52",
+      "sha256": "f04e3fd0f8bddd28190dcea7a7429ce5019e909d457de00acd30f94d947d7762"
+    },
+    {
+      "path": "marketing/stages/comprehension.md",
+      "mode": 420,
+      "gitObject": "88a10852d24f9142a99acfe9e87d75c7fa46b0aa",
+      "sha256": "bb00c407ce427a14bb3901eb2085972bb8117d29907bbf9b2816c191effd3490"
+    },
+    {
+      "path": "marketing/stages/evaluation.md",
+      "mode": 420,
+      "gitObject": "ef68701a248e72173b0d97d8420d7998c8b2f3ed",
+      "sha256": "c49c216d53bb009e76d6a717fde7714d738305ea9ae7a67f2d6cdd22115c60c6"
+    },
+    {
+      "path": "marketing/stages/retention.md",
+      "mode": 420,
+      "gitObject": "3b1b25ed3dc55287d8eef5b1402fbf3c47d278b3",
+      "sha256": "b6eef640c7fe9535c6dbcde1d9e356ba5b253447725bd3c970881485007d8280"
+    },
+    {
+      "path": "marketing/stages/trial.md",
+      "mode": 420,
+      "gitObject": "b90431cd39c236e518854e7985781a4141a83ff9",
+      "sha256": "fa12d6237f8917c62b651451078d5b6f47645fbec6af3d89430b395c47d37333"
+    },
+    {
+      "path": "marketing/stages/trust.md",
+      "mode": 420,
+      "gitObject": "08b9fa5cb92f670b1f3b67eebec996ad736d8b5b",
+      "sha256": "1736ccbd72446c6a9fbec2441d47e91f68a35cbca05c1438290f34913fb5206f"
+    },
+    {
+      "path": "skillify/SKILL.md",
+      "mode": 420,
+      "gitObject": "47becee39ffa07aadd92d1c08efa8354f5285c3e",
+      "sha256": "83c63ca7f58c8ad2606461de5b47cfa6e54ee8ace4a8f82bbdffd77b1574b047"
+    },
+    {
+      "path": "typescript-metrics/SKILL.md",
+      "mode": 420,
+      "gitObject": "f5d51b894cfdb8f193e9da86710ea37515a996aa",
+      "sha256": "9cd848e4a602bfc5c6298a66ba4559c748bbf0e0b82f0ebc9965d60a180a3c68"
+    },
+    {
+      "path": "typescript-metrics/bin/typescript-metrics.mjs",
+      "mode": 493,
+      "gitObject": "a720c0ad2df6d34a3857da8f0a295f76fa6aecfe",
+      "sha256": "3468ed07d3bdf4c3558e4f5331bdb66c93ffab4dbcdc08b2d9d7cbfeac839529"
+    },
+    {
+      "path": "typescript-metrics/references/complexity.md",
+      "mode": 420,
+      "gitObject": "02a20205d2df6a7863d11e2d2bb0c82ee6ac3fe1",
+      "sha256": "233c0ba03205c220cee213f3518bf141ab68ac06f6ce2933160fe4573ac26bd7"
+    },
+    {
+      "path": "typescript-metrics/references/coupling.md",
+      "mode": 420,
+      "gitObject": "9bfbef3fa23a89a9c5e84b06e2b5a8b18e68820f",
+      "sha256": "d36fc0651b103ff046e4f65fd73902346cf9be00f53b207a1f7674a4c4214df4"
+    },
+    {
+      "path": "typescript-metrics/references/cycles.md",
+      "mode": 420,
+      "gitObject": "010b2e0173acf4b5dc1bb1d69239f59575c70fa8",
+      "sha256": "151a4634b0639b5ba5865a4963ef7dfa671750e7033cd835af93c0b2fc8bcced"
+    },
+    {
+      "path": "typescript-metrics/references/dataflow.md",
+      "mode": 420,
+      "gitObject": "d2bf8ae5230c376a26e3905fceb979b85258693b",
+      "sha256": "e2e327bc5e889d336d99fb0082fceb9f9af955b895bab7c5f24178714fa094b7"
+    },
+    {
+      "path": "typescript-metrics/references/duplication.md",
+      "mode": 420,
+      "gitObject": "de275cddc9e5fa91e37e068e08457f687a98b26f",
+      "sha256": "9eee800e80b54263108c4f10988128bd3271d86698d76c809cfcd03c922d422e"
+    },
+    {
+      "path": "typescript-metrics/references/swallowed-errors.md",
+      "mode": 420,
+      "gitObject": "ac64d54dafa784a1956c54138275d8143ee9e970",
+      "sha256": "83689028421bb07db44eb37970d52e9cbb04608a7b1270044dee313aebcb6189"
+    },
+    {
+      "path": "worktree-cleanup/SKILL.md",
+      "mode": 420,
+      "gitObject": "4f8068dbaae9969e095c3faee498bf44f403b2b3",
+      "sha256": "8f578e67da01f7124b64d7acdcc47b4f5c61cb1271513c8758c4f67f3cecc492"
+    }
+  ]
+}

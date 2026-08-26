@@ -1,0 +1,67 @@
+{
+  "name": "@goodfoot/agent-skills",
+  "version": "1.0.0",
+  "description": "Deterministic, cross-platform agent skill compiler and linter",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/agent-skills",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodfoot-io/marketplace.git",
+    "directory": "packages/agent-skills"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "files": [
+    "dist",
+    "types",
+    "assets",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --build tsconfig.build.json",
+    "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests ./e2e",
+    "test": "vitest run",
+    "release": "bash ../../scripts/release-package.sh agent-skills",
+    "release:dry-run": "bash ../../scripts/release-package.sh agent-skills --dry-run"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./types/index.d.ts"
+    },
+    "./platforms": {
+      "import": "./dist/platforms.js",
+      "types": "./types/platforms.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types.js",
+      "types": "./types/types.d.ts"
+    },
+    "./helper-reference": {
+      "import": "./dist/helper-reference.js",
+      "types": "./types/helper-reference.d.ts"
+    }
+  },
+  "bin": "./dist/cli.js",
+  "publishConfig": {
+    "bin": {
+      "agent-skills": "./dist/cli.js"
+    }
+  },
+  "dependencies": {
+    "eta": "^4.6.0",
+    "glob": "^13.0.6",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.10",
+    "@types/node": "^24",
+    "tsx": "^4.20.6",
+    "vitest": "^4.1.11"
+  }
+}
