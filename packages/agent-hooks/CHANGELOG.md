@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.5
+- Fixed Codex hook scaffold's PreToolUse/PostToolUse examples to avoid accessing unknown tool_input fields
+
 ## 1.0.4
 - Fixed the Codex scaffold's generated `biome.json` to properly scope linting/formatting to project files and enable organized imports
 
