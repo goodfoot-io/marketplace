@@ -1,0 +1,4 @@
+packages/agent-hooks/src/agents/claude-code/hooks.ts#L107-L156
+packages/agent-hooks/src/core/types.ts#L13-L29
+
+The Claude Code surface teaches the unexpectedError/onUnexpectedError fail-open config surface by name (shared-vocabulary JSDoc, the advisoryPolicyGate closure, and the per-event HookConfigFor narrowing that rejects "continue" for excluded events at compile time); core's UnexpectedErrorPolicy doc defines the policy contract both source runtimes shipped. The equivalent span carried forward from `claude-code-hooks/skill-fail-open`; the plugin SKILL.md half lives outside this step's file ownership and must be re-anchored by its owner when the agent-hooks plugin lands.

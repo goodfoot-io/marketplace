@@ -1,0 +1,17 @@
+/**
+ * Test fixture: PreToolUse hook with multi-tool matcher.
+ *
+ * Used to verify that matchers support regex alternation patterns
+ * to match multiple tool names.
+ */
+
+import { preToolUseHook, preToolUseOutput } from "../../../src/agents/claude-code/index.js";
+
+export default preToolUseHook({ matcher: "Read|Glob|Grep" }, (input, { logger }) => {
+  logger.info("Multi-matcher hook triggered", { tool_name: input.tool_name });
+
+  return preToolUseOutput({
+    systemMessage: `E2E_MULTI_MATCHER: Tool ${input.tool_name} matched by Read|Glob|Grep pattern.`,
+    hookSpecificOutput: { permissionDecision: "allow" },
+  });
+});

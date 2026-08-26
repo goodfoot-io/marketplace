@@ -69,12 +69,19 @@ describe("root-export lint", () => {
     expect(() => assertOnlyCoreImports(offending, "fixture/index.ts")).toThrow(/outside \.\/core\//);
   });
 
-  it("package.json exports declares exactly the closed root entry with no wildcard", () => {
+  it("package.json exports declares exactly the closed entry list with no wildcard", () => {
     const pkg = JSON.parse(readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf-8")) as PackageExportsFixture;
-    expect(Object.keys(pkg.exports)).toStrictEqual(["."]);
+    // Step 1 ships "." (core only); step 2.3 adds the explicit "./claude-code"
+    // subpath in the same step its target files first exist. The list stays
+    // closed — no "./*" wildcard, ever.
+    expect(Object.keys(pkg.exports)).toStrictEqual([".", "./claude-code"]);
     expect(pkg.exports["."]).toStrictEqual({
       import: "./dist/index.js",
       types: "./types/index.d.ts",
+    });
+    expect(pkg.exports["./claude-code"]).toStrictEqual({
+      import: "./dist/agents/claude-code/index.js",
+      types: "./types/agents/claude-code/index.d.ts",
     });
     expect(() => assertClosedExportMap(pkg.exports)).not.toThrow();
   });

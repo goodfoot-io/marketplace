@@ -1,0 +1,319 @@
+/**
+ * `@goodfoot/agent-hooks/claude-code` — the Claude Code agent surface.
+ *
+ * Re-exports every hook factory (all 30, including `postToolBatchHook`),
+ * their output builders, the input/output types, tool-helper guards, env
+ * utilities, the advisory allow-list events module, and the runtime
+ * `execute` entry point. No default export.
+ * @module
+ */
+
+// Re-export all SDK tool input types (via types.ts)
+// Uses `export type *` because sdk-tools.d.ts has no JavaScript runtime counterpart.
+export type * from "@anthropic-ai/claude-agent-sdk/sdk-tools.js";
+// Logger types
+export type {
+  LogEvent,
+  LogEventError,
+  LogEventHandler,
+  LoggerConfig,
+  LogLevel,
+  Unsubscribe,
+} from "../../core/logger.js";
+// Logger exports
+export { LOG_LEVELS, Logger, logger } from "../../core/logger.js";
+// Environment variable utilities
+export {
+  CLAUDE_ENV_VARS,
+  getEnvFilePath,
+  getProjectDir,
+  isRemoteEnvironment,
+  persistEnvVar,
+  persistEnvVars,
+} from "./env.js";
+export type {
+  AdvisoryEventName,
+  AllowedUnexpectedErrorPolicy,
+  ExcludedEventName,
+  IsExcludedEvent,
+} from "./events.js";
+// Advisory allow-list events
+export { ADVISORY_EVENTS, EXCLUDED_FROM_ADVISORY, HOOK_EVENT_NAMES } from "./events.js";
+
+// Hook factory types
+export type {
+  HookConfig,
+  HookConfigFor,
+  HookContext,
+  HookErrorPhase,
+  HookFunction,
+  HookHandler,
+  SessionStartContext,
+  // Typed hook config and input types for single-tool matchers
+  TypedHookConfig,
+  TypedHookConfigFor,
+  TypedPermissionRequestInput,
+  TypedPostToolUseFailureHookInput,
+  TypedPostToolUseHookInput,
+  TypedPreToolUseHookInput,
+  UnexpectedErrorHandler,
+  UnexpectedErrorPolicy,
+} from "./hooks.js";
+
+// Hook factory functions - all 30 hook types
+export {
+  configChangeHook,
+  cwdChangedHook,
+  elicitationHook,
+  elicitationResultHook,
+  fileChangedHook,
+  instructionsLoadedHook,
+  messageDisplayHook,
+  notificationHook,
+  permissionDeniedHook,
+  permissionRequestHook,
+  postCompactHook,
+  postToolBatchHook,
+  postToolUseFailureHook,
+  postToolUseHook,
+  preCompactHook,
+  preToolUseHook,
+  sessionEndHook,
+  sessionStartHook,
+  setupHook,
+  stopFailureHook,
+  stopHook,
+  subagentStartHook,
+  subagentStopHook,
+  taskCompletedHook,
+  taskCreatedHook,
+  teammateIdleHook,
+  userPromptExpansionHook,
+  userPromptSubmitHook,
+  worktreeCreateHook,
+  worktreeRemoveHook,
+} from "./hooks.js";
+
+// Output types and builders
+export type {
+  CommonOptions,
+  ConfigChangeOptions,
+  CwdChangedHookSpecificOutput,
+  CwdChangedOptions,
+  ElicitationHookSpecificOutput,
+  ElicitationOptions,
+  ElicitationResultHookSpecificOutput,
+  ElicitationResultOptions,
+  ExitCode,
+  ExitCodeOptions,
+  FileChangedHookSpecificOutput,
+  FileChangedOptions,
+  // Core output types
+  HookOutput,
+  // Hook-specific output types
+  HookSpecificOutput,
+  InstructionsLoadedOptions,
+  MessageDisplayHookSpecificOutput,
+  MessageDisplayOptions,
+  NotificationHookSpecificOutput,
+  NotificationOptions,
+  PermissionDeniedHookSpecificOutput,
+  PermissionDeniedOptions,
+  PermissionRequestAllowDecision,
+  PermissionRequestDecision,
+  PermissionRequestDenyDecision,
+  PermissionRequestHookSpecificOutput,
+  PermissionRequestOptions,
+  PostCompactOptions,
+  PostToolBatchOutput,
+  PostToolUseFailureHookSpecificOutput,
+  PostToolUseFailureOptions,
+  PostToolUseHookSpecificOutput,
+  PostToolUseOptions,
+  PreCompactOptions,
+  PreToolUseHookSpecificOutput,
+  PreToolUseOptions,
+  SessionEndOptions,
+  SessionStartHookSpecificOutput,
+  SessionStartOptions,
+  SetupHookSpecificOutput,
+  SetupOptions,
+  StopFailureOptions,
+  StopOptions,
+  SubagentStartHookSpecificOutput,
+  SubagentStartOptions,
+  SubagentStopOptions,
+  SyncHookJSONOutput,
+  TaskCompletedOptions,
+  TaskCreatedOptions,
+  TeammateIdleOptions,
+  UserPromptExpansionHookSpecificOutput,
+  UserPromptExpansionOptions,
+  UserPromptSubmitHookSpecificOutput,
+  UserPromptSubmitOptions,
+  WorktreeCreateOptions,
+  WorktreeRemoveOptions,
+} from "./outputs.js";
+
+// Output builder functions
+export {
+  configChangeOutput,
+  cwdChangedOutput,
+  // Exit codes
+  EXIT_CODES,
+  elicitationOutput,
+  elicitationResultOutput,
+  fileChangedOutput,
+  instructionsLoadedOutput,
+  messageDisplayOutput,
+  notificationOutput,
+  permissionDeniedOutput,
+  permissionRequestOutput,
+  postCompactOutput,
+  postToolBatchOutput,
+  postToolUseFailureOutput,
+  postToolUseOutput,
+  preCompactOutput,
+  preToolUseOutput,
+  sessionEndOutput,
+  sessionStartOutput,
+  setupOutput,
+  stopFailureOutput,
+  stopOutput,
+  subagentStartOutput,
+  subagentStopOutput,
+  taskCompletedOutput,
+  taskCreatedOutput,
+  teammateIdleOutput,
+  userPromptExpansionOutput,
+  userPromptSubmitOutput,
+  worktreeCreateOutput,
+  worktreeRemoveOutput,
+} from "./outputs.js";
+// Tool helper types
+export type { ContentContext, PatternCheckResult, ToolUseInput } from "./tool-helpers.js";
+// Tool helper functions - Type guards and utilities
+export {
+  // Content inspection
+  checkContentForPattern,
+  forEachContent,
+  // File path utilities
+  getFilePath,
+  // Type guards - User interaction
+  isAskUserQuestionTool,
+  // Type guards - Commands
+  isBashTool,
+  // Type guards - Config
+  isConfigTool,
+  // Type guards - Cron
+  isCronCreateTool,
+  isCronDeleteTool,
+  isCronListTool,
+  isEditTool,
+  // Type guards - Plan mode & Worktrees
+  isEnterPlanModeTool,
+  isEnterWorktreeTool,
+  isExitPlanModeTool,
+  isExitWorktreeTool,
+  isFileModifyingTool,
+  // Type guards - Search
+  isGlobTool,
+  isGrepTool,
+  isJsTsFile,
+  isKillShellTool,
+  // Type guards - MCP
+  isListMcpResourcesTool,
+  isMcpTool,
+  // Type guards - Monitoring & scheduling
+  isMonitorTool,
+  isMultiEditTool,
+  isNotebookEditTool,
+  isPushNotificationTool,
+  isReadMcpResourceTool,
+  isReadTool,
+  isRemoteTriggerTool,
+  // Type guards - REPL & Workflow
+  isReplTool,
+  isScheduleWakeupTool,
+  // Type guards - Task management
+  isTaskCreateTool,
+  isTaskGetTool,
+  isTaskListTool,
+  isTaskOutputTool,
+  // Type guards - Agents
+  isTaskTool,
+  isTaskUpdateTool,
+  isTodoWriteTool,
+  isTsFile,
+  // Type guards - Web
+  isWebFetchTool,
+  isWebSearchTool,
+  isWorkflowTool,
+  // Type guards - File operations
+  isWriteTool,
+} from "./tool-helpers.js";
+// Runtime exports - execute function and wire translation surface
+export {
+  BLOCK_SHAPE_BY_EVENT,
+  convertToHookOutput,
+  createClaudeCodeTransport,
+  // Main execute function for compiled hooks
+  execute,
+} from "./transport.js";
+
+// Input types - Wire format (snake_case) matching the Claude Code protocol
+export type {
+  // Base type
+  BaseHookInput,
+  ConfigChangeInput,
+  ConfigInput,
+  CwdChangedInput,
+  ElicitationInput,
+  ElicitationResultInput,
+  FileChangedInput,
+  FileModifyingToolInput,
+  FileModifyingToolName,
+  // Supporting types
+  HookEventName,
+  // Discriminated union
+  HookInput,
+  InstructionsLoadedInput,
+  KnownToolInput,
+  KnownToolName,
+  ListMcpResourcesInput,
+  McpInput,
+  MessageDisplayInput,
+  // Tool input types
+  MultiEditEntry,
+  MultiEditToolInput,
+  // Hook input types (with expanded hover tooltips)
+  NotificationInput,
+  PermissionDeniedInput,
+  PermissionMode,
+  PermissionRequestInput,
+  PermissionUpdate,
+  PostCompactInput,
+  PostToolBatchInput,
+  PostToolUseFailureInput,
+  PostToolUseInput,
+  PreCompactInput,
+  PreToolUseInput,
+  ReadMcpResourceInput,
+  SessionEndInput,
+  SessionEndReason,
+  SessionStartInput,
+  SetupInput,
+  SetupTrigger,
+  StopFailureInput,
+  StopInput,
+  SubagentStartInput,
+  SubagentStopInput,
+  TaskCompletedInput,
+  TaskCreatedInput,
+  TeammateIdleInput,
+  ToolInputMap,
+  UserPromptExpansionInput,
+  UserPromptSubmitInput,
+  WorktreeCreateInput,
+  WorktreeRemoveInput,
+} from "./types.js";

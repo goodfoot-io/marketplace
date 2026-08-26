@@ -297,7 +297,18 @@ export async function drive<TInput, TOutput>(
     process.stderr.write(finalized.stderr);
   }
   if (finalized.stdout !== undefined) {
-    process.stdout.write(finalized.stdout);
+    try {
+      process.stdout.write(finalized.stdout);
+    } catch (error) {
+      if (policy === "continue") {
+        reportUnexpectedError(onUnexpectedError, error, "write");
+        cleanupQuietly();
+        process.exit(FALLBACK_EXIT_SUCCESS);
+      }
+      writeUnexpectedErrorStderr(error);
+      cleanupQuietly();
+      process.exit(FALLBACK_EXIT_ERROR);
+    }
   }
   process.exit(finalized.exitCode);
 }

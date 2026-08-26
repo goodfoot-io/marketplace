@@ -2614,6 +2614,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@goodfoot/agent-hooks@workspace:packages/agent-hooks"
   dependencies:
+    "@anthropic-ai/claude-agent-sdk": "npm:^0.3.162"
     "@biomejs/biome": "npm:2.4.16"
     "@types/node": "npm:^24"
     typescript: "npm:^5.9.3"

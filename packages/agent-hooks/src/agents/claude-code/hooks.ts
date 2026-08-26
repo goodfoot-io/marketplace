@@ -1,0 +1,1685 @@
+/**
+ * Hook factory functions for Claude Code hooks.
+ *
+ * Provides typed factory functions for all 30 hook types that handle:
+ * - Input type narrowing based on hook event type
+ * - Output type enforcement via return types
+ * - Error wrapping with automatic logging
+ * - Logger context injection
+ *
+ * Each factory accepts a HookConfig with optional matcher and timeout settings,
+ * and returns a function that the runtime invokes when the hook file executes.
+ * @module
+ * @example
+ * ```typescript
+ * import { preToolUseHook, preToolUseOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => {
+ *   logger.info('Processing Bash command');
+ *   return preToolUseOutput({ allow: true });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks
+ */
+
+import { defineHook } from "../../core/define-hook.js";
+import { persistEnvVar, persistEnvVars } from "../../core/env.js";
+import { logger } from "../../core/logger.js";
+import type {
+  HookConfig,
+  HookContext,
+  HookFunction,
+  HookPolicyGate,
+  UnexpectedErrorHandler,
+  UnexpectedErrorPolicy,
+} from "../../core/types.js";
+import { ADVISORY_EVENTS, type AllowedUnexpectedErrorPolicy } from "./events.js";
+import type {
+  ConfigChangeOutput,
+  CwdChangedOutput,
+  ElicitationOutput,
+  ElicitationResultOutput,
+  FileChangedOutput,
+  InstructionsLoadedOutput,
+  MessageDisplayOutput,
+  NotificationOutput,
+  PermissionDeniedOutput,
+  PermissionRequestOutput,
+  PostCompactOutput,
+  PostToolBatchOutput,
+  PostToolUseFailureOutput,
+  PostToolUseOutput,
+  PreCompactOutput,
+  PreToolUseOutput,
+  SessionEndOutput,
+  SessionStartOutput,
+  SetupOutput,
+  SpecificHookOutput,
+  StopFailureOutput,
+  StopOutput,
+  SubagentStartOutput,
+  SubagentStopOutput,
+  TaskCompletedOutput,
+  TaskCreatedOutput,
+  TeammateIdleOutput,
+  UserPromptExpansionOutput,
+  UserPromptSubmitOutput,
+  WorktreeCreateOutput,
+  WorktreeRemoveOutput,
+} from "./outputs.js";
+import type {
+  ConfigChangeInput,
+  CwdChangedInput,
+  ElicitationInput,
+  ElicitationResultInput,
+  FileChangedInput,
+  HookEventName,
+  InstructionsLoadedInput,
+  KnownToolName,
+  MessageDisplayInput,
+  NotificationInput,
+  PermissionDeniedInput,
+  PermissionRequestInput,
+  PostCompactInput,
+  PostToolBatchInput,
+  PostToolUseFailureInput,
+  PostToolUseInput,
+  PreCompactInput,
+  PreToolUseInput,
+  SessionEndInput,
+  SessionStartInput,
+  SetupInput,
+  StopFailureInput,
+  StopInput,
+  SubagentStartInput,
+  SubagentStopInput,
+  TaskCompletedInput,
+  TaskCreatedInput,
+  TeammateIdleInput,
+  ToolInputMap,
+  UserPromptExpansionInput,
+  UserPromptSubmitInput,
+  WorktreeCreateInput,
+  WorktreeRemoveInput,
+} from "./types.js";
+
+// ============================================================================
+// Shared Configuration Vocabulary (from the committed core)
+// ============================================================================
+
+/**
+ * The policy, phase, and diagnostic vocabulary is shared across agents and
+ * owned by the core; re-exported here so the Claude Code surface keeps its
+ * historical import site (`hooks.js`).
+ *
+ * `"error"` (default) preserves existing behavior: an unhandled exception
+ * anywhere in the runtime writes a stack trace to stderr and exits non-zero.
+ *
+ * `"continue"` is an opt-in fail-open policy for advisory hooks whose only
+ * purpose is to enrich context (e.g. UserPromptSubmit additionalContext).
+ * Under this policy, unexpected runtime failures are swallowed, the empty
+ * output (`{}`) is emitted if no response was already produced, and the
+ * process exits 0 instead of surfacing a failed-hook banner to the user.
+ * An explicit `stderr`/blocking response returned by the handler itself is
+ * unaffected: it always writes that message and exits with code 2 (BLOCK).
+ * Do not use "continue" for hooks that enforce permission, safety, or
+ * policy decisions — see {@link ADVISORY_EVENTS} and the per-event config
+ * narrowing ({@link HookConfigFor}), which reject it at factory-call time
+ * and at compile time for every excluded event.
+ */
+export type {
+  HookConfig,
+  HookContext,
+  HookErrorPhase,
+  HookFunction,
+  UnexpectedErrorHandler,
+  UnexpectedErrorPolicy,
+} from "../../core/types.js";
+
+/**
+ * Per-event hook configuration: the shared {@link HookConfig} with the
+ * fail-open policy narrowed by the advisory allow-list. On excluded events
+ * (`PreToolUse`, `PermissionRequest`, blocking `Stop`/`SubagentStop`,
+ * `WorktreeCreate`/`WorktreeRemove`) the `unexpectedError` field collapses
+ * to `"error"` only, so `unexpectedError: "continue"` fails the type check;
+ * the same rule is enforced at factory-call time by the runtime policy gate.
+ * @template TEventName - The event the factory binds.
+ */
+export type HookConfigFor<TEventName extends HookEventName> = Omit<HookConfig, "unexpectedError"> & {
+  unexpectedError?: AllowedUnexpectedErrorPolicy<TEventName>;
+};
+
+/**
+ * Typed-single-tool-matcher variant of {@link HookConfigFor}: narrows both
+ * the tool input (via `matcher: T`) and the allowed fail-open policy for the
+ * bound event. See {@link HookConfigFor}.
+ * @template T - The known tool name to match
+ * @template TEventName - The event the factory binds.
+ */
+export type TypedHookConfigFor<T extends KnownToolName, TEventName extends HookEventName> = Omit<
+  TypedHookConfig<T>,
+  "unexpectedError"
+> & { unexpectedError?: AllowedUnexpectedErrorPolicy<TEventName> };
+
+// ============================================================================
+// Typed Configuration Types (for single-tool matchers)
+// ============================================================================
+
+/**
+ * Configuration for hooks with a known single-tool matcher.
+ *
+ * When the matcher is a single known tool name, the handler receives
+ * automatically typed toolInput based on the tool type.
+ * @template T - The known tool name
+ * @example
+ * ```typescript
+ * // tool_input is automatically typed as FileWriteInput
+ * preToolUseHook({ matcher: 'Write' }, (input) => {
+ *   console.log(input.tool_input.file_path); // Typed!
+ *   console.log(input.tool_input.content);   // Typed!
+ * });
+ * ```
+ */
+export interface TypedHookConfig<T extends KnownToolName> {
+  /**
+   * The single tool name to match.
+   * When this is a known tool name, toolInput will be automatically typed.
+   */
+  matcher: T;
+  /**
+   * Handler execution timeout in milliseconds.
+   */
+  timeout?: number;
+  /**
+   * Opt-in fail-open policy for unexpected runtime failures. See
+   * {@link UnexpectedErrorPolicy}.
+   */
+  unexpectedError?: UnexpectedErrorPolicy;
+  /**
+   * Best-effort diagnostic callback for the "continue" policy. See
+   * {@link UnexpectedErrorHandler}.
+   */
+  onUnexpectedError?: UnexpectedErrorHandler;
+}
+
+/**
+ * PreToolUseHookInput with typed tool_input for a specific tool.
+ * @template T - The known tool name
+ */
+type _TypedPreToolUseHookInputBase<T extends KnownToolName> = Omit<PreToolUseInput, "tool_name" | "tool_input"> & {
+  tool_name: T;
+  tool_input: ToolInputMap[T];
+};
+// Inlined mapped type forces TypeScript to expand properties in hover tooltips
+export type TypedPreToolUseHookInput<T extends KnownToolName> = {
+  [K in keyof _TypedPreToolUseHookInputBase<T>]: _TypedPreToolUseHookInputBase<T>[K];
+} & {};
+
+/**
+ * PostToolUseHookInput with typed tool_input for a specific tool.
+ * @template T - The known tool name
+ */
+type _TypedPostToolUseHookInputBase<T extends KnownToolName> = Omit<PostToolUseInput, "tool_name" | "tool_input"> & {
+  tool_name: T;
+  tool_input: ToolInputMap[T];
+};
+// Inlined mapped type forces TypeScript to expand properties in hover tooltips
+export type TypedPostToolUseHookInput<T extends KnownToolName> = {
+  [K in keyof _TypedPostToolUseHookInputBase<T>]: _TypedPostToolUseHookInputBase<T>[K];
+} & {};
+
+/**
+ * PostToolUseFailureHookInput with typed tool_input for a specific tool.
+ * @template T - The known tool name
+ */
+type _TypedPostToolUseFailureHookInputBase<T extends KnownToolName> = Omit<
+  PostToolUseFailureInput,
+  "tool_name" | "tool_input"
+> & {
+  tool_name: T;
+  tool_input: ToolInputMap[T];
+};
+// Inlined mapped type forces TypeScript to expand properties in hover tooltips
+export type TypedPostToolUseFailureHookInput<T extends KnownToolName> = {
+  [K in keyof _TypedPostToolUseFailureHookInputBase<T>]: _TypedPostToolUseFailureHookInputBase<T>[K];
+} & {};
+
+/**
+ * PermissionRequestInput with typed tool_input for a specific tool.
+ * @template T - The known tool name
+ */
+type _TypedPermissionRequestInputBase<T extends KnownToolName> = Omit<
+  PermissionRequestInput,
+  "tool_name" | "tool_input"
+> & {
+  tool_name: T;
+  tool_input: ToolInputMap[T];
+};
+// Inlined mapped type forces TypeScript to expand properties in hover tooltips
+export type TypedPermissionRequestInput<T extends KnownToolName> = {
+  [K in keyof _TypedPermissionRequestInputBase<T>]: _TypedPermissionRequestInputBase<T>[K];
+} & {};
+
+/**
+ * Extended context for SessionStart hooks.
+ *
+ * SessionStart hooks have additional capabilities for persisting environment
+ * variables that will be available in all subsequent bash commands.
+ * @example
+ * ```typescript
+ * export default sessionStartHook({}, async (input, { logger, persistEnvVar }) => {
+ *   // Set environment variables for the session
+ *   persistEnvVar('NODE_ENV', 'development');
+ *   persistEnvVar('DEBUG', 'true');
+ *
+ *   return sessionStartOutput({});
+ * });
+ * ```
+ */
+export interface SessionStartContext extends HookContext {
+  /**
+   * Persists an environment variable for use in subsequent bash commands.
+   *
+   * This function writes a shell export statement to the `CLAUDE_ENV_FILE`,
+   * which Claude Code sources before running bash commands. This allows
+   * SessionStart hooks to configure the environment for the entire session.
+   * @param name - The environment variable name
+   * @param value - The environment variable value (will be shell-escaped)
+   * @example
+   * ```typescript
+   * persistEnvVar('NODE_ENV', 'production');
+   * persistEnvVar('API_KEY', 'secret-key');
+   * ```
+   */
+  persistEnvVar: (name: string, value: string) => void;
+
+  /**
+   * Persists multiple environment variables at once.
+   *
+   * This is a convenience wrapper around `persistEnvVar` for setting
+   * multiple variables in a single call.
+   * @param vars - Object mapping variable names to values
+   * @example
+   * ```typescript
+   * persistEnvVars({
+   *   NODE_ENV: 'production',
+   *   API_KEY: 'secret',
+   *   DEBUG: 'false'
+   * });
+   * ```
+   */
+  persistEnvVars: (vars: Record<string, string>) => void;
+}
+
+// ============================================================================
+// Handler Types
+// ============================================================================
+
+/**
+ * Handler function for a specific hook type.
+ *
+ * Receives the typed input and context, returns a specific output type.
+ * Can be async for operations that require awaiting.
+ * @template TInput - The input type for this hook
+ * @template TOutput - The specific output type for this hook
+ * @template TContext - The context type (defaults to HookContext)
+ */
+export type HookHandler<TInput, TOutput extends SpecificHookOutput, TContext extends HookContext = HookContext> = (
+  input: TInput,
+  context: TContext,
+) => TOutput | null | Promise<TOutput | null>;
+
+// ============================================================================
+// Generic Factory
+// ============================================================================
+
+/**
+ * The runtime policy gate injected into every Claude Code factory: rejects
+ * `unexpectedError: "continue"` at factory-call time for any event not on
+ * the advisory allow-list ({@link ADVISORY_EVENTS}). Every other policy
+ * value (including undefined, meaning the default `"error"`) is accepted
+ * for every event. {@link defineHook} fails closed — throws instead of
+ * creating the hook — when this gate returns false.
+ */
+const advisoryPolicyGate: HookPolicyGate = (eventName, policy) =>
+  policy !== "continue" || (ADVISORY_EVENTS as readonly string[]).includes(eventName);
+
+/**
+ * Builds the handler context for a SessionStart hook: the extended context
+ * carries the env-persistence utilities alongside the logger. Bound at
+ * factory time via {@link defineHook}'s `createContext` seam.
+ */
+function createSessionStartContext(): HookContext & SessionStartContext {
+  return { logger, persistEnvVar, persistEnvVars };
+}
+
+/**
+ * Creates a hook function for a specific hook type on the shared core.
+ *
+ * This is the internal implementation used by all typed factories. It binds
+ * the event name, injects the advisory allow-list policy gate, and attaches
+ * the SessionStart-specific context factory where applicable.
+ * @param hookEventName - The hook event name
+ * @param config - Hook configuration
+ * @param handler - The handler function to wrap
+ * @returns A wrapped hook function carrying its metadata for the driver
+ * @internal
+ */
+function createHookFunction<TInput, TOutput extends SpecificHookOutput, TContext extends HookContext = HookContext>(
+  hookEventName: HookEventName,
+  config: HookConfig,
+  handler: HookHandler<TInput, TOutput, TContext>,
+): HookFunction<TInput, TOutput, TContext> {
+  const isSessionStart = hookEventName === "SessionStart";
+  return defineHook<TInput, TOutput, TContext>(
+    hookEventName,
+    isSessionStart ? { ...config, createContext: createSessionStartContext } : config,
+    handler,
+    advisoryPolicyGate,
+  );
+}
+
+// ============================================================================
+// PreToolUse Hook Factory
+// ============================================================================
+
+/**
+ * Creates a PreToolUse hook handler.
+ *
+ * PreToolUse hooks fire before any tool is executed, allowing you to:
+ * - Inspect and validate tool inputs
+ * - Allow, deny, or modify the tool execution
+ * - Add custom permission logic
+ *
+ * **Matcher**: Matches against `tool_name` (e.g., 'Bash', 'Read', 'Write')
+ *
+ * **Typed Overload**: When the matcher is a single known tool name (Write, Edit,
+ * MultiEdit, Read, Bash, Glob, Grep), the handler receives automatically typed
+ * `toolInput` based on the tool type.
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { preToolUseHook, preToolUseOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Typed overload: tool_input is automatically typed as BashInput
+ * export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => {
+ *   // input.tool_input.command is typed as string - no cast needed!
+ *   if (input.tool_input.command.includes('rm -rf')) {
+ *     logger.warn('Blocking destructive command', { command: input.tool_input.command });
+ *     return preToolUseOutput({
+ *       hookSpecificOutput: {
+ *         permissionDecision: 'deny',
+ *         permissionDecisionReason: 'Destructive commands are not allowed'
+ *       }
+ *     });
+ *   }
+ *
+ *   return preToolUseOutput({
+ *     hookSpecificOutput: { permissionDecision: 'allow' }
+ *   });
+ * });
+ * ```
+ * @example
+ * ```typescript
+ * // Typed overload: tool_input is automatically typed as FileWriteInput
+ * export default preToolUseHook({ matcher: 'Write' }, (input) => {
+ *   const { file_path, content } = input.tool_input; // Full autocomplete!
+ *   // ...
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#pretooluse
+ */
+export function preToolUseHook<T extends KnownToolName>(
+  config: TypedHookConfigFor<T, "PreToolUse">,
+  handler: HookHandler<TypedPreToolUseHookInput<T>, PreToolUseOutput>,
+): HookFunction<TypedPreToolUseHookInput<T>, PreToolUseOutput>;
+export function preToolUseHook(
+  config: HookConfigFor<"PreToolUse">,
+  handler: HookHandler<PreToolUseInput, PreToolUseOutput>,
+): HookFunction<PreToolUseInput, PreToolUseOutput>;
+/** @inheritdoc */
+export function preToolUseHook(
+  config: HookConfigFor<"PreToolUse">,
+  handler: HookHandler<PreToolUseInput, PreToolUseOutput>,
+): HookFunction<PreToolUseInput, PreToolUseOutput> {
+  return createHookFunction("PreToolUse", config, handler);
+}
+
+// ============================================================================
+// PostToolUse Hook Factory
+// ============================================================================
+
+/**
+ * Creates a PostToolUse hook handler.
+ *
+ * PostToolUse hooks fire after a tool executes successfully, allowing you to:
+ * - Inspect tool results
+ * - Add additional context to the conversation
+ * - Modify MCP tool output
+ *
+ * **Matcher**: Matches against `tool_name`
+ *
+ * **Typed Overload**: When the matcher is a single known tool name, the handler
+ * receives automatically typed `toolInput` based on the tool type.
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { postToolUseHook, postToolUseOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Typed overload: tool_input is automatically typed as FileReadInput
+ * export default postToolUseHook({ matcher: 'Read' }, async (input, { logger }) => {
+ *   // input.tool_input.file_path is typed as string - no cast needed!
+ *   logger.info('File read completed', { filePath: input.tool_input.file_path });
+ *
+ *   return postToolUseOutput({
+ *     hookSpecificOutput: {
+ *       additionalContext: `File ${input.tool_input.file_path} was read successfully`
+ *     }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#posttooluse
+ */
+export function postToolUseHook<T extends KnownToolName>(
+  config: TypedHookConfig<T>,
+  handler: HookHandler<TypedPostToolUseHookInput<T>, PostToolUseOutput>,
+): HookFunction<TypedPostToolUseHookInput<T>, PostToolUseOutput>;
+export function postToolUseHook(
+  config: HookConfig,
+  handler: HookHandler<PostToolUseInput, PostToolUseOutput>,
+): HookFunction<PostToolUseInput, PostToolUseOutput>;
+/** @inheritdoc */
+export function postToolUseHook(
+  config: HookConfig,
+  handler: HookHandler<PostToolUseInput, PostToolUseOutput>,
+): HookFunction<PostToolUseInput, PostToolUseOutput> {
+  return createHookFunction("PostToolUse", config, handler);
+}
+
+// ============================================================================
+// PostToolUseFailure Hook Factory
+// ============================================================================
+
+/**
+ * Creates a PostToolUseFailure hook handler.
+ *
+ * PostToolUseFailure hooks fire after a tool execution fails, allowing you to:
+ * - Log or report tool failures
+ * - Add context about the failure
+ * - Take corrective action
+ *
+ * **Matcher**: Matches against `tool_name`
+ *
+ * **Typed Overload**: When the matcher is a single known tool name, the handler
+ * receives automatically typed `toolInput` based on the tool type.
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { postToolUseFailureHook, postToolUseFailureOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Log tool failures and suggest alternatives
+ * export default postToolUseFailureHook({ matcher: 'Bash' }, async (input, { logger }) => {
+ *   // input.tool_input.command is typed as string
+ *   logger.error('Bash command failed', {
+ *     command: input.tool_input.command,
+ *     error: input.error
+ *   });
+ *
+ *   return postToolUseFailureOutput({
+ *     hookSpecificOutput: {
+ *       additionalContext: 'Please try an alternative approach'
+ *     }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#posttoolusefailure
+ */
+export function postToolUseFailureHook<T extends KnownToolName>(
+  config: TypedHookConfig<T>,
+  handler: HookHandler<TypedPostToolUseFailureHookInput<T>, PostToolUseFailureOutput>,
+): HookFunction<TypedPostToolUseFailureHookInput<T>, PostToolUseFailureOutput>;
+export function postToolUseFailureHook(
+  config: HookConfig,
+  handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>,
+): HookFunction<PostToolUseFailureInput, PostToolUseFailureOutput>;
+/** @inheritdoc */
+export function postToolUseFailureHook(
+  config: HookConfig,
+  handler: HookHandler<PostToolUseFailureInput, PostToolUseFailureOutput>,
+): HookFunction<PostToolUseFailureInput, PostToolUseFailureOutput> {
+  return createHookFunction("PostToolUseFailure", config, handler);
+}
+
+// ============================================================================
+// PostToolBatch Hook Factory
+// ============================================================================
+
+/**
+ * Creates a PostToolBatch hook handler.
+ *
+ * PostToolBatch hooks fire exactly once after every tool call in a batch has
+ * resolved, before the next model request. Unlike PostToolUse — which fires per
+ * tool and may run concurrently for parallel tool calls — PostToolBatch receives
+ * the full batch via `input.tool_calls`, allowing you to:
+ * - Inspect or summarize all tool calls in a single turn together
+ * - Inject additional context once per batch instead of once per tool
+ *
+ * **Matcher**: No matcher support - fires once per batch
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { postToolBatchHook, postToolBatchOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default postToolBatchHook({}, async (input, { logger }) => {
+ *   logger.info('Tool batch completed', { count: input.tool_calls.length });
+ *
+ *   return postToolBatchOutput({
+ *     hookSpecificOutput: {
+ *       additionalContext: `Reviewed ${input.tool_calls.length} tool calls`
+ *     }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#posttoolbatch
+ */
+export function postToolBatchHook(
+  config: HookConfig,
+  handler: HookHandler<PostToolBatchInput, PostToolBatchOutput>,
+): HookFunction<PostToolBatchInput, PostToolBatchOutput> {
+  return createHookFunction("PostToolBatch", config, handler);
+}
+
+// ============================================================================
+// Notification Hook Factory
+// ============================================================================
+
+/**
+ * Creates a Notification hook handler.
+ *
+ * Notification hooks fire when Claude Code sends a notification, allowing you to:
+ * - Forward notifications to external systems
+ * - Log important events
+ * - Trigger custom alerting
+ *
+ * **Matcher**: Matches against `notification_type`
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { notificationHook, notificationOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Forward notifications to Slack
+ * export default notificationHook({}, async (input, { logger }) => {
+ *   logger.info('Notification received', {
+ *     type: input.notification_type,
+ *     title: input.title
+ *   });
+ *
+ *   await sendSlackMessage(input.title ?? 'Notification', input.message);
+ *
+ *   return notificationOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#notification
+ */
+export function notificationHook(
+  config: HookConfig,
+  handler: HookHandler<NotificationInput, NotificationOutput>,
+): HookFunction<NotificationInput, NotificationOutput> {
+  return createHookFunction("Notification", config, handler);
+}
+
+// ============================================================================
+// UserPromptSubmit Hook Factory
+// ============================================================================
+
+/**
+ * Creates a UserPromptSubmit hook handler.
+ *
+ * UserPromptSubmit hooks fire when a user submits a prompt, allowing you to:
+ * - Add additional context or instructions
+ * - Log user interactions
+ * - Validate or transform prompts
+ *
+ * **Matcher**: No matcher support - fires on all prompt submissions
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { userPromptSubmitHook, userPromptSubmitOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Add project context to every prompt
+ * export default userPromptSubmitHook({}, async (input, { logger }) => {
+ *   logger.debug('User prompt submitted', { promptLength: input.prompt.length });
+ *
+ *   const projectContext = await getProjectContext();
+ *
+ *   return userPromptSubmitOutput({
+ *     additionalContext: projectContext
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#userpromptsubmit
+ */
+export function userPromptSubmitHook(
+  config: HookConfig,
+  handler: HookHandler<UserPromptSubmitInput, UserPromptSubmitOutput>,
+): HookFunction<UserPromptSubmitInput, UserPromptSubmitOutput> {
+  return createHookFunction("UserPromptSubmit", config, handler);
+}
+
+// ============================================================================
+// UserPromptExpansion Hook Factory
+// ============================================================================
+
+/**
+ * Creates a UserPromptExpansion hook handler.
+ *
+ * UserPromptExpansion hooks fire when a user prompt is expanded from a slash
+ * command or MCP prompt, allowing you to:
+ * - Add context based on the command being invoked
+ * - Log slash command and MCP prompt usage
+ * - Observe prompt expansion events
+ *
+ * **Matcher**: No matcher support - fires on all prompt expansions
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { userPromptExpansionHook, userPromptExpansionOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Add context when a slash command is invoked
+ * export default userPromptExpansionHook({}, async (input, { logger }) => {
+ *   logger.debug('Prompt expanded', { type: input.expansion_type, command: input.command_name });
+ *
+ *   return userPromptExpansionOutput({
+ *     hookSpecificOutput: {
+ *       additionalContext: `Command: ${input.command_name}`
+ *     }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#userpromptexpansion
+ */
+export function userPromptExpansionHook(
+  config: HookConfig,
+  handler: HookHandler<UserPromptExpansionInput, UserPromptExpansionOutput>,
+): HookFunction<UserPromptExpansionInput, UserPromptExpansionOutput> {
+  return createHookFunction("UserPromptExpansion", config, handler);
+}
+
+// ============================================================================
+// SessionStart Hook Factory
+// ============================================================================
+
+/**
+ * Creates a SessionStart hook handler.
+ *
+ * SessionStart hooks fire when a Claude Code session starts or restarts,
+ * allowing you to:
+ * - Initialize session state
+ * - Inject context or instructions
+ * - Persist environment variables for subsequent bash commands
+ * - Set up logging or monitoring
+ *
+ * **Matcher**: Matches against `source` ('startup', 'resume', 'clear', 'compact')
+ *
+ * **Context**: SessionStart hooks receive an extended context with `persistEnvVar`
+ * and `persistEnvVars` functions for setting environment variables.
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { sessionStartHook, sessionStartOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Persist environment variables for the session
+ * export default sessionStartHook({ matcher: 'startup' }, async (input, { logger, persistEnvVar }) => {
+ *   logger.info('New session started', {
+ *     sessionId: input.session_id,
+ *     cwd: input.cwd
+ *   });
+ *
+ *   // Set environment variables for all subsequent bash commands
+ *   persistEnvVar('NODE_ENV', 'development');
+ *   persistEnvVar('DEBUG', 'true');
+ *
+ *   return sessionStartOutput({});
+ * });
+ * ```
+ * @example
+ * ```typescript
+ * // Set multiple environment variables at once
+ * export default sessionStartHook({}, async (input, { persistEnvVars }) => {
+ *   persistEnvVars({
+ *     NODE_ENV: 'production',
+ *     API_KEY: 'secret',
+ *     DEBUG: 'false'
+ *   });
+ *
+ *   return sessionStartOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#sessionstart
+ */
+export function sessionStartHook(
+  config: HookConfig,
+  handler: HookHandler<SessionStartInput, SessionStartOutput, SessionStartContext>,
+): HookFunction<SessionStartInput, SessionStartOutput, SessionStartContext> {
+  return createHookFunction("SessionStart", config, handler);
+}
+
+// ============================================================================
+// SessionEnd Hook Factory
+// ============================================================================
+
+/**
+ * Creates a SessionEnd hook handler.
+ *
+ * SessionEnd hooks fire when a Claude Code session ends, allowing you to:
+ * - Clean up session resources
+ * - Log session metrics
+ * - Persist session state
+ *
+ * **Matcher**: Matches against `reason` (the exit reason string)
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { sessionEndHook, sessionEndOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Log session end and clean up
+ * export default sessionEndHook({}, async (input, { logger }) => {
+ *   logger.info('Session ended', {
+ *     sessionId: input.session_id,
+ *     reason: input.reason
+ *   });
+ *
+ *   await cleanupSessionResources(input.session_id);
+ *
+ *   return sessionEndOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#sessionend
+ */
+export function sessionEndHook(
+  config: HookConfig,
+  handler: HookHandler<SessionEndInput, SessionEndOutput>,
+): HookFunction<SessionEndInput, SessionEndOutput> {
+  return createHookFunction("SessionEnd", config, handler);
+}
+
+// ============================================================================
+// Stop Hook Factory
+// ============================================================================
+
+/**
+ * Creates a Stop hook handler.
+ *
+ * Stop hooks fire when Claude Code is about to stop, allowing you to:
+ * - Block the stop and require additional action
+ * - Confirm the user wants to stop
+ * - Clean up resources before stopping
+ *
+ * **Matcher**: No matcher support - fires on all stop events
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { stopHook, stopOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Block stop if there are pending changes
+ * export default stopHook({}, async (input, { logger }) => {
+ *   const pendingChanges = await checkPendingChanges();
+ *
+ *   if (pendingChanges.length > 0) {
+ *     logger.warn('Blocking stop due to pending changes', {
+ *       count: pendingChanges.length
+ *     });
+ *
+ *     return stopOutput({
+ *       decision: 'block',
+ *       reason: `There are ${pendingChanges.length} uncommitted changes`,
+ *       systemMessage: 'Please commit or discard changes before stopping'
+ *     });
+ *   }
+ *
+ *   logger.info('Approving stop');
+ *   return stopOutput({ decision: 'approve' });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#stop
+ */
+export function stopHook(
+  config: HookConfigFor<"Stop">,
+  handler: HookHandler<StopInput, StopOutput>,
+): HookFunction<StopInput, StopOutput> {
+  return createHookFunction("Stop", config, handler);
+}
+
+// ============================================================================
+// StopFailure Hook Factory
+// ============================================================================
+
+/**
+ * Creates a StopFailure hook handler.
+ *
+ * StopFailure hooks fire when Claude Code encounters an error while stopping
+ * (e.g., API errors, authentication failures, rate limits), allowing you to:
+ * - Log stop failure events and error details
+ * - Alert on unexpected session termination errors
+ * - Observe what error caused the failure
+ *
+ * **Matcher**: No matcher support - fires on all stop failure events
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { stopFailureHook, stopFailureOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default stopFailureHook({}, async (input, { logger }) => {
+ *   logger.error('Session stopped due to error', {
+ *     error: input.error,
+ *     details: input.error_details
+ *   });
+ *   return stopFailureOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#stopfailure
+ */
+export function stopFailureHook(
+  config: HookConfig,
+  handler: HookHandler<StopFailureInput, StopFailureOutput>,
+): HookFunction<StopFailureInput, StopFailureOutput> {
+  return createHookFunction("StopFailure", config, handler);
+}
+
+// ============================================================================
+// SubagentStart Hook Factory
+// ============================================================================
+
+/**
+ * Creates a SubagentStart hook handler.
+ *
+ * SubagentStart hooks fire when a subagent (Agent tool) starts, allowing you to:
+ * - Inject context for the subagent
+ * - Log subagent invocations
+ * - Configure subagent behavior
+ *
+ * **Matcher**: Matches against `agent_type` (e.g., 'explore', 'codebase-analysis')
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { subagentStartHook, subagentStartOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Add context for explore subagents
+ * export default subagentStartHook({ matcher: 'explore' }, async (input, { logger }) => {
+ *   logger.info('Explore subagent starting', {
+ *     agentId: input.agent_id,
+ *     agentType: input.agent_type
+ *   });
+ *
+ *   return subagentStartOutput({
+ *     additionalContext: 'Focus on finding patterns and conventions'
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#subagentstart
+ */
+export function subagentStartHook(
+  config: HookConfig,
+  handler: HookHandler<SubagentStartInput, SubagentStartOutput>,
+): HookFunction<SubagentStartInput, SubagentStartOutput> {
+  return createHookFunction("SubagentStart", config, handler);
+}
+
+// ============================================================================
+// SubagentStop Hook Factory
+// ============================================================================
+
+/**
+ * Creates a SubagentStop hook handler.
+ *
+ * SubagentStop hooks fire when a subagent completes or stops, allowing you to:
+ * - Block the subagent from stopping
+ * - Process subagent results
+ * - Clean up subagent resources
+ * - Log subagent completion
+ *
+ * **Matcher**: Matches against `agent_type` (e.g., 'explore', 'codebase-analysis')
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { subagentStopHook, subagentStopOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Block explore subagents if task incomplete
+ * export default subagentStopHook({ matcher: 'explore' }, async (input, { logger }) => {
+ *   logger.info('Subagent stopping', {
+ *     agentId: input.agent_id,
+ *     agentType: input.agent_type
+ *   });
+ *
+ *   // Block if transcript shows incomplete work
+ *   return subagentStopOutput({
+ *     decision: 'block',
+ *     reason: 'Please verify exploration is complete'
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#subagentstop
+ */
+export function subagentStopHook(
+  config: HookConfigFor<"SubagentStop">,
+  handler: HookHandler<SubagentStopInput, SubagentStopOutput>,
+): HookFunction<SubagentStopInput, SubagentStopOutput> {
+  return createHookFunction("SubagentStop", config, handler);
+}
+
+// ============================================================================
+// PreCompact Hook Factory
+// ============================================================================
+
+/**
+ * Creates a PreCompact hook handler.
+ *
+ * PreCompact hooks fire before context compaction occurs, allowing you to:
+ * - Preserve important information before compaction
+ * - Log compaction events
+ * - Modify custom instructions for the compacted context
+ *
+ * **Matcher**: Matches against `trigger` ('manual', 'auto')
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { preCompactHook, preCompactOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Log compaction events and preserve context
+ * export default preCompactHook({}, async (input, { logger }) => {
+ *   logger.info('Context compaction triggered', {
+ *     trigger: input.trigger,
+ *     hasCustomInstructions: input.custom_instructions !== null
+ *   });
+ *
+ *   return preCompactOutput({
+ *     systemMessage: 'Remember: strict mode is enabled'
+ *   });
+ * });
+ * ```
+ * @example
+ * ```typescript
+ * // Only handle manual compaction
+ * export default preCompactHook({ matcher: 'manual' }, async (input, { logger }) => {
+ *   logger.info('Manual compaction requested');
+ *   return preCompactOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#precompact
+ */
+export function preCompactHook(
+  config: HookConfig,
+  handler: HookHandler<PreCompactInput, PreCompactOutput>,
+): HookFunction<PreCompactInput, PreCompactOutput> {
+  return createHookFunction("PreCompact", config, handler);
+}
+
+// ============================================================================
+// PostCompact Hook Factory
+// ============================================================================
+
+/**
+ * Creates a PostCompact hook handler.
+ *
+ * PostCompact hooks fire after context compaction completes, allowing you to:
+ * - Observe the compaction summary and details
+ * - Log compaction events
+ * - React to the new compacted state
+ *
+ * **Matcher**: Matches against `trigger` ('manual', 'auto')
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { postCompactHook, postCompactOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default postCompactHook({}, async (input, { logger }) => {
+ *   logger.info('Context compaction completed', {
+ *     trigger: input.trigger,
+ *     summary: input.compact_summary
+ *   });
+ *   return postCompactOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#postcompact
+ */
+export function postCompactHook(
+  config: HookConfig,
+  handler: HookHandler<PostCompactInput, PostCompactOutput>,
+): HookFunction<PostCompactInput, PostCompactOutput> {
+  return createHookFunction("PostCompact", config, handler);
+}
+
+// ============================================================================
+// PermissionRequest Hook Factory
+// ============================================================================
+
+/**
+ * Creates a PermissionRequest hook handler.
+ *
+ * PermissionRequest hooks fire when a permission prompt would be shown,
+ * allowing you to:
+ * - Auto-approve or deny tool executions
+ * - Implement custom permission logic
+ * - Modify tool inputs before approval
+ *
+ * **Matcher**: Matches against `tool_name`
+ *
+ * **Typed Overload**: When the matcher is a single known tool name, the handler
+ * receives automatically typed `toolInput` based on the tool type.
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { permissionRequestHook, permissionRequestOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Typed overload: tool_input is automatically typed as FileReadInput
+ * export default permissionRequestHook({ matcher: 'Read' }, async (input, { logger }) => {
+ *   // input.tool_input.file_path is typed as string - no cast needed!
+ *   if (input.tool_input.file_path.startsWith('/allowed/')) {
+ *     logger.info('Auto-approving read in allowed directory', { filePath: input.tool_input.file_path });
+ *     return permissionRequestOutput({
+ *       hookSpecificOutput: { decision: { behavior: 'allow' } }
+ *     });
+ *   }
+ *
+ *   // Fall through to normal permission prompt
+ *   return permissionRequestOutput({});
+ * });
+ * ```
+ * @example
+ * ```typescript
+ * // Typed overload: tool_input is automatically typed as BashInput
+ * export default permissionRequestHook({ matcher: 'Bash' }, async (input, { logger }) => {
+ *   // input.tool_input.command is typed as string - no cast needed!
+ *   if (input.tool_input.command.includes('sudo')) {
+ *     logger.warn('Denying sudo command', { command: input.tool_input.command });
+ *     return permissionRequestOutput({
+ *       hookSpecificOutput: {
+ *         decision: {
+ *           behavior: 'deny',
+ *           message: 'sudo commands are not allowed',
+ *           interrupt: true
+ *         }
+ *       }
+ *     });
+ *   }
+ *
+ *   return permissionRequestOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#permissionrequest
+ */
+export function permissionRequestHook<T extends KnownToolName>(
+  config: TypedHookConfigFor<T, "PermissionRequest">,
+  handler: HookHandler<TypedPermissionRequestInput<T>, PermissionRequestOutput>,
+): HookFunction<TypedPermissionRequestInput<T>, PermissionRequestOutput>;
+export function permissionRequestHook(
+  config: HookConfigFor<"PermissionRequest">,
+  handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>,
+): HookFunction<PermissionRequestInput, PermissionRequestOutput>;
+/** @inheritdoc */
+export function permissionRequestHook(
+  config: HookConfigFor<"PermissionRequest">,
+  handler: HookHandler<PermissionRequestInput, PermissionRequestOutput>,
+): HookFunction<PermissionRequestInput, PermissionRequestOutput> {
+  return createHookFunction("PermissionRequest", config, handler);
+}
+
+// ============================================================================
+// PermissionDenied Hook Factory
+// ============================================================================
+
+/**
+ * Creates a PermissionDenied hook handler.
+ *
+ * PermissionDenied hooks fire when a permission request is denied (either by the
+ * user or by a PermissionRequest hook), allowing you to:
+ * - Log permission denials for auditing
+ * - React to denied tool executions
+ * - Optionally request a retry via the output
+ *
+ * **Matcher**: Matches against `tool_name`
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { permissionDeniedHook, permissionDeniedOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Log all permission denials
+ * export default permissionDeniedHook({}, async (input, { logger }) => {
+ *   logger.warn('Permission denied', {
+ *     toolName: input.tool_name,
+ *     reason: input.reason
+ *   });
+ *   return permissionDeniedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#permissiondenied
+ */
+export function permissionDeniedHook(
+  config: HookConfig,
+  handler: HookHandler<PermissionDeniedInput, PermissionDeniedOutput>,
+): HookFunction<PermissionDeniedInput, PermissionDeniedOutput> {
+  return createHookFunction("PermissionDenied", config, handler);
+}
+
+// ============================================================================
+// Setup Hook Factory
+// ============================================================================
+
+/**
+ * Creates a Setup hook handler.
+ *
+ * Setup hooks fire during initialization or maintenance, allowing you to:
+ * - Configure initial session state
+ * - Perform setup tasks before the session starts
+ * - Add context for maintenance operations
+ *
+ * **Matcher**: Matches against `trigger` ('init' or 'maintenance')
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { setupHook, setupOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Handle all setup events
+ * export default setupHook({}, async (input, { logger }) => {
+ *   logger.info('Setup triggered', { trigger: input.trigger });
+ *   return setupOutput({});
+ * });
+ *
+ * // Only handle initialization
+ * export default setupHook({ matcher: 'init' }, async (input, { logger }) => {
+ *   logger.info('Initializing session');
+ *   return setupOutput({
+ *     hookSpecificOutput: {
+ *       additionalContext: 'Session initialized with custom configuration'
+ *     }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#setup
+ */
+export function setupHook(
+  config: HookConfig,
+  handler: HookHandler<SetupInput, SetupOutput>,
+): HookFunction<SetupInput, SetupOutput> {
+  return createHookFunction("Setup", config, handler);
+}
+
+// ============================================================================
+// TeammateIdle Hook Factory
+// ============================================================================
+
+/**
+ * Creates a TeammateIdle hook handler.
+ *
+ * TeammateIdle hooks fire when a teammate in a team is about to go idle,
+ * allowing you to:
+ * - Assign work to idle teammates
+ * - Log team activity
+ * - Coordinate multi-agent workflows
+ *
+ * **Matcher**: No matcher support - fires on all teammate idle events
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { teammateIdleHook, teammateIdleOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Log when teammates go idle
+ * export default teammateIdleHook({}, async (input, { logger }) => {
+ *   logger.info('Teammate going idle', {
+ *     teammateName: input.teammate_name,
+ *     teamName: input.team_name
+ *   });
+ *
+ *   return teammateIdleOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#teammateidle
+ */
+export function teammateIdleHook(
+  config: HookConfig,
+  handler: HookHandler<TeammateIdleInput, TeammateIdleOutput>,
+): HookFunction<TeammateIdleInput, TeammateIdleOutput> {
+  return createHookFunction("TeammateIdle", config, handler);
+}
+
+// ============================================================================
+// TaskCreated Hook Factory
+// ============================================================================
+
+/**
+ * Creates a TaskCreated hook handler.
+ *
+ * TaskCreated hooks fire when a new task is created and assigned to a teammate,
+ * allowing you to:
+ * - Observe task creation events
+ * - Log task assignments for auditing
+ * - React to new work being assigned
+ *
+ * **Matcher**: No matcher support - fires on all task creation events
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { taskCreatedHook, taskCreatedOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Log task creation
+ * export default taskCreatedHook({}, async (input, { logger }) => {
+ *   logger.info('Task created', {
+ *     taskId: input.task_id,
+ *     taskSubject: input.task_subject
+ *   });
+ *
+ *   return taskCreatedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#taskcreated
+ */
+export function taskCreatedHook(
+  config: HookConfig,
+  handler: HookHandler<TaskCreatedInput, TaskCreatedOutput>,
+): HookFunction<TaskCreatedInput, TaskCreatedOutput> {
+  return createHookFunction("TaskCreated", config, handler);
+}
+
+// ============================================================================
+// TaskCompleted Hook Factory
+// ============================================================================
+
+/**
+ * Creates a TaskCompleted hook handler.
+ *
+ * TaskCompleted hooks fire when a task is being marked as completed,
+ * allowing you to:
+ * - Verify task completion
+ * - Log task metrics
+ * - Trigger follow-up actions
+ *
+ * **Matcher**: No matcher support - fires on all task completion events
+ * @param config - Hook configuration with optional timeout (matcher is ignored)
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { taskCompletedHook, taskCompletedOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * // Log task completion
+ * export default taskCompletedHook({}, async (input, { logger }) => {
+ *   logger.info('Task completed', {
+ *     taskId: input.task_id,
+ *     taskSubject: input.task_subject
+ *   });
+ *
+ *   return taskCompletedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#taskcompleted
+ */
+export function taskCompletedHook(
+  config: HookConfig,
+  handler: HookHandler<TaskCompletedInput, TaskCompletedOutput>,
+): HookFunction<TaskCompletedInput, TaskCompletedOutput> {
+  return createHookFunction("TaskCompleted", config, handler);
+}
+
+// ============================================================================
+// Elicitation Hook Factory
+// ============================================================================
+
+/**
+ * Creates an Elicitation hook handler.
+ *
+ * Elicitation hooks fire when an MCP server requests user input, allowing you to:
+ * - Accept, decline, or cancel elicitation requests programmatically
+ * - Provide structured form input or URL-based auth responses
+ * - Log or audit elicitation requests
+ *
+ * **Matcher**: No matcher support - fires on all elicitation events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { elicitationHook, elicitationOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default elicitationHook({}, async (input, { logger }) => {
+ *   logger.info('Elicitation request', { server: input.mcp_server_name });
+ *   return elicitationOutput({
+ *     hookSpecificOutput: { action: 'accept', content: { approved: true } }
+ *   });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#elicitation
+ */
+export function elicitationHook(
+  config: HookConfig,
+  handler: HookHandler<ElicitationInput, ElicitationOutput>,
+): HookFunction<ElicitationInput, ElicitationOutput> {
+  return createHookFunction("Elicitation", config, handler);
+}
+
+// ============================================================================
+// ElicitationResult Hook Factory
+// ============================================================================
+
+/**
+ * Creates an ElicitationResult hook handler.
+ *
+ * ElicitationResult hooks fire with the result of an MCP elicitation request,
+ * allowing you to:
+ * - Observe elicitation outcomes
+ * - Modify the result before it is returned to the MCP server
+ * - Log elicitation completions
+ *
+ * **Matcher**: No matcher support - fires on all elicitation result events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { elicitationResultHook, elicitationResultOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default elicitationResultHook({}, async (input, { logger }) => {
+ *   logger.info('Elicitation result', { action: input.action });
+ *   return elicitationResultOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#elicitationresult
+ */
+export function elicitationResultHook(
+  config: HookConfig,
+  handler: HookHandler<ElicitationResultInput, ElicitationResultOutput>,
+): HookFunction<ElicitationResultInput, ElicitationResultOutput> {
+  return createHookFunction("ElicitationResult", config, handler);
+}
+
+// ============================================================================
+// ConfigChange Hook Factory
+// ============================================================================
+
+/**
+ * Creates a ConfigChange hook handler.
+ *
+ * ConfigChange hooks fire when Claude Code configuration changes, allowing you to:
+ * - React to settings file changes
+ * - Log or audit configuration changes
+ * - Apply custom logic when settings are updated
+ *
+ * **Matcher**: Matches against `source` ('user_settings', 'project_settings', etc.)
+ * @param config - Hook configuration with optional matcher and timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { configChangeHook, configChangeOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default configChangeHook({}, async (input, { logger }) => {
+ *   logger.info('Config changed', { source: input.source, file: input.file_path });
+ *   return configChangeOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#configchange
+ */
+export function configChangeHook(
+  config: HookConfig,
+  handler: HookHandler<ConfigChangeInput, ConfigChangeOutput>,
+): HookFunction<ConfigChangeInput, ConfigChangeOutput> {
+  return createHookFunction("ConfigChange", config, handler);
+}
+
+// ============================================================================
+// InstructionsLoaded Hook Factory
+// ============================================================================
+
+/**
+ * Creates an InstructionsLoaded hook handler.
+ *
+ * InstructionsLoaded hooks fire when a CLAUDE.md or similar instructions file
+ * is loaded, allowing you to:
+ * - React to instructions being applied
+ * - Log which instruction files are active
+ * - Observe the instruction loading hierarchy
+ *
+ * **Matcher**: No matcher support - fires on all instruction load events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { instructionsLoadedHook, instructionsLoadedOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default instructionsLoadedHook({}, async (input, { logger }) => {
+ *   logger.info('Instructions loaded', { file: input.file_path, type: input.memory_type });
+ *   return instructionsLoadedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#instructionsloaded
+ */
+export function instructionsLoadedHook(
+  config: HookConfig,
+  handler: HookHandler<InstructionsLoadedInput, InstructionsLoadedOutput>,
+): HookFunction<InstructionsLoadedInput, InstructionsLoadedOutput> {
+  return createHookFunction("InstructionsLoaded", config, handler);
+}
+
+// ============================================================================
+// WorktreeCreate Hook Factory
+// ============================================================================
+
+/**
+ * Creates a WorktreeCreate hook handler.
+ *
+ * WorktreeCreate hooks fire when a git worktree is created, allowing you to:
+ * - Set up worktree-specific configuration
+ * - Log worktree creation events
+ * - Initialize worktree resources
+ *
+ * **Matcher**: No matcher support - fires on all worktree creation events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { worktreeCreateHook, worktreeCreateOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default worktreeCreateHook({}, async (input, { logger }) => {
+ *   const worktreePath = `${input.cwd}/.worktrees/${input.name}`;
+ *   logger.info('Worktree created', { name: input.name, worktreePath });
+ *   // WorktreeCreate is a command hook: the path is written to stdout as plain text.
+ *   return worktreeCreateOutput({ worktreePath });
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#worktreecreate
+ */
+export function worktreeCreateHook(
+  config: HookConfigFor<"WorktreeCreate">,
+  handler: HookHandler<WorktreeCreateInput, WorktreeCreateOutput>,
+): HookFunction<WorktreeCreateInput, WorktreeCreateOutput> {
+  return createHookFunction("WorktreeCreate", config, handler);
+}
+
+// ============================================================================
+// WorktreeRemove Hook Factory
+// ============================================================================
+
+/**
+ * Creates a WorktreeRemove hook handler.
+ *
+ * WorktreeRemove hooks fire when a git worktree is removed, allowing you to:
+ * - Clean up worktree-specific resources
+ * - Log worktree removal events
+ *
+ * **Matcher**: No matcher support - fires on all worktree removal events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { worktreeRemoveHook, worktreeRemoveOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default worktreeRemoveHook({}, async (input, { logger }) => {
+ *   logger.info('Worktree removed', { path: input.worktree_path });
+ *   return worktreeRemoveOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#worktreeremove
+ */
+export function worktreeRemoveHook(
+  config: HookConfigFor<"WorktreeRemove">,
+  handler: HookHandler<WorktreeRemoveInput, WorktreeRemoveOutput>,
+): HookFunction<WorktreeRemoveInput, WorktreeRemoveOutput> {
+  return createHookFunction("WorktreeRemove", config, handler);
+}
+
+// ============================================================================
+// CwdChanged Hook Factory
+// ============================================================================
+
+/**
+ * Creates a CwdChanged hook handler.
+ *
+ * CwdChanged hooks fire when Claude Code's current working directory changes,
+ * allowing you to:
+ * - React to directory changes within a session
+ * - Update file watchers or environment state
+ * - Return `watchPaths` via `hookSpecificOutput` to register paths for FileChanged events
+ *
+ * **Matcher**: No matcher support - fires on all cwd change events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { cwdChangedHook, cwdChangedOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default cwdChangedHook({}, async (input, { logger }) => {
+ *   logger.info('Working directory changed', { from: input.old_cwd, to: input.new_cwd });
+ *   return cwdChangedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#cwdchanged
+ */
+export function cwdChangedHook(
+  config: HookConfig,
+  handler: HookHandler<CwdChangedInput, CwdChangedOutput>,
+): HookFunction<CwdChangedInput, CwdChangedOutput> {
+  return createHookFunction("CwdChanged", config, handler);
+}
+
+// ============================================================================
+// FileChanged Hook Factory
+// ============================================================================
+
+/**
+ * Creates a FileChanged hook handler.
+ *
+ * FileChanged hooks fire when a watched file changes on disk, allowing you to:
+ * - React to file system changes during a session
+ * - Invalidate caches or reload configuration
+ * - Return `watchPaths` via `hookSpecificOutput` to update the set of watched paths
+ *
+ * The input `event` field indicates the type of change:
+ * - `'change'` - File contents changed
+ * - `'add'` - File was created
+ * - `'unlink'` - File was deleted
+ *
+ * **Matcher**: No matcher support - fires on all file change events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { fileChangedHook, fileChangedOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default fileChangedHook({}, async (input, { logger }) => {
+ *   logger.info('File changed', { path: input.file_path, event: input.event });
+ *   return fileChangedOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#filechanged
+ */
+export function fileChangedHook(
+  config: HookConfig,
+  handler: HookHandler<FileChangedInput, FileChangedOutput>,
+): HookFunction<FileChangedInput, FileChangedOutput> {
+  return createHookFunction("FileChanged", config, handler);
+}
+
+// ============================================================================
+// MessageDisplay Hook Factory
+// ============================================================================
+
+/**
+ * Creates a MessageDisplay hook handler.
+ *
+ * MessageDisplay hooks fire with each batch of newly completed lines while an
+ * assistant message streams. Display-only: the stored message and what the model
+ * sees are untouched. Allows you to:
+ * - Replace the delta shown on screen with custom content via `displayContent`
+ * - Observe and log message streaming events
+ *
+ * The input carries `turn_id`, `message_id`, `index`, `final`, and `delta` fields.
+ * The `final` flag indicates the last flush of a message — its `delta` is empty
+ * when the message ends on a newline; treat `final` as the end-of-message signal.
+ *
+ * **Matcher**: No matcher support - fires on all message display events
+ * @param config - Hook configuration with optional timeout
+ * @param handler - The handler function to execute
+ * @returns A hook function that can be exported as the default export
+ * @example
+ * ```typescript
+ * import { messageDisplayHook, messageDisplayOutput } from '@goodfoot/agent-hooks/claude-code';
+ *
+ * export default messageDisplayHook({}, async (input, { logger }) => {
+ *   if (input.final) {
+ *     logger.info('Message complete', { messageId: input.message_id });
+ *   }
+ *   return messageDisplayOutput({});
+ * });
+ * ```
+ * @see https://code.claude.com/docs/en/hooks#messagedisplay
+ */
+export function messageDisplayHook(
+  config: HookConfig,
+  handler: HookHandler<MessageDisplayInput, MessageDisplayOutput>,
+): HookFunction<MessageDisplayInput, MessageDisplayOutput> {
+  return createHookFunction("MessageDisplay", config, handler);
+}

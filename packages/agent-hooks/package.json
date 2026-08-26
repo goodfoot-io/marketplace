@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/agent-hooks",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Unified agent hooks library: shared core runtime with per-agent entry points for Claude Code, Codex, and Antigravity",
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/agent-hooks",
   "repository": {
@@ -20,21 +20,36 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc --build tsconfig.build.json",
-    "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests",
-    "test": "vitest run"
+    "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests ./e2e ./scripts && node ./scripts/check-stale-imports.mjs",
+    "test": "node ./scripts/check-e2e-parity.mjs && node ./scripts/check-stale-imports.mjs && vitest run",
+    "check:e2e-parity": "node ./scripts/check-e2e-parity.mjs"
   },
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "types": "./types/index.d.ts"
+    },
+    "./claude-code": {
+      "import": "./dist/agents/claude-code/index.js",
+      "types": "./types/agents/claude-code/index.d.ts"
+    }
+  },
+  "bin": "./dist/cli.js",
+  "publishConfig": {
+    "bin": {
+      "agent-hooks": "./dist/cli.js"
     }
   },
   "dependencies": {
+    "esbuild": "^0.24.0",
+    "glob": "^11.0.0",
     "typescript": "^5.9.3"
   },
   "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.162",
     "@biomejs/biome": "2.4.16",
     "@types/node": "^24",
+    "tsx": "^4.20.6",
     "vitest": "4.0.13"
   }
 }
