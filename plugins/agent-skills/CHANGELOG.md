@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+Synchronizes the companion plugin's shared helper reference from the executable `@goodfoot/agent-skills` platform model and documents the namespaced `skills-src/goodfoot` authoring root used by the repository generator. Antigravity guidance continues to preserve the model's explicit provisional and unavailable classifications without borrowing another platform's conventions.
+
 ## 1.0.0
 
 Initial documentation plugin for `@goodfoot/agent-skills`. Provides focused guidance for authoring Eta skill templates, using the build and lint CLI, applying portable helpers, understanding per-platform output, and preserving the explicit fail-closed boundary around Antigravity conventions.

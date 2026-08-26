@@ -3,7 +3,16 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CLAUDE_TREE, CODEX_TREE, OPENCODE_TREE, REPO_ROOT, repoPath, SKILLS_ROOT, walkFiles } from "../helpers.js";
+import {
+  CLAUDE_TREE,
+  CODEX_TREE,
+  EXPECTED_SKILLS,
+  OPENCODE_TREE,
+  REPO_ROOT,
+  repoPath,
+  SKILLS_ROOT,
+  walkFiles,
+} from "../helpers.js";
 
 const generated = [SKILLS_ROOT, `${CLAUDE_TREE}/skills`, `${CODEX_TREE}/skills`, `${OPENCODE_TREE}/skills`];
 const snapshot = () =>
@@ -31,6 +40,12 @@ describe("generated bundle freshness", () => {
         env: { ...process.env },
       });
       expect(snapshot()).toEqual(before);
+      for (const root of generated) {
+        expect(fs.readdirSync(repoPath(root)).sort(), `${root} must not gain a goodfoot/ namespace`).toEqual(
+          [...EXPECTED_SKILLS].sort(),
+        );
+        expect(fs.existsSync(repoPath(root, "goodfoot")), `${root}/goodfoot must not be generated`).toBe(false);
+      }
     },
   );
 });

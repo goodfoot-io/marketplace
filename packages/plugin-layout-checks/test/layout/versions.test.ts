@@ -60,13 +60,15 @@ describe("version lockstep", () => {
     const packageChangelog = fs.readFileSync(repoPath("packages/agent-skills/CHANGELOG.md"), "utf8");
     const pluginChangelog = fs.readFileSync(repoPath("plugins/agent-skills/CHANGELOG.md"), "utf8");
 
-    expect({ packageVersion, pluginVersion, marketplaceVersion, cliVersion }).toEqual({
-      packageVersion: "1.0.1",
-      pluginVersion: "1.0.1",
-      marketplaceVersion: "1.0.1",
-      cliVersion: "1.0.1",
+    expect(packageVersion).toBe("1.0.1");
+    expect({ pluginVersion, marketplaceVersion, cliVersion }).toEqual({
+      pluginVersion: packageVersion,
+      marketplaceVersion: packageVersion,
+      cliVersion: packageVersion,
     });
-    expect(packageChangelog).toMatch(/^## 1\.0\.0$/m);
-    expect(pluginChangelog).toMatch(/^## 1\.0\.0$/m);
+    const escapedVersion = packageVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const releaseHeading = new RegExp(`^## ${escapedVersion}$`, "m");
+    expect(packageChangelog).toMatch(releaseHeading);
+    expect(pluginChangelog).toMatch(releaseHeading);
   });
 });

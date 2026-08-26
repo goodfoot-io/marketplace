@@ -7,6 +7,7 @@ export interface HelperReferenceCell {
 }
 export interface HelperReferenceEntry {
     readonly name: string;
+    readonly inputs: string;
     readonly description: string;
     readonly cells: readonly HelperReferenceCell[];
 }

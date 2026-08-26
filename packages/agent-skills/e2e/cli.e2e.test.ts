@@ -28,4 +28,28 @@ describe("agent-skills CLI", () => {
     expect(stdout).toContain("codex=");
     expect(await readFile(join(parent, "out", "SKILL.md"), "utf8")).toBe("# codex\n");
   });
+
+  it("executes the documented repository build command", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "agent-skills-documented-"));
+    const root = join(repo, "skills-src", "goodfoot");
+    await mkdir(join(root, "demo"), { recursive: true });
+    await writeFile(join(root, "demo", "SKILL.md.eta"), "# <%= it.platform %>\n");
+    const args = [
+      resolve(packageRoot, "../../node_modules/tsx/dist/cli.mjs"),
+      resolve(packageRoot, "src/cli.ts"),
+      "build",
+      "--root",
+      "skills-src/goodfoot",
+      "--target",
+      "claude-code=plugins-claude/goodfoot/skills",
+      "--target",
+      "codex=plugins-codex/goodfoot/skills",
+      "**/*.md.eta",
+    ];
+    const { stderr } = await exec(process.execPath, args, { cwd: repo });
+    expect(stderr).toBe("");
+    await expect(readFile(join(repo, "plugins-codex/goodfoot/skills/demo/SKILL.md"), "utf8")).resolves.toBe(
+      "# codex\n",
+    );
+  });
 });

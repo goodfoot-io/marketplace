@@ -4,6 +4,7 @@ export type PlatformAlias = "@codex";
 export type VariantMap<T = string> = Partial<Record<Platform | PlatformAlias, T>>;
 export type ContentKind = "skill" | "agent" | "hook" | "manifest" | "documentation";
 export type PlatformPathKind = "skills" | "agents" | "hooks" | "plugin" | "conventions";
+export type PlatformDirectoryMap = Partial<Record<Platform, Partial<Record<PlatformPathKind, string>>>>;
 export type LintRuleId = "config" | "include" | "unexpanded-eta" | "frontmatter-key" | "cross-dialect-reference" | "literal-platform-prose" | "plugin-root-variable" | "skill-relative-path" | "opencode-name";
 export interface LintSuppression {
     readonly rule: LintRuleId;
@@ -46,6 +47,23 @@ export interface BuildOptions {
     readonly targets: readonly OutputTarget[];
     readonly platforms?: readonly Platform[];
     readonly outputBoundary?: string;
+    readonly platformDirs?: PlatformDirectoryMap;
+    /** Injectable filesystem boundary for deterministic transaction-failure testing. */
+    readonly fileSystem?: BuildFileSystem;
+}
+export interface BuildFileSystem {
+    mkdir(path: string, options: {
+        recursive: true;
+    }): Promise<unknown>;
+    mkdtemp(prefix: string): Promise<string>;
+    writeFile(path: string, data: Uint8Array): Promise<unknown>;
+    chmod(path: string, mode: number): Promise<unknown>;
+    lstat(path: string): Promise<unknown>;
+    rename(from: string, to: string): Promise<unknown>;
+    rm(path: string, options: {
+        recursive: true;
+        force: true;
+    }): Promise<unknown>;
 }
 export interface BuildResult {
     readonly manifests: ReadonlyMap<Platform, PlatformManifest>;

@@ -12,6 +12,7 @@ export interface ParsedCliArgs {
   readonly targets: readonly string[];
   readonly platforms: readonly string[];
   readonly patterns: readonly string[];
+  readonly platformDirs: readonly string[];
   readonly help: boolean;
   readonly version: boolean;
 }
@@ -28,6 +29,7 @@ export function parseArgs(argv: readonly string[]): ParsedCliArgs {
   const targets: string[] = [];
   const platforms: string[] = [];
   const patterns: string[] = [];
+  const platformDirs: string[] = [];
   let help = false;
   let version = false;
   for (let index = 0; index < argv.length; index += 1) {
@@ -48,10 +50,14 @@ export function parseArgs(argv: readonly string[]): ParsedCliArgs {
       const platform = argv[++index];
       if (!platform) throw new Error("--platform requires PLATFORM");
       platforms.push(platform);
+    } else if (arg === "--platform-dir") {
+      const mapping = argv[++index];
+      if (!mapping) throw new Error("--platform-dir requires PLATFORM:KIND=PATH");
+      platformDirs.push(mapping);
     } else if (arg?.startsWith("-")) throw new Error(`Unknown option: ${arg}`);
     else if (arg) patterns.push(arg);
   }
-  return { command, root, targets, platforms, patterns, help, version };
+  return { command, root, targets, platforms, platformDirs, patterns, help, version };
 }
 
 export function validateArgs(args: ParsedCliArgs): ValidatedCliArgs {
@@ -68,17 +74,30 @@ export function validateArgs(args: ParsedCliArgs): ValidatedCliArgs {
     return { platform: parsePlatform(target.slice(0, separator)), outDir: target.slice(separator + 1) };
   });
   const platforms = args.platforms.length ? args.platforms.map(parsePlatform) : undefined;
+  const platformDirs: NonNullable<BuildOptions["platformDirs"]> = {};
+  for (const mapping of args.platformDirs) {
+    const match = /^([^:]+):(skills|agents|hooks|plugin|conventions)=(.+)$/.exec(mapping);
+    if (!match) throw new Error(`Malformed platform directory: ${mapping}`);
+    const platform = parsePlatform(match[1] ?? "");
+    const kind = match[2] as "skills" | "agents" | "hooks" | "plugin" | "conventions";
+    const path = match[3] ?? "";
+    const directories = platformDirs[platform] ?? {};
+    if (directories[kind] !== undefined) throw new Error(`Duplicate platform directory: ${platform}:${kind}`);
+    directories[kind] = path;
+    platformDirs[platform] = directories;
+  }
   return {
     command: args.command,
     root: args.root ?? process.cwd(),
     targets,
     platforms,
     patterns: [...new Set(args.patterns)].sort(),
+    platformDirs,
   };
 }
 
 const HELP =
-  "Usage: agent-skills <build|lint> [--root DIR] --target PLATFORM=DIR [--target ...] [--platform PLATFORM] <file-or-glob...>\n";
+  "Usage: agent-skills <build|lint> [--root DIR] --target PLATFORM=DIR [--target ...] [--platform PLATFORM] [--platform-dir PLATFORM:KIND=PATH] <file-or-glob...>\n";
 export async function run(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
   try {
     const parsed = parseArgs(argv);

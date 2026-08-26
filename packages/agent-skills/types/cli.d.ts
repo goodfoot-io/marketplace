@@ -7,6 +7,7 @@ export interface ParsedCliArgs {
     readonly targets: readonly string[];
     readonly platforms: readonly string[];
     readonly patterns: readonly string[];
+    readonly platformDirs: readonly string[];
     readonly help: boolean;
     readonly version: boolean;
 }
