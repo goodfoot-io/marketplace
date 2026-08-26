@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|exec_command|exec|shell|local_shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/post-tool-use.mjs\""
+          }
+        ]
+      }
+    ]
+  }
+}
