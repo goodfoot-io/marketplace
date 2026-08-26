@@ -1,4 +1,4 @@
-packages/claude-code-hooks/README.md#L282-L314 rk64:0aefc81dd639808b
+packages/claude-code-hooks/README.md#L284-L316 rk64:0aefc81dd639808b
 packages/claude-code-hooks/src/hooks.ts#L135-L230 rk64:d4d7945827242ea0
 
 README's Fail-Open Execution section documents the unexpectedError/onUnexpectedError config fields and their contract; hooks.ts's UnexpectedErrorPolicy/UnexpectedErrorHandler types and HookConfig fields define that contract. If the fields, defaults, or semantics change here, the README falls out of sync with nothing else catching it.

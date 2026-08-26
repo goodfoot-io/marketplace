@@ -1,0 +1,4 @@
+packages/agent-hooks/src/agents/claude-code/types.ts rk64:64fdc323eb40c991
+plugins/agent-hooks/skills/claude-code/reference/input-types.md rk64:3368fd702a06b162
+
+Input types reference documents all Claude Code hook input interfaces (fields, type guards like isFileModifyingTool) and their tool-input variants; types.ts defines these interfaces. When input types are added or fields change, the reference documentation must follow or the API guidance goes stale with nothing else catching it.

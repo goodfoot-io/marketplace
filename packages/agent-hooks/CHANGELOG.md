@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased (targeting 1.0.0)
+
+Plugin and deprecation groundwork for the 1.0.0 release, plus the Antigravity descope from Step 0.
+
+- **Antigravity:** typed factories, output builders, and a self-oracled conformance matrix ship under the Step 0 Outcome B descope — Antigravity is not a shipped agent this release (`agy` OAuth-walls every non-interactive run; CI provides no usable backend). No `@goodfoot/agent-hooks/antigravity` export or skill exists yet; that lands in a follow-up card once a runnable CLI path exists.
+- **`plugins/agent-hooks`** added with `skills/claude-code` and `skills/codex` — mechanically ported and adapted from `plugins/claude-code-hooks/skills/sdk` and `plugins/codex-hooks/skills/sdk` (package names, import specifiers, CLI invocations, and the `AGENT_HOOKS_LOG_FILE`/`AGENT_HOOKS_LOG_ENV_VAR` env var rename). Each skill opens by checking for the deprecated package in the project's `package.json` and offering the repoint.
+- **`@goodfoot/claude-code-hooks` and `@goodfoot/codex-hooks`** marked deprecated: README banners, CHANGELOG entries, and patch version bumps (1.9.0 → 1.9.1, 1.3.0 → 1.3.1) so the notice reaches the registry page on next publish; their plugin skills narrowed to trigger only on the old package names, with a deprecation pointer at the top of each. `npm deprecate` itself, the version-1.0.0 tag/publish, and the marketplace evidence-gated smoke-install remain a separate, explicitly authorized release step — not run as part of this entry.
+
 ## 0.3.0
 
 Codex parity: the full `@goodfoot/codex-hooks` 1.3.0 surface now ships behind `@goodfoot/agent-hooks/codex`.

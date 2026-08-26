@@ -1,11 +1,11 @@
 ---
-name: sdk
-description: Load this skill immediately after a user mentions the "@goodfoot/codex-hooks" package by name.
+name: codex
+description: Load this skill immediately after a user mentions "@goodfoot/agent-hooks" for Codex, or Codex hooks.
 ---
 
-**`@goodfoot/codex-hooks` is deprecated (security/data-loss fixes only) in favor of `@goodfoot/agent-hooks/codex` — see `plugins/agent-hooks`'s `codex` skill. Repoint new work there; the notes below describe the deprecated package only.**
+**If `@goodfoot/codex-hooks` is present in the project's `package.json`, say so and offer to repoint the project at `@goodfoot/agent-hooks/codex` — `@goodfoot/codex-hooks` is deprecated (security/data-loss fixes only) in favor of this package.**
 
-**Review the authoritative documentation at `https://developers.openai.com/codex/hooks.md` and the wire schemas under `third_party/reference/codex/codex-rs/hooks/schema/generated/` before using `@goodfoot/codex-hooks`. When the doc and the schemas disagree, the schemas win.**
+**Review the authoritative documentation at `https://developers.openai.com/codex/hooks.md` and the wire schemas under `third_party/reference/codex/codex-rs/hooks/schema/generated/` before using `@goodfoot/agent-hooks/codex`. When the doc and the schemas disagree, the schemas win.**
 
 <instructions>
 
@@ -15,7 +15,7 @@ Hooks are **compiled executables**, not scripts. You must build them before Code
 
 **The Build Command:**
 ```bash
-npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json"
+npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o ".codex/hooks.json"
 ```
 
 **Parameters Explained:**
@@ -26,14 +26,14 @@ npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json"
 *   `--executable <path>` (Optional): **Executable Prefix.** Sets the executable used in generated commands (default: `node`).
 *   `--loader .ext=type` (Optional, repeatable): **Explicit Asset Loader.** Registers esbuild loaders for non-code imports. `.md=text` is enabled by default; opt in for other extensions, e.g. `--loader .txt=text`.
 
-**Configuring the log file:** Logging is configured at runtime, not at build time. Set the `CODEX_HOOKS_LOG_FILE` environment variable to write JSON-line logs to a file, or configure programmatically with `new Logger({ logFilePath })` / `new Logger({ logEnvVar })`. See [Logging & Debugging](@${CLAUDE_PLUGIN_ROOT}/skills/sdk/reference/logging.md).
+**Configuring the log file:** Logging is configured at runtime, not at build time. Set the `AGENT_HOOKS_LOG_FILE` environment variable to write JSON-line logs to a file, or configure programmatically with `new Logger({ logFilePath })` / `new Logger({ logEnvVar })`. See [Logging & Debugging](@${CLAUDE_PLUGIN_ROOT}/skills/codex/reference/logging.md).
 
 **Loader guidance:**
 *   Use text imports for **small static prompt assets** that should be bundled into the compiled hook as strings.
 *   Prefer this pattern for `SessionStart` and `SubagentStart` preambles:
     ```typescript
     import preamble from './prompts/session-start.md';
-    import { sessionStartHook, sessionStartOutput } from '@goodfoot/codex-hooks';
+    import { sessionStartHook, sessionStartOutput } from '@goodfoot/agent-hooks/codex';
 
     export default sessionStartHook({}, () => {
       return sessionStartOutput({
@@ -41,7 +41,7 @@ npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json"
       });
     });
     ```
-*   If the project runs tests through Vitest/Vite, mirror the same loader behavior there or test-time imports can fail even when the `codex-hooks` build passes.
+*   If the project runs tests through Vitest/Vite, mirror the same loader behavior there or test-time imports can fail even when the `agent-hooks` build passes.
 
 ## 2. Hook Factory Demonstration
 
@@ -51,7 +51,7 @@ Here is a complete, working example of a `PreToolUse` hook. It uses the Factory 
 
 ```typescript
 // src/block-dangerous.ts
-import { preToolUseHook, preToolUseOutput } from '@goodfoot/codex-hooks';
+import { preToolUseHook, preToolUseOutput } from '@goodfoot/agent-hooks/codex';
 
 // 1. Export Default is MANDATORY.
 // 2. Factory handles input typing and error wrapping.
@@ -114,7 +114,7 @@ The package does **not** ship per-tool predicates or content helpers — Codex t
 
 **Scaffold Command:**
 ```bash
-npx @goodfoot/codex-hooks --scaffold ./my-codex-hooks --hooks SessionStart,PreToolUse -o ./.codex/hooks.json
+npx @goodfoot/agent-hooks --agent codex --scaffold ./my-codex-hooks --hooks SessionStart,PreToolUse -o ./.codex/hooks.json
 ```
 
 **What you get:**
@@ -133,9 +133,9 @@ npx @goodfoot/codex-hooks --scaffold ./my-codex-hooks --hooks SessionStart,PreTo
 
 **Monorepo?** Use `-o` to output directly to a plugin directory:
 ```bash
-npx @goodfoot/codex-hooks --scaffold ./packages/my-codex-hooks --hooks PreToolUse,PostToolUse -o ../../plugins/my-plugin/.codex/hooks.json
+npx @goodfoot/agent-hooks --agent codex --scaffold ./packages/my-codex-hooks --hooks PreToolUse,PostToolUse -o ../../plugins/my-plugin/.codex/hooks.json
 ```
-See [Installation: Scaffolding for Monorepos](@${CLAUDE_PLUGIN_ROOT}/skills/sdk/reference/installation.md).
+See [Installation: Scaffolding for Monorepos](@${CLAUDE_PLUGIN_ROOT}/skills/codex/reference/installation.md).
 
 ## 4. Output Capabilities by Hook Type
 
@@ -179,7 +179,7 @@ These constraints are unique to Codex (not present in Claude Code):
 ### Pattern A: Auto-approve a known-safe command (PermissionRequest)
 
 ```typescript
-import { permissionRequestHook, permissionRequestOutput } from '@goodfoot/codex-hooks';
+import { permissionRequestHook, permissionRequestOutput } from '@goodfoot/agent-hooks/codex';
 
 export default permissionRequestHook({ matcher: 'shell' }, (input, { logger }) => {
   const cmd = isShellInput(input.tool_input) ? input.tool_input.command : '';
@@ -200,7 +200,7 @@ function isShellInput(value: unknown): value is { command: string } {
 ### Pattern B: Block Stop on condition (Stop)
 
 ```typescript
-import { stopHook, stopOutput } from '@goodfoot/codex-hooks';
+import { stopHook, stopOutput } from '@goodfoot/agent-hooks/codex';
 
 export default stopHook({}, (_input, { logger }) => {
   const ready = false;
@@ -219,7 +219,7 @@ export default stopHook({}, (_input, { logger }) => {
 ### Pattern C: Inject context at SessionStart
 
 ```typescript
-import { sessionStartHook, sessionStartOutput } from '@goodfoot/codex-hooks';
+import { sessionStartHook, sessionStartOutput } from '@goodfoot/agent-hooks/codex';
 
 export default sessionStartHook({ matcher: 'startup' }, () => {
   return sessionStartOutput({
@@ -231,7 +231,7 @@ export default sessionStartHook({ matcher: 'startup' }, () => {
 ### Pattern D: Fail-open advisory context (UserPromptSubmit)
 
 ```typescript
-import { userPromptSubmitHook } from '@goodfoot/codex-hooks';
+import { userPromptSubmitHook } from '@goodfoot/agent-hooks/codex';
 
 export default userPromptSubmitHook(
   {
@@ -258,9 +258,9 @@ export default userPromptSubmitHook(
 
 When helping a user with hooks, you **MUST** follow this protocol:
 
-1.  **Verify the Package:** Ensure usage of `@goodfoot/codex-hooks`.
+1.  **Verify the Package:** Ensure usage of `@goodfoot/agent-hooks/codex`.
 2.  **Enforce the Build Step:** Remind the user to run `npx ...` (or `npm run build` if scaffolded) after every edit.
-3.  **Match Asset Loaders Across Build and Test:** If a hook imports `.md`, `.txt`, or similar assets, ensure `codex-hooks --loader ...` and the test runner configuration agree.
+3.  **Match Asset Loaders Across Build and Test:** If a hook imports `.md`, `.txt`, or similar assets, ensure `agent-hooks --agent codex --loader ...` and the test runner configuration agree.
 4.  **Ban `console.log` & `console.error`:** Aggressively correct any code using `console.log` or `console.error` to use `logger`. Stdio is reserved for the protocol; direct writes cause silent failures or UI corruption.
 5.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`.
 6.  **Mind the Limits:** Surface the Codex-specific limits in Section 5 when relevant (Windows, `ask`, reserved fields).
@@ -269,8 +269,8 @@ When helping a user with hooks, you **MUST** follow this protocol:
 
 Before debugging hook issues, verify:
 
-- [ ] `@goodfoot/codex-hooks` is in `package.json` dependencies
-- [ ] Build script exists in `package.json` (e.g., `"build": "codex-hooks -i ..."`)
+- [ ] `@goodfoot/agent-hooks` is in `package.json` dependencies
+- [ ] Build script exists in `package.json` (e.g., `"build": "agent-hooks --agent codex -i ..."`)
 - [ ] Hooks rebuilt after last code change (`npm run build`)
 - [ ] No `console.log` or `console.error` in hook code (use `logger` instead)
 - [ ] Hook files use `export default hookFactory(...)` pattern
@@ -289,32 +289,32 @@ The CLI picks one of three command-emission modes based on the output path and f
 **Standalone Project (codex-local):**
 Place the compiled manifest at `.codex/hooks.json` in your project root. Codex auto-discovers it.
 ```bash
-npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o ".codex/hooks.json"
+npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o ".codex/hooks.json"
 ```
 
 **Codex Plugin (Recommended):**
 Build into the plugin's `hooks/` directory and pass `--plugin-root` (or place a `.codex-plugin/` marker so it auto-detects):
 ```bash
-npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o "./hooks/hooks.json" --plugin-root
+npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o "./hooks/hooks.json" --plugin-root
 ```
 Plugin mode emits `${PLUGIN_ROOT}`-relative commands and stable, hash-free filenames so the built `hooks.json` is portable inside an installed plugin and Codex's hook trust hash stays valid across rebuilds. Codex injects `PLUGIN_ROOT` (and `CLAUDE_PLUGIN_ROOT` for compatibility) into plugin hook environments and substitutes `${PLUGIN_ROOT}` before execution.
 
 **Monorepo Project:**
 Output to a sibling plugin directory and let `--plugin-root` anchor the command form:
 ```bash
-npx -y @goodfoot/codex-hooks -i "src/**/*.ts" -o "../../plugins/my-plugin/hooks/hooks.json" --plugin-root
+npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o "../../plugins/my-plugin/hooks/hooks.json" --plugin-root
 ```
-See [Monorepo Integration](@${CLAUDE_PLUGIN_ROOT}/skills/sdk/reference/installation.md).
+See [Monorepo Integration](@${CLAUDE_PLUGIN_ROOT}/skills/codex/reference/installation.md).
 
 **Filename overrides:** `--stable-names` forces hash-free names in any mode; `--no-stable-names` opts back into hashed names (the pre-1.1 default).
 
 ## 10. Reference Links
 
-*   **[Installation & Setup](@${CLAUDE_PLUGIN_ROOT}/skills/sdk/reference/installation.md)**: Setup guide (Scaffolding vs Manual).
-*   **[All 10 Hook Inputs](@${CLAUDE_PLUGIN_ROOT}/skills/sdk/reference/input-types.md)**: Field shapes per event, with `tool_input` narrowing.
-*   **[All 10 Output Builders](@${CLAUDE_PLUGIN_ROOT}/skills/sdk/reference/output-builders.md)**: Factories, builders, and option types.
-*   **[Porting from Bash](@${CLAUDE_PLUGIN_ROOT}/skills/sdk/reference/porting.md)**: Migration guide.
-*   **[Logging & Debugging](@${CLAUDE_PLUGIN_ROOT}/skills/sdk/reference/logging.md)**: How to see what's happening.
-*   **[Environment](@${CLAUDE_PLUGIN_ROOT}/skills/sdk/reference/environment.md)**: Hook context and runtime env.
+*   **[Installation & Setup](@${CLAUDE_PLUGIN_ROOT}/skills/codex/reference/installation.md)**: Setup guide (Scaffolding vs Manual).
+*   **[All 10 Hook Inputs](@${CLAUDE_PLUGIN_ROOT}/skills/codex/reference/input-types.md)**: Field shapes per event, with `tool_input` narrowing.
+*   **[All 10 Output Builders](@${CLAUDE_PLUGIN_ROOT}/skills/codex/reference/output-builders.md)**: Factories, builders, and option types.
+*   **[Porting from Bash](@${CLAUDE_PLUGIN_ROOT}/skills/codex/reference/porting.md)**: Migration guide.
+*   **[Logging & Debugging](@${CLAUDE_PLUGIN_ROOT}/skills/codex/reference/logging.md)**: How to see what's happening.
+*   **[Environment](@${CLAUDE_PLUGIN_ROOT}/skills/codex/reference/environment.md)**: Hook context and runtime env.
 
 </instructions>

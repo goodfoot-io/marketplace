@@ -1,0 +1,4 @@
+packages/agent-hooks/src/agents/claude-code/outputs.ts#L634-L1494 rk64:864409b3eb705a35
+plugins/agent-hooks/skills/claude-code/reference/output-builders.md rk64:e2967a02bd5e77bd
+
+Reference documentation catalogs all Claude Code output builders (preToolUseOutput, postToolUseOutput, ..., messageDisplayOutput — the 30-factory surface) with usage examples and an options cheat sheet; outputs.ts defines these exported builders. Adding, renaming, or removing a builder, or changing its option shape, must be reflected here or the guidance goes stale with nothing else catching it.

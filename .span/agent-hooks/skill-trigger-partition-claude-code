@@ -1,0 +1,4 @@
+plugins/agent-hooks/skills/claude-code/SKILL.md#L3-L6 rk64:b490e467380f1ce6
+plugins/claude-code-hooks/skills/sdk/SKILL.md#L3-L6 rk64:29a4d5a444a30fc0
+
+The old and new SKILL.md frontmatter descriptions and opening deprecation-pointer paragraphs partition the trigger space to avoid the FMEA F6 double-trigger bug: the deprecated plugin's description fires only on the literal `@goodfoot/claude-code-hooks` package name, while the new plugin's fires on generic `@goodfoot/agent-hooks`/"Claude Code hooks" phrasing. Each paragraph also names and cross-references the other package as the deprecated/successor pointer, so broadening either trigger or renaming either package without updating its counterpart reintroduces double-triggering or a stale pointer.

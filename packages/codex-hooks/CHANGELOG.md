@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.1
+- **Deprecated.** Superseded by `@goodfoot/agent-hooks` (`@goodfoot/agent-hooks/codex`). This package receives security and data-loss fixes only for six months following this notice; no further feature work.
+
 ## 1.3.0
 - Added opt-in fail-open execution mode for advisory Codex hooks, allowing hooks to be configured as non-blocking so failures don't interrupt the workflow
 

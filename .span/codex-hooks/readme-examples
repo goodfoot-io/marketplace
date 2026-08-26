@@ -1,4 +1,4 @@
-packages/codex-hooks/README.md#L13-L38 rk64:5bd8dc9079a9ff52
+packages/codex-hooks/README.md#L15-L40 rk64:5bd8dc9079a9ff52
 packages/codex-hooks/src/hooks.ts#L78-L152 rk64:ad1cd2048004c78a
 
 README quick-start shows code examples using hook factories (preToolUseHook, preToolUseOutput, etc.); these must match the factory function definitions in hooks.ts. If factories are renamed or removed, README examples become incorrect and users copying them will encounter import errors.

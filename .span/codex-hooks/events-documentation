@@ -1,4 +1,4 @@
+packages/codex-hooks/README.md#L59-L70 rk64:5993ebaf13e26979
 packages/codex-hooks/src/types.ts#L1-L11 rk64:d182f1c5c33614e7
-packages/codex-hooks/README.md#L57-L68 rk64:5993ebaf13e26979
 
 README event table documents the HookEventName union. When events are added to or removed from the union type, the README table must be updated in sync; TypeScript does not enforce this constraint.

@@ -1,0 +1,4 @@
+packages/agent-hooks/src/agents/codex/types.ts#L1-L11 rk64:d182f1c5c33614e7
+plugins/agent-hooks/skills/codex/reference/installation.md#L18-L18 rk64:1becbd31b753b748
+
+The installation guide's "Available Hook Types" list is exactly Codex's HookEventName union in types.ts; nothing else enforces agreement, and this pairing carries forward the same coupling codex-hooks/installation-hooks-list declared for the deprecated package's SDK skill.

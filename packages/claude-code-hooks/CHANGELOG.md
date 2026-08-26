@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.9.1
+- **Deprecated.** Superseded by `@goodfoot/agent-hooks` (`@goodfoot/agent-hooks/claude-code`). This package receives security and data-loss fixes only for six months following this notice; no further feature work.
+
 ## 1.9.0
 - Added opt-in fail-open execution mode for advisory Claude Code hooks, allowing hooks to fail without blocking Claude Code
 

@@ -1,6 +1,6 @@
 {
   "name": "codex-hooks",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "description": "Type-safe TypeScript hooks for Codex using @goodfoot/codex-hooks library",
   "author": { "name": "Goodfoot", "email": "contact@goodfoot.io" }
 }

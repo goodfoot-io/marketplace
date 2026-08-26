@@ -1,11 +1,11 @@
 ---
-name: sdk
-description: Load this skill immediately after a user mentions the "@goodfoot/claude-code-hooks" package by name.
+name: claude-code
+description: Load this skill immediately after a user mentions "@goodfoot/agent-hooks" for Claude Code, or Claude Code hooks.
 ---
 
-**`@goodfoot/claude-code-hooks` is deprecated (security/data-loss fixes only) in favor of `@goodfoot/agent-hooks/claude-code` — see `plugins/agent-hooks`'s `claude-code` skill. Repoint new work there; the notes below describe the deprecated package only.**
+**If `@goodfoot/claude-code-hooks` is present in the project's `package.json`, say so and offer to repoint the project at `@goodfoot/agent-hooks/claude-code` — `@goodfoot/claude-code-hooks` is deprecated (security/data-loss fixes only) in favor of this package.**
 
-**Ask the `claude-code-guide` subagent about the hooks for your task or review the authoritative documentation at `https://code.claude.com/docs/en/hooks.md` before using `@goodfoot/claude-code-hooks`.** 
+**Ask the `claude-code-guide` subagent about the hooks for your task or review the authoritative documentation at `https://code.claude.com/docs/en/hooks.md` before using `@goodfoot/agent-hooks/claude-code`.** 
 
 <instructions>
 
@@ -15,7 +15,7 @@ Hooks are **compiled executables**, not scripts. You must build them before Clau
 
 **The Build Command:**
 ```bash
-npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
+npx -y @goodfoot/agent-hooks --agent claude-code -i "hooks/*.ts" -o "dist/hooks.json"
 ```
 
 **Parameters Explained:**
@@ -23,7 +23,7 @@ npx -y @goodfoot/claude-code-hooks -i "hooks/*.ts" -o "dist/hooks.json"
     *   *Critical:* Quote the glob pattern (`"..."`) to prevent your shell from expanding it before the CLI sees it.
 *   `-o "dist/hooks.json"`: **Output Manifest.** This is the file you register in your config.
     *   The CLI creates a `bin/` folder next to this file containing the compiled `.mjs` executables. As of 1.7, bundles use stable, hash-free filenames (`<name>.mjs`) by default.
-*   `--log "/tmp/hooks.log"` (Optional): **Hardcoded Log Path.** Bakes the log file path into the compiled bundle. A runtime `CLAUDE_CODE_HOOKS_LOG_FILE` env var overrides it. Cannot be combined with `--log-env-var`.
+*   `--log "/tmp/hooks.log"` (Optional): **Hardcoded Log Path.** Bakes the log file path into the compiled bundle. A runtime `AGENT_HOOKS_LOG_FILE` env var overrides it. Cannot be combined with `--log-env-var`.
 *   `--log-env-var MY_VAR` (Optional): **Dynamic Log Path.** Bakes an env var *name* into the bundle; Logger reads `process.env[MY_VAR]` at startup. Use when the log path varies at runtime (e.g. across git worktrees). Cannot be combined with `--log`.
 *   `--loader .ext=type` (Optional, repeatable): **Explicit Asset Loader.** Registers esbuild loaders for non-code imports used by hooks. The compiler ships with `.md=text` enabled by default, so markdown prompt assets can be imported without extra flags. For other extensions, opt in explicitly, e.g. `--loader .txt=text`.
 *   `--stable-names` (default) / `--no-stable-names` (Optional): **Filename Stability.** Stable mode emits `<name>.mjs`, keeping the generated `hooks.json` byte-stable across rebuilds so Claude Code's hook trust hash stays valid — users do not have to re-review and re-trust hooks on every update. Stale hashed leftovers are pruned automatically. Pass `--no-stable-names` to restore the pre-1.7 hashed naming.
@@ -39,7 +39,7 @@ The CLI infers whether the build is a plugin or a `.claude/`-style agent install
 *   Prefer this pattern for `SessionStart` and `SubagentStart` preambles:
     ```typescript
     import preamble from './prompts/session-start.md';
-    import { sessionStartHook, sessionStartOutput } from '@goodfoot/claude-code-hooks';
+    import { sessionStartHook, sessionStartOutput } from '@goodfoot/agent-hooks/claude-code';
 
     export default sessionStartHook({}, () => {
       return sessionStartOutput({
@@ -47,7 +47,7 @@ The CLI infers whether the build is a plugin or a `.claude/`-style agent install
       });
     });
     ```
-*   If the project runs tests through Vitest/Vite, mirror the same loader behavior there or test-time imports can fail even when the `claude-code-hooks` build passes.
+*   If the project runs tests through Vitest/Vite, mirror the same loader behavior there or test-time imports can fail even when the `agent-hooks` build passes.
 
 ## 2. Hook Factory Demonstration
 
@@ -57,7 +57,7 @@ Here is a complete, working example of a `PreToolUse` hook. It uses the Factory 
 
 ```typescript
 // hooks/block-dangerous.ts
-import { preToolUseHook, preToolUseOutput } from '@goodfoot/claude-code-hooks';
+import { preToolUseHook, preToolUseOutput } from '@goodfoot/agent-hooks/claude-code';
 
 // 1. Export Default is MANDATORY.
 // 2. Factory handles input typing and error wrapping.
@@ -100,7 +100,7 @@ For hooks matching multiple tools (e.g., `'Write|Edit|MultiEdit'`), use type gua
 import {
   preToolUseHook, preToolUseOutput,
   isWriteTool, isEditTool, getFilePath, isTsFile, checkContentForPattern
-} from '@goodfoot/claude-code-hooks';
+} from '@goodfoot/agent-hooks/claude-code';
 
 export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { logger }) => {
   const filePath = getFilePath(input);
@@ -130,7 +130,7 @@ export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { log
 
 **Scaffold Command:**
 ```bash
-npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,SubagentStop -o ./hooks.json
+npx @goodfoot/agent-hooks --agent claude-code --scaffold /path/to/my-hooks --hooks Stop,SubagentStop -o ./hooks.json
 ```
 
 **What you get:**
@@ -149,7 +149,7 @@ npx @goodfoot/claude-code-hooks --scaffold /path/to/my-hooks --hooks Stop,Subage
 
 **Monorepo?** Use `-o` to output directly to a plugin directory:
 ```bash
-npx @goodfoot/claude-code-hooks --scaffold ./packages/my-hooks --hooks PreToolUse,PostToolUse -o ../../plugins/my-plugin/hooks/hooks.json
+npx @goodfoot/agent-hooks --agent claude-code --scaffold ./packages/my-hooks --hooks PreToolUse,PostToolUse -o ../../plugins/my-plugin/hooks/hooks.json
 ```
 See [Installation: Scaffolding for Monorepos](reference/installation.md#11-scaffolding-for-monorepos).
 
@@ -185,7 +185,7 @@ Different hooks have different capabilities. This table clarifies what each hook
 
 **Key distinction**: `Stop` and `SubagentStop` hooks use `decision: 'block'`. `TeammateIdle`, `TaskCreated`, and `TaskCompleted` hooks use `stderr` for exit-code-based blocking (no Common Options) — Claude Code's hook-result parser treats any stdout that parses as valid JSON as success regardless of exit code, so this only actually blocks when nothing is written to stdout; the runtime handles that for you. `CwdChanged` and `FileChanged` hooks return `hookSpecificOutput.watchPaths` to register/update paths for `FileChanged` events. `MessageDisplay` is display-only: return `hookSpecificOutput.displayContent` to replace the on-screen delta without changing the stored message. Other hooks signal issues through `additionalContext`, `systemMessage`, or `permissionDecision`.
 
-**Fail-open advisory hooks**: pass `unexpectedError: 'continue'` in a hook's factory config to make unexpected runtime failures (a thrown handler exception, malformed output, a stdout write failure) exit `0` with an empty response instead of surfacing a failed-hook error to the user. Only use this for advisory context-enrichment hooks (`UserPromptSubmit`, `SessionStart`/`SubagentStart` nudges) — never for hooks that make permission, safety, or policy decisions, and never for `WorktreeCreate`/`WorktreeRemove` (their plain-text protocol has no safe fallback). See the `@goodfoot/claude-code-hooks` README's "Fail-Open Execution" section for the full contract, including the optional `onUnexpectedError(error, phase)` diagnostic callback.
+**Fail-open advisory hooks**: pass `unexpectedError: 'continue'` in a hook's factory config to make unexpected runtime failures (a thrown handler exception, malformed output, a stdout write failure) exit `0` with an empty response instead of surfacing a failed-hook error to the user. Only use this for advisory context-enrichment hooks (`UserPromptSubmit`, `SessionStart`/`SubagentStart` nudges) — never for hooks that make permission, safety, or policy decisions, and never for `WorktreeCreate`/`WorktreeRemove` (their plain-text protocol has no safe fallback). See the `@goodfoot/agent-hooks` README's "Fail-Open Execution" section for the full contract, including the optional `onUnexpectedError(error, phase)` diagnostic callback.
 
 ## 5. Common Patterns
 
@@ -266,9 +266,9 @@ if (!filePath || !isTsFile(filePath)) return preToolUseOutput({});
 
 When helping a user with hooks, you **MUST** follow this protocol:
 
-1.  **Verify the Package:** Ensure usage of `@goodfoot/claude-code-hooks`.
+1.  **Verify the Package:** Ensure usage of `@goodfoot/agent-hooks/claude-code`.
 2.  **Enforce the Build Step:** Remind the user to run `npx ...` (or `npm run build` if scaffolded) after every edit.
-3.  **Match Asset Loaders Across Build and Test:** If a hook imports `.md`, `.txt`, or similar assets, ensure `claude-code-hooks --loader ...` and the test runner configuration agree.
+3.  **Match Asset Loaders Across Build and Test:** If a hook imports `.md`, `.txt`, or similar assets, ensure `agent-hooks --agent claude-code --loader ...` and the test runner configuration agree.
 3.  **Ban `console.log` & `console.error`:** Aggressively correct any code using `console.log` or `console.error` to use `logger`. Stdio is reserved for the protocol; direct writes cause silent failures or UI corruption.
 4.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`.
 
@@ -276,8 +276,8 @@ When helping a user with hooks, you **MUST** follow this protocol:
 
 Before debugging hook issues, verify:
 
-- [ ] `@goodfoot/claude-code-hooks` is in `package.json` dependencies
-- [ ] Build script exists in `package.json` (e.g., `"build": "claude-code-hooks -i ..."`)
+- [ ] `@goodfoot/agent-hooks` is in `package.json` dependencies
+- [ ] Build script exists in `package.json` (e.g., `"build": "agent-hooks --agent claude-code -i ..."`)
 - [ ] Hooks rebuilt after last code change (`npm run build`)
 - [ ] No `console.log` or `console.error` in hook code (use `logger` instead)
 - [ ] Hook files use `export default hookFactory(...)` pattern
@@ -292,7 +292,7 @@ Add the absolute path to your `~/.claude/config.json`:
 
 **Claude Code Plugin (Recommended):**
 The `hooks.json` is auto-detected if placed in the plugin root.
-Build command: `npx -y @goodfoot/claude-code-hooks -i "hooks/src/*.ts" -o "./hooks.json"`
+Build command: `npx -y @goodfoot/agent-hooks --agent claude-code -i "hooks/src/*.ts" -o "./hooks.json"`
 
 **Monorepo Project:**
 For hooks in a separate package that output to a plugin directory, see [Monorepo Integration](reference/installation.md#5-monorepo-integration). This is the recommended pattern for migrating existing hooks.
