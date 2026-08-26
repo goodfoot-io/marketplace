@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+- Fixed the Codex scaffold generating hook imports that pointed at the package root instead of the correct path
+- Fixed a type error in the OpenCode README example where the resumed-session branch didn't narrow correctly
+
 ## 1.0.2
 - Added OpenCode plugin support, including session guardrails and advisory/policy hooks
 - Wired `--agent opencode` into the unified CLI for scaffolding OpenCode projects
