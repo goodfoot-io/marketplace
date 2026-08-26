@@ -22,11 +22,15 @@ const SKILL_SOURCE_ROOTS = [
 ] as const;
 
 describe("single-source rule", () => {
-  it("keeps every tracked SKILL.md inside the four known roots", () => {
-    const tracked = git(["ls-files", "--", "*SKILL.md"])
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
+  it("keeps every goodfoot SKILL.md inside the four known roots", () => {
+    // Scoped to the six goodfoot skill names, not every SKILL.md in the repo —
+    // the other fifteen Claude plugins have their own unrelated skills and stay put.
+    const tracked = EXPECTED_SKILLS.flatMap((skill) =>
+      git(["ls-files", "--", `:(glob)**/${skill}/SKILL.md`])
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+    );
 
     const strays = tracked.filter((filePath) => !SKILL_SOURCE_ROOTS.some((root) => filePath.startsWith(root)));
     expect(strays).toEqual([]);
