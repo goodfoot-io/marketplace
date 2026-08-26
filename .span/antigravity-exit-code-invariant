@@ -1,0 +1,5 @@
+packages/agent-hooks/src/agents/antigravity/outputs.ts#L3-L12 rk64:7ba6ea0c8088eaf5
+packages/agent-hooks/src/agents/antigravity/transport.ts#L53-L84 rk64:338170efe3b75a49
+packages/agent-hooks/tests/conformance/antigravity.test.ts#L223-L235 rk64:16b21ae5fbcb0dbb
+
+EXIT_CODES having only a SUCCESS member is authoritative for createAntigravityTransport's finalize() hardcoding exitCode: EXIT_CODES.SUCCESS on every branch, since Antigravity has no exit-code signaling channel at all; adding an ERROR or BLOCK member to EXIT_CODES without updating every finalize() branch would silently reintroduce a channel the wire contract says does not exist. The 'Wire fundamentals' conformance block is the only check that would catch such drift, by asserting exit code 0 across every outcome kind.
