@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+- Added OpenCode plugin support, including session guardrails and advisory/policy hooks
+- Wired `--agent opencode` into the unified CLI for scaffolding OpenCode projects
+- Fixed a type error in scaffolded Claude Code hook tests
+
 ## 1.0.1
 - Fixed hardcoded version references so displayed/reported versions stay in sync with the installed package
 - Updated documentation
