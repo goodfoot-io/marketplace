@@ -989,3 +989,70 @@ plugins/my-plugin/skills/fix-imports/SKILL.md
 ---
 
 **Note**: The `mcp__plugin_` prefix pattern is an observed implementation detail and may not be fully documented in official Claude Code documentation as of this writing. This document reflects empirical findings from the actual codebase and tool names.
+
+## Tri-Platform Plugin Layout (goodfoot)
+
+`goodfoot` is the one plugin in this repo shipped across all three agent platforms — Claude Code, Codex, and OpenCode — from a single shared skill source rather than three independently maintained copies. The other plugins under `plugins/` are Claude-only and untouched by this pattern.
+
+### Layout
+
+```
+skills/<6 skill dirs>/                          # single source of truth
+plugins-claude/goodfoot/
+  .claude-plugin/plugin.json
+  commands/   (Claude-only component)
+  agents/     (Claude-only component)
+  bin/        (physical — shared build output home for all three trees)
+  hooks/hooks.json + hooks/bin/post-tool-use.mjs
+  skills/<name> -> ../../../skills/<name>       # relative symlink, mode 120000
+plugins-codex/goodfoot/
+  .codex-plugin/plugin.json                     # interface block + "skills": "./skills/"
+  skills/<name>/SKILL.md                        # real, byte-identical copies — NOT symlinks
+  hooks/hooks.json + hooks/post-tool-use.mjs
+  (no bin/)
+plugins-opencode/goodfoot/
+  package.json                                  # @goodfoot/opencode-goodfoot, private
+  index.js                                      # default-export factory, hook transport only
+  bin -> ../../plugins-claude/goodfoot/bin       # relative symlink, mode 120000
+  skills/<name> -> ../../../skills/<name>        # relative symlink, mode 120000
+```
+
+Registries: the Claude marketplace (`.claude-plugin/marketplace.json`) points its `goodfoot` entry at `./plugins-claude/goodfoot`; the Codex marketplace (`.agents/plugins/marketplace.json`) carries a local `goodfoot` entry pointing at `./plugins-codex/goodfoot`; `opencode.json` registers the plugin module (`"plugin": ["./plugins-opencode/goodfoot"]`) and points skill discovery straight at the shared root (`"skills": {"paths": ["./skills"]}`) since OpenCode plugins cannot contribute skills declaratively.
+
+### The amended single-source rule
+
+Every `SKILL.md` physically exists exactly once, under root `skills/`. Every other occurrence is a mode-120000 relative symlink back to it — **except** `plugins-codex/goodfoot/skills/`, where each file is a regular file whose bytes are guarded equal to the source.
+
+This carve-out exists because Codex's installer silently drops symlinked skill entries (both directory- and file-granularity) into an empty cached tree — spike-proven, tracked upstream as openai/codex#24770 — while a regular-file skill survives install intact. A pure-symlink Codex tree is broken today; copies are the only mechanism that actually delivers a working Codex install. When the upstream issue is fixed, flip the Codex tree to symlinks and relax `packages/plugin-layout-checks`'s single-source test back to a uniform mode-120000 assertion.
+
+### Symlink convention and the Windows hazard
+
+Symlinks are relative (`../../../skills/<name>`, `../../plugins-claude/goodfoot/bin`) so the tree stays portable across clone locations. On a Windows checkout without Developer Mode (or without `git config core.symlinks true`), git materializes these as plain text-file stubs containing the link target string, not real symlinks — silently breaking the skill/bin surface for that checkout. `packages/plugin-layout-checks`'s index-mode assertions (`git ls-files -s` reporting mode `120000`) catch a stub committed *into the repo*, but cannot detect a stub materialized only in a broken local checkout; that failure mode surfaces at runtime instead (missing `SKILL.md`, broken `bin` resolution).
+
+### Hook transports
+
+Each tree ships an active, minimal no-op `PostToolUse` hook so the pattern has a real referent instead of an inert template:
+
+| Platform | Matcher | Command |
+|---|---|---|
+| Claude | `Edit\|Write\|NotebookEdit` | `node "$CLAUDE_PLUGIN_ROOT"/hooks/bin/post-tool-use.mjs` |
+| Codex | `apply_patch\|exec_command\|exec\|shell\|local_shell` | `node "${PLUGIN_ROOT}/hooks/post-tool-use.mjs"` |
+| OpenCode | n/a (in-process) | `index.js` registers `tool.execute.after` |
+
+`packages/plugin-layout-checks`'s hooks dangling-reference check substitutes each platform's root variable and requires the resulting path to resolve inside that platform's own tree — it fails closed on a hook command that points anywhere else, including at a path that hasn't been created yet.
+
+### Version lockstep
+
+Source of truth is `plugins-claude/goodfoot/.claude-plugin/plugin.json`. `scripts/sync-plugin-versions.sh` propagates its version to the Codex manifest, the OpenCode `package.json`, and the Claude marketplace entry; `packages/plugin-layout-checks`'s version-lockstep test fails closed if any of the four surfaces drift apart.
+
+### Registry table
+
+| Platform | Registry file | Entry |
+|---|---|---|
+| Claude Code | `.claude-plugin/marketplace.json` | `goodfoot` → `./plugins-claude/goodfoot` |
+| Codex | `.agents/plugins/marketplace.json` | `goodfoot` (local source) → `./plugins-codex/goodfoot` |
+| OpenCode | `opencode.json` | `plugin: ["./plugins-opencode/goodfoot"]`, `skills.paths: ["./skills"]` |
+
+### Known limitation: no `bin/` on installed Codex
+
+The shared `bin/` scripts (generated by the `packages/print` and `packages/typescript-metrics` esbuild pipelines) live physically at `plugins-claude/goodfoot/bin/`. The Codex tree ships no `bin/` at all: a symlink there would vanish on install exactly like the skill symlinks did, and a real copy would triple roughly 59MB of generated bundles. Any goodfoot content that assumes `bin/` reachability (or `${CLAUDE_PLUGIN_ROOT}`, which is Claude-specific and undefined on Codex) degrades identically on installed Codex today. Revisit once openai/codex#24770 lands upstream.

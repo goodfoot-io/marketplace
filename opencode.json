@@ -4,5 +4,9 @@
     "*": {
       "*": "allow"
     }
+  },
+  "plugin": ["./plugins-opencode/goodfoot"],
+  "skills": {
+    "paths": ["./skills"]
   }
 }

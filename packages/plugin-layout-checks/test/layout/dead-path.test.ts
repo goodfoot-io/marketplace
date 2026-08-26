@@ -7,7 +7,16 @@ describe("dead-path check", () => {
   it("leaves no live tracked reference to plugins/goodfoot", () => {
     let matches: string;
     try {
-      matches = git(["grep", "-I", "-n", "-e", "plugins/goodfoot", "--", "."]);
+      matches = git([
+        "grep",
+        "-I",
+        "-n",
+        "-e",
+        "plugins/goodfoot",
+        "--",
+        ".",
+        ":(exclude)packages/plugin-layout-checks/test/layout/dead-path.test.ts",
+      ]);
     } catch (error) {
       const status = (error as { status?: number }).status;
       if (status === 1) return; // exit 1 = no matches
