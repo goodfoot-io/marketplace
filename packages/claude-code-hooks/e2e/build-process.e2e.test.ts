@@ -928,7 +928,7 @@ describe("E2E: Build Process", () => {
       const result = runTsxCli(CLI_PATH, ["--version"], { cwd: path.dirname(CLI_PATH) });
 
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("1.9.1");
+      expect(result.stdout).toContain("1.9.2");
     });
   });
 
