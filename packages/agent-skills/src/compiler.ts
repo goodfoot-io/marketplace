@@ -115,7 +115,7 @@ async function discover(options: BuildOptions): Promise<Discovery> {
   const owners = new Set([...templates].map((path) => (path.includes("/") ? path.split("/")[0] : ".")));
   const paths = new Set(templates);
   for (const owner of owners)
-    for (const asset of await glob(owner === "." ? "*" : `${owner}/**/*`, {
+    for (const asset of await glob(owner === "." ? "**/*" : `${owner}/**/*`, {
       cwd: options.root,
       nodir: true,
       dot: true,
@@ -227,13 +227,31 @@ interface PreparedTarget {
   readonly backup: string;
   existed: boolean;
   swapped: boolean;
+  restored: boolean;
 }
 async function materializeAll(
   targets: readonly { target: string; manifest: PlatformManifest }[],
   fileSystem: BuildFileSystem,
 ): Promise<void> {
   const prepared: PreparedTarget[] = [];
+  const transactionId = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const locks = (
+    await Promise.all(targets.map(async (item) => `${await physicalPath(item.target)}.agent-skills.lock`))
+  ).sort();
+  const acquiredLocks: string[] = [];
+  let transactionFailed = false;
   try {
+    for (const lock of locks) {
+      try {
+        await fileSystem.mkdir(dirname(lock), { recursive: true });
+        await fileSystem.mkdir(lock);
+        acquiredLocks.push(lock);
+        await fileSystem.writeFile(join(lock, "owner"), transactionId);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new Error(`Target lock contention: ${lock}`);
+        throw error;
+      }
+    }
     for (const item of targets) {
       const target = resolve(item.target);
       await fileSystem.mkdir(dirname(target), { recursive: true });
@@ -241,9 +259,10 @@ async function materializeAll(
       const state: PreparedTarget = {
         target,
         stage,
-        backup: `${target}.agent-skills-backup-${process.pid}-${prepared.length}`,
+        backup: `${target}.agent-skills-backup-${transactionId}-${prepared.length}`,
         existed: false,
         swapped: false,
+        restored: false,
       };
       prepared.push(state);
       for (const file of item.manifest.files.values()) {
@@ -267,22 +286,45 @@ async function materializeAll(
     for (const state of prepared)
       if (state.existed) await fileSystem.rm(state.backup, { recursive: true, force: true });
   } catch (error) {
+    transactionFailed = true;
+    const rollbackErrors: Error[] = [];
     for (const state of [...prepared].reverse()) {
-      if (state.swapped) await fileSystem.rm(state.target, { recursive: true, force: true });
+      if (state.swapped) {
+        try {
+          await fileSystem.rm(state.target, { recursive: true, force: true });
+        } catch (rollbackError) {
+          rollbackErrors.push(rollbackError as Error);
+          continue;
+        }
+      }
       if (state.existed) {
         try {
           await fileSystem.rename(state.backup, state.target);
-        } catch {
-          /* retain original error */
+          state.restored = true;
+        } catch (rollbackError) {
+          rollbackErrors.push(
+            new Error(
+              `Failed to restore ${state.target} from recoverable backup ${state.backup}: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
+            ),
+          );
         }
       }
+    }
+    if (rollbackErrors.length) {
+      const backups = prepared.filter((state) => state.existed && !state.restored).map((state) => state.backup);
+      throw new AggregateError(
+        [error, ...rollbackErrors],
+        `Transaction failed: ${error instanceof Error ? error.message : String(error)}; rollback failed. Recoverable backup paths: ${backups.join(", ")}`,
+      );
     }
     throw error;
   } finally {
     for (const state of prepared) {
       await fileSystem.rm(state.stage, { recursive: true, force: true });
-      await fileSystem.rm(state.backup, { recursive: true, force: true });
+      if (!state.existed || state.restored || !transactionFailed)
+        await fileSystem.rm(state.backup, { recursive: true, force: true });
     }
+    for (const lock of acquiredLocks.reverse()) await fileSystem.rm(lock, { recursive: true, force: true });
   }
 }
 
@@ -311,7 +353,7 @@ function diagnose(content: string, sourcePath: string, platform: Platform, outpu
   const diagnostics: Diagnostic[] = [];
   const add = (rule: Diagnostic["rule"], message: string, offset = 0) =>
     diagnostics.push({ rule, message, sourcePath, outputPath, platform, location: location(content, offset) });
-  const visible = markdownVisible(content);
+  const visible = markdownVisible(content, true);
   if (visible.includes("<%")) add("unexpanded-eta", "Unexpanded Eta syntax", visible.indexOf("<%"));
   for (const token of ["$" + "{PLUGIN_ROOT}", "$" + "{CLAUDE_PLUGIN_ROOT}"])
     for (const match of visible.matchAll(new RegExp(token.replace(/[${}]/g, "\\$&"), "g")))
@@ -337,11 +379,9 @@ function diagnose(content: string, sourcePath: string, platform: Platform, outpu
     if (invalid) add("cross-dialect-reference", `Cross-dialect skill reference ${token}`, match.index);
   }
   const skillPath =
-    /(?:^|\s)(?:\.\.\/|\.\/|\/)?(?:plugins-(?:claude|codex|opencode)\/[^\s]+\/)?skills\/[A-Za-z0-9_./-]+/gm.exec(
-      visible,
-    );
-  if (skillPath)
-    add("skill-relative-path", `Skill path must use it.platformDir(): ${skillPath[0].trim()}`, skillPath.index);
+    /(?:^|[\s`])(?:\.\.\/|\.\/|\/)?(?:plugins-(?:claude|codex|opencode)\/[^\s`]+\/)?skills(?:\/[A-Za-z0-9_./-]+)?/gm;
+  for (const match of visible.matchAll(skillPath))
+    add("skill-relative-path", `Skill path must use it.platformDir(): ${match[0].trim()}`, match.index);
   return diagnostics;
 }
 const LINT_RULES = new Set<Diagnostic["rule"]>([
@@ -355,7 +395,7 @@ const LINT_RULES = new Set<Diagnostic["rule"]>([
   "skill-relative-path",
   "opencode-name",
 ]);
-function markdownVisible(content: string): string {
+function markdownVisible(content: string, preserveInlineCode = false): string {
   let fenced = false;
   return content
     .split(/(?<=\n)/)
@@ -365,7 +405,7 @@ function markdownVisible(content: string): string {
         return " ".repeat(line.length - (line.endsWith("\n") ? 1 : 0)) + (line.endsWith("\n") ? "\n" : "");
       }
       if (fenced) return " ".repeat(line.length - (line.endsWith("\n") ? 1 : 0)) + (line.endsWith("\n") ? "\n" : "");
-      return line.replace(/`[^`\n]*`/g, (match) => " ".repeat(match.length));
+      return preserveInlineCode ? line : line.replace(/`[^`\n]*`/g, (match) => " ".repeat(match.length));
     })
     .join("");
 }

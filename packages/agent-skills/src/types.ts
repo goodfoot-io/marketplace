@@ -71,9 +71,9 @@ export interface BuildOptions {
 }
 
 export interface BuildFileSystem {
-  mkdir(path: string, options: { recursive: true }): Promise<unknown>;
+  mkdir(path: string, options?: { recursive?: boolean }): Promise<unknown>;
   mkdtemp(prefix: string): Promise<string>;
-  writeFile(path: string, data: Uint8Array): Promise<unknown>;
+  writeFile(path: string, data: Uint8Array | string): Promise<unknown>;
   chmod(path: string, mode: number): Promise<unknown>;
   lstat(path: string): Promise<unknown>;
   rename(from: string, to: string): Promise<unknown>;
