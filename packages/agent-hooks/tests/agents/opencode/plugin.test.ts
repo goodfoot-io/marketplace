@@ -20,50 +20,50 @@ import {
 } from "../../../src/agents/opencode/index.js";
 
 describe("defineOpenCodePlugin", () => {
-  it.skip("returns { id, server } unchanged for a valid definition", () => {
+  it("returns { id, server } unchanged for a valid definition", () => {
     const server: Plugin = async () => ({});
     const result = defineOpenCodePlugin({ id: "my-plugin", server });
     expect(result).toEqual({ id: "my-plugin", server });
   });
 
-  it.skip("rejects a missing id", () => {
+  it("rejects a missing id", () => {
     const server: Plugin = async () => ({});
     const malformed = { server } as unknown as Parameters<typeof defineOpenCodePlugin>[0];
     expect(() => defineOpenCodePlugin(malformed)).toThrowError(/id/i);
   });
 
-  it.skip("rejects an empty-string id", () => {
+  it("rejects an empty-string id", () => {
     const server: Plugin = async () => ({});
     expect(() => defineOpenCodePlugin({ id: "", server })).toThrowError(/id/i);
   });
 
-  it.skip("rejects a non-function server", () => {
+  it("rejects a non-function server", () => {
     const malformed = { id: "my-plugin", server: {} } as unknown as Parameters<typeof defineOpenCodePlugin>[0];
     expect(() => defineOpenCodePlugin(malformed)).toThrowError(/server/i);
   });
 });
 
 describe("createRootSessionRegistry", () => {
-  it.skip("treats a session observed without a parentId as a root session", () => {
+  it("treats a session observed without a parentId as a root session", () => {
     const registry = createRootSessionRegistry();
     registry.observe("session-1");
     expect(registry.isRoot("session-1")).toBe(true);
   });
 
-  it.skip("treats a session observed with a parentId as non-root", () => {
+  it("treats a session observed with a parentId as non-root", () => {
     const registry = createRootSessionRegistry();
     registry.observe("session-1");
     registry.observe("session-2", "session-1");
     expect(registry.isRoot("session-2")).toBe(false);
   });
 
-  it.skip("a session first observed via session.created is not resumed", () => {
+  it("a session first observed via session.created is not resumed", () => {
     const registry = createRootSessionRegistry();
     registry.observe("session-1");
     expect(registry.isResumed("session-1")).toBe(false);
   });
 
-  it.skip("a session id observed only through later activity, never session.created, is resumed", () => {
+  it("a session id observed only through later activity, never session.created, is resumed", () => {
     // Live testing of a prior implementation found that a resumed session
     // does not necessarily re-emit session.created — it may first appear
     // only through a later event (session.updated, message.updated) for a
@@ -73,7 +73,7 @@ describe("createRootSessionRegistry", () => {
     expect(registry.isResumed("session-resumed")).toBe(true);
   });
 
-  it.skip("observing the same session id twice is idempotent", () => {
+  it("observing the same session id twice is idempotent", () => {
     const registry = createRootSessionRegistry();
     registry.observe("session-1", "parent-1");
     registry.observe("session-1", "parent-1");
@@ -82,7 +82,7 @@ describe("createRootSessionRegistry", () => {
 });
 
 describe("guardAdvisory", () => {
-  it.skip("propagates a throw when policy is 'error' (the default)", async () => {
+  it("propagates a throw when policy is 'error' (the default)", async () => {
     const failing = async (_input: unknown, _output: unknown): Promise<void> => {
       throw new Error("boom");
     };
@@ -90,7 +90,7 @@ describe("guardAdvisory", () => {
     await expect(guarded({} as never, {} as never)).rejects.toThrowError("boom");
   });
 
-  it.skip("swallows a throw and calls onError when policy is 'continue'", async () => {
+  it("swallows a throw and calls onError when policy is 'continue'", async () => {
     const failing = async (_input: unknown, _output: unknown): Promise<void> => {
       throw new Error("boom");
     };

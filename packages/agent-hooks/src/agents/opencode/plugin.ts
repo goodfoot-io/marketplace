@@ -23,8 +23,14 @@ import type { OpenCodeHookHandler, Plugin, PluginInput, PluginModule } from "./t
  * @returns `definition`, unchanged, once validated.
  * @throws Error when `id` is missing/empty or `server` is not a function.
  */
-export function defineOpenCodePlugin(_definition: { id: string; server: Plugin }): PluginModule {
-  throw new Error("Not Implemented");
+export function defineOpenCodePlugin(definition: { id: string; server: Plugin }): PluginModule {
+  if (typeof definition.id !== "string" || definition.id.length === 0) {
+    throw new Error(`defineOpenCodePlugin: "id" must be a non-empty string, got ${JSON.stringify(definition.id)}`);
+  }
+  if (typeof definition.server !== "function") {
+    throw new Error(`defineOpenCodePlugin: "server" must be a function, got ${typeof definition.server}`);
+  }
+  return { id: definition.id, server: definition.server };
 }
 
 /**
@@ -66,7 +72,33 @@ export interface RootSessionRegistry {
 
 /** Creates a fresh, empty {@link RootSessionRegistry}. */
 export function createRootSessionRegistry(): RootSessionRegistry {
-  throw new Error("Not Implemented");
+  const parentBySessionId = new Map<string, string | undefined>();
+  const resumedSessionIds = new Set<string>();
+
+  const recordIfUnseen = (sessionId: string, parentId: string | undefined, resumed: boolean): void => {
+    if (parentBySessionId.has(sessionId)) {
+      return;
+    }
+    parentBySessionId.set(sessionId, parentId);
+    if (resumed) {
+      resumedSessionIds.add(sessionId);
+    }
+  };
+
+  return {
+    observe(sessionId, parentId) {
+      recordIfUnseen(sessionId, parentId, false);
+    },
+    observeResumed(sessionId, parentId) {
+      recordIfUnseen(sessionId, parentId, true);
+    },
+    isRoot(sessionId) {
+      return parentBySessionId.get(sessionId) === undefined;
+    },
+    isResumed(sessionId) {
+      return resumedSessionIds.has(sessionId);
+    },
+  };
 }
 
 /**
@@ -81,12 +113,17 @@ export function createRootSessionRegistry(): RootSessionRegistry {
  * @param onError - Best-effort diagnostic sink for a swallowed `"continue"` error.
  */
 export function guardAdvisory<TName extends AdvisoryEventName>(
-  _name: TName,
-  _handler: OpenCodeHookHandler<TName>,
-  _policy: UnexpectedErrorPolicy | undefined,
-  _onError?: UnexpectedErrorHandler,
+  name: TName,
+  handler: OpenCodeHookHandler<TName>,
+  policy: UnexpectedErrorPolicy | undefined,
+  onError?: UnexpectedErrorHandler,
 ): OpenCodeHookHandler<TName> {
-  throw new Error("Not Implemented");
+  return applyOpenCodeErrorPolicy(
+    name,
+    handler as (...args: unknown[]) => Promise<void>,
+    policy,
+    onError,
+  ) as OpenCodeHookHandler<TName>;
 }
 
 export type { PluginInput };

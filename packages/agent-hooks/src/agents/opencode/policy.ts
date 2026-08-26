@@ -32,9 +32,18 @@ export type { UnexpectedErrorHandler, UnexpectedErrorPolicy };
  */
 export function applyOpenCodeErrorPolicy<TArgs extends unknown[]>(
   _name: string,
-  _handler: (...args: TArgs) => Promise<void>,
-  _policy: UnexpectedErrorPolicy | undefined,
-  _onError?: UnexpectedErrorHandler,
+  handler: (...args: TArgs) => Promise<void>,
+  policy: UnexpectedErrorPolicy | undefined,
+  onError?: UnexpectedErrorHandler,
 ): (...args: TArgs) => Promise<void> {
-  throw new Error("Not Implemented");
+  if (policy !== "continue") {
+    return handler;
+  }
+  return async (...args: TArgs): Promise<void> => {
+    try {
+      await handler(...args);
+    } catch (error) {
+      onError?.(error, "handler");
+    }
+  };
 }
