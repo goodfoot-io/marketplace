@@ -42,6 +42,14 @@ describe("scaffold", () => {
     expect(fs.existsSync(path.join(target, "src", "session-start.ts"))).toBe(true);
     expect(fs.existsSync(path.join(target, "src", "pre-tool-use.ts"))).toBe(true);
 
+    // stopHook/sessionStartHook/etc. are only exported from the `/codex`
+    // subpath, not the package root — the generated import must match, or a
+    // real consumer's build fails with an esbuild "no matching export" error
+    // neither this test nor the e2e suite (which imports the source module
+    // directly, bypassing the generated import specifier) would otherwise catch.
+    const sessionStartSource = fs.readFileSync(path.join(target, "src", "session-start.ts"), "utf-8");
+    expect(sessionStartSource).toContain('from "@goodfoot/agent-hooks/codex"');
+
     const generatedPackageJson = JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf-8")) as {
       dependencies: Record<string, string>;
     };

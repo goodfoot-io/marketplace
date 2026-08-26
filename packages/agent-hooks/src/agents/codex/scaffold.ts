@@ -9,6 +9,8 @@ export interface ScaffoldOptions {
   outputPath: string;
 }
 
+const CODEX_IMPORT_SPECIFIER = `${PACKAGE_NAME}/codex`;
+
 const VALID_HOOK_EVENT_NAMES = new Set<HookEventName>(Object.values(HOOK_FACTORY_TO_EVENT));
 const EVENT_LOOKUP = new Map(Array.from(VALID_HOOK_EVENT_NAMES).map((value) => [value.toLowerCase(), value]));
 
@@ -71,7 +73,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
         typecheck: "tsc --noEmit",
       },
       dependencies: {
-        [PACKAGE_NAME]: "^1.0.2",
+        [PACKAGE_NAME]: "^1.0.3",
       },
       devDependencies: {
         "@biomejs/biome": "2.4.9",
@@ -161,7 +163,7 @@ function generateHookSource(eventName: HookEventName): string {
 
   switch (eventName) {
     case "PreToolUse":
-      return `import { ${importItems} } from "${PACKAGE_NAME}";
+      return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({ matcher: "Bash" }, (input) => {
   if (input.tool_input.command.includes("rm -rf")) {
@@ -174,7 +176,7 @@ export default ${factory}({ matcher: "Bash" }, (input) => {
 });
 `;
     case "PostToolUse":
-      return `import { ${importItems} } from "${PACKAGE_NAME}";
+      return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({ matcher: "Bash" }, (input) => {
   return ${output}({
@@ -183,7 +185,7 @@ export default ${factory}({ matcher: "Bash" }, (input) => {
 });
 `;
     case "SessionStart":
-      return `import { ${importItems} } from "${PACKAGE_NAME}";
+      return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({ matcher: "startup" }, () => {
   return ${output}({
@@ -192,7 +194,7 @@ export default ${factory}({ matcher: "startup" }, () => {
 });
 `;
     case "UserPromptSubmit":
-      return `import { ${importItems} } from "${PACKAGE_NAME}";
+      return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({}, (input) => {
   if (input.prompt.trim().length === 0) {
@@ -204,7 +206,7 @@ export default ${factory}({}, (input) => {
 });
 `;
     case "Stop":
-      return `import { ${importItems} } from "${PACKAGE_NAME}";
+      return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({}, (input) => {
   if (input.stop_hook_active && input.last_assistant_message === null) {
@@ -216,7 +218,7 @@ export default ${factory}({}, (input) => {
 });
 `;
     case "PermissionRequest":
-      return `import { ${importItems} } from "${PACKAGE_NAME}";
+      return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({ matcher: "Bash" }, (input) => {
   return ${output}({
@@ -226,7 +228,7 @@ export default ${factory}({ matcher: "Bash" }, (input) => {
 });
 `;
     case "SubagentStart":
-      return `import { ${importItems} } from "${PACKAGE_NAME}";
+      return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({ matcher: ".*" }, (input) => {
   return ${output}({
@@ -235,7 +237,7 @@ export default ${factory}({ matcher: ".*" }, (input) => {
 });
 `;
     case "SubagentStop":
-      return `import { ${importItems} } from "${PACKAGE_NAME}";
+      return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({ matcher: ".*" }, (input) => {
   if (input.last_assistant_message === null) {
@@ -247,7 +249,7 @@ export default ${factory}({ matcher: ".*" }, (input) => {
 });
 `;
     case "PreCompact":
-      return `import { ${importItems} } from "${PACKAGE_NAME}";
+      return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({ matcher: "manual" }, () => {
   return ${output}({
@@ -256,7 +258,7 @@ export default ${factory}({ matcher: "manual" }, () => {
 });
 `;
     case "PostCompact":
-      return `import { ${importItems} } from "${PACKAGE_NAME}";
+      return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({ matcher: "manual" }, () => {
   return ${output}({
