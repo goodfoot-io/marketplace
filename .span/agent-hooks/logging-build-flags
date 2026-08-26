@@ -1,4 +1,4 @@
-packages/agent-hooks/src/cli.ts#L222-L233 rk64:ac2cc932fe93f48b
+packages/agent-hooks/src/cli.ts#L224-L235 rk64:ac2cc932fe93f48b
 plugins/agent-hooks/skills/claude-code/reference/logging.md rk64:f2b95ed04be80654
 
 The Claude Code logging reference documents the --log/--log-env-var build-time flags (hardcoded path vs. runtime-resolved env var name, mutual exclusivity, AGENT_HOOKS_LOG_FILE precedence) as the way to configure file logging for this agent; cli.ts's flag parsing and help text define that same contract. Codex's logging.md documents a different mechanism (Logger constructor options) since Codex hooks aren't built with the --log CLI flags the same way — see agent-hooks/logging-constructor-options-codex for that half.

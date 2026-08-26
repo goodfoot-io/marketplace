@@ -1,4 +1,4 @@
 packages/agent-hooks/src/agents/codex/cli-support.ts#L168-L168 rk64:f3e840685613b99f
-packages/agent-hooks/src/cli.ts#L868-L868 rk64:950fc1cb3b865724
+packages/agent-hooks/src/cli.ts#L870-L870 rk64:950fc1cb3b865724
 
 The unified CLI's compiled-bundle entry wrapper imports the runtime module by a path embedded as a string literal at build time — `./agents/claude-code/transport.js` for Claude Code builds and `./transport.js` (sibling of this support module, resolving to `dist/agents/codex/transport.js` in installed packages) for Codex builds. The equivalent span carried forward from `codex-hooks/runtime-module-location`: renaming or moving either agent's transport module without updating its CLI-embedded specifier silently breaks every compiled hook with an ERR_MODULE_NOT_FOUND at hook-run time.

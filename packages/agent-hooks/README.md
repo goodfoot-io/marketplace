@@ -8,13 +8,15 @@ driver, `Logger`, env/stdin utilities) with a per-agent entry point on top. Writ
 TypeScript hooks, compile them with the bundled CLI, and run the resulting
 self-contained executables under Claude Code or Codex.
 
-**Status: `1.0.0`.** Two entry points ship and are published: `@goodfoot/agent-hooks/claude-code`
-(full parity with `@goodfoot/claude-code-hooks`) and `@goodfoot/agent-hooks/codex` (full
-parity with `@goodfoot/codex-hooks`). Antigravity CLI support exists internally as typed
-factories, output builders, and a conformance matrix, but is **not** part of this
-release's public surface — there is no `@goodfoot/agent-hooks/antigravity` export yet,
-and `--agent antigravity` is rejected by the CLI. It ships once a non-interactive,
-authenticated Antigravity CLI exists to validate against.
+**Status: `1.0.0`.** Three entry points ship and are published: `@goodfoot/agent-hooks/claude-code`
+(full parity with `@goodfoot/claude-code-hooks`), `@goodfoot/agent-hooks/codex` (full
+parity with `@goodfoot/codex-hooks`), and `@goodfoot/agent-hooks/opencode` (native support
+for OpenCode's in-process plugin model — see [OpenCode](#opencode) below). Antigravity CLI
+support exists internally as typed factories, output builders, and a conformance matrix,
+but is **not** part of this release's public surface — there is no
+`@goodfoot/agent-hooks/antigravity` export yet, and `--agent antigravity` is rejected by
+the CLI. It ships once a non-interactive, authenticated Antigravity CLI exists to
+validate against.
 
 ## Install
 
@@ -103,6 +105,66 @@ or `@goodfoot/agent-hooks/codex`) — do not mix events or output builders acros
   `@goodfoot/codex-hooks`, including `preToolUseHook`, `postToolUseHook`,
   `sessionStartHook`, `stopHook`, `subagentStartHook`/`subagentStopHook`,
   `userPromptSubmitHook`, `preCompactHook`/`postCompactHook`, and `permissionRequestHook`.
+
+## OpenCode
+
+OpenCode's plugin model is a long-lived, in-process JS module with a stable callback map
+(`Hooks`) — not the one-shot stdin/stdout command-hook model Claude Code and Codex use, so
+`@goodfoot/agent-hooks/opencode` does **not** route through `defineHook`/`Transport`/`drive`.
+It ships its own primitives instead:
+
+```typescript
+import { defineOpenCodePlugin, guardAdvisory, createRootSessionRegistry } from '@goodfoot/agent-hooks/opencode';
+
+const sessions = createRootSessionRegistry();
+
+export default defineOpenCodePlugin({
+  id: 'my-plugin',
+  server: async ({ client }) => ({
+    event: guardAdvisory('event', async ({ event }) => {
+      if (event.type === 'session.created') {
+        sessions.observe(event.properties.info.id, event.properties.info.parentID);
+      } else {
+        sessions.observeResumed(event.properties.info?.id ?? '');
+      }
+    }, 'continue'),
+
+    'tool.execute.before': async (input, output) => {
+      if (input.tool === 'bash' && sessions.isRoot(input.sessionID)) {
+        output.args = { ...output.args, timeout: 30_000 };
+      }
+    },
+  }),
+});
+```
+
+- **`defineOpenCodePlugin({ id, server })`** validates and returns the `{ id, server }`
+  module shape OpenCode's real loader (`getServerPlugin`) accepts as a default export —
+  a bare `server` function also satisfies the loader and needs no wrapper.
+- **`guardAdvisory(name, handler, policy, onError?)`** applies the same opt-in
+  `"continue"` fail-open policy described below, restricted at the type level to
+  *advisory* callback names — `permission.ask` is the one policy-enforcing callback
+  (a real allow/deny security decision) and is rejected at compile time, since silently
+  swallowing its failure would skip that decision instead of making it.
+- **`createRootSessionRegistry()`** tracks session parentage and resumption across the
+  plugin's lifetime: a resumed session does not necessarily re-emit `session.created`, so
+  `observe`/`observeResumed` record first-seen-event distinctly and `isRoot`/`isResumed`
+  answer from that record.
+
+Compile with the same unified CLI, but `--agent opencode` treats `-o`/`--output` as a
+plugin-artifact **directory**, not a manifest path — OpenCode config references built
+files directly, so there is no `hooks.json`-equivalent manifest or shebang wrapper:
+
+```bash
+npx -y @goodfoot/agent-hooks --agent opencode -i "src/**/*.ts" -o "./.opencode/plugin"
+```
+
+Point `opencode.json`'s plugin list (or the equivalent config in your OpenCode host) at
+the compiled `.mjs` file(s) under that output directory.
+
+`@opencode-ai/plugin` is an **optional peer dependency** — only required if you import
+`@goodfoot/agent-hooks/opencode`; Claude Code and Codex hook authors never need it
+installed.
 
 ## Fail-open advisory hooks
 
