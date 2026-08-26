@@ -2632,6 +2632,11 @@ __metadata:
     tsx: "npm:^4.20.6"
     typescript: "npm:^5.9.3"
     vitest: "npm:4.0.13"
+  peerDependencies:
+    "@opencode-ai/plugin": ^1.18.23
+  peerDependenciesMeta:
+    "@opencode-ai/plugin":
+      optional: true
   bin:
     agent-hooks: ./dist/cli.js
   languageName: unknown
