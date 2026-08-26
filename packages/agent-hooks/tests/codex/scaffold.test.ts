@@ -50,6 +50,13 @@ describe("scaffold", () => {
     const sessionStartSource = fs.readFileSync(path.join(target, "src", "session-start.ts"), "utf-8");
     expect(sessionStartSource).toContain('from "@goodfoot/agent-hooks/codex"');
 
+    // Codex gives tool_input no fixed schema (typed "unknown"), unlike
+    // Claude Code — accessing a field off it without narrowing first fails
+    // `tsc --noEmit` in a real consumer's project.
+    const preToolUseSource = fs.readFileSync(path.join(target, "src", "pre-tool-use.ts"), "utf-8");
+    expect(preToolUseSource).not.toContain("input.tool_input.command");
+    expect(preToolUseSource).toContain("input.tool_input as {");
+
     // Without `files.includes` scoping, the scaffold's own `npm run lint`
     // script lints its build output (dist/*.mjs) and non-TS config files
     // (tsconfig.json) and fails out of the box; without `organizeImports`,

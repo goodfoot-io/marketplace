@@ -73,7 +73,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
         typecheck: "tsc --noEmit",
       },
       dependencies: {
-        [PACKAGE_NAME]: "^1.0.4",
+        [PACKAGE_NAME]: "^1.0.5",
       },
       devDependencies: {
         "@biomejs/biome": "2.4.9",
@@ -176,7 +176,11 @@ function generateHookSource(eventName: HookEventName): string {
       return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({ matcher: "Bash" }, (input) => {
-  if (input.tool_input.command.includes("rm -rf")) {
+  // Codex does not give tool_input a fixed schema, so it's typed "unknown" —
+  // narrow before reading a field off it.
+  const toolInput = input.tool_input as { command?: unknown };
+  const command = typeof toolInput.command === "string" ? toolInput.command : "";
+  if (command.includes("rm -rf")) {
     return ${output}({
       systemMessage: "Blocked dangerous shell command.",
       permissionDecision: "deny",
@@ -189,8 +193,12 @@ export default ${factory}({ matcher: "Bash" }, (input) => {
       return `import { ${importItems} } from "${CODEX_IMPORT_SPECIFIER}";
 
 export default ${factory}({ matcher: "Bash" }, (input) => {
+  // Codex does not give tool_input a fixed schema, so it's typed "unknown" —
+  // narrow before reading a field off it.
+  const toolInput = input.tool_input as { command?: unknown };
+  const command = typeof toolInput.command === "string" ? toolInput.command : "<unknown>";
   return ${output}({
-    additionalContext: \`Observed Bash command: \${input.tool_input.command}\`,
+    additionalContext: \`Observed Bash command: \${command}\`,
   });
 });
 `;
