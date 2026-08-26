@@ -64,7 +64,7 @@ interface HooksJson {
 
 type HookLoaderMap = Record<string, esbuild.Loader>;
 
-const VERSION = "1.3.0";
+const VERSION = "1.3.1";
 const HELP_TEXT = `
 ${PACKAGE_NAME}
 
