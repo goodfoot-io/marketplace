@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (targeting 1.0.0)
+## 1.0.0
 
 Plugin and deprecation groundwork for the 1.0.0 release, plus the Antigravity descope from Step 0.
 

@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/agent-hooks",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Unified agent hooks library: shared core runtime with per-agent entry points for Claude Code, Codex, and Antigravity",
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/agent-hooks",
   "repository": {
@@ -22,7 +22,9 @@
     "build": "tsc --build tsconfig.build.json",
     "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests ./e2e ./scripts && node ./scripts/check-stale-imports.mjs",
     "test": "node ./scripts/check-e2e-parity.mjs && node ./scripts/check-stale-imports.mjs && node ./scripts/check-agent-duplication.mjs && vitest run",
-    "check:e2e-parity": "node ./scripts/check-e2e-parity.mjs"
+    "check:e2e-parity": "node ./scripts/check-e2e-parity.mjs",
+    "release": "bash ../../scripts/release-package.sh agent-hooks",
+    "release:dry-run": "bash ../../scripts/release-package.sh agent-hooks --dry-run"
   },
   "exports": {
     ".": {
