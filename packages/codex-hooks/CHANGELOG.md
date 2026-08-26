@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.2
+- Fixed hardcoded version strings that could cause CLI and scaffold output to report an incorrect package version
+
 ## 1.3.1
 - Simplified the deprecation notice for codex-hooks, removing the outdated six-month security-fix-only timeline
 
