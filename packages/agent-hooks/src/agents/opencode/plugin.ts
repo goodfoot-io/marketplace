@@ -39,11 +39,20 @@ export function defineOpenCodePlugin(_definition: { id: string; server: Plugin }
  */
 export interface RootSessionRegistry {
   /**
-   * Records that `sessionId` was observed, optionally as a child of
-   * `parentId`. Idempotent: observing the same `sessionId` twice does not
-   * change its recorded parentage or resumed status.
+   * Records that `sessionId` was observed via a `session.created` event,
+   * optionally as a child of `parentId`. Idempotent: observing the same
+   * `sessionId` twice does not change its recorded parentage or resumed
+   * status.
    */
   observe(sessionId: string, parentId?: string): void;
+
+  /**
+   * Records that `sessionId` was observed via any event *other than*
+   * `session.created` — the resumed-session signal. Idempotent the same way
+   * as {@link observe}; calling either method after the other for the same
+   * `sessionId` does not change its already-recorded resumed status.
+   */
+  observeResumed(sessionId: string, parentId?: string): void;
 
   /** `true` when `sessionId` has no recorded parent. */
   isRoot(sessionId: string): boolean;
