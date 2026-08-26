@@ -44,7 +44,7 @@ describe("version lockstep", () => {
     expect(distinct[0]).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it("reports agent-skills 1.0.0 across package, CLI, companion plugin, marketplace, and changelogs", () => {
+  it("reports one agent-skills version across package, CLI, companion plugin, and marketplace", () => {
     const packageVersion = readJson<{ version: string }>("packages/agent-skills/package.json").version;
     const pluginVersion = readJson<{ version: string }>("plugins/agent-skills/.claude-plugin/plugin.json").version;
     const registry = readJson<{ plugins: { name: string; version?: string }[] }>(".claude-plugin/marketplace.json");
@@ -61,10 +61,10 @@ describe("version lockstep", () => {
     const pluginChangelog = fs.readFileSync(repoPath("plugins/agent-skills/CHANGELOG.md"), "utf8");
 
     expect({ packageVersion, pluginVersion, marketplaceVersion, cliVersion }).toEqual({
-      packageVersion: "1.0.0",
-      pluginVersion: "1.0.0",
-      marketplaceVersion: "1.0.0",
-      cliVersion: "1.0.0",
+      packageVersion: "1.0.1",
+      pluginVersion: "1.0.1",
+      marketplaceVersion: "1.0.1",
+      cliVersion: "1.0.1",
     });
     expect(packageChangelog).toMatch(/^## 1\.0\.0$/m);
     expect(pluginChangelog).toMatch(/^## 1\.0\.0$/m);

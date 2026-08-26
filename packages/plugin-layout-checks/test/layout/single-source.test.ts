@@ -16,6 +16,7 @@ const outputs = [SKILLS_ROOT, `${CLAUDE_TREE}/skills`, `${CODEX_TREE}/skills`, `
 
 describe("generated skill surfaces", () => {
   it("keeps Markdown authored only as Eta templates", () => {
+    expect(fs.readdirSync(repoPath("skills-src"))).toEqual(["goodfoot"]);
     const templates = walkFiles(repoPath(SKILLS_SOURCE_ROOT)).filter((file) => file.endsWith(".md.eta"));
     expect(templates.length).toBeGreaterThan(0);
     expect(walkFiles(repoPath(SKILLS_SOURCE_ROOT)).filter((file) => file.endsWith(".md"))).toEqual([]);

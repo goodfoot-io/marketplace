@@ -18,6 +18,7 @@ const digest = (bytes: Buffer) => crypto.createHash("sha256").update(bytes).dige
 
 describe("agent-skills migration contract", () => {
   it("keeps the authored source corpus immutable while changing only Markdown filenames", () => {
+    expect(corpus.authoredRoot).toBe(SKILLS_SOURCE_ROOT);
     const sourceFiles = walkFiles(repoPath(SKILLS_SOURCE_ROOT));
     expect(sourceFiles).toEqual(corpus.files.map(({ path: file }) => (file.endsWith(".md") ? `${file}.eta` : file)));
     for (const entry of corpus.files) {
@@ -40,7 +41,12 @@ describe("agent-skills migration contract", () => {
   });
 
   it("records the intentional legacy symlink-to-regular-tree transition separately", () => {
-    expect(topology).toMatchObject({ claudeMode: "120000", codexMode: "100644", opencodeMode: "120000" });
+    expect(topology).toMatchObject({
+      authoredRoot: SKILLS_SOURCE_ROOT,
+      claudeMode: "120000",
+      codexMode: "100644",
+      opencodeMode: "120000",
+    });
     for (const target of targets) {
       for (const skill of corpus.skills) expect(fs.lstatSync(repoPath(target, skill)).isDirectory()).toBe(true);
     }

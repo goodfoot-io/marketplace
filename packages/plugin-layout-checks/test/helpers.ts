@@ -11,7 +11,7 @@ export const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 }).trim();
 
 export const SKILLS_ROOT = "skills";
-export const SKILLS_SOURCE_ROOT = "skills-src";
+export const SKILLS_SOURCE_ROOT = "skills-src/goodfoot";
 export const CLAUDE_TREE = "plugins-claude/goodfoot";
 export const CODEX_TREE = "plugins-codex/goodfoot";
 export const OPENCODE_TREE = "plugins-opencode/goodfoot";
