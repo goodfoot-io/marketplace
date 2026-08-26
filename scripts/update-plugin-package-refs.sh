@@ -49,7 +49,7 @@ if [ -z "$PACKAGE_NAME" ] || [ -z "$VERSION" ]; then
   exit 1
 fi
 
-WORKSPACE_ROOT="/workspace"
+WORKSPACE_ROOT="$(git rev-parse --show-toplevel)"
 PACKAGE_DIR="$WORKSPACE_ROOT/packages/$PACKAGE_NAME"
 PACKAGE_JSON="$PACKAGE_DIR/package.json"
 PLUGINS_DIR="$WORKSPACE_ROOT/plugins"

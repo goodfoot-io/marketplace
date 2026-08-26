@@ -49,10 +49,10 @@ if [ -z "$PACKAGE_NAME" ]; then
   echo "Usage: $0 <package-name> [--dry-run]"
   echo ""
   echo "Available packages:"
-  ls -1 /workspace/packages/ | grep -v "CLAUDE.md" | grep -v ".DS_Store" | sed 's/^/  - /'
+  ls -1 "$(git rev-parse --show-toplevel)/packages/" | grep -v "CLAUDE.md" | grep -v ".DS_Store" | sed 's/^/  - /'
   exit 1
 fi
-WORKSPACE_ROOT="/workspace"
+WORKSPACE_ROOT="$(git rev-parse --show-toplevel)"
 PACKAGE_DIR="$WORKSPACE_ROOT/packages/$PACKAGE_NAME"
 PACKAGE_JSON="$PACKAGE_DIR/package.json"
 CHANGELOG_FILE="$PACKAGE_DIR/CHANGELOG.md"
