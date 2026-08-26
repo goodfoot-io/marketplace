@@ -1,7 +1,17 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CLAUDE_TREE, indexEntries, OPENCODE_TREE, repoPath, walkFiles } from "../helpers.js";
+import {
+  CLAUDE_TREE,
+  CODEX_TREE,
+  EXPECTED_SKILL_BIN,
+  indexEntries,
+  indexMode,
+  OPENCODE_TREE,
+  repoPath,
+  SKILLS_ROOT,
+  walkFiles,
+} from "../helpers.js";
 
 describe("bin executability", () => {
   it("tracks every bin file at mode 100755 through relocation", () => {
@@ -33,5 +43,21 @@ describe("bin executability", () => {
     // OpenCode loads local plugin trees in place rather than cache-copying;
     // this lstat assertion trips if that assumption ever breaks.
     expect(fs.lstatSync(linkAbs).isSymbolicLink()).toBe(true);
+  });
+
+  it("keeps skill-owned bin/ scripts executable at every physical location", () => {
+    for (const [skill, files] of Object.entries(EXPECTED_SKILL_BIN)) {
+      for (const file of files) {
+        for (const abs of [
+          repoPath(SKILLS_ROOT, skill, "bin", file),
+          repoPath(CLAUDE_TREE, "skills", skill, "bin", file),
+          repoPath(CODEX_TREE, "skills", skill, "bin", file),
+        ]) {
+          fs.accessSync(abs, fs.constants.X_OK);
+        }
+        expect(indexMode(path.join(SKILLS_ROOT, skill, "bin", file))).toBe("100755");
+        expect(indexMode(path.join(CODEX_TREE, "skills", skill, "bin", file))).toBe("100755");
+      }
+    }
   });
 });

@@ -37,11 +37,8 @@ export const EXPECTED_COMMANDS = [
 
 export const EXPECTED_AGENTS = ["history.md", "tracer.md"] as const;
 
-/** 13 scripts at bin/ plus the two bash suites under bin/tests/. */
-export const EXPECTED_BIN = [
-  "analyze-typescript-files",
-  "find-claude-pid",
-  "initialize-project",
+/** The 7 residual bin/ scripts, used only by the Claude-only tracer agent; no test files remain. */
+export const EXPECTED_RESIDUAL_BIN = [
   "print-call-sites.mjs",
   "print-dependencies",
   "print-dependencies.mjs",
@@ -49,12 +46,12 @@ export const EXPECTED_BIN = [
   "print-inverse-dependencies.mjs",
   "print-type-analysis",
   "print-type-analysis.mjs",
-  "typescript-metrics.mjs",
-  "wait-for-arguments",
-  "write-arguments",
 ] as const;
 
-export const EXPECTED_BIN_TESTS = ["wait-for-arguments.sh", "write-arguments.sh"] as const;
+/** Per-skill bin/ content that travels with its owning skill on every platform tree. */
+export const EXPECTED_SKILL_BIN: Record<string, readonly string[]> = {
+  "typescript-metrics": ["typescript-metrics.mjs"],
+};
 
 /**
  * Relative link text for a platform-tree skill entry pointing back at the

@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/opencode-goodfoot",
-  "version": "1.0.90",
+  "version": "1.0.91",
   "private": true,
   "description": "OpenCode plugin registration for the goodfoot skill set (documentation, instructions, marketing, skillify, typescript-metrics, worktree-cleanup).",
   "type": "module",

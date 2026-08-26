@@ -5,9 +5,9 @@ import {
   CLAUDE_TREE,
   CODEX_TREE,
   EXPECTED_AGENTS,
-  EXPECTED_BIN,
-  EXPECTED_BIN_TESTS,
   EXPECTED_COMMANDS,
+  EXPECTED_RESIDUAL_BIN,
+  EXPECTED_SKILL_BIN,
   EXPECTED_SKILLS,
   indexMode,
   OPENCODE_TREE,
@@ -43,13 +43,9 @@ describe("claude tree inventory", () => {
     expect(fs.readdirSync(agentsDir).sort()).toEqual([...EXPECTED_AGENTS].sort());
   });
 
-  it("hosts the shared bin home physically with the full script inventory", () => {
+  it("hosts the residual, non-skill-owned bin scripts physically, no test files left", () => {
     const binDir = repoPath(CLAUDE_TREE, "bin");
-    const entries = fs.readdirSync(binDir).filter((name) => name !== "tests");
-    expect(entries.sort()).toEqual([...EXPECTED_BIN].sort());
-
-    const testsDir = repoPath(CLAUDE_TREE, "bin", "tests");
-    expect(fs.readdirSync(testsDir).sort()).toEqual([...EXPECTED_BIN_TESTS].sort());
+    expect(fs.readdirSync(binDir).sort()).toEqual([...EXPECTED_RESIDUAL_BIN].sort());
   });
 
   it("declares a claude manifest for goodfoot", () => {
@@ -70,6 +66,14 @@ describe("codex tree inventory", () => {
     // A symlinked or copied bin would either vanish on install (symlink,
     // spike-proven) or triple ~59MB of generated bundles (copy).
     expect(fs.existsSync(repoPath(CODEX_TREE, "bin"))).toBe(false);
+  });
+
+  it("carries skill-owned bin/ content physically for every skill that has one", () => {
+    for (const [skill, files] of Object.entries(EXPECTED_SKILL_BIN)) {
+      for (const file of files) {
+        expect(fs.existsSync(repoPath(CODEX_TREE, "skills", skill, "bin", file))).toBe(true);
+      }
+    }
   });
 
   it("declares a codex manifest with interface block and skills pointer", () => {

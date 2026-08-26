@@ -16,16 +16,16 @@ Generates health reports identifying where to focus refactoring effort.
 
 ```bash
 # Analyze current package
-${CLAUDE_PLUGIN_ROOT}/bin/typescript-metrics.mjs
+./bin/typescript-metrics.mjs
 
 # Save report
-${CLAUDE_PLUGIN_ROOT}/bin/typescript-metrics.mjs > health-report.md
+./bin/typescript-metrics.mjs > health-report.md
 
 # Specific metrics only
-${CLAUDE_PLUGIN_ROOT}/bin/typescript-metrics.mjs --metrics complexity,coupling
+./bin/typescript-metrics.mjs --metrics complexity,coupling
 
 # Help
-${CLAUDE_PLUGIN_ROOT}/bin/typescript-metrics.mjs --help
+./bin/typescript-metrics.mjs --help
 ```
 
 ## Health Score (0-100)

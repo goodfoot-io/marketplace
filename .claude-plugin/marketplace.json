@@ -54,7 +54,7 @@
     },
     {
       "name": "goodfoot",
-      "version": "1.0.90",
+      "version": "1.0.91",
       "source": "./plugins-claude/goodfoot",
       "tags": [
         "testing",

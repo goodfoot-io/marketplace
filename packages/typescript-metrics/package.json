@@ -13,7 +13,7 @@
     "src"
   ],
   "scripts": {
-    "build": "node esbuild.config.mjs --outdir=../../plugins-claude/goodfoot/bin/",
+    "build": "node esbuild.config.mjs --outdir=../../skills/typescript-metrics/bin/",
     "test": "vitest run",
     "lint": "biome check --write --unsafe --max-diagnostics 500 .",
     "typecheck": "tsc --noEmit"
