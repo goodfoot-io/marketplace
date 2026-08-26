@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 
 import { build, lint } from "./index.js";
-import type { BuildOptions, OutputTarget, Platform } from "./types.js";
+import type {
+  BuildOptions,
+  BuildResult,
+  LintOptions,
+  LintResult,
+  OutputTarget,
+  Platform,
+  TransactionResidue,
+} from "./types.js";
 import { PLATFORMS } from "./types.js";
 
 export type CliCommand = "build" | "lint";
@@ -98,33 +106,56 @@ export function validateArgs(args: ParsedCliArgs): ValidatedCliArgs {
 
 const HELP =
   "Usage: agent-skills <build|lint> [--root DIR] --target PLATFORM=DIR [--target ...] [--platform PLATFORM] [--platform-dir PLATFORM:KIND=PATH] <file-or-glob...>\n";
-export async function run(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
+export interface CliDependencies {
+  readonly build: (options: BuildOptions) => Promise<BuildResult>;
+  readonly lint: (options: LintOptions) => Promise<LintResult>;
+  readonly stdout: (text: string) => void;
+  readonly stderr: (text: string) => void;
+}
+const DEFAULT_DEPENDENCIES: CliDependencies = {
+  build,
+  lint,
+  stdout: (text) => process.stdout.write(text),
+  stderr: (text) => process.stderr.write(text),
+};
+export function formatResidueWarnings(residues: readonly TransactionResidue[]): string[] {
+  return [...residues]
+    .sort((left, right) =>
+      `${left.kind}\0${left.path}\0${left.error}`.localeCompare(`${right.kind}\0${right.path}\0${right.error}`),
+    )
+    .map((item) => `Warning: publication succeeded; cleanup residue [${item.kind}] ${item.path}: ${item.error}\n`);
+}
+export async function run(
+  argv: readonly string[] = process.argv.slice(2),
+  dependencies: CliDependencies = DEFAULT_DEPENDENCIES,
+): Promise<number> {
   try {
     const parsed = parseArgs(argv);
     if (parsed.help) {
-      process.stdout.write(HELP);
+      dependencies.stdout(HELP);
       return 0;
     }
     if (parsed.version) {
-      process.stdout.write("1.0.5\n");
+      dependencies.stdout("1.0.5\n");
       return 0;
     }
     const options = validateArgs(parsed);
     if (options.command === "lint") {
-      const result = await lint(options);
+      const result = await dependencies.lint(options);
       if (!result.ok)
         for (const item of result.diagnostics)
-          process.stderr.write(
+          dependencies.stderr(
             `${item.sourcePath}:${item.location?.line ?? 1}:${item.location?.column ?? 1} [${item.rule}] ${item.message}\n`,
           );
       return result.ok ? 0 : 1;
     }
-    const result = await build(options);
+    const result = await dependencies.build(options);
     for (const item of result.written)
-      process.stdout.write(`${item.target.platform}=${item.target.outDir}: ${item.files.join(", ")}\n`);
+      dependencies.stdout(`${item.target.platform}=${item.target.outDir}: ${item.files.join(", ")}\n`);
+    for (const warning of formatResidueWarnings(result.residues)) dependencies.stderr(warning);
     return 0;
   } catch (error) {
-    process.stderr.write(`Error: ${error instanceof Error ? error.message : String(error)}\n`);
+    dependencies.stderr(`Error: ${error instanceof Error ? error.message : String(error)}\n`);
     return 1;
   }
 }

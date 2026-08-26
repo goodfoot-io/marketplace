@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import type { BuildOptions, OutputTarget, Platform } from "./types.js";
+import type { BuildOptions, BuildResult, LintOptions, LintResult, OutputTarget, Platform, TransactionResidue } from "./types.js";
 export type CliCommand = "build" | "lint";
 export interface ParsedCliArgs {
     readonly command?: CliCommand;
@@ -18,4 +18,11 @@ export interface ValidatedCliArgs extends Omit<BuildOptions, "targets"> {
 }
 export declare function parseArgs(argv: readonly string[]): ParsedCliArgs;
 export declare function validateArgs(args: ParsedCliArgs): ValidatedCliArgs;
-export declare function run(argv?: readonly string[]): Promise<number>;
+export interface CliDependencies {
+    readonly build: (options: BuildOptions) => Promise<BuildResult>;
+    readonly lint: (options: LintOptions) => Promise<LintResult>;
+    readonly stdout: (text: string) => void;
+    readonly stderr: (text: string) => void;
+}
+export declare function formatResidueWarnings(residues: readonly TransactionResidue[]): string[];
+export declare function run(argv?: readonly string[], dependencies?: CliDependencies): Promise<number>;

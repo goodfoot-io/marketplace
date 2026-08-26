@@ -44,6 +44,8 @@ agent-skills <build|lint> [--root DIR] --target PLATFORM=DIR [--target ...] [--p
 
 Platforms are `claude-code`, `codex`, `opencode`, and `antigravity`. Help, version, successful build, and clean lint exit 0. Invalid arguments, zero matches, render failures, unsafe/colliding paths, and lint findings exit 1. Clean lint is silent; diagnostics use stderr.
 
+A build whose publication committed but whose cleanup left residues still exits 0. The CLI emits one deterministic stderr warning per retained residue, including its kind, path, and cleanup error, so successful output is not mistaken for cleanup completion.
+
 `--platform-dir codex:skills=custom/codex/skills` overrides a logical helper path. Repeat it for each platform and logical kind (`skills`, `agents`, `hooks`, `plugin`, or `conventions`). The programmatic equivalent is `platformDirs` on `BuildOptions` and `LintOptions`.
 
 ## Helper reference
