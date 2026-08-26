@@ -38,6 +38,10 @@
     "./codex": {
       "import": "./dist/agents/codex/index.js",
       "types": "./types/agents/codex/index.d.ts"
+    },
+    "./opencode": {
+      "import": "./dist/agents/opencode/index.js",
+      "types": "./types/agents/opencode/index.d.ts"
     }
   },
   "bin": "./dist/cli.js",
@@ -51,9 +55,18 @@
     "glob": "^11.0.0",
     "typescript": "^5.9.3"
   },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "^1.18.23"
+  },
+  "peerDependenciesMeta": {
+    "@opencode-ai/plugin": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.162",
     "@biomejs/biome": "2.4.16",
+    "@opencode-ai/plugin": "1.18.23",
     "@types/node": "^24",
     "tsx": "^4.20.6",
     "vitest": "4.0.13"

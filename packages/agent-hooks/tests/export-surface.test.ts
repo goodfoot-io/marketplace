@@ -74,7 +74,7 @@ describe("root-export lint", () => {
     // Step 1 ships "." (core only); steps 2.3/3.8 add explicit per-agent
     // subpaths in the same steps their target files first exist. The list
     // stays closed — no "./*" wildcard, ever.
-    expect(Object.keys(pkg.exports)).toStrictEqual([".", "./claude-code", "./codex"]);
+    expect(Object.keys(pkg.exports)).toStrictEqual([".", "./claude-code", "./codex", "./opencode"]);
     expect(pkg.exports["."]).toStrictEqual({
       import: "./dist/index.js",
       types: "./types/index.d.ts",
@@ -86,6 +86,10 @@ describe("root-export lint", () => {
     expect(pkg.exports["./codex"]).toStrictEqual({
       import: "./dist/agents/codex/index.js",
       types: "./types/agents/codex/index.d.ts",
+    });
+    expect(pkg.exports["./opencode"]).toStrictEqual({
+      import: "./dist/agents/opencode/index.js",
+      types: "./types/agents/opencode/index.d.ts",
     });
     expect(() => assertClosedExportMap(pkg.exports)).not.toThrow();
   });
