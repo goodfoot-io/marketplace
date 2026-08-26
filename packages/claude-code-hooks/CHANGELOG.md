@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.9.3
+- Minor improvements and bug fixes
+
 ## 1.9.2
 - Fixed hardcoded version strings that could cause incorrect version reporting in the CLI and scaffolded projects
 
