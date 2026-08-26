@@ -167,7 +167,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
       typecheck: "tsc --noEmit",
     },
     dependencies: {
-      "@goodfoot/agent-hooks": "^1.0.1",
+      "@goodfoot/agent-hooks": "^1.0.2",
     },
     devDependencies: {
       "@biomejs/biome": "2.4.16",
@@ -478,7 +478,9 @@ describe("${eventName} Hook", () => {
     const result = await hook(mockInput, context);
 
     // Verify output has expected structure
-    expect(result).toBeDefined();
+    if (result == null) {
+      throw new Error("hook returned null");
+    }
     expect(result).toHaveProperty("_type", "${eventName}");
     expect(result).toHaveProperty("stdout");
     expect(typeof result.stdout).toBe("object");
