@@ -276,6 +276,6 @@ describe("codex-hooks e2e", () => {
       cwd: packageRoot,
     });
     expect(version.status).toBe(0);
-    expect(version.stdout.trim()).toBe("agent-hooks v0.3.0");
+    expect(version.stdout.trim()).toBe("agent-hooks v1.0.1");
   });
 });
