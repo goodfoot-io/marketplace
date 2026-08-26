@@ -106,7 +106,7 @@ export async function run(argv: readonly string[] = process.argv.slice(2)): Prom
       return 0;
     }
     if (parsed.version) {
-      process.stdout.write("1.0.3\n");
+      process.stdout.write("1.0.5\n");
       return 0;
     }
     const options = validateArgs(parsed);

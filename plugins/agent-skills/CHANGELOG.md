@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.5
+
+Synchronizes the documentation plugin with the package release after automated marketplace versioning.
+
+## 1.0.4
+
+Records the automated companion-plugin patch release.
+
 ## 1.0.3
 
 Synchronizes the companion release with the corrected compiler contracts and complete generated helper catalog.

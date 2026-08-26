@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.5
+
+- Aligns every release surface after automated companion-plugin versioning.
+
+## 1.0.4
+
+- Records the companion plugin's automated patch release.
+
 ## 1.0.3
 
 - Keeps package and companion-plugin release surfaces aligned after the adversarial-review fixes.
