@@ -1,6 +1,9 @@
 # Changelog
 
 ## 1.3.1
+- Simplified the deprecation notice for codex-hooks, removing the outdated six-month security-fix-only timeline
+
+## 1.3.1
 - **Deprecated.** Superseded by `@goodfoot/agent-hooks` (`@goodfoot/agent-hooks/codex`).
 
 ## 1.3.0
