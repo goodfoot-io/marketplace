@@ -1,4 +1,0 @@
-plugins/codex-hooks/skills/sdk/reference/installation.md#L18-L18 rk64:1becbd31b753b748
-packages/codex-hooks/src/types.ts#L1-L11 rk64:d182f1c5c33614e7
-
-Installation guide lists all available hook types that users can scaffold; this list must match the HookEventName union in types.ts. If hook types are added or removed, the installation guide must be updated so users know the complete set of hooks available to scaffold.

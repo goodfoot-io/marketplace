@@ -1,5 +1,0 @@
-packages/claude-code-hooks/e2e/build-process.e2e.test.ts#L926-L933 rk64:07e12d3b8bc90a21
-packages/claude-code-hooks/package.json#L3-L3 rk64:5afe922aca738cd5
-packages/claude-code-hooks/src/cli.ts#L143-L143 rk64:ca3cdc0a2ce63361
-
-The e2e version guard asserts the CLI's --version output matches the package version; the VERSION constant and the package.json version field must stay in agreement with the guard when a release bumps the version.

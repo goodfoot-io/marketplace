@@ -1,6 +1,0 @@
-packages/claude-code-hooks/README.md#L397-L397 rk64:5f8cb2ee2034081f
-packages/claude-code-hooks/src/outputs.ts#L303-L316 rk64:8f00812d28c90d67
-packages/claude-code-hooks/src/runtime.ts#L346-L359 rk64:3ebb7717d136582e
-plugins/claude-code-hooks/skills/sdk/SKILL.md#L186-L186 rk64:6eb0d1fefe48b67d
-
-outputs.ts's ExitCodeOptions doc comment and runtime.ts's execute() implement the same invariant: no stdout is ever written on the stderr/BLOCK(2) exit path, because Claude Code's hook-result parser treats any stdout that parses as valid JSON as success regardless of exit code. SKILL.md and README document this contract for hook authors; if the implementation changes, both docs go stale with nothing else catching it.
