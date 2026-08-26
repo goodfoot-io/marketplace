@@ -1,26 +1,127 @@
 # `@goodfoot/agent-hooks`
 
-Unified agent hooks library for AI coding CLIs. One package consolidating the
-runtime previously split across `@goodfoot/claude-code-hooks` and
-`@goodfoot/codex-hooks`, with per-agent entry points.
+**Build AI coding agent hooks in TypeScript — one package, any supported agent.**
 
-**Status: `0.1.0` — core only.** This release ships the agent-neutral core:
-the shared driver, transport abstraction, hook factory primitive, `Logger`,
-and env utilities. Per-agent entry points (`@goodfoot/agent-hooks/claude-code`,
-`/codex`, `/antigravity`) do not exist yet; they are added to the package
-`exports` map only in the version that lands their implementation — never
-pre-declared.
+`@goodfoot/agent-hooks` is the unified successor to `@goodfoot/claude-code-hooks` and
+`@goodfoot/codex-hooks`: a shared agent-neutral core (hook factory primitive, transport
+driver, `Logger`, env/stdin utilities) with a per-agent entry point on top. Write
+TypeScript hooks, compile them with the bundled CLI, and run the resulting
+self-contained executables under Claude Code or Codex.
 
-## Exports map policy
+**Status: `1.0.0`.** Two entry points ship and are published: `@goodfoot/agent-hooks/claude-code`
+(full parity with `@goodfoot/claude-code-hooks`) and `@goodfoot/agent-hooks/codex` (full
+parity with `@goodfoot/codex-hooks`). Antigravity CLI support exists internally as typed
+factories, output builders, and a conformance matrix, but is **not** part of this
+release's public surface — there is no `@goodfoot/agent-hooks/antigravity` export yet,
+and `--agent antigravity` is rejected by the CLI. It ships once a non-interactive,
+authenticated Antigravity CLI exists to validate against.
 
-The `exports` map is an explicit, closed list of subpaths. It deliberately
-does **not** include a `./*` wildcard subpath (unlike the source packages):
-a wildcard would make every internal module independently importable,
-defeating the root-export lint. This is a permanent rule enforced by the
-package's own test suite (`tests/export-surface.test.ts`), which also carries
-a fail-case fixture proving the check rejects a wildcard entry.
+## Install
+
+```bash
+yarn add @goodfoot/agent-hooks
+# or npm install, pnpm, etc.
+```
+
+## Quick Start
+
+### 1. Write a hook
+
+Import factories from your target agent's entry point. **Note:** you must use
+`export default` and the factory function — the CLI's build step relies on it.
+
+Claude Code (`@goodfoot/agent-hooks/claude-code`):
+
+```typescript
+import { preToolUseHook, preToolUseOutput } from '@goodfoot/agent-hooks/claude-code';
+
+export default preToolUseHook({ matcher: 'Bash' }, async (input, { logger }) => {
+  const { command } = input.tool_input as { command: string };
+
+  // Use logger, NEVER console.log
+  logger.info('Checking command', { command });
+
+  if (command.trim() === 'ls') {
+    return preToolUseOutput({
+      systemMessage: 'Auto-approved: ls command is safe.',
+      hookSpecificOutput: { permissionDecision: 'allow' },
+    });
+  }
+
+  return preToolUseOutput({ systemMessage: 'Command passed through for review.' });
+});
+```
+
+Codex (`@goodfoot/agent-hooks/codex`):
+
+```typescript
+import { preToolUseHook, preToolUseOutput } from '@goodfoot/agent-hooks/codex';
+
+export default preToolUseHook(async (input, { logger }) => {
+  logger.info('Checking tool call', { tool: input.tool_name });
+  return preToolUseOutput({});
+});
+```
+
+### 2. Compile
+
+The `--agent` flag is required and never inferred — always pass it explicitly:
+
+```bash
+npx -y @goodfoot/agent-hooks --agent claude-code -i "hooks/**/*.ts" -o "./dist/hooks.json"
+npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o ".codex/hooks.json"
+```
+
+Or scaffold a starter project:
+
+```bash
+npx -y @goodfoot/agent-hooks --agent claude-code --scaffold ./my-hooks --hooks Stop,SubagentStop -o dist/hooks.json
+```
+
+Run `npx -y @goodfoot/agent-hooks --help` for the full flag reference, including
+Codex-specific options (e.g. `--plugin-root`), `--log`/`--log-env-var`, `--executable`,
+and `--loader`.
+
+### 3. Run
+
+The compiled output is a self-contained executable per hook; point your agent's hook
+configuration (Claude Code's `hooks.json`, Codex's plugin `hooks.json`) at the compiled
+files, same as with the deprecated per-agent packages.
+
+## Hook events
+
+Each entry point exports one factory function and one matching output builder per
+supported event. Import both from the same entry point (`@goodfoot/agent-hooks/claude-code`
+or `@goodfoot/agent-hooks/codex`) — do not mix events or output builders across agents.
+
+- **Claude Code** (`src/agents/claude-code`): the full 30-factory surface ported from
+  `@goodfoot/claude-code-hooks`, including `preToolUseHook`, `postToolUseHook`,
+  `sessionStartHook`, `notificationHook`, `permissionRequestHook`, `elicitationHook`,
+  task/teammate hooks, `worktreeCreateHook`, and the `tool-helpers` type guards
+  (`isBashTool`, `isEditTool`, …).
+- **Codex** (`src/agents/codex`): the 10-factory surface ported from
+  `@goodfoot/codex-hooks`, including `preToolUseHook`, `postToolUseHook`,
+  `sessionStartHook`, `stopHook`, `subagentStartHook`/`subagentStopHook`,
+  `userPromptSubmitHook`, `preCompactHook`/`postCompactHook`, and `permissionRequestHook`.
+
+## Fail-open advisory hooks
+
+Both entry points support the same opt-in `unexpectedError: "continue"` hook config used
+by the deprecated packages: unexpected runtime failures (stdin read, parse, handler
+execution, output serialization, stdout write, logger cleanup) are swallowed into the
+empty response instead of surfacing a failed-hook error. It is rejected — at the type
+level and at runtime — for events where fail-open would be unsafe (`PreToolUse`,
+`PermissionRequest`, blocking `Stop`/`SubagentStop`, `WorktreeCreate`/`WorktreeRemove` on
+Claude Code; permission/blocking events on Codex). A thrown `HookBlockError` always wins
+over this policy and still blocks.
 
 ## Core API
+
+The root export (`@goodfoot/agent-hooks`, no subpath) exposes only the agent-neutral
+core that each entry point is built on. It has no knowledge of exit codes or stdout
+policy — that's owned entirely by each agent's transport. Use this if you're extending
+an existing entry point or adding support for a new agent; hook authors targeting
+Claude Code or Codex should import from the per-agent entry point instead.
 
 ### `defineHook(eventName, config, handler, policyGate?)`
 
@@ -126,6 +227,27 @@ for that classification.
 Structured logging ported behavior-identically from the source packages:
 silent by default, never writes stdout/stderr, optional JSON Lines file output
 via `AGENT_HOOKS_LOG_FILE`, event subscription via `logger.on(level, handler)`.
+
+## Exports map policy
+
+The `exports` map is an explicit, closed list of subpaths. It deliberately
+does **not** include a `./*` wildcard subpath (unlike the deprecated source
+packages): a wildcard would make every internal module independently importable,
+defeating the root-export lint. This is a permanent rule enforced by the
+package's own test suite (`tests/export-surface.test.ts`), which also carries
+a fail-case fixture proving the check rejects a wildcard entry.
+
+## Migrating from `@goodfoot/claude-code-hooks` / `@goodfoot/codex-hooks`
+
+Both source packages are deprecated in favor of this one. Migration is a dependency
+swap, not a behavior change:
+
+1. Replace the dependency: `@goodfoot/claude-code-hooks` → `@goodfoot/agent-hooks`, or
+   `@goodfoot/codex-hooks` → `@goodfoot/agent-hooks`.
+2. Update imports to the matching entry point: `@goodfoot/agent-hooks/claude-code` or
+   `@goodfoot/agent-hooks/codex`. Factory and output-builder names are unchanged.
+3. Update `build` scripts and any committed `hooks.json` to invoke the `agent-hooks` CLI
+   binary with the required `--agent <claude-code|codex>` flag.
 
 ## Development
 
