@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+- Fixed hardcoded version references so displayed/reported versions stay in sync with the installed package
+- Updated documentation
+
 ## 1.0.0
 
 Plugin and deprecation groundwork for the 1.0.0 release, plus the Antigravity descope from Step 0.
