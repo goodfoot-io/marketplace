@@ -5,30 +5,6 @@
   },
   "plugins": [
     {
-      "name": "codex-hooks",
-      "source": {
-        "source": "local",
-        "path": "./codex-plugins/codex-hooks"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Developer Tools"
-    },
-    {
-      "name": "typescript-hooks",
-      "source": {
-        "source": "local",
-        "path": "./codex-plugins/typescript-hooks"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Developer Tools"
-    },
-    {
       "name": "goodfoot",
       "source": {
         "source": "local",
