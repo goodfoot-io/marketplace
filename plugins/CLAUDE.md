@@ -72,7 +72,7 @@ plugins/browser/
 ### Key Insight
 
 The middle portion comes from the **mcpServers key**, NOT the server's internal name:
-- Server internal name: `"browser-server"` (defined in packages/mcp/browser/src/browser.ts)
+- Server internal name: `"browser-server"` (defined in the server's own source, wherever that MCP server package lives)
 - MCP server key: `"browser"` (defined in .mcp.json)
 - **The key is what's used** in the tool naming
 
