@@ -124,8 +124,8 @@ export default defineOpenCodePlugin({
     event: guardAdvisory('event', async ({ event }) => {
       if (event.type === 'session.created') {
         sessions.observe(event.properties.info.id, event.properties.info.parentID);
-      } else {
-        sessions.observeResumed(event.properties.info?.id ?? '');
+      } else if (event.type === 'session.updated') {
+        sessions.observeResumed(event.properties.info.id, event.properties.info.parentID);
       }
     }, 'continue'),
 
