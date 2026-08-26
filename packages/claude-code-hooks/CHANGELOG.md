@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.9.2
+- Fixed hardcoded version strings that could cause incorrect version reporting in the CLI and scaffolded projects
+
 ## 1.9.1
 - Simplified the deprecation notice by removing the six-month security-fix-only timeline language
 
