@@ -275,6 +275,6 @@ describe("codex-hooks e2e", () => {
       encoding: "utf-8",
     });
     expect(version.status).toBe(0);
-    expect(version.stdout.trim()).toBe("1.3.2");
+    expect(version.stdout.trim()).toBe("1.3.3");
   });
 });
