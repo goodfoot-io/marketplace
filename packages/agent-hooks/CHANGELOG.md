@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.4
+- Fixed the Codex scaffold's generated `biome.json` to properly scope linting/formatting to project files and enable organized imports
+
 ## 1.0.3
 - Fixed the Codex scaffold generating hook imports that pointed at the package root instead of the correct path
 - Fixed a type error in the OpenCode README example where the resumed-session branch didn't narrow correctly
