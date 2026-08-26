@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { userPromptSubmitHook, userPromptSubmitOutput } from "@goodfoot/claude-code-hooks";
+import { userPromptSubmitHook, userPromptSubmitOutput } from "@goodfoot/agent-hooks/claude-code";
 import type { ExpansionData } from "./expansion-store.js";
 import { formatExpansion, readStore } from "./expansion-store.js";
 

@@ -3,13 +3,13 @@
   "version": "1.0.1",
   "type": "module",
   "scripts": {
-    "build": "claude-code-hooks -i \"src/**/*.ts\" -o \"../../plugins/typescript-hooks/hooks/hooks.json\"",
+    "build": "agent-hooks --agent claude-code -i \"src/**/*.ts\" -o \"../../plugins/typescript-hooks/hooks/hooks.json\"",
     "test": "vitest run",
     "lint": "biome check --write --unsafe --max-diagnostics 500 .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@goodfoot/claude-code-hooks": "workspace:*",
+    "@goodfoot/agent-hooks": "workspace:*",
     "typescript": "^5.6.0"
   },
   "devDependencies": {

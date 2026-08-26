@@ -7,7 +7,7 @@ import {
   Logger,
   type UserPromptSubmitHookSpecificOutput,
   type UserPromptSubmitInput,
-} from "@goodfoot/claude-code-hooks";
+} from "@goodfoot/agent-hooks/claude-code";
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
 import hook, { findNewTerms, getSeenFilePath, loadSeen, saveSeen } from "../src/user-prompt-submit.js";
 
@@ -70,8 +70,8 @@ describe("UserPromptSubmit Hook", () => {
     expect(typeof hook).toBe("function");
   });
 
-  it("has correct hookEventName metadata (UserPromptSubmit)", () => {
-    expect(hook.hookEventName).toBe("UserPromptSubmit");
+  it("has correct eventName metadata (UserPromptSubmit)", () => {
+    expect(hook.eventName).toBe("UserPromptSubmit");
   });
 
   it("returns null when store is empty", async () => {

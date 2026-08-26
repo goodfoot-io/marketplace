@@ -13,7 +13,7 @@ import {
   isJsTsFile,
   preToolUseHook,
   preToolUseOutput,
-} from "@goodfoot/claude-code-hooks";
+} from "@goodfoot/agent-hooks/claude-code";
 
 // Build pattern strings dynamically to avoid self-matching
 const ESLINT = "eslint";

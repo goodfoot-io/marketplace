@@ -5,7 +5,7 @@
  * Full integration tests require a real TypeScript project.
  */
 
-import { Logger, type PostToolUseInput } from "@goodfoot/claude-code-hooks";
+import { Logger, type PostToolUseInput } from "@goodfoot/agent-hooks/claude-code";
 import { describe, expect, it } from "vitest";
 import hook from "../src/typescript-check.js";
 
@@ -18,8 +18,8 @@ describe("TypeScript/ESLint Validation Hook", () => {
     expect(typeof hook).toBe("function");
   });
 
-  it("has correct hookEventName metadata", () => {
-    expect(hook.hookEventName).toBe("PostToolUse");
+  it("has correct eventName metadata", () => {
+    expect(hook.eventName).toBe("PostToolUse");
   });
 
   it("has correct matcher metadata", () => {

@@ -12,7 +12,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-import { getFilePath, isTsFile, postToolUseHook, postToolUseOutput } from "@goodfoot/claude-code-hooks";
+import { getFilePath, isTsFile, postToolUseHook, postToolUseOutput } from "@goodfoot/agent-hooks/claude-code";
 import ts from "typescript";
 
 // ============================================================================

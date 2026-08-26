@@ -1,4 +1,4 @@
-packages/agent-hooks/src/agents/claude-code/outputs.ts#L302-L318
-packages/agent-hooks/src/agents/claude-code/transport.ts#L176-L182
+packages/agent-hooks/src/agents/claude-code/outputs.ts#L302-L318 rk64:d277a870332e9a05
+packages/agent-hooks/src/agents/claude-code/transport.ts#L176-L182 rk64:e83e41b8d23af7c8
 
 outputs.ts's ExitCodeOptions doc comment and transport.ts's finalize() implement the same invariant: no stdout is ever written on the stderr/BLOCK(2) exit path, because Claude Code's hook-result parser treats any stdout that parses as valid JSON as success regardless of exit code. The equivalent span carried forward from `claude-code-hooks/exit-code-block-no-stdout`; the package README and the plugin SKILL.md halves of the original span live outside this step's file ownership and must be re-anchored by their owners when the agent-hooks plugin lands.

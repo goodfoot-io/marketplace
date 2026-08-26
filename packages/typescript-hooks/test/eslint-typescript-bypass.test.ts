@@ -2,7 +2,7 @@
  * Tests for the ESLint/TypeScript/Biome bypass prevention hook.
  */
 
-import { Logger, type PreToolUseInput } from "@goodfoot/claude-code-hooks";
+import { Logger, type PreToolUseInput } from "@goodfoot/agent-hooks/claude-code";
 import { describe, expect, it } from "vitest";
 import hook from "../src/eslint-typescript-bypass.js";
 
@@ -25,8 +25,8 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
     expect(typeof hook).toBe("function");
   });
 
-  it("has correct hookEventName metadata", () => {
-    expect(hook.hookEventName).toBe("PreToolUse");
+  it("has correct eventName metadata", () => {
+    expect(hook.eventName).toBe("PreToolUse");
   });
 
   it("has correct matcher metadata", () => {
