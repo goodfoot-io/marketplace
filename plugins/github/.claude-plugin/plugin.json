@@ -1,9 +1,0 @@
-{
-  "name": "github",
-  "version": "1.0.0",
-  "description": "GitHub operations using the Octokit SDK for repositories, issues, pull requests, and actions",
-  "author": {
-    "name": "Goodfoot",
-    "email": "contact@goodfoot.io"
-  }
-}

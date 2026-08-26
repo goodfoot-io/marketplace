@@ -49,32 +49,32 @@ When MCP servers are packaged as Claude Code plugins, their tools follow a speci
 6. `__` - Double underscore separator before tool name
 7. `<tool-name>` - The actual tool name from the MCP server
 
-### Example: Browser Plugin
+### Example: Voice Plugin
 
-For the browser plugin:
-- **Plugin name** (from `/workspace/plugins/browser/.claude-plugin/plugin.json`): `"browser"`
-- **Server key** (from `/workspace/plugins/browser/.mcp.json`): `"browser"` (key in mcpServers object)
-- **MCP tool name** (from MCP server code): `"prompt"`
-- **Final tool name**: `mcp__plugin_browser_browser__prompt`
+For the voice plugin:
+- **Plugin name** (from `/workspace/plugins/voice/.claude-plugin/plugin.json`): `"voice"`
+- **Server key** (from `/workspace/plugins/voice/.mcp.json`): `"voice"` (key in mcpServers object)
+- **MCP tool name** (from MCP server code): `"conversation"`
+- **Final tool name**: `mcp__plugin_voice_voice__conversation`
 
 ### File Structure
 
 ```
-plugins/browser/
+plugins/voice/
 ├── .claude-plugin/
-│   └── plugin.json          # Contains: { "name": "browser", ... }
-├── .mcp.json                # Contains: { "mcpServers": { "browser": { ... } } }
+│   └── plugin.json          # Contains: { "name": "voice", ... }
+├── .mcp.json                # Contains: { "mcpServers": { "voice": { ... } } }
 └── skills/
-    └── browser/
-        └── SKILL.md         # References: mcp__plugin_browser_browser__prompt
+    └── handbook/
+        └── SKILL.md         # References: mcp__plugin_voice_voice__conversation
 ```
 
 ### Key Insight
 
-The middle portion comes from the **mcpServers key**, NOT the server's internal name:
-- Server internal name: `"browser-server"` (defined in the server's own source, wherever that MCP server package lives)
-- MCP server key: `"browser"` (defined in .mcp.json)
-- **The key is what's used** in the tool naming
+The middle portion comes from the **mcpServers key**, NOT the server's internal name — the two frequently match (as with `voice` above) but naming the pattern's parts separately still matters:
+- Server internal name: whatever the MCP server passes as its own `name` when constructed (defined in the server's own source)
+- MCP server key: the key under `mcpServers` in `.mcp.json`
+- **The key is what's used** in the tool naming, regardless of what the server calls itself internally
 
 ### When Plugin Name ≠ Server Key
 
@@ -171,9 +171,9 @@ Skills defined in plugins are capabilities that Claude autonomously invokes base
 
 **Example**:
 ```
-plugins/browser/
+plugins/my-plugin/
 └── skills/
-    └── browser/             # Directory name is "browser"
+    └── my-skill/            # Directory name is "my-skill"
         └── SKILL.md         # Required filename
 ```
 
@@ -417,8 +417,8 @@ ls -la "${CLAUDE_PLUGIN_ROOT}"
 ### Path Resolution
 
 `${CLAUDE_PLUGIN_ROOT}` can be **either relative or absolute** depending on the execution context:
-- **Relative** (from workspace root): `plugins/project`, `plugins/browser`
-- **Absolute**: `/workspace/plugins/project`, `/workspace/plugins/browser`
+- **Relative** (from workspace root): `plugins/voice`, `plugins/expansion`
+- **Absolute**: `/workspace/plugins/voice`, `/workspace/plugins/expansion`
 
 Both forms work correctly since embedded bash executes from the workspace root. Your code should handle both cases by using `"${CLAUDE_PLUGIN_ROOT}"` directly without assumptions about its format.
 
@@ -485,8 +485,8 @@ Use `${CLAUDE_PLUGIN_ROOT}` syntax - this expands the path when rendered so user
 ````markdown
 **Usage:**
 ```bash
-# Users will see "plugins/project/bin/initialize-project" (actual path)
-PROJECT_DIR=$(${CLAUDE_PLUGIN_ROOT}/bin/initialize-project "my-project")
+# Users will see "plugins/voice/bin/voice-mcp-server.mjs" (actual path)
+${CLAUDE_PLUGIN_ROOT}/bin/voice-mcp-server.mjs
 ${CLAUDE_PLUGIN_ROOT}/bin/my-script.sh
 ```
 ````
@@ -540,7 +540,7 @@ RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 ````markdown
 **Usage:**
 ```bash
-# Users will see "plugins/project/bin/process-data" or the actual path
+# Users will see "plugins/voice/bin/process-data" or the actual path
 RESULT=$(${CLAUDE_PLUGIN_ROOT}/bin/process-data)
 ```
 ````
@@ -566,7 +566,7 @@ RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 **✓ Fix: Use embedded bash expansion**
 ```bash
 # In a command file's ```bash block
-# Users see actual path like "plugins/project/bin/my-tool" - helpful!
+# Users see actual path like "plugins/voice/bin/my-tool" - helpful!
 ${CLAUDE_PLUGIN_ROOT}/bin/my-tool
 ```
 
