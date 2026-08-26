@@ -1,6 +1,6 @@
 # @goodfoot/codex-hooks
 
-> **Deprecated.** `@goodfoot/codex-hooks` is superseded by [`@goodfoot/agent-hooks`](https://www.npmjs.com/package/@goodfoot/agent-hooks) (`@goodfoot/agent-hooks/codex`), which consolidates Claude Code, Codex, and Antigravity hook support behind one package. This package receives security and data-loss fixes only for six months following this notice, then no further updates. New work should target `@goodfoot/agent-hooks/codex`.
+> **Deprecated.** `@goodfoot/codex-hooks` is superseded by [`@goodfoot/agent-hooks`](https://www.npmjs.com/package/@goodfoot/agent-hooks) (`@goodfoot/agent-hooks/codex`), which consolidates Claude Code, Codex, and Antigravity hook support behind one package. New work should target `@goodfoot/agent-hooks/codex`.
 
 Build Codex hooks in TypeScript. The package mirrors the canonical Codex hook event surface and emits the wire JSON described in the upstream Codex `hooks/schema/generated/*.json` schemas.
 

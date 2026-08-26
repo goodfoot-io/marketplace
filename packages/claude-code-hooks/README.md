@@ -1,6 +1,6 @@
 # @goodfoot/claude-code-hooks
 
-> **Deprecated.** `@goodfoot/claude-code-hooks` is superseded by [`@goodfoot/agent-hooks`](https://www.npmjs.com/package/@goodfoot/agent-hooks) (`@goodfoot/agent-hooks/claude-code`), which consolidates Claude Code, Codex, and Antigravity hook support behind one package. This package receives security and data-loss fixes only for six months following this notice, then no further updates. New work should target `@goodfoot/agent-hooks/claude-code`.
+> **Deprecated.** `@goodfoot/claude-code-hooks` is superseded by [`@goodfoot/agent-hooks`](https://www.npmjs.com/package/@goodfoot/agent-hooks) (`@goodfoot/agent-hooks/claude-code`), which consolidates Claude Code, Codex, and Antigravity hook support behind one package. New work should target `@goodfoot/agent-hooks/claude-code`.
 
 **Build Claude Code hooks in TypeScript.**
 
