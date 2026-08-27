@@ -1,0 +1,16 @@
+{
+  "sourceRevision": "993ccfb268b390ba30a8bbd4c80fa1864fa9fea1",
+  "authoredRoot": "skills-src/linear",
+  "skills": ["linear"],
+  "files": [
+    { "path": "linear/SKILL.md", "mode": 420, "gitObject": "80cbd9f92f4600a58d6291955d026f2399951edb", "sha256": "424f5616dbed4fbc5520d63e5b10795d8102835252e86264144cefef56ab55be" },
+    { "path": "linear/sdk/comments.md", "mode": 420, "gitObject": "b0f502bc99fc0ce02fd18b800183378d1d48adc1", "sha256": "02daf96f0065a83d905d7647928fe547628346e4f3974a33af58163167297b9b" },
+    { "path": "linear/sdk/error-handling.md", "mode": 420, "gitObject": "9d418fb763bf32e5bcaef9d66c3f30d82eca8f0b", "sha256": "7d75d77e7d7cb566d2c1c5cc2a1e170f52c0c46b93f3be9475e9e53fcec88ea3" },
+    { "path": "linear/sdk/issues.md", "mode": 420, "gitObject": "8419ebc3e6943d2c8d3400ca46514fc8b6bc99a3", "sha256": "4c9d88d2b69774e303489755610573a1087c68893ce0f7c5833dec81949f454a" },
+    { "path": "linear/sdk/queries.md", "mode": 420, "gitObject": "c87e629e495eef6b7b6a2f60e41cd7a6f97f1794", "sha256": "708d4796708975c691661842e01618e0ea6b896cee222e8c6018f3fd50894bdd" },
+    { "path": "linear/webhooks/comment.md", "mode": 420, "gitObject": "b14b0ab2fd240a6ad987b390bbf127f603966a62", "sha256": "4f2c9b9d1ecec4e5e32861c919a39334a0552c513617add79d555b1407ce0252" },
+    { "path": "linear/webhooks/cycle.md", "mode": 420, "gitObject": "27cd9e14eada9d139376e6feaf982af7b1ae82a9", "sha256": "5785b1d4eadb17862e4ac20c86ce55c4da5c5d75fb4f43acd3249c2574cded85" },
+    { "path": "linear/webhooks/issue.md", "mode": 420, "gitObject": "ddf52be02b96ed214533d3de66369bf0d429e84f", "sha256": "3c40c523065fc37f81c0ff6b16bb1d22bfdec81a8db0ed4e653f716c42669d4a" },
+    { "path": "linear/webhooks/project.md", "mode": 420, "gitObject": "1b2e7f248c54c13e607c83e733cff188653d4135", "sha256": "286e4aecb7fde8e8967823a6063890358f8ed5037f4bea9135439251ed2e0ed3" }
+  ]
+}

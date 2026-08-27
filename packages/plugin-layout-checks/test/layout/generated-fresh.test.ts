@@ -52,10 +52,12 @@ describe("generated bundle freshness", () => {
           fs.readdirSync(repoPath(target.path)).sort(),
           `${target.path} must not gain a ${plugin.name}/ namespace`,
         ).toEqual([...plugin.skills].sort());
-        expect(
-          fs.existsSync(repoPath(target.path, plugin.name)),
-          `${target.path}/${plugin.name} must not be generated`,
-        ).toBe(false);
+        if (!plugin.skills.includes(plugin.name)) {
+          expect(
+            fs.existsSync(repoPath(target.path, plugin.name)),
+            `${target.path}/${plugin.name} must not be generated`,
+          ).toBe(false);
+        }
       }
     }
   });

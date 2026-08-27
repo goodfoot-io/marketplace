@@ -1,12 +1,22 @@
 {
   "name": "claude-code-skill-reader",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Read and process Claude Code skills and commands with full fidelity",
-  "author": { "name": "Goodfoot", "email": "contact@goodfoot.io", "url": "https://github.com/goodfoot-io" },
+  "author": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io",
+    "url": "https://github.com/goodfoot-io"
+  },
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/claude-code-skill-reader",
   "repository": "https://github.com/goodfoot-io/marketplace",
   "license": "MIT",
-  "keywords": ["skills", "commands", "cli", "reader", "discovery"],
+  "keywords": [
+    "skills",
+    "commands",
+    "cli",
+    "reader",
+    "discovery"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Claude Code Skill Reader",
@@ -14,9 +24,14 @@
     "longDescription": "A CLI help skill for @goodfoot/claude-code-skill-reader: reads and processes Claude Code skill and command files from project, plugin, and marketplace sources, for inspecting or tracing how a skill or command resolves.",
     "developerName": "Goodfoot",
     "category": "Developer Tools",
-    "capabilities": ["Read", "Write"],
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
     "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/claude-code-skill-reader",
-    "defaultPrompt": ["Use the cli skill to inspect, read, or trace how a Claude Code skill or command resolves."],
+    "defaultPrompt": [
+      "Use the cli skill to inspect, read, or trace how a Claude Code skill or command resolves."
+    ],
     "brandColor": "#1F6FEB"
   }
 }

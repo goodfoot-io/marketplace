@@ -1,10 +1,4 @@
----
-name: linear
-description: Reference for Linear webhooks and TypeScript SDK. Use when
-  receiving Linear webhook payloads, responding to issues or comments, changing
-  issue status, or querying Linear state via the @linear/sdk package.
----
-
+<%~ it.frontmatter({ name: 'linear', description: 'Reference for Linear webhooks and TypeScript SDK. Use when receiving Linear webhook payloads, responding to issues or comments, changing issue status, or querying Linear state via the @linear/sdk package.' }) %>
 # Linear Reference (SDK)
 
 ```!
