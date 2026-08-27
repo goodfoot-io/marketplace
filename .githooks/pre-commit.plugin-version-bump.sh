@@ -101,7 +101,7 @@ fi
 while IFS=$'\t' read -r NAME SOURCE; do
     mapfile -t OWNED < <(jq -r --arg name "$NAME" '
         .plugins[] | select(.name == $name) |
-        [.skillsSrc, .claudePluginRoot, .codexPluginRoot, .opencodePluginRoot,
+        [.skillsSrc, .claudePluginRoot, .codexPluginRoot, .opencodePluginRoot, (.antigravityPluginRoot // empty),
          (.versionSurfaces.packageJson // empty | sub("/[^/]+$"; ""))] | .[]' "$REGISTRY")
 
     # The surfaces the registry names outright. Readable with jq alone, which
@@ -109,7 +109,7 @@ while IFS=$'\t' read -r NAME SOURCE; do
     # node.
     mapfile -t REGISTRY_SURFACES < <(jq -r --arg name "$NAME" '
         .plugins[] | select(.name == $name) | .versionSurfaces |
-        [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
+        [.source, .codexManifest, .opencodePackage, (.antigravityManifest // empty), (.packageJson // empty),
          (.literals // [] | .[].path)] | .[]' "$REGISTRY")
 
     # Discovery is intentionally based on files that exist, so a plugin that
@@ -333,7 +333,7 @@ if [ "$REGISTRY_PLUGIN_BUMPED" -eq 1 ]; then
     ALL_CHANGELOGS=$(node scripts/changelog-surfaces.mjs plugin-release) || changelog_surfaces_failed
     mapfile -t ALL_SURFACES < <(jq -r '
         .plugins[].versionSurfaces |
-        [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
+        [.source, .codexManifest, .opencodePackage, (.antigravityManifest // empty), (.packageJson // empty),
          (.literals // [] | .[].path)] | .[]' "$REGISTRY"
         # Guarded: printf on an empty capture emits one blank line, and a blank
         # element in ALL_SURFACES reaches `git add ""`.

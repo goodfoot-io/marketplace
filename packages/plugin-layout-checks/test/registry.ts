@@ -93,11 +93,10 @@ export interface RegistryPlugin {
    * freshness inventory, and the equivalence check all derive from — rather
    * than each test carrying its own copy of which skill is missing where.
    *
-   * agent-hooks/antigravity is the only member: a Claude-Code-only document
-   * about the Antigravity boundary, kept off the other trees so its
-   * provisional facts never reach a platform that would have to invent them
-   * (plan I2), which also moots its OpenCode name collision with
-   * agent-skills/antigravity (plan B2).
+   * agent-hooks/antigravity is the only member: it is intentionally limited to
+   * Claude Code and Antigravity, the two hosts where its Antigravity boundary
+   * is directly actionable, and stays out of the flat OpenCode namespace where
+   * it would collide with agent-skills/antigravity.
    */
   skillPlatforms?: Record<string, Platform[]>;
   /**
@@ -124,6 +123,8 @@ export interface RegistryPlugin {
     source: string;
     codexManifest: string;
     opencodePackage: string;
+    /** Bare Antigravity plugin manifest, required with an Antigravity target. */
+    antigravityManifest?: string;
     /** The published npm package, where the plugin ships one. */
     packageJson?: string;
     /** Versions embedded in source rather than in a JSON field. */
@@ -368,6 +369,7 @@ function load(): Registry {
       surfaces.source,
       surfaces.codexManifest,
       surfaces.opencodePackage,
+      ...(surfaces.antigravityManifest ? [surfaces.antigravityManifest] : []),
       ...(surfaces.packageJson ? [surfaces.packageJson] : []),
       ...(surfaces.literals ?? []).map((literal) => literal.path),
     ];
@@ -393,6 +395,9 @@ function load(): Registry {
     const antigravityTarget = plugin.targets.find((target) => target.platform === "antigravity");
     if (antigravityTarget && (!plugin.antigravityPluginRoot || plugin.antigravityPluginRoot.length === 0)) {
       throw new Error(`registry: ${plugin.name} requires antigravityPluginRoot for its Antigravity target`);
+    }
+    if (antigravityTarget && !plugin.versionSurfaces.antigravityManifest) {
+      throw new Error(`registry: ${plugin.name} requires versionSurfaces.antigravityManifest for its Antigravity target`);
     }
     // The platforms a plugin declares targets for must be exactly the platforms
     // its skills render to. Requiring all three instead is what put voice's
@@ -564,6 +569,7 @@ export function versionDrift(plugin: RegistryPlugin, repoRoot: string): string[]
   const jsonSurfaces = [
     surfaces.codexManifest,
     surfaces.opencodePackage,
+    ...(surfaces.antigravityManifest ? [surfaces.antigravityManifest] : []),
     ...(surfaces.packageJson ? [surfaces.packageJson] : []),
   ];
   for (const rel of jsonSurfaces) {

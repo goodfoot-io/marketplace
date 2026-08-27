@@ -81,6 +81,7 @@ function makeFixture(): string {
     `${JSON.stringify({ name: "demo", version: "1.0.0" }, null, 2)}\n`,
   );
   write(root, "plugins-opencode/demo/package.json", `${JSON.stringify({ name: "demo", version: "1.0.0" }, null, 2)}\n`);
+  write(root, "plugins-antigravity/demo/plugin.json", `${JSON.stringify({ name: "demo", version: "1.0.0" }, null, 2)}\n`);
   write(
     root,
     "packages/demo/package.json",
@@ -134,11 +135,13 @@ function makeFixture(): string {
             claudePluginRoot: "plugins/demo",
             codexPluginRoot: "plugins-codex/demo",
             opencodePluginRoot: "plugins-opencode/demo",
+            antigravityPluginRoot: "plugins-antigravity/demo",
             marketplace: { claude: "demo", codex: null },
             versionSurfaces: {
               source: "plugins/demo/.claude-plugin/plugin.json",
               codexManifest: "plugins-codex/demo/.codex-plugin/plugin.json",
               opencodePackage: "plugins-opencode/demo/package.json",
+              antigravityManifest: "plugins-antigravity/demo/plugin.json",
               packageJson: "packages/demo/package.json",
               literals: [
                 {
@@ -175,6 +178,7 @@ function versions(root: string): Record<string, string> {
     source: json("plugins/demo/.claude-plugin/plugin.json").version,
     codexManifest: json("plugins-codex/demo/.codex-plugin/plugin.json").version,
     opencodePackage: json("plugins-opencode/demo/package.json").version,
+    antigravityManifest: json("plugins-antigravity/demo/plugin.json").version,
     packageJson: json("packages/demo/package.json").version,
     literal: cli?.[1] ?? "<unmatched>",
     marketplaceEntry: marketplace.plugins[0].version,
@@ -189,12 +193,12 @@ describe("pre-commit version bump", () => {
 
     run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
 
-    // All six move together, which is the whole point: the failure was five of
-    // six moving and the sixth being fixed in a later commit by hand.
+    // All seven move together, including the Antigravity manifest.
     expect(versions(root)).toEqual({
       source: "1.0.1",
       codexManifest: "1.0.1",
       opencodePackage: "1.0.1",
+      antigravityManifest: "1.0.1",
       packageJson: "1.0.1",
       literal: "1.0.1",
       marketplaceEntry: "1.0.1",

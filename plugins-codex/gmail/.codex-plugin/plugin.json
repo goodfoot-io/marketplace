@@ -1,6 +1,6 @@
 {
   "name": "gmail",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Gmail SDK skill for email operations via googleapis",
   "author": {
     "name": "Goodfoot",

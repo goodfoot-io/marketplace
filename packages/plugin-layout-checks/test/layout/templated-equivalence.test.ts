@@ -60,12 +60,23 @@ const OPENCODE_NAME_OVERRIDE: Record<string, Record<string, string>> = {
 const agentHooksReference = (body: string, platform: string) => {
   if (platform === "claude-code") return body;
   const root =
-    platform === "opencode" ? "plugins-opencode/agent-hooks/skills/codex" : `${CODEX_ROOT_TOKEN}/skills/codex`;
+    platform === "opencode"
+      ? "plugins-opencode/agent-hooks/skills/codex"
+      : platform === "antigravity"
+        ? "plugins-antigravity/agent-hooks/skills/codex"
+        : `${CODEX_ROOT_TOKEN}/skills/codex`;
   return body.replaceAll(`${CLAUDE_ROOT_TOKEN}/skills/codex`, root);
 };
 
 const platformAuthoringRoot = (body: string, platform: string) => {
-  const tree = platform === "claude-code" ? "plugins-claude" : platform === "codex" ? "plugins-codex" : "plugins-opencode";
+  const tree =
+    platform === "claude-code"
+      ? "plugins-claude"
+      : platform === "codex"
+        ? "plugins-codex"
+        : platform === "antigravity"
+          ? "plugins-antigravity"
+          : "plugins-opencode";
   return body.replaceAll("plugins/", `${tree}/`);
 };
 
@@ -79,7 +90,12 @@ const agentHooksCodex = (body: string, platform: string) =>
  */
 const agentSkillsReference = (body: string, platform: string) => {
   if (platform === "claude-code") return body;
-  const root = platform === "opencode" ? "plugins-opencode/agent-skills/skills" : `${CODEX_ROOT_TOKEN}/skills`;
+  const root =
+    platform === "opencode"
+      ? "plugins-opencode/agent-skills/skills"
+      : platform === "antigravity"
+        ? "plugins-antigravity/agent-skills/skills"
+        : `${CODEX_ROOT_TOKEN}/skills`;
   return body.replaceAll(
     `${CLAUDE_ROOT_TOKEN}/skills/reference/helper-reference.md`,
     `${root}/reference/helper-reference.md`,
@@ -97,9 +113,30 @@ const agentSkillsReference = (body: string, platform: string) => {
  */
 const agentSkillsSkillRef = (body: string, platform: string) => {
   if (platform === "claude-code") return body;
-  const rendered = platform === "opencode" ? "`$cli-and-helpers`" : "`$agent-skills:cli-and-helpers`";
+  const rendered =
+    platform === "opencode"
+      ? "`$cli-and-helpers`"
+      : platform === "antigravity"
+        ? "`cli-and-helpers`"
+        : "`$agent-skills:cli-and-helpers`";
   return body.replaceAll("`agent-skills:cli-and-helpers`", rendered);
 };
+
+/** Verified Antigravity publication replaces only the former validation-only policy claims. */
+const agentSkillsAntigravityPolicy = (body: string) =>
+  body
+    .replace(
+      "# Antigravity boundary\n\nAntigravity support is intentionally fail-closed. This repository does not yet have a shipped Antigravity skill tree or a complete authoritative set of host conventions. Do not infer missing behavior from Claude Code, Codex, or OpenCode.",
+      "# Antigravity support\n\nThis repository ships Antigravity plugin roots generated from the same authored skill sources as the other platforms. Each root has an `agy`-validated `plugin.json` and at least one processed skill. Treat that validation as evidence for plugin packaging and skill discovery, not as evidence for hooks, MCP servers, or unavailable host behaviors.",
+    )
+    .replace(
+      "Do not invent an Antigravity plugin-root variable, agent naming transformation, subagent operation, worktree tool, frontmatter key, directory convention, install command, or behavioral smoke test. Do not silently use a Codex or OpenCode value because it looks similar.",
+      "Do not invent an Antigravity plugin-root variable, agent naming transformation, subagent operation, worktree tool, frontmatter key, install command, or behavioral smoke test. Do not silently use a Codex or OpenCode value because it looks similar. The verified directory convention is a complete plugin root under `plugins-antigravity/<name>` with skills under its `skills/` leaf.",
+    )
+    .replace(
+      "When a user needs an unavailable feature, state which helper or convention is unknown and treat the request as platform-contract work. The required next evidence is an authoritative host contract and a runnable validation surface; until then, Antigravity is validation-only.",
+      "When a user needs an unavailable feature, state which helper or convention is unknown and treat the request as platform-contract work. `agy plugin validate` is the runnable packaging boundary today; behavior beyond the positively processed skill category still requires authoritative host evidence.",
+    );
 
 const HELPER_TABLE_BEGIN = "<!-- BEGIN GENERATED AGENT-SKILLS HELPER REFERENCE -->";
 const HELPER_TABLE_END = "<!-- END GENERATED AGENT-SKILLS HELPER REFERENCE -->";
@@ -170,12 +207,14 @@ const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: st
       const withNote = withFence.replace(
         "top-level await.\n",
         `top-level await.\n\n> This environment check auto-executes on Claude Code load. On ${
-          platform === "codex" ? "Codex" : "OpenCode"
+          platform === "codex" ? "Codex" : platform === "antigravity" ? "Antigravity" : "OpenCode"
         } it is documented example code above — run it manually to verify Gmail credentials before use.\n`,
       );
       const reference =
         platform === "opencode"
           ? "plugins-opencode/gmail/skills/gmail/advanced/oauth-setup.md"
+          : platform === "antigravity"
+            ? "plugins-antigravity/gmail/skills/gmail/advanced/oauth-setup.md"
           : `${CODEX_ROOT_TOKEN}/skills/gmail/advanced/oauth-setup.md`;
       return withNote.replaceAll(`${CLAUDE_ROOT_TOKEN}/skills/gmail/advanced/oauth-setup.md`, reference);
     },
@@ -187,6 +226,7 @@ const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: st
     "codex/reference/installation.md": platformAuthoringRoot,
   },
   "agent-skills": {
+    "antigravity/SKILL.md": agentSkillsAntigravityPolicy,
     "cli-and-helpers/SKILL.md": agentSkillsReference,
     "platform-behavior/SKILL.md": agentSkillsReference,
     "template-authoring/SKILL.md": agentSkillsSkillRef,

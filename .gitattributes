@@ -4,3 +4,6 @@ skills/** linguist-generated=true
 plugins-claude/goodfoot/skills/** linguist-generated=true
 plugins-codex/goodfoot/skills/** linguist-generated=true
 plugins-opencode/goodfoot/skills/** linguist-generated=true
+# Generated Antigravity outputs preserve source bytes; source-owned whitespace
+# is verified by freshness/equivalence rather than normalized in the materialized tree.
+plugins-antigravity/** linguist-generated=true whitespace=-trailing-space,-blank-at-eof

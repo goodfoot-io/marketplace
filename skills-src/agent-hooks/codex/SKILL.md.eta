@@ -20,7 +20,7 @@ lintSuppressions:
     lines: [308, 308]
   - rule: plugin-root-variable
     lines: [314, 319]
---><%~ it.frontmatter({ name: 'codex', description: 'Load this skill immediately after a user mentions "@goodfoot/agent-hooks" for Codex, or Codex hooks.' }) %><% const pluginTree = it.platform === "claude-code" ? "plugins-claude" : it.platform === "codex" ? "plugins-codex" : "plugins-opencode"; %>
+--><%~ it.frontmatter({ name: 'codex', description: 'Load this skill immediately after a user mentions "@goodfoot/agent-hooks" for Codex, or Codex hooks.' }) %><% const pluginTree = it.platform === "claude-code" ? "plugins-claude" : it.platform === "codex" ? "plugins-codex" : it.platform === "antigravity" ? "plugins-antigravity" : "plugins-opencode"; %>
 **If `@goodfoot/codex-hooks` is present in the project's `package.json`, say so and offer to repoint the project at `@goodfoot/agent-hooks/codex` — `@goodfoot/codex-hooks` is deprecated (security/data-loss fixes only) in favor of this package.**
 
 **Review the authoritative documentation at `https://developers.openai.com/codex/hooks.md` and the wire schemas under `third_party/reference/codex/codex-rs/hooks/schema/generated/` before using `@goodfoot/agent-hooks/codex`. When the doc and the schemas disagree, the schemas win.**
@@ -44,7 +44,7 @@ npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o ".codex/hooks.jso
 *   `--executable <path>` (Optional): **Executable Prefix.** Sets the executable used in generated commands (default: `node`).
 *   `--loader .ext=type` (Optional, repeatable): **Explicit Asset Loader.** Registers esbuild loaders for non-code imports. `.md=text` is enabled by default; opt in for other extensions, e.g. `--loader .txt=text`.
 
-**Configuring the log file:** Logging is configured at runtime, not at build time. Set the `AGENT_HOOKS_LOG_FILE` environment variable to write JSON-line logs to a file, or configure programmatically with `new Logger({ logFilePath })` / `new Logger({ logEnvVar })`. See [Logging & Debugging](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/logging.md" : `${it.pluginRootVar}/skills/codex/reference/logging.md` %>).
+**Configuring the log file:** Logging is configured at runtime, not at build time. Set the `AGENT_HOOKS_LOG_FILE` environment variable to write JSON-line logs to a file, or configure programmatically with `new Logger({ logFilePath })` / `new Logger({ logEnvVar })`. See [Logging & Debugging](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/logging.md" : it.is("antigravity") ? `${it.platformDir("skills")}/codex/reference/logging.md` : `${it.pluginRootVar}/skills/codex/reference/logging.md` %>).
 
 **Loader guidance:**
 *   Use text imports for **small static prompt assets** that should be bundled into the compiled hook as strings.
@@ -153,7 +153,7 @@ npx @goodfoot/agent-hooks --agent codex --scaffold ./my-codex-hooks --hooks Sess
 ```bash
 npx @goodfoot/agent-hooks --agent codex --scaffold ./packages/my-codex-hooks --hooks PreToolUse,PostToolUse -o ../../<%~ pluginTree %>/my-plugin/.codex/hooks.json
 ```
-See [Installation: Scaffolding for Monorepos](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/installation.md" : `${it.pluginRootVar}/skills/codex/reference/installation.md` %>).
+See [Installation: Scaffolding for Monorepos](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/installation.md" : it.is("antigravity") ? `${it.platformDir("skills")}/codex/reference/installation.md` : `${it.pluginRootVar}/skills/codex/reference/installation.md` %>).
 
 ## 4. Output Capabilities by Hook Type
 
@@ -322,17 +322,17 @@ Output to a sibling plugin directory and let `--plugin-root` anchor the command 
 ```bash
 npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o "../../<%~ pluginTree %>/my-plugin/hooks/hooks.json" --plugin-root
 ```
-See [Monorepo Integration](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/installation.md" : `${it.pluginRootVar}/skills/codex/reference/installation.md` %>).
+See [Monorepo Integration](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/installation.md" : it.is("antigravity") ? `${it.platformDir("skills")}/codex/reference/installation.md` : `${it.pluginRootVar}/skills/codex/reference/installation.md` %>).
 
 **Filename overrides:** `--stable-names` forces hash-free names in any mode; `--no-stable-names` opts back into hashed names (the pre-1.1 default).
 
 ## 10. Reference Links
 
-*   **[Installation & Setup](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/installation.md" : `${it.pluginRootVar}/skills/codex/reference/installation.md` %>)**: Setup guide (Scaffolding vs Manual).
-*   **[All 10 Hook Inputs](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/input-types.md" : `${it.pluginRootVar}/skills/codex/reference/input-types.md` %>)**: Field shapes per event, with `tool_input` narrowing.
-*   **[All 10 Output Builders](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/output-builders.md" : `${it.pluginRootVar}/skills/codex/reference/output-builders.md` %>)**: Factories, builders, and option types.
-*   **[Porting from Bash](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/porting.md" : `${it.pluginRootVar}/skills/codex/reference/porting.md` %>)**: Migration guide.
-*   **[Logging & Debugging](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/logging.md" : `${it.pluginRootVar}/skills/codex/reference/logging.md` %>)**: How to see what's happening.
-*   **[Environment](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/environment.md" : `${it.pluginRootVar}/skills/codex/reference/environment.md` %>)**: Hook context and runtime env.
+*   **[Installation & Setup](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/installation.md" : it.is("antigravity") ? `${it.platformDir("skills")}/codex/reference/installation.md` : `${it.pluginRootVar}/skills/codex/reference/installation.md` %>)**: Setup guide (Scaffolding vs Manual).
+*   **[All 10 Hook Inputs](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/input-types.md" : it.is("antigravity") ? `${it.platformDir("skills")}/codex/reference/input-types.md` : `${it.pluginRootVar}/skills/codex/reference/input-types.md` %>)**: Field shapes per event, with `tool_input` narrowing.
+*   **[All 10 Output Builders](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/output-builders.md" : it.is("antigravity") ? `${it.platformDir("skills")}/codex/reference/output-builders.md` : `${it.pluginRootVar}/skills/codex/reference/output-builders.md` %>)**: Factories, builders, and option types.
+*   **[Porting from Bash](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/porting.md" : it.is("antigravity") ? `${it.platformDir("skills")}/codex/reference/porting.md` : `${it.pluginRootVar}/skills/codex/reference/porting.md` %>)**: Migration guide.
+*   **[Logging & Debugging](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/logging.md" : it.is("antigravity") ? `${it.platformDir("skills")}/codex/reference/logging.md` : `${it.pluginRootVar}/skills/codex/reference/logging.md` %>)**: How to see what's happening.
+*   **[Environment](@<%~ it.is("opencode") ? "plugins-opencode/agent-hooks/skills/codex/reference/environment.md" : it.is("antigravity") ? `${it.platformDir("skills")}/codex/reference/environment.md` : `${it.pluginRootVar}/skills/codex/reference/environment.md` %>)**: Hook context and runtime env.
 
 </instructions>

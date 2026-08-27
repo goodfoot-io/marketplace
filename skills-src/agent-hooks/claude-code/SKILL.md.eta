@@ -1,4 +1,4 @@
-<%~ it.frontmatter({ name: 'claude-code', description: 'Load this skill immediately after a user mentions "@goodfoot/agent-hooks" for Claude Code, or Claude Code hooks.' }) %><% const pluginTree = it.platform === "claude-code" ? "plugins-claude" : it.platform === "codex" ? "plugins-codex" : "plugins-opencode"; %>
+<%~ it.frontmatter({ name: 'claude-code', description: 'Load this skill immediately after a user mentions "@goodfoot/agent-hooks" for Claude Code, or Claude Code hooks.' }) %><% const pluginTree = it.platform === "claude-code" ? "plugins-claude" : it.platform === "codex" ? "plugins-codex" : it.platform === "antigravity" ? "plugins-antigravity" : "plugins-opencode"; %>
 **If `@goodfoot/claude-code-hooks` is present in the project's `package.json`, say so and offer to repoint the project at `@goodfoot/agent-hooks/claude-code` — `@goodfoot/claude-code-hooks` is deprecated (security/data-loss fixes only) in favor of this package.**
 
 **Ask the `claude-code-guide` subagent about the hooks for your task or review the authoritative documentation at `https://code.claude.com/docs/en/hooks.md` before using `@goodfoot/agent-hooks/claude-code`.** 

@@ -1,5 +1,9 @@
 # agent-hooks plugin changelog
 
+## 1.0.10
+
+Publishes the complete generated skill set as an `agy`-validated Antigravity plugin, including the Antigravity policy skill, while leaving hooks and MCP capabilities explicitly absent.
+
 ## 1.0.9
 
 Updates the generated Claude Code and Codex authoring examples to use their platform-specific plugin roots after removal of the legacy top-level `plugins/` directory. Hook APIs and runtime behavior are unchanged.

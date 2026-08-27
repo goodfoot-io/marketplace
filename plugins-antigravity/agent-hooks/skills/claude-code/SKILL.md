@@ -1,0 +1,310 @@
+---
+name: claude-code
+description: Load this skill immediately after a user mentions
+  "@goodfoot/agent-hooks" for Claude Code, or Claude Code hooks.
+---
+
+**If `@goodfoot/claude-code-hooks` is present in the project's `package.json`, say so and offer to repoint the project at `@goodfoot/agent-hooks/claude-code` — `@goodfoot/claude-code-hooks` is deprecated (security/data-loss fixes only) in favor of this package.**
+
+**Ask the `claude-code-guide` subagent about the hooks for your task or review the authoritative documentation at `https://code.claude.com/docs/en/hooks.md` before using `@goodfoot/agent-hooks/claude-code`.** 
+
+<instructions>
+
+## 1. The Build Process (First & Foremost)
+
+Hooks are **compiled executables**, not scripts. You must build them before Claude can see them.
+
+**The Build Command:**
+```bash
+npx -y @goodfoot/agent-hooks --agent claude-code -i "hooks/*.ts" -o "dist/hooks.json"
+```
+
+**Parameters Explained:**
+*   `-i "hooks/*.ts"`: **Input Glob.** This tells the compiler where your TypeScript source files are.
+    *   *Critical:* Quote the glob pattern (`"..."`) to prevent your shell from expanding it before the CLI sees it.
+*   `-o "dist/hooks.json"`: **Output Manifest.** This is the file you register in your config.
+    *   The CLI creates a `bin/` folder next to this file containing the compiled `.mjs` executables. As of 1.7, bundles use stable, hash-free filenames (`<name>.mjs`) by default.
+*   `--log "/tmp/hooks.log"` (Optional): **Hardcoded Log Path.** Bakes the log file path into the compiled bundle. A runtime `AGENT_HOOKS_LOG_FILE` env var overrides it. Cannot be combined with `--log-env-var`.
+*   `--log-env-var MY_VAR` (Optional): **Dynamic Log Path.** Bakes an env var *name* into the bundle; Logger reads `process.env[MY_VAR]` at startup. Use when the log path varies at runtime (e.g. across git worktrees). Cannot be combined with `--log`.
+*   `--loader .ext=type` (Optional, repeatable): **Explicit Asset Loader.** Registers esbuild loaders for non-code imports used by hooks. The compiler ships with `.md=text` enabled by default, so markdown prompt assets can be imported without extra flags. For other extensions, opt in explicitly, e.g. `--loader .txt=text`.
+*   `--stable-names` (default) / `--no-stable-names` (Optional): **Filename Stability.** Stable mode emits `<name>.mjs`, keeping the generated `hooks.json` byte-stable across rebuilds so Claude Code's hook trust hash stays valid — users do not have to re-review and re-trust hooks on every update. Stale hashed leftovers are pruned automatically. Pass `--no-stable-names` to restore the pre-1.7 hashed naming.
+
+**Context detection (plugin vs agent):**
+The CLI infers whether the build is a plugin or a `.claude/`-style agent install by inspecting the output path:
+*   If a `.claude-plugin/` directory exists by walking up from the output, it is a **plugin** build — commands use `$CLAUDE_PLUGIN_ROOT`.
+*   Otherwise, if the output path contains a `.claude/` segment, it is an **agent** build — commands use `"$CLAUDE_PROJECT_DIR"`.
+*   The plugin marker takes precedence over the `.claude/` segment (fixed in 1.7), so a plugin whose output happens to sit under a path containing `.claude/` is still classified correctly.
+
+**Loader guidance:**
+*   Use text imports for **small static prompt assets** that should be bundled into the compiled hook as strings.
+*   Prefer this pattern for `SessionStart` and `SubagentStart` preambles:
+    ```typescript
+    import preamble from './prompts/session-start.md';
+    import { sessionStartHook, sessionStartOutput } from '@goodfoot/agent-hooks/claude-code';
+
+    export default sessionStartHook({}, () => {
+      return sessionStartOutput({
+        hookSpecificOutput: { additionalContext: preamble }
+      });
+    });
+    ```
+*   If the project runs tests through Vitest/Vite, mirror the same loader behavior there or test-time imports can fail even when the `agent-hooks` build passes.
+
+## 2. Hook Factory Demonstration
+
+Here is a complete, working example of a `PreToolUse` hook. It uses the Factory Pattern (`preToolUseHook`) and the Output Builder (`preToolUseOutput`).
+
+**Goal:** Prevent accidental deletion of the root directory.
+
+```typescript
+// hooks/block-dangerous.ts
+import { preToolUseHook, preToolUseOutput } from '@goodfoot/agent-hooks/claude-code';
+
+// 1. Export Default is MANDATORY.
+// 2. Factory handles input typing and error wrapping.
+// 3. Matcher 'Bash' with typed overload: tool_input is automatically typed as BashToolInput!
+export default preToolUseHook({ matcher: 'Bash' }, (input, { logger }) => {
+
+  // 4. Input uses wire format (snake_case: tool_input, tool_name).
+  // 5. With typed overload, tool_input.command is typed as string - no cast needed!
+  const command = input.tool_input.command;
+
+  // 6. Logging uses the context logger, NEVER console.log or console.error.
+  logger.info('Checking command safety', { command });
+
+  if (command.includes('rm -rf /')) {
+    logger.warn('Blocked dangerous root deletion', { command });
+
+    // 7. Return structured output using the builder.
+    // 8. systemMessage is shown to the user in the UI.
+    return preToolUseOutput({
+      systemMessage: 'Safety: Dangerous root deletion command blocked.',
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: 'Safety Policy: Root deletion is forbidden.'
+      }
+    });
+  }
+
+  // 9. Default: Allow execution with a status message.
+  return preToolUseOutput({
+    systemMessage: 'Command validated by safety policy.'
+  });
+});
+```
+
+**Multi-tool hooks with type guards:**
+
+For hooks matching multiple tools (e.g., `'Write|Edit|MultiEdit'`), use type guards:
+
+```typescript
+import {
+  preToolUseHook, preToolUseOutput,
+  isWriteTool, isEditTool, getFilePath, isTsFile, checkContentForPattern
+} from '@goodfoot/agent-hooks/claude-code';
+
+export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { logger }) => {
+  const filePath = getFilePath(input);
+  if (!filePath || !isTsFile(filePath)) return preToolUseOutput({});
+
+  // Check if problematic patterns are being added
+  const result = checkContentForPattern(input, /console\.log/g);
+  if (result?.isAddition) {
+    return preToolUseOutput({
+      systemMessage: 'Code quality: console.log statements are not permitted.',
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: `Cannot add console.log: ${result.matches.join(', ')}`
+      }
+    });
+  }
+
+  return preToolUseOutput({
+    systemMessage: 'File modification approved.'
+  });
+});
+```
+
+## 3. The Golden Path: Scaffolding a New Project
+
+**Use the scaffold command when setting up new packages.** This generates a complete TypeScript project with tests, linting, and build scripts.
+
+**Scaffold Command:**
+```bash
+npx @goodfoot/agent-hooks --agent claude-code --scaffold /path/to/my-hooks --hooks Stop,SubagentStop -o ./hooks.json
+```
+
+**What you get:**
+*   `src/`: Type-safe hook implementations.
+*   `test/`: Vitest tests for your hooks.
+*   `package.json`: Configured with `build`, `test`, and `lint` scripts.
+*   `tsconfig.json` & `biome.json`: Best-practice configuration.
+
+**Next Steps:**
+1.  `cd my-hooks`
+2.  `npm install`
+3.  `npm run build` (Compiles hooks to the specified output path)
+4.  `npm test` (Runs the generated tests)
+
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PostToolBatch`, `Notification`, `UserPromptExpansion`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`, `PermissionRequest`, `Setup`, `TeammateIdle`, `TaskCreated`, `TaskCompleted`, `CwdChanged`, `FileChanged`, `MessageDisplay`
+
+**Monorepo?** Use `-o` to output directly to a plugin directory:
+```bash
+npx @goodfoot/agent-hooks --agent claude-code --scaffold ./packages/my-hooks --hooks PreToolUse,PostToolUse -o ../../plugins-antigravity/my-plugin/hooks/hooks.json
+```
+See [Installation: Scaffolding for Monorepos](reference/installation.md#11-scaffolding-for-monorepos).
+
+## 4. Output Capabilities by Hook Type
+
+Different hooks have different capabilities. This table clarifies what each hook type can do:
+
+| Hook Type | Can Block? | Can Deny? | Can Add Context? | Has Decision Field? |
+|-----------|------------|-----------|------------------|---------------------|
+| PreToolUse | No | Yes (`permissionDecision: 'deny'`) | No | No |
+| PostToolUse | No | No | Yes (`additionalContext`) | No |
+| PostToolUseFailure | No | No | Yes (`additionalContext`) | No |
+| PostToolBatch | No | No | Yes (`additionalContext`) | No |
+| Stop | Yes | N/A | No | Yes (`decision: 'block'`) |
+| SubagentStop | Yes | N/A | No | Yes (`decision: 'block'`) |
+| PermissionRequest | No | Yes (`decision.behavior: 'deny'`) | No | Yes |
+| UserPromptExpansion | No | No | Yes (`additionalContext`) | No |
+| UserPromptSubmit | No | No | Yes (`additionalContext`) | No |
+| SessionStart | No | No | Yes (`additionalContext`) | No |
+| SubagentStart | No | No | Yes (`additionalContext`) | No |
+| SessionEnd | No | No | No | No |
+| StopFailure | No | No | No | No |
+| Notification | No | No | Yes (`additionalContext`) | No |
+| PreCompact | No | No | No | No |
+| PostCompact | No | No | No | No |
+| Setup | No | No | Yes (`additionalContext`) | No |
+| TeammateIdle | Yes (`stderr`) | No | No | No |
+| TaskCreated | Yes (`stderr`) | No | No | No |
+| TaskCompleted | Yes (`stderr`) | No | No | No |
+| CwdChanged | No | No | No | No |
+| FileChanged | No | No | No | No |
+| MessageDisplay | No | No | No | No |
+
+**Key distinction**: `Stop` and `SubagentStop` hooks use `decision: 'block'`. `TeammateIdle`, `TaskCreated`, and `TaskCompleted` hooks use `stderr` for exit-code-based blocking (no Common Options) — Claude Code's hook-result parser treats any stdout that parses as valid JSON as success regardless of exit code, so this only actually blocks when nothing is written to stdout; the runtime handles that for you. `CwdChanged` and `FileChanged` hooks return `hookSpecificOutput.watchPaths` to register/update paths for `FileChanged` events. `MessageDisplay` is display-only: return `hookSpecificOutput.displayContent` to replace the on-screen delta without changing the stored message. Other hooks signal issues through `additionalContext`, `systemMessage`, or `permissionDecision`.
+
+**Fail-open advisory hooks**: pass `unexpectedError: 'continue'` in a hook's factory config to make unexpected runtime failures (a thrown handler exception, malformed output, a stdout write failure) exit `0` with an empty response instead of surfacing a failed-hook error to the user. Only use this for advisory context-enrichment hooks (`UserPromptSubmit`, `SessionStart`/`SubagentStart` nudges) — never for hooks that make permission, safety, or policy decisions, and never for `WorktreeCreate`/`WorktreeRemove` (their plain-text protocol has no safe fallback). See the `@goodfoot/agent-hooks` README's "Fail-Open Execution" section for the full contract, including the optional `onUnexpectedError(error, phase)` diagnostic callback.
+
+## 5. Common Patterns
+
+### Pattern A: Multi-Pattern Bypass Prevention (PreToolUse)
+
+Block ESLint/TypeScript disable comments and type bypasses:
+
+```typescript
+const BYPASS_PATTERNS = [
+  { pattern: /\/\/\s*eslint-disable/g, name: 'ESLint disable' },
+  { pattern: /\/\/\s*@ts-ignore/g, name: '@ts-ignore' },
+  { pattern: /\bas\s+any\b/g, name: 'as any' },
+] as const;
+
+export default preToolUseHook({ matcher: 'Write|Edit|MultiEdit' }, (input, { logger }) => {
+  const filePath = getFilePath(input);
+  if (!filePath || !isJsTsFile(filePath)) return preToolUseOutput({});
+
+  const violations: string[] = [];
+  for (const { pattern, name } of BYPASS_PATTERNS) {
+    const result = checkContentForPattern(input, pattern);
+    if (result?.isAddition) violations.push(name);
+  }
+
+  if (violations.length > 0) {
+    return preToolUseOutput({
+      systemMessage: `Code quality: ${violations.length} bypass pattern(s) blocked.`,
+      hookSpecificOutput: {
+        permissionDecision: 'deny',
+        permissionDecisionReason: `Cannot add: ${violations.join(', ')}`
+      }
+    });
+  }
+  return preToolUseOutput({
+    systemMessage: 'File passed code quality checks.'
+  });
+});
+```
+
+See [Checking Multiple Patterns](reference/input-types.md#checking-multiple-patterns) for the complete example.
+
+### Pattern B: Subprocess Validation (PostToolUse)
+
+Run TypeScript or ESLint after file changes and return errors:
+
+```typescript
+export default postToolUseHook({ matcher: 'Write|Edit|MultiEdit', timeout: 60000 }, (input, { logger }) => {
+  const filePath = getFilePath(input);
+  if (!filePath || !isTsFile(filePath)) return postToolUseOutput({});
+
+  try {
+    execSync('tsc --noEmit', { cwd: input.cwd, encoding: 'utf-8', timeout: 30000 });
+    return postToolUseOutput({
+      systemMessage: 'TypeScript validation passed.'
+    });
+  } catch (error) {
+    const stderr = (error as { stderr?: string }).stderr ?? '';
+    return postToolUseOutput({
+      systemMessage: 'TypeScript errors found. Please fix before proceeding.',
+      hookSpecificOutput: { additionalContext: `TypeScript errors:\n${stderr}` }
+    });
+  }
+});
+```
+
+See [Run Validation and Report Errors](reference/output-builders.md#goal-run-validation-and-report-errors-posttooluse) for details.
+
+### Pattern C: File-Type Filtering
+
+Standard pattern to skip non-relevant files:
+
+```typescript
+const filePath = getFilePath(input);
+if (!filePath || !isTsFile(filePath)) return preToolUseOutput({});
+```
+
+## 6. Agent Protocol: The "Forensic" Method
+
+When helping a user with hooks, you **MUST** follow this protocol:
+
+1.  **Verify the Package:** Ensure usage of `@goodfoot/agent-hooks/claude-code`.
+2.  **Enforce the Build Step:** Remind the user to run `npx ...` (or `npm run build` if scaffolded) after every edit.
+3.  **Match Asset Loaders Across Build and Test:** If a hook imports `.md`, `.txt`, or similar assets, ensure `agent-hooks --agent claude-code --loader ...` and the test runner configuration agree.
+3.  **Ban `console.log` & `console.error`:** Aggressively correct any code using `console.log` or `console.error` to use `logger`. Stdio is reserved for the protocol; direct writes cause silent failures or UI corruption.
+4.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`.
+
+## 7. Pre-Flight Checklist
+
+Before debugging hook issues, verify:
+
+- [ ] `@goodfoot/agent-hooks` is in `package.json` dependencies
+- [ ] Build script exists in `package.json` (e.g., `"build": "agent-hooks --agent claude-code -i ..."`)
+- [ ] Hooks rebuilt after last code change (`npm run build`)
+- [ ] No `console.log` or `console.error` in hook code (use `logger` instead)
+- [ ] Hook files use `export default hookFactory(...)` pattern
+
+## 8. Configuration by Setup Type
+
+**Standalone Project:**
+Add the absolute path to your `~/.claude/config.json`:
+```json
+{ "hooks": "/absolute/path/to/project/dist/hooks.json" }
+```
+
+**Claude Code Plugin (Recommended):**
+The `hooks.json` is auto-detected if placed in the plugin root.
+Build command: `npx -y @goodfoot/agent-hooks --agent claude-code -i "hooks/src/*.ts" -o "./hooks.json"`
+
+**Monorepo Project:**
+For hooks in a separate package that output to a plugin directory, see [Monorepo Integration](reference/installation.md#5-monorepo-integration). This is the recommended pattern for migrating existing hooks.
+
+## 9. Reference Links
+
+*   **[Installation & Setup](reference/installation.md)**: Setup guide (Scaffolding vs Manual).
+*   **[All 17 Hook Types](reference/output-builders.md)**: Factories, builders, and inputs.
+*   **[Tool Input Types](reference/input-types.md)**: Type guards, helpers, and typed overloads.
+*   **[Porting from Bash](reference/porting.md)**: Migration guide.
+*   **[Logging & Debugging](reference/logging.md)**: How to see what's happening.
+*   **[Environment Vars](reference/environment.md)**: `getProjectDir`, `persistEnvVar`.
+
+</instructions>

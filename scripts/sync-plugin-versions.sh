@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Propagates every registry plugin's version across its four surfaces, treating
+# Propagates every registry plugin's version across all declared surfaces, treating
 # each plugin's declared versionSurfaces.source as the source of truth. The
 # layout-checks version-lockstep test fails closed on drift; this script is what
 # fixes that drift.
@@ -50,7 +50,7 @@ write_version() {
   fi
 }
 
-while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PACKAGE PACKAGE_JSON; do
+while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PACKAGE ANTIGRAVITY_MANIFEST PACKAGE_JSON; do
   IDENTITY=$(node scripts/release-identity.mjs "$NAME" plugin) || {
     echo "$NAME: plugin release identity could not be resolved; refusing to sync." >&2
     exit 1
@@ -62,7 +62,8 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
     exit 1
   fi
   [ "$PACKAGE_JSON" = "null" ] && PACKAGE_JSON=""
-  for required in "$SOURCE" "$CODEX_MANIFEST" "$OPENCODE_PACKAGE" ${PACKAGE_JSON:+"$PACKAGE_JSON"}; do
+  [ "$ANTIGRAVITY_MANIFEST" = "null" ] && ANTIGRAVITY_MANIFEST=""
+  for required in "$SOURCE" "$CODEX_MANIFEST" "$OPENCODE_PACKAGE" ${ANTIGRAVITY_MANIFEST:+"$ANTIGRAVITY_MANIFEST"} ${PACKAGE_JSON:+"$PACKAGE_JSON"}; do
     [ -f "$required" ] || { echo "$NAME: declared surface $required does not exist" >&2; exit 1; }
   done
 
@@ -79,6 +80,11 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
 
   [ "$(jq -r '.version' "$OPENCODE_PACKAGE")" = "$VERSION" ] ||
     write_version "$OPENCODE_PACKAGE" '.version = $version' "$VERSION"
+
+  if [ -n "$ANTIGRAVITY_MANIFEST" ]; then
+    [ "$(jq -r '.version' "$ANTIGRAVITY_MANIFEST")" = "$VERSION" ] ||
+      write_version "$ANTIGRAVITY_MANIFEST" '.version = $version' "$VERSION"
+  fi
 
   # The published npm package, where a plugin ships one. agent-skills is the
   # only such plugin today, and its package version drifting from the plugin
@@ -157,7 +163,7 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
       echo "  updated $MARKETPLACE_JSON ($MARKETPLACE_NAME)"
     fi
   fi
-done < <(jq -r '.plugins[] | [.name, .marketplace.claude, .versionSurfaces.source, .versionSurfaces.codexManifest, .versionSurfaces.opencodePackage, (.versionSurfaces.packageJson // "null")] | @tsv' "$REGISTRY")
+done < <(jq -r '.plugins[] | [.name, .marketplace.claude, .versionSurfaces.source, .versionSurfaces.codexManifest, .versionSurfaces.opencodePackage, (.versionSurfaces.antigravityManifest // "null"), (.versionSurfaces.packageJson // "null")] | @tsv' "$REGISTRY")
 
 # Neither summary names a tool, and neither says whether one exists.
 #

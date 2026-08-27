@@ -1,4 +1,4 @@
-<% const pluginTree = it.platform === "claude-code" ? "plugins-claude" : it.platform === "codex" ? "plugins-codex" : "plugins-opencode"; %><instructions>
+<% const pluginTree = it.platform === "claude-code" ? "plugins-claude" : it.platform === "codex" ? "plugins-codex" : it.platform === "antigravity" ? "plugins-antigravity" : "plugins-opencode"; %><instructions>
 
 ## Quick Start: Scaffolding (Recommended)
 

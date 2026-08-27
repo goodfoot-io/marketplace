@@ -100,6 +100,7 @@ describe("registry path invariants", () => {
       plugin.versionSurfaces.source,
       plugin.versionSurfaces.codexManifest,
       plugin.versionSurfaces.opencodePackage,
+      ...(plugin.versionSurfaces.antigravityManifest ? [plugin.versionSurfaces.antigravityManifest] : []),
       ...plugin.targets.map((target) => target.path),
     ]) {
       expect(fs.existsSync(repoPath(relPath)), `${name}: ${relPath} does not exist`).toBe(true);

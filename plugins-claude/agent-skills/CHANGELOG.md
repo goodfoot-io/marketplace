@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.16
+
+Publishes all applicable authored skills through a complete, positively validated Antigravity plugin root and updates the Antigravity policy to distinguish supported skill packaging from unavailable hooks and MCP capabilities.
+
 ## 1.0.15
 
 Verifies Antigravity's plugin root, skill and agent directories, frontmatter, conventions file, and prose skill invocation against official documentation and positive `agy` processing. Adds native Antigravity subagent instructions using `invoke_subagent`, `send_message`, and `manage_subagents` while retaining explicit unavailable or provisional classifications where the host does not document an equivalent.

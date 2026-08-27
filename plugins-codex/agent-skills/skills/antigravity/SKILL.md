@@ -5,14 +5,14 @@ description: Load this skill whenever Antigravity is mentioned with
   generated output for that platform.
 ---
 
-# Antigravity boundary
+# Antigravity support
 
-Antigravity support is intentionally fail-closed. This repository does not yet have a shipped Antigravity skill tree or a complete authoritative set of host conventions. Do not infer missing behavior from Claude Code, Codex, or OpenCode.
+This repository ships Antigravity plugin roots generated from the same authored skill sources as the other platforms. Each root has an `agy`-validated `plugin.json` and at least one processed skill. Treat that validation as evidence for plugin packaging and skill discovery, not as evidence for hooks, MCP servers, or unavailable host behaviors.
 
 The current platform model may classify individual facts as `provisional` when they are grounded only in available public documentation. Provisional values must remain visibly labeled in generated reference material and diagnostics. They are not permission to claim end-to-end support.
 
 Currently provisional areas include prose skill references and invocation, the `AGENTS.md` conventions filename, and related platform identity values recorded by the package's platform table. Currently unavailable areas include subagent dispatch, canonical agent references, worktree operations, and any other helper cell the table does not define. An unavailable helper must throw at render time and identify both the helper and `antigravity`.
 
-Do not invent an Antigravity plugin-root variable, agent naming transformation, subagent operation, worktree tool, frontmatter key, directory convention, install command, or behavioral smoke test. Do not silently use a Codex or OpenCode value because it looks similar.
+Do not invent an Antigravity plugin-root variable, agent naming transformation, subagent operation, worktree tool, frontmatter key, install command, or behavioral smoke test. Do not silently use a Codex or OpenCode value because it looks similar. The verified directory convention is a complete plugin root under `plugins-antigravity/<name>` with skills under its `skills/` leaf.
 
-When a user needs an unavailable feature, state which helper or convention is unknown and treat the request as platform-contract work. The required next evidence is an authoritative host contract and a runnable validation surface; until then, Antigravity is validation-only.
+When a user needs an unavailable feature, state which helper or convention is unknown and treat the request as platform-contract work. `agy plugin validate` is the runnable packaging boundary today; behavior beyond the positively processed skill category still requires authoritative host evidence.
