@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/opencode-agent-hooks",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "private": true,
   "description": "OpenCode plugin registration for the agent-hooks skill set (claude-code, codex).",
   "type": "module",

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6
+
+Converges the Codex/OpenCode surfaces to 1.0.5 (already reached by this branch's local pre-commit hook, one bump ahead of the version this entry documents), landing 1.0.6 directly: this worktree's `core.hookspath` resolves to `/workspace/.githooks`, a separate, unmigrated checkout still running the pre-registry legacy bump script, so staging this very CHANGELOG edit triggers one more ungated bump on top of it. The card's actual fix (2bc53cc) closes this once merged and `/workspace`'s checkout picks it up; until then, each local converge commit here has to land one version ahead of its own trigger, matching the 11c0e7a technique. No functional change to the plugin itself.
+
 ## 1.0.4
 
 Backfills real entries for 1.0.1 through 1.0.3; staging that edit under `plugins/agent-hooks/` triggered the pre-commit hook's own version bump, the same hook-managed pattern already hit by a15c24a and c16383a's follow-up. No functional change.
