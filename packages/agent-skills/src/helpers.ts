@@ -123,12 +123,18 @@ export function createHelpers(platform: Platform, options: HelperFactoryOptions 
         if (opts.taskName !== undefined && !/^[a-z][a-z0-9_-]*$/.test(opts.taskName))
           invalid("subagent.dispatch", platform, `invalid taskName ${opts.taskName}`);
         const dialect = value("subagent.dispatch", platform, definition.subagents);
+        if (dialect === "antigravity") return `Delegate to the \`${type}\` subagent with \`invoke_subagent\`.`;
         if (dialect === "claude")
           return `Spawn \`${type[0]?.toUpperCase()}${type.slice(1)}\` subagents${opts.parallel ? " in parallel" : ""}${opts.background ? " with `run_in_background: true`" : ""}${opts.taskName ? ` for \`${opts.taskName}\`` : ""}`;
         return `Spawn \`${type}\` sub-agents${opts.parallel ? " in parallel" : ""} (\`spawn_agent\` with \`agent_type: ${type}\`${opts.taskName ? ` and \`task_name: ${opts.taskName}\`` : ""})`;
       },
       reengage: (opts = {}) => {
         const dialect = value("subagent.reengage", platform, definition.subagents);
+        if (dialect === "antigravity") {
+          if (opts.live === true) return "contact it with `send_message`";
+          if (opts.live === false) return "inspect its state with `manage_subagents`";
+          return "check its state with `manage_subagents`, then contact it with `send_message` if it is live";
+        }
         if (opts.live === true) return dialect === "claude" ? "wake it with a DM" : "re-engage it with `send_message`";
         if (opts.live === false)
           return dialect === "claude" ? "resume it, then wake it with a DM" : "re-engage it with `resume_agent`";
@@ -136,7 +142,12 @@ export function createHelpers(platform: Platform, options: HelperFactoryOptions 
           ? "wake it with a DM"
           : "re-engage it (`send_message` if live, `resume_agent` if completed)";
       },
-      resultChannel: (orchestrator = true) => (orchestrator ? "to me, the orchestrator" : "to `team-lead`"),
+      resultChannel: (orchestrator = true) => {
+        const recipient = orchestrator ? "to me, the orchestrator" : "to `team-lead`";
+        return value("subagent.resultChannel", platform, definition.subagents) === "antigravity"
+          ? `${recipient}${orchestrator ? "," : ""} with \`send_message\``
+          : recipient;
+      },
     },
     worktree: {
       enter: () =>

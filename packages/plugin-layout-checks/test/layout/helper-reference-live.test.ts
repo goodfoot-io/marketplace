@@ -95,15 +95,16 @@ describe("helper reference cells are well-formed", () => {
   /**
    * `logicalPaths` is the composite fact, and antigravity is the platform that
    * proves the sub-kinds carry their own statuses: `platforms.ts` marks its
-   * `skills` and `conventions` provisional while `agents`, `hooks`, and
-   * `plugin` are unavailable. The single flattened row could not say this.
+   * `skills`, `conventions`, `agents`, and `plugin` verified from official
+   * documentation and positive CLI fixtures while `hooks` remains unavailable.
+   * The single flattened row could not say this.
    */
   it.each([
-    ["skills", "provisional"],
-    ["conventions", "provisional"],
-    ["agents", "unavailable"],
+    ["skills", "verified"],
+    ["conventions", "verified"],
+    ["agents", "verified"],
     ["hooks", "unavailable"],
-    ["plugin", "unavailable"],
+    ["plugin", "verified"],
   ])("it.platformDir %s reports antigravity as %s", (kind, status) => {
     const row = model.helpers.find(
       (helper) => helper.name === "it.platformDir" && helper.description.includes(`"${kind}"`),

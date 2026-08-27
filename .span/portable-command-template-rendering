@@ -1,5 +1,5 @@
 packages/agent-skills/src/helpers.ts#L63-L74 rk64:5f6264c581de0726
-packages/agent-skills/src/platforms.ts#L36-L84 rk64:902f84519597ea12
+packages/agent-skills/src/platforms.ts#L36-L86 rk64:6e90fc5af16a9e98
 skills-src/claude-code-skill-reader/cli/SKILL.md.eta#L2-L2 rk64:a53b9b9cf6439ea9
 skills-src/jsdoczoom/cli/SKILL.md.eta#L2-L2 rk64:211ea334fec456d7
 skills-src/jsdoczoom/style/SKILL.md.eta#L2-L2 rk64:bd54fd9b18e46765

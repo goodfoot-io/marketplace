@@ -9,7 +9,7 @@ export interface PlatformDefinition {
     readonly skillSigil: PlatformFact<string>;
     readonly skillNamespace: PlatformFact<"preserve" | "strip">;
     readonly skillInvoke: PlatformFact<"tool-block" | "mention" | "prose">;
-    readonly subagents: PlatformFact<"claude" | "codex">;
+    readonly subagents: PlatformFact<"claude" | "codex" | "antigravity">;
     readonly agentNaming: PlatformFact<"colon" | "flattened">;
     readonly agentSlotSuffix: PlatformFact<"MODEL" | "EFFORT">;
     readonly worktree: PlatformFact<"tools" | "commands">;
@@ -70,7 +70,7 @@ export declare const PLATFORM_DEFINITIONS: {
         readonly skillSigil: PlatformFact<string>;
         readonly skillNamespace: PlatformFact<"strip">;
         readonly skillInvoke: PlatformFact<"prose">;
-        readonly subagents: PlatformFact<"claude" | "codex">;
+        readonly subagents: PlatformFact<"antigravity">;
         readonly agentNaming: PlatformFact<"colon" | "flattened">;
         readonly agentSlotSuffix: PlatformFact<"EFFORT" | "MODEL">;
         readonly worktree: PlatformFact<"commands" | "tools">;

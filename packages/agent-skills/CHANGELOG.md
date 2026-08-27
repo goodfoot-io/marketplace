@@ -1,5 +1,9 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.15
+
+- Verifies Antigravity's plugin root, skill and agent directories, frontmatter, conventions file, and prose skill invocation against official documentation and positive `agy` processing. Adds native Antigravity subagent instructions using `invoke_subagent`, `send_message`, and `manage_subagents` while retaining explicit unavailable or provisional classifications where the host does not document an equivalent.
+
 ## 1.0.14
 
 - Relocates the companion Claude Code plugin to `plugins-claude/agent-skills` and updates helper-reference synchronization to the new root. The compiler package and its generated Codex and OpenCode outputs retain their existing behavior.

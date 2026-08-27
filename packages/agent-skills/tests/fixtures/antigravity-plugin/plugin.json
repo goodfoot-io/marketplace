@@ -1,0 +1,5 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "agent-skills-fact-fixture",
+  "description": "Validates Antigravity platform facts"
+}

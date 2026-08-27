@@ -10,6 +10,7 @@ import {
   renderHelperReferenceMarkdown,
   renderTemplate,
 } from "../src/index.js";
+import { PLATFORM_DEFINITIONS } from "../src/platforms.js";
 
 describe("portable helper contract", () => {
   it("derives a stable helper reference from the platform table", () => {
@@ -59,7 +60,38 @@ describe("portable helper contract", () => {
     expect(createHelpers("opencode").variant({ "@codex": "shared", "claude-code": "claude", antigravity: "ag" })).toBe(
       "shared",
     );
-    expect(() => createHelpers("antigravity").subagent.dispatch("explorer")).toThrow(/subagent\.dispatch.*antigravity/);
+    expect(createHelpers("antigravity").subagent.dispatch("explorer")).toContain("invoke_subagent");
+  });
+
+  it("renders documented Antigravity subagent operations", () => {
+    const subagent = createHelpers("antigravity").subagent;
+    expect(subagent.dispatch("research", { background: true, parallel: true, taskName: "audit" })).toBe(
+      "Delegate to the `research` subagent with `invoke_subagent`.",
+    );
+    expect(subagent.reengage({ live: true })).toBe("contact it with `send_message`");
+    expect(subagent.reengage({ live: false })).toBe("inspect its state with `manage_subagents`");
+    expect(subagent.reengage()).toBe(
+      "check its state with `manage_subagents`, then contact it with `send_message` if it is live",
+    );
+    expect(subagent.resultChannel()).toBe("to me, the orchestrator, with `send_message`");
+    expect(subagent.resultChannel(false)).toBe("to `team-lead` with `send_message`");
+  });
+
+  it("publishes only positively verified Antigravity platform facts", () => {
+    const definition = PLATFORM_DEFINITIONS.antigravity;
+    expect(definition.subagents).toEqual({ status: "verified", value: "antigravity" });
+    expect(definition.skillInvoke).toEqual({ status: "verified", value: "prose" });
+    expect(definition.conventionsFile).toEqual({ status: "verified", value: "AGENTS.md" });
+    expect(definition.frontmatterKeys).toEqual({ status: "verified", value: ["name", "description"] });
+    expect(definition.logicalPaths).toMatchObject({
+      skills: { status: "verified", value: "skills" },
+      agents: { status: "verified", value: "agents" },
+      hooks: { status: "unavailable" },
+      plugin: { status: "verified", value: "." },
+      conventions: { status: "verified", value: "AGENTS.md" },
+    });
+    expect(definition.embeddedBash).toEqual({ status: "unavailable" });
+    expect(definition.pluginRootVar).toEqual({ status: "unavailable" });
   });
 
   it("emits stable validated frontmatter", () => {

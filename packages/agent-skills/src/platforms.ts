@@ -11,7 +11,7 @@ export interface PlatformDefinition {
   readonly skillSigil: PlatformFact<string>;
   readonly skillNamespace: PlatformFact<"preserve" | "strip">;
   readonly skillInvoke: PlatformFact<"tool-block" | "mention" | "prose">;
-  readonly subagents: PlatformFact<"claude" | "codex">;
+  readonly subagents: PlatformFact<"claude" | "codex" | "antigravity">;
   readonly agentNaming: PlatformFact<"colon" | "flattened">;
   readonly agentSlotSuffix: PlatformFact<"MODEL" | "EFFORT">;
   readonly worktree: PlatformFact<"tools" | "commands">;
@@ -80,24 +80,35 @@ export const PLATFORM_DEFINITIONS = {
     frontmatterKeys: verified(["name", "description"]),
   },
   antigravity: {
+    // Neither the official skills nor plugin documentation defines render-time
+    // command substitution syntax; ordinary shell execution is not equivalent.
     embeddedBash: unavailable(),
     skillSigil: provisional(""),
     skillNamespace: provisional("strip"),
-    skillInvoke: provisional("prose"),
-    subagents: unavailable(),
+    skillInvoke: verified("prose"),
+    subagents: verified("antigravity"),
+    // Native agents are invoked by name through invoke_subagent; neither
+    // supported reference spelling models that surface.
     agentNaming: unavailable(),
+    // The documented agent model field has no environment-slot suffix syntax.
     agentSlotSuffix: unavailable(),
+    // A subagent can request an isolated branch workspace, but no documented
+    // direct enter/remove pair satisfies this helper's lifecycle contract.
     worktree: unavailable(),
-    conventionsFile: provisional("AGENTS.md"),
+    conventionsFile: verified("AGENTS.md"),
+    // Official docs do not define a stable sentence injected by the host.
     hostIdentity: provisional("You are an Antigravity sub-agent"),
+    // Plugins have a root plugin.json, but no documented plugin-root variable.
     pluginRootVar: unavailable(),
     logicalPaths: {
-      skills: provisional("skills"),
-      agents: unavailable(),
+      skills: verified("skills"),
+      agents: verified("agents"),
+      // Hooks are a root hooks.json file, not a hooks directory, and agy 1.1.21
+      // reports the tested fixture as skipped rather than positively processed.
       hooks: unavailable(),
-      plugin: unavailable(),
-      conventions: provisional("AGENTS.md"),
+      plugin: verified("."),
+      conventions: verified("AGENTS.md"),
     },
-    frontmatterKeys: provisional(["name", "description"]),
+    frontmatterKeys: verified(["name", "description"]),
   },
 } as const satisfies Readonly<Record<Platform, PlatformDefinition>>;

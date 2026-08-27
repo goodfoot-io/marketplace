@@ -26,20 +26,20 @@ Do not edit the generated region by hand. Run `node plugins-claude/agent-skills/
 | it.bash | command | Render a block command for execution and output reporting. | native (verified) | unavailable (unavailable) | unavailable (unavailable) | unavailable (unavailable) |
 | it.bashInline | command | Render an inline command for execution and output reporting. | native (verified) | unavailable (unavailable) | unavailable (unavailable) | unavailable (unavailable) |
 | it.skillRef | skillId | Render a prose skill reference. | empty string (verified) | `$` (verified) | `$` (verified) | empty string (provisional) |
-| it.skillInvoke | skillId | Render a skill activation instruction. | tool-block (verified) | mention (verified) | mention (verified) | prose (provisional) |
+| it.skillInvoke | skillId | Render a skill activation instruction. | tool-block (verified) | mention (verified) | mention (verified) | prose (verified) |
 | it.agentRef | plugin:dir:file | Render a canonical agent reference. | colon (verified) | flattened (verified) | flattened (verified) | unavailable (unavailable) |
 | it.agentSlotVar | role | Render an agent model or effort slot. | MODEL (verified) | EFFORT (verified) | EFFORT (verified) | unavailable (unavailable) |
-| it.conventionsFile | none | Name the host conventions file. | CLAUDE.md (verified) | AGENTS.md (verified) | AGENTS.md (verified) | AGENTS.md (provisional) |
+| it.conventionsFile | none | Name the host conventions file. | CLAUDE.md (verified) | AGENTS.md (verified) | AGENTS.md (verified) | AGENTS.md (verified) |
 | it.hostIdentity | role? | Render the platform host identity. | empty string (verified) | You are a Codex sub-agent (verified) | You are a sub-agent running in OpenCode (verified) | You are an Antigravity sub-agent (provisional) |
 | it.pluginRootVar | none | Render the plugin-root variable. | `${CLAUDE_PLUGIN_ROOT}` (verified) | `${PLUGIN_ROOT}` (verified) | unavailable (unavailable) | unavailable (unavailable) |
-| it.platformDir | logicalPathKind | Resolve the configured "skills" path. | configured path (verified) | configured path (verified) | configured path (verified) | configured path (provisional) |
-| it.platformDir | logicalPathKind | Resolve the configured "agents" path. | configured path (verified) | configured path (verified) | configured path (verified) | unavailable (unavailable) |
+| it.platformDir | logicalPathKind | Resolve the configured "skills" path. | configured path (verified) | configured path (verified) | configured path (verified) | configured path (verified) |
+| it.platformDir | logicalPathKind | Resolve the configured "agents" path. | configured path (verified) | configured path (verified) | configured path (verified) | configured path (verified) |
 | it.platformDir | logicalPathKind | Resolve the configured "hooks" path. | configured path (verified) | configured path (verified) | configured path (verified) | unavailable (unavailable) |
-| it.platformDir | logicalPathKind | Resolve the configured "plugin" path. | configured path (verified) | configured path (verified) | configured path (verified) | unavailable (unavailable) |
-| it.platformDir | logicalPathKind | Resolve the configured "conventions" path. | configured path (verified) | configured path (verified) | configured path (verified) | configured path (provisional) |
-| it.frontmatter | object | Serialize validated stable frontmatter. | name,description,allowed-tools,argument-hint,model (verified) | name,description (verified) | name,description (verified) | name,description (provisional) |
-| it.subagent.dispatch | type, options? | Render a subagent dispatch operation. | claude (verified) | codex (verified) | codex (verified) | unavailable (unavailable) |
-| it.subagent.reengage | { live? } | Render live/completed re-engagement. | claude (verified) | codex (verified) | codex (verified) | unavailable (unavailable) |
+| it.platformDir | logicalPathKind | Resolve the configured "plugin" path. | configured path (verified) | configured path (verified) | configured path (verified) | configured path (verified) |
+| it.platformDir | logicalPathKind | Resolve the configured "conventions" path. | configured path (verified) | configured path (verified) | configured path (verified) | configured path (verified) |
+| it.frontmatter | object | Serialize validated stable frontmatter. | name,description,allowed-tools,argument-hint,model (verified) | name,description (verified) | name,description (verified) | name,description (verified) |
+| it.subagent.dispatch | type, options? | Render a subagent dispatch operation. | claude (verified) | codex (verified) | codex (verified) | antigravity (verified) |
+| it.subagent.reengage | { live? } | Render live/completed re-engagement. | claude (verified) | codex (verified) | codex (verified) | antigravity (verified) |
 | it.subagent.resultChannel | orchestrator? | Render the result recipient. | claude-code (verified) | codex (verified) | opencode (verified) | antigravity (verified) |
 | it.worktree.enter | none | Render worktree entry. | tools (verified) | commands (verified) | commands (verified) | unavailable (unavailable) |
 | it.worktree.remove | none | Render worktree removal. | tools (verified) | commands (verified) | commands (verified) | unavailable (unavailable) |

@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.15
+
+Verifies Antigravity's plugin root, skill and agent directories, frontmatter, conventions file, and prose skill invocation against official documentation and positive `agy` processing. Adds native Antigravity subagent instructions using `invoke_subagent`, `send_message`, and `manage_subagents` while retaining explicit unavailable or provisional classifications where the host does not document an equivalent.
+
 ## 1.0.14
 
 Relocates the Claude Code plugin to `plugins-claude/agent-skills` and updates its registry, marketplace, and helper-reference synchronization paths. The generated Codex and OpenCode trees remain at their existing roots with unchanged behavior.
