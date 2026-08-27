@@ -170,6 +170,8 @@ export function validateReleaseIdentities(registry: Pick<Registry, "plugins">, r
       throw new Error(`registry: ${plugin.name} is missing releaseIdentity.plugin`);
     }
     const pluginIdentity = declaration.plugin;
+    validateMeaningfulReleaseString(plugin.name, "plugin.identity", pluginIdentity.identity);
+    validateMeaningfulReleaseString(plugin.name, "plugin.label", pluginIdentity.label);
     if (pluginIdentity.identity !== plugin.name) {
       throw new Error(
         `registry: ${plugin.name} releaseIdentity.plugin.identity declares ${pluginIdentity.identity}; observed plugin name ${plugin.name}`,
@@ -179,6 +181,18 @@ export function validateReleaseIdentities(registry: Pick<Registry, "plugins">, r
       throw new Error(
         `registry: ${plugin.name} releaseIdentity.plugin.versionSource declares ${pluginIdentity.versionSource}; ` +
           `versionSurfaces.source declares ${plugin.versionSurfaces.source}`,
+      );
+    }
+    if (pluginIdentity.historySource !== "manifest-git-history") {
+      throw new Error(
+        `registry: ${plugin.name} releaseIdentity.plugin.historySource declares ${pluginIdentity.historySource}; ` +
+          "expected manifest-git-history",
+      );
+    }
+    if (pluginIdentity.authoritativeRoot !== plugin.claudePluginRoot) {
+      throw new Error(
+        `registry: ${plugin.name} releaseIdentity.plugin.authoritativeRoot declares ${pluginIdentity.authoritativeRoot}; ` +
+          `expected owning plugin root ${plugin.claudePluginRoot} for ${pluginIdentity.versionSource}`,
       );
     }
     validateReleasePath(plugin.name, "plugin.versionSource", pluginIdentity.versionSource, repoRoot, "file");
@@ -214,6 +228,18 @@ export function validateReleaseIdentities(registry: Pick<Registry, "plugins">, r
       continue;
     }
     if (!npm) throw new Error(`registry: ${plugin.name} is missing explicit releaseIdentity.npm (object or null)`);
+    validateMeaningfulReleaseString(plugin.name, "npm.identity", npm.identity);
+    validateMeaningfulReleaseString(plugin.name, "npm.label", npm.label);
+    if (npm.historySource !== "legacy-npm-tags") {
+      throw new Error(
+        `registry: ${plugin.name} releaseIdentity.npm.historySource declares ${npm.historySource}; expected legacy-npm-tags`,
+      );
+    }
+    if (npm.relationship !== "independent" && npm.relationship !== "lockstep") {
+      throw new Error(
+        `registry: ${plugin.name} releaseIdentity.npm.relationship must be independent or lockstep; received ${npm.relationship}`,
+      );
+    }
     if (!collisionExists) {
       throw new Error(
         `registry: ${plugin.name} declares npm package ${npm.packageJson}; observed no same-name package at ${collision}`,
@@ -222,6 +248,13 @@ export function validateReleaseIdentities(registry: Pick<Registry, "plugins">, r
     if (npm.packageJson !== collision) {
       throw new Error(
         `registry: ${plugin.name} npm packageJson declares ${npm.packageJson}; observed same-name package ${collision}`,
+      );
+    }
+    const expectedNpmRoot = path.posix.dirname(npm.packageJson);
+    if (npm.authoritativeRoot !== expectedNpmRoot) {
+      throw new Error(
+        `registry: ${plugin.name} releaseIdentity.npm.authoritativeRoot declares ${npm.authoritativeRoot}; ` +
+          `expected package root ${expectedNpmRoot} for ${npm.packageJson}`,
       );
     }
     validateReleasePath(plugin.name, "npm.packageJson", npm.packageJson, repoRoot, "file");
@@ -258,6 +291,12 @@ export function validateReleaseIdentities(registry: Pick<Registry, "plugins">, r
         `registry: ${plugin.name} versionSurfaces.packageJson declares ${plugin.versionSurfaces.packageJson} for an independent npm release`,
       );
     }
+  }
+}
+
+function validateMeaningfulReleaseString(pluginName: string, field: string, value: unknown): asserts value is string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`registry: ${pluginName} releaseIdentity.${field} must be a nonempty meaningful string`);
   }
 }
 

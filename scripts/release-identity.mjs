@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,6 +27,15 @@ import { fileURLToPath } from "node:url";
  * @property {string} authoritativeRoot Filesystem root from which consumers discover changelogs.
  * @property {ReleaseRelationship | null} relationship Null when the plugin has no npm sibling.
  * @property {string | null} legacyTagPrefix Npm-owned bare tag prefix; null for plugin history.
+ */
+
+/**
+ * @typedef {object} PluginReleaseSequence
+ * @property {string} pluginName
+ * @property {"plugin"} surface
+ * @property {"manifest-git-history"} historySource
+ * @property {string} versionSource
+ * @property {string[]} versions Oldest to newest, de-duplicated and bounded by the current version.
  */
 
 /**
@@ -70,6 +80,57 @@ export function resolveReleaseIdentity(_request) {
 }
 
 /**
+ * Read the selected plugin's release sequence from its manifest's Git history.
+ * Npm tag history is deliberately not a fallback.
+ *
+ * @param {ReleaseIdentityRequest} request
+ * @returns {PluginReleaseSequence}
+ */
+export function pluginReleaseSequence(request) {
+	if (request?.surface !== "plugin") {
+		throw new Error('release-identity: plugin release sequence requires the explicit "plugin" surface');
+	}
+	const identity = resolveReleaseIdentity(request);
+	const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+	let shallow;
+	try {
+		shallow = git(repoRoot, ["rev-parse", "--is-shallow-repository"]).trim();
+	} catch (error) {
+		throw historyError(identity, `could not determine checkout depth: ${errorMessage(error)}`);
+	}
+	if (shallow !== "false") {
+		throw historyError(identity, `checkout history is ${shallow === "true" ? "shallow" : "of unknown depth"}`);
+	}
+
+	try {
+		const commits = git(repoRoot, ["log", "--reverse", "--format=%H", "--", identity.versionSource])
+			.split("\n")
+			.filter((commit) => commit.length > 0);
+		if (commits.length === 0) throw new Error("Git returned no commits for the version source");
+		const versions = [];
+		const seen = new Set();
+		for (const commit of commits) {
+			const manifest = JSON.parse(git(repoRoot, ["show", `${commit}:${identity.versionSource}`]));
+			if (typeof manifest.version !== "string") continue;
+			if (compareVersions(manifest.version, identity.currentVersion) <= 0 && !seen.has(manifest.version)) {
+				seen.add(manifest.version);
+				versions.push(manifest.version);
+			}
+		}
+		if (!seen.has(identity.currentVersion)) versions.push(identity.currentVersion);
+		return {
+			pluginName: identity.pluginName,
+			surface: "plugin",
+			historySource: "manifest-git-history",
+			versionSource: identity.versionSource,
+			versions,
+		};
+	} catch (error) {
+		throw historyError(identity, errorMessage(error));
+	}
+}
+
+/**
  * Fail-closed validation shared by the resolver and its fixture checks.
  * @param {{ plugins?: unknown }} registry
  * @param {string} repoRoot
@@ -84,6 +145,8 @@ export function validateReleaseIdentityRegistry(registry, repoRoot) {
 		const declaration = plugin.releaseIdentity;
 		if (!declaration?.plugin) throw new Error(`release-identity: ${plugin.name} is missing releaseIdentity.plugin`);
 		const pluginIdentity = declaration.plugin;
+		assertMeaningful(plugin.name, "plugin.identity", pluginIdentity.identity);
+		assertMeaningful(plugin.name, "plugin.label", pluginIdentity.label);
 		if (pluginIdentity.identity !== plugin.name) {
 			throw new Error(
 				`release-identity: ${plugin.name} plugin identity declares ${String(pluginIdentity.identity)}; observed ${plugin.name}`,
@@ -93,6 +156,18 @@ export function validateReleaseIdentityRegistry(registry, repoRoot) {
 			throw new Error(
 				`release-identity: ${plugin.name} plugin versionSource ${String(pluginIdentity.versionSource)} contradicts ` +
 					`versionSurfaces.source ${String(plugin.versionSurfaces?.source)}`,
+			);
+		}
+		if (pluginIdentity.historySource !== "manifest-git-history") {
+			throw new Error(
+				`release-identity: ${plugin.name} plugin.historySource declares ${String(pluginIdentity.historySource)}; ` +
+					"expected manifest-git-history",
+			);
+		}
+		if (pluginIdentity.authoritativeRoot !== plugin.claudePluginRoot) {
+			throw new Error(
+				`release-identity: ${plugin.name} plugin.authoritativeRoot declares ${String(pluginIdentity.authoritativeRoot)}; ` +
+					`expected owning plugin root ${String(plugin.claudePluginRoot)} for ${pluginIdentity.versionSource}`,
 			);
 		}
 		assertPath(repoRoot, plugin.name, "plugin.versionSource", pluginIdentity.versionSource, "file");
@@ -122,9 +197,28 @@ export function validateReleaseIdentityRegistry(registry, repoRoot) {
 			continue;
 		}
 		if (!npm) throw new Error(`release-identity: ${plugin.name} must declare releaseIdentity.npm as an object or null`);
+		assertMeaningful(plugin.name, "npm.identity", npm.identity);
+		assertMeaningful(plugin.name, "npm.label", npm.label);
+		if (npm.historySource !== "legacy-npm-tags") {
+			throw new Error(
+				`release-identity: ${plugin.name} npm.historySource declares ${String(npm.historySource)}; expected legacy-npm-tags`,
+			);
+		}
+		if (npm.relationship !== "independent" && npm.relationship !== "lockstep") {
+			throw new Error(
+				`release-identity: ${plugin.name} npm.relationship must be independent or lockstep; received ${String(npm.relationship)}`,
+			);
+		}
 		if (!collisionExists || npm.packageJson !== collision) {
 			throw new Error(
 				`release-identity: ${plugin.name} npm packageJson declares ${String(npm.packageJson)}; observed same-name package ${collision}`,
+			);
+		}
+		const expectedNpmRoot = path.posix.dirname(npm.packageJson);
+		if (npm.authoritativeRoot !== expectedNpmRoot) {
+			throw new Error(
+				`release-identity: ${plugin.name} npm.authoritativeRoot declares ${String(npm.authoritativeRoot)}; ` +
+					`expected package root ${expectedNpmRoot} for ${npm.packageJson}`,
 			);
 		}
 		assertPath(repoRoot, plugin.name, "npm.packageJson", npm.packageJson, "file");
@@ -166,6 +260,37 @@ export function validateReleaseIdentityRegistry(registry, repoRoot) {
 	}
 }
 
+function assertMeaningful(pluginName, field, value) {
+	if (typeof value !== "string" || value.trim().length === 0) {
+		throw new Error(`release-identity: ${pluginName} ${field} must be a nonempty meaningful string`);
+	}
+}
+
+function git(repoRoot, args) {
+	return execFileSync("git", args, { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+}
+
+function compareVersions(a, b) {
+	const left = a.split(".").map((part) => Number.parseInt(part, 10));
+	const right = b.split(".").map((part) => Number.parseInt(part, 10));
+	for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+		const difference = (left[index] ?? 0) - (right[index] ?? 0);
+		if (difference !== 0) return difference;
+	}
+	return 0;
+}
+
+function historyError(identity, detail) {
+	return new Error(
+		`release-identity: could not read ${identity.label} history at ${identity.versionSource}: ${detail}. ` +
+			"A history that cannot be read is not an empty release sequence; refusing.",
+	);
+}
+
+function errorMessage(error) {
+	return error instanceof Error ? error.message.trim() : String(error);
+}
+
 function assertPath(repoRoot, pluginName, field, declared, kind) {
 	if (typeof declared !== "string" || declared.length === 0) {
 		throw new Error(`release-identity: ${pluginName} ${field} is missing`);
@@ -196,12 +321,15 @@ function readManifest(repoRoot, pluginName, declared) {
 }
 
 function usage() {
-	return "usage: node scripts/release-identity.mjs <plugin-name> <plugin|npm>";
+	return (
+		"usage: node scripts/release-identity.mjs <plugin-name> <plugin|npm> [--sequence]\n" +
+		"       --sequence reads plugin versions only from full manifest Git history (never npm tags)"
+	);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-	const [pluginName, surface, ...extra] = process.argv.slice(2);
-	if (!pluginName || !surface || extra.length > 0) {
+	const [pluginName, surface, option, ...extra] = process.argv.slice(2);
+	if (!pluginName || !surface || extra.length > 0 || (option !== undefined && option !== "--sequence")) {
 		process.stderr.write(`${usage()}\n`);
 		process.exitCode = 2;
 	} else if (surface !== "plugin" && surface !== "npm") {
@@ -210,7 +338,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 		process.exitCode = 2;
 	} else {
 		try {
-			const resolved = resolveReleaseIdentity({ pluginName, surface });
+			const request = { pluginName, surface };
+			const resolved = option === "--sequence" ? pluginReleaseSequence(request) : resolveReleaseIdentity(request);
 			process.stdout.write(`${JSON.stringify(resolved)}\n`);
 		} catch (error) {
 			process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);

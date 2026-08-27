@@ -418,6 +418,40 @@ describe("registry unreadable", () => {
  * the gate; it was simply never told the file existed.
  */
 describe("changelog gate follows the files, not the declaration", () => {
+  it("returns the same classified worklist from nested checkout directories", () => {
+    const root = makeFixture();
+    const args = ["plugin-release", "demo"];
+    const fromRoot = run(root, "node", ["scripts/changelog-surfaces.mjs", ...args]);
+    const fromPackages = run(path.join(root, "packages"), "node", ["../scripts/changelog-surfaces.mjs", ...args]);
+    const fromPackage = run(path.join(root, "packages/plugin-layout-checks"), "node", [
+      path.join(root, "scripts/changelog-surfaces.mjs"),
+      ...args,
+    ]);
+
+    expect(fromPackages).toBe(fromRoot);
+    expect(fromPackage).toBe(fromRoot);
+  });
+
+  it.each([
+    ["missing", null],
+    ["invalid", "not json\n"],
+  ])("fails closed with an actionable %s registry diagnostic", (_case, replacement) => {
+    const root = makeFixture();
+    const registry = path.join(root, "packages/plugin-layout-checks/registry/plugins.json");
+    if (replacement === null) fs.rmSync(registry);
+    else fs.writeFileSync(registry, replacement);
+
+    const result = spawnSync("node", [path.join(root, "scripts/changelog-surfaces.mjs"), "plugin-release", "demo"], {
+      cwd: path.join(root, "packages"),
+      encoding: "utf8",
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("changelog-surfaces: could not read registry at");
+    expect(result.stderr).toContain("packages/plugin-layout-checks/registry/plugins.json");
+  });
+
   it("includes lockstep npm notes but excludes independent npm notes", () => {
     const root = makeFixture();
     const surfaces = () =>
