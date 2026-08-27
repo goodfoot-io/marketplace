@@ -231,7 +231,7 @@ describe("plugin manifest history sequence", () => {
     expect(result.status).toBe(0);
     const sequence = JSON.parse(result.stdout) as { versions: string[]; historySource: string };
     expect(sequence.historySource).toBe("manifest-git-history");
-    expect(sequence.versions.at(-1)).toBe("1.0.77");
+    expect(sequence.versions.at(-1)).toBe("1.0.78");
   });
 
   it("excludes a dirty working-tree bump", () => {

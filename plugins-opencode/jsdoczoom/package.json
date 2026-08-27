@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/opencode-jsdoczoom",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "private": true,
   "description": "OpenCode plugin registration for the jsdoczoom skill set (style, cli).",
   "type": "module",
