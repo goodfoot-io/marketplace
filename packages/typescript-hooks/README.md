@@ -48,7 +48,7 @@ yarn install
 yarn build
 ```
 
-This compiles the hooks to `../../plugins/typescript-hooks/hooks/hooks.json`.
+This compiles the hooks to `../../plugins-claude/typescript-hooks/hooks/hooks.json`.
 
 ### Run Tests
 
@@ -79,7 +79,7 @@ packages/typescript-hooks/
 
 ## Plugin Integration
 
-The compiled hooks are output to `plugins/typescript-hooks/hooks/hooks.json`, which is auto-detected by Claude Code when the plugin is enabled.
+The compiled hooks are output to `plugins-claude/typescript-hooks/hooks/hooks.json`, which is auto-detected by Claude Code when the plugin is enabled.
 
 ## Configuration
 

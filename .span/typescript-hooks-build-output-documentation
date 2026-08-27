@@ -1,0 +1,7 @@
+packages/typescript-hooks/CLAUDE.md#L1-L3 rk64:4dd26a45df5bd75b
+packages/typescript-hooks/README.md#L45-L51 rk64:0ae74b3bf51c1bb2
+packages/typescript-hooks/README.md#L80-L82 rk64:f0c37066990d0992
+packages/typescript-hooks/package.json#L5-L7 rk64:db77d1ec16ce6304
+plugins-claude/typescript-hooks/README.md#L108-L116 rk64:5aa7f8ce6f10afc3
+
+The package build script is authoritative for the committed TypeScript Hooks manifest location, and the package guidance plus plugin README independently publish that output path; no documentation check derives these paths from the script.

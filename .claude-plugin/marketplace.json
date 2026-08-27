@@ -34,7 +34,7 @@
     {
       "name": "typescript-hooks",
       "version": "0.1.20",
-      "source": "./plugins/typescript-hooks",
+      "source": "./plugins-claude/typescript-hooks",
       "tags": [
         "typescript",
         "eslint",

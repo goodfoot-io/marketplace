@@ -55,7 +55,7 @@ This plugin provides two hooks that run automatically during Write/Edit/MultiEdi
 {
   "plugins": [
     {
-      "source": "file:///workspace/plugins/typescript-hooks",
+      "source": "file:///workspace/plugins-claude/typescript-hooks",
       "enabled": true
     }
   ]
@@ -94,7 +94,7 @@ packages/typescript-hooks/           # Source package
 │   └── *.test.ts                    # Unit tests
 └── package.json
 
-plugins/typescript-hooks/            # Plugin directory
+plugins-claude/typescript-hooks/     # Plugin directory
 ├── .claude-plugin/
 │   └── plugin.json                  # Plugin manifest
 ├── hooks/
@@ -113,7 +113,7 @@ yarn install
 yarn build
 ```
 
-This compiles the hooks and outputs to `plugins/typescript-hooks/hooks/hooks.json`.
+This compiles the hooks and outputs to `plugins-claude/typescript-hooks/hooks/hooks.json`.
 
 ### Running Tests
 
