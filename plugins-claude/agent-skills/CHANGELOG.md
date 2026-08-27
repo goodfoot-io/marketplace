@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.14
+
+Relocates the Claude Code plugin to `plugins-claude/agent-skills` and updates its registry, marketplace, and helper-reference synchronization paths. The generated Codex and OpenCode trees remain at their existing roots with unchanged behavior.
+
 ## 1.0.13
 
 Adds portable block and inline embedded-Bash helpers backed by an explicit platform capability fact. Claude Code renders native execution syntax, while platforms without verified support receive deterministic instructions, and the generated helper reference now publishes the capability boundary.

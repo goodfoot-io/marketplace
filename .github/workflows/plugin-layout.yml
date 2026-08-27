@@ -60,12 +60,12 @@ jobs:
 
       # Both literals here stay goodfoot-scoped. ./skills is the shared OpenCode
       # root that no migrated plugin targets, and ./plugins/agent-skills is the
-      # companion plugin's own path, which does not move.
+      # companion plugin's own Claude path.
       - name: Validate Claude skills tree (strict)
         run: |
           yarn claude --version
           yarn claude plugin validate ./skills --strict
-          yarn claude plugin validate ./plugins/agent-skills --strict
+          yarn claude plugin validate ./plugins-claude/agent-skills --strict
 
       - name: Validate Claude plugin roots
         run: |

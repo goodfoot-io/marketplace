@@ -14,7 +14,7 @@ lintSuppressions:
 
 This file is shared by the `agent-skills` documentation skills. Its generated region is rendered from the `@goodfoot/agent-skills` typed platform table without changing hand-authored guidance.
 
-Do not edit the generated region by hand. Run `node plugins/agent-skills/scripts/sync-helper-reference.mjs` after changing the core helper-reference model, or pass `--check` to verify freshness without writing.
+Do not edit the generated region by hand. Run `node plugins-claude/agent-skills/scripts/sync-helper-reference.mjs` after changing the core helper-reference model, or pass `--check` to verify freshness without writing.
 
 <!-- BEGIN GENERATED AGENT-SKILLS HELPER REFERENCE -->
 

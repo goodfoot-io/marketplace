@@ -391,17 +391,17 @@
     {
       "name": "agent-skills",
       "releaseIdentity": {
-        "plugin": { "identity": "agent-skills", "label": "agent-skills plugin", "versionSource": "plugins/agent-skills/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/agent-skills" },
+        "plugin": { "identity": "agent-skills", "label": "agent-skills plugin", "versionSource": "plugins-claude/agent-skills/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins-claude/agent-skills" },
         "npm": { "identity": "@goodfoot/agent-skills", "label": "@goodfoot/agent-skills npm package", "packageJson": "packages/agent-skills/package.json", "historySource": "legacy-npm-tags", "authoritativeRoot": "packages/agent-skills", "relationship": "lockstep", "legacyTagPrefix": "agent-skills-v" }
       },
       "skillsSrc": "skills-src/agent-skills",
-      "claudePluginRoot": "plugins/agent-skills",
+      "claudePluginRoot": "plugins-claude/agent-skills",
       "codexPluginRoot": "plugins-codex/agent-skills",
       "opencodePluginRoot": "plugins-opencode/agent-skills",
       "targets": [
         {
           "platform": "claude-code",
-          "path": "plugins/agent-skills/skills"
+          "path": "plugins-claude/agent-skills/skills"
         },
         {
           "platform": "codex",
@@ -414,7 +414,23 @@
           "note": "The two helper-reference links render as repo-relative literals here, since pluginRootVar is unavailable on OpenCode (per plan section C3)."
         }
       ],
-      "platformDirs": [],
+      "platformDirs": [
+        "claude-code:skills=plugins-claude/agent-skills/skills",
+        "claude-code:agents=plugins-claude/agent-skills/agents",
+        "claude-code:hooks=plugins-claude/agent-skills/hooks",
+        "claude-code:plugin=plugins-claude/agent-skills",
+        "claude-code:conventions=CLAUDE.md",
+        "codex:skills=plugins-codex/agent-skills/skills",
+        "codex:agents=plugins-codex/agent-skills/agents",
+        "codex:hooks=plugins-codex/agent-skills/hooks",
+        "codex:plugin=plugins-codex/agent-skills",
+        "codex:conventions=AGENTS.md",
+        "opencode:skills=plugins-opencode/agent-skills/skills",
+        "opencode:agents=plugins-opencode/agent-skills/agents",
+        "opencode:hooks=plugins-opencode/agent-skills/hooks",
+        "opencode:plugin=plugins-opencode/agent-skills",
+        "opencode:conventions=AGENTS.md"
+      ],
       "skills": ["antigravity", "cli-and-helpers", "platform-behavior", "reference", "template-authoring"],
       "skillPlatforms": {},
       "marketplace": {
@@ -422,7 +438,7 @@
         "codex": "agent-skills"
       },
       "versionSurfaces": {
-        "source": "plugins/agent-skills/.claude-plugin/plugin.json",
+        "source": "plugins-claude/agent-skills/.claude-plugin/plugin.json",
         "codexManifest": "plugins-codex/agent-skills/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/agent-skills/package.json",
         "packageJson": "packages/agent-skills/package.json",

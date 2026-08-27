@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { renderHelperReferenceMarkdown } from "@goodfoot/agent-skills/helper-reference";
 
-// The source template, not the generated tree. `plugins/agent-skills/skills/`
+// The source template, not the generated tree. `plugins-claude/agent-skills/skills/`
 // is agent-skills bundler output, and the build swaps that whole directory: a
 // splice into it is discarded by the next build, while a splice after a build
 // mutates generated output and reads as drift. Splicing into the template

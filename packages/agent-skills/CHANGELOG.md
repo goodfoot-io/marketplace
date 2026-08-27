@@ -1,5 +1,9 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.14
+
+- Relocates the companion Claude Code plugin to `plugins-claude/agent-skills` and updates helper-reference synchronization to the new root. The compiler package and its generated Codex and OpenCode outputs retain their existing behavior.
+
 ## 1.0.13
 
 - Adds portable block and inline embedded-Bash helpers backed by an explicit platform capability fact. Claude Code renders native execution syntax, while platforms without verified support receive deterministic instructions, and the generated helper reference now publishes the capability boundary.

@@ -117,11 +117,15 @@ const HELPER_TABLE_END = "<!-- END GENERATED AGENT-SKILLS HELPER REFERENCE -->";
  * byte-identical to the pre-migration blob.
  */
 const helperReferenceTable = (body: string) => {
-  const begin = body.indexOf(HELPER_TABLE_BEGIN);
-  const end = body.indexOf(HELPER_TABLE_END);
+  const relocated = body.replace(
+    "plugins/agent-skills/scripts/sync-helper-reference.mjs",
+    "plugins-claude/agent-skills/scripts/sync-helper-reference.mjs",
+  );
+  const begin = relocated.indexOf(HELPER_TABLE_BEGIN);
+  const end = relocated.indexOf(HELPER_TABLE_END);
   if (begin < 0 || end <= begin) throw new Error("pinned helper reference has no generated-region markers");
-  const head = body.slice(0, begin + HELPER_TABLE_BEGIN.length);
-  return `${head}\n\n${renderHelperReferenceMarkdown()}\n${body.slice(end)}`;
+  const head = relocated.slice(0, begin + HELPER_TABLE_BEGIN.length);
+  return `${head}\n\n${renderHelperReferenceMarkdown()}\n${relocated.slice(end)}`;
 };
 
 /**
