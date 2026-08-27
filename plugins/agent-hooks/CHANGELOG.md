@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4
+
+Backfills real entries for 1.0.1 through 1.0.3; staging that edit under `plugins/agent-hooks/` triggered the pre-commit hook's own version bump, the same hook-managed pattern already hit by a15c24a and c16383a's follow-up. No functional change.
+
 ## 1.0.3
 
 Migrated onto the `agent-skills` bundler. The per-agent skills are now rendered from Eta templates under `skills-src/agent-hooks/` into the Claude Code, Codex, and OpenCode trees, so the three platform copies are generated from one source instead of maintained separately.
