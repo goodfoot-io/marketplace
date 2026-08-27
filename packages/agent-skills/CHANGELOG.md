@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.12
+
+- `agent-skills --version` now reports the version the package actually shipped. The number was hand-maintained in `src/cli.ts` and had fallen behind the published one, so the first thing anyone checks when a build behaves unexpectedly was answering for a release that did not exist.
+- The version in `package.json` is propagated from the companion plugin's manifest by the same mechanism that moves every other release surface, rather than being corrected by hand one commit later.
+- This CHANGELOG is now a release surface in its own right: a bump that leaves it without an entry is refused rather than published, so a version you install always has notes describing it.
+
 ## 1.0.11
 
 - Aligns every release surface after this commit's own hook-managed bump.

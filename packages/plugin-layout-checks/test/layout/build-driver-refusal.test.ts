@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { git, repoPath } from "../helpers.js";
-import { REGISTRY } from "../registry.js";
+import { type Platform, REGISTRY } from "../registry.js";
 
 /**
  * The allow-list and the untracked-content refusal, exercised through the
@@ -40,11 +40,11 @@ function runDriverWith(registry: unknown): { status: number | null; stderr: stri
 }
 
 /** The real registry with one plugin's targets replaced, everything else intact. */
-function registryWithTarget(pluginName: string, targetPath: string): unknown {
+function registryWithTarget(pluginName: string, targetPath: string, platform: Platform = "claude-code"): unknown {
   const clone = JSON.parse(JSON.stringify(REGISTRY)) as typeof REGISTRY;
   const plugin = clone.plugins.find((candidate) => candidate.name === pluginName);
   if (!plugin) throw new Error(`unreachable: ${pluginName}`);
-  plugin.targets = [{ platform: "claude-code", path: targetPath }];
+  plugin.targets = [{ platform, path: targetPath }];
   clone.plugins = [plugin];
   return clone;
 }
@@ -84,6 +84,36 @@ describe("build driver target allow-list", () => {
       encoding: "utf8",
     });
     expect(result.status, result.stderr ?? "").toBe(0);
+  });
+});
+
+describe("build driver empty-tree refusal", () => {
+  /**
+   * A target no skill renders into publishes a directory with nothing in it,
+   * and git cannot store one. `git status` stays clean, the layout suite passes
+   * on any machine that has run a build, and a fresh checkout fails on trees
+   * that were never in the commit. Voice's Codex and OpenCode targets sat in
+   * the registry like that through two review rounds precisely because every
+   * measurement was taken after a build.
+   *
+   * The refusal is declared against skillPlatforms rather than discovered from
+   * the filesystem, so the empty tree is never created in the first place.
+   */
+  it.each([
+    ["codex", "plugins-codex/voice/skills"],
+    ["opencode", "plugins-opencode/voice/skills"],
+  ] as [Platform, string][])("refuses a %s target no skill renders to", (platform, targetPath) => {
+    const { status, stderr } = runDriverWith(registryWithTarget("voice", targetPath, platform));
+    expect(status, stderr).not.toBe(0);
+    expect(stderr).toContain("would publish an empty directory");
+    expect(stderr).toContain(`No skill renders to ${platform}`);
+  });
+
+  // Without this the guard could refuse every target and the two refusals above
+  // would still pass. voice/handbook does render to claude-code.
+  it("permits a target its skills do render to", () => {
+    const { status, stderr } = runDriverWith(registryWithTarget("voice", "plugins/voice/skills", "claude-code"));
+    expect(status, stderr).toBe(0);
   });
 });
 

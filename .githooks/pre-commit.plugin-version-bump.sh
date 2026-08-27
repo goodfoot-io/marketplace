@@ -19,14 +19,24 @@ REGISTRY="packages/plugin-layout-checks/registry/plugins.json"
 HAVE_JQ=false
 command -v jq &> /dev/null && HAVE_JQ=true
 
-bump_patch() {
-    # bump_patch <file>; echoes the new version, or nothing when unparseable
-    local file="$1"
-    local current
+next_version() {
+    # next_version <file>; echoes the patch bump without writing it, so the
+    # changelog gate below can name the exact version an author must document
+    # before anything on disk has moved.
+    local file="$1" current major minor patch
     current=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$file" | head -1 | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
     [ -z "$current" ] && return 1
     IFS='.' read -r major minor patch <<< "$current"
-    local next="${major}.${minor}.$((patch + 1))"
+    echo "${major}.${minor}.$((patch + 1))"
+}
+
+bump_patch() {
+    # bump_patch <file>; echoes the new version, or nothing when unparseable
+    local file="$1"
+    local current next
+    current=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$file" | head -1 | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
+    [ -z "$current" ] && return 1
+    next=$(next_version "$file")
     if [[ "$OSTYPE" == "darwin"* ]]; then
         sed -i '' "0,/\"version\"[[:space:]]*:[[:space:]]*\"${current}\"/s//\"version\": \"${next}\"/" "$file"
     else
@@ -36,6 +46,7 @@ bump_patch() {
 }
 
 declare -A PROCESSED_PLUGINS
+PENDING_BUMPS=()
 CLAUDE_PLUGINS_BUMPED=0
 REGISTRY_PLUGIN_BUMPED=0
 
@@ -50,11 +61,13 @@ if [ "$HAVE_JQ" = true ] && [ -f "$REGISTRY" ]; then
              (.versionSurfaces.packageJson // empty | sub("/[^/]+$"; ""))] | .[]' "$REGISTRY")
 
         # Version surfaces are what this hook writes. Counting them as changes
-        # would make every commit it touches justify the next one.
+        # would make every commit it touches justify the next one — and for the
+        # changelogs, which the hook only reads, a commit that adds the notes
+        # for a release would demand notes for the release after it.
         mapfile -t SURFACES < <(jq -r --arg name "$NAME" '
             .plugins[] | select(.name == $name) | .versionSurfaces |
             [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
-             (.literals // [] | .[].path)] | .[]' "$REGISTRY")
+             (.literals // [] | .[].path), (.changelogs // [] | .[].path)] | .[]' "$REGISTRY")
 
         TOUCHED=0
         while IFS= read -r file; do
@@ -70,15 +83,40 @@ if [ "$HAVE_JQ" = true ] && [ -f "$REGISTRY" ]; then
         [ "$TOUCHED" -eq 0 ] && continue
         [ -f "$SOURCE" ] || { echo "Warning: $SOURCE not found, skipping version bump for $NAME"; continue; }
 
-        NEW_VERSION=$(bump_patch "$SOURCE") || {
+        NEXT=$(next_version "$SOURCE") || {
             echo "Warning: Could not parse version from $SOURCE, skipping"
             continue
         }
+        PENDING_BUMPS+=("${NAME}"$'\t'"${SOURCE}"$'\t'"${NEXT}")
+    done < <(jq -r '.plugins[] | [.name, .versionSurfaces.source] | @tsv' "$REGISTRY")
+
+    # Gate every pending bump before performing any of them. A release whose
+    # notes are missing is refused with nothing written, so the author fixes the
+    # CHANGELOG and re-commits rather than finding half the surfaces already
+    # advanced by the run that rejected them.
+    for pending in "${PENDING_BUMPS[@]}"; do
+        IFS=$'\t' read -r NAME SOURCE NEXT <<< "$pending"
+        CHANGELOG_COUNT=$(jq -r --arg name "$NAME" '.plugins[] | select(.name == $name) | .versionSurfaces.changelogs // [] | length' "$REGISTRY")
+        CHANGELOG_INDEX=0
+        while [ "$CHANGELOG_INDEX" -lt "$CHANGELOG_COUNT" ]; do
+            CHANGELOG_PATH=$(jq -r --arg name "$NAME" '.plugins[] | select(.name == $name) | .versionSurfaces.changelogs['"$CHANGELOG_INDEX"'].path' "$REGISTRY")
+            node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$NEXT" || {
+                echo "This commit bumps ${NAME} to ${NEXT}, and that release has no notes." >&2
+                echo "Nothing has been written; add the entry and commit again." >&2
+                exit 1
+            }
+            CHANGELOG_INDEX=$((CHANGELOG_INDEX + 1))
+        done
+    done
+
+    for pending in "${PENDING_BUMPS[@]}"; do
+        IFS=$'\t' read -r NAME SOURCE NEXT <<< "$pending"
+        NEW_VERSION=$(bump_patch "$SOURCE")
         echo "Bumped ${NAME} version: -> ${NEW_VERSION}"
         PROCESSED_PLUGINS["claude:${NAME}"]=1
         CLAUDE_PLUGINS_BUMPED=1
         REGISTRY_PLUGIN_BUMPED=1
-    done < <(jq -r '.plugins[] | [.name, .versionSurfaces.source] | @tsv' "$REGISTRY")
+    done
 fi
 
 # Marketplace plugins outside the registry keep the original single-surface
@@ -135,10 +173,13 @@ done
 # verifies can no longer disagree about what a plugin's surfaces are.
 if [ "$REGISTRY_PLUGIN_BUMPED" -eq 1 ]; then
     ./scripts/sync-plugin-versions.sh
+    # Changelogs are staged too, though the hook never writes them: the entry
+    # the gate above read from the working tree has to reach the commit, or the
+    # bump ships without the notes that authorised it.
     mapfile -t ALL_SURFACES < <(jq -r '
         .plugins[].versionSurfaces |
         [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
-         (.literals // [] | .[].path)] | .[]' "$REGISTRY")
+         (.literals // [] | .[].path), (.changelogs // [] | .[].path)] | .[]' "$REGISTRY")
     git add "${ALL_SURFACES[@]}" .claude-plugin/marketplace.json
 fi
 

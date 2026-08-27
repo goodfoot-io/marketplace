@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,6 +26,18 @@ export interface RegistryTarget {
   note?: string;
 }
 
+export interface VersionLiteral {
+  path: string;
+  /** Regex with one capture group around the version, as sync and the gate both apply it. */
+  match: string;
+  note: string;
+}
+
+export interface VersionChangelog {
+  path: string;
+  note: string;
+}
+
 export interface RegistryPlugin {
   name: string;
   /** Authored Eta templates for this plugin. */
@@ -34,6 +47,8 @@ export interface RegistryPlugin {
   codexPluginRoot: string;
   opencodePluginRoot: string;
   targets: RegistryTarget[];
+  /** Why this plugin's set of targets is what it is, where a reader would otherwise guess. */
+  targetsNote?: string;
   /** `--platform-dir` flags, as `<platform>:<kind>=<path>` strings. */
   platformDirs: string[];
   /** Exact top-level skill directory names across this plugin's trees. */
@@ -65,11 +80,27 @@ export interface RegistryPlugin {
     /** Entry name in .agents/plugins/marketplace.json, or null when not published to Codex. */
     codex: string | null;
   };
+  /**
+   * Every file that carries this plugin's version, declared in one place so
+   * the propagating script, the pre-commit hook, CI, and the lockstep test
+   * derive the same list. A surface known to only one of them is a surface
+   * that moves only when that one runs.
+   */
   versionSurfaces: {
     /** Source of truth the other surfaces are synced from. */
     source: string;
     codexManifest: string;
     opencodePackage: string;
+    /** The published npm package, where the plugin ships one. */
+    packageJson?: string;
+    /** Versions embedded in source rather than in a JSON field. */
+    literals?: VersionLiteral[];
+    /**
+     * Release notes. Unlike every other surface these cannot be stamped: the
+     * entry's body is a sentence only the change's author can write, so the
+     * gate verifies and refuses rather than writing.
+     */
+    changelogs?: VersionChangelog[];
   };
   /** `<file>:<lineRange>:<rule>` sites, counted against the suppression budget. */
   lintSuppressions: string[];
@@ -102,6 +133,9 @@ export interface Registry {
 
 const REGISTRY_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "../registry/plugins.json");
 
+/** packages/plugin-layout-checks/registry -> the repository root. */
+const REPO_ROOT = path.resolve(path.dirname(REGISTRY_PATH), "../../..");
+
 function load(): Registry {
   const parsed = JSON.parse(fs.readFileSync(REGISTRY_PATH, "utf8")) as Registry;
   // Absent, the allow-list would silently admit `undefined` as a target path.
@@ -119,6 +153,22 @@ function load(): Registry {
     if (!Array.isArray(plugin.skills) || plugin.skills.length === 0) {
       throw new Error(`registry: ${plugin.name} declares no skills`);
     }
+    // A declared surface pointing at nothing is worse than an undeclared one:
+    // every gate that iterates the declarations reports it converged.
+    const surfaces = plugin.versionSurfaces;
+    const declaredPaths = [
+      surfaces.source,
+      surfaces.codexManifest,
+      surfaces.opencodePackage,
+      ...(surfaces.packageJson ? [surfaces.packageJson] : []),
+      ...(surfaces.literals ?? []).map((literal) => literal.path),
+      ...(surfaces.changelogs ?? []).map((changelog) => changelog.path),
+    ];
+    for (const declared of declaredPaths) {
+      if (typeof declared !== "string" || !fs.existsSync(path.join(REPO_ROOT, declared))) {
+        throw new Error(`registry: ${plugin.name} declares version surface ${declared}, which does not exist`);
+      }
+    }
     if (!Array.isArray(plugin.lintSuppressions)) {
       throw new Error(`registry: ${plugin.name} is missing lintSuppressions`);
     }
@@ -133,9 +183,28 @@ function load(): Registry {
         throw new Error(`registry: ${plugin.name} restricts unknown skill ${skill}`);
       }
     }
-    for (const platform of ["claude-code", "codex", "opencode"] as const) {
-      if (!plugin.targets.some((target) => target.platform === platform)) {
-        throw new Error(`registry: ${plugin.name} declares no ${platform} target`);
+    // The platforms a plugin declares targets for must be exactly the platforms
+    // its skills render to. Requiring all three instead is what put voice's
+    // empty Codex and OpenCode trees in the registry: nothing rendered into
+    // them, git cannot store an empty directory, and so they existed only on
+    // machines that had already run a build.
+    const rendered = new Set<Platform>(
+      plugin.skills.flatMap(
+        (skill): Platform[] => plugin.skillPlatforms?.[skill] ?? ["claude-code", "codex", "opencode"],
+      ),
+    );
+    const declared = new Set(plugin.targets.map((target) => target.platform));
+    for (const platform of rendered) {
+      if (!declared.has(platform)) {
+        throw new Error(`registry: ${plugin.name} renders to ${platform} but declares no ${platform} target`);
+      }
+    }
+    for (const platform of declared) {
+      if (!rendered.has(platform)) {
+        throw new Error(
+          `registry: ${plugin.name} declares a ${platform} target but no skill renders there, ` +
+            `so the tree would be published empty and could not be committed`,
+        );
       }
     }
   }
@@ -250,6 +319,69 @@ export function derivedSuppressions(plugin: RegistryPlugin, repoRoot: string): s
       ),
     )
     .sort();
+}
+
+/**
+ * Every declared version surface that disagrees with the plugin's source of
+ * truth, described well enough to name the file in a failure message.
+ *
+ * Derived from versionSurfaces rather than from a list written here, so the
+ * lockstep gate and scripts/sync-plugin-versions.sh cannot disagree about what
+ * a release surface is. They disagreed once already: six machine-writable
+ * surfaces were declared and propagated while the two CHANGELOGs a user
+ * actually opens were known to neither, so `--check` reported convergence at
+ * 1.0.12 over files that still ended at 1.0.11.
+ *
+ * The changelog arm shells out to the same scripts/check-changelog-entry.mjs
+ * the shell script calls, so "has a real entry" has one definition.
+ */
+export function versionDrift(plugin: RegistryPlugin, repoRoot: string): string[] {
+  const surfaces = plugin.versionSurfaces;
+  const readJson = (rel: string): { version?: string } =>
+    JSON.parse(fs.readFileSync(path.join(repoRoot, rel), "utf8")) as { version?: string };
+
+  const expected = readJson(surfaces.source).version;
+  if (expected === undefined || !/^\d+\.\d+\.\d+$/.test(expected)) {
+    return [`${surfaces.source} carries no parseable version`];
+  }
+
+  const drift: string[] = [];
+  const jsonSurfaces = [
+    surfaces.codexManifest,
+    surfaces.opencodePackage,
+    ...(surfaces.packageJson ? [surfaces.packageJson] : []),
+  ];
+  for (const rel of jsonSurfaces) {
+    const found = readJson(rel).version;
+    if (found !== expected) drift.push(`${rel}=${found} (expected ${expected})`);
+  }
+
+  const marketplacePath = ".claude-plugin/marketplace.json";
+  const marketplace = JSON.parse(fs.readFileSync(path.join(repoRoot, marketplacePath), "utf8")) as {
+    plugins: { name: string; version?: string }[];
+  };
+  const entry = marketplace.plugins.find((candidate) => candidate.name === plugin.marketplace.claude);
+  if (!entry) drift.push(`${marketplacePath} has no ${plugin.marketplace.claude} entry`);
+  else if (entry.version !== expected)
+    drift.push(`${marketplacePath} ${entry.name}=${entry.version} (expected ${expected})`);
+
+  for (const literal of surfaces.literals ?? []) {
+    const text = fs.readFileSync(path.join(repoRoot, literal.path), "utf8");
+    const found = new RegExp(literal.match).exec(text)?.[1];
+    if (found === undefined) drift.push(`${literal.path} matched no version literal`);
+    else if (found !== expected) drift.push(`${literal.path}=${found} (expected ${expected})`);
+  }
+
+  for (const changelog of surfaces.changelogs ?? []) {
+    const result = spawnSync(
+      process.execPath,
+      [path.join(repoRoot, "scripts/check-changelog-entry.mjs"), path.join(repoRoot, changelog.path), expected],
+      { encoding: "utf8" },
+    );
+    if (result.status !== 0) drift.push(`${changelog.path}: ${(result.stderr ?? "").trim()}`);
+  }
+
+  return drift;
 }
 
 /** OpenCode roots that opencode.json's skills.paths must list, exactly. */

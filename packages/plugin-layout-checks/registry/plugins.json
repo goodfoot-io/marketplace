@@ -89,10 +89,9 @@
       "codexPluginRoot": "plugins-codex/voice",
       "opencodePluginRoot": "plugins-opencode/voice",
       "targets": [
-        { "platform": "claude-code", "path": "plugins/voice/skills" },
-        { "platform": "codex", "path": "plugins-codex/voice/skills", "note": "handbook documents the voice MCP server, which only ships on Claude Code (plugins/voice/.mcp.json + bin/voice-mcp-server.mjs); handbook is gated to claude-code via skillPlatforms so this tree is published empty rather than shipping unusable tool instructions." },
-        { "platform": "opencode", "path": "plugins-opencode/voice/skills", "opencodeRegistered": false, "note": "Same MCP-server gap as the codex target: handbook is gated to claude-code via skillPlatforms, so this tree is empty and left off opencode.json's skills.paths." }
+        { "platform": "claude-code", "path": "plugins/voice/skills" }
       ],
+      "targetsNote": "Claude Code only. handbook documents the voice MCP server, which ships nowhere else (plugins/voice/.mcp.json + bin/voice-mcp-server.mjs), so skillPlatforms gates it to claude-code. Codex and OpenCode targets were declared anyway and rendered zero files: git cannot store an empty directory, so those trees existed only on machines that had run a build, and a fresh checkout failed seven layout tests before anyone built anything. The Codex and OpenCode manifests under versionSurfaces stay — those are real files that carry a version.",
       "platformDirs": [],
       "skills": ["handbook"],
       "skillPlatforms": {
@@ -314,6 +313,16 @@
             "path": "packages/agent-skills/src/cli.ts",
             "match": "dependencies\\.stdout\\(\"([0-9]+\\.[0-9]+\\.[0-9]+)\\\\n\"\\)",
             "note": "What `agent-skills --version` prints. Hand-maintained it reported a version the package had not shipped, which is the one number a user checks when a build behaves unexpectedly."
+          }
+        ],
+        "changelogs": [
+          {
+            "path": "packages/agent-skills/CHANGELOG.md",
+            "note": "What an npm consumer reads to find out what a version changed."
+          },
+          {
+            "path": "plugins/agent-skills/CHANGELOG.md",
+            "note": "What a marketplace installer reads. Both were left out of the lockstep, so the six machine-writable surfaces reached 1.0.12 while the two files a user actually opens still ended at 1.0.11."
           }
         ]
       },

@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { repoPath } from "../helpers.js";
+import { type RegistryPlugin, versionDrift } from "../registry.js";
 
 /**
  * The bump hook and the propagation script, run together over a real git
@@ -29,6 +30,7 @@ import { repoPath } from "../helpers.js";
 const HOOK = repoPath(".githooks/pre-commit.plugin-version-bump.sh");
 const SYNC = repoPath("scripts/sync-plugin-versions.sh");
 const LITERAL = repoPath("scripts/rewrite-version-literal.mjs");
+const CHANGELOG_CHECK = repoPath("scripts/check-changelog-entry.mjs");
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "version-bump-hook-"));
 
 afterAll(() => {
@@ -44,7 +46,7 @@ function write(root: string, rel: string, body: string): void {
   fs.writeFileSync(path.join(root, rel), body);
 }
 
-/** A repository shaped like this one: one registry plugin, all six surfaces. */
+/** A repository shaped like this one: one registry plugin, all eight surfaces. */
 function makeFixture(): string {
   const root = fs.mkdtempSync(path.join(scratch, "repo-"));
   run(root, "git", ["init", "-q", "-b", "main"]);
@@ -55,6 +57,7 @@ function makeFixture(): string {
     [".githooks/pre-commit.plugin-version-bump.sh", HOOK],
     ["scripts/sync-plugin-versions.sh", SYNC],
     ["scripts/rewrite-version-literal.mjs", LITERAL],
+    ["scripts/check-changelog-entry.mjs", CHANGELOG_CHECK],
   ] as const) {
     fs.mkdirSync(path.join(root, path.dirname(rel)), { recursive: true });
     fs.copyFileSync(source, path.join(root, rel));
@@ -80,6 +83,16 @@ function makeFixture(): string {
     `${JSON.stringify({ name: "@fixture/demo", version: "1.0.0" }, null, 2)}\n`,
   );
   write(root, "packages/demo/src/cli.ts", 'export const banner = () => stdout("1.0.0\\n");\n');
+  // Notes for the release this fixture's hook is about to cut. Unlike every
+  // other surface these are written by the author ahead of the bump, because
+  // nothing can generate the sentence for them.
+  for (const rel of ["packages/demo/CHANGELOG.md", "plugins/demo/CHANGELOG.md"]) {
+    write(
+      root,
+      rel,
+      "# Changelog\n\n## 1.0.1\n\nDescribes what this fixture release changed.\n\n## 1.0.0\n\nFirst release.\n",
+    );
+  }
   write(
     root,
     ".claude-plugin/marketplace.json",
@@ -110,6 +123,7 @@ function makeFixture(): string {
                   match: 'stdout\\("([0-9]+\\.[0-9]+\\.[0-9]+)\\\\n"\\)',
                 },
               ],
+              changelogs: [{ path: "packages/demo/CHANGELOG.md" }, { path: "plugins/demo/CHANGELOG.md" }],
             },
           },
         ],
@@ -213,5 +227,112 @@ describe("pre-commit version bump", () => {
     run(root, "git", ["add", "README.md"]);
     run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
     expect(versions(root).source).toBe("1.0.0");
+  });
+
+  /**
+   * The one surface a script cannot write. Every other release surface holds a
+   * version and nothing else, so the bump can stamp it; a CHANGELOG entry holds
+   * a sentence, and stamping a bare heading would close the gate while leaving
+   * a user who installs the release with a heading that says nothing. So the
+   * hook refuses — and refuses before writing anything, so the author edits the
+   * CHANGELOG and commits again rather than finding four surfaces already moved
+   * by the run that rejected them.
+   */
+  it("refuses the commit when the release it would cut has no notes", () => {
+    const root = makeFixture();
+    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "-A"]);
+
+    expect(() => run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"])).toThrow(/1\.0\.1/);
+    // Nothing moved, so re-running after the author writes the entry produces
+    // exactly one bump rather than compounding a half-applied one.
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
+  it("refuses a heading with no body, rather than accepting it as notes", () => {
+    const root = makeFixture();
+    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.1\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "-A"]);
+
+    expect(() => run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"])).toThrow(/no body/);
+    expect(versions(root).source).toBe("1.0.0");
+  });
+});
+
+/**
+ * The lockstep gate and the propagating script, held to the same answer.
+ *
+ * Both read the same versionSurfaces declaration, but reading the same
+ * declaration is not the same as agreeing about it: `--check` exited 0 over a
+ * repository whose lockstep test was red, because the script's idea of a
+ * release surface stopped at the six it could stamp. So this desyncs each
+ * declared surface in turn and requires both to go red on that one surface —
+ * a control that fails if any single surface is dropped from either side,
+ * rather than one that special-cases the surface that was missing.
+ */
+describe("declared surfaces move together or not at all", () => {
+  function fixturePlugin(root: string): RegistryPlugin {
+    const registry = JSON.parse(
+      fs.readFileSync(path.join(root, "packages/plugin-layout-checks/registry/plugins.json"), "utf8"),
+    ) as { plugins: RegistryPlugin[] };
+    return registry.plugins[0];
+  }
+
+  function setJsonVersion(root: string, rel: string, version: string): void {
+    const body = JSON.parse(fs.readFileSync(path.join(root, rel), "utf8")) as { version: string };
+    body.version = version;
+    fs.writeFileSync(path.join(root, rel), `${JSON.stringify(body, null, 2)}\n`);
+  }
+
+  const DESYNCS: [string, (root: string) => void][] = [
+    ["the Codex manifest", (root) => setJsonVersion(root, "plugins-codex/demo/.codex-plugin/plugin.json", "9.9.9")],
+    ["the OpenCode package", (root) => setJsonVersion(root, "plugins-opencode/demo/package.json", "9.9.9")],
+    ["the npm package", (root) => setJsonVersion(root, "packages/demo/package.json", "9.9.9")],
+    [
+      "the CLI version literal",
+      (root) => write(root, "packages/demo/src/cli.ts", 'export const banner = () => stdout("9.9.9\\n");\n'),
+    ],
+    [
+      "the marketplace entry",
+      (root) => {
+        const rel = ".claude-plugin/marketplace.json";
+        const body = JSON.parse(fs.readFileSync(path.join(root, rel), "utf8")) as {
+          plugins: { version: string }[];
+        };
+        body.plugins[0].version = "9.9.9";
+        fs.writeFileSync(path.join(root, rel), `${JSON.stringify(body, null, 2)}\n`);
+      },
+    ],
+    [
+      "the package changelog",
+      (root) => write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n"),
+    ],
+    [
+      "the plugin changelog",
+      (root) => write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n"),
+    ],
+  ];
+
+  it("agrees that a converged repository is converged", () => {
+    const root = makeFixture();
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "-A"]);
+    run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
+
+    expect(versionDrift(fixturePlugin(root), root)).toEqual([]);
+    expect(() => run(root, "bash", ["scripts/sync-plugin-versions.sh", "--check"])).not.toThrow();
+  });
+
+  it.each(DESYNCS)("both the gate and --check go red when %s is skipped", (_label, desync) => {
+    const root = makeFixture();
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "-A"]);
+    run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
+    desync(root);
+
+    expect(versionDrift(fixturePlugin(root), root)).not.toEqual([]);
+    expect(() => run(root, "bash", ["scripts/sync-plugin-versions.sh", "--check"])).toThrow();
   });
 });

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.12
+
+Brings the plugin's release surfaces under one gate. The Codex manifest, the OpenCode package, the npm package, and the CLI's own `--version` string were each maintained separately, so installing 1.0.11 could mean four different things depending on which file you read; they now move together or not at all, and CI fails when they disagree.
+
+Adds release notes to that set. Every other surface holds a version and can be stamped, but an entry here has to say what changed, so a bump without one is refused rather than filled in with an empty heading — which is why this entry exists at all.
+
 ## 1.0.11
 
 Synchronizes the companion release with this commit's own hook-managed marketplace bump.

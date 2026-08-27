@@ -65,4 +65,45 @@ describe("opencode.json skills.paths", () => {
       }
     }
   });
+
+  // The opt-out above is only trustworthy while something actually takes it.
+  // With no unregistered tree in the registry the note requirement passes
+  // vacuously, and a later opt-out would land on a rule nothing had exercised.
+  it("still exercises the unregistered case it makes rules for", () => {
+    const unregistered = PLUGINS.flatMap((plugin) =>
+      plugin.targets.filter((target) => target.platform === "opencode" && target.opencodeRegistered !== true),
+    );
+    expect(unregistered.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * CI's OpenCode boot smoke derives its roots from the registry in bash, which
+ * makes the registry's opencode target list a contract with three readers: this
+ * suite, opencode.json, and a jq filter inside the workflow. The first two are
+ * pinned to each other above; the third was pinned to neither, so it could
+ * iterate a set nobody here had checked.
+ *
+ * That is not hypothetical. Voice declared OpenCode and Codex targets that
+ * rendered zero files, and the smoke's own `no SKILL.md found` guard was the
+ * check it broke — a failure no build could cure, because the tree it wanted
+ * could not be committed in the first place.
+ */
+describe("CI OpenCode boot smoke agrees with the registry", () => {
+  const workflow = fs.readFileSync(repoPath(".github/workflows/plugin-layout.yml"), "utf8");
+
+  it("still derives its roots from the registry rather than a written list", () => {
+    expect(workflow).toContain('select(.platform == "opencode") | .path');
+  });
+
+  // The invariant the smoke enforces, checked here against the committed tree
+  // so it fails in the suite rather than only on a runner.
+  it.each(
+    PLUGINS.flatMap((plugin) =>
+      plugin.targets.filter((target) => target.platform === "opencode").map((target) => target.path),
+    ),
+  )("finds at least one SKILL.md under declared root %s", (root) => {
+    expect(fs.existsSync(repoPath(root)), `${root} is declared but absent from the checkout`).toBe(true);
+    expect(skillNamesUnder("<smoke>", root).length).toBeGreaterThan(0);
+  });
 });

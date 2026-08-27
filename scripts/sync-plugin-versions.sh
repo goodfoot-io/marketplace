@@ -35,6 +35,7 @@ if [ "$PLUGIN_COUNT" -eq 0 ]; then
 fi
 
 DRIFTED=false
+MISSING_NOTES=false
 
 write_version() {
   # write_version <file> <jq-filter> <version>
@@ -96,6 +97,20 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
     LITERAL_INDEX=$((LITERAL_INDEX + 1))
   done
 
+  # Release notes. Verified in both modes and written in neither: the other
+  # surfaces hold a version and nothing else, so propagation can set the field,
+  # but a CHANGELOG entry's body is a sentence only the author of the change can
+  # write. Stamping a bare heading would close this gate while leaving the user
+  # who opens the file knowing only which version they installed.
+  CHANGELOG_COUNT="$(jq -r --arg name "$NAME" '.plugins[] | select(.name == $name) | .versionSurfaces.changelogs // [] | length' "$REGISTRY")"
+  CHANGELOG_INDEX=0
+  while [ "$CHANGELOG_INDEX" -lt "$CHANGELOG_COUNT" ]; do
+    CHANGELOG_PATH="$(jq -r --arg name "$NAME" '.plugins[] | select(.name == $name) | .versionSurfaces.changelogs['"$CHANGELOG_INDEX"'].path' "$REGISTRY")"
+    [ -f "$CHANGELOG_PATH" ] || { echo "$NAME: declared changelog $CHANGELOG_PATH does not exist" >&2; exit 1; }
+    node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$VERSION" || MISSING_NOTES=true
+    CHANGELOG_INDEX=$((CHANGELOG_INDEX + 1))
+  done
+
   MARKETPLACE_VERSION="$(jq -r --arg name "$MARKETPLACE_NAME" '.plugins[] | select(.name == $name) | .version' "$MARKETPLACE_JSON")"
   if [ -z "$MARKETPLACE_VERSION" ]; then
     echo "$NAME: no $MARKETPLACE_NAME entry in $MARKETPLACE_JSON" >&2
@@ -113,6 +128,12 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
     fi
   fi
 done < <(jq -r '.plugins[] | [.name, .marketplace.claude, .versionSurfaces.source, .versionSurfaces.codexManifest, .versionSurfaces.opencodePackage, (.versionSurfaces.packageJson // "null")] | @tsv' "$REGISTRY")
+
+if [ "$MISSING_NOTES" = true ]; then
+  echo "Release notes are missing for the version(s) above; no script can write them for you." >&2
+  echo "Run ./scripts/update-package-changelog.sh <package> to draft an entry, then edit it." >&2
+  exit 1
+fi
 
 if [ "$DRIFTED" = true ]; then
   echo "Version drift detected. Run ./scripts/sync-plugin-versions.sh to fix." >&2
