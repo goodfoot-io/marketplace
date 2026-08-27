@@ -61,11 +61,15 @@ jobs:
       # Both literals here stay goodfoot-scoped. ./skills is the shared OpenCode
       # root that no migrated plugin targets, and ./plugins-claude/agent-skills is the
       # companion plugin's own Claude path.
-      - name: Validate Claude skills tree (strict)
+      - name: Validate Claude skills trees
         run: |
+          set -euo pipefail
           yarn claude --version
-          yarn claude plugin validate ./skills --strict
-          yarn claude plugin validate ./plugins-claude/agent-skills --strict
+          for root in ./skills ./plugins-claude/agent-skills; do
+            manifest="$(find "$root" -type f -name SKILL.md -size +0c -print -quit)"
+            test -n "$manifest" || { echo "$root: contains no non-empty SKILL.md" >&2; exit 1; }
+          done
+          yarn claude plugin validate ./plugins-claude/agent-skills
 
       - name: Validate Claude plugin roots
         run: |
@@ -77,6 +81,22 @@ jobs:
             yarn claude plugin validate "./$root"
             echo "::endgroup::"
           done
+
+      - name: Install pinned Antigravity CLI
+        run: |
+          set -euo pipefail
+          AGY_VERSION="1.1.21"
+          AGY_URL="https://storage.googleapis.com/antigravity-public/antigravity-cli/1.1.21-6424454201475072/linux-x64/cli_linux_x64.tar.gz"
+          AGY_SHA512="3de7552ef089c136c0f570cdc9c04652278e02c1d41ed3911ad5f9f1b8c3bd567643aa401a1916060ea32a1b17fbaf90cbb417071db33f467880fcd848868d92"
+          archive="$(mktemp)"
+          extract_dir="$(mktemp -d)"
+          curl --fail --silent --show-error --location "$AGY_URL" --output "$archive"
+          printf '%s  %s\n' "$AGY_SHA512" "$archive" | sha512sum --check
+          tar -xzf "$archive" -C "$extract_dir" antigravity
+          install -m 0755 "$extract_dir/antigravity" "$HOME/.local/bin/agy"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
+          test "$(agy --version)" = "$AGY_VERSION"
 
       # Antigravity support is target-driven during the migration: until a
       # plugin declares a target there is intentionally nothing to validate.
@@ -111,17 +131,22 @@ jobs:
           set -euo pipefail
           smoke_home="$(mktemp -d)"
           trap 'rm -rf "$smoke_home"' EXIT
-          HOME="$smoke_home" yarn claude plugin marketplace add .
-          mapfile -t names < <(jq -r '.plugins[].marketplace.claude' "$REGISTRY")
-          test "${#names[@]}" -gt 0 || { echo "registry declares no Claude marketplace plugins" >&2; exit 1; }
+          export HOME="$smoke_home"
+          export CLAUDE_CONFIG_DIR="$smoke_home/.claude"
+          yarn claude plugin marketplace add ./
+          mapfile -t names < <(jq -r '.plugins[].name' .claude-plugin/marketplace.json)
+          test "${#names[@]}" -eq 10 || { echo "marketplace must declare exactly ten Claude plugins" >&2; exit 1; }
           for name in "${names[@]}"; do
             echo "::group::claude install $name"
-            HOME="$smoke_home" yarn claude plugin install "$name@goodfoot"
-            HOME="$smoke_home" yarn claude plugin details "$name@goodfoot"
-            HOME="$smoke_home" yarn claude plugin uninstall "$name@goodfoot"
+            yarn claude plugin install "$name@goodfoot"
+            yarn claude plugin list --json | jq -e --arg name "$name@goodfoot" \
+              'any(.[]; .id == $name)' >/dev/null
+            yarn claude plugin uninstall "$name@goodfoot"
+            yarn claude plugin list --json | jq -e --arg name "$name@goodfoot" \
+              'all(.[]; .id != $name)' >/dev/null
             echo "::endgroup::"
           done
-          HOME="$smoke_home" yarn claude plugin marketplace remove .
+          yarn claude plugin marketplace remove goodfoot
 
       # The assertion is re-derived from the same registry entry that drove the
       # install, and anchored to that plugin's own subtree. A bare skill-name

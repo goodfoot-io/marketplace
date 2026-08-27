@@ -68,20 +68,11 @@ const agentHooksReference = (body: string, platform: string) => {
   return body.replaceAll(`${CLAUDE_ROOT_TOKEN}/skills/codex`, root);
 };
 
-const platformAuthoringRoot = (body: string, platform: string) => {
-  const tree =
-    platform === "claude-code"
-      ? "plugins-claude"
-      : platform === "codex"
-        ? "plugins-codex"
-        : platform === "antigravity"
-          ? "plugins-antigravity"
-          : "plugins-opencode";
-  return body.replaceAll("plugins/", `${tree}/`);
-};
+const claudeAuthoringRoot = (body: string) => body.replaceAll("plugins/", "plugins-claude/");
+const codexAuthoringRoot = (body: string) => body.replaceAll("plugins/", "plugins-codex/");
 
 const agentHooksCodex = (body: string, platform: string) =>
-  platformAuthoringRoot(agentHooksReference(body, platform), platform);
+  codexAuthoringRoot(agentHooksReference(body, platform));
 
 /**
  * agent-skills' two prose skills each point once at their sibling
@@ -130,8 +121,12 @@ const agentSkillsAntigravityPolicy = (body: string) =>
       "# Antigravity support\n\nThis repository ships Antigravity plugin roots generated from the same authored skill sources as the other platforms. Each root has an `agy`-validated `plugin.json` and at least one processed skill. Treat that validation as evidence for plugin packaging and skill discovery, not as evidence for hooks, MCP servers, or unavailable host behaviors.",
     )
     .replace(
+      "Currently provisional areas include prose skill references and invocation, the `AGENTS.md` conventions filename, and related platform identity values recorded by the package's platform table. Currently unavailable areas include subagent dispatch, canonical agent references, worktree operations, and any other helper cell the table does not define. An unavailable helper must throw at render time and identify both the helper and `antigravity`.",
+      "Prose skill invocation and the `AGENTS.md` conventions filename are verified. Related platform identity values remain visibly provisional where the platform table says so. Canonical agent-reference spelling remains unavailable because native agents are invoked by name rather than through a rendered reference.\n\nNative subagent operations are verified and exposed by the helpers:\n\n- Dispatch by delegating to a named subagent with `invoke_subagent`.\n- Re-engage by checking state with `manage_subagents`, then using `send_message` when the subagent is live.\n- Deliver results to the orchestrator with `send_message`.\n\nDirect worktree operations remain unavailable: Antigravity can request isolation for a subagent, but it has no documented enter/remove pair matching the helper lifecycle. Any other unavailable helper must throw at render time and identify both the helper and `antigravity`.",
+    )
+    .replace(
       "Do not invent an Antigravity plugin-root variable, agent naming transformation, subagent operation, worktree tool, frontmatter key, directory convention, install command, or behavioral smoke test. Do not silently use a Codex or OpenCode value because it looks similar.",
-      "Do not invent an Antigravity plugin-root variable, agent naming transformation, subagent operation, worktree tool, frontmatter key, install command, or behavioral smoke test. Do not silently use a Codex or OpenCode value because it looks similar. The verified directory convention is a complete plugin root under `plugins-antigravity/<name>` with skills under its `skills/` leaf.",
+      "Do not invent an Antigravity plugin-root variable, agent naming transformation, worktree tool, frontmatter key, install command, or behavioral smoke test. Do not silently use a Codex or OpenCode value because it looks similar. The verified directory convention is a complete plugin root under `plugins-antigravity/<name>` with a populated skill leaf.",
     )
     .replace(
       "When a user needs an unavailable feature, state which helper or convention is unknown and treat the request as platform-contract work. The required next evidence is an authoritative host contract and a runnable validation surface; until then, Antigravity is validation-only.",
@@ -220,10 +215,10 @@ const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: st
     },
   },
   "agent-hooks": {
-    "claude-code/SKILL.md": platformAuthoringRoot,
-    "claude-code/reference/installation.md": platformAuthoringRoot,
+    "claude-code/SKILL.md": claudeAuthoringRoot,
+    "claude-code/reference/installation.md": claudeAuthoringRoot,
     "codex/SKILL.md": agentHooksCodex,
-    "codex/reference/installation.md": platformAuthoringRoot,
+    "codex/reference/installation.md": codexAuthoringRoot,
   },
   "agent-skills": {
     "antigravity/SKILL.md": agentSkillsAntigravityPolicy,

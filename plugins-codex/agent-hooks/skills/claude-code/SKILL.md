@@ -150,7 +150,7 @@ npx @goodfoot/agent-hooks --agent claude-code --scaffold /path/to/my-hooks --hoo
 
 **Monorepo?** Use `-o` to output directly to a plugin directory:
 ```bash
-npx @goodfoot/agent-hooks --agent claude-code --scaffold ./packages/my-hooks --hooks PreToolUse,PostToolUse -o ../../plugins-codex/my-plugin/hooks/hooks.json
+npx @goodfoot/agent-hooks --agent claude-code --scaffold ./packages/my-hooks --hooks PreToolUse,PostToolUse -o ../../plugins-claude/my-plugin/hooks/hooks.json
 ```
 See [Installation: Scaffolding for Monorepos](reference/installation.md#11-scaffolding-for-monorepos).
 

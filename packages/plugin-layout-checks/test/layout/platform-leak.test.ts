@@ -106,8 +106,16 @@ describe("Gate B — wrong-platform tokens in generated output", () => {
 
   it.each(
     allTargets().map((target) => [target.plugin, target.platform, target.path] as const),
-  )("leaks no wrong-platform token from %s into the %s tree at %s", (_plugin, platform, treePath) => {
-    const leaks = scanTree(platform, treePath);
+  )("leaks no wrong-platform token from %s into the %s tree at %s", (plugin, platform, treePath) => {
+    const leaks = scanTree(platform, treePath).filter((leak) => {
+      // agent-hooks ships subject-host guidance into several rendering hosts.
+      // Its authoring destinations follow the host being documented, not the
+      // tree carrying the documentation; the semantic matrix pins every site.
+      if (plugin !== "agent-hooks") return true;
+      if (leak.file.includes("/skills/claude-code/") && leak.token === "plugins-claude/") return false;
+      if (leak.file.includes("/skills/codex/") && leak.token === "plugins-codex/") return false;
+      return true;
+    });
     expect(
       leaks,
       `wrong-platform tokens:\n${leaks.map((leak) => `${leak.file}:${leak.line} ${leak.token}`).join("\n")}`,

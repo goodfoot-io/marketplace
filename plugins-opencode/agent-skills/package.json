@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/opencode-agent-skills",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "private": true,
   "description": "OpenCode plugin registration for the agent-skills skill set (antigravity, cli-and-helpers, platform-behavior, reference, template-authoring).",
   "type": "module",

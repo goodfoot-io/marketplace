@@ -1,5 +1,5 @@
-.github/workflows/plugin-layout.yml#L81-L107 rk64:411a7e72291c025b
-packages/plugin-layout-checks/test/layout/antigravity-validation.test.ts#L5-L77 rk64:aa9a3cc73d85c7d1
+.github/workflows/plugin-layout.yml#L101-L127 rk64:411a7e72291c025b
+packages/plugin-layout-checks/test/layout/antigravity-validation.test.ts#L5-L77 rk64:2d36072c92560333
 packages/plugin-layout-checks/test/registry.ts#L80-L81 rk64:59c9a125900de660
 packages/plugin-layout-checks/test/registry.ts#L395-L400 rk64:500e6fe18a9eed06
 

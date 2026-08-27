@@ -1,8 +1,7 @@
-documentation/claude-plugin-authoring.md#L35-L77 rk64:130b4ffdc45512eb
 packages/voice/src/mcp/server.ts#L42-L51 rk64:d1eadc9b13fcc0c0
 plugins-voice/voice/.claude-plugin/plugin.json#L1-L4 rk64:b79367a1742306b0
 plugins-voice/voice/.mcp.json#L1-L6 rk64:123d1ea3fe00da4b
 plugins-voice/voice/README.md#L8-L19 rk64:0a94b4abbf157308
 plugins-voice/voice/skills/handbook/SKILL.md#L13-L28 rk64:758f80bc83dd630c
 
-The manifest name and MCP server key determine the plugin-qualified tool prefix, while the server's exposed tool names determine its suffixes; the authoring guide, README, and handbook preserve that runtime identity.
+The manifest name and MCP server key determine the plugin-qualified tool prefix, while the server's exposed tool names determine its suffixes; the plugin README and handbook preserve that runtime identity.

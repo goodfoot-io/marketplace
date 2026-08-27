@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.17
+
+Aligns the Antigravity authoring policy with the verified native subagent dialect. It now documents dispatch through `invoke_subagent`, state inspection through `manage_subagents`, and communication through `send_message`, while retaining the explicit boundary for unsupported direct worktree operations.
+
 ## 1.0.16
 
 Publishes all applicable authored skills through a complete, positively validated Antigravity plugin root and updates the Antigravity policy to distinguish supported skill packaging from unavailable hooks and MCP capabilities.

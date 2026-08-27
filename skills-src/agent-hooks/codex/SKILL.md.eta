@@ -20,7 +20,7 @@ lintSuppressions:
     lines: [308, 308]
   - rule: plugin-root-variable
     lines: [314, 319]
---><%~ it.frontmatter({ name: 'codex', description: 'Load this skill immediately after a user mentions "@goodfoot/agent-hooks" for Codex, or Codex hooks.' }) %><% const pluginTree = it.platform === "claude-code" ? "plugins-claude" : it.platform === "codex" ? "plugins-codex" : it.platform === "antigravity" ? "plugins-antigravity" : "plugins-opencode"; %>
+--><%~ it.frontmatter({ name: 'codex', description: 'Load this skill immediately after a user mentions "@goodfoot/agent-hooks" for Codex, or Codex hooks.' }) %><% const pluginTree = "plugins-codex"; %>
 **If `@goodfoot/codex-hooks` is present in the project's `package.json`, say so and offer to repoint the project at `@goodfoot/agent-hooks/codex` — `@goodfoot/codex-hooks` is deprecated (security/data-loss fixes only) in favor of this package.**
 
 **Review the authoritative documentation at `https://developers.openai.com/codex/hooks.md` and the wire schemas under `third_party/reference/codex/codex-rs/hooks/schema/generated/` before using `@goodfoot/agent-hooks/codex`. When the doc and the schemas disagree, the schemas win.**

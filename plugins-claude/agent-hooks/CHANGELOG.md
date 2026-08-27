@@ -1,5 +1,9 @@
 # agent-hooks plugin changelog
 
+## 1.0.11
+
+Keeps hook-authoring destinations tied to the hook's subject platform across every generated tree: Claude guidance writes under `plugins-claude`, and Codex guidance writes under `plugins-codex`. Antigravity readers therefore no longer receive instructions to create inert hook manifests under `plugins-antigravity`, while the native boundary continues to state that Antigravity host hooks are unsupported.
+
 ## 1.0.10
 
 Publishes the complete generated skill set as an `agy`-validated Antigravity plugin, including the Antigravity policy skill, while leaving hooks and MCP capabilities explicitly absent.

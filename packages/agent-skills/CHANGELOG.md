@@ -1,5 +1,9 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.17
+
+Corrects the generated Antigravity authoring policy to match the package's verified native helper dialect: subagents can be dispatched with `invoke_subagent`, inspected with `manage_subagents`, and contacted with `send_message`. Direct worktree operations remain explicitly unavailable.
+
 ## 1.0.16
 
 Publishes all applicable authored skills through a complete, positively validated Antigravity plugin root and documents the verified packaging and skill-discovery boundary without widening unavailable runtime capabilities.
