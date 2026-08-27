@@ -250,6 +250,25 @@ describe("pre-commit version bump", () => {
     expect(versions(root).source).toBe("1.0.0");
   });
 
+  // The legacy `plugins/<name>/` path used to reach registry plugins too: the
+  // registry path above deliberately declines to bump when only a declared
+  // surface is staged, but the legacy path knows nothing about surfaces or
+  // changelogs and bumped it anyway. Editing a CHANGELOG alone therefore cut
+  // an ungated release — exactly the "version with no notes" this gate exists
+  // to prevent.
+  it("does not let the legacy path bump a registry plugin behind the gate", () => {
+    const root = makeFixture();
+    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.1\n\nEdited notes.\n\n## 1.0.0\n\nFirst.\n");
+    run(root, "git", ["add", "plugins/demo/CHANGELOG.md"]);
+    run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
+
+    expect(versions(root).source).toBe("1.0.0");
+    const marketplace = JSON.parse(fs.readFileSync(path.join(root, ".claude-plugin/marketplace.json"), "utf8")) as {
+      metadata: { version: string };
+    };
+    expect(marketplace.metadata.version).toBe("2.0.0");
+  });
+
   it("refuses a heading with no body, rather than accepting it as notes", () => {
     const root = makeFixture();
     write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.1\n\n## 1.0.0\n\nFirst release.\n");

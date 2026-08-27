@@ -117,6 +117,18 @@ if [ "$HAVE_JQ" = true ] && [ -f "$REGISTRY" ]; then
         CLAUDE_PLUGINS_BUMPED=1
         REGISTRY_PLUGIN_BUMPED=1
     done
+
+    # Every registry plugin is claimed here, bumped or not. The loop below
+    # bumps any `plugins/<name>/` with a staged non-manifest file, and it used
+    # to reach registry plugins that this block had deliberately declined to
+    # bump — so editing only a declared version surface, a CHANGELOG most of
+    # all, produced an ungated bump through the legacy path: a new version with
+    # no release notes, which is the exact failure the gate above exists to
+    # prevent. Registry plugins are bumped by the gated path or not at all.
+    while IFS= read -r name; do
+        [ -z "$name" ] && continue
+        PROCESSED_PLUGINS["claude:${name}"]=${PROCESSED_PLUGINS["claude:${name}"]:-1}
+    done < <(jq -r '.plugins[].name' "$REGISTRY")
 fi
 
 # Marketplace plugins outside the registry keep the original single-surface
