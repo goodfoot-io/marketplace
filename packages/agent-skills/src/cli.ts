@@ -136,7 +136,7 @@ export async function run(
       return 0;
     }
     if (parsed.version) {
-      dependencies.stdout("1.0.11\n");
+      dependencies.stdout("1.0.12\n");
       return 0;
     }
     const options = validateArgs(parsed);
