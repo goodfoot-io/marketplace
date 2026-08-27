@@ -16,6 +16,14 @@ import { readFileSync } from "node:fs";
  *
  * Usage: check-changelog-entry.mjs <file> <version> <versionSource>
  *
+ * Exit 1 means the notes are missing or wrong and the author has to write
+ * something; exit 3 means the notes could not be checked at all, because the
+ * history this needs is unreadable. Callers summarise these differently and
+ * must not merge them: a caller that reported every non-zero as "release notes
+ * are missing; no script can write them for you" told an author on a shallow
+ * checkout to write an entry that was already there, one line under this
+ * script's own message saying the history could not be read.
+ *
  * versionSource is the plugin's registry `versionSurfaces.source`, the file
  * whose `.version` field every other surface follows. Its history is the whole
  * set of versions the plugin has released, and the whole set of headings is
@@ -190,7 +198,7 @@ if (isShallow() !== false) {
 			`cannot be verified.\nA truncated history is not a history with no gaps; refusing. ` +
 			`Run \`git fetch --unshallow\` (in CI, set the checkout's fetch-depth to 0) and try again.\n`,
 	);
-	process.exit(1);
+	process.exit(3);
 }
 
 {
@@ -202,7 +210,7 @@ if (isShallow() !== false) {
 			`${file}: could not read ${versionSource}'s history to verify the entries below the newest ` +
 				`(${error.message.trim()}).\nA history that cannot be read is not a history with no gaps; refusing.\n`,
 		);
-		process.exit(1);
+		process.exit(3);
 	}
 	const documented = new Set(headings.map((entry) => entry.match[1]));
 	// Bounded below by the oldest heading the file carries. A CHANGELOG that

@@ -36,6 +36,7 @@ fi
 
 DRIFTED=false
 MISSING_NOTES=false
+UNVERIFIABLE_NOTES=false
 
 write_version() {
   # write_version <file> <jq-filter> <version>
@@ -117,7 +118,14 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
   }
   while IFS= read -r CHANGELOG_PATH; do
     [ -z "$CHANGELOG_PATH" ] && continue
-    node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$VERSION" "$SOURCE" || MISSING_NOTES=true
+    # Exit 3 is "could not check", exit 1 is "nothing to find". Collapsing both
+    # into MISSING_NOTES is what made the summary below contradict the per-file
+    # message immediately above it.
+    node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$VERSION" "$SOURCE" ||
+      case $? in
+        3) UNVERIFIABLE_NOTES=true ;;
+        *) MISSING_NOTES=true ;;
+      esac
   done <<< "$CHANGELOGS"
 
   MARKETPLACE_VERSION="$(jq -r --arg name "$MARKETPLACE_NAME" '.plugins[] | select(.name == $name) | .version' "$MARKETPLACE_JSON")"
@@ -138,12 +146,33 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
   fi
 done < <(jq -r '.plugins[] | [.name, .marketplace.claude, .versionSurfaces.source, .versionSurfaces.codexManifest, .versionSurfaces.opencodePackage, (.versionSurfaces.packageJson // "null")] | @tsv' "$REGISTRY")
 
+# Neither summary names a tool, and neither says whether one exists.
+#
+# Remediation is per-path and only check-changelog-entry.mjs knows it: the
+# packages tree has a generator, the plugins tree deliberately has none. Any
+# claim made here is made over every failing file at once, so it contradicts
+# one of them whenever a run carries both — which agent-skills, the only
+# managed plugin with two changelog surfaces, produces on the ordinary path.
+# "No script can write them for you" printed directly under
+# "scripts/update-package-changelog.sh writes one from the commits since the
+# last tag."
+#
+# So these lines report that the run failed and where the answer already is.
+# The property to preserve when editing them: the summary must hold whether
+# zero, one, or both trees have a generator, and whichever cause applied.
 if [ "$MISSING_NOTES" = true ]; then
-  # Each failure above already printed check-changelog-entry.mjs's own
-  # path-aware remediation; a second, path-blind instruction here would
-  # contradict it for a plugins/<name>/CHANGELOG.md path, the same wrong-tool
-  # misdirection check-changelog-entry.mjs's remediation() now avoids.
-  echo "Release notes are missing for the version(s) above; no script can write them for you." >&2
+  echo "Release notes are missing for the version(s) above; each file's own message says how to add them." >&2
+fi
+
+if [ "$UNVERIFIABLE_NOTES" = true ]; then
+  echo "Release notes could not be verified for the plugin(s) above; each file's own message says why." >&2
+fi
+
+# Both, when both happened. A run can carry one changelog with a real hole and
+# another whose history is unreadable, and suppressing either summary would
+# leave the user fixing half of what is wrong and re-running to discover the
+# rest.
+if [ "$MISSING_NOTES" = true ] || [ "$UNVERIFIABLE_NOTES" = true ]; then
   exit 1
 fi
 

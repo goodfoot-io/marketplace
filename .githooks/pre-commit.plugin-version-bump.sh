@@ -182,8 +182,18 @@ for pending in "${PENDING_BUMPS[@]}"; do
     while IFS= read -r CHANGELOG_PATH; do
         [ -z "$CHANGELOG_PATH" ] && continue
         node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$NEXT" "$SOURCE" || {
-            echo "This commit bumps ${NAME} to ${NEXT}, and that release has no notes." >&2
-            echo "Nothing has been written; add the entry and commit again." >&2
+            # Exit 3 is "could not check", exit 1 is "nothing to find". Told
+            # apart here for the same reason sync-plugin-versions.sh tells them
+            # apart: on a shallow checkout the line above says the history
+            # cannot be read, and following it with "that release has no notes"
+            # sends the author to write an entry that is already written.
+            CHECK_STATUS=$?
+            if [ "$CHECK_STATUS" -eq 3 ]; then
+                echo "This commit bumps ${NAME} to ${NEXT}, and that release's notes could not be checked." >&2
+            else
+                echo "This commit bumps ${NAME} to ${NEXT}, and that release has no notes." >&2
+            fi
+            echo "Nothing has been written; resolve the above and commit again." >&2
             exit 1
         }
     done <<< "$CHANGELOGS"

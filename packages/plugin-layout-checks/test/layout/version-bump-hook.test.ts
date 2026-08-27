@@ -831,9 +831,70 @@ describe("truncated history is not a history with no gaps", () => {
 
     const result = check(clone);
 
-    expect(result.status).toBe(1);
+    // 3, not 1: "could not check" is a different answer from "nothing to
+    // find", and callers summarise them differently.
+    expect(result.status).toBe(3);
     expect(result.stderr).toContain("shallow");
     expect(result.stderr).toContain("git fetch --unshallow");
+  });
+
+  it("separates could-not-check from nothing-to-find by exit code", () => {
+    const missing = check(fixtureWithAGap());
+    const unreadable = check(shallowCloneOf(fixtureWithAGap()));
+
+    expect(missing.status).toBe(1);
+    expect(unreadable.status).toBe(3);
+  });
+
+  /**
+   * Both callers summarise after the per-file message, and a summary that
+   * assumes the wrong cause contradicts the line directly above it. On a
+   * shallow checkout the author was told the history could not be read and
+   * then, one line later, to write notes that were already written.
+   */
+  describe("the summary does not contradict the line above it", () => {
+    it("sync says the notes could not be verified, not that they are missing", () => {
+      const clone = shallowCloneOf(fixtureWithAGap());
+      // The package changelog is genuinely behind in this fixture, which is a
+      // real missing-notes failure and would legitimately print the summary
+      // under test. Bring it level so the shallow history is the only cause
+      // left standing.
+      write(clone, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.2\n\nDescribed.\n");
+
+      const result = spawnSync("bash", ["scripts/sync-plugin-versions.sh", "--check"], {
+        cwd: clone,
+        encoding: "utf8",
+        env: { ...process.env, OSTYPE: "linux-gnu" },
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("could not be verified");
+      expect(result.stderr).not.toContain("no script can write them for you");
+    });
+
+    it("the hook says the notes could not be checked, not that they are absent", () => {
+      const clone = shallowCloneOf(fixtureWithAGap());
+      // The notes for the version this commit creates are present, so the
+      // check gets past "missing" and fails on the history it cannot read —
+      // which is the only way to reach the summary under test.
+      write(
+        clone,
+        "plugins/demo/CHANGELOG.md",
+        "# Changelog\n\n## 1.0.3\n\nDescribed.\n\n## 1.0.2\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n",
+      );
+      write(clone, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+      run(clone, "git", ["add", "-A"]);
+
+      const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
+        cwd: clone,
+        encoding: "utf8",
+        env: { ...process.env, OSTYPE: "linux-gnu" },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("could not be checked");
+      expect(result.stderr).not.toContain("has no notes");
+    });
   });
 
   it("withholds the git log bound from a shallow author rather than caveating it", () => {
@@ -929,4 +990,55 @@ describe("the prefilter admits, it does not decide", () => {
 
     expect(versions(root).source).toBe("1.0.1");
   });
+});
+
+/**
+ * The run-wide summary speaks over every failing file at once; the per-file
+ * remediation speaks about one path and is the only line that knows whether a
+ * generator exists for it. So the summary cannot make a remediation claim
+ * without contradicting some file it covers.
+ *
+ * agent-skills is the live case: it is the only managed plugin carrying both a
+ * plugins-tree and a packages-tree CHANGELOG, and this card migrated it. One
+ * surface prints "No script writes this file", the other prints
+ * "update-package-changelog.sh writes one" — and the summary used to answer
+ * both with "no script can write them for you". This fixture has the same two
+ * surfaces, and needs no shallow clone to reach it.
+ */
+describe("the summary claims nothing a per-file line can contradict", () => {
+  // Both modes, because the two reach different users. CI runs --check
+  // (.github/workflows/plugin-layout.yml), so every failed layout job prints
+  // this; a contributor fixing the drift it reports runs the same script with
+  // no argument. The gate call and both summaries sit outside every
+  // CHECK_ONLY branch, so they are mode-independent by construction — this
+  // pins that rather than trusting it.
+  for (const [mode, argv] of [
+    ["--check", ["scripts/sync-plugin-versions.sh", "--check"]],
+    ["write", ["scripts/sync-plugin-versions.sh"]],
+  ] as const) {
+    it(`stays true in ${mode} mode when one tree has a generator and the other does not`, () => {
+      const root = makeFixture();
+      // Both changelogs top out at 1.0.1; putting the source ahead leaves both
+      // behind at once, which is what makes the two remediations disagree.
+      write(
+        root,
+        "plugins/demo/.claude-plugin/plugin.json",
+        `${JSON.stringify({ name: "demo", version: "1.0.5" }, null, 2)}\n`,
+      );
+
+      const result = spawnSync("bash", [...argv], {
+        cwd: root,
+        encoding: "utf8",
+        env: { ...process.env, OSTYPE: "linux-gnu" },
+      });
+
+      expect(result.status).not.toBe(0);
+      // Both per-file lines are present and say opposite things...
+      expect(result.stderr).toContain("update-package-changelog.sh writes one");
+      expect(result.stderr).toContain("No script writes this file");
+      // ...so the summary must not take a side.
+      expect(result.stderr).not.toContain("no script can write them for you");
+      expect(result.stderr).toContain("each file's own message");
+    });
+  }
 });
