@@ -107,7 +107,7 @@ All mentioned in same comment with automatic deduplication.
 
 ```bash
 npx tsx -e "
-import { extractIssueReferences } from './plugins/linear/issue-reference-parser';
+import { extractIssueReferences } from './plugins-claude/linear/issue-reference-parser';
 
 const refs = extractIssueReferences('Check GOO-1 and ENG-100');
 console.log(JSON.stringify(refs, null, 2));
@@ -119,7 +119,7 @@ console.log(JSON.stringify(refs, null, 2));
 ```bash
 dotenv -- tsx -e "
 import { LinearClient } from '@linear/sdk';
-import { processCommentReferences } from './plugins/linear/issue-reference-parser';
+import { processCommentReferences } from './plugins-claude/linear/issue-reference-parser';
 
 const client = new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 const result = await processCommentReferences(client, 'GOO-1 and FAKE-999');

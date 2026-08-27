@@ -10,8 +10,8 @@ import { REPO_ROOT } from "../helpers.js";
 // on disk under a plausible-looking glob.
 const EXPECTED_PLUGIN_TEST_FILES = [
   "plugins/gmail/tests/verify-sdk-behavior.ts",
-  "plugins/linear/tests/verify-decision-edges.ts",
-  "plugins/linear/tests/verify-sdk-behavior.ts",
+  "plugins-claude/linear/tests/verify-decision-edges.ts",
+  "plugins-claude/linear/tests/verify-sdk-behavior.ts",
 ] as const;
 
 describe("tsconfig.json plugin tests inclusion", () => {

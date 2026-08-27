@@ -81,7 +81,7 @@ describe("build driver target allow-list", () => {
     // does not start with "plugins" and is not a plugin root, so the old guard
     // published into it — over the authored templates the build reads from.
     ["the authored template root", "skills-src/voice"],
-    ["another plugin's leaf", "plugins/linear/skills"],
+    ["another plugin's leaf", "plugins-claude/linear/skills"],
     ["a sibling of the leaf", "plugins-voice/voice/bin"],
     ["the repo root", "."],
   ])("refuses to build with %s as a target", (_shape, targetPath) => {

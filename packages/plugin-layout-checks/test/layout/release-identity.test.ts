@@ -136,9 +136,9 @@ describe("explicit release identities", () => {
     [
       "plugin root",
       (voice: RegistryPlugin) => {
-        voice.releaseIdentity.plugin.authoritativeRoot = "plugins/linear";
+        voice.releaseIdentity.plugin.authoritativeRoot = "plugins-claude/linear";
       },
-      /voice.*plugin\.authoritativeRoot.*plugins\/linear/i,
+      /voice.*plugin\.authoritativeRoot.*plugins-claude\/linear/i,
     ],
     [
       "npm root",

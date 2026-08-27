@@ -134,7 +134,7 @@ describe("registry path invariants", () => {
     ["a plugin root", "plugins-voice/voice"],
     ["a Claude tree root", "plugins-claude/goodfoot"],
     ["an authored template root", "skills-src/gmail"],
-    ["another plugin's leaf", "plugins/linear/skills"],
+    ["another plugin's leaf", "plugins-claude/linear/skills"],
     ["a sibling of the leaf", "plugins-voice/voice/bin"],
     ["a nested path under the leaf", "plugins-voice/voice/skills/handbook"],
     ["the repo root", "."],

@@ -1,0 +1,5 @@
+package.json#L14-L14 rk64:eb5b0097d4dc9cd2
+plugins-claude/linear/tests/verify-decision-edges.ts rk64:26234f2351597f6e
+plugins-claude/linear/tests/verify-sdk-behavior.ts rk64:c88e4b94e44c9a00
+
+The root verify:linear script directly invokes both Linear verifier files by repository-relative path; TypeScript program-membership checks do not execute this script, so its two entrypoints must move with the files and remain runnable as standalone programs.

@@ -1,5 +1,5 @@
 {
   "name": "linear",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Linear webhook comment parsing and issue reference validation utilities"
 }

@@ -1,6 +1,6 @@
 /**
  * Decision Edge Case Verification
- * Run with: dotenv -- tsx plugins/linear/tests/verify-decision-edges.ts
+ * Run with: dotenv -- tsx plugins-claude/linear/tests/verify-decision-edges.ts
  *
  * Tests edge cases in decision logic (not error handling).
  */

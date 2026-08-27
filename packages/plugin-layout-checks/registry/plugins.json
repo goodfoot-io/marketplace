@@ -225,26 +225,42 @@
     {
       "name": "linear",
       "releaseIdentity": {
-        "plugin": { "identity": "linear", "label": "linear plugin", "versionSource": "plugins/linear/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/linear" },
+        "plugin": { "identity": "linear", "label": "linear plugin", "versionSource": "plugins-claude/linear/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins-claude/linear" },
         "npm": null
       },
       "skillsSrc": "skills-src/linear",
-      "claudePluginRoot": "plugins/linear",
+      "claudePluginRoot": "plugins-claude/linear",
       "codexPluginRoot": "plugins-codex/linear",
       "opencodePluginRoot": "plugins-opencode/linear",
       "targets": [
-        { "platform": "claude-code", "path": "plugins/linear/skills" },
+        { "platform": "claude-code", "path": "plugins-claude/linear/skills" },
         { "platform": "codex", "path": "plugins-codex/linear/skills" },
         { "platform": "opencode", "path": "plugins-opencode/linear/skills", "opencodeRegistered": true }
       ],
-      "platformDirs": [],
+      "platformDirs": [
+        "claude-code:skills=plugins-claude/linear/skills",
+        "claude-code:agents=plugins-claude/linear/agents",
+        "claude-code:hooks=plugins-claude/linear/hooks",
+        "claude-code:plugin=plugins-claude/linear",
+        "claude-code:conventions=CLAUDE.md",
+        "codex:skills=plugins-codex/linear/skills",
+        "codex:agents=plugins-codex/linear/agents",
+        "codex:hooks=plugins-codex/linear/hooks",
+        "codex:plugin=plugins-codex/linear",
+        "codex:conventions=AGENTS.md",
+        "opencode:skills=plugins-opencode/linear/skills",
+        "opencode:agents=plugins-opencode/linear/agents",
+        "opencode:hooks=plugins-opencode/linear/hooks",
+        "opencode:plugin=plugins-opencode/linear",
+        "opencode:conventions=AGENTS.md"
+      ],
       "skills": ["linear"],
       "marketplace": {
         "claude": "linear",
         "codex": "linear"
       },
       "versionSurfaces": {
-        "source": "plugins/linear/.claude-plugin/plugin.json",
+        "source": "plugins-claude/linear/.claude-plugin/plugin.json",
         "codexManifest": "plugins-codex/linear/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/linear/package.json"
       },
