@@ -28,5 +28,11 @@ Use the shared reference at `${CLAUDE_PLUGIN_ROOT}/skills/reference/helper-refer
 - `it.variant(...)` must resolve exactly one branch for every selected platform. Aliases may expand to multiple canonical platforms, but overlapping, missing, surplus, or unknown branches fail.
 - `it.platformDir(...)` takes a logical destination key, not an arbitrary filesystem path.
 - Unsupported helper/platform pairs throw with both the helper name and platform. Never catch that error to substitute another platform's value.
+- `it.variant(...)` requires an explicit branch for every canonical platform, including `antigravity`, even when the template's own front-config `platforms:` list excludes it. Front-config gates whether the file renders at all for that host; it does not exempt a still-reachable `it.variant()` call inside the template from needing the branch.
+- `it.pluginRootVar` is `unavailable` on OpenCode (see the reference table). A template that needs a real, resolvable destination on all three platforms — not just Claude Code and Codex — must guard it explicitly rather than let the helper throw: `it.is("opencode") ? <opencode-relative literal path> : it.pluginRootVar`. The literal is not a workaround; OpenCode genuinely has no plugin-root variable, so a real repository-relative path is the correct value there, not an approximation of one.
 
 Use `it.skillInvoke(...)`, rather than `it.skillRef(...)`, when the output must actively load a skill. Invocation may be a block-level construct, so do not embed it inside a sentence.
+
+## Known lint false positive
+
+The `skill-relative-path` rule matches any rendered path fragment shaped like a platform tree (`plugins-(claude|codex|opencode)/.../skills/...`) — including, incidentally, the bare word `skills` preceded by whitespace, which a correctly rendered `it.platformDir()`/`it.pluginRootVar` path will often produce. A clean render that legitimately references a sibling file by path is expected to trip this rule; the fix is a narrow, line-bounded `lintSuppressions` entry at that exact site, not a rewrite of the reference. The platform-leak gate that scans rendered output for wrong-platform tokens is the check that actually validates path correctness in this case — a suppressed `skill-relative-path` finding does not weaken it.
