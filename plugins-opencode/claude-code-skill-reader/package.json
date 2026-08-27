@@ -1,0 +1,10 @@
+{
+  "name": "@goodfoot/opencode-claude-code-skill-reader",
+  "version": "0.1.1",
+  "private": true,
+  "description": "OpenCode plugin registration for the claude-code-skill-reader skill set (cli).",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  }
+}

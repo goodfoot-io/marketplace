@@ -1,5 +1,5 @@
 ---
-name: cli
+name: claude-code-skill-reader-cli
 description: Use `npx @goodfoot/claude-code-skill-reader <skill-name>` to read
   and process Claude Code skill and command files from project, plugin, and
   marketplace sources. This skill should be used when Claude needs to inspect,

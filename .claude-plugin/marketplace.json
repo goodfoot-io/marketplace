@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "goodfoot",
   "displayName": "Goodfoot",
-  "version": "1.0.265",
+  "version": "1.0.266",
   "metadata": {
     "description": "Professional development workflows, MCP servers, and productivity tools from Goodfoot. Includes project management, browser automation, VSCode integration, code quality enforcement, and comprehensive development utilities."
   },
@@ -110,7 +110,7 @@
     },
     {
       "name": "claude-code-skill-reader",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "source": "./plugins/claude-code-skill-reader",
       "tags": [
         "skills",
