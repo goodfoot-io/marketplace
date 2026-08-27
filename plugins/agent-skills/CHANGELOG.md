@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6
+
+Documents this card's migration lessons — dialect vs. substance, the `it.variant()` antigravity-branch and `it.pluginRootVar` OpenCode guards, and the `skill-relative-path` false positive — captured in `platform-behavior` and `cli-and-helpers`.
+
 ## 1.0.5
 
 Synchronizes the documentation plugin with the package release after automated marketplace versioning.

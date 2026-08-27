@@ -1,0 +1,22 @@
+{
+  "name": "agent-hooks",
+  "version": "1.0.2",
+  "description": "Type-safe TypeScript hooks for Claude Code and Codex using @goodfoot/agent-hooks — the unified successor to claude-code-hooks and codex-hooks",
+  "author": { "name": "Goodfoot", "email": "contact@goodfoot.io", "url": "https://github.com/goodfoot-io" },
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/agent-hooks",
+  "repository": "https://github.com/goodfoot-io/marketplace",
+  "license": "MIT",
+  "keywords": ["hooks", "typescript", "type-safe", "sdk", "events", "lifecycle", "pre-tool-use", "session-start", "codex"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Agent Hooks",
+    "shortDescription": "Type-safe TypeScript hooks for Claude Code and Codex using @goodfoot/agent-hooks — the unified successor to claude-code-hooks and codex-hooks",
+    "longDescription": "Authoring guidance for @goodfoot/agent-hooks, which compiles TypeScript hook handlers into the manifests Claude Code and Codex load. Covers each host's hook types, typed inputs, output builders, logging, environment access, and porting from bash.",
+    "developerName": "Goodfoot",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/agent-hooks",
+    "defaultPrompt": ["Use the agent-hooks skills to write type-safe TypeScript hooks with @goodfoot/agent-hooks."],
+    "brandColor": "#1F6FEB"
+  }
+}

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6
+
+- Aligns the package release surface with the companion plugin's hook-managed version bump.
+
 ## 1.0.5
 
 - Aligns every release surface after automated companion-plugin versioning.

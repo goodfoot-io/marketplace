@@ -1,0 +1,321 @@
+---
+name: codex
+description: Load this skill immediately after a user mentions
+  "@goodfoot/agent-hooks" for Codex, or Codex hooks.
+---
+
+**If `@goodfoot/codex-hooks` is present in the project's `package.json`, say so and offer to repoint the project at `@goodfoot/agent-hooks/codex` — `@goodfoot/codex-hooks` is deprecated (security/data-loss fixes only) in favor of this package.**
+
+**Review the authoritative documentation at `https://developers.openai.com/codex/hooks.md` and the wire schemas under `third_party/reference/codex/codex-rs/hooks/schema/generated/` before using `@goodfoot/agent-hooks/codex`. When the doc and the schemas disagree, the schemas win.**
+
+<instructions>
+
+## 1. The Build Process (First & Foremost)
+
+Hooks are **compiled executables**, not scripts. You must build them before Codex can see them.
+
+**The Build Command:**
+```bash
+npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o ".codex/hooks.json"
+```
+
+**Parameters Explained:**
+*   `-i "src/**/*.ts"`: **Input Glob.** Tells the compiler where your TypeScript source files are.
+    *   *Critical:* Quote the glob pattern (`"..."`) to prevent your shell from expanding it before the CLI sees it.
+*   `-o ".codex/hooks.json"`: **Output Manifest.** This is the file Codex loads at startup.
+    *   The CLI creates a `bin/` folder next to this file containing the compiled `.mjs` executables.
+*   `--executable <path>` (Optional): **Executable Prefix.** Sets the executable used in generated commands (default: `node`).
+*   `--loader .ext=type` (Optional, repeatable): **Explicit Asset Loader.** Registers esbuild loaders for non-code imports. `.md=text` is enabled by default; opt in for other extensions, e.g. `--loader .txt=text`.
+
+**Configuring the log file:** Logging is configured at runtime, not at build time. Set the `AGENT_HOOKS_LOG_FILE` environment variable to write JSON-line logs to a file, or configure programmatically with `new Logger({ logFilePath })` / `new Logger({ logEnvVar })`. See [Logging & Debugging](@plugins-opencode/agent-hooks/skills/codex/reference/logging.md).
+
+**Loader guidance:**
+*   Use text imports for **small static prompt assets** that should be bundled into the compiled hook as strings.
+*   Prefer this pattern for `SessionStart` and `SubagentStart` preambles:
+    ```typescript
+    import preamble from './prompts/session-start.md';
+    import { sessionStartHook, sessionStartOutput } from '@goodfoot/agent-hooks/codex';
+
+    export default sessionStartHook({}, () => {
+      return sessionStartOutput({
+        additionalContext: preamble
+      });
+    });
+    ```
+*   If the project runs tests through Vitest/Vite, mirror the same loader behavior there or test-time imports can fail even when the `agent-hooks` build passes.
+
+## 2. Hook Factory Demonstration
+
+Here is a complete, working example of a `PreToolUse` hook. It uses the Factory Pattern (`preToolUseHook`) and the Output Builder (`preToolUseOutput`).
+
+**Goal:** Prevent accidental deletion of the root directory.
+
+```typescript
+// src/block-dangerous.ts
+import { preToolUseHook, preToolUseOutput } from '@goodfoot/agent-hooks/codex';
+
+// 1. Export Default is MANDATORY.
+// 2. Factory handles input typing and error wrapping.
+// 3. tool_name is matched as a string (Codex does not narrow per-tool).
+export default preToolUseHook({ matcher: 'shell' }, (input, { logger }) => {
+
+  // 4. Input uses wire format (snake_case: tool_input, tool_name).
+  // 5. tool_input is `unknown` — narrow it with a user-defined type guard.
+  const command = isShellInput(input.tool_input) ? input.tool_input.command : '';
+
+  // 6. Logging uses the context logger, NEVER console.log or console.error.
+  logger.info('Checking command safety', { command });
+
+  if (command.includes('rm -rf /')) {
+    logger.warn('Blocked dangerous root deletion', { command });
+
+    // 7. Return structured output using the builder.
+    // 8. systemMessage is shown to the user in the UI.
+    return preToolUseOutput({
+      systemMessage: 'Safety: Dangerous root deletion command blocked.',
+      permissionDecision: 'deny',
+      permissionDecisionReason: 'Safety Policy: Root deletion is forbidden.'
+    });
+  }
+
+  // 9. Default: Allow execution with a status message.
+  return preToolUseOutput({
+    systemMessage: 'Command validated by safety policy.'
+  });
+});
+
+function isShellInput(value: unknown): value is { command: string } {
+  return typeof value === 'object' && value !== null && typeof (value as { command?: unknown }).command === 'string';
+}
+```
+
+### Narrowing `tool_input`
+
+Codex passes `tool_input` as `unknown` because tool schemas are tool-defined and may evolve independently of the hook runtime. Use user-defined type guards to narrow:
+
+```typescript
+function isShellInput(value: unknown): value is { command: string; cwd?: string } {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as { command?: unknown };
+  return typeof candidate.command === 'string';
+}
+
+export default preToolUseHook({ matcher: 'shell' }, (input) => {
+  if (!isShellInput(input.tool_input)) return preToolUseOutput({});
+  // input.tool_input is now { command: string; cwd?: string }
+  return preToolUseOutput({});
+});
+```
+
+The package does **not** ship per-tool predicates or content helpers — Codex tools are defined by the host, not by the hooks SDK. Define narrowing helpers locally in your hook code or in a shared module.
+
+## 3. The Golden Path: Scaffolding a New Project
+
+**Use the scaffold command when setting up new packages.** This generates a complete TypeScript project with tests, linting, and build scripts.
+
+**Scaffold Command:**
+```bash
+npx @goodfoot/agent-hooks --agent codex --scaffold ./my-codex-hooks --hooks SessionStart,PreToolUse -o ./.codex/hooks.json
+```
+
+**What you get:**
+*   `src/`: Type-safe hook implementations.
+*   `test/`: Vitest tests for your hooks.
+*   `package.json`: Configured with `build`, `test`, and `lint` scripts.
+*   `tsconfig.json` & `biome.json`: Best-practice configuration.
+
+**Next Steps:**
+1.  `cd my-codex-hooks`
+2.  `npm install`
+3.  `npm run build` (Compiles hooks to the specified output path)
+4.  `npm test` (Runs the generated tests)
+
+**Available Hook Types:** `PreToolUse`, `PostToolUse`, `PermissionRequest`, `UserPromptSubmit`, `SessionStart`, `SubagentStart`, `Stop`, `SubagentStop`, `PreCompact`, `PostCompact`
+
+**Monorepo?** Use `-o` to output directly to a plugin directory:
+```bash
+npx @goodfoot/agent-hooks --agent codex --scaffold ./packages/my-codex-hooks --hooks PreToolUse,PostToolUse -o ../../plugins/my-plugin/.codex/hooks.json
+```
+See [Installation: Scaffolding for Monorepos](@plugins-opencode/agent-hooks/skills/codex/reference/installation.md).
+
+## 4. Output Capabilities by Hook Type
+
+Different hooks have different capabilities. This table is built from the Codex output schemas (`codex-rs/hooks/schema/generated/*.output.schema.json`).
+
+| Hook Type | Can Block? | Can Deny? | Can Add Context? | Hook-Specific Output |
+|-----------|------------|-----------|------------------|----------------------|
+| PreToolUse | Yes (`decision: 'block'`, legacy) | Yes (`permissionDecision: 'deny'`) | Yes (`additionalContext`) | `{ permissionDecision: 'allow'\|'deny'\|'ask', permissionDecisionReason, additionalContext, updatedInput }` |
+| PostToolUse | Yes (`decision: 'block'`) | No | Yes (`additionalContext`) | `{ additionalContext, updatedMCPToolOutput }` |
+| PermissionRequest | No | Yes (`decision.behavior: 'deny'`) | No | `{ decision: { behavior: 'allow'\|'deny', message?, interrupt?, updatedInput?, updatedPermissions? } }` |
+| UserPromptSubmit | Yes (`decision: 'block'`) | No | Yes (`additionalContext`) | `{ additionalContext }` |
+| SessionStart | No | No | Yes (`additionalContext`) | `{ additionalContext }` |
+| SubagentStart | No | No | Yes (`additionalContext`) | `{ additionalContext }` |
+| Stop | Yes (`decision: 'block'` requires `reason`) | N/A | No | none |
+| SubagentStop | Yes (`decision: 'block'` requires `reason`) | N/A | No | none |
+| PreCompact | No | No | No | none (universal only) |
+| PostCompact | No | No | No | none (universal only) |
+
+**Key distinctions vs. Claude Code:**
+
+- `PreToolUse.permissionDecision` accepts `allow`, `deny`, **and** `ask` (reserved — fail-closed in some Codex builds; see Section 5).
+- `PermissionRequest` uses a nested `decision: { behavior, message? }` object, not `permissionDecision`.
+- `Stop` / `SubagentStop` use `decision: 'block'` with a required `reason`.
+- `PreCompact` and `PostCompact` accept **only** the universal envelope fields (`continue`, `stopReason`, `suppressOutput`, `systemMessage`) — no `hookSpecificOutput`.
+
+**Universal envelope fields (every hook):** `continue` (default `true`), `stopReason`, `suppressOutput`, `systemMessage`.
+
+## 5. Codex-Specific Limits
+
+These constraints are unique to Codex (not present in Claude Code):
+
+- **Windows: hooks disabled.** Codex disables hook execution on Windows hosts; configurations are parsed but never invoked.
+- **Async config-side hooks: parsed but unsupported.** Codex parses `async` hook entries in the configuration, but the runtime does not yet execute them.
+- **`permissionDecision: 'ask'`: reserved.** The wire schema permits it, but some Codex versions treat it as fail-closed. Treat `ask` as best-effort and verify against the target Codex build's `output_parser.rs` `unsupported_*` helpers.
+- **`updatedInput` (PreToolUse): only honored when `permissionDecision: 'allow'`.** Emitting it with `deny` or `ask` is a no-op (and may fail-closed in stricter builds).
+- **PermissionRequest `interrupt: true`, `updatedInput`, `updatedPermissions`: reserved (fail-closed).** Emit them only if you have confirmed the target Codex build supports them; otherwise omit.
+- **Unexpected runtime failures exit non-zero by default**, which Codex surfaces as a failed-hook banner even for a hook whose only job is to add optional context. Advisory hooks (context nudges on `UserPromptSubmit`, `SessionStart`, `SubagentStart`) can opt into `unexpectedError: 'continue'` in the factory config to fail open instead — see Pattern D below. Never set this on hooks that make permission, safety, or policy decisions (`PreToolUse`, `PermissionRequest`, blocking `Stop`/`SubagentStop`/`PostToolUse`): a swallowed failure there silently grants the decision the hook was supposed to make.
+
+## 6. Common Patterns
+
+### Pattern A: Auto-approve a known-safe command (PermissionRequest)
+
+```typescript
+import { permissionRequestHook, permissionRequestOutput } from '@goodfoot/agent-hooks/codex';
+
+export default permissionRequestHook({ matcher: 'shell' }, (input, { logger }) => {
+  const cmd = isShellInput(input.tool_input) ? input.tool_input.command : '';
+  if (cmd.startsWith('echo ')) {
+    logger.info('Auto-allowing echo', { cmd });
+    return permissionRequestOutput({
+      behavior: 'allow'
+    });
+  }
+  return permissionRequestOutput({ behavior: 'deny' });
+});
+
+function isShellInput(value: unknown): value is { command: string } {
+  return typeof value === 'object' && value !== null && typeof (value as { command?: unknown }).command === 'string';
+}
+```
+
+### Pattern B: Block Stop on condition (Stop)
+
+```typescript
+import { stopHook, stopOutput } from '@goodfoot/agent-hooks/codex';
+
+export default stopHook({}, (_input, { logger }) => {
+  const ready = false;
+  if (!ready) {
+    logger.info('Blocking stop');
+    return stopOutput({
+      decision: 'block',
+      reason: 'Pending operations must complete first.',
+      systemMessage: 'Stop blocked: pending operations in progress.'
+    });
+  }
+  return stopOutput({});
+});
+```
+
+### Pattern C: Inject context at SessionStart
+
+```typescript
+import { sessionStartHook, sessionStartOutput } from '@goodfoot/agent-hooks/codex';
+
+export default sessionStartHook({ matcher: 'startup' }, () => {
+  return sessionStartOutput({
+    additionalContext: 'Project conventions: TypeScript strict, no `any`.'
+  });
+});
+```
+
+### Pattern D: Fail-open advisory context (UserPromptSubmit)
+
+```typescript
+import { userPromptSubmitHook } from '@goodfoot/agent-hooks/codex';
+
+export default userPromptSubmitHook(
+  {
+    unexpectedError: 'continue',
+    onUnexpectedError(error, phase) {
+      // Best-effort diagnostics only — this callback can never fail the invocation.
+    }
+  },
+  async (input, { logger }) => {
+    try {
+      if (input.prompt.includes('cards-extension')) {
+        return 'Consider loading the cards skill.';
+      }
+    } catch (error) {
+      logger.warn('nudge hook failed (fail-open)', { error });
+    }
+  }
+);
+```
+
+`unexpectedError: 'continue'` covers failures the handler's own `try`/`catch` cannot: stdin reading, JSON parsing, output serialization, the stdout write, and logger cleanup. On any of those, the runtime emits `{}` and exits `0` instead of the default non-zero exit. `BlockError` still exits `2` regardless of this setting.
+
+## 7. Agent Protocol: The "Forensic" Method
+
+When helping a user with hooks, you **MUST** follow this protocol:
+
+1.  **Verify the Package:** Ensure usage of `@goodfoot/agent-hooks/codex`.
+2.  **Enforce the Build Step:** Remind the user to run `npx ...` (or `npm run build` if scaffolded) after every edit.
+3.  **Match Asset Loaders Across Build and Test:** If a hook imports `.md`, `.txt`, or similar assets, ensure `agent-hooks --agent codex --loader ...` and the test runner configuration agree.
+4.  **Ban `console.log` & `console.error`:** Aggressively correct any code using `console.log` or `console.error` to use `logger`. Stdio is reserved for the protocol; direct writes cause silent failures or UI corruption.
+5.  **Check Exports:** TypeScript hooks **must** use `export default hookFactory(...)`.
+6.  **Mind the Limits:** Surface the Codex-specific limits in Section 5 when relevant (Windows, `ask`, reserved fields).
+
+## 8. Pre-Flight Checklist
+
+Before debugging hook issues, verify:
+
+- [ ] `@goodfoot/agent-hooks` is in `package.json` dependencies
+- [ ] Build script exists in `package.json` (e.g., `"build": "agent-hooks --agent codex -i ..."`)
+- [ ] Hooks rebuilt after last code change (`npm run build`)
+- [ ] No `console.log` or `console.error` in hook code (use `logger` instead)
+- [ ] Hook files use `export default hookFactory(...)` pattern
+- [ ] Not running on Windows (hooks are disabled there)
+
+## 9. Configuration by Setup Type
+
+The CLI picks one of three command-emission modes based on the output path and flags:
+
+| Mode | Trigger | Command form | Filename |
+| --- | --- | --- | --- |
+| **plugin** | `--plugin-root`, or a `.codex-plugin/` marker found by walking up from the output path | `node "${PLUGIN_ROOT}/hooks/<name>.mjs"` | stable (no hash) |
+| **codex-local** | Output path contains a `.codex/` segment | `node "$(git rev-parse --show-toplevel)/.codex/bin/<name>.<hash>.mjs"` | hashed |
+| **absolute** | Anything else | `node "/abs/path/to/<name>.<hash>.mjs"` | hashed |
+
+**Standalone Project (codex-local):**
+Place the compiled manifest at `.codex/hooks.json` in your project root. Codex auto-discovers it.
+```bash
+npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o ".codex/hooks.json"
+```
+
+**Codex Plugin (Recommended):**
+Build into the plugin's `hooks/` directory and pass `--plugin-root` (or place a `.codex-plugin/` marker so it auto-detects):
+```bash
+npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o "./hooks/hooks.json" --plugin-root
+```
+Plugin mode emits `${PLUGIN_ROOT}`-relative commands and stable, hash-free filenames so the built `hooks.json` is portable inside an installed plugin and Codex's hook trust hash stays valid across rebuilds. Codex injects `PLUGIN_ROOT` (and `CLAUDE_PLUGIN_ROOT` for compatibility) into plugin hook environments and substitutes `${PLUGIN_ROOT}` before execution.
+
+**Monorepo Project:**
+Output to a sibling plugin directory and let `--plugin-root` anchor the command form:
+```bash
+npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o "../../plugins/my-plugin/hooks/hooks.json" --plugin-root
+```
+See [Monorepo Integration](@plugins-opencode/agent-hooks/skills/codex/reference/installation.md).
+
+**Filename overrides:** `--stable-names` forces hash-free names in any mode; `--no-stable-names` opts back into hashed names (the pre-1.1 default).
+
+## 10. Reference Links
+
+*   **[Installation & Setup](@plugins-opencode/agent-hooks/skills/codex/reference/installation.md)**: Setup guide (Scaffolding vs Manual).
+*   **[All 10 Hook Inputs](@plugins-opencode/agent-hooks/skills/codex/reference/input-types.md)**: Field shapes per event, with `tool_input` narrowing.
+*   **[All 10 Output Builders](@plugins-opencode/agent-hooks/skills/codex/reference/output-builders.md)**: Factories, builders, and option types.
+*   **[Porting from Bash](@plugins-opencode/agent-hooks/skills/codex/reference/porting.md)**: Migration guide.
+*   **[Logging & Debugging](@plugins-opencode/agent-hooks/skills/codex/reference/logging.md)**: How to see what's happening.
+*   **[Environment](@plugins-opencode/agent-hooks/skills/codex/reference/environment.md)**: Hook context and runtime env.
+
+</instructions>

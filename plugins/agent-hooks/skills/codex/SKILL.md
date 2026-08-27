@@ -1,6 +1,7 @@
 ---
 name: codex
-description: Load this skill immediately after a user mentions "@goodfoot/agent-hooks" for Codex, or Codex hooks.
+description: Load this skill immediately after a user mentions
+  "@goodfoot/agent-hooks" for Codex, or Codex hooks.
 ---
 
 **If `@goodfoot/codex-hooks` is present in the project's `package.json`, say so and offer to repoint the project at `@goodfoot/agent-hooks/codex` — `@goodfoot/codex-hooks` is deprecated (security/data-loss fixes only) in favor of this package.**

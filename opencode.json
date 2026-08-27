@@ -5,8 +5,18 @@
       "*": "allow"
     }
   },
-  "plugin": ["./plugins-opencode/goodfoot"],
+  "plugin": [
+    "./plugins-opencode/goodfoot"
+  ],
   "skills": {
-    "paths": ["./skills", "./plugins-opencode/voice/skills", "./plugins-opencode/jsdoczoom/skills", "./plugins-opencode/claude-code-skill-reader/skills", "./plugins-opencode/linear/skills", "./plugins-opencode/gmail/skills"]
+    "paths": [
+      "./skills",
+      "./plugins-opencode/voice/skills",
+      "./plugins-opencode/jsdoczoom/skills",
+      "./plugins-opencode/claude-code-skill-reader/skills",
+      "./plugins-opencode/linear/skills",
+      "./plugins-opencode/gmail/skills",
+      "./plugins-opencode/agent-hooks/skills"
+    ]
   }
 }

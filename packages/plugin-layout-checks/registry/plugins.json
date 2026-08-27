@@ -1,6 +1,6 @@
 {
   "$comment": "Bundler-managed plugin registry. Field-by-field contract: packages/plugin-layout-checks/test/registry.ts",
-  "lintSuppressionBudget": 10,
+  "lintSuppressionBudget": 20,
   "plugins": [
     {
       "name": "goodfoot",
@@ -168,6 +168,44 @@
         "gmail/advanced/messages.md:696-716:cross-dialect-reference",
         "gmail/advanced/labels-filters.md:454-454:cross-dialect-reference"
       ]
+    },
+    {
+      "name": "agent-hooks",
+      "skillsSrc": "skills-src/agent-hooks",
+      "claudePluginRoot": "plugins/agent-hooks",
+      "codexPluginRoot": "plugins-codex/agent-hooks",
+      "opencodePluginRoot": "plugins-opencode/agent-hooks",
+      "targets": [
+        { "platform": "claude-code", "path": "plugins/agent-hooks/skills" },
+        { "platform": "codex", "path": "plugins-codex/agent-hooks/skills" },
+        { "platform": "opencode", "path": "plugins-opencode/agent-hooks/skills", "opencodeRegistered": true, "note": "The 9 codex/SKILL.md reference links render as repo-relative literals here, since pluginRootVar is unavailable on OpenCode (per plan section C3)." }
+      ],
+      "platformDirs": [],
+      "skills": ["antigravity", "claude-code", "codex"],
+      "skillPlatforms": {
+        "antigravity": ["claude-code"]
+      },
+      "marketplace": {
+        "claude": "agent-hooks",
+        "codex": "agent-hooks"
+      },
+      "versionSurfaces": {
+        "source": "plugins/agent-hooks/.claude-plugin/plugin.json",
+        "codexManifest": "plugins-codex/agent-hooks/.codex-plugin/plugin.json",
+        "opencodePackage": "plugins-opencode/agent-hooks/package.json"
+      },
+      "lintSuppressions": [
+        "codex/SKILL.md.eta:25-25:skill-relative-path",
+        "codex/SKILL.md.eta:134-134:skill-relative-path",
+        "codex/SKILL.md.eta:303-303:skill-relative-path",
+        "codex/SKILL.md.eta:309-314:skill-relative-path",
+        "codex/SKILL.md:30-30:plugin-root-variable",
+        "codex/SKILL.md:139-139:plugin-root-variable",
+        "codex/SKILL.md:286-286:plugin-root-variable",
+        "codex/SKILL.md:301-301:plugin-root-variable",
+        "codex/SKILL.md:308-308:plugin-root-variable",
+        "codex/SKILL.md:314-319:plugin-root-variable"
+      ]
     }
   ],
   "unmanaged": [
@@ -178,10 +216,6 @@
     {
       "name": "expansion",
       "reason": "Ships without the bundler: a hooks-only plugin with no skills tree."
-    },
-    {
-      "name": "agent-hooks",
-      "reason": "Awaiting bundler migration (card main-8-1, Phase 3). Moves into plugins[] in the same commit that creates skills-src/agent-hooks."
     },
     {
       "name": "agent-skills",

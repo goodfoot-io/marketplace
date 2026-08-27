@@ -2,10 +2,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import { repoPath, walkFiles } from "../helpers.js";
-import { PLUGINS } from "../registry.js";
+import { PLUGINS, skillsInTarget } from "../registry.js";
 
 /** Every declared output tree, as `<plugin>: <path>` cases. */
-const trees = PLUGINS.flatMap((plugin) => plugin.targets.map((target) => [plugin.name, target.path] as const));
+const trees = PLUGINS.flatMap((plugin) =>
+  plugin.targets.map((target) => [plugin.name, target.path, target.platform] as const),
+);
 
 describe("generated skill surfaces", () => {
   it("holds exactly the registry's authored source roots under skills-src", () => {
@@ -26,10 +28,10 @@ describe("generated skill surfaces", () => {
     expect(files.filter((file) => file.endsWith(".md"))).toEqual([]);
   });
 
-  it.each(trees)("contains a complete regular-file tree at %s -> %s", (name, output) => {
+  it.each(trees)("contains a complete regular-file tree at %s -> %s", (name, output, platform) => {
     const plugin = PLUGINS.find((candidate) => candidate.name === name);
     if (!plugin) throw new Error(`unreachable: ${name}`);
-    expect(fs.readdirSync(repoPath(output)).sort()).toEqual([...plugin.skills].sort());
+    expect(fs.readdirSync(repoPath(output)).sort()).toEqual([...skillsInTarget(plugin, platform)].sort());
     for (const file of walkFiles(repoPath(output))) {
       const stat = fs.lstatSync(path.join(repoPath(output), file));
       expect(stat.isSymbolicLink(), `${output}/${file}`).toBe(false);

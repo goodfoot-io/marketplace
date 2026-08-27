@@ -35,19 +35,42 @@ export interface Leak {
 }
 
 /**
+ * Blanks single-backtick inline-code spans, which mark a token as a *mention*
+ * rather than a *use*. Applied only outside fenced blocks — scanning inside
+ * fences is the entire reason this gate exists, since agent-skills lint
+ * structurally cannot see there.
+ */
+const withoutInlineCode = (line: string) => line.replace(/`[^`\n]*`/g, (match) => " ".repeat(match.length));
+
+/**
  * Scans one file's full text — fenced code blocks included — for tokens
  * belonging to a platform other than the tree it sits in.
  *
- * Matches the brace-delimited substitution form rather than the bare
- * identifier. That distinction is what lets this gate land: agent-hooks'
- * Codex prose says "Codex injects `PLUGIN_ROOT` (and `CLAUDE_PLUGIN_ROOT` for
- * compatibility)", which is correct Codex prose about Codex and must survive.
+ * Two things separate a leak from correct cross-dialect prose, and both are
+ * needed. The gate matches the brace-delimited substitution form rather than
+ * the bare identifier, and it treats a backticked token as a mention. Both
+ * exist for the same sentence, agent-hooks' codex/SKILL.md:300: "Plugin mode
+ * emits `${PLUGIN_ROOT}`-relative commands … Codex injects `PLUGIN_ROOT` (and
+ * `CLAUDE_PLUGIN_ROOT` for compatibility)". That is correct Codex prose about
+ * Codex, it renders into the *Claude* tree because the skill documenting Codex
+ * hooks ships to Claude Code readers, and it must survive verbatim. The
+ * brace-vs-bare rule alone does not save it — the same sentence carries both
+ * forms, and the brace form is the one nobody noticed.
+ *
+ * A real leak is a *use*: `@${CLAUDE_PLUGIN_ROOT}/skills/…` in a file
+ * reference, or a shell substitution inside a fence. Neither is backticked.
  */
 export function scanText(platform: Platform, file: string, text: string): Leak[] {
   const leaks: Leak[] = [];
   const ownPrefix = PLATFORM_TREE_PREFIX[platform];
+  let fenced = false;
 
-  text.split("\n").forEach((line, index) => {
+  text.split("\n").forEach((raw, index) => {
+    if (/^\s*```/.test(raw)) {
+      fenced = !fenced;
+      return;
+    }
+    const line = fenced ? raw : withoutInlineCode(raw);
     const record = (token: string) => leaks.push({ file, line: index + 1, token });
 
     if (platform !== "claude-code" && /\$\{CLAUDE_PLUGIN_ROOT\}/.test(line)) record(CLAUDE_ROOT_TOKEN);

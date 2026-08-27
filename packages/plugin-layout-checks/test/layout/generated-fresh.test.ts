@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import { REPO_ROOT, repoPath, walkFiles } from "../helpers.js";
-import { allTargets, PLUGINS } from "../registry.js";
+import { allTargets, PLUGINS, skillsInTarget } from "../registry.js";
 
 const generated = allTargets();
 
@@ -51,7 +51,7 @@ describe("generated bundle freshness", () => {
         expect(
           fs.readdirSync(repoPath(target.path)).sort(),
           `${target.path} must not gain a ${plugin.name}/ namespace`,
-        ).toEqual([...plugin.skills].sort());
+        ).toEqual([...skillsInTarget(plugin, target.platform)].sort());
         if (!plugin.skills.includes(plugin.name)) {
           expect(
             fs.existsSync(repoPath(target.path, plugin.name)),

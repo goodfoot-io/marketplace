@@ -1,6 +1,8 @@
 ---
 name: antigravity
-description: Load this skill immediately after a user mentions Antigravity hooks or the Antigravity surface of @goodfoot/agent-hooks. Covers the current in-repo implementation and its unpublished limits.
+description: Load this skill immediately after a user mentions Antigravity hooks
+  or the Antigravity surface of @goodfoot/agent-hooks. Covers the current
+  in-repo implementation and its unpublished limits.
 ---
 
 # Antigravity hooks

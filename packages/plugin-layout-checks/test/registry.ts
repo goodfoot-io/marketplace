@@ -35,8 +35,22 @@ export interface RegistryPlugin {
   targets: RegistryTarget[];
   /** `--platform-dir` flags, as `<platform>:<kind>=<path>` strings. */
   platformDirs: string[];
-  /** Exact top-level skill directory names in every one of this plugin's trees. */
+  /** Exact top-level skill directory names across this plugin's trees. */
   skills: string[];
+  /**
+   * Skills whose template restricts itself to a subset of platforms via
+   * front-config `platforms:`, and which therefore do not appear in every
+   * tree. Declared here so the restriction has one source that the trees, the
+   * freshness inventory, and the equivalence check all derive from — rather
+   * than each test carrying its own copy of which skill is missing where.
+   *
+   * agent-hooks/antigravity is the only member: a Claude-Code-only document
+   * about the Antigravity boundary, kept off the other trees so its
+   * provisional facts never reach a platform that would have to invent them
+   * (plan I2), which also moots its OpenCode name collision with
+   * agent-skills/antigravity (plan B2).
+   */
+  skillPlatforms?: Record<string, Platform[]>;
   /**
    * Skill-owned `bin/` payloads, as skill -> filenames, that must stay mode
    * 100755 at every physical location. Omitted where a plugin ships none —
@@ -91,6 +105,14 @@ function load(): Registry {
     if (!Array.isArray(plugin.lintSuppressions)) {
       throw new Error(`registry: ${plugin.name} is missing lintSuppressions`);
     }
+    // A skillPlatforms key naming a skill the plugin does not ship would
+    // silently restrict nothing, leaving the tree it was meant to exclude
+    // asserted against the full list and the gate green for the wrong reason.
+    for (const skill of Object.keys(plugin.skillPlatforms ?? {})) {
+      if (!plugin.skills.includes(skill)) {
+        throw new Error(`registry: ${plugin.name} restricts unknown skill ${skill}`);
+      }
+    }
     for (const platform of ["claude-code", "codex", "opencode"] as const) {
       if (!plugin.targets.some((target) => target.platform === platform)) {
         throw new Error(`registry: ${plugin.name} declares no ${platform} target`);
@@ -113,6 +135,15 @@ export function pluginNamed(name: string): RegistryPlugin {
 /** Every declared output tree, flattened across plugins. */
 export function allTargets(): (RegistryTarget & { plugin: string })[] {
   return PLUGINS.flatMap((plugin) => plugin.targets.map((target) => ({ ...target, plugin: plugin.name })));
+}
+
+/**
+ * The exact top-level skill names one target's tree carries, after applying
+ * any front-config platform restriction. Equals `plugin.skills` for every
+ * plugin that restricts nothing.
+ */
+export function skillsInTarget(plugin: RegistryPlugin, platform: Platform): string[] {
+  return plugin.skills.filter((skill) => plugin.skillPlatforms?.[skill]?.includes(platform) ?? true);
 }
 
 /** OpenCode roots that opencode.json's skills.paths must list, exactly. */

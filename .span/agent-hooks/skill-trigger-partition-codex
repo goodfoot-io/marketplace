@@ -1,4 +1,0 @@
-plugins/agent-hooks/skills/codex/SKILL.md#L3-L6 rk64:a2dfc1ff3cb18a6f
-plugins/codex-hooks/skills/sdk/SKILL.md#L3-L6 rk64:1843f69c86c6534c
-
-The old and new SKILL.md frontmatter descriptions and opening deprecation-pointer paragraphs partition the trigger space to avoid the FMEA F6 double-trigger bug: the deprecated plugin's description fires only on the literal `@goodfoot/codex-hooks` package name, while the new plugin's fires on generic `@goodfoot/agent-hooks`/"Codex hooks" phrasing. Each paragraph also names and cross-references the other package as the deprecated/successor pointer, so broadening either trigger or renaming either package without updating its counterpart reintroduces double-triggering or a stale pointer.
