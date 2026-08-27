@@ -1,6 +1,6 @@
 {
   "name": "voice",
-  "version": "1.0.76",
+  "version": "1.0.77",
   "description": "Voice conversation SDK skills and CLI tools for launching and interacting with realtime voice agents.",
   "author": {
     "name": "Goodfoot",
@@ -10,7 +10,14 @@
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/voice",
   "repository": "https://github.com/goodfoot-io/marketplace",
   "license": "MIT",
-  "keywords": ["voice", "conversation", "realtime", "audio", "sdk", "cli"],
+  "keywords": [
+    "voice",
+    "conversation",
+    "realtime",
+    "audio",
+    "sdk",
+    "cli"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Voice",
@@ -18,7 +25,10 @@
     "longDescription": "Troubleshooting and detailed usage skills for the voice MCP server: browser/audio problems, conversation lifecycle (pause/resume/reset), context management, intervening when the avatar is wrong, the full-viewport HTML stage, ending a session, and startup/channel failures.",
     "developerName": "Goodfoot",
     "category": "Developer Tools",
-    "capabilities": ["Read", "Write"],
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
     "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/voice",
     "defaultPrompt": [
       "Use the handbook skill to troubleshoot the voice MCP server when the browser hasn't connected, audio isn't ready, or the conversation needs to be paused, resumed, or reset."

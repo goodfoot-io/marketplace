@@ -1,0 +1,9 @@
+{
+  "sourceRevision": "94d40631c595be1b19f1bc34a1386529287dad20",
+  "authoredRoot": "skills-src/jsdoczoom",
+  "skills": ["style", "cli"],
+  "files": [
+    { "path": "style/SKILL.md", "mode": 420, "gitObject": "7cfeebe675b947ae8ca195e882287f078d7adb4a", "sha256": "571e6588995931565f7659b91366f850c8203d6b6aa51941558b30c322410290" },
+    { "path": "cli/SKILL.md", "mode": 420, "gitObject": "e9c074028d651c6c9a841b1a779a2ad1d17e5c38", "sha256": "a39637b6e8794f6d53b61bd2efab68381b9d52d0a27d4605531556b2bca98a0a" }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "jsdoczoom",
+  "version": "1.0.23",
+  "description": "JSDoc documentation tools and workflows",
+  "author": { "name": "Goodfoot", "email": "contact@goodfoot.io", "url": "https://github.com/goodfoot-io" },
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/jsdoczoom",
+  "repository": "https://github.com/goodfoot-io/marketplace",
+  "license": "MIT",
+  "keywords": ["jsdoc", "documentation", "typescript", "javascript"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "jsdoczoom",
+    "shortDescription": "JSDoc documentation tools and workflows",
+    "longDescription": "CLI help and style-guide skills for the jsdoczoom tool: running its style guide and its command-line help output.",
+    "developerName": "Goodfoot",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/jsdoczoom",
+    "defaultPrompt": ["Use the style skill for jsdoczoom's style guide, or the cli skill for its command-line help."],
+    "brandColor": "#1F6FEB"
+  }
+}

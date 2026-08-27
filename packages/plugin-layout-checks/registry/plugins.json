@@ -64,6 +64,30 @@
         "handbook/reference/startup-failure.md:7-7:cross-dialect-reference",
         "handbook/reference/startup-failure.md:23-23:cross-dialect-reference"
       ]
+    },
+    {
+      "name": "jsdoczoom",
+      "skillsSrc": "skills-src/jsdoczoom",
+      "claudePluginRoot": "plugins/jsdoczoom",
+      "codexPluginRoot": "plugins-codex/jsdoczoom",
+      "opencodePluginRoot": "plugins-opencode/jsdoczoom",
+      "targets": [
+        { "platform": "claude-code", "path": "plugins/jsdoczoom/skills" },
+        { "platform": "codex", "path": "plugins-codex/jsdoczoom/skills" },
+        { "platform": "opencode", "path": "plugins-opencode/jsdoczoom/skills", "opencodeRegistered": true }
+      ],
+      "platformDirs": [],
+      "skills": ["style", "cli"],
+      "marketplace": {
+        "claude": "jsdoczoom",
+        "codex": "jsdoczoom"
+      },
+      "versionSurfaces": {
+        "source": "plugins/jsdoczoom/.claude-plugin/plugin.json",
+        "codexManifest": "plugins-codex/jsdoczoom/.codex-plugin/plugin.json",
+        "opencodePackage": "plugins-opencode/jsdoczoom/package.json"
+      },
+      "lintSuppressions": []
     }
   ],
   "unmanaged": [
@@ -90,10 +114,6 @@
     {
       "name": "gmail",
       "reason": "Awaiting bundler migration (card main-8-1, Phase 2). Moves into plugins[] in the same commit that creates skills-src/gmail."
-    },
-    {
-      "name": "jsdoczoom",
-      "reason": "Awaiting bundler migration (card main-8-1, Phase 1). Moves into plugins[] in the same commit that creates skills-src/jsdoczoom."
     },
     {
       "name": "linear",
