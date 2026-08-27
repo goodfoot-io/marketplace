@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.7
+
+Synchronizes the documentation plugin with the package release after agent-hooks' migration bumped the hook-managed marketplace version.
+
 ## 1.0.6
 
 Documents this card's migration lessons — dialect vs. substance, the `it.variant()` antigravity-branch and `it.pluginRootVar` OpenCode guards, and the `skill-relative-path` false positive — captured in `platform-behavior` and `cli-and-helpers`.

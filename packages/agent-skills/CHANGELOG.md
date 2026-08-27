@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.7
+
+- Aligns the package release surface with the companion plugin's hook-managed version bump following agent-hooks' migration.
+
 ## 1.0.6
 
 - Aligns the package release surface with the companion plugin's hook-managed version bump.
