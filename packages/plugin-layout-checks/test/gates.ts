@@ -15,9 +15,10 @@ const PLATFORM_TREE_PREFIX: Record<Platform, string> = {
   "claude-code": "plugins-claude/",
   codex: "plugins-codex/",
   opencode: "plugins-opencode/",
+  antigravity: "plugins-antigravity/",
 };
 
-const OTHER_TREE_PREFIX = /plugins-(claude|codex|opencode)\//g;
+const OTHER_TREE_PREFIX = /plugins-(claude|codex|opencode|antigravity)\//g;
 
 /** Renders a shell/plugin substitution, e.g. `PLUGIN_ROOT` -> `${PLUGIN_ROOT}`. */
 const substitution = (name: string) => `\${${name}}`;

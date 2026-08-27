@@ -7,6 +7,7 @@ export interface PlatformFact<T> {
 }
 
 export interface PlatformDefinition {
+  readonly embeddedBash: PlatformFact<boolean>;
   readonly skillSigil: PlatformFact<string>;
   readonly skillNamespace: PlatformFact<"preserve" | "strip">;
   readonly skillInvoke: PlatformFact<"tool-block" | "mention" | "prose">;
@@ -34,6 +35,7 @@ const paths = (prefix: string, conventions: string): Readonly<Record<PlatformPat
 
 export const PLATFORM_DEFINITIONS = {
   "claude-code": {
+    embeddedBash: verified(true),
     skillSigil: verified(""),
     skillNamespace: verified("preserve"),
     skillInvoke: verified("tool-block"),
@@ -48,6 +50,7 @@ export const PLATFORM_DEFINITIONS = {
     frontmatterKeys: verified(["name", "description", "allowed-tools", "argument-hint", "model"]),
   },
   codex: {
+    embeddedBash: unavailable(),
     skillSigil: verified("$"),
     skillNamespace: verified("preserve"),
     skillInvoke: verified("mention"),
@@ -62,6 +65,7 @@ export const PLATFORM_DEFINITIONS = {
     frontmatterKeys: verified(["name", "description"]),
   },
   opencode: {
+    embeddedBash: unavailable(),
     skillSigil: verified("$"),
     skillNamespace: verified("strip"),
     skillInvoke: verified("mention"),
@@ -76,6 +80,7 @@ export const PLATFORM_DEFINITIONS = {
     frontmatterKeys: verified(["name", "description"]),
   },
   antigravity: {
+    embeddedBash: unavailable(),
     skillSigil: provisional(""),
     skillNamespace: provisional("strip"),
     skillInvoke: provisional("prose"),

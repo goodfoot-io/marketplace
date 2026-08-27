@@ -13,7 +13,7 @@ import { parse as parseYaml } from "yaml";
  * against the filesystem is comparing two independent things.
  */
 
-export type Platform = "claude-code" | "codex" | "opencode";
+export type Platform = "claude-code" | "codex" | "opencode" | "antigravity";
 
 export interface RegistryTarget {
   /** Platform dialect this tree is rendered for. */
@@ -77,6 +77,8 @@ export interface RegistryPlugin {
   claudePluginRoot: string;
   codexPluginRoot: string;
   opencodePluginRoot: string;
+  /** Antigravity plugin home, required when this plugin declares an Antigravity target. */
+  antigravityPluginRoot?: string;
   targets: RegistryTarget[];
   /** Why this plugin's set of targets is what it is, where a reader would otherwise guess. */
   targetsNote?: string;
@@ -388,15 +390,20 @@ function load(): Registry {
         throw new Error(`registry: ${plugin.name} restricts unknown skill ${skill}`);
       }
     }
+    const antigravityTarget = plugin.targets.find((target) => target.platform === "antigravity");
+    if (antigravityTarget && (!plugin.antigravityPluginRoot || plugin.antigravityPluginRoot.length === 0)) {
+      throw new Error(`registry: ${plugin.name} requires antigravityPluginRoot for its Antigravity target`);
+    }
     // The platforms a plugin declares targets for must be exactly the platforms
     // its skills render to. Requiring all three instead is what put voice's
     // empty Codex and OpenCode trees in the registry: nothing rendered into
     // them, git cannot store an empty directory, and so they existed only on
     // machines that had already run a build.
+    const defaultPlatforms: Platform[] = antigravityTarget
+      ? ["claude-code", "codex", "opencode", "antigravity"]
+      : ["claude-code", "codex", "opencode"];
     const rendered = new Set<Platform>(
-      plugin.skills.flatMap(
-        (skill): Platform[] => plugin.skillPlatforms?.[skill] ?? ["claude-code", "codex", "opencode"],
-      ),
+      plugin.skills.flatMap((skill): Platform[] => plugin.skillPlatforms?.[skill] ?? defaultPlatforms),
     );
     const declared = new Set(plugin.targets.map((target) => target.platform));
     for (const platform of rendered) {
@@ -462,12 +469,14 @@ export const SHARED_OPENCODE_ROOT: string = REGISTRY.sharedOpencodeRoot;
  * shape rejected by default; enumerating the unsafe ones leaves it published.
  */
 export function allowedTargetPaths(plugin: RegistryPlugin): Set<string> {
-  return new Set([
+  const paths = [
     `${plugin.claudePluginRoot}/skills`,
     `${plugin.codexPluginRoot}/skills`,
     `${plugin.opencodePluginRoot}/skills`,
     SHARED_OPENCODE_ROOT,
-  ]);
+  ];
+  if (plugin.antigravityPluginRoot) paths.push(`${plugin.antigravityPluginRoot}/skills`);
+  return new Set(paths);
 }
 
 const FRONT_OPEN = "<!-- agent-skills\n";

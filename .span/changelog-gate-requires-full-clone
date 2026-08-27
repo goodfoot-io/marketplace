@@ -1,5 +1,5 @@
 .github/workflows/plugin-layout.yml#L16-L24 rk64:65541b5694f66f8c
 scripts/check-changelog-entry.mjs#L65-L78 rk64:e0b781c396181160
-scripts/check-changelog-entry.mjs#L194-L202 rk64:2ab8925907c81a2d
+scripts/check-changelog-entry.mjs#L209-L217 rk64:6cc190d8b7b97dab
 
-The checkout step declares fetch-depth 0 because isShallow()'s refusal at L194-202 rejects any checkout it cannot confirm is unshallow, and the action's undeclared default depth of 1 would otherwise make CI refuse every commit; removing this depth setting or loosening the refusal reopens the shallow-clone hole this pairing exists to close.
+The checkout step declares fetch-depth 0 because the changelog gate's shallow-history refusal rejects any checkout it cannot confirm is unshallow, and the action's undeclared default depth of 1 would otherwise make CI refuse every commit; removing this depth setting or loosening the refusal reopens the shallow-clone hole this pairing exists to close.

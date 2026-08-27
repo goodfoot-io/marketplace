@@ -98,6 +98,8 @@ export interface PlatformHelpers {
     readonly platform: Platform;
     is(...platforms: readonly Platform[]): boolean;
     variant<T>(variants: VariantMap<T>): T;
+    bash(command: string): string;
+    bashInline(command: string): string;
     skillRef(id: string): string;
     skillInvoke(id: string): string;
     agentRef(id: string): string;

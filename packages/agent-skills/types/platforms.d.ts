@@ -5,6 +5,7 @@ export interface PlatformFact<T> {
     readonly value?: T;
 }
 export interface PlatformDefinition {
+    readonly embeddedBash: PlatformFact<boolean>;
     readonly skillSigil: PlatformFact<string>;
     readonly skillNamespace: PlatformFact<"preserve" | "strip">;
     readonly skillInvoke: PlatformFact<"tool-block" | "mention" | "prose">;
@@ -20,6 +21,7 @@ export interface PlatformDefinition {
 }
 export declare const PLATFORM_DEFINITIONS: {
     readonly "claude-code": {
+        readonly embeddedBash: PlatformFact<boolean>;
         readonly skillSigil: PlatformFact<string>;
         readonly skillNamespace: PlatformFact<"preserve">;
         readonly skillInvoke: PlatformFact<"tool-block">;
@@ -34,6 +36,7 @@ export declare const PLATFORM_DEFINITIONS: {
         readonly frontmatterKeys: PlatformFact<string[]>;
     };
     readonly codex: {
+        readonly embeddedBash: PlatformFact<boolean>;
         readonly skillSigil: PlatformFact<string>;
         readonly skillNamespace: PlatformFact<"preserve">;
         readonly skillInvoke: PlatformFact<"mention">;
@@ -48,6 +51,7 @@ export declare const PLATFORM_DEFINITIONS: {
         readonly frontmatterKeys: PlatformFact<string[]>;
     };
     readonly opencode: {
+        readonly embeddedBash: PlatformFact<boolean>;
         readonly skillSigil: PlatformFact<string>;
         readonly skillNamespace: PlatformFact<"strip">;
         readonly skillInvoke: PlatformFact<"mention">;
@@ -62,6 +66,7 @@ export declare const PLATFORM_DEFINITIONS: {
         readonly frontmatterKeys: PlatformFact<string[]>;
     };
     readonly antigravity: {
+        readonly embeddedBash: PlatformFact<boolean>;
         readonly skillSigil: PlatformFact<string>;
         readonly skillNamespace: PlatformFact<"strip">;
         readonly skillInvoke: PlatformFact<"prose">;

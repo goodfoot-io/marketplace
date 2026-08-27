@@ -50,6 +50,30 @@ function registryWithTarget(pluginName: string, targetPath: string, platform: Pl
 }
 
 describe("build driver target allow-list", () => {
+  it("accepts an Antigravity target at its declared plugin skills leaf", () => {
+    const clone = JSON.parse(JSON.stringify(REGISTRY)) as typeof REGISTRY;
+    const plugin = clone.plugins.find((candidate) => candidate.name === "voice");
+    if (!plugin) throw new Error("unreachable: voice");
+    plugin.antigravityPluginRoot = "plugins-antigravity/voice";
+    plugin.skillPlatforms = { handbook: ["claude-code", "antigravity"] };
+    plugin.targets = [{ platform: "antigravity", path: "plugins-antigravity/voice/skills" }];
+    clone.plugins = [plugin];
+    const { status, stderr } = runDriverWith(clone);
+    expect(status, stderr).toBe(0);
+  });
+
+  it("rejects an Antigravity target without an Antigravity plugin root", () => {
+    const clone = JSON.parse(JSON.stringify(REGISTRY)) as typeof REGISTRY;
+    const plugin = clone.plugins.find((candidate) => candidate.name === "voice");
+    if (!plugin) throw new Error("unreachable: voice");
+    plugin.skillPlatforms = { handbook: ["claude-code", "antigravity"] };
+    plugin.targets = [{ platform: "antigravity", path: "plugins-antigravity/voice/skills" }];
+    clone.plugins = [plugin];
+    const { status, stderr } = runDriverWith(clone);
+    expect(status, stderr).not.toBe(0);
+    expect(stderr).toContain("requires antigravityPluginRoot");
+  });
+
   it.each([
     ["a plugin root", "plugins/voice"],
     ["a Claude tree root", "plugins-claude/goodfoot"],

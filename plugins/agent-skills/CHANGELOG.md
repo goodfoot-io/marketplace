@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.13
+
+Adds portable block and inline embedded-Bash helpers backed by an explicit platform capability fact. Claude Code renders native execution syntax, while platforms without verified support receive deterministic instructions, and the generated helper reference now publishes the capability boundary.
+
 ## 1.0.12
 
 Brings the plugin's release surfaces under one gate. The Codex manifest, the OpenCode package, the npm package, and the CLI's own `--version` string were each maintained separately, so installing 1.0.11 could mean four different things depending on which file you read; they now move together or not at all, and CI fails when they disagree.

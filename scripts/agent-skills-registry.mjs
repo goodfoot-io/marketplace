@@ -36,12 +36,16 @@ export function loadRegistry() {
 
 /** Every path a plugin is permitted to publish into. */
 function allowedTargets(registry, plugin) {
-	return new Set([
+	const targets = [
 		`${plugin.claudePluginRoot}/skills`,
 		`${plugin.codexPluginRoot}/skills`,
 		`${plugin.opencodePluginRoot}/skills`,
 		registry.sharedOpencodeRoot,
-	]);
+	];
+	if (plugin.antigravityPluginRoot) {
+		targets.push(`${plugin.antigravityPluginRoot}/skills`);
+	}
+	return new Set(targets);
 }
 
 /**
@@ -52,6 +56,14 @@ function allowedTargets(registry, plugin) {
  */
 export function assertSafeTargets(registry) {
 	for (const plugin of registry.plugins) {
+		if (
+			plugin.targets.some((target) => target.platform === "antigravity") &&
+			!plugin.antigravityPluginRoot
+		) {
+			throw new Error(
+				`${plugin.name}: an Antigravity target requires antigravityPluginRoot`,
+			);
+		}
 		const allowed = allowedTargets(registry, plugin);
 		for (const target of plugin.targets) {
 			if (!allowed.has(target.path)) {
@@ -64,7 +76,7 @@ export function assertSafeTargets(registry) {
 	}
 }
 
-const ALL_PLATFORMS = ["claude-code", "codex", "opencode"];
+const ALL_PLATFORMS = ["claude-code", "codex", "opencode", "antigravity"];
 
 /** The platforms a plugin's skills actually render to, after front-config gating. */
 function renderedPlatforms(plugin) {

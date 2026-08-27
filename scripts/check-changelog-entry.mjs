@@ -179,13 +179,19 @@ if (body.length === 0) {
 function occupiedVersions(source) {
 	const git = (args) =>
 		execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-	const commits = git(["log", "--format=%H", "--", source])
+	const commits = git(["log", "--follow", "--format=%H", "--", source])
 		.split("\n")
 		.filter((line) => line.length > 0);
 	const seen = new Set();
+	let historicalPath = source;
 	for (const commit of commits) {
-		const blob = JSON.parse(git(["show", `${commit}:${source}`]));
+		const blob = JSON.parse(git(["show", `${commit}:${historicalPath}`]));
 		if (typeof blob.version === "string") seen.add(blob.version);
+		const changes = git(["diff-tree", "--root", "--no-commit-id", "--name-status", "-r", "-M", commit]);
+		for (const line of changes.split("\n")) {
+			const [status, oldPath, newPath] = line.split("\t");
+			if (status?.startsWith("R") && newPath === historicalPath) historicalPath = oldPath;
+		}
 	}
 	return seen;
 }

@@ -15,6 +15,9 @@ export type ScalarFactKey = {
 export type ListFactKey = {
     [K in keyof PlatformDefinition]: PlatformDefinition[K] extends PlatformFact<readonly string[]> ? K : never;
 }[keyof PlatformDefinition];
+export type BooleanFactKey = {
+    [K in keyof PlatformDefinition]: PlatformDefinition[K] extends PlatformFact<boolean> ? K : never;
+}[keyof PlatformDefinition];
 /**
  * What a cell holds, kept separate from its status because the two answer
  * different questions. `absent` means the platform has no value at all;

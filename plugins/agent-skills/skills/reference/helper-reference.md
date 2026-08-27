@@ -11,6 +11,8 @@ Do not edit the generated region by hand. Run `node plugins/agent-skills/scripts
 | it.platform | none | Active canonical platform. | claude-code (verified) | codex (verified) | opencode (verified) | antigravity (verified) |
 | it.is | ...Platform | Test canonical platform membership. | claude-code (verified) | codex (verified) | opencode (verified) | antigravity (verified) |
 | it.variant | VariantMap<T> | Select one exhaustive platform branch. | claude-code (verified) | codex (verified) | opencode (verified) | antigravity (verified) |
+| it.bash | command | Render a block command for execution and output reporting. | native (verified) | unavailable (unavailable) | unavailable (unavailable) | unavailable (unavailable) |
+| it.bashInline | command | Render an inline command for execution and output reporting. | native (verified) | unavailable (unavailable) | unavailable (unavailable) | unavailable (unavailable) |
 | it.skillRef | skillId | Render a prose skill reference. | empty string (verified) | `$` (verified) | `$` (verified) | empty string (provisional) |
 | it.skillInvoke | skillId | Render a skill activation instruction. | tool-block (verified) | mention (verified) | mention (verified) | prose (provisional) |
 | it.agentRef | plugin:dir:file | Render a canonical agent reference. | colon (verified) | flattened (verified) | flattened (verified) | unavailable (unavailable) |

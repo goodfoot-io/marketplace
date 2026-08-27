@@ -78,6 +78,34 @@ jobs:
             echo "::endgroup::"
           done
 
+      # Antigravity support is target-driven during the migration: until a
+      # plugin declares a target there is intentionally nothing to validate.
+      # Once it does, validate the complete plugin root (including its owned
+      # plugin.json), and require evidence that at least one category was
+      # actually processed. agy exits successfully for skipped categories, so
+      # exit status alone cannot distinguish a valid tree from an empty shape.
+      - name: Validate Antigravity plugin roots
+        run: |
+          set -euo pipefail
+          mapfile -t roots < <(jq -r '.plugins[] | select(any(.targets[]?; .platform == "antigravity")) | .antigravityPluginRoot' "$REGISTRY")
+          if test "${#roots[@]}" -eq 0; then
+            echo "registry declares no Antigravity plugin roots; skipping validation"
+            exit 0
+          fi
+          command -v agy >/dev/null 2>&1 || { echo "unsupported runner: pinned agy CLI is unavailable" >&2; exit 1; }
+          agy --version
+          for root in "${roots[@]}"; do
+            test -f "$root/plugin.json" || { echo "$root: missing plugin.json" >&2; exit 1; }
+            echo "::group::antigravity validate $root"
+            output="$(agy plugin validate "$root" 2>&1)"
+            printf '%s\n' "$output"
+            grep -Eq '[1-9][0-9]* processed' <<< "$output" || {
+              echo "$root: validation processed no plugin categories" >&2
+              exit 1
+            }
+            echo "::endgroup::"
+          done
+
       - name: Claude install smoke
         run: |
           set -euo pipefail

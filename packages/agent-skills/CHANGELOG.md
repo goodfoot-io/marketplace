@@ -1,5 +1,9 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.13
+
+- Adds portable block and inline embedded-Bash helpers backed by an explicit platform capability fact. Claude Code renders native execution syntax, while platforms without verified support receive deterministic instructions, and the generated helper reference now publishes the capability boundary.
+
 ## 1.0.12
 
 - `agent-skills --version` now reports the version the package actually shipped. The number was hand-maintained in `src/cli.ts` and had fallen behind the published one, so the first thing anyone checks when a build behaves unexpectedly was answering for a release that did not exist.

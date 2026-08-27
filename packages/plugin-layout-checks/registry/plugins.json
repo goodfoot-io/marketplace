@@ -364,9 +364,9 @@
         "platform-behavior/SKILL.md.eta:24-24:skill-relative-path",
         "platform-behavior/SKILL.md.eta:20-20:plugin-root-variable",
         "reference/helper-reference.md.eta:3-3:skill-relative-path",
-        "reference/helper-reference.md.eta:9-31:cross-dialect-reference",
-        "reference/helper-reference.md.eta:9-31:literal-platform-prose",
-        "reference/helper-reference.md.eta:9-31:plugin-root-variable"
+        "reference/helper-reference.md.eta:9-33:cross-dialect-reference",
+        "reference/helper-reference.md.eta:9-33:literal-platform-prose",
+        "reference/helper-reference.md.eta:9-33:plugin-root-variable"
       ]
     }
   ],

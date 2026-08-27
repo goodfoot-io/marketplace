@@ -110,13 +110,23 @@ export function pluginReleaseSequence(request, options = {}) {
 			throw new Error(`committed manifest ${identity.versionSource} has no string version`);
 		}
 		const committedVersion = committedManifest.version;
-		const commits = git(repoRoot, ["log", "--reverse", "--format=%H", "--", identity.versionSource])
+		const commits = git(repoRoot, ["log", "--follow", "--format=%H", "--", identity.versionSource])
 			.split("\n")
 			.filter((commit) => commit.length > 0);
 		if (commits.length === 0) throw new Error("Git returned no commits for the version source");
 		const latestOccupation = new Map();
-		for (const [index, commit] of commits.entries()) {
-			const manifest = JSON.parse(git(repoRoot, ["show", `${commit}:${identity.versionSource}`]));
+		let historicalPath = identity.versionSource;
+		const manifests = [];
+		for (const commit of commits) {
+			manifests.push({ commit, historicalPath });
+			const changes = git(repoRoot, ["diff-tree", "--root", "--no-commit-id", "--name-status", "-r", "-M", commit]);
+			for (const line of changes.split("\n")) {
+				const [status, oldPath, newPath] = line.split("\t");
+				if (status?.startsWith("R") && newPath === historicalPath) historicalPath = oldPath;
+			}
+		}
+		for (const [index, entry] of manifests.reverse().entries()) {
+			const manifest = JSON.parse(git(repoRoot, ["show", `${entry.commit}:${entry.historicalPath}`]));
 			if (typeof manifest.version !== "string") continue;
 			if (compareVersions(manifest.version, committedVersion) <= 0) latestOccupation.set(manifest.version, index);
 		}

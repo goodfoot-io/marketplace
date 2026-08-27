@@ -143,6 +143,12 @@ describe("registry path invariants", () => {
     expect(allowedTargetPaths(pluginNamed("voice")).has(candidate)).toBe(false);
   });
 
+  it("allows exactly the declared Antigravity skills leaf", () => {
+    const plugin = { ...pluginNamed("voice"), antigravityPluginRoot: "plugins-antigravity/voice" };
+    expect(allowedTargetPaths(plugin)).toContain("plugins-antigravity/voice/skills");
+    expect(allowedTargetPaths(plugin)).not.toContain("plugins-antigravity/voice");
+  });
+
   it("declares no two plugins sharing an output tree", () => {
     const paths = allTargets().map((target) => target.path);
     expect(paths.length, `overlapping targets erase each other silently: ${paths.join(", ")}`).toBe(

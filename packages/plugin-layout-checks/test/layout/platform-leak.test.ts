@@ -69,6 +69,16 @@ describe("Gate B — wrong-platform tokens in generated output", () => {
     expect(scanText("codex", "f.md", "see plugins-codex/gmail/skills/gmail/SKILL.md")).toEqual([]);
   });
 
+  it("treats plugins-antigravity as a platform tree prefix", () => {
+    expect(scanText("codex", "f.md", "see plugins-antigravity/gmail/skills/gmail/SKILL.md")).toEqual([
+      { file: "f.md", line: 1, token: "plugins-antigravity/" },
+    ]);
+    expect(scanText("antigravity", "f.md", "see plugins-antigravity/gmail/skills/gmail/SKILL.md")).toEqual([]);
+    expect(scanText("antigravity", "f.md", "see plugins-codex/gmail/skills/gmail/SKILL.md")).toEqual([
+      { file: "f.md", line: 1, token: "plugins-codex/" },
+    ]);
+  });
+
   it.each(
     allTargets().map((target) => [target.plugin, target.platform, target.path] as const),
   )("leaks no wrong-platform token from %s into the %s tree at %s", (_plugin, platform, treePath) => {

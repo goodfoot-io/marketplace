@@ -900,6 +900,34 @@ describe("interior versions are accounted for", () => {
     expect(result.stderr).not.toContain("9.9.9");
   });
 
+  it("finds an undocumented version from before the manifest was renamed", () => {
+    const root = makeFixture();
+    release(root, "1.0.1", "Described.");
+    release(root, "1.0.2", null);
+    const oldSource = "plugins/demo/.claude-plugin/plugin.json";
+    const newSource = "plugins/demo/plugin.json";
+    fs.renameSync(path.join(root, oldSource), path.join(root, newSource));
+    run(root, "git", ["add", "-A"]);
+    run(root, "git", ["commit", "-qm", "rename manifest", "--no-verify"]);
+    const existing = fs.readFileSync(path.join(root, "plugins/demo/CHANGELOG.md"), "utf8");
+    write(
+      root,
+      "plugins/demo/CHANGELOG.md",
+      existing.replace("# demo plugin changelog\n", "# demo plugin changelog\n\n## 1.0.3\n\nDescribed.\n"),
+    );
+    write(root, newSource, `${JSON.stringify({ name: "demo", version: "1.0.3" }, null, 2)}\n`);
+    run(root, "git", ["add", "-A"]);
+    run(root, "git", ["commit", "-qm", "release 1.0.3", "--no-verify"]);
+
+    const result = spawnSync(
+      "node",
+      ["scripts/check-changelog-entry.mjs", "plugins/demo/CHANGELOG.md", "1.0.3", "demo plugin", newSource],
+      { cwd: root, encoding: "utf8" },
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("released 1.0.2");
+  });
+
   it("does not demand notes for a version that was withdrawn", () => {
     const root = makeFixture();
     release(root, "1.0.1", "Described.");

@@ -9,6 +9,9 @@ function value<T>(helper: string, platform: Platform, fact: PlatformFact<T>): T 
   if (fact.value === undefined) throw new Error(`${helper} is unavailable for platform ${platform}`);
   return fact.value;
 }
+function verifiedCapability(fact: PlatformFact<boolean>): boolean {
+  return fact.status === "verified" && fact.value === true;
+}
 function invalid(helper: string, platform: Platform, message: string): never {
   throw new Error(`${helper} on ${platform}: ${message}`);
 }
@@ -56,6 +59,18 @@ export function createHelpers(platform: Platform, options: HelperFactoryOptions 
         }
       }
       return expanded;
+    },
+    bash: (command: string): string => {
+      if (command.includes("```")) invalid("it.bash", platform, "command contains a Markdown fence");
+      if (verifiedCapability(definition.embeddedBash)) return `\`\`\`!\n${command}\n\`\`\``;
+      return `Run this command and report its output:\n\n\`\`\`bash\n${command}\n\`\`\``;
+    },
+    bashInline: (command: string): string => {
+      if (command.includes("\n") || command.includes("\r"))
+        invalid("it.bashInline", platform, "command must be a single line");
+      if (command.includes("`")) invalid("it.bashInline", platform, "command contains a backtick");
+      if (verifiedCapability(definition.embeddedBash)) return `!\`${command}\``;
+      return `run \`${command}\` and report its output`;
     },
     skillRef: (id) => `\`${value("skillRef", platform, definition.skillSigil)}${nativeSkill("it.skillRef", id)}\``,
     skillInvoke: (id) => {

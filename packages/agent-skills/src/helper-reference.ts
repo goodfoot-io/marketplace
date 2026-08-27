@@ -16,6 +16,9 @@ export type ScalarFactKey = {
 export type ListFactKey = {
   [K in keyof PlatformDefinition]: PlatformDefinition[K] extends PlatformFact<readonly string[]> ? K : never;
 }[keyof PlatformDefinition];
+export type BooleanFactKey = {
+  [K in keyof PlatformDefinition]: PlatformDefinition[K] extends PlatformFact<boolean> ? K : never;
+}[keyof PlatformDefinition];
 
 /**
  * What a cell holds, kept separate from its status because the two answer
@@ -58,6 +61,7 @@ export interface HelperReferenceModel {
 type RowSource =
   | { readonly from: "platform" }
   | { readonly from: "scalar"; readonly key: ScalarFactKey }
+  | { readonly from: "boolean"; readonly key: BooleanFactKey }
   | { readonly from: "list"; readonly key: ListFactKey }
   | { readonly from: "path"; readonly kind: PlatformPathKind };
 
@@ -92,6 +96,18 @@ const ROWS: readonly RowSpec[] = [
     inputs: "VariantMap<T>",
     description: "Select one exhaustive platform branch.",
     source: { from: "platform" },
+  },
+  {
+    name: "it.bash",
+    inputs: "command",
+    description: "Render a block command for execution and output reporting.",
+    source: { from: "boolean", key: "embeddedBash" },
+  },
+  {
+    name: "it.bashInline",
+    inputs: "command",
+    description: "Render an inline command for execution and output reporting.",
+    source: { from: "boolean", key: "embeddedBash" },
   },
   {
     name: "it.skillRef",
@@ -198,6 +214,17 @@ function cellFor(platform: Platform, source: RowSource): HelperReferenceCell {
     case "scalar": {
       const fact: PlatformFact<string> = definition[source.key];
       return { platform, status: fact.status, value: scalarValue(fact, CODE_VALUED_KEYS.has(source.key)) };
+    }
+    case "boolean": {
+      const fact: PlatformFact<boolean> = definition[source.key];
+      return {
+        platform,
+        status: fact.status,
+        value:
+          fact.value === undefined
+            ? { kind: "absent" }
+            : { kind: "text", text: fact.value ? "native" : "instructions", code: false },
+      };
     }
     case "list": {
       const fact: PlatformFact<readonly string[]> = definition[source.key];

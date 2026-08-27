@@ -15,13 +15,44 @@ describe("portable helper contract", () => {
   it("derives a stable helper reference from the platform table", () => {
     const model = getHelperReferenceModel();
     expect(model.platforms).toEqual(["claude-code", "codex", "opencode", "antigravity"]);
-    expect(renderHelperReferenceMarkdown(model)).toContain("it.pluginRootVar");
-    expect(renderHelperReferenceMarkdown(model)).toContain("unavailable (unavailable)");
+    const markdown = renderHelperReferenceMarkdown(model);
+    expect(markdown).toContain("it.pluginRootVar");
+    expect(markdown).toContain(
+      "| it.bash | command | Render a block command for execution and output reporting. | native (verified) | unavailable (unavailable)",
+    );
+    expect(markdown).toContain("unavailable (unavailable)");
   });
   it("renders platform-specific skill references", () => {
     expect(createHelpers("claude-code").skillRef("cards:markdown")).toBe("`cards:markdown`");
     expect(createHelpers("codex").skillRef("cards:markdown")).toBe("`$cards:markdown`");
     expect(createHelpers("opencode").skillRef("cards:markdown")).toBe("`$markdown`");
+  });
+
+  it("renders native Claude embedded bash", () => {
+    const helpers = createHelpers("claude-code");
+    expect(helpers.bash("printf 'hello\\n'")).toBe("```!\nprintf 'hello\\n'\n```");
+    expect(helpers.bashInline("date +%Y-%m-%d")).toBe("!`date +%Y-%m-%d`");
+  });
+
+  it.each(["codex", "opencode", "antigravity"] as const)(
+    "renders inert embedded-bash instructions for %s",
+    (platform) => {
+      const helpers = createHelpers(platform);
+      expect(helpers.bash("printf 'one\\ntwo\\n'")).toBe(
+        "Run this command and report its output:\n\n```bash\nprintf 'one\\ntwo\\n'\n```",
+      );
+      expect(helpers.bashInline("date +%s")).toBe("run `date +%s` and report its output");
+    },
+  );
+
+  it("preserves multiline block commands and rejects syntax-breaking inline commands", () => {
+    const helpers = createHelpers("claude-code");
+    expect(helpers.bash("printf '%s\\n' one\nprintf '%s\\n' two")).toBe(
+      "```!\nprintf '%s\\n' one\nprintf '%s\\n' two\n```",
+    );
+    expect(() => helpers.bashInline("printf `date`")).toThrow(/it\.bashInline.*backtick/);
+    expect(() => helpers.bashInline("printf one\nprintf two")).toThrow(/it\.bashInline.*single line/);
+    expect(() => helpers.bash("printf '```'")).toThrow(/it\.bash.*fence/);
   });
 
   it("expands aliases and fails closed", () => {
