@@ -1,9 +1,5 @@
 <!-- agent-skills
-lintSuppressions:
-  - rule: cross-dialect-reference
-    lines: [7, 7]
-  - rule: cross-dialect-reference
-    lines: [23, 23]
+platforms: [claude-code]
 -->Use when the voice tools or channel never appear, the page won't load, or the server errors.
 
 The server is launched by Claude Code from the plugin's `.mcp.json` as a stdio process; it reads its config from the environment.

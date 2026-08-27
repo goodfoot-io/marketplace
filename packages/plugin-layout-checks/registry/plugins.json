@@ -1,6 +1,7 @@
 {
   "$comment": "Bundler-managed plugin registry. Field-by-field contract: packages/plugin-layout-checks/test/registry.ts",
-  "lintSuppressionBudget": 35,
+  "lintSuppressionBudget": 31,
+  "sharedOpencodeRoot": "skills",
   "plugins": [
     {
       "name": "goodfoot",
@@ -35,6 +36,50 @@
         "codexManifest": "plugins-codex/goodfoot/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/goodfoot/package.json"
       },
+      "lintBaseline": {
+        "reason": "goodfoot marketing/sources carries reference-corpus frontmatter (title, summary, aliases, keywords, tags) the linter does not model, and its long-form source documents predate the portability rules. Turning the check on is separate from rewriting that corpus; every site is listed so a new one fails.",
+        "diagnostics": [
+          "documentation/how-to/procedure.md.eta:56:literal-platform-prose",
+          "marketing/references.md:58:cross-dialect-reference",
+          "marketing/sources/index.md:103:opencode-name",
+          "marketing/sources/index.md:2:frontmatter-key",
+          "marketing/sources/index.md:3:frontmatter-key",
+          "marketing/sources/index.md:4:frontmatter-key",
+          "marketing/sources/index.md:5:frontmatter-key",
+          "marketing/sources/index.md:6:frontmatter-key",
+          "marketing/sources/marketing-audience-segments.md:108:opencode-name",
+          "marketing/sources/marketing-audience-segments.md:2:frontmatter-key",
+          "marketing/sources/marketing-audience-segments.md:3:frontmatter-key",
+          "marketing/sources/marketing-audience-segments.md:4:frontmatter-key",
+          "marketing/sources/marketing-audience-segments.md:5:frontmatter-key",
+          "marketing/sources/marketing-audience-segments.md:6:frontmatter-key",
+          "marketing/sources/marketing-funnel-stages.md:165:opencode-name",
+          "marketing/sources/marketing-funnel-stages.md:2:frontmatter-key",
+          "marketing/sources/marketing-funnel-stages.md:3:frontmatter-key",
+          "marketing/sources/marketing-funnel-stages.md:4:frontmatter-key",
+          "marketing/sources/marketing-funnel-stages.md:5:frontmatter-key",
+          "marketing/sources/marketing-funnel-stages.md:6:frontmatter-key",
+          "marketing/sources/marketing-medium-execution.md:162:opencode-name",
+          "marketing/sources/marketing-medium-execution.md:2:frontmatter-key",
+          "marketing/sources/marketing-medium-execution.md:3:frontmatter-key",
+          "marketing/sources/marketing-medium-execution.md:4:frontmatter-key",
+          "marketing/sources/marketing-medium-execution.md:5:frontmatter-key",
+          "marketing/sources/marketing-medium-execution.md:6:frontmatter-key",
+          "marketing/sources/marketing-message-checklist.md:108:opencode-name",
+          "marketing/sources/marketing-message-checklist.md:2:frontmatter-key",
+          "marketing/sources/marketing-message-checklist.md:3:frontmatter-key",
+          "marketing/sources/marketing-message-checklist.md:4:frontmatter-key",
+          "marketing/sources/marketing-message-checklist.md:5:frontmatter-key",
+          "marketing/sources/marketing-message-checklist.md:6:frontmatter-key",
+          "marketing/sources/marketing-psychology-claims.md:2:frontmatter-key",
+          "marketing/sources/marketing-psychology-claims.md:367:opencode-name",
+          "marketing/sources/marketing-psychology-claims.md:3:frontmatter-key",
+          "marketing/sources/marketing-psychology-claims.md:4:frontmatter-key",
+          "marketing/sources/marketing-psychology-claims.md:5:frontmatter-key",
+          "marketing/sources/marketing-psychology-claims.md:6:frontmatter-key",
+          "worktree-cleanup/SKILL.md:4:frontmatter-key"
+        ]
+      },
       "lintSuppressions": []
     },
     {
@@ -45,25 +90,28 @@
       "opencodePluginRoot": "plugins-opencode/voice",
       "targets": [
         { "platform": "claude-code", "path": "plugins/voice/skills" },
-        { "platform": "codex", "path": "plugins-codex/voice/skills" },
-        { "platform": "opencode", "path": "plugins-opencode/voice/skills", "opencodeRegistered": true }
+        { "platform": "codex", "path": "plugins-codex/voice/skills", "note": "handbook documents the voice MCP server, which only ships on Claude Code (plugins/voice/.mcp.json + bin/voice-mcp-server.mjs); handbook is gated to claude-code via skillPlatforms so this tree is published empty rather than shipping unusable tool instructions." },
+        { "platform": "opencode", "path": "plugins-opencode/voice/skills", "opencodeRegistered": false, "note": "Same MCP-server gap as the codex target: handbook is gated to claude-code via skillPlatforms, so this tree is empty and left off opencode.json's skills.paths." }
       ],
       "platformDirs": [],
       "skills": ["handbook"],
+      "skillPlatforms": {
+        "handbook": ["claude-code"]
+      },
       "marketplace": {
         "claude": "voice",
-        "codex": "voice"
+        "codex": null
       },
       "versionSurfaces": {
         "source": "plugins/voice/.claude-plugin/plugin.json",
         "codexManifest": "plugins-codex/voice/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/voice/package.json"
       },
-      "lintSuppressions": [
-        "handbook/SKILL.md:15-15:cross-dialect-reference",
-        "handbook/reference/startup-failure.md:7-7:cross-dialect-reference",
-        "handbook/reference/startup-failure.md:23-23:cross-dialect-reference"
-      ]
+      "lintBaseline": {
+        "reason": "No diagnostics: every template renders portably on all declared targets.",
+        "diagnostics": []
+      },
+      "lintSuppressions": []
     },
     {
       "name": "jsdoczoom",
@@ -86,6 +134,10 @@
         "source": "plugins/jsdoczoom/.claude-plugin/plugin.json",
         "codexManifest": "plugins-codex/jsdoczoom/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/jsdoczoom/package.json"
+      },
+      "lintBaseline": {
+        "reason": "No diagnostics: every template renders portably on all declared targets.",
+        "diagnostics": []
       },
       "lintSuppressions": []
     },
@@ -111,6 +163,10 @@
         "codexManifest": "plugins-codex/claude-code-skill-reader/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/claude-code-skill-reader/package.json"
       },
+      "lintBaseline": {
+        "reason": "No diagnostics: every template renders portably on all declared targets.",
+        "diagnostics": []
+      },
       "lintSuppressions": []
     },
     {
@@ -134,6 +190,10 @@
         "source": "plugins/linear/.claude-plugin/plugin.json",
         "codexManifest": "plugins-codex/linear/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/linear/package.json"
+      },
+      "lintBaseline": {
+        "reason": "No diagnostics: every template renders portably on all declared targets.",
+        "diagnostics": []
       },
       "lintSuppressions": []
     },
@@ -159,14 +219,18 @@
         "codexManifest": "plugins-codex/gmail/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/gmail/package.json"
       },
+      "lintBaseline": {
+        "reason": "No diagnostics: every template renders portably on all declared targets.",
+        "diagnostics": []
+      },
       "lintSuppressions": [
-        "gmail/SKILL.md:25-25:skill-relative-path",
-        "gmail/SKILL.md:32-32:skill-relative-path",
-        "gmail/SKILL.md:39-39:skill-relative-path",
-        "gmail/SKILL.md:72-72:skill-relative-path",
-        "gmail/SKILL.md:462-486:cross-dialect-reference",
-        "gmail/advanced/messages.md:696-716:cross-dialect-reference",
-        "gmail/advanced/labels-filters.md:454-454:cross-dialect-reference"
+        "gmail/SKILL.md.eta:25-25:skill-relative-path",
+        "gmail/SKILL.md.eta:32-32:skill-relative-path",
+        "gmail/SKILL.md.eta:39-39:skill-relative-path",
+        "gmail/SKILL.md.eta:72-72:skill-relative-path",
+        "gmail/SKILL.md.eta:462-486:cross-dialect-reference",
+        "gmail/advanced/messages.md.eta:696-716:cross-dialect-reference",
+        "gmail/advanced/labels-filters.md.eta:454-454:cross-dialect-reference"
       ]
     },
     {
@@ -194,17 +258,21 @@
         "codexManifest": "plugins-codex/agent-hooks/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/agent-hooks/package.json"
       },
+      "lintBaseline": {
+        "reason": "No diagnostics: every template renders portably on all declared targets.",
+        "diagnostics": []
+      },
       "lintSuppressions": [
         "codex/SKILL.md.eta:25-25:skill-relative-path",
         "codex/SKILL.md.eta:134-134:skill-relative-path",
         "codex/SKILL.md.eta:303-303:skill-relative-path",
         "codex/SKILL.md.eta:309-314:skill-relative-path",
-        "codex/SKILL.md:30-30:plugin-root-variable",
-        "codex/SKILL.md:139-139:plugin-root-variable",
-        "codex/SKILL.md:286-286:plugin-root-variable",
-        "codex/SKILL.md:301-301:plugin-root-variable",
-        "codex/SKILL.md:308-308:plugin-root-variable",
-        "codex/SKILL.md:314-319:plugin-root-variable"
+        "codex/SKILL.md.eta:30-30:plugin-root-variable",
+        "codex/SKILL.md.eta:139-139:plugin-root-variable",
+        "codex/SKILL.md.eta:286-286:plugin-root-variable",
+        "codex/SKILL.md.eta:301-301:plugin-root-variable",
+        "codex/SKILL.md.eta:308-308:plugin-root-variable",
+        "codex/SKILL.md.eta:314-319:plugin-root-variable"
       ]
     },
     {
@@ -239,7 +307,19 @@
       "versionSurfaces": {
         "source": "plugins/agent-skills/.claude-plugin/plugin.json",
         "codexManifest": "plugins-codex/agent-skills/.codex-plugin/plugin.json",
-        "opencodePackage": "plugins-opencode/agent-skills/package.json"
+        "opencodePackage": "plugins-opencode/agent-skills/package.json",
+        "packageJson": "packages/agent-skills/package.json",
+        "literals": [
+          {
+            "path": "packages/agent-skills/src/cli.ts",
+            "match": "dependencies\\.stdout\\(\"([0-9]+\\.[0-9]+\\.[0-9]+)\\\\n\"\\)",
+            "note": "What `agent-skills --version` prints. Hand-maintained it reported a version the package had not shipped, which is the one number a user checks when a build behaves unexpectedly."
+          }
+        ]
+      },
+      "lintBaseline": {
+        "reason": "No diagnostics: every template renders portably on all declared targets.",
+        "diagnostics": []
       },
       "lintSuppressions": [
         "cli-and-helpers/SKILL.md.eta:4-4:skill-relative-path",
@@ -252,11 +332,10 @@
         "platform-behavior/SKILL.md.eta:20-20:skill-relative-path",
         "platform-behavior/SKILL.md.eta:24-24:skill-relative-path",
         "platform-behavior/SKILL.md.eta:20-20:plugin-root-variable",
-        "template-authoring/SKILL.md.eta:16-16:cross-dialect-reference",
         "reference/helper-reference.md.eta:3-3:skill-relative-path",
-        "reference/helper-reference.md.eta:9-27:cross-dialect-reference",
-        "reference/helper-reference.md.eta:9-27:literal-platform-prose",
-        "reference/helper-reference.md.eta:9-27:plugin-root-variable"
+        "reference/helper-reference.md.eta:9-31:cross-dialect-reference",
+        "reference/helper-reference.md.eta:9-31:literal-platform-prose",
+        "reference/helper-reference.md.eta:9-31:plugin-root-variable"
       ]
     }
   ],

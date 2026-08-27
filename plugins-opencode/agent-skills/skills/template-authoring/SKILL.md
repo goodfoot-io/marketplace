@@ -13,7 +13,7 @@ Use one source tree for every platform. Markdown templates end in `.md.eta` and 
 
 `@goodfoot/agent-skills` renders with Eta using `autoEscape: false` and `autoTrim: false`. Whitespace is therefore authored output, not formatting noise. Use Eta's native `include()` and `layout()` support for reusable fragments, and keep every include inside the declared source root.
 
-Prefer portable helpers over literal platform syntax. Load the `agent-skills:cli-and-helpers` skill for the supported helper surface and CLI grammar. Raw `it.platform` conditionals are an escape hatch for cases the helper model does not cover; a new repeated dialect difference belongs in the platform definitions and helper reference instead.
+Prefer portable helpers over literal platform syntax. Load the `$cli-and-helpers` skill for the supported helper surface and CLI grammar. Raw `it.platform` conditionals are an escape hatch for cases the helper model does not cover; a new repeated dialect difference belongs in the platform definitions and helper reference instead.
 
 ## Optional front-config
 

@@ -1,4 +1,6 @@
-Use when the user wants to end the session.
+<!-- agent-skills
+platforms: [claude-code]
+-->Use when the user wants to end the session.
 
 The voice MCP server has no stop tool and no end action — its lifetime is the Claude Code session, and a conversation ends when the user **closes the browser page**. "Shutting down" therefore means winding the conversation down cleanly and letting the user close the page; the server stays up, ready for the next page load.
 

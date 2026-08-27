@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse as parseYaml } from "yaml";
 
 /**
  * The bundler-managed plugin registry: the single declared source for every
@@ -72,6 +73,16 @@ export interface RegistryPlugin {
   };
   /** `<file>:<lineRange>:<rule>` sites, counted against the suppression budget. */
   lintSuppressions: string[];
+  /**
+   * Lint diagnostics this plugin currently produces, as `<file>:<line>:<rule>`
+   * sites, with the reason they are tolerated. Declared rather than counted so
+   * the exact inventory is in the diff, and compared in both directions so a
+   * baseline cannot outlive the problem it excuses.
+   */
+  lintBaseline: {
+    reason: string;
+    diagnostics: string[];
+  };
 }
 
 export interface UnmanagedPlugin {
@@ -82,6 +93,8 @@ export interface UnmanagedPlugin {
 export interface Registry {
   /** Pinned total of lintSuppressions entries across every plugin. */
   lintSuppressionBudget: number;
+  /** The one target path that is not a `<pluginRoot>/skills` leaf. */
+  sharedOpencodeRoot: string;
   plugins: RegistryPlugin[];
   /** Marketplace plugins that are deliberately not bundler-managed. */
   unmanaged: UnmanagedPlugin[];
@@ -91,6 +104,10 @@ const REGISTRY_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), ".
 
 function load(): Registry {
   const parsed = JSON.parse(fs.readFileSync(REGISTRY_PATH, "utf8")) as Registry;
+  // Absent, the allow-list would silently admit `undefined` as a target path.
+  if (typeof parsed.sharedOpencodeRoot !== "string" || parsed.sharedOpencodeRoot.length === 0) {
+    throw new Error("registry: sharedOpencodeRoot is missing");
+  }
   // A missing field would otherwise reach an assertion as `undefined` and
   // compare equal to another `undefined`, turning a gate green by absence.
   for (const plugin of parsed.plugins) {
@@ -104,6 +121,9 @@ function load(): Registry {
     }
     if (!Array.isArray(plugin.lintSuppressions)) {
       throw new Error(`registry: ${plugin.name} is missing lintSuppressions`);
+    }
+    if (!Array.isArray(plugin.lintBaseline?.diagnostics) || typeof plugin.lintBaseline.reason !== "string") {
+      throw new Error(`registry: ${plugin.name} is missing lintBaseline`);
     }
     // A skillPlatforms key naming a skill the plugin does not ship would
     // silently restrict nothing, leaving the tree it was meant to exclude
@@ -144,6 +164,92 @@ export function allTargets(): (RegistryTarget & { plugin: string })[] {
  */
 export function skillsInTarget(plugin: RegistryPlugin, platform: Platform): string[] {
   return plugin.skills.filter((skill) => plugin.skillPlatforms?.[skill]?.includes(platform) ?? true);
+}
+
+/**
+ * The repo-root tree OpenCode reads without a plugin installed. The only
+ * target path that is not a `<pluginRoot>/skills` leaf, and the only reason
+ * the allow-list needs an exception at all.
+ *
+ * Declared in the registry rather than written here so the build driver's
+ * copy of the allow-list and this one cannot drift into disagreeing about
+ * which paths are safe to publish into.
+ */
+export const SHARED_OPENCODE_ROOT: string = REGISTRY.sharedOpencodeRoot;
+
+/**
+ * Every path a plugin is permitted to publish into.
+ *
+ * An allow-list rather than a deny-list because the failure it guards is
+ * unbounded: materializeAll() replaces a target by renaming the whole
+ * directory away, so any path that is not a skills leaf destroys whatever
+ * else lives there. Enumerating the safe shapes leaves an unanticipated
+ * shape rejected by default; enumerating the unsafe ones leaves it published.
+ */
+export function allowedTargetPaths(plugin: RegistryPlugin): Set<string> {
+  return new Set([
+    `${plugin.claudePluginRoot}/skills`,
+    `${plugin.codexPluginRoot}/skills`,
+    `${plugin.opencodePluginRoot}/skills`,
+    SHARED_OPENCODE_ROOT,
+  ]);
+}
+
+const FRONT_OPEN = "<!-- agent-skills\n";
+const FRONT_CLOSE = "-->";
+
+interface FrontConfigSuppression {
+  rule: string;
+  lines: [number, number];
+}
+
+/**
+ * Reads a template's front-config `lintSuppressions`, using the same
+ * delimiters and YAML parse the compiler's own parseFrontConfig uses.
+ *
+ * The compiler does not export that function, so this reproduces the read
+ * rather than importing it. The duplication is confined to locating and
+ * parsing the block: the assertion that matters compares this derived set
+ * against the registry's declared set, so a divergence in either direction
+ * fails rather than passing quietly.
+ */
+export function frontConfigSuppressions(templateText: string): FrontConfigSuppression[] {
+  if (!templateText.startsWith(FRONT_OPEN)) return [];
+  const close = templateText.indexOf(FRONT_CLOSE, FRONT_OPEN.length);
+  if (close < 0) throw new Error("Unterminated agent-skills front-config");
+  const parsed: unknown = parseYaml(templateText.slice(FRONT_OPEN.length, close));
+  if (!parsed || typeof parsed !== "object") return [];
+  const suppressions = (parsed as { lintSuppressions?: unknown }).lintSuppressions;
+  if (suppressions === undefined) return [];
+  if (!Array.isArray(suppressions)) throw new Error("front-config lintSuppressions must be a list");
+  return suppressions as FrontConfigSuppression[];
+}
+
+/**
+ * The suppression inventory a plugin's templates actually declare, as
+ * `<template-relative-path>:<start>-<end>:<rule>`.
+ *
+ * Derived by walking the templates rather than read from the registry, so the
+ * registry's declared list is checked against the source of truth instead of
+ * against itself. A count-only check cannot see a declared entry whose path
+ * matches no template.
+ */
+export function derivedSuppressions(plugin: RegistryPlugin, repoRoot: string): string[] {
+  const root = path.join(repoRoot, plugin.skillsSrc);
+  const walk = (dir: string, prefix = ""): string[] =>
+    fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      return entry.isDirectory() ? walk(path.join(dir, entry.name), rel) : [rel];
+    });
+
+  return walk(root)
+    .filter((rel) => rel.endsWith(".md.eta"))
+    .flatMap((rel) =>
+      frontConfigSuppressions(fs.readFileSync(path.join(root, rel), "utf8")).map(
+        (suppression) => `${rel}:${suppression.lines[0]}-${suppression.lines[1]}:${suppression.rule}`,
+      ),
+    )
+    .sort();
 }
 
 /** OpenCode roots that opencode.json's skills.paths must list, exactly. */

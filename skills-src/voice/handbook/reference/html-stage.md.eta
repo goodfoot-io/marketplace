@@ -1,4 +1,6 @@
-Use when rendering an HTML document full-viewport behind the voice UI.
+<!-- agent-skills
+platforms: [claude-code]
+-->Use when rendering an HTML document full-viewport behind the voice UI.
 
 ## Overview
 

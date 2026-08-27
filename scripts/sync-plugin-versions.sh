@@ -48,8 +48,9 @@ write_version() {
   fi
 }
 
-while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PACKAGE; do
-  for required in "$SOURCE" "$CODEX_MANIFEST" "$OPENCODE_PACKAGE"; do
+while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PACKAGE PACKAGE_JSON; do
+  [ "$PACKAGE_JSON" = "null" ] && PACKAGE_JSON=""
+  for required in "$SOURCE" "$CODEX_MANIFEST" "$OPENCODE_PACKAGE" ${PACKAGE_JSON:+"$PACKAGE_JSON"}; do
     [ -f "$required" ] || { echo "$NAME: declared surface $required does not exist" >&2; exit 1; }
   done
 
@@ -67,6 +68,34 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
   [ "$(jq -r '.version' "$OPENCODE_PACKAGE")" = "$VERSION" ] ||
     write_version "$OPENCODE_PACKAGE" '.version = $version' "$VERSION"
 
+  # The published npm package, where a plugin ships one. agent-skills is the
+  # only such plugin today, and its package version drifting from the plugin
+  # version is what made "which build produced this output" unanswerable.
+  if [ -n "$PACKAGE_JSON" ]; then
+    [ "$(jq -r '.version' "$PACKAGE_JSON")" = "$VERSION" ] ||
+      write_version "$PACKAGE_JSON" '.version = $version' "$VERSION"
+  fi
+
+  # Versions embedded in source rather than in a JSON field. jq cannot reach
+  # them, so they were the surfaces nothing propagated to.
+  # Read by index rather than @tsv: the declared pattern is a regex, and @tsv
+  # escapes backslashes, so every `\.` would reach node as `\\.` and match
+  # nothing — a silent pass in check mode dressed as a loud one.
+  LITERAL_COUNT="$(jq -r --arg name "$NAME" '.plugins[] | select(.name == $name) | .versionSurfaces.literals // [] | length' "$REGISTRY")"
+  LITERAL_INDEX=0
+  while [ "$LITERAL_INDEX" -lt "$LITERAL_COUNT" ]; do
+    LITERAL_FILTER='.plugins[] | select(.name == $name) | .versionSurfaces.literals['"$LITERAL_INDEX"']'
+    LITERAL_PATH="$(jq -r --arg name "$NAME" "$LITERAL_FILTER"'.path' "$REGISTRY")"
+    LITERAL_MATCH="$(jq -r --arg name "$NAME" "$LITERAL_FILTER"'.match' "$REGISTRY")"
+    [ -f "$LITERAL_PATH" ] || { echo "$NAME: declared literal surface $LITERAL_PATH does not exist" >&2; exit 1; }
+    if [ "$CHECK_ONLY" = true ]; then
+      node scripts/rewrite-version-literal.mjs "$LITERAL_PATH" "$LITERAL_MATCH" "$VERSION" --check || DRIFTED=true
+    else
+      node scripts/rewrite-version-literal.mjs "$LITERAL_PATH" "$LITERAL_MATCH" "$VERSION"
+    fi
+    LITERAL_INDEX=$((LITERAL_INDEX + 1))
+  done
+
   MARKETPLACE_VERSION="$(jq -r --arg name "$MARKETPLACE_NAME" '.plugins[] | select(.name == $name) | .version' "$MARKETPLACE_JSON")"
   if [ -z "$MARKETPLACE_VERSION" ]; then
     echo "$NAME: no $MARKETPLACE_NAME entry in $MARKETPLACE_JSON" >&2
@@ -83,7 +112,7 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
       echo "  updated $MARKETPLACE_JSON ($MARKETPLACE_NAME)"
     fi
   fi
-done < <(jq -r '.plugins[] | [.name, .marketplace.claude, .versionSurfaces.source, .versionSurfaces.codexManifest, .versionSurfaces.opencodePackage] | @tsv' "$REGISTRY")
+done < <(jq -r '.plugins[] | [.name, .marketplace.claude, .versionSurfaces.source, .versionSurfaces.codexManifest, .versionSurfaces.opencodePackage, (.versionSurfaces.packageJson // "null")] | @tsv' "$REGISTRY")
 
 if [ "$DRIFTED" = true ]; then
   echo "Version drift detected. Run ./scripts/sync-plugin-versions.sh to fix." >&2

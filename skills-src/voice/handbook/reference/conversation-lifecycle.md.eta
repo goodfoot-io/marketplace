@@ -1,4 +1,6 @@
-Use when managing conversation state — pausing, resuming, resetting, or understanding how a conversation begins and ends.
+<!-- agent-skills
+platforms: [claude-code]
+-->Use when managing conversation state — pausing, resuming, resetting, or understanding how a conversation begins and ends.
 
 ## State
 

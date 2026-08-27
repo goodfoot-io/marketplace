@@ -1,8 +1,4 @@
-<!-- agent-skills
-lintSuppressions:
-  - rule: cross-dialect-reference
-    lines: [16, 16]
---><%~ it.frontmatter({ name: "template-authoring", description: "Load this skill when authoring or reviewing portable .md.eta templates, agent-skills front-config, includes, layouts, or opaque assets for @goodfoot/agent-skills." }) %>
+<%~ it.frontmatter({ name: "template-authoring", description: "Load this skill when authoring or reviewing portable .md.eta templates, agent-skills front-config, includes, layouts, or opaque assets for @goodfoot/agent-skills." }) %>
 # Author portable skill templates
 
 Use one source tree for every platform. Markdown templates end in `.md.eta` and render to the same relative path without `.eta`. Files that are not templates are opaque assets: keep them beside the templates so the build copies their bytes and executable mode into each selected output tree.
@@ -11,7 +7,7 @@ Use one source tree for every platform. Markdown templates end in `.md.eta` and 
 
 `@goodfoot/agent-skills` renders with Eta using `autoEscape: false` and `autoTrim: false`. Whitespace is therefore authored output, not formatting noise. Use Eta's native `include()` and `layout()` support for reusable fragments, and keep every include inside the declared source root.
 
-Prefer portable helpers over literal platform syntax. Load the `agent-skills:cli-and-helpers` skill for the supported helper surface and CLI grammar. Raw `it.platform` conditionals are an escape hatch for cases the helper model does not cover; a new repeated dialect difference belongs in the platform definitions and helper reference instead.
+Prefer portable helpers over literal platform syntax. Load the <%~ it.skillRef("agent-skills:cli-and-helpers") %> skill for the supported helper surface and CLI grammar. Raw `it.platform` conditionals are an escape hatch for cases the helper model does not cover; a new repeated dialect difference belongs in the platform definitions and helper reference instead.
 
 ## Optional front-config
 

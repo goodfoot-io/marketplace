@@ -1,4 +1,6 @@
-Use when the conversation is getting long, the avatar seems confused about earlier content, or context needs to be carried across conversations.
+<!-- agent-skills
+platforms: [claude-code]
+-->Use when the conversation is getting long, the avatar seems confused about earlier content, or context needs to be carried across conversations.
 
 ## Diagnose
 

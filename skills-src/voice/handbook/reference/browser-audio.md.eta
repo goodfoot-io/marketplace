@@ -1,4 +1,6 @@
-Use when the browser hasn't connected or audio isn't ready.
+<!-- agent-skills
+platforms: [claude-code]
+-->Use when the browser hasn't connected or audio isn't ready.
 
 ## Diagnose
 

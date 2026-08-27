@@ -1,4 +1,4 @@
 packages/agent-skills/src/compiler.ts#L320-L447 rk64:b7436219347e6c48
-packages/plugin-layout-checks/registry/plugins.json rk64:936e0c0459dd8c5b
+packages/plugin-layout-checks/registry/plugins.json rk64:3d53f8416ceabe2b
 
 materializeAll() renames each target directory to a backup and swaps a freshly staged directory into its place, so any content in a plugins.json target path that predates its own registration is silently deleted rather than merged, and no test in this suite catches a to-be-registered target that still holds non-skill content (linear's co-located tests/ hit exactly this before being relocated first). Registering a new plugin or target requires manually confirming the target directory holds only skill content beforehand.

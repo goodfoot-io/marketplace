@@ -1,4 +1,6 @@
-Use when the avatar needs to be redirected, corrected, or given new direction mid-conversation.
+<!-- agent-skills
+platforms: [claude-code]
+-->Use when the avatar needs to be redirected, corrected, or given new direction mid-conversation.
 
 ## When to intervene
 

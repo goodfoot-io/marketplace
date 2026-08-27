@@ -3,6 +3,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
+import { renderHelperReferenceMarkdown } from "../../../agent-skills/src/helper-reference.js";
 import { CLAUDE_ROOT_TOKEN, CODEX_ROOT_TOKEN } from "../gates.js";
 import { readJson, repoPath } from "../helpers.js";
 import { PLUGINS, skillsInTarget } from "../registry.js";
@@ -78,19 +79,50 @@ const agentSkillsReference = (body: string, platform: string) => {
 };
 
 /**
- * The `it.pluginRootVar` row of the generated helper table now renders its
- * per-platform values as code spans (see renderHelperReferenceMarkdown's
- * CODE_VALUED_KEYS). That is correct markup for a variable name, and it is
- * what keeps this table's necessary mention of every platform's root variable
- * from reading as a wrong-platform token to Gate B. Reconstructed here from
- * the pinned original at the one substitution site, identically on every
- * platform, so any other drift in the table still fails.
+ * `template-authoring` tells the reader to prefer portable helpers over
+ * literal platform syntax, and used to demonstrate the opposite: a hardcoded
+ * Claude-dialect `agent-skills:cli-and-helpers` that resolves to nothing on
+ * Codex and OpenCode. It now routes through `it.skillRef()`. The expected
+ * strings are written out rather than re-derived from the helper, so this
+ * stays falsifiable — a helper that changed dialect wrongly would move the
+ * tree and a derived expectation together and prove nothing.
  */
-const helperReferenceTable = (body: string) =>
-  body.replace(
-    `| ${CLAUDE_ROOT_TOKEN} (verified) | ${CODEX_ROOT_TOKEN} (verified) |`,
-    `| \`${CLAUDE_ROOT_TOKEN}\` (verified) | \`${CODEX_ROOT_TOKEN}\` (verified) |`,
-  );
+const agentSkillsSkillRef = (body: string, platform: string) => {
+  if (platform === "claude-code") return body;
+  const rendered = platform === "opencode" ? "`$cli-and-helpers`" : "`$agent-skills:cli-and-helpers`";
+  return body.replaceAll("`agent-skills:cli-and-helpers`", rendered);
+};
+
+const HELPER_TABLE_BEGIN = "<!-- BEGIN GENERATED AGENT-SKILLS HELPER REFERENCE -->";
+const HELPER_TABLE_END = "<!-- END GENERATED AGENT-SKILLS HELPER REFERENCE -->";
+
+/**
+ * The helper reference is the one file here whose body is part hand-authored
+ * prose and part machine-generated table, and the two need different contracts.
+ *
+ * The prose keeps the pinned-blob contract unchanged. The table cannot: its
+ * pre-migration bytes are the output of a renderer this card fixed, and its
+ * cells legitimately moved when the forced fact cast came out — statuses that
+ * read `undefined`, blank cells that could not be told from missing ones, and
+ * a composite `logicalPaths` fact that is now five rows carrying their own
+ * statuses. Enumerating those as textual substitutions would not be a check;
+ * it would be transcribing the new output into the fixture under the guise of
+ * reconstructing it, which is exactly the tautology F2 exists to prevent.
+ *
+ * So the region is spliced from the live renderer, and its correctness is owned
+ * by the two dedicated controls in helper-reference-live.test.ts: shipped bytes
+ * must equal the live render, and the live render must have no blank,
+ * `undefined`, or `[object Object]` cell and no status outside the vocabulary.
+ * What this transform still proves is that everything *outside* the markers is
+ * byte-identical to the pre-migration blob.
+ */
+const helperReferenceTable = (body: string) => {
+  const begin = body.indexOf(HELPER_TABLE_BEGIN);
+  const end = body.indexOf(HELPER_TABLE_END);
+  if (begin < 0 || end <= begin) throw new Error("pinned helper reference has no generated-region markers");
+  const head = body.slice(0, begin + HELPER_TABLE_BEGIN.length);
+  return `${head}\n\n${renderHelperReferenceMarkdown()}\n${body.slice(end)}`;
+};
 
 /**
  * gmail's SKILL.md is the one genuinely non-byte-faithful body in this card
@@ -127,6 +159,7 @@ const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: st
   "agent-skills": {
     "cli-and-helpers/SKILL.md": agentSkillsReference,
     "platform-behavior/SKILL.md": agentSkillsReference,
+    "template-authoring/SKILL.md": agentSkillsSkillRef,
     "reference/helper-reference.md": helperReferenceTable,
   },
 };

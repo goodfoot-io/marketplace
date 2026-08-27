@@ -41,6 +41,13 @@ jobs:
           test "${#trees[@]}" -gt 0 || { echo "registry declares no trees" >&2; exit 1; }
           git diff --exit-code -- "${trees[@]}"
 
+      # The bundler's own portability linter, over the same --root, --target,
+      # and --platform-dir flags the build derives from the registry. It shipped
+      # with agent-skills and nothing invoked it, so seven plugins migrated onto
+      # the bundler without a single rule it implements ever being enforced.
+      - name: Lint agent skill templates
+        run: yarn lint:agent-skills
+
       - name: Verify plugin versions are in lockstep
         run: ./scripts/sync-plugin-versions.sh --check
 

@@ -21,8 +21,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Voice",
-    "shortDescription": "Voice conversation SDK skills and CLI tools for launching and interacting with realtime voice agents.",
-    "longDescription": "Troubleshooting and detailed usage skills for the voice MCP server: browser/audio problems, conversation lifecycle (pause/resume/reset), context management, intervening when the avatar is wrong, the full-viewport HTML stage, ending a session, and startup/channel failures.",
+    "shortDescription": "Not yet available on Codex: the voice MCP server this plugin's handbook documents only ships on Claude Code.",
+    "longDescription": "The voice MCP server (bin/voice-mcp-server.mjs, .mcp.json) is registered on Claude Code only, so this plugin's handbook skill is gated to claude-code and ships no content here. This manifest exists for version lockstep and is not published to the Codex marketplace.",
     "developerName": "Goodfoot",
     "category": "Developer Tools",
     "capabilities": [
@@ -30,9 +30,6 @@
       "Write"
     ],
     "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/voice",
-    "defaultPrompt": [
-      "Use the handbook skill to troubleshoot the voice MCP server when the browser hasn't connected, audio isn't ready, or the conversation needs to be paused, resumed, or reset."
-    ],
     "brandColor": "#1F6FEB"
   }
 }

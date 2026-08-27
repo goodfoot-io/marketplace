@@ -36,5 +36,8 @@ describe("tsconfig.json plugin tests inclusion", () => {
     for (const relPath of EXPECTED_PLUGIN_TEST_FILES) {
       expect(listedFiles.has(relPath), `${relPath} in tsc --listFiles output`).toBe(true);
     }
-  });
+  }, // The full-monorepo `tsc --listFiles` program grew past vitest's default
+  // 30s timeout once this card's migration added hundreds of files under
+  // tsconfig.json's `include`; ~31s standalone on this runner.
+  60_000);
 });
