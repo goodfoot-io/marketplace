@@ -1,0 +1,22 @@
+{
+  "name": "gmail",
+  "version": "1.0.0",
+  "description": "Gmail SDK skill for email operations via googleapis",
+  "author": { "name": "Goodfoot", "email": "contact@goodfoot.io", "url": "https://github.com/goodfoot-io" },
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/gmail",
+  "repository": "https://github.com/goodfoot-io/marketplace",
+  "license": "MIT",
+  "keywords": ["gmail", "email", "google", "sdk", "oauth"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Gmail",
+    "shortDescription": "Gmail SDK skill for email operations via googleapis",
+    "longDescription": "Gmail operations using the googleapis NPM package: sending, reading, searching, and organizing emails programmatically, including drafts, labels, threads, filters, and attachments through Google's official SDK.",
+    "developerName": "Goodfoot",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/gmail",
+    "defaultPrompt": ["Use the gmail skill to work with Gmail via the googleapis package."],
+    "brandColor": "#EA4335"
+  }
+}

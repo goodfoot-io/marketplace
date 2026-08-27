@@ -7,6 +7,6 @@
   },
   "plugin": ["./plugins-opencode/goodfoot"],
   "skills": {
-    "paths": ["./skills", "./plugins-opencode/voice/skills", "./plugins-opencode/jsdoczoom/skills", "./plugins-opencode/claude-code-skill-reader/skills", "./plugins-opencode/linear/skills"]
+    "paths": ["./skills", "./plugins-opencode/voice/skills", "./plugins-opencode/jsdoczoom/skills", "./plugins-opencode/claude-code-skill-reader/skills", "./plugins-opencode/linear/skills", "./plugins-opencode/gmail/skills"]
   }
 }

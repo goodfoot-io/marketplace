@@ -1,0 +1,10 @@
+{
+  "name": "@goodfoot/opencode-gmail",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OpenCode plugin registration for the gmail skill set (gmail).",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  }
+}

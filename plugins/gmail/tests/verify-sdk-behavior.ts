@@ -1,6 +1,6 @@
 /**
  * Gmail SDK Behavior Verification Script
- * Run with: GMAIL_CREDENTIALS_PATH=~/.gmail-skill tsx plugins/gmail/skills/gmail/tests/verify-sdk-behavior.ts
+ * Run with: GMAIL_CREDENTIALS_PATH=~/.gmail-skill tsx plugins/gmail/tests/verify-sdk-behavior.ts
  *
  * Tests actual SDK behavior to verify documentation accuracy.
  * Requires OAuth credentials configured in ~/.gmail-skill/ or GMAIL_CREDENTIALS_PATH.
@@ -45,17 +45,19 @@ function decodeBase64url(encoded: string): string {
 /**
  * Extract email content from MIME payload recursively
  */
+type ExtractedAttachment = {
+  filename: string;
+  mimeType: string;
+  attachmentId: string;
+  size: number;
+};
+
 function extractEmailContent(payload: gmail_v1.Schema$MessagePart): {
   text: string;
   html: string;
-  attachments: Array<{
-    filename: string;
-    mimeType: string;
-    attachmentId: string;
-    size: number;
-  }>;
+  attachments: ExtractedAttachment[];
 } {
-  const result = { text: "", html: "", attachments: [] as typeof result.attachments };
+  const result = { text: "", html: "", attachments: [] as ExtractedAttachment[] };
 
   function processPayload(part: gmail_v1.Schema$MessagePart): void {
     const mimeType = part.mimeType || "";

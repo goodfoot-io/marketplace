@@ -44,6 +44,37 @@ const OPENCODE_NAME_OVERRIDE: Record<string, Record<string, string>> = {
   "claude-code-skill-reader": { cli: "claude-code-skill-reader-cli" },
 };
 
+/**
+ * gmail's SKILL.md is the one genuinely non-byte-faithful body in this card
+ * (plan sections C3/D3): its ```! credential-check fence only auto-executes
+ * on Claude Code, and its 4 `${CLAUDE_PLUGIN_ROOT}/skills/gmail/advanced/
+ * oauth-setup.md` references resolve per-platform. Byte-comparing the body
+ * against the original here would be asserting a false equivalence the
+ * migration deliberately does not provide, so the divergence is reproduced
+ * by construction against the pinned original text and compared to output —
+ * a stricter check than "renders", since it still fails on any unintended
+ * drift outside the 3 known substitution sites.
+ */
+const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: string) => string>> = {
+  gmail: {
+    "gmail/SKILL.md": (body, platform) => {
+      if (platform === "claude-code") return body;
+      const withFence = body.replace("```!", "```bash");
+      const withNote = withFence.replace(
+        "top-level await.\n",
+        `top-level await.\n\n> This environment check auto-executes on Claude Code load. On ${
+          platform === "codex" ? "Codex" : "OpenCode"
+        } it is documented example code above — run it manually to verify Gmail credentials before use.\n`,
+      );
+      const reference =
+        platform === "opencode"
+          ? "plugins-opencode/gmail/skills/gmail/advanced/oauth-setup.md"
+          : "${PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md";
+      return withNote.replaceAll("${CLAUDE_PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md", reference);
+    },
+  },
+};
+
 function splitFrontmatter(text: string): { header: string; body: string } {
   if (!text.startsWith("---\n")) return { header: "", body: text };
   const end = text.indexOf("\n---\n", 4);
@@ -107,7 +138,9 @@ describe("templated-plugin equivalence (pre-migration blob vs generated output)"
 
             expect(outputFm.name, `${target.path}/${entry.path} name`).toBe(expectedName);
             expect(outputFm.description, `${target.path}/${entry.path} description`).toBe(originalFm.description);
-            expect(output.body, `${target.path}/${entry.path} body`).toBe(original.body);
+            const bodyTransform = BODY_TRANSFORMS[plugin.name]?.[entry.path];
+            const expectedBody = bodyTransform ? bodyTransform(original.body, target.platform) : original.body;
+            expect(output.body, `${target.path}/${entry.path} body`).toBe(expectedBody);
           }
         });
       }

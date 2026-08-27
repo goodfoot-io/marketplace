@@ -1,12 +1,22 @@
 {
   "name": "linear",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Linear webhook comment parsing and issue reference validation utilities",
-  "author": { "name": "Goodfoot", "email": "contact@goodfoot.io", "url": "https://github.com/goodfoot-io" },
+  "author": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io",
+    "url": "https://github.com/goodfoot-io"
+  },
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/linear",
   "repository": "https://github.com/goodfoot-io/marketplace",
   "license": "MIT",
-  "keywords": ["linear", "webhooks", "issue-tracking", "sdk", "comments"],
+  "keywords": [
+    "linear",
+    "webhooks",
+    "issue-tracking",
+    "sdk",
+    "comments"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Linear",
@@ -14,9 +24,14 @@
     "longDescription": "Reference for Linear webhooks and the TypeScript SDK: receiving webhook payloads, responding to issues or comments, changing issue status, and querying Linear state via @linear/sdk.",
     "developerName": "Goodfoot",
     "category": "Developer Tools",
-    "capabilities": ["Read", "Write"],
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
     "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/linear",
-    "defaultPrompt": ["Use the linear skill to work with Linear webhooks or the @linear/sdk package."],
+    "defaultPrompt": [
+      "Use the linear skill to work with Linear webhooks or the @linear/sdk package."
+    ],
     "brandColor": "#1F6FEB"
   }
 }

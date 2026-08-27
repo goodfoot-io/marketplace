@@ -3,6 +3,7 @@
     "./*.mjs",
     "./packages/**/src/*.ts",
     "./packages/**/tests/*.ts",
+    "./plugins/*/tests/*.ts",
     "./.devcontainer/utilities/**/*.ts", "packages/durable-object-mcp/src/types/cloudflare.ts", "packages/durable-object-mcp/tests/cloudflare/lib/worker.ts"],
   "exclude": [
     "./packages/**/dist",

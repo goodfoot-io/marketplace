@@ -8,7 +8,7 @@ description: Gmail operations using the googleapis NPM package. Use when
 
 # Gmail Reference (SDK)
 
-```!
+```bash
 # === Gmail Skill Environment Check ===
 CRED_PATH="$HOME/.gmail-skill"
 BLOCKED=""
@@ -29,21 +29,21 @@ if [ ! -d "$CRED_PATH" ]; then
   echo ""
   echo "STOP. Do not attempt Gmail operations."
   echo "Ask user: \"Gmail credentials aren't configured yet. Would you like me to help you set them up?\""
-  echo "If yes, read: @${CLAUDE_PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
+  echo "If yes, read: @${PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
 elif [ ! -f "$CRED_PATH/client_secret.json" ]; then
   BLOCKED="yes"
   echo "❌ BLOCKED: client_secret.json not found"
   echo ""
   echo "STOP. Do not attempt Gmail operations."
   echo "User needs to download OAuth credentials from Google Cloud Console."
-  echo "Setup guide: @${CLAUDE_PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
+  echo "Setup guide: @${PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
 elif [ ! -f "$CRED_PATH/tokens.json" ]; then
   BLOCKED="yes"
   echo "❌ BLOCKED: tokens.json not found (client_secret.json ✓)"
   echo ""
   echo "STOP. Do not attempt Gmail operations."
   echo "User needs to complete the OAuth authorization flow."
-  echo "Setup guide: @${CLAUDE_PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
+  echo "Setup guide: @${PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
 else
   # 2. Validate JSON and check token status
   if node -e "JSON.parse(require('fs').readFileSync('$CRED_PATH/tokens.json'))" 2>/dev/null; then
@@ -76,7 +76,7 @@ else
     echo ""
     echo "STOP. Do not attempt Gmail operations."
     echo "User needs to re-run the authorization flow."
-    echo "Setup guide: @${CLAUDE_PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
+    echo "Setup guide: @${PLUGIN_ROOT}/skills/gmail/advanced/oauth-setup.md"
   fi
 fi
 
@@ -115,6 +115,8 @@ fi
 ```
 
 **IMPORTANT**: Use `tsx << 'EOF' ... EOF` heredoc syntax for inline execution with top-level await. The `tsx -e` flag does NOT support top-level await.
+
+> This environment check auto-executes on Claude Code load. On Codex it is documented example code above — run it manually to verify Gmail credentials before use.
 
 ---
 

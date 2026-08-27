@@ -1,6 +1,6 @@
 {
   "$comment": "Bundler-managed plugin registry. Field-by-field contract: packages/plugin-layout-checks/test/registry.ts",
-  "lintSuppressionBudget": 3,
+  "lintSuppressionBudget": 10,
   "plugins": [
     {
       "name": "goodfoot",
@@ -136,6 +136,38 @@
         "opencodePackage": "plugins-opencode/linear/package.json"
       },
       "lintSuppressions": []
+    },
+    {
+      "name": "gmail",
+      "skillsSrc": "skills-src/gmail",
+      "claudePluginRoot": "plugins/gmail",
+      "codexPluginRoot": "plugins-codex/gmail",
+      "opencodePluginRoot": "plugins-opencode/gmail",
+      "targets": [
+        { "platform": "claude-code", "path": "plugins/gmail/skills" },
+        { "platform": "codex", "path": "plugins-codex/gmail/skills", "note": "The ```! credential-check fence only auto-executes on Claude Code; here it renders as documented, platform-correct example code (per plan section D3)." },
+        { "platform": "opencode", "path": "plugins-opencode/gmail/skills", "opencodeRegistered": true, "note": "Same fence degrade as the codex target, plus a literal repo-relative oauth-setup.md path since pluginRootVar is unavailable on OpenCode (per plan section C3)." }
+      ],
+      "platformDirs": [],
+      "skills": ["gmail"],
+      "marketplace": {
+        "claude": "gmail",
+        "codex": "gmail"
+      },
+      "versionSurfaces": {
+        "source": "plugins/gmail/.claude-plugin/plugin.json",
+        "codexManifest": "plugins-codex/gmail/.codex-plugin/plugin.json",
+        "opencodePackage": "plugins-opencode/gmail/package.json"
+      },
+      "lintSuppressions": [
+        "gmail/SKILL.md:25-25:skill-relative-path",
+        "gmail/SKILL.md:32-32:skill-relative-path",
+        "gmail/SKILL.md:39-39:skill-relative-path",
+        "gmail/SKILL.md:72-72:skill-relative-path",
+        "gmail/SKILL.md:462-486:cross-dialect-reference",
+        "gmail/advanced/messages.md:696-716:cross-dialect-reference",
+        "gmail/advanced/labels-filters.md:454-454:cross-dialect-reference"
+      ]
     }
   ],
   "unmanaged": [
@@ -154,10 +186,6 @@
     {
       "name": "agent-skills",
       "reason": "Awaiting bundler migration (card main-8-1, Phase 4). Moves into plugins[] in the same commit that creates skills-src/agent-skills."
-    },
-    {
-      "name": "gmail",
-      "reason": "Awaiting bundler migration (card main-8-1, Phase 2). Moves into plugins[] in the same commit that creates skills-src/gmail."
     }
   ]
 }

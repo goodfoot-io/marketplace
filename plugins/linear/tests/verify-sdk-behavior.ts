@@ -1,6 +1,6 @@
 /**
  * SDK Behavior Verification Script
- * Run with: dotenv -- tsx plugins/linear/skills/linear-v2/tests/verify-sdk-behavior.ts
+ * Run with: dotenv -- tsx plugins/linear/tests/verify-sdk-behavior.ts
  *
  * Tests actual SDK behavior to verify documentation accuracy.
  */
