@@ -42,9 +42,10 @@ import { fileURLToPath } from "node:url";
  * Resolve one explicitly selected release line.
  *
  * @param {ReleaseIdentityRequest} _request
+ * @param {{ repoRoot?: string }} [options]
  * @returns {ResolvedReleaseIdentity}
  */
-export function resolveReleaseIdentity(_request) {
+export function resolveReleaseIdentity(_request, options = {}) {
 	const request = _request;
 	if (!request || typeof request.pluginName !== "string" || request.pluginName.length === 0) {
 		throw new Error("release-identity: pluginName is required");
@@ -52,7 +53,7 @@ export function resolveReleaseIdentity(_request) {
 	if (request.surface !== "plugin" && request.surface !== "npm") {
 		throw new Error('release-identity: surface must be "plugin" or "npm"');
 	}
-	const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+	const repoRoot = options.repoRoot ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 	const registryPath = path.join(repoRoot, "packages/plugin-layout-checks/registry/plugins.json");
 	const registry = JSON.parse(readFileSync(registryPath, "utf8"));
 	validateReleaseIdentityRegistry(registry, repoRoot);
@@ -84,14 +85,15 @@ export function resolveReleaseIdentity(_request) {
  * Npm tag history is deliberately not a fallback.
  *
  * @param {ReleaseIdentityRequest} request
+ * @param {{ repoRoot?: string }} [options]
  * @returns {PluginReleaseSequence}
  */
-export function pluginReleaseSequence(request) {
+export function pluginReleaseSequence(request, options = {}) {
 	if (request?.surface !== "plugin") {
 		throw new Error('release-identity: plugin release sequence requires the explicit "plugin" surface');
 	}
-	const identity = resolveReleaseIdentity(request);
-	const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+	const repoRoot = options.repoRoot ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+	const identity = resolveReleaseIdentity(request, { repoRoot });
 	let shallow;
 	try {
 		shallow = git(repoRoot, ["rev-parse", "--is-shallow-repository"]).trim();
@@ -103,21 +105,27 @@ export function pluginReleaseSequence(request) {
 	}
 
 	try {
+		const committedManifest = JSON.parse(git(repoRoot, ["show", `HEAD:${identity.versionSource}`]));
+		if (typeof committedManifest.version !== "string" || committedManifest.version.length === 0) {
+			throw new Error(`committed manifest ${identity.versionSource} has no string version`);
+		}
+		const committedVersion = committedManifest.version;
 		const commits = git(repoRoot, ["log", "--reverse", "--format=%H", "--", identity.versionSource])
 			.split("\n")
 			.filter((commit) => commit.length > 0);
 		if (commits.length === 0) throw new Error("Git returned no commits for the version source");
-		const versions = [];
-		const seen = new Set();
-		for (const commit of commits) {
+		const latestOccupation = new Map();
+		for (const [index, commit] of commits.entries()) {
 			const manifest = JSON.parse(git(repoRoot, ["show", `${commit}:${identity.versionSource}`]));
 			if (typeof manifest.version !== "string") continue;
-			if (compareVersions(manifest.version, identity.currentVersion) <= 0 && !seen.has(manifest.version)) {
-				seen.add(manifest.version);
-				versions.push(manifest.version);
-			}
+			if (compareVersions(manifest.version, committedVersion) <= 0) latestOccupation.set(manifest.version, index);
 		}
-		if (!seen.has(identity.currentVersion)) versions.push(identity.currentVersion);
+		const versions = [...latestOccupation.entries()]
+			.sort((left, right) => left[1] - right[1])
+			.map(([version]) => version);
+		if (versions.length === 0 || versions.at(-1) !== committedVersion) {
+			throw new Error(`committed HEAD version ${committedVersion} was absent from its manifest history`);
+		}
 		return {
 			pluginName: identity.pluginName,
 			surface: "plugin",
@@ -322,14 +330,24 @@ function readManifest(repoRoot, pluginName, declared) {
 
 function usage() {
 	return (
-		"usage: node scripts/release-identity.mjs <plugin-name> <plugin|npm> [--sequence]\n" +
+		"usage: node scripts/release-identity.mjs <plugin-name> <plugin|npm> [--sequence] [--repo-root <path>]\n" +
 		"       --sequence reads plugin versions only from full manifest Git history (never npm tags)"
 	);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-	const [pluginName, surface, option, ...extra] = process.argv.slice(2);
-	if (!pluginName || !surface || extra.length > 0 || (option !== undefined && option !== "--sequence")) {
+	const [pluginName, surface, ...flags] = process.argv.slice(2);
+	let sequence = false;
+	let repoRoot;
+	let invalid = false;
+	for (let index = 0; index < flags.length; index += 1) {
+		if (flags[index] === "--sequence" && !sequence) sequence = true;
+		else if (flags[index] === "--repo-root" && repoRoot === undefined && flags[index + 1]) {
+			repoRoot = path.resolve(flags[index + 1]);
+			index += 1;
+		} else invalid = true;
+	}
+	if (!pluginName || !surface || invalid) {
 		process.stderr.write(`${usage()}\n`);
 		process.exitCode = 2;
 	} else if (surface !== "plugin" && surface !== "npm") {
@@ -339,7 +357,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	} else {
 		try {
 			const request = { pluginName, surface };
-			const resolved = option === "--sequence" ? pluginReleaseSequence(request) : resolveReleaseIdentity(request);
+			const options = repoRoot ? { repoRoot } : undefined;
+			const resolved = sequence ? pluginReleaseSequence(request, options) : resolveReleaseIdentity(request, options);
 			process.stdout.write(`${JSON.stringify(resolved)}\n`);
 		} catch (error) {
 			process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
