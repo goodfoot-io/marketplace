@@ -1,38 +1,45 @@
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import { describe, expect, it } from "vitest";
-import { CLAUDE_TREE, CODEX_TREE, readJson, repoPath } from "../helpers.js";
+import { readJson, repoPath } from "../helpers.js";
+import { PLUGINS } from "../registry.js";
 
 interface Surface {
   label: string;
   version: string;
 }
 
-function marketplaceGoodfootVersion(): string {
+function marketplaceVersionOf(name: string): string {
   const registry = readJson<{ plugins: { name: string; version?: string }[] }>(".claude-plugin/marketplace.json");
-  const entry = registry.plugins.find((plugin) => plugin.name === "goodfoot");
-  if (!entry) throw new Error("marketplace.json has no goodfoot entry");
+  const entry = registry.plugins.find((plugin) => plugin.name === name);
+  if (!entry) throw new Error(`marketplace.json has no ${name} entry`);
   return entry.version as string;
 }
 
 describe("version lockstep", () => {
-  // Source of truth is the claude manifest; scripts/sync-plugin-versions.sh
-  // propagates from it. This test fails closed on any drift.
-  it("reports one version across all four surfaces", () => {
+  // Source of truth is each plugin's declared `versionSurfaces.source`;
+  // scripts/sync-plugin-versions.sh propagates from it. This fails closed on
+  // any drift, for every registry plugin rather than for two hardcoded names.
+  it.each(PLUGINS.map((plugin) => plugin.name))("reports one %s version across all four surfaces", (name) => {
+    const plugin = PLUGINS.find((candidate) => candidate.name === name);
+    if (!plugin) throw new Error(`unreachable: ${name}`);
     const surfaces: Surface[] = [
       {
-        label: "plugins-claude/goodfoot/.claude-plugin/plugin.json",
-        version: readJson<{ version: string }>(`${CLAUDE_TREE}/.claude-plugin/plugin.json`).version,
+        label: plugin.versionSurfaces.source,
+        version: readJson<{ version: string }>(plugin.versionSurfaces.source).version,
       },
       {
-        label: "plugins-codex/goodfoot/.codex-plugin/plugin.json",
-        version: readJson<{ version: string }>(`${CODEX_TREE}/.codex-plugin/plugin.json`).version,
+        label: plugin.versionSurfaces.codexManifest,
+        version: readJson<{ version: string }>(plugin.versionSurfaces.codexManifest).version,
       },
       {
-        label: "plugins-opencode/goodfoot/package.json",
-        version: readJson<{ version: string }>("plugins-opencode/goodfoot/package.json").version,
+        label: plugin.versionSurfaces.opencodePackage,
+        version: readJson<{ version: string }>(plugin.versionSurfaces.opencodePackage).version,
       },
-      { label: ".claude-plugin/marketplace.json goodfoot entry", version: marketplaceGoodfootVersion() },
+      {
+        label: `.claude-plugin/marketplace.json ${plugin.marketplace.claude} entry`,
+        version: marketplaceVersionOf(plugin.marketplace.claude),
+      },
     ];
 
     const distinct = [...new Set(surfaces.map((surface) => surface.version))];

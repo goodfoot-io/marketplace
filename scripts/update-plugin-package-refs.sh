@@ -77,8 +77,13 @@ echo ""
 MCP_FILES=$(find "$PLUGINS_DIR" -name ".mcp.json" -type f)
 
 if [ -z "$MCP_FILES" ]; then
-  echo -e "${YELLOW}⚠️  No .mcp.json files found in $PLUGINS_DIR${NC}"
-  exit 0
+  # Fails closed deliberately. This glob is the only thing that keeps voice's
+  # MCP package version moving at release time, and an empty result means the
+  # search is looking in the wrong place — not that there is nothing to do.
+  # Exiting 0 here made that a green no-op with no error anywhere.
+  echo -e "${RED}❌ Error: No .mcp.json files found in $PLUGINS_DIR${NC}" >&2
+  echo "   At least one plugin ships an .mcp.json; an empty result means this script is looking in the wrong place." >&2
+  exit 1
 fi
 
 UPDATED_COUNT=0

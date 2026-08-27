@@ -45,20 +45,6 @@
       ]
     },
     {
-      "name": "jest-mock-prevention",
-      "version": "0.1.2",
-      "source": "./plugins/jest-mock-prevention",
-      "tags": [
-        "jest",
-        "testing",
-        "mocking",
-        "integration-testing",
-        "hooks",
-        "quality",
-        "validation"
-      ]
-    },
-    {
       "name": "linear",
       "version": "1.0.0",
       "source": "./plugins/linear",

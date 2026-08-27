@@ -1,0 +1,79 @@
+{
+  "$comment": "Bundler-managed plugin registry. Field-by-field contract: packages/plugin-layout-checks/test/registry.ts",
+  "lintSuppressionBudget": 0,
+  "plugins": [
+    {
+      "name": "goodfoot",
+      "skillsSrc": "skills-src/goodfoot",
+      "claudePluginRoot": "plugins-claude/goodfoot",
+      "codexPluginRoot": "plugins-codex/goodfoot",
+      "opencodePluginRoot": "plugins-opencode/goodfoot",
+      "targets": [
+        { "platform": "claude-code", "path": "plugins-claude/goodfoot/skills" },
+        { "platform": "codex", "path": "plugins-codex/goodfoot/skills" },
+        { "platform": "opencode", "path": "plugins-opencode/goodfoot/skills", "opencodeRegistered": false, "note": "goodfoot predates Decision 2: its OpenCode skills are served from the shared ./skills root, which carries the same six skills, so registering this tree as well would duplicate every name." },
+        { "platform": "opencode", "path": "skills", "opencodeRegistered": true, "note": "The shared OpenCode root, goodfoot-only by Decision 2. No migrated plugin targets it." }
+      ],
+      "platformDirs": [],
+      "skills": [
+        "documentation",
+        "instructions",
+        "marketing",
+        "skillify",
+        "typescript-metrics",
+        "worktree-cleanup"
+      ],
+      "skillBin": {
+        "typescript-metrics": ["typescript-metrics.mjs"]
+      },
+      "marketplace": {
+        "claude": "goodfoot",
+        "codex": "goodfoot"
+      },
+      "versionSurfaces": {
+        "source": "plugins-claude/goodfoot/.claude-plugin/plugin.json",
+        "codexManifest": "plugins-codex/goodfoot/.codex-plugin/plugin.json",
+        "opencodePackage": "plugins-opencode/goodfoot/package.json"
+      },
+      "lintSuppressions": []
+    }
+  ],
+  "unmanaged": [
+    {
+      "name": "typescript-hooks",
+      "reason": "Ships without the bundler: a hooks-only plugin with no skills tree."
+    },
+    {
+      "name": "expansion",
+      "reason": "Ships without the bundler: a hooks-only plugin with no skills tree."
+    },
+    {
+      "name": "agent-hooks",
+      "reason": "Awaiting bundler migration (card main-8-1, Phase 3). Moves into plugins[] in the same commit that creates skills-src/agent-hooks."
+    },
+    {
+      "name": "agent-skills",
+      "reason": "Awaiting bundler migration (card main-8-1, Phase 4). Moves into plugins[] in the same commit that creates skills-src/agent-skills."
+    },
+    {
+      "name": "claude-code-skill-reader",
+      "reason": "Awaiting bundler migration (card main-8-1, Phase 1). Moves into plugins[] in the same commit that creates skills-src/claude-code-skill-reader."
+    },
+    {
+      "name": "gmail",
+      "reason": "Awaiting bundler migration (card main-8-1, Phase 2). Moves into plugins[] in the same commit that creates skills-src/gmail."
+    },
+    {
+      "name": "jsdoczoom",
+      "reason": "Awaiting bundler migration (card main-8-1, Phase 1). Moves into plugins[] in the same commit that creates skills-src/jsdoczoom."
+    },
+    {
+      "name": "linear",
+      "reason": "Awaiting bundler migration (card main-8-1, Phase 2). Moves into plugins[] in the same commit that creates skills-src/linear."
+    },
+    {
+      "name": "voice",
+      "reason": "Awaiting bundler migration (card main-8-1, Phase 1). Moves into plugins[] in the same commit that creates skills-src/voice."
+    }
+  ]
+}

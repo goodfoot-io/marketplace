@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { pluginNamed } from "./registry.js";
 
 const THIS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -10,21 +11,16 @@ export const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf8",
 }).trim();
 
+const GOODFOOT = pluginNamed("goodfoot");
+
 export const SKILLS_ROOT = "skills";
-export const SKILLS_SOURCE_ROOT = "skills-src/goodfoot";
-export const CLAUDE_TREE = "plugins-claude/goodfoot";
-export const CODEX_TREE = "plugins-codex/goodfoot";
-export const OPENCODE_TREE = "plugins-opencode/goodfoot";
+export const SKILLS_SOURCE_ROOT = GOODFOOT.skillsSrc;
+export const CLAUDE_TREE = GOODFOOT.claudePluginRoot;
+export const CODEX_TREE = GOODFOOT.codexPluginRoot;
+export const OPENCODE_TREE = GOODFOOT.opencodePluginRoot;
 
 /** The six goodfoot skills, single-sourced at the repo root. */
-export const EXPECTED_SKILLS = [
-  "documentation",
-  "instructions",
-  "marketing",
-  "skillify",
-  "typescript-metrics",
-  "worktree-cleanup",
-] as const;
+export const EXPECTED_SKILLS: readonly string[] = GOODFOOT.skills;
 
 export const EXPECTED_COMMANDS = [
   "ask-me.md",
@@ -39,9 +35,7 @@ export const EXPECTED_COMMANDS = [
 export const EXPECTED_AGENTS = ["history.md"] as const;
 
 /** Per-skill bin/ content that travels with its owning skill on every platform tree. */
-export const EXPECTED_SKILL_BIN: Record<string, readonly string[]> = {
-  "typescript-metrics": ["typescript-metrics.mjs"],
-};
+export const EXPECTED_SKILL_BIN: Record<string, readonly string[]> = GOODFOOT.skillBin ?? {};
 
 /**
  * Relative link text for a platform-tree skill entry pointing back at the

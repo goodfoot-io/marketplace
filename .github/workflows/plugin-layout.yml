@@ -6,6 +6,9 @@ on:
       - main
   pull_request:
 
+env:
+  REGISTRY: packages/plugin-layout-checks/registry/plugins.json
+
 jobs:
   layout-checks:
     runs-on: ubuntu-latest
@@ -27,44 +30,123 @@ jobs:
       - name: Run tri-platform layout checks
         run: yarn workspace @goodfoot/plugin-layout-checks test
 
+      # Every path below comes from the registry and has no other source, so a
+      # plugin that is in the registry is a plugin CI diffs. "Adds a plugin but
+      # forgets to add its paths" is not a reachable state.
       - name: Verify generated agent skills are fresh
-        run: yarn build:agent-skills && git diff --exit-code -- skills plugins-claude/goodfoot/skills plugins-codex/goodfoot/skills plugins-opencode/goodfoot/skills
+        run: |
+          set -euo pipefail
+          yarn build:agent-skills
+          mapfile -t trees < <(jq -r '.plugins[].targets[].path' "$REGISTRY")
+          test "${#trees[@]}" -gt 0 || { echo "registry declares no trees" >&2; exit 1; }
+          git diff --exit-code -- "${trees[@]}"
 
+      - name: Verify plugin versions are in lockstep
+        run: ./scripts/sync-plugin-versions.sh --check
+
+      # Both literals here stay goodfoot-scoped. ./skills is the shared OpenCode
+      # root that no migrated plugin targets, and ./plugins/agent-skills is the
+      # companion plugin's own path, which does not move.
       - name: Validate Claude skills tree (strict)
         run: |
           yarn claude --version
           yarn claude plugin validate ./skills --strict
           yarn claude plugin validate ./plugins/agent-skills --strict
 
-      - name: Validate Claude goodfoot plugin
+      - name: Validate Claude plugin roots
         run: |
-          yarn claude plugin validate ./plugins-claude/goodfoot
+          set -euo pipefail
+          mapfile -t roots < <(jq -r '.plugins[].claudePluginRoot' "$REGISTRY")
+          test "${#roots[@]}" -gt 0 || { echo "registry declares no plugin roots" >&2; exit 1; }
+          for root in "${roots[@]}"; do
+            echo "::group::validate $root"
+            yarn claude plugin validate "./$root"
+            echo "::endgroup::"
+          done
 
       - name: Claude install smoke
         run: |
+          set -euo pipefail
           smoke_home="$(mktemp -d)"
           trap 'rm -rf "$smoke_home"' EXIT
           HOME="$smoke_home" yarn claude plugin marketplace add .
-          HOME="$smoke_home" yarn claude plugin install goodfoot@goodfoot
-          HOME="$smoke_home" yarn claude plugin details goodfoot@goodfoot
-          HOME="$smoke_home" yarn claude plugin uninstall goodfoot@goodfoot
+          mapfile -t names < <(jq -r '.plugins[].marketplace.claude' "$REGISTRY")
+          test "${#names[@]}" -gt 0 || { echo "registry declares no Claude marketplace plugins" >&2; exit 1; }
+          for name in "${names[@]}"; do
+            echo "::group::claude install $name"
+            HOME="$smoke_home" yarn claude plugin install "$name@goodfoot"
+            HOME="$smoke_home" yarn claude plugin details "$name@goodfoot"
+            HOME="$smoke_home" yarn claude plugin uninstall "$name@goodfoot"
+            echo "::endgroup::"
+          done
           HOME="$smoke_home" yarn claude plugin marketplace remove .
 
+      # The assertion is re-derived from the same registry entry that drove the
+      # install, and anchored to that plugin's own subtree. A bare skill-name
+      # predicate would be worse than useless here: two plugins in the roster
+      # ship a skill named `cli`, so `-path '*/skills/cli/SKILL.md'` can pass in
+      # a home holding both while proving nothing about which one installed.
       - name: Codex install smoke
         run: |
+          set -euo pipefail
           command -v codex >/dev/null 2>&1 || { echo "unsupported runner: pinned codex CLI is unavailable" >&2; exit 1; }
           codex --version
-          smoke_home="$(mktemp -d)"
-          trap 'rm -rf "$smoke_home"' EXIT
-          HOME="$smoke_home" codex plugin marketplace add .agents/plugins/marketplace.json
-          HOME="$smoke_home" codex plugin add goodfoot
-          installed_skill="$(find "$smoke_home" -path '*/skills/documentation/SKILL.md' -print -quit)"
-          test -n "$installed_skill"
-          test -f "$installed_skill"
-          test ! -L "$installed_skill"
+          mapfile -t entries < <(jq -r '.plugins[] | select(.marketplace.codex != null) | [.marketplace.codex, (.skills | join(","))] | @tsv' "$REGISTRY")
+          test "${#entries[@]}" -gt 0 || { echo "registry declares no Codex marketplace plugins" >&2; exit 1; }
+          for entry in "${entries[@]}"; do
+            name="${entry%%$'\t'*}"
+            skills="${entry#*$'\t'}"
+            echo "::group::codex add $name"
+            smoke_home="$(mktemp -d)"
+            HOME="$smoke_home" codex plugin marketplace add .agents/plugins/marketplace.json
+            HOME="$smoke_home" codex plugin add "$name"
 
+            skills_dir="$(find "$smoke_home" -type d -path "*/$name/skills" -print -quit)"
+            test -n "$skills_dir" || { echo "$name: installed no skills directory" >&2; exit 1; }
+
+            # Assert the plugin's whole declared skill list, not one
+            # representative, so a partial install is caught.
+            IFS=',' read -ra declared <<< "$skills"
+            for skill in "${declared[@]}"; do
+              manifest="$skills_dir/$skill/SKILL.md"
+              test -f "$manifest" || { echo "$name: missing $skill/SKILL.md" >&2; exit 1; }
+              test ! -L "$manifest" || { echo "$name: $skill/SKILL.md is a symlink" >&2; exit 1; }
+            done
+
+            installed="$(find "$skills_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort | paste -sd,)"
+            expected="$(printf '%s\n' "${declared[@]}" | sort | paste -sd,)"
+            test "$installed" = "$expected" || {
+              echo "$name: installed skills [$installed] != declared [$expected]" >&2
+              exit 1
+            }
+
+            HOME="$smoke_home" codex plugin remove "$name" || true
+            rm -rf "$smoke_home"
+            echo "::endgroup::"
+          done
+
+      # The only enforcement anywhere in CI of OpenCode's name-format
+      # requirement. Generated from the registry so a newly registered root is
+      # a checked root.
       - name: OpenCode boot smoke
         run: |
+          set -euo pipefail
           command -v opencode >/dev/null 2>&1 || { echo "unsupported runner: pinned OpenCode CLI is unavailable" >&2; exit 1; }
           opencode --version
-          find plugins-opencode/goodfoot/skills -name SKILL.md -print0 | xargs -0 -n1 sh -c 'grep -Eq "^name: [a-z0-9]+(-[a-z0-9]+)*$" "$0"'
+          # Every OpenCode-rendered tree, registered or not: the name-format
+          # requirement is a property of the rendered output, so an unregistered
+          # tree that will be registered later must not go unchecked until then.
+          mapfile -t roots < <(jq -r '.plugins[].targets[] | select(.platform == "opencode") | .path' "$REGISTRY")
+          test "${#roots[@]}" -gt 0 || { echo "registry declares no OpenCode trees" >&2; exit 1; }
+          for root in "${roots[@]}"; do
+            echo "::group::opencode names in $root"
+            mapfile -t manifests < <(find "$root" -name SKILL.md)
+            test "${#manifests[@]}" -gt 0 || { echo "$root: no SKILL.md found" >&2; exit 1; }
+            for manifest in "${manifests[@]}"; do
+              grep -Eq "^name: [a-z0-9]+(-[a-z0-9]+)*$" "$manifest" || {
+                echo "$manifest: name is not lowercase kebab-case" >&2
+                exit 1
+              }
+            done
+            echo "::endgroup::"
+          done

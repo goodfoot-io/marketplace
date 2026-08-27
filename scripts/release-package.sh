@@ -233,17 +233,27 @@ else
     if bash "$PLUGIN_UPDATE_SCRIPT" "$PACKAGE_NAME" "$VERSION"; then
       echo ""
 
-      # Check if any plugin files were modified
+      # Check if any plugin files were modified. The two empty cases are not
+      # the same: "the glob matched no file at all" means this is looking in
+      # the wrong place and must fail, while "matched, but nothing changed" is
+      # the normal outcome for a package no .mcp.json references. Swallowing
+      # git's error with `|| true` conflated them into a silent skip.
       cd "$WORKSPACE_ROOT"
-      MODIFIED_PLUGIN_FILES=$(git diff --name-only plugins/**/.mcp.json 2>/dev/null || true)
+      MCP_MANIFESTS=$(git ls-files 'plugins/*/.mcp.json')
+      if [ -z "$MCP_MANIFESTS" ]; then
+        echo -e "${RED}❌ Error: No tracked plugins/*/.mcp.json files found${NC}" >&2
+        echo "   Plugin package references cannot be verified; refusing to report a successful release." >&2
+        exit 1
+      fi
+      MODIFIED_PLUGIN_FILES=$(git diff --name-only -- $MCP_MANIFESTS)
 
       if [ -n "$MODIFIED_PLUGIN_FILES" ]; then
         echo -e "${BLUE}📄 Plugin files have been updated${NC}"
         echo ""
-        git diff plugins/**/.mcp.json | head -50
+        git diff -- $MCP_MANIFESTS | head -50
         echo ""
         echo -e "${BLUE}📝 Committing and pushing plugin updates to main...${NC}"
-        git add plugins/**/.mcp.json
+        git add -- $MCP_MANIFESTS
         git commit -m "Update plugin references for $PACKAGE_NAME v${VERSION}"
         git push origin main
         echo -e "${GREEN}✅ Plugin references committed and pushed${NC}"

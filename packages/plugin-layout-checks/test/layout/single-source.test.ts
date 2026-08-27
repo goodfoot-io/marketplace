@@ -1,29 +1,35 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  CLAUDE_TREE,
-  CODEX_TREE,
-  EXPECTED_SKILLS,
-  OPENCODE_TREE,
-  repoPath,
-  SKILLS_ROOT,
-  SKILLS_SOURCE_ROOT,
-  walkFiles,
-} from "../helpers.js";
+import { repoPath, walkFiles } from "../helpers.js";
+import { PLUGINS } from "../registry.js";
 
-const outputs = [SKILLS_ROOT, `${CLAUDE_TREE}/skills`, `${CODEX_TREE}/skills`, `${OPENCODE_TREE}/skills`] as const;
+/** Every declared output tree, as `<plugin>: <path>` cases. */
+const trees = PLUGINS.flatMap((plugin) => plugin.targets.map((target) => [plugin.name, target.path] as const));
 
 describe("generated skill surfaces", () => {
-  it("keeps Markdown authored only as Eta templates", () => {
-    expect(fs.readdirSync(repoPath("skills-src"))).toEqual(["goodfoot"]);
-    const templates = walkFiles(repoPath(SKILLS_SOURCE_ROOT)).filter((file) => file.endsWith(".md.eta"));
-    expect(templates.length).toBeGreaterThan(0);
-    expect(walkFiles(repoPath(SKILLS_SOURCE_ROOT)).filter((file) => file.endsWith(".md"))).toEqual([]);
+  it("holds exactly the registry's authored source roots under skills-src", () => {
+    const declared = PLUGINS.map((plugin) => {
+      const [parent, ...rest] = plugin.skillsSrc.split("/");
+      expect(parent, `${plugin.name}: skillsSrc must live under skills-src/`).toBe("skills-src");
+      expect(rest, `${plugin.name}: skillsSrc must be exactly one level deep`).toHaveLength(1);
+      return rest[0];
+    });
+    expect(fs.readdirSync(repoPath("skills-src")).sort()).toEqual([...declared].sort());
   });
 
-  it.each(outputs)("contains a complete regular-file tree at %s", (output) => {
-    expect(fs.readdirSync(repoPath(output)).sort()).toEqual([...EXPECTED_SKILLS].sort());
+  it.each(PLUGINS.map((plugin) => plugin.name))("keeps %s Markdown authored only as Eta templates", (name) => {
+    const plugin = PLUGINS.find((candidate) => candidate.name === name);
+    if (!plugin) throw new Error(`unreachable: ${name}`);
+    const files = walkFiles(repoPath(plugin.skillsSrc));
+    expect(files.filter((file) => file.endsWith(".md.eta")).length).toBeGreaterThan(0);
+    expect(files.filter((file) => file.endsWith(".md"))).toEqual([]);
+  });
+
+  it.each(trees)("contains a complete regular-file tree at %s -> %s", (name, output) => {
+    const plugin = PLUGINS.find((candidate) => candidate.name === name);
+    if (!plugin) throw new Error(`unreachable: ${name}`);
+    expect(fs.readdirSync(repoPath(output)).sort()).toEqual([...plugin.skills].sort());
     for (const file of walkFiles(repoPath(output))) {
       const stat = fs.lstatSync(path.join(repoPath(output), file));
       expect(stat.isSymbolicLink(), `${output}/${file}`).toBe(false);
@@ -32,7 +38,7 @@ describe("generated skill surfaces", () => {
   });
 
   it("contains no symlink anywhere in a generated skill tree", () => {
-    for (const output of outputs) {
+    for (const [, output] of trees) {
       const pending = [repoPath(output)];
       while (pending.length > 0) {
         const current = pending.pop();
