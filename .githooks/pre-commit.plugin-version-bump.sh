@@ -14,7 +14,10 @@ set -e
 
 STAGED_FILES=$(git diff --cached --name-only)
 [ -z "$STAGED_FILES" ] && exit 0
-DELETED_FILES=$(git diff --cached --diff-filter=D --name-only)
+# Treat a rename as deletion plus addition here. Default rename detection omits
+# the old path from a D-only query, which would let CHANGELOG.md become NOTES.md
+# while existence-based discovery quietly forgot the established surface.
+DELETED_FILES=$(git diff --cached --no-renames --diff-filter=D --name-only)
 
 REGISTRY="packages/plugin-layout-checks/registry/plugins.json"
 HAVE_JQ=false

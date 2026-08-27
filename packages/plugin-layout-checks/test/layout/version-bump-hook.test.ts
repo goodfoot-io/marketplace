@@ -400,6 +400,17 @@ describe("changelog gate follows the files, not the declaration", () => {
     expect(versions(root).source).toBe("1.0.0");
   });
 
+  it("refuses renaming a tracked changelog away from its release surface", () => {
+    const root = makeFixture();
+    fs.renameSync(path.join(root, "plugins/demo/CHANGELOG.md"), path.join(root, "plugins/demo/NOTES.md"));
+    run(root, "git", ["add", "-A"]);
+
+    expect(() => run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"])).toThrow(
+      /CHANGELOG|release notes/i,
+    );
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
   it("gates a plugin whose changelog was never declared anywhere", () => {
     const root = makeFixture();
     // The fixture registry declares no changelogs at all — the same position
