@@ -9,7 +9,9 @@
     "./packages/**/dist",
     "./packages/**/build",
     "./.worktrees/**",
-    "./documentation/**"
+    "./documentation/**",
+    "./packages/**/fixtures/**",
+    "./packages/test-utilities/**"
   ],
   "compilerOptions": {
     "target": "ES2022",

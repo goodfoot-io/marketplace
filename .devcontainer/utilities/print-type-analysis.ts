@@ -31,8 +31,8 @@ interface TypeInfo {
 }
 
 class TypeAnalyzer {
-  private program: ts.Program;
-  private checker: ts.TypeChecker;
+  private program?: ts.Program;
+  private checker?: ts.TypeChecker;
   private results: TypeInfo[] = [];
   private options: AnalysisOptions;
   private expandedFiles: Set<string> = new Set();
@@ -330,20 +330,22 @@ class TypeAnalyzer {
   }
 
   private getVisibility(node: ts.ClassElement): string {
-    if (!node.modifiers) return '';
-    
-    for (const modifier of node.modifiers) {
+    const modifiers = ts.canHaveModifiers(node) ? ts.getModifiers(node) : undefined;
+    if (!modifiers) return '';
+
+    for (const modifier of modifiers) {
       if (modifier.kind === ts.SyntaxKind.PrivateKeyword) return 'private ';
       if (modifier.kind === ts.SyntaxKind.ProtectedKeyword) return 'protected ';
       if (modifier.kind === ts.SyntaxKind.PublicKeyword) return 'public ';
     }
-    
+
     return '';
   }
 
   private isExported(node: ts.Node): boolean {
-    if (!node.modifiers) return false;
-    return node.modifiers.some(m => m.kind === ts.SyntaxKind.ExportKeyword);
+    const modifiers = ts.canHaveModifiers(node) ? ts.getModifiers(node) : undefined;
+    if (!modifiers) return false;
+    return modifiers.some((m: ts.Modifier) => m.kind === ts.SyntaxKind.ExportKeyword);
   }
 
   output(): void {
@@ -494,6 +496,6 @@ try {
   analyzer.analyze();
   analyzer.output();
 } catch (error) {
-  console.error('Error:', error.message);
+  console.error('Error:', error instanceof Error ? error.message : error);
   process.exit(1);
 }

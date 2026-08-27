@@ -501,7 +501,7 @@ class KnowledgeGraphGenerator {
    * Helper: Generate simple tree structure when tree command is not available
    */
   generateSimpleTree(dir: string, prefix = '', isLast = true): string {
-    const items = [];
+    const items: string[] = [];
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       const dirs = entries.filter(e => e.isDirectory() && e.name !== 'node_modules').sort();
@@ -579,4 +579,5 @@ generator.generate().catch(() => {
   process.exit(1);
 });
 
-export { KnowledgeGraphGenerator, KnowledgeGraphOptions };
+export { KnowledgeGraphGenerator };
+export type { KnowledgeGraphOptions };
