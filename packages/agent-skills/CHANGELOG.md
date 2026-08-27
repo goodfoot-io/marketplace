@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.11
+
+- Aligns every release surface after this commit's own hook-managed bump.
+
+## 1.0.10
+
+- Records the companion plugin's automated patch release after agent-skills' own self-migration.
+
 ## 1.0.9
 
 - Aligns every release surface after this commit's own hook-managed bump.

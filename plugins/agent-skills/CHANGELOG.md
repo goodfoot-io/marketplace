@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.11
+
+Synchronizes the companion release with this commit's own hook-managed marketplace bump.
+
+## 1.0.10
+
+Migrates this plugin's own documentation onto the `@goodfoot/agent-skills` bundler it ships, completing card main-8-1: `platform-behavior`, `cli-and-helpers`, `reference/helper-reference.md`, `template-authoring`, and `antigravity` are now generated from `skills-src/agent-skills/` rather than hand-maintained, and render identically across the Claude Code, Codex, and OpenCode trees.
+
 ## 1.0.9
 
 Synchronizes the companion release with this commit's own hook-managed marketplace bump.

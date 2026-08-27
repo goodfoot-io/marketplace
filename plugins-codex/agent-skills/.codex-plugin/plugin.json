@@ -1,6 +1,6 @@
 {
   "name": "agent-skills",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Author, build, lint, and port portable agent skills with @goodfoot/agent-skills",
   "author": {
     "name": "Goodfoot",
@@ -10,7 +10,14 @@
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/agent-skills",
   "repository": "https://github.com/goodfoot-io/marketplace",
   "license": "MIT",
-  "keywords": ["skills", "templates", "eta", "claude-code", "codex", "opencode"],
+  "keywords": [
+    "skills",
+    "templates",
+    "eta",
+    "claude-code",
+    "codex",
+    "opencode"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Agent Skills",
@@ -18,7 +25,10 @@
     "longDescription": "Authoring guidance for @goodfoot/agent-skills, the compiler that renders one Eta template tree into per-platform skill trees. Covers template authoring, the build and lint CLI, the portable helper catalog, per-platform output differences, and the fail-closed Antigravity boundary.",
     "developerName": "Goodfoot",
     "category": "Developer Tools",
-    "capabilities": ["Read", "Write"],
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
     "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/agent-skills",
     "defaultPrompt": [
       "Use the agent-skills skills to author and build portable skill templates with @goodfoot/agent-skills."
