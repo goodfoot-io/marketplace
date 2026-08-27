@@ -1,6 +1,6 @@
 /**
  * Gmail SDK Behavior Verification Script
- * Run with: GMAIL_CREDENTIALS_PATH=~/.gmail-skill tsx plugins/gmail/tests/verify-sdk-behavior.ts
+ * Run with: GMAIL_CREDENTIALS_PATH=~/.gmail-skill tsx plugins-claude/gmail/tests/verify-sdk-behavior.ts
  *
  * Tests actual SDK behavior to verify documentation accuracy.
  * Requires OAuth credentials configured in ~/.gmail-skill/ or GMAIL_CREDENTIALS_PATH.

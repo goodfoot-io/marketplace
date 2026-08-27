@@ -1,0 +1,4 @@
+package.json#L13-L13 rk64:e92ebb1c755908d5
+plugins-claude/gmail/tests/verify-sdk-behavior.ts rk64:7d2f5b2ee956ce1c
+
+The root verify:gmail script directly invokes the Gmail verifier by repository-relative path; the TypeScript program-membership check does not execute this script, so the entrypoint path must move with the standalone verifier.

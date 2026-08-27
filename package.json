@@ -10,7 +10,7 @@
   "scripts": {
     "build:agent-skills": "node scripts/build-agent-skills.mjs",
     "lint:agent-skills": "node scripts/lint-agent-skills.mjs",
-    "verify:gmail": "tsx plugins/gmail/tests/verify-sdk-behavior.ts",
+    "verify:gmail": "tsx plugins-claude/gmail/tests/verify-sdk-behavior.ts",
     "verify:linear": "dotenv -- tsx plugins-claude/linear/tests/verify-decision-edges.ts && dotenv -- tsx plugins-claude/linear/tests/verify-sdk-behavior.ts",
     "reset": "find . -type d -name node_modules | xargs rm -rf && rm -rf yarn.lock",
     "knip": "knip --config ./knip.config.json",

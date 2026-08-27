@@ -9,7 +9,7 @@ import { REPO_ROOT } from "../helpers.js";
 // asserts they're actually reachable in the program rather than just present
 // on disk under a plausible-looking glob.
 const EXPECTED_PLUGIN_TEST_FILES = [
-  "plugins/gmail/tests/verify-sdk-behavior.ts",
+  "plugins-claude/gmail/tests/verify-sdk-behavior.ts",
   "plugins-claude/linear/tests/verify-decision-edges.ts",
   "plugins-claude/linear/tests/verify-sdk-behavior.ts",
 ] as const;

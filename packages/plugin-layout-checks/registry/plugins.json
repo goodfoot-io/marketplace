@@ -273,26 +273,42 @@
     {
       "name": "gmail",
       "releaseIdentity": {
-        "plugin": { "identity": "gmail", "label": "gmail plugin", "versionSource": "plugins/gmail/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/gmail" },
+        "plugin": { "identity": "gmail", "label": "gmail plugin", "versionSource": "plugins-claude/gmail/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins-claude/gmail" },
         "npm": null
       },
       "skillsSrc": "skills-src/gmail",
-      "claudePluginRoot": "plugins/gmail",
+      "claudePluginRoot": "plugins-claude/gmail",
       "codexPluginRoot": "plugins-codex/gmail",
       "opencodePluginRoot": "plugins-opencode/gmail",
       "targets": [
-        { "platform": "claude-code", "path": "plugins/gmail/skills" },
+        { "platform": "claude-code", "path": "plugins-claude/gmail/skills" },
         { "platform": "codex", "path": "plugins-codex/gmail/skills", "note": "The ```! credential-check fence only auto-executes on Claude Code; here it renders as documented, platform-correct example code (per plan section D3)." },
         { "platform": "opencode", "path": "plugins-opencode/gmail/skills", "opencodeRegistered": true, "note": "Same fence degrade as the codex target, plus a literal repo-relative oauth-setup.md path since pluginRootVar is unavailable on OpenCode (per plan section C3)." }
       ],
-      "platformDirs": [],
+      "platformDirs": [
+        "claude-code:skills=plugins-claude/gmail/skills",
+        "claude-code:agents=plugins-claude/gmail/agents",
+        "claude-code:hooks=plugins-claude/gmail/hooks",
+        "claude-code:plugin=plugins-claude/gmail",
+        "claude-code:conventions=CLAUDE.md",
+        "codex:skills=plugins-codex/gmail/skills",
+        "codex:agents=plugins-codex/gmail/agents",
+        "codex:hooks=plugins-codex/gmail/hooks",
+        "codex:plugin=plugins-codex/gmail",
+        "codex:conventions=AGENTS.md",
+        "opencode:skills=plugins-opencode/gmail/skills",
+        "opencode:agents=plugins-opencode/gmail/agents",
+        "opencode:hooks=plugins-opencode/gmail/hooks",
+        "opencode:plugin=plugins-opencode/gmail",
+        "opencode:conventions=AGENTS.md"
+      ],
       "skills": ["gmail"],
       "marketplace": {
         "claude": "gmail",
         "codex": "gmail"
       },
       "versionSurfaces": {
-        "source": "plugins/gmail/.claude-plugin/plugin.json",
+        "source": "plugins-claude/gmail/.claude-plugin/plugin.json",
         "codexManifest": "plugins-codex/gmail/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/gmail/package.json"
       },
