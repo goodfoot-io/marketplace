@@ -139,6 +139,21 @@ describe("build driver untracked-content refusal", () => {
     }
   });
 
+  it("refuses to publish into a target holding ignored untracked files", () => {
+    const target = "plugins/voice/skills";
+    const planted = repoPath(target, ".DS_Store");
+    expect(fs.existsSync(planted), "fixture path is already in use").toBe(false);
+    fs.writeFileSync(planted, "ignored work a build must not silently destroy\n");
+    try {
+      const { status, stderr } = runDriverWith(registryWithTarget("voice", target));
+      expect(status, stderr).not.toBe(0);
+      expect(stderr).toContain("untracked files that publishing would destroy");
+      expect(stderr).toContain(".DS_Store");
+    } finally {
+      fs.rmSync(planted, { force: true });
+    }
+  });
+
   it("permits a target whose contents are all tracked", () => {
     expect(git(["ls-files", "--others", "--exclude-standard", "--", "plugins/voice/skills"]).trim()).toBe("");
     const { status, stderr } = runDriverWith(registryWithTarget("voice", "plugins/voice/skills"));

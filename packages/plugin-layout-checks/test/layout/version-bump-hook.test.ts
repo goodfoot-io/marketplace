@@ -389,6 +389,17 @@ describe("registry unreadable", () => {
  * the gate; it was simply never told the file existed.
  */
 describe("changelog gate follows the files, not the declaration", () => {
+  it("refuses deletion of a tracked changelog instead of treating it as no release surface", () => {
+    const root = makeFixture();
+    fs.rmSync(path.join(root, "plugins/demo/CHANGELOG.md"));
+    run(root, "git", ["add", "plugins/demo/CHANGELOG.md"]);
+
+    expect(() => run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"])).toThrow(
+      /CHANGELOG|release notes/i,
+    );
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
   it("gates a plugin whose changelog was never declared anywhere", () => {
     const root = makeFixture();
     // The fixture registry declares no changelogs at all — the same position

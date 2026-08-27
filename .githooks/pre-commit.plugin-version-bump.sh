@@ -14,6 +14,7 @@ set -e
 
 STAGED_FILES=$(git diff --cached --name-only)
 [ -z "$STAGED_FILES" ] && exit 0
+DELETED_FILES=$(git diff --cached --diff-filter=D --name-only)
 
 REGISTRY="packages/plugin-layout-checks/registry/plugins.json"
 HAVE_JQ=false
@@ -107,6 +108,24 @@ while IFS=$'\t' read -r NAME SOURCE; do
         .plugins[] | select(.name == $name) | .versionSurfaces |
         [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
          (.literals // [] | .[].path)] | .[]' "$REGISTRY")
+
+    # Discovery is intentionally based on files that exist, so a plugin that
+    # has never had release notes is allowed to remain that way. A staged
+    # deletion is different: absence from the working tree must not erase the
+    # fact that this commit removes an established release surface. Refuse it
+    # before the existence-based lookup can turn the deletion into an empty
+    # worklist and authorize the bump it triggers.
+    mapfile -t CHANGELOG_CANDIDATES < <(jq -r --arg name "$NAME" '
+        .plugins[] | select(.name == $name) |
+        [.claudePluginRoot + "/CHANGELOG.md",
+         (.versionSurfaces.packageJson // empty | sub("/[^/]+$"; "/CHANGELOG.md"))] | .[]' "$REGISTRY")
+    for changelog in "${CHANGELOG_CANDIDATES[@]}"; do
+        if grep -Fqx "$changelog" <<< "$DELETED_FILES"; then
+            echo "pre-commit: refusing deletion of $changelog; it is an established release-notes surface for $NAME." >&2
+            echo "Restore the changelog before committing so a release cannot be authorized without its notes." >&2
+            exit 1
+        fi
+    done
 
     # Could this plugin possibly be in scope? Asked before anything costs node,
     # so a commit with nothing to do with any plugin does not need node to be

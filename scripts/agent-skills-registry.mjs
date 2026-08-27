@@ -111,16 +111,19 @@ export function assertTargetsRenderFiles(registry) {
 export function assertNoUntrackedInTargets(registry) {
 	for (const plugin of registry.plugins) {
 		for (const target of plugin.targets) {
-			const untracked = execFileSync(
-				"git",
-				["ls-files", "--others", "--exclude-standard", "--", target.path],
-				{
+			const gitLsFiles = (args) =>
+				execFileSync("git", ["ls-files", ...args, "--", target.path], {
 					cwd: repo,
 					encoding: "utf8",
-				},
-			)
-				.split("\n")
-				.filter(Boolean);
+				})
+					.split("\n")
+					.filter(Boolean);
+			const untracked = [
+				...new Set([
+					...gitLsFiles(["--others", "--exclude-standard"]),
+					...gitLsFiles(["--others", "--ignored", "--exclude-standard"]),
+				]),
+			].sort();
 			if (untracked.length > 0) {
 				throw new Error(
 					`${plugin.name}: ${target.path} holds untracked files that publishing would destroy irrecoverably:\n` +
