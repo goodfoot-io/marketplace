@@ -1,6 +1,6 @@
 {
   "$comment": "Bundler-managed plugin registry. Field-by-field contract: packages/plugin-layout-checks/test/registry.ts",
-  "lintSuppressionBudget": 0,
+  "lintSuppressionBudget": 3,
   "plugins": [
     {
       "name": "goodfoot",
@@ -36,6 +36,34 @@
         "opencodePackage": "plugins-opencode/goodfoot/package.json"
       },
       "lintSuppressions": []
+    },
+    {
+      "name": "voice",
+      "skillsSrc": "skills-src/voice",
+      "claudePluginRoot": "plugins/voice",
+      "codexPluginRoot": "plugins-codex/voice",
+      "opencodePluginRoot": "plugins-opencode/voice",
+      "targets": [
+        { "platform": "claude-code", "path": "plugins/voice/skills" },
+        { "platform": "codex", "path": "plugins-codex/voice/skills" },
+        { "platform": "opencode", "path": "plugins-opencode/voice/skills", "opencodeRegistered": true }
+      ],
+      "platformDirs": [],
+      "skills": ["handbook"],
+      "marketplace": {
+        "claude": "voice",
+        "codex": "voice"
+      },
+      "versionSurfaces": {
+        "source": "plugins/voice/.claude-plugin/plugin.json",
+        "codexManifest": "plugins-codex/voice/.codex-plugin/plugin.json",
+        "opencodePackage": "plugins-opencode/voice/package.json"
+      },
+      "lintSuppressions": [
+        "handbook/SKILL.md:15-15:cross-dialect-reference",
+        "handbook/reference/startup-failure.md:7-7:cross-dialect-reference",
+        "handbook/reference/startup-failure.md:23-23:cross-dialect-reference"
+      ]
     }
   ],
   "unmanaged": [
@@ -70,10 +98,6 @@
     {
       "name": "linear",
       "reason": "Awaiting bundler migration (card main-8-1, Phase 2). Moves into plugins[] in the same commit that creates skills-src/linear."
-    },
-    {
-      "name": "voice",
-      "reason": "Awaiting bundler migration (card main-8-1, Phase 1). Moves into plugins[] in the same commit that creates skills-src/voice."
     }
   ]
 }

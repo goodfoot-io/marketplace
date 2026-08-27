@@ -1,0 +1,10 @@
+{
+  "name": "@goodfoot/opencode-voice",
+  "version": "1.0.76",
+  "private": true,
+  "description": "OpenCode plugin registration for the voice skill set (handbook).",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  }
+}

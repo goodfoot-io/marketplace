@@ -1,13 +1,8 @@
----
-name: handbook
-description: Troubleshooting and detailed usage for the voice MCP server —
-  browser/audio problems, conversation lifecycle (pause/resume/reset), context
-  management, intervening when the avatar is wrong, the full-viewport HTML
-  stage, ending a session, and startup/channel failures. Load a reference below
-  when a live voice conversation needs deeper handling than the start message
-  covers, or when something is not working.
----
-
+<!-- agent-skills
+lintSuppressions:
+  - rule: cross-dialect-reference
+    lines: [15, 15]
+--><%~ it.frontmatter({ name: 'handbook', description: 'Troubleshooting and detailed usage for the voice MCP server — browser/audio problems, conversation lifecycle (pause/resume/reset), context management, intervening when the avatar is wrong, the full-viewport HTML stage, ending a session, and startup/channel failures. Load a reference below when a live voice conversation needs deeper handling than the start message covers, or when something is not working.' }) %>
 Detailed usage and troubleshooting for the voice MCP server. Match the situation to a reference under [When to load what](#when-to-load-what) and load that file.
 
 ## Orientation

@@ -7,6 +7,6 @@
   },
   "plugin": ["./plugins-opencode/goodfoot"],
   "skills": {
-    "paths": ["./skills"]
+    "paths": ["./skills", "./plugins-opencode/voice/skills"]
   }
 }

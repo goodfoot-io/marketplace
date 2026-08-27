@@ -1,0 +1,64 @@
+Use when the browser hasn't connected or audio isn't ready.
+
+## Diagnose
+
+```
+conversation({ action: "status" })
+```
+
+Returns:
+- `server` — `"stopped"` | `"starting"` | `"active"` | `"stopping"` | `"error"`
+- `conversation` — `"none"` | `"starting"` | `"active"` | `"paused"` | `"ending"` | `"resetting"` | `"error"`
+- `browser` — `{ connected, clientId?, connectedAt?, audio? }`, where `audio` is `{ permission, devices, selectedDeviceId?, ready, error? }`
+- `realtimeConnected` / `responseInFlight` — booleans
+
+So mic permission and readiness are pollable directly via `status.browser.audio` (`.permission`, `.ready`, `.devices`). The same detail also arrives push-style on the `browser.audio.deviceChange` event (fired whenever the user grants permission, selects a device, or plugs one in) and on `browser.audio.error`.
+
+## Subroutines
+
+### §BROWSER_NOT_OPEN
+**When:** `status.browser.connected` is `false`.
+Tell the user to open their browser to `http://localhost:<port>` (the port is in the start message / `agent.activate`). The conversation starts automatically once the browser connects and the mic is ready — there is nothing to start manually.
+
+### §MIC_PERMISSION
+**When:** `status.browser.audio.permission` is `"denied"` or `"prompt"` (or a `browser.audio.error` arrives).
+Tell the user to grant microphone permission in their browser — the camera/mic icon in the address bar. The page may need a refresh after granting.
+
+### §AUDIO_NOT_READY
+**When:** `status.browser.audio.ready` is `false` but `permission` is `"granted"`.
+Tell the user to select a microphone in the voice console settings (gear icon). If no devices appear, ask them to check that a microphone is connected and recognised by the OS.
+
+### §AUDIO_ERROR
+**When:** a `browser.audio.error` event arrives.
+Show `data.error` to the user, then apply §MIC_PERMISSION or §AUDIO_NOT_READY as appropriate.
+
+## Events
+
+### `browser.client.connected`
+```typescript
+{ clientId: string; connectedAt: string }
+```
+
+### `browser.client.disconnected`
+```typescript
+{ clientId: string; disconnectedAt: string }
+```
+
+### `browser.audio.deviceChange`
+```typescript
+{
+  clientId: string;
+  audio: {
+    permission: "unknown" | "prompt" | "granted" | "denied";
+    devices: { deviceId: string; label: string }[];
+    selectedDeviceId?: string;
+    ready: boolean;
+  };
+  createdAt: string;
+}
+```
+
+### `browser.audio.error`
+```typescript
+{ clientId?: string; error: VoiceAgentServerError; createdAt: string }
+```

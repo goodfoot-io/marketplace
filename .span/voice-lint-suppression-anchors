@@ -1,0 +1,5 @@
+packages/plugin-layout-checks/registry/plugins.json#L63-L65 rk64:ed133443749fe82e
+skills-src/voice/handbook/SKILL.md.eta#L1-L5 rk64:9a860ab84e15c4a9
+skills-src/voice/handbook/reference/startup-failure.md.eta#L1-L6 rk64:76b58e5fbdefa957
+
+The registry's per-plugin lintSuppressions list is a human-maintained line-numbered mirror of each .eta template's front-config lintSuppressions block, which is what the compiler actually reads to suppress lint at build time; registry-reconciliation.test.ts checks only the aggregate count against lintSuppressionBudget, so a line-number or rule-name edit in one place that isn't mirrored in the other passes every test while becoming false documentation.
