@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.9
+
+- Aligns every release surface after this commit's own hook-managed bump.
+
+## 1.0.8
+
+- Records the companion plugin's automated patch release.
+
 ## 1.0.7
 
 - Aligns the package release surface with the companion plugin's hook-managed version bump following agent-hooks' migration.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.9
+
+Synchronizes the companion release with this commit's own hook-managed marketplace bump.
+
+## 1.0.8
+
+Records the automated companion-plugin patch release.
+
 ## 1.0.7
 
 Synchronizes the documentation plugin with the package release after agent-hooks' migration bumped the hook-managed marketplace version.
