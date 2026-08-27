@@ -123,7 +123,7 @@
     {
       "name": "expansion",
       "version": "1.0.10",
-      "source": "./plugins/expansion",
+      "source": "./plugins-claude/expansion",
       "tags": [
         "expansion",
         "context",

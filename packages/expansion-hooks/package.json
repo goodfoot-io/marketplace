@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "yarn build:hook && yarn build:bin",
-    "build:hook": "agent-hooks --agent claude-code -i \"src/**/*.ts\" -o \"../../plugins/expansion/hooks/hooks.json\"",
-    "build:bin": "node esbuild.config.mjs --outdir=../../plugins/expansion/bin/",
+    "build:hook": "agent-hooks --agent claude-code -i \"src/**/*.ts\" -o \"../../plugins-claude/expansion/hooks/hooks.json\"",
+    "build:bin": "node esbuild.config.mjs --outdir=../../plugins-claude/expansion/bin/",
     "test": "vitest run",
     "lint": "biome check --write --unsafe --max-diagnostics 500 .",
     "typecheck": "tsc --noEmit"

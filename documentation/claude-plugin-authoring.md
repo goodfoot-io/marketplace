@@ -417,8 +417,8 @@ ls -la "${CLAUDE_PLUGIN_ROOT}"
 ### Path Resolution
 
 `${CLAUDE_PLUGIN_ROOT}` can be **either relative or absolute** depending on the execution context:
-- **Relative** (from workspace root): `plugins-voice/voice`, `plugins/expansion`
-- **Absolute**: `/workspace/plugins-voice/voice`, `/workspace/plugins/expansion`
+- **Relative** (from workspace root): `plugins-voice/voice`, `plugins-claude/expansion`
+- **Absolute**: `/workspace/plugins-voice/voice`, `/workspace/plugins-claude/expansion`
 
 Both forms work correctly since embedded bash executes from the workspace root. Your code should handle both cases by using `"${CLAUDE_PLUGIN_ROOT}"` directly without assumptions about its format.
 

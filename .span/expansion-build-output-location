@@ -1,0 +1,4 @@
+packages/expansion-hooks/esbuild.config.mjs#L10-L11 rk64:005426bdf45b44f7
+packages/expansion-hooks/package.json#L5-L9 rk64:38c3742de7feacb0
+
+The Expansion package scripts and the direct esbuild default independently select the committed plugins-claude/expansion output root; they must remain aligned so package-driven and direct builds replace the same plugin binaries and hook manifest.

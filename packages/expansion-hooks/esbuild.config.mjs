@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Parse --outdir argument
-let outdir = join(__dirname, '../../plugins/expansion/bin');
+let outdir = join(__dirname, '../../plugins-claude/expansion/bin');
 for (const arg of process.argv.slice(2)) {
   if (arg.startsWith('--outdir=')) {
     outdir = arg.slice('--outdir='.length);
