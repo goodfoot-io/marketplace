@@ -297,16 +297,19 @@ describe("pre-commit version bump", () => {
  *
  * It cannot know which plugins are gated without the registry, so it refuses.
  */
-describe("registry unreadable", () => {
-  /** A PATH with everything the hook needs except jq. */
-  function pathWithoutJq(): string {
-    const farm = fs.mkdtempSync(path.join(scratch, "nojq-bin-"));
-    for (const tool of ["sh", "bash", "git", "node", "sed", "grep", "mv", "rm", "cat", "mkdir", "dirname", "env"]) {
-      const resolved = execFileSync("sh", ["-c", `command -v ${tool} || true`], { encoding: "utf8" }).trim();
-      if (resolved.length > 0) fs.symlinkSync(resolved, path.join(farm, tool));
-    }
-    return farm;
+/** A PATH carrying everything the hook needs except the named tool. */
+function pathWithout(missing: string): string {
+  const farm = fs.mkdtempSync(path.join(scratch, `no-${missing}-bin-`));
+  for (const tool of ["sh", "bash", "git", "node", "jq", "sed", "grep", "mv", "rm", "cat", "mkdir", "dirname", "env"]) {
+    if (tool === missing) continue;
+    const resolved = execFileSync("sh", ["-c", `command -v ${tool} || true`], { encoding: "utf8" }).trim();
+    if (resolved.length > 0) fs.symlinkSync(resolved, path.join(farm, tool));
   }
+  return farm;
+}
+
+describe("registry unreadable", () => {
+  const pathWithoutJq = () => pathWithout("jq");
 
   function runHook(root: string, env: NodeJS.ProcessEnv): { status: number | null; stderr: string } {
     const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
@@ -556,5 +559,182 @@ describe("declared surfaces move together or not at all", () => {
 
     expect(versionDrift(fixturePlugin(root), root)).not.toEqual([]);
     expect(() => run(root, "bash", ["scripts/sync-plugin-versions.sh", "--check"])).toThrow();
+  });
+});
+
+/**
+ * A worklist that could not be computed is not a worklist with nothing on it.
+ *
+ * The changelog gate asked `changelog-surfaces.mjs` for its worklist through
+ * `< <(...)`, and `set -e` cannot see an exit status inside a process
+ * substitution. Every way of making that script fail therefore produced an empty
+ * list, indistinguishable from "this plugin ships no release notes": the loop
+ * body never ran, the gate reported success, and the hook cut an undocumented
+ * release with exit 0.
+ */
+describe("changelog worklist failures refuse rather than empty out", () => {
+  function stageStaleChangelog(root: string): void {
+    // The plugin is at 1.0.0 and about to be bumped to 1.0.1, with notes that
+    // stop at 1.0.0. Every test here is the same commit, which must be refused.
+    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "-A"]);
+  }
+
+  it("refuses the commit when node is not on PATH", () => {
+    const root = makeFixture();
+    stageStaleChangelog(root);
+    const farm = pathWithout("node");
+
+    const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { PATH: farm, OSTYPE: "linux-gnu" },
+    });
+
+    expect(result.status, result.stderr).not.toBe(0);
+    expect(result.stderr).toContain("changelog-surfaces.mjs failed");
+    // The bump is what mattered: without node the gate saw no changelogs to
+    // check and advanced all six surfaces past release notes that stop at 1.0.0.
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
+  it("ignores AGENT_SKILLS_REGISTRY rather than gating against another registry", () => {
+    const root = makeFixture();
+    stageStaleChangelog(root);
+    // A valid registry naming the same plugin, pointed at a tree with no release
+    // notes in it. Honouring this variable answered "demo has no changelogs" and
+    // the gate passed; the layout suite's build and lint drivers legitimately
+    // accept the override, but a release gate must not be redirectable.
+    write(
+      root,
+      "decoy-registry.json",
+      `${JSON.stringify({
+        sharedOpencodeRoot: "skills",
+        plugins: [
+          {
+            name: "demo",
+            claudePluginRoot: "plugins/nowhere",
+            versionSurfaces: { source: "plugins/nowhere/.claude-plugin/plugin.json" },
+          },
+        ],
+      })}\n`,
+    );
+
+    const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OSTYPE: "linux-gnu", AGENT_SKILLS_REGISTRY: "decoy-registry.json" },
+    });
+
+    expect(result.status, result.stderr).not.toBe(0);
+    expect(result.stderr).toContain("1.0.1");
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
+  it("keeps --check gating under the same redirected registry", () => {
+    const root = makeFixture();
+    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 0.9.0\n\nOlder release.\n");
+    write(root, "decoy-registry.json", `${JSON.stringify({ sharedOpencodeRoot: "skills", plugins: [] })}\n`);
+
+    const result = spawnSync("bash", ["scripts/sync-plugin-versions.sh", "--check"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OSTYPE: "linux-gnu", AGENT_SKILLS_REGISTRY: "decoy-registry.json" },
+    });
+
+    expect(result.status, result.stderr).not.toBe(0);
+  });
+});
+
+/**
+ * A release between two documented ones is still a release.
+ *
+ * The gate compared only the newest heading against the version being cut, so a
+ * changelog that ran 1.0.4, 1.0.6 matched at every commit and the 1.0.5 that
+ * agent-hooks actually shipped was simply gone — not described, not marked
+ * skipped, and invisible to `--check` and to the whole suite.
+ */
+describe("interior versions are accounted for", () => {
+  /** Commits `version` into the fixture's version source, occupying it. */
+  function release(root: string, version: string, notes: string | null): void {
+    write(root, "plugins/demo/.claude-plugin/plugin.json", `${JSON.stringify({ name: "demo", version }, null, 2)}\n`);
+    if (notes !== null) {
+      const existing = fs.readFileSync(path.join(root, "plugins/demo/CHANGELOG.md"), "utf8");
+      write(
+        root,
+        "plugins/demo/CHANGELOG.md",
+        existing.replace("# Changelog\n", `# Changelog\n\n## ${version}\n\n${notes}\n`),
+      );
+    }
+    run(root, "git", ["add", "-A"]);
+    run(root, "git", ["commit", "-qm", `release ${version}`, "--no-verify"]);
+  }
+
+  const check = (root: string, version: string) =>
+    spawnSync(
+      "node",
+      [
+        "scripts/check-changelog-entry.mjs",
+        "plugins/demo/CHANGELOG.md",
+        version,
+        "plugins/demo/.claude-plugin/plugin.json",
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+      },
+    );
+
+  it("passes when every occupied version has an entry", () => {
+    const root = makeFixture();
+    release(root, "1.0.1", "Described.");
+    release(root, "1.0.2", "Also described.");
+
+    const result = check(root, "1.0.2");
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it("names the version that was released and never written down", () => {
+    const root = makeFixture();
+    release(root, "1.0.1", "Described.");
+    release(root, "1.0.2", null);
+    release(root, "1.0.3", "Described.");
+
+    const result = check(root, "1.0.3");
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("released 1.0.2");
+    // The advice has to point at the plugin's own version line. `git tag --list
+    // '<plugin>-v*'` names the npm package's tags, which for agent-hooks sit at
+    // versions the plugin.json never held.
+    expect(result.stderr).toContain("git log -- plugins/demo/.claude-plugin/plugin.json");
+    expect(result.stderr).not.toContain("git tag");
+  });
+
+  it("does not demand notes for a version that was withdrawn", () => {
+    const root = makeFixture();
+    release(root, "1.0.1", "Described.");
+    // A spurious hook bump, reverted in the next commit with the changelog
+    // untouched — exactly what 2e6cbf8 did to agent-skills' 1.0.13.
+    release(root, "1.0.2", null);
+    release(root, "1.0.1", null);
+
+    const result = check(root, "1.0.1");
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it("does not reach back before the oldest documented release", () => {
+    const root = makeFixture();
+    // The fixture's history starts at 1.0.0, which the changelog documents; a
+    // plugin whose notes begin later is documenting from that point on rather
+    // than concealing everything before it.
+    const existing = fs.readFileSync(path.join(root, "plugins/demo/CHANGELOG.md"), "utf8");
+    write(root, "plugins/demo/CHANGELOG.md", existing.replace(/\n## 1\.0\.0\n\nFirst release\.\n/, "\n"));
+    run(root, "git", ["add", "-A"]);
+    run(root, "git", ["commit", "-qm", "trim", "--no-verify"]);
+
+    const result = check(root, "1.0.1");
+    expect(result.status, result.stderr).toBe(0);
   });
 });

@@ -1,4 +1,4 @@
-.githooks/pre-commit.plugin-version-bump.sh#L158-L168 rk64:e9ffbef506a2a9bb
-.githooks/pre-commit.plugin-version-bump.sh#L172-L183 rk64:1a2f5353824c7af3
+.githooks/pre-commit.plugin-version-bump.sh#L173-L183 rk64:e9ffbef506a2a9bb
+.githooks/pre-commit.plugin-version-bump.sh#L187-L198 rk64:1a2f5353824c7af3
 
 The registry claim loop derives a plugin's legacy-loop key from claudePluginRoot via a case-pattern strip, and the legacy loop derives the same key independently from a staged file's path via regex match; both must yield an identical directory string for a registry plugin's name to differ from its plugins/ directory without the legacy loop bumping it ungated, and no fixture exercises a plugin whose name and directory diverge.

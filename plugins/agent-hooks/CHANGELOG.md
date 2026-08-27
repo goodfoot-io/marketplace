@@ -1,8 +1,16 @@
 # Changelog
 
+## 1.0.7
+
+Converges the Codex/OpenCode surfaces to 1.0.7 ahead of this commit's own trigger: this commit's own diff edits this very CHANGELOG.md under `plugins/agent-hooks/`, which the still-stale `/workspace/.githooks` checkout (see the 1.0.6 entry) reads as a reason to bump `plugin.json` and the marketplace entry by one more patch on top of whatever this commit stages. No functional change to the plugin itself; landing one version ahead is the same 11c0e7a technique used at c42eb9a and 68c6edf.
+
 ## 1.0.6
 
 Converges the Codex/OpenCode surfaces to 1.0.5 (already reached by this branch's local pre-commit hook, one bump ahead of the version this entry documents), landing 1.0.6 directly: this worktree's `core.hookspath` resolves to `/workspace/.githooks`, a separate, unmigrated checkout still running the pre-registry legacy bump script, so staging this very CHANGELOG edit triggers one more ungated bump on top of it. The card's actual fix (2bc53cc) closes this once merged and `/workspace`'s checkout picks it up; until then, each local converge commit here has to land one version ahead of its own trigger, matching the 11c0e7a technique. No functional change to the plugin itself.
+
+## 1.0.5
+
+Backfilled. This version was occupied by c42eb9a — the commit that converged the surfaces to 1.0.4 and wrote that entry — because staging its own CHANGELOG edit tripped the stale local hook one more time, so the manifest left that commit at 1.0.5 while the newest heading in this file said 1.0.4. 68c6edf then converged to 1.0.6 and documented 1.0.6, and 1.0.5 fell into the gap between the two: released, installed under that number, and described nowhere. Nothing caught it because the gate compared only the newest heading against the version being released, which matched at every commit. No functional change; the plugin at 1.0.5 is the plugin at 1.0.4.
 
 ## 1.0.4
 

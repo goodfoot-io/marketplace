@@ -45,6 +45,19 @@ bump_patch() {
     echo "$next"
 }
 
+changelog_surfaces_failed() {
+    # Called when scripts/changelog-surfaces.mjs exits non-zero. Callers invoke
+    # it with `|| changelog_surfaces_failed`, never inside `< <(...)` or `$(...)`
+    # — those run in a subshell where `exit` would end the subshell and let the
+    # hook carry on with the empty list it just failed to fill.
+    echo "pre-commit: scripts/changelog-surfaces.mjs failed for ${1:-all plugins}; refusing the commit." >&2
+    echo "A failed lookup and an empty list are not the same answer. Reading this through a process" >&2
+    echo "substitution made them identical — set -e cannot see a failure inside one — so a missing" >&2
+    echo "node or a redirected registry produced no changelogs to check, and the gate below passed" >&2
+    echo "an undocumented release with exit 0." >&2
+    exit 1
+}
+
 declare -A PROCESSED_PLUGINS
 PENDING_BUMPS=()
 CLAUDE_PLUGINS_BUMPED=0
@@ -84,11 +97,12 @@ while IFS=$'\t' read -r NAME SOURCE; do
     # would make every commit it touches justify the next one — and for the
     # changelogs, which the hook only reads, a commit that adds the notes
     # for a release would demand notes for the release after it.
+    CHANGELOGS=$(node scripts/changelog-surfaces.mjs "$NAME") || changelog_surfaces_failed "$NAME"
     mapfile -t SURFACES < <(jq -r --arg name "$NAME" '
         .plugins[] | select(.name == $name) | .versionSurfaces |
         [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
          (.literals // [] | .[].path)] | .[]' "$REGISTRY"
-        node scripts/changelog-surfaces.mjs "$NAME")
+        [ -n "$CHANGELOGS" ] && printf '%s\n' "$CHANGELOGS")
 
     TOUCHED=0
     while IFS= read -r file; do
@@ -123,14 +137,15 @@ done < <(jq -r '.plugins[] | [.name, .versionSurfaces.source] | @tsv' "$REGISTRY
 # changelog ending at 1.0.0.
 for pending in "${PENDING_BUMPS[@]}"; do
     IFS=$'\t' read -r NAME SOURCE NEXT <<< "$pending"
+    CHANGELOGS=$(node scripts/changelog-surfaces.mjs "$NAME") || changelog_surfaces_failed "$NAME"
     while IFS= read -r CHANGELOG_PATH; do
         [ -z "$CHANGELOG_PATH" ] && continue
-        node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$NEXT" || {
+        node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$NEXT" "$SOURCE" || {
             echo "This commit bumps ${NAME} to ${NEXT}, and that release has no notes." >&2
             echo "Nothing has been written; add the entry and commit again." >&2
             exit 1
         }
-    done < <(node scripts/changelog-surfaces.mjs "$NAME")
+    done <<< "$CHANGELOGS"
 done
 
 for pending in "${PENDING_BUMPS[@]}"; do
@@ -225,11 +240,14 @@ if [ "$REGISTRY_PLUGIN_BUMPED" -eq 1 ]; then
     # Changelogs are staged too, though the hook never writes them: the entry
     # the gate above read from the working tree has to reach the commit, or the
     # bump ships without the notes that authorised it.
+    ALL_CHANGELOGS=$(node scripts/changelog-surfaces.mjs) || changelog_surfaces_failed
     mapfile -t ALL_SURFACES < <(jq -r '
         .plugins[].versionSurfaces |
         [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
          (.literals // [] | .[].path)] | .[]' "$REGISTRY"
-        node scripts/changelog-surfaces.mjs)
+        # Guarded: printf on an empty capture emits one blank line, and a blank
+        # element in ALL_SURFACES reaches `git add ""`.
+        [ -n "$ALL_CHANGELOGS" ] && printf '%s\n' "$ALL_CHANGELOGS")
     git add "${ALL_SURFACES[@]}" .claude-plugin/marketplace.json
 fi
 

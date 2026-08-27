@@ -106,10 +106,19 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
   # Which files those are comes from scripts/changelog-surfaces.mjs, the same
   # derivation the hook and the layout suite read, so none of the three can
   # disagree about whether a plugin has release notes to check.
+  #
+  # Captured rather than read through `< <(...)`: `set -e` cannot observe an
+  # exit status inside a process substitution, so a changelog-surfaces.mjs that
+  # failed — node missing, registry redirected — delivered an empty list that
+  # read exactly like "this plugin has no release notes" and passed the gate.
+  CHANGELOGS=$(node scripts/changelog-surfaces.mjs "$NAME") || {
+    echo "$NAME: scripts/changelog-surfaces.mjs failed; cannot tell 'no release notes' from 'could not look'." >&2
+    exit 1
+  }
   while IFS= read -r CHANGELOG_PATH; do
     [ -z "$CHANGELOG_PATH" ] && continue
-    node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$VERSION" || MISSING_NOTES=true
-  done < <(node scripts/changelog-surfaces.mjs "$NAME")
+    node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$VERSION" "$SOURCE" || MISSING_NOTES=true
+  done <<< "$CHANGELOGS"
 
   MARKETPLACE_VERSION="$(jq -r --arg name "$MARKETPLACE_NAME" '.plugins[] | select(.name == $name) | .version' "$MARKETPLACE_JSON")"
   if [ -z "$MARKETPLACE_VERSION" ]; then

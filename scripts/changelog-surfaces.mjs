@@ -19,9 +19,19 @@
 import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 
-const REGISTRY =
-	process.env.AGENT_SKILLS_REGISTRY ??
-	"packages/plugin-layout-checks/registry/plugins.json";
+/**
+ * Fixed, and resolved from the working directory exactly as the hook and
+ * sync-plugin-versions.sh resolve it.
+ *
+ * This honoured AGENT_SKILLS_REGISTRY once, copied from agent-skills-registry.mjs
+ * where the override exists so the layout suite can aim the build and lint
+ * drivers at a scratch registry. On the release path that affordance was a hole:
+ * exporting the variable pointed this script at another registry, it exited 2
+ * with empty stdout, and every caller read the empty list as "this plugin has no
+ * release notes" — cutting an undocumented release and exiting 0. A release gate
+ * must not be redirectable by the environment it runs in.
+ */
+const REGISTRY = "packages/plugin-layout-checks/registry/plugins.json";
 
 /**
  * A plugin's release-note files: the ones that exist beside the surfaces it
