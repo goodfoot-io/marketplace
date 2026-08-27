@@ -7,7 +7,7 @@
     "email": "contact@goodfoot.io",
     "url": "https://github.com/goodfoot-io"
   },
-  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/claude-code-skill-reader",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/claude-code-skill-reader",
   "repository": "https://github.com/goodfoot-io/marketplace",
   "license": "MIT",
   "keywords": [
@@ -28,7 +28,7 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/claude-code-skill-reader",
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/claude-code-skill-reader",
     "defaultPrompt": [
       "Use the cli skill to inspect, read, or trace how a Claude Code skill or command resolves."
     ],

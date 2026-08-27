@@ -1,5 +1,9 @@
 # agent-hooks plugin changelog
 
+## 1.0.9
+
+Updates the generated Claude Code and Codex authoring examples to use their platform-specific plugin roots after removal of the legacy top-level `plugins/` directory. Hook APIs and runtime behavior are unchanged.
+
 ## 1.0.8
 
 Relocates the Claude Code plugin from `plugins/agent-hooks` to `plugins-claude/agent-hooks` and updates its registry and marketplace ownership accordingly. The generated Codex and OpenCode trees remain at their existing roots with unchanged behavior.

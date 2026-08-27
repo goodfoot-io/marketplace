@@ -10,8 +10,8 @@ Update skill and agent files following established patterns and style convention
 **Target:** $ARGUMENTS (default: all `issue-*` skills)
 
 **Locations:**
-- Skills: `/workspace/public/plugins/claude-code-cli/skills/`
-- Agents: `/workspace/public/plugins/claude-code-cli/agents/`
+- Skills: `/workspace/public/plugins-claude/claude-code-cli/skills/`
+- Agents: `/workspace/public/plugins-claude/claude-code-cli/agents/`
 - Style Guide: `/workspace/documentation/claude-code-cli-skill-style-guide.md`
 
 ---
@@ -115,11 +115,11 @@ Instructions should be inlined at each phase boundary, not in a separate section
 ### Phase 1: Identify Target Files
 
 If $ARGUMENTS is a specific skill name:
-- Read `/workspace/public/plugins/claude-code-cli/skills/[skill-name]/SKILL.md`
+- Read `/workspace/public/plugins-claude/claude-code-cli/skills/[skill-name]/SKILL.md`
 
 If $ARGUMENTS is a pattern (e.g., `issue-*`):
 - Glob for matching skill directories
-- Include `/workspace/public/plugins/claude-code-cli/agents/*.md` if pattern includes agents
+- Include `/workspace/public/plugins-claude/claude-code-cli/agents/*.md` if pattern includes agents
 
 If $ARGUMENTS is empty:
 - Default to all `issue-*` skills

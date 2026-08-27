@@ -261,9 +261,9 @@ else
       # the normal outcome for a package no .mcp.json references. Swallowing
       # git's error with `|| true` conflated them into a silent skip.
       cd "$WORKSPACE_ROOT"
-      MCP_MANIFESTS=$(git ls-files 'plugins/*/.mcp.json')
+      MCP_MANIFESTS=$(jq -r '.plugins[] | [.claudePluginRoot, .codexPluginRoot, .opencodePluginRoot, .antigravityPluginRoot] | .[]? | select(.) | . + "/.mcp.json"' "$REGISTRY_FILE" | xargs -r git ls-files --)
       if [ -z "$MCP_MANIFESTS" ]; then
-        echo -e "${RED}❌ Error: No tracked plugins/*/.mcp.json files found${NC}" >&2
+        echo -e "${RED}❌ Error: No tracked .mcp.json files found under registry-declared plugin roots${NC}" >&2
         echo "   Plugin package references cannot be verified; refusing to report a successful release." >&2
         exit 1
       fi

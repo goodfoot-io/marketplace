@@ -1,13 +1,13 @@
 {
   "name": "agent-hooks",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Type-safe TypeScript hooks for Claude Code and Codex using @goodfoot/agent-hooks — the unified successor to claude-code-hooks and codex-hooks",
   "author": {
     "name": "Goodfoot",
     "email": "contact@goodfoot.io",
     "url": "https://github.com/goodfoot-io"
   },
-  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/agent-hooks",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/agent-hooks",
   "repository": "https://github.com/goodfoot-io/marketplace",
   "license": "MIT",
   "keywords": [
@@ -32,7 +32,7 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/agent-hooks",
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/agent-hooks",
     "defaultPrompt": [
       "Use the agent-hooks skills to write type-safe TypeScript hooks with @goodfoot/agent-hooks."
     ],

@@ -7,7 +7,7 @@
     "email": "contact@goodfoot.io",
     "url": "https://github.com/goodfoot-io"
   },
-  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/gmail",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/gmail",
   "repository": "https://github.com/goodfoot-io/marketplace",
   "license": "MIT",
   "keywords": [
@@ -28,7 +28,7 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/gmail",
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/gmail",
     "defaultPrompt": [
       "Use the gmail skill to work with Gmail via the googleapis package."
     ],

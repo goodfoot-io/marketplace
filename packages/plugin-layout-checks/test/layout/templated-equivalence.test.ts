@@ -64,6 +64,14 @@ const agentHooksReference = (body: string, platform: string) => {
   return body.replaceAll(`${CLAUDE_ROOT_TOKEN}/skills/codex`, root);
 };
 
+const platformAuthoringRoot = (body: string, platform: string) => {
+  const tree = platform === "claude-code" ? "plugins-claude" : platform === "codex" ? "plugins-codex" : "plugins-opencode";
+  return body.replaceAll("plugins/", `${tree}/`);
+};
+
+const agentHooksCodex = (body: string, platform: string) =>
+  platformAuthoringRoot(agentHooksReference(body, platform), platform);
+
 /**
  * agent-skills' two prose skills each point once at their sibling
  * `reference/helper-reference.md`, which resolves per-platform the same way
@@ -173,7 +181,10 @@ const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: st
     },
   },
   "agent-hooks": {
-    "codex/SKILL.md": agentHooksReference,
+    "claude-code/SKILL.md": platformAuthoringRoot,
+    "claude-code/reference/installation.md": platformAuthoringRoot,
+    "codex/SKILL.md": agentHooksCodex,
+    "codex/reference/installation.md": platformAuthoringRoot,
   },
   "agent-skills": {
     "cli-and-helpers/SKILL.md": agentSkillsReference,

@@ -15,7 +15,8 @@ VERSIONS_SYNCED=0
 PLUGIN_NAMES=$(jq -r '.plugins[].name' "$MARKETPLACE_JSON" 2>/dev/null || true)
 
 for PLUGIN_NAME in $PLUGIN_NAMES; do
-    PLUGIN_JSON="plugins/${PLUGIN_NAME}/.claude-plugin/plugin.json"
+    PLUGIN_SOURCE=$(jq -r --arg name "$PLUGIN_NAME" '.plugins[] | select(.name == $name) | .source // empty' "$MARKETPLACE_JSON")
+    PLUGIN_JSON="${PLUGIN_SOURCE#./}/.claude-plugin/plugin.json"
 
     if [ -f "$PLUGIN_JSON" ]; then
         MARKETPLACE_VERSION=$(jq -r --arg name "$PLUGIN_NAME" '.plugins[] | select(.name == $name) | .version // empty' "$MARKETPLACE_JSON")

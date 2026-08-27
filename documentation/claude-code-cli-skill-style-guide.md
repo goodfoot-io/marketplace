@@ -1,6 +1,6 @@
 # SKILL.md Style Guide
 
-This style guide defines the standard formatting for SKILL.md files in `public/plugins/claude-code-cli/skills/`.
+This style guide defines the standard formatting for SKILL.md files in `public/plugins-claude/claude-code-cli/skills/`.
 
 ---
 
@@ -504,4 +504,3 @@ PATCH /issues/[ISSUE_ID]
 | Conditionals | `- **Condition**: Action` (bolded prefix format) |
 | Tables | Reference data only, not decision logic |
 | Section wrappers | `<instructions>` required; `<placeholder-variables>` for new variables |
-

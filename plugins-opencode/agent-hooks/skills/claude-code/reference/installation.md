@@ -22,15 +22,15 @@ npx @goodfoot/agent-hooks --agent claude-code --scaffold ./my-hooks --hooks Stop
 Scaffolding works for monorepos — use `-o` to output directly to a plugin directory:
 
 ```bash
-# Scaffold into packages/, output hooks.json to plugins/
+# Scaffold into packages/, output hooks.json to plugins-opencode/
 npx @goodfoot/agent-hooks --agent claude-code --scaffold ./packages/my-hooks \
   --hooks PreToolUse,PostToolUse \
-  -o ../../plugins/my-plugin/hooks/hooks.json
+  -o ../../plugins-opencode/my-plugin/hooks/hooks.json
 ```
 
 This generates the build script:
 ```json
-"build": "npx -y @goodfoot/agent-hooks --agent claude-code -i \"src/**/*.ts\" -o \"../../plugins/my-plugin/hooks/hooks.json\""
+"build": "npx -y @goodfoot/agent-hooks --agent claude-code -i \"src/**/*.ts\" -o \"../../plugins-opencode/my-plugin/hooks/hooks.json\""
 ```
 
 **One manual adjustment:** If `@goodfoot/agent-hooks` is a workspace package, change the dependency:
@@ -168,7 +168,7 @@ packages/
 │   ├── package.json
 │   └── tsconfig.json
 └── ...
-plugins/
+plugins-opencode/
 └── my-plugin/
     └── hooks/
         └── hooks.json           # Build output target
@@ -181,7 +181,7 @@ plugins/
   "name": "@myorg/hooks",
   "type": "module",
   "scripts": {
-    "build": "npx -y @goodfoot/agent-hooks --agent claude-code -i \"src/**/*.ts\" -o \"../../plugins/my-plugin/hooks/hooks.json\"",
+    "build": "npx -y @goodfoot/agent-hooks --agent claude-code -i \"src/**/*.ts\" -o \"../../plugins-opencode/my-plugin/hooks/hooks.json\"",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -204,8 +204,8 @@ The `-o` path is relative to the package directory. Use `../../` to output to a 
 ```bash
 cd packages/my-hooks
 npm run build
-# Check: plugins/my-plugin/hooks/hooks.json should exist
-cat ../../plugins/my-plugin/hooks/hooks.json | jq .
+# Check: plugins-opencode/my-plugin/hooks/hooks.json should exist
+cat ../../plugins-opencode/my-plugin/hooks/hooks.json | jq .
 ```
 
 </instructions>

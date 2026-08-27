@@ -122,12 +122,12 @@ function isPluginChangelog(filePath, source) {
 	} catch {
 		// Legacy repositories may run this check before the registry exists.
 	}
-	return /(^|\/)plugins\/[^/]+\/CHANGELOG\.md$/.test(relativeFile);
+	return /(^|\/)plugins-[^/]+\/[^/]+\/CHANGELOG\.md$/.test(relativeFile);
 }
 
 function remediation(filePath) {
 	// Callers pass this path relative (the shell scripts) or absolute (the
-	// layout suite), so anchor on the trailing plugins/<name>/ segment rather
+	// layout suite), so anchor on the trailing platform plugin-root segment rather
 	// than the start of the string.
 	if (isPluginChangelog(filePath, versionSource)) {
 		return (

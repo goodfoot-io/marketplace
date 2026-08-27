@@ -19,7 +19,7 @@ This document describes the naming conventions for **plugin and marketplace-scop
 ### What to Update
 
 - **File structure examples** - Keep paths current with actual plugin structure
-- **Plugin names in examples** - Reference actual plugins from `/workspace/plugins/`
+- **Plugin names in examples** - Reference actual plugins from `/workspace/plugins-claude/`
 - **Tool naming examples** - Use real MCP tool names from the codebase
 - **Best practices** - Add lessons learned from plugin development
 
@@ -149,7 +149,7 @@ Subagents defined in plugins are specialized AI agents invoked explicitly via th
 Subagents are defined in markdown files within a plugin's `agents/` directory:
 
 ```
-plugins/code-review/
+plugins-claude/code-review/
 └── agents/
     └── analysis.md          # Contains: name: Analysis, used as "code-review:Analysis"
 ```
@@ -171,7 +171,7 @@ Skills defined in plugins are capabilities that Claude autonomously invokes base
 
 **Example**:
 ```
-plugins/my-plugin/
+plugins-claude/my-plugin/
 └── skills/
     └── my-skill/            # Directory name is "my-skill"
         └── SKILL.md         # Required filename
@@ -956,10 +956,10 @@ mcp__plugin_browser_browser__prompt()
 
 ```
 // Wrong - skill as a file
-plugins/my-plugin/skills/fix-imports.md
+plugins-claude/my-plugin/skills/fix-imports.md
 
 // Correct - skill as directory with SKILL.md
-plugins/my-plugin/skills/fix-imports/SKILL.md
+plugins-claude/my-plugin/skills/fix-imports/SKILL.md
 ```
 
 ### ❌ Plugin Name Format
@@ -992,7 +992,7 @@ plugins/my-plugin/skills/fix-imports/SKILL.md
 
 ## Tri-Platform Plugin Layout (goodfoot)
 
-`goodfoot` is the one plugin in this repo shipped across all three agent platforms — Claude Code, Codex, and OpenCode — from a single shared skill source rather than three independently maintained copies. The other plugins under `plugins/` are Claude-only and untouched by this pattern.
+`goodfoot` is one plugin in this repo shipped across all three agent platforms — Claude Code, Codex, and OpenCode — from a single shared skill source rather than three independently maintained copies. Claude plugin roots live under `plugins-claude/`.
 
 ### Layout
 

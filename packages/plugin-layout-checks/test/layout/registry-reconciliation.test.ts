@@ -23,7 +23,19 @@ const claudeMarketplace = readJson<ClaudeMarketplace>(".claude-plugin/marketplac
 const codexMarketplace = readJson<CodexMarketplace>(".agents/plugins/marketplace.json");
 
 describe("marketplace reconciliation", () => {
-  // The absence of this check is what let ./plugins/jest-mock-prevention
+  it.each(PLUGINS.filter((plugin) => plugin.marketplace.codex !== null).map((plugin) => plugin.name))(
+    "does not publish %s Codex metadata with a removed repository root",
+    (name) => {
+      const plugin = pluginNamed(name);
+      const manifest = readJson<{ homepage: string; interface?: { websiteURL?: string } }>(
+        plugin.versionSurfaces.codexManifest,
+      );
+      expect(manifest.homepage).not.toMatch(/\/tree\/main\/plugins\//);
+      expect(manifest.interface?.websiteURL).not.toMatch(/\/tree\/main\/plugins\//);
+    },
+  );
+
+  // The absence of this check once let a deleted jest-mock-prevention root
   // survive in the manifest for many commits after commit 5500686 deleted the
   // directory: nine of eleven entries were never touched by any assertion.
   it.each(

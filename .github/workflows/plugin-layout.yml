@@ -59,7 +59,7 @@ jobs:
         run: ./scripts/sync-plugin-versions.sh --check
 
       # Both literals here stay goodfoot-scoped. ./skills is the shared OpenCode
-      # root that no migrated plugin targets, and ./plugins/agent-skills is the
+      # root that no migrated plugin targets, and ./plugins-claude/agent-skills is the
       # companion plugin's own Claude path.
       - name: Validate Claude skills tree (strict)
         run: |

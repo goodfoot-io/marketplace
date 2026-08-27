@@ -1,4 +1,4 @@
-<instructions>
+<% const pluginTree = it.platform === "claude-code" ? "plugins-claude" : it.platform === "codex" ? "plugins-codex" : "plugins-opencode"; %><instructions>
 
 ## Quick Start: Scaffolding (Recommended)
 
@@ -22,15 +22,15 @@ npx @goodfoot/agent-hooks --agent codex --scaffold ./my-codex-hooks --hooks Sess
 Scaffolding works for monorepos — use `-o` to output directly to a plugin directory:
 
 ```bash
-# Scaffold into packages/, output hooks.json to plugins/
+# Scaffold into packages/, output hooks.json to <%~ pluginTree %>/
 npx @goodfoot/agent-hooks --agent codex --scaffold ./packages/my-codex-hooks \
   --hooks PreToolUse,PostToolUse \
-  -o ../../plugins/my-plugin/.codex/hooks.json
+  -o ../../<%~ pluginTree %>/my-plugin/.codex/hooks.json
 ```
 
 This generates the build script:
 ```json
-"build": "npx -y @goodfoot/agent-hooks --agent codex -i \"src/**/*.ts\" -o \"../../plugins/my-plugin/.codex/hooks.json\""
+"build": "npx -y @goodfoot/agent-hooks --agent codex -i \"src/**/*.ts\" -o \"../../<%~ pluginTree %>/my-plugin/.codex/hooks.json\""
 ```
 
 **One manual adjustment:** If `@goodfoot/agent-hooks` is a workspace package, change the dependency:
@@ -174,7 +174,7 @@ packages/
 │   ├── package.json
 │   └── tsconfig.json
 └── ...
-plugins/
+<%~ pluginTree %>/
 └── my-plugin/
     └── .codex/
         └── hooks.json             # Build output target
@@ -187,7 +187,7 @@ plugins/
   "name": "@myorg/codex-hooks",
   "type": "module",
   "scripts": {
-    "build": "npx -y @goodfoot/agent-hooks --agent codex -i \"src/**/*.ts\" -o \"../../plugins/my-plugin/.codex/hooks.json\"",
+    "build": "npx -y @goodfoot/agent-hooks --agent codex -i \"src/**/*.ts\" -o \"../../<%~ pluginTree %>/my-plugin/.codex/hooks.json\"",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -210,8 +210,8 @@ The `-o` path is relative to the package directory. Use `../../` to output to a 
 ```bash
 cd packages/my-codex-hooks
 npm run build
-# Check: plugins/my-plugin/.codex/hooks.json should exist
-cat ../../plugins/my-plugin/.codex/hooks.json | jq .
+# Check: <%~ pluginTree %>/my-plugin/.codex/hooks.json should exist
+cat ../../<%~ pluginTree %>/my-plugin/.codex/hooks.json | jq .
 ```
 
 ## Platform Note

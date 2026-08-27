@@ -7,7 +7,7 @@
     "email": "contact@goodfoot.io",
     "url": "https://github.com/goodfoot-io"
   },
-  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/agent-skills",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/agent-skills",
   "repository": "https://github.com/goodfoot-io/marketplace",
   "license": "MIT",
   "keywords": [
@@ -29,7 +29,7 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/agent-skills",
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/agent-skills",
     "defaultPrompt": [
       "Use the agent-skills skills to author and build portable skill templates with @goodfoot/agent-skills."
     ],

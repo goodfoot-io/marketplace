@@ -134,7 +134,7 @@ npx @goodfoot/agent-hooks --agent codex --scaffold ./my-codex-hooks --hooks Sess
 
 **Monorepo?** Use `-o` to output directly to a plugin directory:
 ```bash
-npx @goodfoot/agent-hooks --agent codex --scaffold ./packages/my-codex-hooks --hooks PreToolUse,PostToolUse -o ../../plugins/my-plugin/.codex/hooks.json
+npx @goodfoot/agent-hooks --agent codex --scaffold ./packages/my-codex-hooks --hooks PreToolUse,PostToolUse -o ../../plugins-opencode/my-plugin/.codex/hooks.json
 ```
 See [Installation: Scaffolding for Monorepos](@plugins-opencode/agent-hooks/skills/codex/reference/installation.md).
 
@@ -303,7 +303,7 @@ Plugin mode emits `${PLUGIN_ROOT}`-relative commands and stable, hash-free filen
 **Monorepo Project:**
 Output to a sibling plugin directory and let `--plugin-root` anchor the command form:
 ```bash
-npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o "../../plugins/my-plugin/hooks/hooks.json" --plugin-root
+npx -y @goodfoot/agent-hooks --agent codex -i "src/**/*.ts" -o "../../plugins-opencode/my-plugin/hooks/hooks.json" --plugin-root
 ```
 See [Monorepo Integration](@plugins-opencode/agent-hooks/skills/codex/reference/installation.md).
 

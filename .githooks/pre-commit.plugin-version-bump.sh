@@ -3,7 +3,7 @@
 # that version to all of the plugin's declared surfaces, then re-stages them.
 #
 # Bumping and propagating used to be two mechanisms: this hook wrote
-# plugins/<name>/.claude-plugin/plugin.json and the marketplace entry, and
+# plugins-claude/<name>/.claude-plugin/plugin.json and the marketplace entry, and
 # scripts/sync-plugin-versions.sh knew about the Codex manifest, the OpenCode
 # package, the npm package, and the `--version` literal. Nothing ran the second
 # one, so every hook-driven commit left those surfaces one patch behind and the
@@ -248,7 +248,7 @@ for pending in "${PENDING_BUMPS[@]}"; do
 done
 
 # Every registry plugin is claimed here, bumped or not. The loop below
-# bumps any `plugins/<name>/` with a staged non-manifest file, and it used
+# bumps any `plugins-claude/<name>/` with a staged non-manifest file, and it used
 # to reach registry plugins that this block had deliberately declined to
 # bump — so editing only a declared version surface, a CHANGELOG most of
 # all, produced an ungated bump through the legacy path: a new version with
@@ -256,7 +256,7 @@ done
 # prevent. Registry plugins are bumped by the gated path or not at all.
 #
 # Both keys are claimed. The legacy loop keys on the directory it captures from
-# `plugins/<dir>/`, this block knows the registry `.name`, and the two are equal
+# `plugins-claude/<dir>/`, this block knows the registry `.name`, and the two are equal
 # for all eight plugins today with nothing requiring them to stay equal — so a
 # plugin whose directory diverged from its name would walk straight back through
 # the hole this closes.
@@ -264,8 +264,8 @@ while IFS=$'\t' read -r name root; do
     [ -z "$name" ] && continue
     PROCESSED_PLUGINS["claude:${name}"]=${PROCESSED_PLUGINS["claude:${name}"]:-1}
     case "$root" in
-        plugins/*)
-            dir="${root#plugins/}"
+        plugins-claude/*)
+            dir="${root#plugins-claude/}"
             dir="${dir%%/*}"
             PROCESSED_PLUGINS["claude:${dir}"]=${PROCESSED_PLUGINS["claude:${dir}"]:-1}
             ;;
@@ -277,10 +277,10 @@ done < <(jq -r '.plugins[] | [.name, .claudePluginRoot] | @tsv' "$REGISTRY")
 while IFS= read -r file; do
     [ -z "$file" ] && continue
     PLUGIN_NAME=""
-    if [[ "$file" =~ ^plugins/([^/]+)/ ]]; then
+    if [[ "$file" =~ ^plugins-claude/([^/]+)/ ]]; then
         PLUGIN_NAME="${BASH_REMATCH[1]}"
-        PLUGIN_ROOT="plugins"
-        PLUGIN_JSON="plugins/${PLUGIN_NAME}/.claude-plugin/plugin.json"
+        PLUGIN_ROOT="plugins-claude"
+        PLUGIN_JSON="plugins-claude/${PLUGIN_NAME}/.claude-plugin/plugin.json"
     else
         continue
     fi

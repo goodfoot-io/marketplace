@@ -36,7 +36,7 @@ This repository serves two complementary purposes:
 marketplace/
 ├── .claude-plugin/
 │   └── marketplace.json          # Marketplace manifest for Claude Code
-├── plugins/                       # Claude Code plugins (commands & agents)
+├── plugins-claude/                # Claude Code plugins (commands & agents)
 │   └── [future plugins]           # Installable via /plugin install
 ├── packages/                      # MCP server packages
 │   └── models/                    # Example: MCP server implementation
@@ -52,7 +52,7 @@ marketplace/
 | Directory | Purpose | Distribution |
 |-----------|---------|--------------|
 | `.claude-plugin/` | Marketplace manifest | Required for marketplace functionality |
-| `plugins/` | Reusable Claude Code plugins | Distributed via marketplace |
+| `plugins-claude/` | Reusable Claude Code plugins | Distributed via marketplace |
 | `packages/` | MCP server implementations | npm packages (published to registry) |
 | `.claude/` | Project-specific workflows | Local only (not distributed) |
 | `documentation/` | Development guides | Repository documentation |
@@ -205,7 +205,7 @@ Note: These commands are only available when working within this repository, the
 
 Contributions are welcome! You can contribute:
 
-1. **New Plugins:** Add plugins to the `plugins/` directory
+1. **New Plugins:** Add Claude plugins to the `plugins-claude/` directory
 2. **MCP Servers:** Create new packages in `packages/`
 3. **Documentation:** Improve guides and examples
 4. **Bug Fixes:** Report or fix issues

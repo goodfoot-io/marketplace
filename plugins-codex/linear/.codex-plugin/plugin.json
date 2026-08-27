@@ -7,7 +7,7 @@
     "email": "contact@goodfoot.io",
     "url": "https://github.com/goodfoot-io"
   },
-  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/linear",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/linear",
   "repository": "https://github.com/goodfoot-io/marketplace",
   "license": "MIT",
   "keywords": [
@@ -28,7 +28,7 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/linear",
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/linear",
     "defaultPrompt": [
       "Use the linear skill to work with Linear webhooks or the @linear/sdk package."
     ],

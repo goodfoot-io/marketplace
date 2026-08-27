@@ -7,7 +7,7 @@
     "email": "contact@goodfoot.io",
     "url": "https://github.com/goodfoot-io"
   },
-  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/jsdoczoom",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/jsdoczoom",
   "repository": "https://github.com/goodfoot-io/marketplace",
   "license": "MIT",
   "keywords": [
@@ -27,7 +27,7 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins/jsdoczoom",
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/jsdoczoom",
     "defaultPrompt": [
       "Use the style skill for jsdoczoom's style guide, or the cli skill for its command-line help."
     ],
