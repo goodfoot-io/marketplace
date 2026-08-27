@@ -177,26 +177,42 @@
     {
       "name": "claude-code-skill-reader",
       "releaseIdentity": {
-        "plugin": { "identity": "claude-code-skill-reader", "label": "claude-code-skill-reader plugin", "versionSource": "plugins/claude-code-skill-reader/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/claude-code-skill-reader" },
+        "plugin": { "identity": "claude-code-skill-reader", "label": "claude-code-skill-reader plugin", "versionSource": "plugins-claude/claude-code-skill-reader/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins-claude/claude-code-skill-reader" },
         "npm": { "identity": "@goodfoot/claude-code-skill-reader", "label": "@goodfoot/claude-code-skill-reader npm package", "packageJson": "packages/claude-code-skill-reader/package.json", "historySource": "legacy-npm-tags", "authoritativeRoot": "packages/claude-code-skill-reader", "relationship": "independent", "legacyTagPrefix": "claude-code-skill-reader-v" }
       },
       "skillsSrc": "skills-src/claude-code-skill-reader",
-      "claudePluginRoot": "plugins/claude-code-skill-reader",
+      "claudePluginRoot": "plugins-claude/claude-code-skill-reader",
       "codexPluginRoot": "plugins-codex/claude-code-skill-reader",
       "opencodePluginRoot": "plugins-opencode/claude-code-skill-reader",
       "targets": [
-        { "platform": "claude-code", "path": "plugins/claude-code-skill-reader/skills" },
+        { "platform": "claude-code", "path": "plugins-claude/claude-code-skill-reader/skills" },
         { "platform": "codex", "path": "plugins-codex/claude-code-skill-reader/skills" },
         { "platform": "opencode", "path": "plugins-opencode/claude-code-skill-reader/skills", "opencodeRegistered": true }
       ],
-      "platformDirs": [],
+      "platformDirs": [
+        "claude-code:skills=plugins-claude/claude-code-skill-reader/skills",
+        "claude-code:agents=plugins-claude/claude-code-skill-reader/agents",
+        "claude-code:hooks=plugins-claude/claude-code-skill-reader/hooks",
+        "claude-code:plugin=plugins-claude/claude-code-skill-reader",
+        "claude-code:conventions=CLAUDE.md",
+        "codex:skills=plugins-codex/claude-code-skill-reader/skills",
+        "codex:agents=plugins-codex/claude-code-skill-reader/agents",
+        "codex:hooks=plugins-codex/claude-code-skill-reader/hooks",
+        "codex:plugin=plugins-codex/claude-code-skill-reader",
+        "codex:conventions=AGENTS.md",
+        "opencode:skills=plugins-opencode/claude-code-skill-reader/skills",
+        "opencode:agents=plugins-opencode/claude-code-skill-reader/agents",
+        "opencode:hooks=plugins-opencode/claude-code-skill-reader/hooks",
+        "opencode:plugin=plugins-opencode/claude-code-skill-reader",
+        "opencode:conventions=AGENTS.md"
+      ],
       "skills": ["cli"],
       "marketplace": {
         "claude": "claude-code-skill-reader",
         "codex": "claude-code-skill-reader"
       },
       "versionSurfaces": {
-        "source": "plugins/claude-code-skill-reader/.claude-plugin/plugin.json",
+        "source": "plugins-claude/claude-code-skill-reader/.claude-plugin/plugin.json",
         "codexManifest": "plugins-codex/claude-code-skill-reader/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/claude-code-skill-reader/package.json"
       },
