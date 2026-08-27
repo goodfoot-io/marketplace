@@ -1,4 +1,4 @@
 packages/agent-hooks/src/agents/codex/types.ts rk64:7b0c855bd9d40fdb
-plugins/agent-hooks/skills/codex/reference/input-types.md rk64:5564aed77456ba4c
+plugins-claude/agent-hooks/skills/codex/reference/input-types.md rk64:5564aed77456ba4c
 
 Input types reference documents all Codex hook input interfaces and their fields; types.ts defines these interfaces. Carries forward the coupling codex-hooks/input-types-reference declared for the deprecated package's SDK skill.

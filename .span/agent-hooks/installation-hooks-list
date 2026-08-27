@@ -1,4 +1,4 @@
 packages/agent-hooks/src/cli.ts#L213-L215 rk64:ef9f56a0f7bad0ac
-plugins/agent-hooks/skills/claude-code/reference/installation.md#L18-L18 rk64:2a195bbbe2bc63ef
+plugins-claude/agent-hooks/skills/claude-code/reference/installation.md#L18-L18 rk64:2a195bbbe2bc63ef
 
 The installation guide's "Available Hook Types" list must match cli.ts's --hooks help text (the "Valid types:" list scaffold users are shown); nothing validates scaffold --hooks input against this list at runtime, so drift between the two is invisible until a user tries a type the doc claims is valid. Note: as of this span's creation the two lists already disagree (the doc includes Setup, the help text does not) — pre-existing, flagged for the doc/help-text owner to reconcile, not fixed here.

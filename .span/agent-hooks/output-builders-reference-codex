@@ -1,4 +1,4 @@
 packages/agent-hooks/src/agents/codex/outputs.ts#L248-L418 rk64:a16f1ca8107e36c3
-plugins/agent-hooks/skills/codex/reference/output-builders.md rk64:9930c5939e838c25
+plugins-claude/agent-hooks/skills/codex/reference/output-builders.md rk64:9930c5939e838c25
 
 Reference documentation catalogs all 10 Codex output builders with usage examples and a decision-field cheat sheet; outputs.ts defines these exported builders. Carries forward the coupling codex-hooks/output-reference declared for the deprecated package's SDK skill.

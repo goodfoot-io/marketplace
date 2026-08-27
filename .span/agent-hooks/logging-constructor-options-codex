@@ -1,5 +1,5 @@
 packages/agent-hooks/src/core/logger.ts#L180-L192 rk64:d84499a5c0512090
 packages/agent-hooks/src/core/logger.ts#L280-L287 rk64:d0a7f2e2dfb2c046
-plugins/agent-hooks/skills/codex/reference/logging.md rk64:e445bf8062052760
+plugins-claude/agent-hooks/skills/codex/reference/logging.md rk64:e445bf8062052760
 
 The Codex logging reference documents configuring file output via the Logger constructor's logFilePath/logEnvVar options (precedence, AGENT_HOOKS_LOG_FILE default) rather than CLI build flags; core/logger.ts's LoggerConfig interface and constructor define that contract. Distinct from Claude Code's logging.md, which documents cli.ts's --log/--log-env-var build flags instead (agent-hooks/logging-build-flags) — the two docs cover different, agent-specific configuration surfaces over the same shared Logger.

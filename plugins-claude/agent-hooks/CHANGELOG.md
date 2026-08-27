@@ -1,5 +1,9 @@
 # agent-hooks plugin changelog
 
+## 1.0.8
+
+Relocates the Claude Code plugin from `plugins/agent-hooks` to `plugins-claude/agent-hooks` and updates its registry and marketplace ownership accordingly. The generated Codex and OpenCode trees remain at their existing roots with unchanged behavior.
+
 ## 1.0.7
 
 Converges the Codex/OpenCode surfaces to 1.0.7 ahead of this commit's own trigger: this commit's own diff edits this very CHANGELOG.md under `plugins/agent-hooks/`, which the still-stale `/workspace/.githooks` checkout (see the 1.0.6 entry) reads as a reason to bump `plugin.json` and the marketplace entry by one more patch on top of whatever this commit stages. No functional change to the plugin itself; landing one version ahead is the same 11c0e7a technique used at c42eb9a and 68c6edf.

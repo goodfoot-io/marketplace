@@ -329,19 +329,35 @@
     {
       "name": "agent-hooks",
       "releaseIdentity": {
-        "plugin": { "identity": "agent-hooks", "label": "agent-hooks plugin", "versionSource": "plugins/agent-hooks/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/agent-hooks" },
+        "plugin": { "identity": "agent-hooks", "label": "agent-hooks plugin", "versionSource": "plugins-claude/agent-hooks/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins-claude/agent-hooks" },
         "npm": { "identity": "@goodfoot/agent-hooks", "label": "@goodfoot/agent-hooks npm package", "packageJson": "packages/agent-hooks/package.json", "historySource": "legacy-npm-tags", "authoritativeRoot": "packages/agent-hooks", "relationship": "independent", "legacyTagPrefix": "agent-hooks-v" }
       },
       "skillsSrc": "skills-src/agent-hooks",
-      "claudePluginRoot": "plugins/agent-hooks",
+      "claudePluginRoot": "plugins-claude/agent-hooks",
       "codexPluginRoot": "plugins-codex/agent-hooks",
       "opencodePluginRoot": "plugins-opencode/agent-hooks",
       "targets": [
-        { "platform": "claude-code", "path": "plugins/agent-hooks/skills" },
+        { "platform": "claude-code", "path": "plugins-claude/agent-hooks/skills" },
         { "platform": "codex", "path": "plugins-codex/agent-hooks/skills" },
         { "platform": "opencode", "path": "plugins-opencode/agent-hooks/skills", "opencodeRegistered": true, "note": "The 9 codex/SKILL.md reference links render as repo-relative literals here, since pluginRootVar is unavailable on OpenCode (per plan section C3)." }
       ],
-      "platformDirs": [],
+      "platformDirs": [
+        "claude-code:skills=plugins-claude/agent-hooks/skills",
+        "claude-code:agents=plugins-claude/agent-hooks/agents",
+        "claude-code:hooks=plugins-claude/agent-hooks/hooks",
+        "claude-code:plugin=plugins-claude/agent-hooks",
+        "claude-code:conventions=CLAUDE.md",
+        "codex:skills=plugins-codex/agent-hooks/skills",
+        "codex:agents=plugins-codex/agent-hooks/agents",
+        "codex:hooks=plugins-codex/agent-hooks/hooks",
+        "codex:plugin=plugins-codex/agent-hooks",
+        "codex:conventions=AGENTS.md",
+        "opencode:skills=plugins-opencode/agent-hooks/skills",
+        "opencode:agents=plugins-opencode/agent-hooks/agents",
+        "opencode:hooks=plugins-opencode/agent-hooks/hooks",
+        "opencode:plugin=plugins-opencode/agent-hooks",
+        "opencode:conventions=AGENTS.md"
+      ],
       "skills": ["antigravity", "claude-code", "codex"],
       "skillPlatforms": {
         "antigravity": ["claude-code"]
@@ -351,7 +367,7 @@
         "codex": "agent-hooks"
       },
       "versionSurfaces": {
-        "source": "plugins/agent-hooks/.claude-plugin/plugin.json",
+        "source": "plugins-claude/agent-hooks/.claude-plugin/plugin.json",
         "codexManifest": "plugins-codex/agent-hooks/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/agent-hooks/package.json"
       },
