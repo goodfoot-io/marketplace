@@ -1,0 +1,11 @@
+packages/voice/src/controller.ts#L569-L577 rk64:6cd258d122f30b71
+packages/voice/src/controller.ts#L1941-L1949 rk64:149816c5850d506f
+packages/voice/src/mcp/server.ts#L97-L100 rk64:d0dd33fc87c09b6b
+packages/voice/src/mcp/server.ts#L1290-L1339 rk64:bb1dbcd94132b0cb
+plugins-voice/voice/skills/handbook/SKILL.md#L20-L21 rk64:b0ca6eb2e5a0fea5
+plugins-voice/voice/skills/handbook/SKILL.md#L52-L53 rk64:ddeef9c65da5b2e5
+plugins-voice/voice/skills/handbook/reference/html-stage.md#L1-L20 rk64:b7602692e538077c
+plugins-voice/voice/skills/handbook/reference/html-stage.md#L22-L51 rk64:e7b2bc7e3997eb87
+plugins-voice/voice/skills/handbook/reference/html-stage.md#L167-L189 rk64:b65e73a75074cc8d
+
+The MCP server and controller define the stage's path-only, latest-wins, visual-only, and bidirectional messaging behavior; the handbook teaches the same contract and its stage-and-say invariant.

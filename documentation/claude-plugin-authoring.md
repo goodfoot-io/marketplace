@@ -52,15 +52,15 @@ When MCP servers are packaged as Claude Code plugins, their tools follow a speci
 ### Example: Voice Plugin
 
 For the voice plugin:
-- **Plugin name** (from `/workspace/plugins/voice/.claude-plugin/plugin.json`): `"voice"`
-- **Server key** (from `/workspace/plugins/voice/.mcp.json`): `"voice"` (key in mcpServers object)
+- **Plugin name** (from `/workspace/plugins-voice/voice/.claude-plugin/plugin.json`): `"voice"`
+- **Server key** (from `/workspace/plugins-voice/voice/.mcp.json`): `"voice"` (key in mcpServers object)
 - **MCP tool name** (from MCP server code): `"conversation"`
 - **Final tool name**: `mcp__plugin_voice_voice__conversation`
 
 ### File Structure
 
 ```
-plugins/voice/
+plugins-voice/voice/
 ├── .claude-plugin/
 │   └── plugin.json          # Contains: { "name": "voice", ... }
 ├── .mcp.json                # Contains: { "mcpServers": { "voice": { ... } } }
@@ -417,8 +417,8 @@ ls -la "${CLAUDE_PLUGIN_ROOT}"
 ### Path Resolution
 
 `${CLAUDE_PLUGIN_ROOT}` can be **either relative or absolute** depending on the execution context:
-- **Relative** (from workspace root): `plugins/voice`, `plugins/expansion`
-- **Absolute**: `/workspace/plugins/voice`, `/workspace/plugins/expansion`
+- **Relative** (from workspace root): `plugins-voice/voice`, `plugins/expansion`
+- **Absolute**: `/workspace/plugins-voice/voice`, `/workspace/plugins/expansion`
 
 Both forms work correctly since embedded bash executes from the workspace root. Your code should handle both cases by using `"${CLAUDE_PLUGIN_ROOT}"` directly without assumptions about its format.
 
@@ -485,7 +485,7 @@ Use `${CLAUDE_PLUGIN_ROOT}` syntax - this expands the path when rendered so user
 ````markdown
 **Usage:**
 ```bash
-# Users will see "plugins/voice/bin/voice-mcp-server.mjs" (actual path)
+# Users will see "plugins-voice/voice/bin/voice-mcp-server.mjs" (actual path)
 ${CLAUDE_PLUGIN_ROOT}/bin/voice-mcp-server.mjs
 ${CLAUDE_PLUGIN_ROOT}/bin/my-script.sh
 ```
@@ -540,7 +540,7 @@ RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 ````markdown
 **Usage:**
 ```bash
-# Users will see "plugins/voice/bin/process-data" or the actual path
+# Users will see "plugins-voice/voice/bin/process-data" or the actual path
 RESULT=$(${CLAUDE_PLUGIN_ROOT}/bin/process-data)
 ```
 ````
@@ -566,7 +566,7 @@ RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 **✓ Fix: Use embedded bash expansion**
 ```bash
 # In a command file's ```bash block
-# Users see actual path like "plugins/voice/bin/my-tool" - helpful!
+# Users see actual path like "plugins-voice/voice/bin/my-tool" - helpful!
 ${CLAUDE_PLUGIN_ROOT}/bin/my-tool
 ```
 

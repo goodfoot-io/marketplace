@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "goodfoot",
   "displayName": "Goodfoot",
-  "version": "1.0.281",
+  "version": "1.0.282",
   "metadata": {
     "description": "Professional development workflows, MCP servers, and productivity tools from Goodfoot. Includes project management, browser automation, VSCode integration, code quality enforcement, and comprehensive development utilities."
   },
@@ -134,8 +134,8 @@
     },
     {
       "name": "voice",
-      "version": "1.0.77",
-      "source": "./plugins/voice",
+      "version": "1.0.78",
+      "source": "./plugins-voice/voice",
       "tags": [
         "voice",
         "conversation",

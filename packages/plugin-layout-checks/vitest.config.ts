@@ -6,7 +6,7 @@ export default defineConfig({
     globals: false,
     // Several specs here exercise guards that only exist because they act on
     // the real repository, so they have to mutate it: the untracked-content
-    // refusal plants a file in plugins/voice/skills, and generated-fresh runs
+    // refusal plants a file in plugins-voice/voice/skills, and generated-fresh runs
     // a real build that renames every declared tree. The build driver's target
     // allow-list admits only the four canonical trees, so those fixtures
     // cannot be relocated to a scratch path without giving up the thing under

@@ -105,17 +105,27 @@ export function pluginReleaseSequence(request, options = {}) {
 	}
 
 	try {
-		const committedManifest = JSON.parse(git(repoRoot, ["show", `HEAD:${identity.versionSource}`]));
+		let committedSource = identity.versionSource;
+		let committedManifestText;
+		try {
+			committedManifestText = git(repoRoot, ["show", `HEAD:${committedSource}`]);
+		} catch (error) {
+			const stagedSource = stagedSourceBeforeRename(repoRoot, committedSource);
+			if (stagedSource === null) throw error;
+			committedSource = stagedSource;
+			committedManifestText = git(repoRoot, ["show", `HEAD:${committedSource}`]);
+		}
+		const committedManifest = JSON.parse(committedManifestText);
 		if (typeof committedManifest.version !== "string" || committedManifest.version.length === 0) {
 			throw new Error(`committed manifest ${identity.versionSource} has no string version`);
 		}
 		const committedVersion = committedManifest.version;
-		const commits = git(repoRoot, ["log", "--follow", "--format=%H", "--", identity.versionSource])
+		const commits = git(repoRoot, ["log", "--follow", "--format=%H", "--", committedSource])
 			.split("\n")
 			.filter((commit) => commit.length > 0);
 		if (commits.length === 0) throw new Error("Git returned no commits for the version source");
 		const latestOccupation = new Map();
-		let historicalPath = identity.versionSource;
+		let historicalPath = committedSource;
 		const manifests = [];
 		for (const commit of commits) {
 			manifests.push({ commit, historicalPath });
@@ -286,6 +296,23 @@ function assertMeaningful(pluginName, field, value) {
 
 function git(repoRoot, args) {
 	return execFileSync("git", args, { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+}
+
+function stagedSourceBeforeRename(repoRoot, currentSource) {
+	const fields = git(repoRoot, ["diff", "--cached", "--name-status", "-z", "-M"]).split("\0");
+	for (let index = 0; index < fields.length - 1; ) {
+		const status = fields[index];
+		index += 1;
+		if (status.startsWith("R")) {
+			const oldSource = fields[index];
+			const newSource = fields[index + 1];
+			index += 2;
+			if (newSource === currentSource) return oldSource;
+		} else {
+			index += 1;
+		}
+	}
+	return null;
 }
 
 function compareVersions(a, b) {

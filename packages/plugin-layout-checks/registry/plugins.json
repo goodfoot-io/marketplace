@@ -89,18 +89,24 @@
     {
       "name": "voice",
       "releaseIdentity": {
-        "plugin": { "identity": "voice", "label": "voice plugin", "versionSource": "plugins/voice/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/voice" },
+        "plugin": { "identity": "voice", "label": "voice plugin", "versionSource": "plugins-voice/voice/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins-voice/voice" },
         "npm": { "identity": "@goodfoot/voice", "label": "@goodfoot/voice npm package", "packageJson": "packages/voice/package.json", "historySource": "legacy-npm-tags", "authoritativeRoot": "packages/voice", "relationship": "independent", "legacyTagPrefix": "voice-v" }
       },
       "skillsSrc": "skills-src/voice",
-      "claudePluginRoot": "plugins/voice",
+      "claudePluginRoot": "plugins-voice/voice",
       "codexPluginRoot": "plugins-codex/voice",
       "opencodePluginRoot": "plugins-opencode/voice",
       "targets": [
-        { "platform": "claude-code", "path": "plugins/voice/skills" }
+        { "platform": "claude-code", "path": "plugins-voice/voice/skills" }
       ],
-      "targetsNote": "Claude Code only. handbook documents the voice MCP server, which ships nowhere else (plugins/voice/.mcp.json + bin/voice-mcp-server.mjs), so skillPlatforms gates it to claude-code. Codex and OpenCode targets were declared anyway and rendered zero files: git cannot store an empty directory, so those trees existed only on machines that had run a build, and a fresh checkout failed seven layout tests before anyone built anything. The Codex and OpenCode manifests under versionSurfaces stay — those are real files that carry a version.",
-      "platformDirs": [],
+      "targetsNote": "Claude Code only. handbook documents the voice MCP server, which ships nowhere else (plugins-voice/voice/.mcp.json + bin/voice-mcp-server.mjs), so skillPlatforms gates it to claude-code. Codex and OpenCode targets were declared anyway and rendered zero files: git cannot store an empty directory, so those trees existed only on machines that had run a build, and a fresh checkout failed seven layout tests before anyone built anything. The Codex and OpenCode manifests under versionSurfaces stay — those are real files that carry a version.",
+      "platformDirs": [
+        "claude-code:skills=plugins-voice/voice/skills",
+        "claude-code:agents=plugins-voice/voice/agents",
+        "claude-code:hooks=plugins-voice/voice/hooks",
+        "claude-code:plugin=plugins-voice/voice",
+        "claude-code:conventions=documentation/claude-plugin-authoring.md"
+      ],
       "skills": ["handbook"],
       "skillPlatforms": {
         "handbook": ["claude-code"]
@@ -110,7 +116,7 @@
         "codex": null
       },
       "versionSurfaces": {
-        "source": "plugins/voice/.claude-plugin/plugin.json",
+        "source": "plugins-voice/voice/.claude-plugin/plugin.json",
         "codexManifest": "plugins-codex/voice/.codex-plugin/plugin.json",
         "opencodePackage": "plugins-opencode/voice/package.json"
       },

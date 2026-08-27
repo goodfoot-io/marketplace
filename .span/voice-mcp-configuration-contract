@@ -1,0 +1,8 @@
+packages/voice/src/mcp/config.ts#L12-L25 rk64:c5d7f96d161c8849
+packages/voice/src/mcp/config.ts#L65-L108 rk64:9936fc1010e44f9b
+packages/voice/src/mcp/secrets.ts#L17-L44 rk64:8c3529dd4cf56827
+packages/voice/src/mcp/secrets.ts#L61-L127 rk64:7b6048eea2d4d4c5
+plugins-voice/voice/README.md#L21-L38 rk64:3a20a0bf3a96a858
+plugins-voice/voice/skills/handbook/reference/startup-failure.md#L1-L31 rk64:79b2da0ef5120eb6
+
+The runtime configuration and secrets modules define key precedence, defaults, inert startup, persistence, and validation behavior; the README and startup guide state those operator-visible semantics.

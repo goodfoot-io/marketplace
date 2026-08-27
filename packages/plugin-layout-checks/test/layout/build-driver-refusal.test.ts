@@ -75,14 +75,14 @@ describe("build driver target allow-list", () => {
   });
 
   it.each([
-    ["a plugin root", "plugins/voice"],
+    ["a plugin root", "plugins-voice/voice"],
     ["a Claude tree root", "plugins-claude/goodfoot"],
     // The shape neither of the two rules this replaced would have caught. It
     // does not start with "plugins" and is not a plugin root, so the old guard
     // published into it — over the authored templates the build reads from.
     ["the authored template root", "skills-src/voice"],
     ["another plugin's leaf", "plugins/linear/skills"],
-    ["a sibling of the leaf", "plugins/voice/bin"],
+    ["a sibling of the leaf", "plugins-voice/voice/bin"],
     ["the repo root", "."],
   ])("refuses to build with %s as a target", (_shape, targetPath) => {
     const { status, stderr } = runDriverWith(registryWithTarget("voice", targetPath));
@@ -93,7 +93,7 @@ describe("build driver target allow-list", () => {
   // Without these the allow-list could be narrowed to reject everything and
   // every refusal above would still pass.
   it("accepts the plugin's own declared leaf", () => {
-    const { status, stderr } = runDriverWith(registryWithTarget("voice", "plugins/voice/skills"));
+    const { status, stderr } = runDriverWith(registryWithTarget("voice", "plugins-voice/voice/skills"));
     expect(status, stderr).toBe(0);
   });
 
@@ -136,7 +136,7 @@ describe("build driver empty-tree refusal", () => {
   // Without this the guard could refuse every target and the two refusals above
   // would still pass. voice/handbook does render to claude-code.
   it("permits a target its skills do render to", () => {
-    const { status, stderr } = runDriverWith(registryWithTarget("voice", "plugins/voice/skills", "claude-code"));
+    const { status, stderr } = runDriverWith(registryWithTarget("voice", "plugins-voice/voice/skills", "claude-code"));
     expect(status, stderr).toBe(0);
   });
 });
@@ -149,7 +149,7 @@ describe("build driver untracked-content refusal", () => {
    * started. The refusal is the only place that loss can be prevented.
    */
   it("refuses to publish into a target holding untracked files", () => {
-    const target = "plugins/voice/skills";
+    const target = "plugins-voice/voice/skills";
     const planted = repoPath(target, ".untracked-work-in-progress.md");
     expect(fs.existsSync(planted), "fixture path is already in use").toBe(false);
     fs.writeFileSync(planted, "work a build must not silently destroy\n");
@@ -164,7 +164,7 @@ describe("build driver untracked-content refusal", () => {
   });
 
   it("refuses to publish into a target holding ignored untracked files", () => {
-    const target = "plugins/voice/skills";
+    const target = "plugins-voice/voice/skills";
     const planted = repoPath(target, ".DS_Store");
     expect(fs.existsSync(planted), "fixture path is already in use").toBe(false);
     fs.writeFileSync(planted, "ignored work a build must not silently destroy\n");
@@ -179,8 +179,8 @@ describe("build driver untracked-content refusal", () => {
   });
 
   it("permits a target whose contents are all tracked", () => {
-    expect(git(["ls-files", "--others", "--exclude-standard", "--", "plugins/voice/skills"]).trim()).toBe("");
-    const { status, stderr } = runDriverWith(registryWithTarget("voice", "plugins/voice/skills"));
+    expect(git(["ls-files", "--others", "--exclude-standard", "--", "plugins-voice/voice/skills"]).trim()).toBe("");
+    const { status, stderr } = runDriverWith(registryWithTarget("voice", "plugins-voice/voice/skills"));
     expect(status, stderr).toBe(0);
   });
 });

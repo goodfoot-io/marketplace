@@ -273,6 +273,20 @@ describe("plugin manifest history sequence", () => {
     expect(fixtureSequence(root).versions).toEqual(["1.0.1", "1.0.2", "1.0.3"]);
   });
 
+  it("preserves committed authority while the manifest rename is staged", () => {
+    const root = historyFixture(["1.0.1", "1.0.2"]);
+    const oldSource = "plugins/demo/.claude-plugin/plugin.json";
+    const newSource = "plugins/demo/plugin.json";
+    fs.renameSync(path.join(root, oldSource), path.join(root, newSource));
+    const registryPath = path.join(root, "packages/plugin-layout-checks/registry/plugins.json");
+    fs.writeFileSync(registryPath, fs.readFileSync(registryPath, "utf8").replaceAll(oldSource, newSource));
+    spawnSync("git", ["add", "-A"], { cwd: root });
+    fs.writeFileSync(path.join(root, newSource), `${JSON.stringify({ name: "demo", version: "9.9.9" })}\n`);
+
+    const sequence = fixtureSequence(root);
+    expect(sequence.versions).toEqual(["1.0.1", "1.0.2"]);
+  });
+
   it("refuses shallow committed history", () => {
     const origin = historyFixture(["1.0.1", "1.0.2"]);
     const clone = fs.mkdtempSync(path.join(os.tmpdir(), "release-identity-shallow-"));

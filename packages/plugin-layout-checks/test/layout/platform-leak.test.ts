@@ -82,9 +82,7 @@ describe("Gate B — wrong-platform tokens in generated output", () => {
   });
 
   it("rejects Claude embedded-command forms in non-Claude output", () => {
-    expect(scanText("codex", "f.md", "```!\necho ready\n```")).toEqual([
-      { file: "f.md", line: 1, token: "```!" },
-    ]);
+    expect(scanText("codex", "f.md", "```!\necho ready\n```")).toEqual([{ file: "f.md", line: 1, token: "```!" }]);
     expect(scanText("opencode", "f.md", "Before !`echo ready` after")).toEqual([
       { file: "f.md", line: 1, token: "!`echo ready`" },
     ]);
@@ -92,9 +90,9 @@ describe("Gate B — wrong-platform tokens in generated output", () => {
 
   it("permits embedded-command forms in Claude output and inert forms elsewhere", () => {
     expect(scanText("claude-code", "f.md", "```!\necho ready\n```\n!`echo ready`")).toEqual([]);
-    expect(
-      scanText("codex", "f.md", "Run this command and report its output:\n\n```bash\necho ready\n```"),
-    ).toEqual([]);
+    expect(scanText("codex", "f.md", "Run this command and report its output:\n\n```bash\necho ready\n```")).toEqual(
+      [],
+    );
   });
 
   it("goes red when a migrated generated tree regresses to a native fence", () => {

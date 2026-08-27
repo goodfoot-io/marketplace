@@ -96,8 +96,8 @@ describe("registry path invariants", () => {
 
   /**
    * Decision 1 makes this load-bearing. materializeAll() publishes by renaming
-   * the whole target directory away, so `--target claude-code=plugins/voice`
-   * and `--target claude-code=plugins/voice/skills` differ by six characters
+   * the whole target directory away, so `--target claude-code=plugins-voice/voice`
+   * and `--target claude-code=plugins-voice/voice/skills` differ by six characters
    * and the first one silently deletes bin/, .mcp.json, and the manifest on a
    * build that exits 0.
    *
@@ -131,12 +131,12 @@ describe("registry path invariants", () => {
   // two-rule guard let through. Without this the allow-list could be widened
   // to `true` and the suite would stay green.
   it.each([
-    ["a plugin root", "plugins/voice"],
+    ["a plugin root", "plugins-voice/voice"],
     ["a Claude tree root", "plugins-claude/goodfoot"],
     ["an authored template root", "skills-src/gmail"],
     ["another plugin's leaf", "plugins/linear/skills"],
-    ["a sibling of the leaf", "plugins/voice/bin"],
-    ["a nested path under the leaf", "plugins/voice/skills/handbook"],
+    ["a sibling of the leaf", "plugins-voice/voice/bin"],
+    ["a nested path under the leaf", "plugins-voice/voice/skills/handbook"],
     ["the repo root", "."],
     ["an empty path", ""],
   ])("rejects %s as a target for voice", (_shape, candidate) => {

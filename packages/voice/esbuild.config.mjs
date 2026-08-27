@@ -7,7 +7,7 @@ import { readFile, writeFile, chmod } from "fs/promises";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const outdir = join(__dirname, "../../plugins/voice/bin");
+const outdir = join(__dirname, "../../plugins-voice/voice/bin");
 
 const entryPoints = [
   { in: "src/mcp/index.ts", out: "voice-mcp-server" },
