@@ -612,6 +612,39 @@ describe("changelog gate follows the files, not the declaration", () => {
     expect(result.stderr).not.toContain("update-package-changelog.sh writes one");
   });
 
+  it.each([
+    "plugins-claude/demo",
+    "plugins-voice/voice",
+  ])("uses registry ownership to recognize the relocated plugin changelog at %s", (authoritativeRoot) => {
+    const root = makeFixture();
+    const oldRoot = "plugins/demo";
+    fs.mkdirSync(path.join(root, path.dirname(authoritativeRoot)), { recursive: true });
+    fs.renameSync(path.join(root, oldRoot), path.join(root, authoritativeRoot));
+    const registryPath = path.join(root, "packages/plugin-layout-checks/registry/plugins.json");
+    const registry = JSON.parse(fs.readFileSync(registryPath, "utf8")) as {
+      plugins: RegistryPlugin[];
+    };
+    const demo = registry.plugins[0];
+    demo.claudePluginRoot = authoritativeRoot;
+    demo.releaseIdentity.plugin.authoritativeRoot = authoritativeRoot;
+    demo.releaseIdentity.plugin.versionSource = `${authoritativeRoot}/.claude-plugin/plugin.json`;
+    demo.versionSurfaces.source = demo.releaseIdentity.plugin.versionSource;
+    fs.writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
+    const changelog = `${authoritativeRoot}/CHANGELOG.md`;
+    write(root, changelog, "# demo plugin changelog\n\n## 1.0.0\n\nFirst release.\n");
+
+    const result = spawnSync(
+      "node",
+      ["scripts/check-changelog-entry.mjs", changelog, "1.0.1", "demo plugin", demo.versionSurfaces.source],
+      { cwd: root, encoding: "utf8" },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(changelog);
+    expect(result.stderr).toContain("No script writes this file");
+    expect(result.stderr).not.toContain("update-package-changelog.sh writes one");
+  });
+
   it("still names the writer for a packages-tree changelog, which does have one", () => {
     const root = makeFixture();
     write(root, "packages/demo/CHANGELOG.md", "# @fixture/demo npm package changelog\n\n## 1.0.0\n\nFirst release.\n");

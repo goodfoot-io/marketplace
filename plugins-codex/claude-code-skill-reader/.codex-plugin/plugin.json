@@ -1,6 +1,6 @@
 {
   "name": "claude-code-skill-reader",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Read and process Claude Code skills and commands with full fidelity",
   "author": {
     "name": "Goodfoot",

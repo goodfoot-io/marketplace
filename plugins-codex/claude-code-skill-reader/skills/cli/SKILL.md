@@ -6,6 +6,8 @@ description: Use `npx @goodfoot/claude-code-skill-reader <skill-name>` to read
   read, or trace how a skill or command is resolved.
 ---
 
-```!
+Run this command and report its output:
+
+```bash
 npx @goodfoot/claude-code-skill-reader -h 2>&1 | sed 's/\(npx \)\?claude-code-skill-reader/npx @goodfoot\/claude-code-skill-reader/g'
 ```

@@ -135,7 +135,22 @@ const helperReferenceTable = (body: string) => {
  * a stricter check than "renders", since it still fails on any unintended
  * drift outside the 3 known substitution sites.
  */
+function embeddedBash(body: string, platform: string): string {
+  if (platform === "claude-code") return body;
+  return body.replace(/^```!\n/m, "Run this command and report its output:\n\n```bash\n");
+}
+
 const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: string) => string>> = {
+  jsdoczoom: {
+    "cli/SKILL.md": embeddedBash,
+    "style/SKILL.md": embeddedBash,
+  },
+  "claude-code-skill-reader": {
+    "cli/SKILL.md": embeddedBash,
+  },
+  linear: {
+    "linear/SKILL.md": embeddedBash,
+  },
   gmail: {
     "gmail/SKILL.md": (body, platform) => {
       if (platform === "claude-code") return body;

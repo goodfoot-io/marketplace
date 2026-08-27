@@ -1,5 +1,7 @@
+import * as fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CLAUDE_ROOT_TOKEN, CODEX_ROOT_TOKEN, scanText, scanTree } from "../gates.js";
+import { repoPath } from "../helpers.js";
 import { allTargets } from "../registry.js";
 
 describe("Gate B — wrong-platform tokens in generated output", () => {
@@ -77,6 +79,31 @@ describe("Gate B — wrong-platform tokens in generated output", () => {
     expect(scanText("antigravity", "f.md", "see plugins-codex/gmail/skills/gmail/SKILL.md")).toEqual([
       { file: "f.md", line: 1, token: "plugins-codex/" },
     ]);
+  });
+
+  it("rejects Claude embedded-command forms in non-Claude output", () => {
+    expect(scanText("codex", "f.md", "```!\necho ready\n```")).toEqual([
+      { file: "f.md", line: 1, token: "```!" },
+    ]);
+    expect(scanText("opencode", "f.md", "Before !`echo ready` after")).toEqual([
+      { file: "f.md", line: 1, token: "!`echo ready`" },
+    ]);
+  });
+
+  it("permits embedded-command forms in Claude output and inert forms elsewhere", () => {
+    expect(scanText("claude-code", "f.md", "```!\necho ready\n```\n!`echo ready`")).toEqual([]);
+    expect(
+      scanText("codex", "f.md", "Run this command and report its output:\n\n```bash\necho ready\n```"),
+    ).toEqual([]);
+  });
+
+  it("goes red when a migrated generated tree regresses to a native fence", () => {
+    const file = "plugins-codex/jsdoczoom/skills/cli/SKILL.md";
+    const clean = fs.readFileSync(repoPath(file), "utf8");
+    expect(scanText("codex", file, clean)).toEqual([]);
+    const mutated = clean.replace("```bash", "```!");
+    expect(mutated).not.toBe(clean);
+    expect(scanText("codex", file, mutated)).toContainEqual({ file, line: 8, token: "```!" });
   });
 
   it.each(

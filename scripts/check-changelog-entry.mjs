@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import path from "node:path";
 
 /**
  * Verifies that a CHANGELOG carries a released entry for a version — and never
@@ -103,11 +104,32 @@ function isShallow() {
  * which at least returned visibly nothing, and it is the same asymmetry that
  * motivated dropping the tags in the first place.
  */
-function remediation(path) {
+function isPluginChangelog(filePath, source) {
+	const relativeFile = path.relative(process.cwd(), path.resolve(filePath)).split(path.sep).join("/");
+	try {
+		const registry = JSON.parse(
+			readFileSync(path.join(process.cwd(), "packages/plugin-layout-checks/registry/plugins.json"), "utf8"),
+		);
+		const plugin = registry.plugins?.find(
+			(candidate) => candidate?.releaseIdentity?.plugin?.versionSource === source,
+		);
+		if (
+			typeof plugin?.releaseIdentity?.plugin?.authoritativeRoot === "string" &&
+			relativeFile === path.posix.join(plugin.releaseIdentity.plugin.authoritativeRoot, "CHANGELOG.md")
+		) {
+			return true;
+		}
+	} catch {
+		// Legacy repositories may run this check before the registry exists.
+	}
+	return /(^|\/)plugins\/[^/]+\/CHANGELOG\.md$/.test(relativeFile);
+}
+
+function remediation(filePath) {
 	// Callers pass this path relative (the shell scripts) or absolute (the
 	// layout suite), so anchor on the trailing plugins/<name>/ segment rather
 	// than the start of the string.
-	if (/(^|\/)plugins\/[^/]+\/CHANGELOG\.md$/.test(path)) {
+	if (isPluginChangelog(filePath, versionSource)) {
 		return (
 			"No script writes this file: update-package-changelog.sh only handles the packages tree, " +
 			"and pointed here it would write the npm package's changelog instead. " +

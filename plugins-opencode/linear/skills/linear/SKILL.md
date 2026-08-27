@@ -7,7 +7,9 @@ description: Reference for Linear webhooks and TypeScript SDK. Use when
 
 # Linear Reference (SDK)
 
-```!
+Run this command and report its output:
+
+```bash
 # === Linear Skill Environment Check ===
 BLOCKED=""
 

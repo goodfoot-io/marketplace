@@ -1,8 +1,7 @@
 <%~ it.frontmatter({ name: 'linear', description: 'Reference for Linear webhooks and TypeScript SDK. Use when receiving Linear webhook payloads, responding to issues or comments, changing issue status, or querying Linear state via the @linear/sdk package.' }) %>
 # Linear Reference (SDK)
 
-```!
-# === Linear Skill Environment Check ===
+<%~ it.bash(`# === Linear Skill Environment Check ===
 BLOCKED=""
 
 # Detect package manager
@@ -27,11 +26,11 @@ if [ -z "$LINEAR_API_KEY" ]; then
 else
   case "$LINEAR_API_KEY" in
     lin_api_*)
-      echo "✓ Linear API key set (${LINEAR_API_KEY:0:12}...)"
+      echo "✓ Linear API key set (\${LINEAR_API_KEY:0:12}...)"
       ;;
     *)
       # Non-standard format - warn but don't block (might still work)
-      echo "✓ LINEAR_API_KEY set (${LINEAR_API_KEY:0:8}...)"
+      echo "✓ LINEAR_API_KEY set (\${LINEAR_API_KEY:0:8}...)"
       echo "  ⚠️ Unexpected format (should start with lin_api_)"
       ;;
   esac
@@ -62,8 +61,7 @@ fi
 if [ -z "$BLOCKED" ]; then
   echo ""
   echo "Ready to execute Linear operations."
-fi
-```
+fi`) %>
 
 Uses `@linear/sdk` with `tsx`. Run inline scripts using heredocs for top-level await support:
 

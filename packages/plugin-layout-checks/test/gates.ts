@@ -67,12 +67,16 @@ export function scanText(platform: Platform, file: string, text: string): Leak[]
   let fenced = false;
 
   text.split("\n").forEach((raw, index) => {
+    const record = (token: string) => leaks.push({ file, line: index + 1, token });
+    if (platform !== "claude-code") {
+      if (/^\s*```!/.test(raw)) record("```!");
+      for (const match of raw.matchAll(/!`[^`\n]+`/g)) record(match[0]);
+    }
     if (/^\s*```/.test(raw)) {
       fenced = !fenced;
       return;
     }
     const line = fenced ? raw : withoutInlineCode(raw);
-    const record = (token: string) => leaks.push({ file, line: index + 1, token });
 
     if (platform !== "claude-code" && /\$\{CLAUDE_PLUGIN_ROOT\}/.test(line)) record(CLAUDE_ROOT_TOKEN);
     if (platform === "claude-code" && /\$\{PLUGIN_ROOT\}/.test(line)) record(CODEX_ROOT_TOKEN);

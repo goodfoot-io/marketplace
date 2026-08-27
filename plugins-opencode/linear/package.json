@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/opencode-linear",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "OpenCode plugin registration for the linear skill set (linear).",
   "type": "module",
