@@ -1,4 +1,4 @@
-# Changelog
+# agent-skills plugin changelog
 
 ## 1.0.12
 

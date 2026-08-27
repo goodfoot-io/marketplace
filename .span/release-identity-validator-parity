@@ -1,0 +1,4 @@
+packages/plugin-layout-checks/test/registry.ts#L165-L299 rk64:6abc71734f03af6e
+scripts/release-identity.mjs#L77-L196 rk64:dc974e7fc4c1e2fa
+
+The runtime resolver and the layout suite independently validate the same release-identity declaration contract; each must reject the same missing, contradictory, non-existent, and cross-line fields, because the suite does not invoke the runtime validator for its registry load and a rule added to only one side either admits an unsafe release or makes CI disagree with release tooling.

@@ -1,4 +1,4 @@
-# Changelog
+# agent-hooks plugin changelog
 
 ## 1.0.7
 

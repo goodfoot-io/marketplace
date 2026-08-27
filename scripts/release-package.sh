@@ -79,9 +79,31 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
-# Convert slashes to hyphens for git tag (e.g., mcp/ts-extra -> mcp-ts-extra)
-TAG_PACKAGE_NAME="${PACKAGE_NAME//\//-}"
-TAG="${TAG_PACKAGE_NAME}-v${VERSION}"
+# Registry packages must resolve their explicit npm release line. Only packages
+# absent from the registry retain the conventional package-only fallback.
+REGISTRY_FILE="$WORKSPACE_ROOT/packages/plugin-layout-checks/registry/plugins.json"
+REGISTRY_PLUGIN_NAME=$(node -e '
+  const fs = require("node:fs");
+  const [registryPath, packageName, packageJson] = process.argv.slice(1);
+  const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+  const matches = registry.plugins.filter((plugin) => plugin.name === packageName || plugin.releaseIdentity?.npm?.packageJson === packageJson);
+  if (matches.length > 1) throw new Error(`multiple registry npm identities declare ${packageJson}`);
+  if (matches.length === 1) process.stdout.write(matches[0].name);
+' "$REGISTRY_FILE" "$PACKAGE_NAME" "packages/$PACKAGE_NAME/package.json")
+
+PACKAGE_PUBLISHED_NAME=$(node -p "require('$PACKAGE_JSON').name" 2>/dev/null)
+RELEASE_LABEL="$PACKAGE_PUBLISHED_NAME npm package"
+TAG_PREFIX="${PACKAGE_NAME//\//-}-v"
+
+if [ -n "$REGISTRY_PLUGIN_NAME" ]; then
+  RELEASE_JSON=$(node "$WORKSPACE_ROOT/scripts/release-identity.mjs" "$REGISTRY_PLUGIN_NAME" npm)
+  VERSION=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.currentVersion)' "$RELEASE_JSON")
+  PACKAGE_PUBLISHED_NAME=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.identity)' "$RELEASE_JSON")
+  RELEASE_LABEL=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.label)' "$RELEASE_JSON")
+  TAG_PREFIX=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.legacyTagPrefix)' "$RELEASE_JSON")
+fi
+
+TAG="${TAG_PREFIX}${VERSION}"
 
 # Validate version format
 if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -93,7 +115,7 @@ fi
 if [ "$DRY_RUN" = true ]; then
   echo -e "${MAGENTA}🔍 DRY RUN MODE - No changes will be made${NC}"
 fi
-echo -e "${CYAN}🚀 Preparing release for ${PACKAGE_NAME} v${VERSION}${NC}"
+echo -e "${CYAN}🚀 Preparing release for ${RELEASE_LABEL} v${VERSION}${NC}"
 echo ""
 
 # Check if tag already exists locally
@@ -279,13 +301,13 @@ echo ""
 
 if [ "$DRY_RUN" = true ]; then
   echo -e "${MAGENTA}[DRY RUN]${NC} ${BLUE}Would create tag: $TAG${NC}"
-  echo -e "${MAGENTA}[DRY RUN]${NC} Command: git tag -a \"$TAG\" -m \"Release $PACKAGE_NAME v${VERSION}\""
+  echo -e "${MAGENTA}[DRY RUN]${NC} Command: git tag -a \"$TAG\" -m \"Release $RELEASE_LABEL v${VERSION}\""
   echo ""
   echo -e "${MAGENTA}[DRY RUN]${NC} ${BLUE}Would push tag to origin${NC}"
   echo -e "${MAGENTA}[DRY RUN]${NC} Command: git push origin \"$TAG\""
 else
   echo -e "${BLUE}📋 Creating tag: $TAG${NC}"
-  git tag -a "$TAG" -m "Release $PACKAGE_NAME v${VERSION}"
+  git tag -a "$TAG" -m "Release $RELEASE_LABEL v${VERSION}"
 
   echo -e "${BLUE}📤 Pushing tag to origin...${NC}"
   git push origin "$TAG"
@@ -296,7 +318,7 @@ if [ "$DRY_RUN" = true ]; then
   echo -e "${MAGENTA}✅ Dry run completed successfully!${NC}"
   echo ""
   echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${BLUE}📦 Package:${NC} $PACKAGE_NAME"
+  echo -e "${BLUE}📦 NPM package:${NC} $PACKAGE_PUBLISHED_NAME"
   echo -e "${BLUE}📍 Git Tag (not created):${NC} $TAG"
   echo -e "${BLUE}📦 Release Version:${NC} v${VERSION}"
   echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -308,7 +330,7 @@ else
   echo -e "${GREEN}✅ Release initiated!${NC}"
   echo ""
   echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${BLUE}📦 Package:${NC} $PACKAGE_NAME"
+  echo -e "${BLUE}📦 NPM package:${NC} $PACKAGE_PUBLISHED_NAME"
   echo -e "${BLUE}📍 Git Tag:${NC} $TAG"
   echo -e "${BLUE}📦 Release Version:${NC} v${VERSION}"
   echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

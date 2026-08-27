@@ -1,0 +1,4 @@
+scripts/release-package.sh#L82-L106 rk64:8f9bb48aa915c628
+scripts/update-package-changelog.sh#L66-L92 rk64:90d1f0f411d79787
+
+The npm release and changelog writers independently map a package path to the same registry plugin and then consume that npm identity's version, published name, label, and legacy tag prefix; both preserve the package-only fallback only when no registry entry matches, and no shared helper or test enforces parity between these two shell workflows.

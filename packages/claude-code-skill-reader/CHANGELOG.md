@@ -1,4 +1,4 @@
-# Changelog
+# @goodfoot/claude-code-skill-reader npm package changelog
 
 ## 0.2.0
 - Improved code structure and maintainability through internal refactoring

@@ -1,4 +1,4 @@
-# Changelog
+# @goodfoot/agent-skills npm package changelog
 
 ## 1.0.12
 

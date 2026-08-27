@@ -1,4 +1,4 @@
-scripts/changelog-surfaces.mjs#L42-L50 rk64:2143f79897e2f814
-scripts/check-changelog-entry.mjs#L80-L104 rk64:2f11da0c5eef172b
+scripts/changelog-surfaces.mjs#L17-L36 rk64:2e7e0d8ea3bdc4f7
+scripts/check-changelog-entry.mjs#L81-L124 rk64:cde549a872757079
 
-changelogSurfaces() treats <claudePluginRoot>/CHANGELOG.md as the plugin-level release-notes path, and remediation() independently matches that same shape to decide update-package-changelog.sh cannot write it; if the plugin-root convention ever changes in one function the other silently gives wrong advice, since no test asserts the two path shapes agree.
+changelogSurfaces() derives each plugin-release CHANGELOG.md from the resolved authoritative plugin root (plus only a lockstep npm root), while remediation() independently recognizes the resulting plugin-root path shape to explain that package-only tooling cannot write it; changing either convention without the other would make release guidance incorrect, and the relationship-filtering fixture protects the worklist boundary.

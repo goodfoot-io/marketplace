@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
  * bare `## 1.0.12` would have closed the gate and left the user with a heading
  * that says nothing, so this refuses instead and names what is missing.
  *
- * Usage: check-changelog-entry.mjs <file> <version> <versionSource>
+ * Usage: check-changelog-entry.mjs <file> <version> <releaseLabel> <versionSource>
  *
  * Exit 1 means the notes are missing or wrong and the author has to write
  * something; exit 3 means the notes could not be checked at all, because the
@@ -24,7 +24,8 @@ import { readFileSync } from "node:fs";
  * checkout to write an entry that was already there, one line under this
  * script's own message saying the history could not be read.
  *
- * versionSource is the plugin's registry `versionSurfaces.source`, the file
+ * releaseLabel names the selected release line. versionSource is that line's
+ * resolved manifest, the file
  * whose `.version` field every other surface follows. Its history is the whole
  * set of versions the plugin has released, and the whole set of headings is
  * checked against it. Checking only the newest heading is what let agent-hooks
@@ -39,10 +40,10 @@ import { readFileSync } from "node:fs";
  * served by leaving a way not to.
  */
 
-const [file, version, versionSource] = process.argv.slice(2);
-if (!file || !version || !versionSource) {
+const [file, version, releaseLabel, versionSource] = process.argv.slice(2);
+if (!file || !version || !releaseLabel || !versionSource) {
 	process.stderr.write(
-		"usage: check-changelog-entry.mjs <file> <version> <versionSource>\n",
+		"usage: check-changelog-entry.mjs <file> <version> <releaseLabel> <versionSource>\n",
 	);
 	process.exit(2);
 }
@@ -112,7 +113,7 @@ function remediation(path) {
 			"and pointed here it would write the npm package's changelog instead. " +
 			"Write the entry by hand" +
 			(isShallow() === false
-				? ` — \`git log -- ${versionSource}\` is this plugin's own version sequence, ` +
+				? ` — \`git log -- ${versionSource}\` is the ${releaseLabel} version sequence, ` +
 					"and bounds the commits the entry needs to cover.\n"
 				: " from the commits that changed the plugin since its last release. " +
 					"This checkout is shallow, so `git log` here would name a fraction of them as if it were all of them; " +
@@ -123,13 +124,21 @@ function remediation(path) {
 }
 
 const lines = readFileSync(file, "utf8").split("\n");
+const expectedTitle = `# ${releaseLabel} changelog`;
+if (lines[0]?.trim() !== expectedTitle) {
+	process.stderr.write(
+		`${file}: title is ${JSON.stringify(lines[0]?.trim() ?? "")}, but the ${releaseLabel} release line at ${versionSource} requires ${JSON.stringify(expectedTitle)}.\n` +
+			`Replace the first line with ${expectedTitle}.\n`,
+	);
+	process.exit(1);
+}
 const headings = lines
 	.map((line, index) => ({ index, match: /^## (.+?)\s*$/.exec(line) }))
 	.filter((entry) => entry.match !== null);
 
 if (headings.length === 0) {
 	process.stderr.write(
-		`${file}: no release headings; expected a "## ${version}" entry at the top.\n${remediation(file)}`,
+		`${file}: the ${releaseLabel} (${versionSource}) has no release headings; expected a "## ${version}" entry at the top.\n${remediation(file)}`,
 	);
 	process.exit(1);
 }
@@ -140,7 +149,7 @@ if (headings.length === 0) {
 const [latest] = headings;
 if (latest.match[1] !== version) {
 	process.stderr.write(
-		`${file}: newest entry is "## ${latest.match[1]}", but the release being verified is ${version}.\n` +
+		`${file}: newest entry is "## ${latest.match[1]}", but the ${releaseLabel} release at ${versionSource} is ${version}.\n` +
 			`Add a "## ${version}" entry describing what changed. ${remediation(file)}`,
 	);
 	process.exit(1);
@@ -152,7 +161,7 @@ const body = lines
 	.filter((line) => line.trim().length > 0);
 if (body.length === 0) {
 	process.stderr.write(
-		`${file}: "## ${version}" has no body. A heading alone tells a user which version they installed ` +
+		`${file}: the ${releaseLabel} entry "## ${version}" for ${versionSource} has no body. A heading alone tells a user which version they installed ` +
 			`and nothing about what it changed.\n`,
 	);
 	process.exit(1);
@@ -194,7 +203,7 @@ function compareVersions(a, b) {
 if (isShallow() !== false) {
 	process.stderr.write(
 		`${file}: this checkout's history is ${isShallow() === null ? "of unknown depth" : "shallow"}, so ` +
-			`${versionSource}'s release sequence cannot be read in full and the versions below the newest ` +
+			`the ${releaseLabel} release sequence at ${versionSource} cannot be read in full and the versions below the newest ` +
 			`cannot be verified.\nA truncated history is not a history with no gaps; refusing. ` +
 			`Run \`git fetch --unshallow\` (in CI, set the checkout's fetch-depth to 0) and try again.\n`,
 	);
@@ -207,7 +216,7 @@ if (isShallow() !== false) {
 		occupied = occupiedVersions(versionSource);
 	} catch (error) {
 		process.stderr.write(
-			`${file}: could not read ${versionSource}'s history to verify the entries below the newest ` +
+			`${file}: could not read the ${releaseLabel} history at ${versionSource} to verify the entries below the newest ` +
 				`(${error.message.trim()}).\nA history that cannot be read is not a history with no gaps; refusing.\n`,
 		);
 		process.exit(3);
@@ -235,7 +244,7 @@ if (isShallow() !== false) {
 		.sort(compareVersions);
 	if (skipped.length > 0) {
 		process.stderr.write(
-			`${file}: ${versionSource} released ${skipped.join(", ")}, and ${
+			`${file}: the ${releaseLabel} history at ${versionSource} released ${skipped.join(", ")}, and ${
 				skipped.length === 1 ? "that version has" : "those versions have"
 			} no entry here.\n` +
 				`A version that is neither described nor marked skipped is a release users cannot account for.\n` +

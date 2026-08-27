@@ -63,25 +63,52 @@ if [ -z "$CURRENT_VERSION" ]; then
 fi
 echo -e "Current version: ${GREEN}$CURRENT_VERSION${NC}"
 
+# Registry twins have two release lines behind the same conventional name. Find
+# the package by its declared manifest path, then require the npm resolver to
+# classify it; a broken declaration must not silently fall back to package-only
+# behavior.
+REGISTRY_FILE="$WORKSPACE_ROOT/packages/plugin-layout-checks/registry/plugins.json"
+REGISTRY_PLUGIN_NAME=$(node -e '
+  const fs = require("node:fs");
+  const [registryPath, packageName, packageJson] = process.argv.slice(1);
+  const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+  const matches = registry.plugins.filter((plugin) => plugin.name === packageName || plugin.releaseIdentity?.npm?.packageJson === packageJson);
+  if (matches.length > 1) throw new Error(`multiple registry npm identities declare ${packageJson}`);
+  if (matches.length === 1) process.stdout.write(matches[0].name);
+' "$REGISTRY_FILE" "$PACKAGE_NAME" "packages/$PACKAGE_NAME/package.json")
+
+PACKAGE_PUBLISHED_NAME=$(node -p "require('$PACKAGE_JSON').name" 2>/dev/null)
+TAG_PREFIX="${PACKAGE_NAME//\//-}-v"
+RELEASE_LABEL="$PACKAGE_PUBLISHED_NAME npm package"
+HISTORY_SOURCE="legacy-npm-tags"
+
+if [ -n "$REGISTRY_PLUGIN_NAME" ]; then
+  RELEASE_JSON=$(node "$WORKSPACE_ROOT/scripts/release-identity.mjs" "$REGISTRY_PLUGIN_NAME" npm)
+  CURRENT_VERSION=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.currentVersion)' "$RELEASE_JSON")
+  PACKAGE_PUBLISHED_NAME=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.identity)' "$RELEASE_JSON")
+  RELEASE_LABEL=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.label)' "$RELEASE_JSON")
+  HISTORY_SOURCE=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.historySource)' "$RELEASE_JSON")
+  TAG_PREFIX=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.legacyTagPrefix)' "$RELEASE_JSON")
+fi
+
+echo -e "Release line: ${GREEN}$RELEASE_LABEL${NC} (history: $HISTORY_SOURCE)"
+
 # Get package description for context
 PACKAGE_DESCRIPTION=$(node -p "require('$PACKAGE_JSON').description || ''" 2>/dev/null)
 
 # Check if CHANGELOG.md exists, create if not
 if [ ! -f "$CHANGELOG_FILE" ]; then
   echo -e "${YELLOW}Creating new CHANGELOG.md...${NC}"
-  echo "# Changelog" > "$CHANGELOG_FILE"
+  echo "# $PACKAGE_PUBLISHED_NAME npm package changelog" > "$CHANGELOG_FILE"
   echo "" >> "$CHANGELOG_FILE"
 fi
 
 # Change to workspace root for git operations
 cd "$WORKSPACE_ROOT"
 
-# Convert slashes to hyphens for git tag matching (e.g., mcp/browser -> mcp-browser)
-TAG_PACKAGE_NAME="${PACKAGE_NAME//\//-}"
-
 # Get the last version tag for this package
 # Expected format: {package-name}-v{version}
-LAST_TAG=$(git tag --sort=-version:refname | grep -E "^${TAG_PACKAGE_NAME}-v[0-9]+\.[0-9]+\.[0-9]+" | head -1 || echo "")
+LAST_TAG=$(git tag --sort=-version:refname | grep -E "^${TAG_PREFIX}[0-9]+\.[0-9]+\.[0-9]+" | head -1 || echo "")
 
 if [ -z "$LAST_TAG" ]; then
   echo -e "${YELLOW}⚠️  No previous version tags found for this package.${NC}"
@@ -122,7 +149,7 @@ else
 fi
 
 # Create a prompt for Claude to generate changelog entry
-PROMPT="You are helping to generate a CHANGELOG entry for version $CURRENT_VERSION of the $PACKAGE_NAME package.
+PROMPT="You are helping to generate a CHANGELOG entry for version $CURRENT_VERSION of the $RELEASE_LABEL.
 
 Here are the commits since the last release that affected this package:
 
@@ -227,7 +254,7 @@ CURRENT_CONTENT=$(sed -n '/^## /,$p' "$CHANGELOG_FILE")
 
 # Create new changelog with entry at the top
 {
-  echo "# Changelog"
+  echo "# $PACKAGE_PUBLISHED_NAME npm package changelog"
   echo ""
   echo "$CLEANED_ENTRY"
   echo ""

@@ -51,6 +51,16 @@ write_version() {
 }
 
 while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PACKAGE PACKAGE_JSON; do
+  IDENTITY=$(node scripts/release-identity.mjs "$NAME" plugin) || {
+    echo "$NAME: plugin release identity could not be resolved; refusing to sync." >&2
+    exit 1
+  }
+  IDENTITY_SOURCE=$(jq -r '.versionSource' <<< "$IDENTITY")
+  RELEASE_LABEL=$(jq -r '.label' <<< "$IDENTITY")
+  if [ "$SOURCE" != "$IDENTITY_SOURCE" ]; then
+    echo "$NAME: plugin release identity uses $IDENTITY_SOURCE, but versionSurfaces.source declares $SOURCE; refusing to sync." >&2
+    exit 1
+  fi
   [ "$PACKAGE_JSON" = "null" ] && PACKAGE_JSON=""
   for required in "$SOURCE" "$CODEX_MANIFEST" "$OPENCODE_PACKAGE" ${PACKAGE_JSON:+"$PACKAGE_JSON"}; do
     [ -f "$required" ] || { echo "$NAME: declared surface $required does not exist" >&2; exit 1; }
@@ -112,16 +122,19 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
   # exit status inside a process substitution, so a changelog-surfaces.mjs that
   # failed — node missing, registry redirected — delivered an empty list that
   # read exactly like "this plugin has no release notes" and passed the gate.
-  CHANGELOGS=$(node scripts/changelog-surfaces.mjs "$NAME") || {
+  CHANGELOGS=$(node scripts/changelog-surfaces.mjs plugin-release "$NAME") || {
     echo "$NAME: scripts/changelog-surfaces.mjs failed; cannot tell 'no release notes' from 'could not look'." >&2
     exit 1
   }
-  while IFS= read -r CHANGELOG_PATH; do
-    [ -z "$CHANGELOG_PATH" ] && continue
+  while IFS= read -r CHANGELOG_SURFACE; do
+    [ -z "$CHANGELOG_SURFACE" ] && continue
+    CHANGELOG_PATH=$(jq -r '.path' <<< "$CHANGELOG_SURFACE")
+    CHANGELOG_LABEL=$(jq -r '.label' <<< "$CHANGELOG_SURFACE")
+    CHANGELOG_SOURCE=$(jq -r '.versionSource' <<< "$CHANGELOG_SURFACE")
     # Exit 3 is "could not check", exit 1 is "nothing to find". Collapsing both
     # into MISSING_NOTES is what made the summary below contradict the per-file
     # message immediately above it.
-    node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$VERSION" "$SOURCE" ||
+    node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$VERSION" "$CHANGELOG_LABEL" "$CHANGELOG_SOURCE" ||
       case $? in
         3) UNVERIFIABLE_NOTES=true ;;
         *) MISSING_NOTES=true ;;

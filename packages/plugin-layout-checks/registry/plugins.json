@@ -5,6 +5,10 @@
   "plugins": [
     {
       "name": "goodfoot",
+      "releaseIdentity": {
+        "plugin": { "identity": "goodfoot", "label": "goodfoot plugin", "versionSource": "plugins-claude/goodfoot/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins-claude/goodfoot" },
+        "npm": null
+      },
       "skillsSrc": "skills-src/goodfoot",
       "claudePluginRoot": "plugins-claude/goodfoot",
       "codexPluginRoot": "plugins-codex/goodfoot",
@@ -84,6 +88,10 @@
     },
     {
       "name": "voice",
+      "releaseIdentity": {
+        "plugin": { "identity": "voice", "label": "voice plugin", "versionSource": "plugins/voice/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/voice" },
+        "npm": { "identity": "@goodfoot/voice", "label": "@goodfoot/voice npm package", "packageJson": "packages/voice/package.json", "historySource": "legacy-npm-tags", "authoritativeRoot": "packages/voice", "relationship": "independent", "legacyTagPrefix": "voice-v" }
+      },
       "skillsSrc": "skills-src/voice",
       "claudePluginRoot": "plugins/voice",
       "codexPluginRoot": "plugins-codex/voice",
@@ -114,6 +122,10 @@
     },
     {
       "name": "jsdoczoom",
+      "releaseIdentity": {
+        "plugin": { "identity": "jsdoczoom", "label": "jsdoczoom plugin", "versionSource": "plugins/jsdoczoom/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/jsdoczoom" },
+        "npm": { "identity": "jsdoczoom", "label": "jsdoczoom npm package", "packageJson": "packages/jsdoczoom/package.json", "historySource": "legacy-npm-tags", "authoritativeRoot": "packages/jsdoczoom", "relationship": "independent", "legacyTagPrefix": "jsdoczoom-v" }
+      },
       "skillsSrc": "skills-src/jsdoczoom",
       "claudePluginRoot": "plugins/jsdoczoom",
       "codexPluginRoot": "plugins-codex/jsdoczoom",
@@ -142,6 +154,10 @@
     },
     {
       "name": "claude-code-skill-reader",
+      "releaseIdentity": {
+        "plugin": { "identity": "claude-code-skill-reader", "label": "claude-code-skill-reader plugin", "versionSource": "plugins/claude-code-skill-reader/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/claude-code-skill-reader" },
+        "npm": { "identity": "@goodfoot/claude-code-skill-reader", "label": "@goodfoot/claude-code-skill-reader npm package", "packageJson": "packages/claude-code-skill-reader/package.json", "historySource": "legacy-npm-tags", "authoritativeRoot": "packages/claude-code-skill-reader", "relationship": "independent", "legacyTagPrefix": "claude-code-skill-reader-v" }
+      },
       "skillsSrc": "skills-src/claude-code-skill-reader",
       "claudePluginRoot": "plugins/claude-code-skill-reader",
       "codexPluginRoot": "plugins-codex/claude-code-skill-reader",
@@ -170,6 +186,10 @@
     },
     {
       "name": "linear",
+      "releaseIdentity": {
+        "plugin": { "identity": "linear", "label": "linear plugin", "versionSource": "plugins/linear/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/linear" },
+        "npm": null
+      },
       "skillsSrc": "skills-src/linear",
       "claudePluginRoot": "plugins/linear",
       "codexPluginRoot": "plugins-codex/linear",
@@ -198,6 +218,10 @@
     },
     {
       "name": "gmail",
+      "releaseIdentity": {
+        "plugin": { "identity": "gmail", "label": "gmail plugin", "versionSource": "plugins/gmail/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/gmail" },
+        "npm": null
+      },
       "skillsSrc": "skills-src/gmail",
       "claudePluginRoot": "plugins/gmail",
       "codexPluginRoot": "plugins-codex/gmail",
@@ -234,6 +258,10 @@
     },
     {
       "name": "agent-hooks",
+      "releaseIdentity": {
+        "plugin": { "identity": "agent-hooks", "label": "agent-hooks plugin", "versionSource": "plugins/agent-hooks/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/agent-hooks" },
+        "npm": { "identity": "@goodfoot/agent-hooks", "label": "@goodfoot/agent-hooks npm package", "packageJson": "packages/agent-hooks/package.json", "historySource": "legacy-npm-tags", "authoritativeRoot": "packages/agent-hooks", "relationship": "independent", "legacyTagPrefix": "agent-hooks-v" }
+      },
       "skillsSrc": "skills-src/agent-hooks",
       "claudePluginRoot": "plugins/agent-hooks",
       "codexPluginRoot": "plugins-codex/agent-hooks",
@@ -276,6 +304,10 @@
     },
     {
       "name": "agent-skills",
+      "releaseIdentity": {
+        "plugin": { "identity": "agent-skills", "label": "agent-skills plugin", "versionSource": "plugins/agent-skills/.claude-plugin/plugin.json", "historySource": "manifest-git-history", "authoritativeRoot": "plugins/agent-skills" },
+        "npm": { "identity": "@goodfoot/agent-skills", "label": "@goodfoot/agent-skills npm package", "packageJson": "packages/agent-skills/package.json", "historySource": "legacy-npm-tags", "authoritativeRoot": "packages/agent-skills", "relationship": "lockstep", "legacyTagPrefix": "agent-skills-v" }
+      },
       "skillsSrc": "skills-src/agent-skills",
       "claudePluginRoot": "plugins/agent-skills",
       "codexPluginRoot": "plugins-codex/agent-skills",

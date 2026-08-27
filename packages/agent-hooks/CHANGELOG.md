@@ -1,4 +1,4 @@
-# Changelog
+# @goodfoot/agent-hooks npm package changelog
 
 ## 1.0.5
 - Fixed Codex hook scaffold's PreToolUse/PostToolUse examples to avoid accessing unknown tool_input fields

@@ -1,4 +1,4 @@
-# Changelog
+# jsdoczoom npm package changelog
 
 ## 1.2.6
 - Fixed a bug where the CLI could hang indefinitely when run with piped/idle stdin

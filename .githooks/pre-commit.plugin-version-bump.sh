@@ -65,7 +65,7 @@ changelog_surfaces_failed() {
     echo "A failed lookup and an empty list are not the same answer. Reading this through a process" >&2
     echo "substitution made them identical — set -e cannot see a failure inside one — so a failing" >&2
     echo "script or a redirected registry produced no changelogs to check, and the gate below passed" >&2
-    echo "an undocumented release with exit 0. Run \`node scripts/changelog-surfaces.mjs ${1:-}\` to see why." >&2
+    echo "an undocumented release with exit 0. Run \`node scripts/changelog-surfaces.mjs plugin-release ${1:-}\` to see why." >&2
     exit 1
 }
 
@@ -156,15 +156,29 @@ while IFS=$'\t' read -r NAME SOURCE; do
     done <<< "$STAGED_FILES"
     [ "$MAYBE_TOUCHED" -eq 0 ] && continue
 
+    if ! command -v node &> /dev/null; then
+        changelog_surfaces_failed "$NAME"
+    fi
+    IDENTITY=$(node scripts/release-identity.mjs "$NAME" plugin) || {
+        echo "pre-commit: could not resolve the $NAME plugin release identity; refusing the commit." >&2
+        exit 1
+    }
+    IDENTITY_SOURCE=$(jq -r '.versionSource' <<< "$IDENTITY")
+    RELEASE_LABEL=$(jq -r '.label' <<< "$IDENTITY")
+    if [ "$SOURCE" != "$IDENTITY_SOURCE" ]; then
+        echo "pre-commit: $NAME plugin release identity uses $IDENTITY_SOURCE, but versionSurfaces.source declares $SOURCE; refusing the commit." >&2
+        exit 1
+    fi
+
     # Version surfaces are what this hook writes. Counting them as changes
     # would make every commit it touches justify the next one — and for the
     # changelogs, which the hook only reads, a commit that adds the notes
     # for a release would demand notes for the release after it.
-    CHANGELOGS=$(node scripts/changelog-surfaces.mjs "$NAME") || changelog_surfaces_failed "$NAME"
+    CHANGELOGS=$(node scripts/changelog-surfaces.mjs plugin-release "$NAME") || changelog_surfaces_failed "$NAME"
     SURFACES=("${REGISTRY_SURFACES[@]}")
-    while IFS= read -r changelog; do
-        [ -z "$changelog" ] && continue
-        SURFACES+=("$changelog")
+    while IFS= read -r changelog_surface; do
+        [ -z "$changelog_surface" ] && continue
+        SURFACES+=("$(jq -r '.path' <<< "$changelog_surface")")
     done <<< "$CHANGELOGS"
 
     TOUCHED=0
@@ -185,7 +199,7 @@ while IFS=$'\t' read -r NAME SOURCE; do
         echo "Warning: Could not parse version from $SOURCE, skipping"
         continue
     }
-    PENDING_BUMPS+=("${NAME}"$'\t'"${SOURCE}"$'\t'"${NEXT}")
+    PENDING_BUMPS+=("${NAME}"$'\t'"${IDENTITY_SOURCE}"$'\t'"${RELEASE_LABEL}"$'\t'"${NEXT}")
 done < <(jq -r '.plugins[] | [.name, .versionSurfaces.source] | @tsv' "$REGISTRY")
 
 # Gate every pending bump before performing any of them. A release whose
@@ -199,11 +213,14 @@ done < <(jq -r '.plugins[] | [.name, .versionSurfaces.source] | @tsv' "$REGISTRY
 # everyone else, agent-hooks included, which is how it reached 1.0.3 against a
 # changelog ending at 1.0.0.
 for pending in "${PENDING_BUMPS[@]}"; do
-    IFS=$'\t' read -r NAME SOURCE NEXT <<< "$pending"
-    CHANGELOGS=$(node scripts/changelog-surfaces.mjs "$NAME") || changelog_surfaces_failed "$NAME"
-    while IFS= read -r CHANGELOG_PATH; do
-        [ -z "$CHANGELOG_PATH" ] && continue
-        node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$NEXT" "$SOURCE" || {
+    IFS=$'\t' read -r NAME SOURCE RELEASE_LABEL NEXT <<< "$pending"
+    CHANGELOGS=$(node scripts/changelog-surfaces.mjs plugin-release "$NAME") || changelog_surfaces_failed "$NAME"
+    while IFS= read -r CHANGELOG_SURFACE; do
+        [ -z "$CHANGELOG_SURFACE" ] && continue
+        CHANGELOG_PATH=$(jq -r '.path' <<< "$CHANGELOG_SURFACE")
+        CHANGELOG_LABEL=$(jq -r '.label' <<< "$CHANGELOG_SURFACE")
+        CHANGELOG_SOURCE=$(jq -r '.versionSource' <<< "$CHANGELOG_SURFACE")
+        node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$NEXT" "$CHANGELOG_LABEL" "$CHANGELOG_SOURCE" || {
             # Exit 3 is "could not check", exit 1 is "nothing to find". Told
             # apart here for the same reason sync-plugin-versions.sh tells them
             # apart: on a shallow checkout the line above says the history
@@ -222,7 +239,7 @@ for pending in "${PENDING_BUMPS[@]}"; do
 done
 
 for pending in "${PENDING_BUMPS[@]}"; do
-    IFS=$'\t' read -r NAME SOURCE NEXT <<< "$pending"
+    IFS=$'\t' read -r NAME SOURCE RELEASE_LABEL NEXT <<< "$pending"
     NEW_VERSION=$(bump_patch "$SOURCE")
     echo "Bumped ${NAME} version: -> ${NEW_VERSION}"
     PROCESSED_PLUGINS["claude:${NAME}"]=1
@@ -313,14 +330,14 @@ if [ "$REGISTRY_PLUGIN_BUMPED" -eq 1 ]; then
     # Changelogs are staged too, though the hook never writes them: the entry
     # the gate above read from the working tree has to reach the commit, or the
     # bump ships without the notes that authorised it.
-    ALL_CHANGELOGS=$(node scripts/changelog-surfaces.mjs) || changelog_surfaces_failed
+    ALL_CHANGELOGS=$(node scripts/changelog-surfaces.mjs plugin-release) || changelog_surfaces_failed
     mapfile -t ALL_SURFACES < <(jq -r '
         .plugins[].versionSurfaces |
         [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
          (.literals // [] | .[].path)] | .[]' "$REGISTRY"
         # Guarded: printf on an empty capture emits one blank line, and a blank
         # element in ALL_SURFACES reaches `git add ""`.
-        [ -n "$ALL_CHANGELOGS" ] && printf '%s\n' "$ALL_CHANGELOGS")
+        [ -n "$ALL_CHANGELOGS" ] && printf '%s\n' "$ALL_CHANGELOGS" | jq -r '.path')
     git add "${ALL_SURFACES[@]}" .claude-plugin/marketplace.json
 fi
 

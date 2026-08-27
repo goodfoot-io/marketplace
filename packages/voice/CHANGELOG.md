@@ -1,4 +1,4 @@
-# Changelog
+# @goodfoot/voice npm package changelog
 
 ## 0.1.3
 - Fixed duplicate user transcripts so each spoken turn is delivered once with its final text

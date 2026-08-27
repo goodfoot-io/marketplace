@@ -33,8 +33,44 @@ export interface VersionLiteral {
   note: string;
 }
 
+export type ReleaseRelationship = "independent" | "lockstep";
+
+export interface PluginReleaseIdentity {
+  /** Stable artifact identity; distinct from any same-name npm package identity. */
+  identity: string;
+  /** Human-facing release-line name used in diagnostics and remediation. */
+  label: string;
+  /** Manifest whose current version and committed history define plugin releases. */
+  versionSource: string;
+  historySource: "manifest-git-history";
+  /** Root beneath which plugin release notes are discovered from the filesystem. */
+  authoritativeRoot: string;
+}
+
+export interface NpmReleaseIdentity {
+  /** Published package name from the declared package manifest. */
+  identity: string;
+  /** Human-facing release-line name used in diagnostics and remediation. */
+  label: string;
+  packageJson: string;
+  historySource: "legacy-npm-tags";
+  /** Root beneath which npm release notes are discovered from the filesystem. */
+  authoritativeRoot: string;
+  relationship: ReleaseRelationship;
+  /** Existing bare `<plugin-name>-v<semver>` tags are npm-owned. */
+  legacyTagPrefix: string;
+}
+
+export interface ReleaseIdentityDeclaration {
+  plugin: PluginReleaseIdentity;
+  /** Explicit null means no same-name npm release line exists. */
+  npm: NpmReleaseIdentity | null;
+}
+
 export interface RegistryPlugin {
   name: string;
+  /** Exhaustive identities for the plugin and its optional same-name npm sibling. */
+  releaseIdentity: ReleaseIdentityDeclaration;
   /** Authored Eta templates for this plugin. */
   skillsSrc: string;
   /** Claude Code plugin home: holds the manifest and any hand-maintained siblings. */
@@ -125,6 +161,143 @@ export interface Registry {
   unmanaged: UnmanagedPlugin[];
 }
 
+/** Validate release identities against declarations and the repository filesystem. */
+export function validateReleaseIdentities(registry: Pick<Registry, "plugins">, repoRoot: string): void {
+  const prefixes = new Map<string, string>();
+  for (const plugin of registry.plugins) {
+    const declaration = plugin.releaseIdentity;
+    if (!declaration?.plugin) {
+      throw new Error(`registry: ${plugin.name} is missing releaseIdentity.plugin`);
+    }
+    const pluginIdentity = declaration.plugin;
+    if (pluginIdentity.identity !== plugin.name) {
+      throw new Error(
+        `registry: ${plugin.name} releaseIdentity.plugin.identity declares ${pluginIdentity.identity}; observed plugin name ${plugin.name}`,
+      );
+    }
+    if (pluginIdentity.versionSource !== plugin.versionSurfaces.source) {
+      throw new Error(
+        `registry: ${plugin.name} releaseIdentity.plugin.versionSource declares ${pluginIdentity.versionSource}; ` +
+          `versionSurfaces.source declares ${plugin.versionSurfaces.source}`,
+      );
+    }
+    validateReleasePath(plugin.name, "plugin.versionSource", pluginIdentity.versionSource, repoRoot, "file");
+    validateReleasePath(
+      plugin.name,
+      "plugin.authoritativeRoot",
+      pluginIdentity.authoritativeRoot,
+      repoRoot,
+      "directory",
+    );
+    const pluginManifest = readVersionManifest(plugin.name, pluginIdentity.versionSource, repoRoot);
+    if (pluginManifest.name !== pluginIdentity.identity) {
+      throw new Error(
+        `registry: ${plugin.name} plugin identity declares ${pluginIdentity.identity} at ${pluginIdentity.versionSource}; ` +
+          `observed manifest name ${String(pluginManifest.name)}`,
+      );
+    }
+
+    const collision = `packages/${plugin.name}/package.json`;
+    const collisionExists = fs.existsSync(path.join(repoRoot, collision));
+    const npm = declaration.npm;
+    if (npm === null) {
+      if (collisionExists) {
+        throw new Error(
+          `registry: ${plugin.name} has same-name npm package ${collision}, but releaseIdentity.npm is undeclared`,
+        );
+      }
+      if (plugin.versionSurfaces.packageJson) {
+        throw new Error(
+          `registry: ${plugin.name} versionSurfaces.packageJson declares ${plugin.versionSurfaces.packageJson} without an npm identity`,
+        );
+      }
+      continue;
+    }
+    if (!npm) throw new Error(`registry: ${plugin.name} is missing explicit releaseIdentity.npm (object or null)`);
+    if (!collisionExists) {
+      throw new Error(
+        `registry: ${plugin.name} declares npm package ${npm.packageJson}; observed no same-name package at ${collision}`,
+      );
+    }
+    if (npm.packageJson !== collision) {
+      throw new Error(
+        `registry: ${plugin.name} npm packageJson declares ${npm.packageJson}; observed same-name package ${collision}`,
+      );
+    }
+    validateReleasePath(plugin.name, "npm.packageJson", npm.packageJson, repoRoot, "file");
+    validateReleasePath(plugin.name, "npm.authoritativeRoot", npm.authoritativeRoot, repoRoot, "directory");
+    const npmManifest = readVersionManifest(plugin.name, npm.packageJson, repoRoot);
+    if (npmManifest.name !== npm.identity) {
+      throw new Error(
+        `registry: ${plugin.name} npm identity declares ${npm.identity} at ${npm.packageJson}; ` +
+          `observed manifest name ${String(npmManifest.name)}`,
+      );
+    }
+    const expectedPrefix = `${plugin.name}-v`;
+    if (npm.legacyTagPrefix !== expectedPrefix) {
+      throw new Error(
+        `registry: ${plugin.name} npm legacyTagPrefix declares ${npm.legacyTagPrefix}; observed convention ${expectedPrefix}`,
+      );
+    }
+    const prefixOwner = prefixes.get(npm.legacyTagPrefix);
+    if (prefixOwner) {
+      throw new Error(
+        `registry: ${plugin.name} npm legacyTagPrefix ${npm.legacyTagPrefix} conflicts with ${prefixOwner}`,
+      );
+    }
+    prefixes.set(npm.legacyTagPrefix, plugin.name);
+    if (npm.relationship === "lockstep") {
+      if (plugin.versionSurfaces.packageJson !== npm.packageJson) {
+        throw new Error(
+          `registry: ${plugin.name} lockstep npm package ${npm.packageJson} must equal versionSurfaces.packageJson; ` +
+            `observed ${String(plugin.versionSurfaces.packageJson)}`,
+        );
+      }
+    } else if (plugin.versionSurfaces.packageJson) {
+      throw new Error(
+        `registry: ${plugin.name} versionSurfaces.packageJson declares ${plugin.versionSurfaces.packageJson} for an independent npm release`,
+      );
+    }
+  }
+}
+
+function validateReleasePath(
+  pluginName: string,
+  field: string,
+  declared: string,
+  repoRoot: string,
+  kind: "file" | "directory",
+): void {
+  if (typeof declared !== "string" || declared.length === 0) {
+    throw new Error(`registry: ${pluginName} releaseIdentity.${field} is missing`);
+  }
+  const absolute = path.join(repoRoot, declared);
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(absolute);
+  } catch {
+    throw new Error(`registry: ${pluginName} releaseIdentity.${field} declares ${declared}, which does not exist`);
+  }
+  if ((kind === "file" && !stat.isFile()) || (kind === "directory" && !stat.isDirectory())) {
+    throw new Error(`registry: ${pluginName} releaseIdentity.${field} declares ${declared}, which is not a ${kind}`);
+  }
+}
+
+function readVersionManifest(
+  pluginName: string,
+  declared: string,
+  repoRoot: string,
+): { name?: unknown; version?: unknown } {
+  const parsed = JSON.parse(fs.readFileSync(path.join(repoRoot, declared), "utf8")) as {
+    name?: unknown;
+    version?: unknown;
+  };
+  if (typeof parsed.version !== "string" || parsed.version.length === 0) {
+    throw new Error(`registry: ${pluginName} release manifest ${declared} has no string version`);
+  }
+  return parsed;
+}
+
 const REGISTRY_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "../registry/plugins.json");
 
 /** packages/plugin-layout-checks/registry -> the repository root. */
@@ -201,6 +374,7 @@ function load(): Registry {
       }
     }
   }
+  validateReleaseIdentities(parsed, REPO_ROOT);
   return parsed;
 }
 
@@ -366,6 +540,11 @@ export function versionDrift(plugin: RegistryPlugin, repoRoot: string): string[]
   }
 
   for (const changelog of changelogSurfaces(plugin, repoRoot)) {
+    const npmIdentity = plugin.releaseIdentity.npm;
+    const identity =
+      npmIdentity && changelog === `${npmIdentity.authoritativeRoot}/CHANGELOG.md`
+        ? { label: npmIdentity.label, versionSource: npmIdentity.packageJson }
+        : { label: plugin.releaseIdentity.plugin.label, versionSource: surfaces.source };
     const result = spawnSync(
       process.execPath,
       // surfaces.source relative, with repoRoot as cwd: the script reads that
@@ -374,7 +553,8 @@ export function versionDrift(plugin: RegistryPlugin, repoRoot: string): string[]
         path.join(repoRoot, "scripts/check-changelog-entry.mjs"),
         path.join(repoRoot, changelog),
         expected,
-        surfaces.source,
+        identity.label,
+        identity.versionSource,
       ],
       { cwd: repoRoot, encoding: "utf8" },
     );
@@ -395,14 +575,21 @@ export function versionDrift(plugin: RegistryPlugin, repoRoot: string): string[]
  * also means there is no declared-versus-existing pair left to keep in sync.
  */
 export function changelogSurfaces(plugin: RegistryPlugin, repoRoot: string): string[] {
-  const result = spawnSync(process.execPath, [path.join(repoRoot, "scripts/changelog-surfaces.mjs"), plugin.name], {
-    cwd: repoRoot,
-    encoding: "utf8",
-  });
+  const result = spawnSync(
+    process.execPath,
+    [path.join(repoRoot, "scripts/changelog-surfaces.mjs"), "plugin-release", plugin.name],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
   if (result.status !== 0) {
     throw new Error(`changelog-surfaces failed for ${plugin.name}: ${(result.stderr ?? "").trim()}`);
   }
-  return result.stdout.split("\n").filter((line) => line.length > 0);
+  return result.stdout
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => (JSON.parse(line) as { path: string }).path);
 }
 
 /** OpenCode roots that opencode.json's skills.paths must list, exactly. */

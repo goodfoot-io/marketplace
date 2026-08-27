@@ -32,6 +32,7 @@ const SYNC = repoPath("scripts/sync-plugin-versions.sh");
 const LITERAL = repoPath("scripts/rewrite-version-literal.mjs");
 const CHANGELOG_CHECK = repoPath("scripts/check-changelog-entry.mjs");
 const CHANGELOG_SURFACES = repoPath("scripts/changelog-surfaces.mjs");
+const RELEASE_IDENTITY = repoPath("scripts/release-identity.mjs");
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "version-bump-hook-"));
 
 afterAll(() => {
@@ -60,6 +61,7 @@ function makeFixture(): string {
     ["scripts/rewrite-version-literal.mjs", LITERAL],
     ["scripts/check-changelog-entry.mjs", CHANGELOG_CHECK],
     ["scripts/changelog-surfaces.mjs", CHANGELOG_SURFACES],
+    ["scripts/release-identity.mjs", RELEASE_IDENTITY],
   ] as const) {
     fs.mkdirSync(path.join(root, path.dirname(rel)), { recursive: true });
     fs.copyFileSync(source, path.join(root, rel));
@@ -89,10 +91,11 @@ function makeFixture(): string {
   // other surface these are written by the author ahead of the bump, because
   // nothing can generate the sentence for them.
   for (const rel of ["packages/demo/CHANGELOG.md", "plugins/demo/CHANGELOG.md"]) {
+    const title = rel.startsWith("packages/") ? "@fixture/demo npm package" : "demo plugin";
     write(
       root,
       rel,
-      "# Changelog\n\n## 1.0.1\n\nDescribes what this fixture release changed.\n\n## 1.0.0\n\nFirst release.\n",
+      `# ${title} changelog\n\n## 1.0.1\n\nDescribes what this fixture release changed.\n\n## 1.0.0\n\nFirst release.\n`,
     );
   }
   write(
@@ -109,6 +112,24 @@ function makeFixture(): string {
         plugins: [
           {
             name: "demo",
+            releaseIdentity: {
+              plugin: {
+                identity: "demo",
+                label: "demo plugin",
+                versionSource: "plugins/demo/.claude-plugin/plugin.json",
+                historySource: "manifest-git-history",
+                authoritativeRoot: "plugins/demo",
+              },
+              npm: {
+                identity: "@fixture/demo",
+                label: "@fixture/demo npm package",
+                packageJson: "packages/demo/package.json",
+                historySource: "legacy-npm-tags",
+                authoritativeRoot: "packages/demo",
+                relationship: "lockstep",
+                legacyTagPrefix: "demo-v",
+              },
+            },
             skillsSrc: "skills-src/demo",
             claudePluginRoot: "plugins/demo",
             codexPluginRoot: "plugins-codex/demo",
@@ -244,7 +265,7 @@ describe("pre-commit version bump", () => {
    */
   it("refuses the commit when the release it would cut has no notes", () => {
     const root = makeFixture();
-    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "packages/demo/CHANGELOG.md", "# @fixture/demo npm package changelog\n\n## 1.0.0\n\nFirst release.\n");
     write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
     run(root, "git", ["add", "-A"]);
 
@@ -262,7 +283,11 @@ describe("pre-commit version bump", () => {
   // to prevent.
   it("does not let the legacy path bump a registry plugin behind the gate", () => {
     const root = makeFixture();
-    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.1\n\nEdited notes.\n\n## 1.0.0\n\nFirst.\n");
+    write(
+      root,
+      "plugins/demo/CHANGELOG.md",
+      "# demo plugin changelog\n\n## 1.0.1\n\nEdited notes.\n\n## 1.0.0\n\nFirst.\n",
+    );
     run(root, "git", ["add", "plugins/demo/CHANGELOG.md"]);
     run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
 
@@ -275,7 +300,11 @@ describe("pre-commit version bump", () => {
 
   it("refuses a heading with no body, rather than accepting it as notes", () => {
     const root = makeFixture();
-    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.1\n\n## 1.0.0\n\nFirst release.\n");
+    write(
+      root,
+      "packages/demo/CHANGELOG.md",
+      "# @fixture/demo npm package changelog\n\n## 1.0.1\n\n## 1.0.0\n\nFirst release.\n",
+    );
     write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
     run(root, "git", ["add", "-A"]);
 
@@ -389,6 +418,72 @@ describe("registry unreadable", () => {
  * the gate; it was simply never told the file existed.
  */
 describe("changelog gate follows the files, not the declaration", () => {
+  it("includes lockstep npm notes but excludes independent npm notes", () => {
+    const root = makeFixture();
+    const surfaces = () =>
+      run(root, "node", ["scripts/changelog-surfaces.mjs", "plugin-release", "demo"])
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line) as { path: string; label: string; versionSource: string });
+
+    expect(surfaces()).toEqual([
+      {
+        path: "plugins/demo/CHANGELOG.md",
+        label: "demo plugin",
+        versionSource: "plugins/demo/.claude-plugin/plugin.json",
+      },
+      {
+        path: "packages/demo/CHANGELOG.md",
+        label: "@fixture/demo npm package",
+        versionSource: "packages/demo/package.json",
+      },
+    ]);
+
+    const registryPath = path.join(root, "packages/plugin-layout-checks/registry/plugins.json");
+    const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+    registry.plugins[0].releaseIdentity.npm.relationship = "independent";
+    delete registry.plugins[0].versionSurfaces.packageJson;
+    write(root, "packages/plugin-layout-checks/registry/plugins.json", `${JSON.stringify(registry, null, 2)}\n`);
+
+    expect(surfaces()).toEqual([
+      {
+        path: "plugins/demo/CHANGELOG.md",
+        label: "demo plugin",
+        versionSource: "plugins/demo/.claude-plugin/plugin.json",
+      },
+    ]);
+  });
+
+  it.each([
+    ["plugins/demo/CHANGELOG.md", "# Changelog", "# demo plugin changelog", "demo plugin"],
+    [
+      "packages/demo/CHANGELOG.md",
+      "# demo plugin changelog",
+      "# @fixture/demo npm package changelog",
+      "@fixture/demo npm package",
+    ],
+  ])("rejects the wrong release-line title for %s", (file, wrongTitle, expectedTitle, label) => {
+    const root = makeFixture();
+    const body = fs.readFileSync(path.join(root, file), "utf8");
+    write(root, file, body.replace(/^# .*$/m, wrongTitle));
+
+    const result = spawnSync(
+      "node",
+      [
+        "scripts/check-changelog-entry.mjs",
+        file,
+        "1.0.1",
+        label,
+        file.startsWith("packages/") ? "packages/demo/package.json" : "plugins/demo/.claude-plugin/plugin.json",
+      ],
+      { cwd: root, encoding: "utf8" },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(expectedTitle);
+    expect(result.stderr).toContain(label);
+  });
+
   it("refuses deletion of a tracked changelog instead of treating it as no release surface", () => {
     const root = makeFixture();
     fs.rmSync(path.join(root, "plugins/demo/CHANGELOG.md"));
@@ -415,7 +510,7 @@ describe("changelog gate follows the files, not the declaration", () => {
     const root = makeFixture();
     // The fixture registry declares no changelogs at all — the same position
     // agent-hooks was in. Staleness alone has to be enough to refuse.
-    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "plugins/demo/CHANGELOG.md", "# demo plugin changelog\n\n## 1.0.0\n\nFirst release.\n");
     write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
     run(root, "git", ["add", "-A"]);
 
@@ -440,7 +535,11 @@ describe("changelog gate follows the files, not the declaration", () => {
     // The moment someone adds one, the next release is gated by it, with
     // nothing added to the registry. Under the declared list this file would
     // have stayed invisible until a human remembered to enumerate it.
-    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.1\n\nNotes for the release just cut.\n");
+    write(
+      root,
+      "plugins/demo/CHANGELOG.md",
+      "# demo plugin changelog\n\n## 1.0.1\n\nNotes for the release just cut.\n",
+    );
     write(root, "skills-src/demo/thing/SKILL.md.eta", "second edit\n");
     run(root, "git", ["add", "-A"]);
 
@@ -463,7 +562,7 @@ describe("changelog gate follows the files, not the declaration", () => {
    */
   it("tells the author to write a plugin changelog by hand rather than naming a packages-only tool", () => {
     const root = makeFixture();
-    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "plugins/demo/CHANGELOG.md", "# demo plugin changelog\n\n## 1.0.0\n\nFirst release.\n");
     write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
     run(root, "git", ["add", "-A"]);
 
@@ -481,7 +580,7 @@ describe("changelog gate follows the files, not the declaration", () => {
 
   it("still names the writer for a packages-tree changelog, which does have one", () => {
     const root = makeFixture();
-    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "packages/demo/CHANGELOG.md", "# @fixture/demo npm package changelog\n\n## 1.0.0\n\nFirst release.\n");
     write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
     run(root, "git", ["add", "-A"]);
 
@@ -503,7 +602,7 @@ describe("changelog gate follows the files, not the declaration", () => {
 
     // A changelog nobody declared still has to hold the propagating script to
     // the same answer, or the hook and CI disagree about what shipped.
-    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nStale.\n");
+    write(root, "plugins/demo/CHANGELOG.md", "# demo plugin changelog\n\n## 1.0.0\n\nStale.\n");
     expect(() => run(root, "bash", ["scripts/sync-plugin-versions.sh", "--check"])).toThrow();
   });
 });
@@ -554,11 +653,16 @@ describe("declared surfaces move together or not at all", () => {
     ],
     [
       "the package changelog",
-      (root) => write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n"),
+      (root) =>
+        write(
+          root,
+          "packages/demo/CHANGELOG.md",
+          "# @fixture/demo npm package changelog\n\n## 1.0.0\n\nFirst release.\n",
+        ),
     ],
     [
       "the plugin changelog",
-      (root) => write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n"),
+      (root) => write(root, "plugins/demo/CHANGELOG.md", "# demo plugin changelog\n\n## 1.0.0\n\nFirst release.\n"),
     ],
   ];
 
@@ -598,8 +702,8 @@ describe("changelog worklist failures refuse rather than empty out", () => {
   function stageStaleChangelog(root: string): void {
     // The plugin is at 1.0.0 and about to be bumped to 1.0.1, with notes that
     // stop at 1.0.0. Every test here is the same commit, which must be refused.
-    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
-    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "plugins/demo/CHANGELOG.md", "# demo plugin changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "packages/demo/CHANGELOG.md", "# @fixture/demo npm package changelog\n\n## 1.0.0\n\nFirst release.\n");
     write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
     run(root, "git", ["add", "-A"]);
   }
@@ -681,7 +785,7 @@ describe("changelog worklist failures refuse rather than empty out", () => {
 
   it("keeps --check gating under the same redirected registry", () => {
     const root = makeFixture();
-    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 0.9.0\n\nOlder release.\n");
+    write(root, "plugins/demo/CHANGELOG.md", "# demo plugin changelog\n\n## 0.9.0\n\nOlder release.\n");
     write(root, "decoy-registry.json", `${JSON.stringify({ sharedOpencodeRoot: "skills", plugins: [] })}\n`);
 
     const result = spawnSync("bash", ["scripts/sync-plugin-versions.sh", "--check"], {
@@ -711,7 +815,7 @@ describe("interior versions are accounted for", () => {
       write(
         root,
         "plugins/demo/CHANGELOG.md",
-        existing.replace("# Changelog\n", `# Changelog\n\n## ${version}\n\n${notes}\n`),
+        existing.replace("# demo plugin changelog\n", `# demo plugin changelog\n\n## ${version}\n\n${notes}\n`),
       );
     }
     run(root, "git", ["add", "-A"]);
@@ -725,6 +829,7 @@ describe("interior versions are accounted for", () => {
         "scripts/check-changelog-entry.mjs",
         "plugins/demo/CHANGELOG.md",
         version,
+        "demo plugin",
         "plugins/demo/.claude-plugin/plugin.json",
       ],
       {
@@ -747,6 +852,7 @@ describe("interior versions are accounted for", () => {
     release(root, "1.0.1", "Described.");
     release(root, "1.0.2", null);
     release(root, "1.0.3", "Described.");
+    run(root, "git", ["tag", "demo-v9.9.9"]);
 
     const result = check(root, "1.0.3");
     expect(result.status).toBe(1);
@@ -755,7 +861,9 @@ describe("interior versions are accounted for", () => {
     // '<plugin>-v*'` names the npm package's tags, which for agent-hooks sit at
     // versions the plugin.json never held.
     expect(result.stderr).toContain("git log -- plugins/demo/.claude-plugin/plugin.json");
+    expect(result.stderr).toContain("demo plugin");
     expect(result.stderr).not.toContain("git tag");
+    expect(result.stderr).not.toContain("9.9.9");
   });
 
   it("does not demand notes for a version that was withdrawn", () => {
@@ -811,14 +919,14 @@ describe("truncated history is not a history with no gaps", () => {
    */
   function fixtureWithAGap(): string {
     const root = makeFixture();
-    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "plugins/demo/CHANGELOG.md", "# demo plugin changelog\n\n## 1.0.0\n\nFirst release.\n");
     for (const version of ["1.0.1", "1.0.2"]) {
       write(root, "plugins/demo/.claude-plugin/plugin.json", `${JSON.stringify({ name: "demo", version }, null, 2)}\n`);
       if (version === "1.0.2") {
         write(
           root,
           "plugins/demo/CHANGELOG.md",
-          `# Changelog\n\n## 1.0.2\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n`,
+          `# demo plugin changelog\n\n## 1.0.2\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n`,
         );
       }
       run(root, "git", ["add", "-A"]);
@@ -834,6 +942,7 @@ describe("truncated history is not a history with no gaps", () => {
         "scripts/check-changelog-entry.mjs",
         "plugins/demo/CHANGELOG.md",
         "1.0.2",
+        "demo plugin",
         "plugins/demo/.claude-plugin/plugin.json",
       ],
       { cwd, encoding: "utf8" },
@@ -881,7 +990,7 @@ describe("truncated history is not a history with no gaps", () => {
       // real missing-notes failure and would legitimately print the summary
       // under test. Bring it level so the shallow history is the only cause
       // left standing.
-      write(clone, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.2\n\nDescribed.\n");
+      write(clone, "packages/demo/CHANGELOG.md", "# @fixture/demo npm package changelog\n\n## 1.0.2\n\nDescribed.\n");
 
       const result = spawnSync("bash", ["scripts/sync-plugin-versions.sh", "--check"], {
         cwd: clone,
@@ -902,7 +1011,7 @@ describe("truncated history is not a history with no gaps", () => {
       write(
         clone,
         "plugins/demo/CHANGELOG.md",
-        "# Changelog\n\n## 1.0.3\n\nDescribed.\n\n## 1.0.2\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n",
+        "# demo plugin changelog\n\n## 1.0.3\n\nDescribed.\n\n## 1.0.2\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n",
       );
       write(clone, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
       run(clone, "git", ["add", "-A"]);
@@ -931,6 +1040,7 @@ describe("truncated history is not a history with no gaps", () => {
         "scripts/check-changelog-entry.mjs",
         "plugins/demo/CHANGELOG.md",
         "1.0.9",
+        "demo plugin",
         "plugins/demo/.claude-plugin/plugin.json",
       ],
       { cwd: clone, encoding: "utf8" },
@@ -971,7 +1081,11 @@ describe("truncated history is not a history with no gaps", () => {
 describe("the prefilter admits, it does not decide", () => {
   it("does not bump when only the plugin's changelog is staged", () => {
     const root = makeFixture();
-    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release, described at last.\n");
+    write(
+      root,
+      "plugins/demo/CHANGELOG.md",
+      "# demo plugin changelog\n\n## 1.0.0\n\nFirst release, described at last.\n",
+    );
     run(root, "git", ["add", "plugins/demo/CHANGELOG.md"]);
 
     const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
@@ -986,7 +1100,11 @@ describe("the prefilter admits, it does not decide", () => {
 
   it("does not bump when only the package changelog is staged", () => {
     const root = makeFixture();
-    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release, described at last.\n");
+    write(
+      root,
+      "packages/demo/CHANGELOG.md",
+      "# @fixture/demo npm package changelog\n\n## 1.0.0\n\nFirst release, described at last.\n",
+    );
     run(root, "git", ["add", "packages/demo/CHANGELOG.md"]);
 
     const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
@@ -1003,8 +1121,16 @@ describe("the prefilter admits, it does not decide", () => {
     const root = makeFixture();
     // Without this the two tests above would pass on a hook that had stopped
     // bumping altogether.
-    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.1\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n");
-    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.1\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n");
+    write(
+      root,
+      "plugins/demo/CHANGELOG.md",
+      "# demo plugin changelog\n\n## 1.0.1\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n",
+    );
+    write(
+      root,
+      "packages/demo/CHANGELOG.md",
+      "# @fixture/demo npm package changelog\n\n## 1.0.1\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n",
+    );
     write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
     run(root, "git", ["add", "-A"]);
 
