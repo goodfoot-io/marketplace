@@ -1,0 +1,5 @@
+packages/plugin-layout-checks/test/layout/helper-reference-live.test.ts#L17-L18 rk64:854bbecfe40d3b6b
+plugins/agent-skills/scripts/sync-helper-reference.mjs rk64:aa36ef45048e4644
+skills-src/agent-skills/reference/helper-reference.md.eta rk64:094a24ef72aed2ee
+
+sync-helper-reference.mjs's marker string constants (BEGIN/END GENERATED AGENT-SKILLS HELPER REFERENCE, and the body-relative BEGIN/END GENERATED AGENT-SKILLS SUPPRESSION RANGES it writes into the template's own front-config) must exactly match the markers actually present in skills-src/agent-skills/reference/helper-reference.md.eta, and the table markers must also match helper-reference-live.test.ts's separately-hardcoded BEGIN/END constants used to locate the generated region in each platform's shipped output. renderHelperReferenceMarkdown()'s output shape (packages/agent-skills/src/helper-reference.ts) is spliced in verbatim, so a marker rename or reshuffle on any one side is invisible until someone happens to run the sync script (no --check invocation is wired into any test or build step) or the live test trips on a differently-worded marker it can no longer find.

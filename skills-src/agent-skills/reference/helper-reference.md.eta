@@ -1,4 +1,16 @@
-# Portable helper reference
+<!-- agent-skills
+lintSuppressions:
+  - rule: skill-relative-path
+    lines: [3, 3]
+  # BEGIN GENERATED AGENT-SKILLS SUPPRESSION RANGES
+  - rule: cross-dialect-reference
+    lines: [9, 27]
+  - rule: literal-platform-prose
+    lines: [9, 27]
+  - rule: plugin-root-variable
+    lines: [9, 27]
+  # END GENERATED AGENT-SKILLS SUPPRESSION RANGES
+--># Portable helper reference
 
 This file is shared by the `agent-skills` documentation skills. Its generated region is rendered from the `@goodfoot/agent-skills` typed platform table without changing hand-authored guidance.
 

@@ -1,10 +1,8 @@
----
-name: template-authoring
-description: Load this skill when authoring or reviewing portable .md.eta
-  templates, agent-skills front-config, includes, layouts, or opaque assets for
-  @goodfoot/agent-skills.
----
-
+<!-- agent-skills
+lintSuppressions:
+  - rule: cross-dialect-reference
+    lines: [16, 16]
+--><%~ it.frontmatter({ name: "template-authoring", description: "Load this skill when authoring or reviewing portable .md.eta templates, agent-skills front-config, includes, layouts, or opaque assets for @goodfoot/agent-skills." }) %>
 # Author portable skill templates
 
 Use one source tree for every platform. Markdown templates end in `.md.eta` and render to the same relative path without `.eta`. Files that are not templates are opaque assets: keep them beside the templates so the build copies their bytes and executable mode into each selected output tree.

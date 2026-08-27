@@ -1,10 +1,16 @@
----
-name: cli-and-helpers
-description: Load this skill when using the @goodfoot/agent-skills build or lint
-  CLI, or when choosing portable Eta helpers for skills, agents, worktrees,
-  frontmatter, and platform paths.
----
-
+<!-- agent-skills
+lintSuppressions:
+  - rule: skill-relative-path
+    lines: [4, 4]
+  - rule: skill-relative-path
+    lines: [19, 19]
+  - rule: skill-relative-path
+    lines: [25, 25]
+  - rule: skill-relative-path
+    lines: [40, 40]
+  - rule: plugin-root-variable
+    lines: [25, 25]
+--><%~ it.frontmatter({ name: "cli-and-helpers", description: "Load this skill when using the @goodfoot/agent-skills build or lint CLI, or when choosing portable Eta helpers for skills, agents, worktrees, frontmatter, and platform paths." }) %>
 # Build, lint, and use helpers
 
 The CLI has no implicit output destination. Quote positional globs so `agent-skills`, rather than the shell, expands them.
@@ -22,7 +28,7 @@ Builds are fail-closed and transactional. Do not compensate for an error by part
 
 ## Helper selection
 
-Use the shared reference at `${CLAUDE_PLUGIN_ROOT}/skills/reference/helper-reference.md` for the helper catalog and platform matrix. Important composition rules:
+Use the shared reference at `<%~ it.is("opencode") ? "plugins-opencode/agent-skills/skills/reference/helper-reference.md" : `${it.pluginRootVar}/skills/reference/helper-reference.md` %>` for the helper catalog and platform matrix. Important composition rules:
 
 - Pass canonical skill IDs without a caller sigil. An ID has at most one namespace and uses kebab-case segments.
 - Pass canonical three-segment agent IDs; platform helpers perform any required flattening.

@@ -5,6 +5,14 @@ export interface HelperReferenceCell {
   readonly platform: Platform;
   readonly status: Verification;
   readonly example?: string;
+  /**
+   * The example is literal host syntax rather than a descriptive word, so it
+   * renders as a Markdown code span. That is the correct markup for a variable
+   * name regardless, and it is also what distinguishes this table's necessary
+   * mention of every platform's root variable from an actual wrong-platform
+   * token in a generated tree.
+   */
+  readonly code?: boolean;
 }
 
 export interface HelperReferenceEntry {
@@ -18,6 +26,9 @@ export interface HelperReferenceModel {
   readonly platforms: readonly Platform[];
   readonly helpers: readonly HelperReferenceEntry[];
 }
+
+/** Platform-definition keys whose values are host syntax, not descriptive words. */
+const CODE_VALUED_KEYS = new Set<string>(["pluginRootVar"]);
 
 export function getHelperReferenceModel(): HelperReferenceModel {
   const rows: readonly [string, string, string, keyof (typeof PLATFORM_DEFINITIONS)[Platform] | "universal"][] = [
@@ -56,7 +67,12 @@ export function getHelperReferenceModel(): HelperReferenceModel {
             status: fact.status,
             example: fact.status === "unavailable" ? undefined : "configured path",
           };
-        return { platform, status: fact.status, example: fact.value === undefined ? undefined : String(fact.value) };
+        return {
+          platform,
+          status: fact.status,
+          example: fact.value === undefined ? undefined : String(fact.value),
+          code: CODE_VALUED_KEYS.has(key),
+        };
       }),
     })),
   };
@@ -70,7 +86,13 @@ export function renderHelperReferenceMarkdown(_model: HelperReferenceModel = get
   ];
   for (const helper of model.helpers)
     lines.push(
-      `| ${helper.name} | ${helper.inputs} | ${helper.description} | ${helper.cells.map((cell) => (cell.example === undefined ? `unavailable (${cell.status})` : `${cell.example} (${cell.status})`)).join(" | ")} |`,
+      `| ${helper.name} | ${helper.inputs} | ${helper.description} | ${helper.cells
+        .map((cell) => {
+          if (cell.example === undefined) return `unavailable (${cell.status})`;
+          const example = cell.code && cell.example !== "" ? `\`${cell.example}\`` : cell.example;
+          return `${example} (${cell.status})`;
+        })
+        .join(" | ")} |`,
     );
   return `${lines.join("\n")}\n`;
 }

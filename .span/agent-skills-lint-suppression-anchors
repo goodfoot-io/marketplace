@@ -1,0 +1,7 @@
+packages/plugin-layout-checks/registry/plugins.json#L244-L260 rk64:c52fba96acaad05b
+skills-src/agent-skills/cli-and-helpers/SKILL.md.eta#L1-L13 rk64:6697ab374c328f01
+skills-src/agent-skills/platform-behavior/SKILL.md.eta#L1-L13 rk64:741f2f0080868265
+skills-src/agent-skills/reference/helper-reference.md.eta#L1-L13 rk64:e381e9cd328680ff
+skills-src/agent-skills/template-authoring/SKILL.md.eta#L1-L5 rk64:f71950f85b07fd79
+
+The registry's agent-skills lintSuppressions array is a line-numbered mirror of these four .eta templates' front-config lintSuppressions blocks, which the compiler actually reads to suppress lint at build time; registry-reconciliation.test.ts checks only the aggregate count against lintSuppressionBudget, so a rule-name or line-range edit in one place that isn't mirrored in the other passes every test while becoming false documentation. Same pattern as voice-lint-suppression-anchors, applied to the agent-skills plugin's own suppressions (including the reference/helper-reference.md.eta ranges that plugins/agent-skills/scripts/sync-helper-reference.mjs regenerates).

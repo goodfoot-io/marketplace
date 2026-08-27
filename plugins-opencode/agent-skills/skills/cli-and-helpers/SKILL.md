@@ -22,7 +22,7 @@ Builds are fail-closed and transactional. Do not compensate for an error by part
 
 ## Helper selection
 
-Use the shared reference at `${CLAUDE_PLUGIN_ROOT}/skills/reference/helper-reference.md` for the helper catalog and platform matrix. Important composition rules:
+Use the shared reference at `plugins-opencode/agent-skills/skills/reference/helper-reference.md` for the helper catalog and platform matrix. Important composition rules:
 
 - Pass canonical skill IDs without a caller sigil. An ID has at most one namespace and uses kebab-case segments.
 - Pass canonical three-segment agent IDs; platform helpers perform any required flattening.

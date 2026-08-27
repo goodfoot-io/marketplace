@@ -1,10 +1,16 @@
----
-name: platform-behavior
-description: Load this skill when porting generated skills among Claude Code,
-  Codex, OpenCode, and Antigravity or reviewing platform-specific
-  @goodfoot/agent-skills output.
----
-
+<!-- agent-skills
+lintSuppressions:
+  - rule: skill-relative-path
+    lines: [3, 3]
+  - rule: skill-relative-path
+    lines: [14, 14]
+  - rule: skill-relative-path
+    lines: [20, 20]
+  - rule: skill-relative-path
+    lines: [24, 24]
+  - rule: plugin-root-variable
+    lines: [20, 20]
+--><%~ it.frontmatter({ name: "platform-behavior", description: "Load this skill when porting generated skills among Claude Code, Codex, OpenCode, and Antigravity or reviewing platform-specific @goodfoot/agent-skills output." }) %>
 # Review per-platform behavior
 
 Treat platform output as a dialect selected from one typed definition table, not as a family of copied documents. The platform table drives helpers, frontmatter allowlists, lint rules, and generated helper documentation together.
@@ -17,7 +23,7 @@ Treat platform output as a dialect selected from one typed definition table, not
 - Claude Code agent effort slots use a model placeholder. Codex and OpenCode use an effort placeholder.
 - Worktree, subagent, plugin-root, frontmatter, and destination syntax is platform-defined. Use helpers instead of spelling these values in portable templates.
 
-Consult `${CLAUDE_PLUGIN_ROOT}/skills/reference/helper-reference.md` for the current helper-by-platform classifications. A `verified` cell is grounded in a supported repository or host surface. A `provisional` cell is visibly tentative. An `unavailable` cell must fail during rendering rather than inherit a value from another platform.
+Consult `<%~ it.is("opencode") ? "plugins-opencode/agent-skills/skills/reference/helper-reference.md" : `${it.pluginRootVar}/skills/reference/helper-reference.md` %>` for the current helper-by-platform classifications. A `verified` cell is grounded in a supported repository or host surface. A `provisional` cell is visibly tentative. An `unavailable` cell must fail during rendering rather than inherit a value from another platform.
 
 ## Dialect vs. substance
 

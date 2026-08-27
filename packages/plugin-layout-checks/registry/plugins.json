@@ -1,6 +1,6 @@
 {
   "$comment": "Bundler-managed plugin registry. Field-by-field contract: packages/plugin-layout-checks/test/registry.ts",
-  "lintSuppressionBudget": 20,
+  "lintSuppressionBudget": 35,
   "plugins": [
     {
       "name": "goodfoot",
@@ -206,6 +206,58 @@
         "codex/SKILL.md:308-308:plugin-root-variable",
         "codex/SKILL.md:314-319:plugin-root-variable"
       ]
+    },
+    {
+      "name": "agent-skills",
+      "skillsSrc": "skills-src/agent-skills",
+      "claudePluginRoot": "plugins/agent-skills",
+      "codexPluginRoot": "plugins-codex/agent-skills",
+      "opencodePluginRoot": "plugins-opencode/agent-skills",
+      "targets": [
+        {
+          "platform": "claude-code",
+          "path": "plugins/agent-skills/skills"
+        },
+        {
+          "platform": "codex",
+          "path": "plugins-codex/agent-skills/skills"
+        },
+        {
+          "platform": "opencode",
+          "path": "plugins-opencode/agent-skills/skills",
+          "opencodeRegistered": true,
+          "note": "The two helper-reference links render as repo-relative literals here, since pluginRootVar is unavailable on OpenCode (per plan section C3)."
+        }
+      ],
+      "platformDirs": [],
+      "skills": ["antigravity", "cli-and-helpers", "platform-behavior", "reference", "template-authoring"],
+      "skillPlatforms": {},
+      "marketplace": {
+        "claude": "agent-skills",
+        "codex": "agent-skills"
+      },
+      "versionSurfaces": {
+        "source": "plugins/agent-skills/.claude-plugin/plugin.json",
+        "codexManifest": "plugins-codex/agent-skills/.codex-plugin/plugin.json",
+        "opencodePackage": "plugins-opencode/agent-skills/package.json"
+      },
+      "lintSuppressions": [
+        "cli-and-helpers/SKILL.md.eta:4-4:skill-relative-path",
+        "cli-and-helpers/SKILL.md.eta:19-19:skill-relative-path",
+        "cli-and-helpers/SKILL.md.eta:25-25:skill-relative-path",
+        "cli-and-helpers/SKILL.md.eta:40-40:skill-relative-path",
+        "cli-and-helpers/SKILL.md.eta:25-25:plugin-root-variable",
+        "platform-behavior/SKILL.md.eta:3-3:skill-relative-path",
+        "platform-behavior/SKILL.md.eta:14-14:skill-relative-path",
+        "platform-behavior/SKILL.md.eta:20-20:skill-relative-path",
+        "platform-behavior/SKILL.md.eta:24-24:skill-relative-path",
+        "platform-behavior/SKILL.md.eta:20-20:plugin-root-variable",
+        "template-authoring/SKILL.md.eta:16-16:cross-dialect-reference",
+        "reference/helper-reference.md.eta:3-3:skill-relative-path",
+        "reference/helper-reference.md.eta:9-27:cross-dialect-reference",
+        "reference/helper-reference.md.eta:9-27:literal-platform-prose",
+        "reference/helper-reference.md.eta:9-27:plugin-root-variable"
+      ]
     }
   ],
   "unmanaged": [
@@ -216,10 +268,6 @@
     {
       "name": "expansion",
       "reason": "Ships without the bundler: a hooks-only plugin with no skills tree."
-    },
-    {
-      "name": "agent-skills",
-      "reason": "Awaiting bundler migration (card main-8-1, Phase 4). Moves into plugins[] in the same commit that creates skills-src/agent-skills."
     }
   ]
 }

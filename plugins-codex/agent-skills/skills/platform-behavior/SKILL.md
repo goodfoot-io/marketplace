@@ -17,7 +17,7 @@ Treat platform output as a dialect selected from one typed definition table, not
 - Claude Code agent effort slots use a model placeholder. Codex and OpenCode use an effort placeholder.
 - Worktree, subagent, plugin-root, frontmatter, and destination syntax is platform-defined. Use helpers instead of spelling these values in portable templates.
 
-Consult `${CLAUDE_PLUGIN_ROOT}/skills/reference/helper-reference.md` for the current helper-by-platform classifications. A `verified` cell is grounded in a supported repository or host surface. A `provisional` cell is visibly tentative. An `unavailable` cell must fail during rendering rather than inherit a value from another platform.
+Consult `${PLUGIN_ROOT}/skills/reference/helper-reference.md` for the current helper-by-platform classifications. A `verified` cell is grounded in a supported repository or host surface. A `provisional` cell is visibly tentative. An `unavailable` cell must fail during rendering rather than inherit a value from another platform.
 
 ## Dialect vs. substance
 

@@ -1,10 +1,4 @@
----
-name: antigravity
-description: Load this skill whenever Antigravity is mentioned with
-  @goodfoot/agent-skills, especially before authoring templates, helpers, or
-  generated output for that platform.
----
-
+<%~ it.frontmatter({ name: "antigravity", description: "Load this skill whenever Antigravity is mentioned with @goodfoot/agent-skills, especially before authoring templates, helpers, or generated output for that platform." }) %>
 # Antigravity boundary
 
 Antigravity support is intentionally fail-closed. This repository does not yet have a shipped Antigravity skill tree or a complete authoritative set of host conventions. Do not infer missing behavior from Claude Code, Codex, or OpenCode.

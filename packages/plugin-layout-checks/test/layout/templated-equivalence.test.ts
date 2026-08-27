@@ -64,6 +64,35 @@ const agentHooksReference = (body: string, platform: string) => {
 };
 
 /**
+ * agent-skills' two prose skills each point once at their sibling
+ * `reference/helper-reference.md`, which resolves per-platform the same way
+ * agent-hooks' codex references do.
+ */
+const agentSkillsReference = (body: string, platform: string) => {
+  if (platform === "claude-code") return body;
+  const root = platform === "opencode" ? "plugins-opencode/agent-skills/skills" : `${CODEX_ROOT_TOKEN}/skills`;
+  return body.replaceAll(
+    `${CLAUDE_ROOT_TOKEN}/skills/reference/helper-reference.md`,
+    `${root}/reference/helper-reference.md`,
+  );
+};
+
+/**
+ * The `it.pluginRootVar` row of the generated helper table now renders its
+ * per-platform values as code spans (see renderHelperReferenceMarkdown's
+ * CODE_VALUED_KEYS). That is correct markup for a variable name, and it is
+ * what keeps this table's necessary mention of every platform's root variable
+ * from reading as a wrong-platform token to Gate B. Reconstructed here from
+ * the pinned original at the one substitution site, identically on every
+ * platform, so any other drift in the table still fails.
+ */
+const helperReferenceTable = (body: string) =>
+  body.replace(
+    `| ${CLAUDE_ROOT_TOKEN} (verified) | ${CODEX_ROOT_TOKEN} (verified) |`,
+    `| \`${CLAUDE_ROOT_TOKEN}\` (verified) | \`${CODEX_ROOT_TOKEN}\` (verified) |`,
+  );
+
+/**
  * gmail's SKILL.md is the one genuinely non-byte-faithful body in this card
  * (plan sections C3/D3): its ```! credential-check fence only auto-executes
  * on Claude Code, and its 4 `${CLAUDE_PLUGIN_ROOT}/skills/gmail/advanced/
@@ -94,6 +123,11 @@ const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: st
   },
   "agent-hooks": {
     "codex/SKILL.md": agentHooksReference,
+  },
+  "agent-skills": {
+    "cli-and-helpers/SKILL.md": agentSkillsReference,
+    "platform-behavior/SKILL.md": agentSkillsReference,
+    "reference/helper-reference.md": helperReferenceTable,
   },
 };
 
@@ -162,11 +196,16 @@ describe("templated-plugin equivalence (pre-migration blob vs generated output)"
 
             const original = splitFrontmatter(originalText);
             const output = splitFrontmatter(outputText);
+            const bodyTransform = BODY_TRANSFORMS[plugin.name]?.[entry.path];
 
             if (original.header === "" && output.header === "") {
-              // No frontmatter on either side (a reference/*.md asset): body
-              // bytes must be untouched, since no helper ever runs on these.
-              expect(fs.readFileSync(outputPath), entry.path).toEqual(originalBytes);
+              // No frontmatter on either side (a reference/*.md asset). These
+              // carry no helper calls, so the body is byte-faithful unless a
+              // transform names an approved substitution site.
+              const expectedText = bodyTransform
+                ? bodyTransform(originalText, target.platform)
+                : originalBytes.toString("utf8");
+              expect(outputText, entry.path).toBe(expectedText);
               continue;
             }
 
@@ -181,7 +220,6 @@ describe("templated-plugin equivalence (pre-migration blob vs generated output)"
 
             expect(outputFm.name, `${target.path}/${entry.path} name`).toBe(expectedName);
             expect(outputFm.description, `${target.path}/${entry.path} description`).toBe(originalFm.description);
-            const bodyTransform = BODY_TRANSFORMS[plugin.name]?.[entry.path];
             const expectedBody = bodyTransform ? bodyTransform(original.body, target.platform) : original.body;
             expect(output.body, `${target.path}/${entry.path} body`).toBe(expectedBody);
           }

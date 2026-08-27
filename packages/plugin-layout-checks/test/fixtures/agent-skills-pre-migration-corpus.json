@@ -1,0 +1,43 @@
+{
+  "sourceRevision": "11c0e7a3f26fa151cb8ca466b5568a075aec9736",
+  "authoredRoot": "plugins/agent-skills/skills",
+  "skills": [
+    "antigravity",
+    "cli-and-helpers",
+    "platform-behavior",
+    "reference",
+    "template-authoring"
+  ],
+  "files": [
+    {
+      "path": "antigravity/SKILL.md",
+      "mode": 420,
+      "gitObject": "a8b4841c1c2c93490bdc3767f97eee71b65e28d0",
+      "sha256": "7c5efe8e72e6936b7ed91b4d901327ef437e958a6d2ace15c3d69c1a56e9c2c9"
+    },
+    {
+      "path": "cli-and-helpers/SKILL.md",
+      "mode": 420,
+      "gitObject": "bf1cd9741b1ded9cb321fbce22e43cbc9ab35d66",
+      "sha256": "e88acfa2a97ebb56ad4219d64d2a3701c453092adcf87f374c70de9e02535871"
+    },
+    {
+      "path": "platform-behavior/SKILL.md",
+      "mode": 420,
+      "gitObject": "3bb3c00d0d5a96034127578fd61182152315d8f7",
+      "sha256": "e0d4726e870d40f063cfcb083a2f8e43b01fa39223184e9e24013265f47b5323"
+    },
+    {
+      "path": "reference/helper-reference.md",
+      "mode": 420,
+      "gitObject": "c186063089fd266898bb2121abe866417cfa35c2",
+      "sha256": "e538fe91961d3507c9ef5aa29b33ec033ed6aa8dd4fc0b2f43a579b6f621b545"
+    },
+    {
+      "path": "template-authoring/SKILL.md",
+      "mode": 420,
+      "gitObject": "1bdcbef295365e95c772320aec89d5ad27ea7c20",
+      "sha256": "a9f20f69060f8d22e5b7858292c3d82278855887d1487e0dfedbb6f4238f47de"
+    }
+  ]
+}

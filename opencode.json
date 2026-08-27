@@ -16,7 +16,8 @@
       "./plugins-opencode/claude-code-skill-reader/skills",
       "./plugins-opencode/linear/skills",
       "./plugins-opencode/gmail/skills",
-      "./plugins-opencode/agent-hooks/skills"
+      "./plugins-opencode/agent-hooks/skills",
+      "./plugins-opencode/agent-skills/skills"
     ]
   }
 }
