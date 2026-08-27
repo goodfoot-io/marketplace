@@ -15,6 +15,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          # The changelog gate reads each plugin's version history from git log
+          # on its versionSurfaces.source. At this action's default depth of 1
+          # that history is one commit, and check-changelog-entry.mjs now
+          # refuses rather than pass a tree it cannot verify — so this job needs
+          # the full history to do its work at all.
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

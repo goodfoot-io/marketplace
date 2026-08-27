@@ -594,9 +594,33 @@ describe("changelog worklist failures refuse rather than empty out", () => {
     });
 
     expect(result.status, result.stderr).not.toBe(0);
-    expect(result.stderr).toContain("changelog-surfaces.mjs failed");
+    // Named, with a way forward, the way the jq guard names jq. The first
+    // version of this refusal described a process-substitution bug to someone
+    // whose actual problem was a PATH.
+    expect(result.stderr).toContain("node is required");
+    expect(result.stderr).toContain("commit again");
     // The bump is what mattered: without node the gate saw no changelogs to
     // check and advanced all six surfaces past release notes that stop at 1.0.0.
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
+  it("lets a commit that touches no plugin through without node", () => {
+    const root = makeFixture();
+    write(root, "README.md", "A change that belongs to no plugin.\n");
+    run(root, "git", ["add", "README.md"]);
+    const farm = pathWithout("node");
+
+    const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { PATH: farm, OSTYPE: "linux-gnu" },
+    });
+
+    // Failing closed is right when the thing that cannot be checked is in
+    // scope. Asking for the worklist before asking whether the plugin has
+    // anything staged put every commit in scope, so a contributor with no node
+    // on their PATH could not fix a typo in this file.
+    expect(result.status, result.stderr).toBe(0);
     expect(versions(root).source).toBe("1.0.0");
   });
 
@@ -736,5 +760,173 @@ describe("interior versions are accounted for", () => {
 
     const result = check(root, "1.0.1");
     expect(result.status, result.stderr).toBe(0);
+  });
+});
+
+/**
+ * The interior check needs the whole history, and says so when it cannot have it.
+ *
+ * `git log` on a shallow clone succeeds and returns what it has. The check read
+ * that truncated list as the plugin's entire release sequence and found no gaps
+ * in it, so the same tree was refused at full depth and accepted at `--depth 1`
+ * — with CI, which checks out at depth 1 by default, on the accepting side.
+ */
+describe("truncated history is not a history with no gaps", () => {
+  /** A `--depth 1` clone of `root`, carrying this repo's current scripts. */
+  function shallowCloneOf(root: string): string {
+    const clone = fs.mkdtempSync(path.join(scratch, "shallow-"));
+    fs.rmSync(clone, { recursive: true, force: true });
+    execFileSync("git", ["clone", "-q", "--depth", "1", `file://${root}/.git`, clone], { encoding: "utf8" });
+    return clone;
+  }
+
+  /**
+   * A fixture that occupied 1.0.0, 1.0.1 and 1.0.2 but documents only the ends.
+   *
+   * The gap has to be interior: the check does not reach below the oldest
+   * heading, so a missing version older than everything written down is a
+   * changelog that starts late, not one with a hole in it.
+   */
+  function fixtureWithAGap(): string {
+    const root = makeFixture();
+    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    for (const version of ["1.0.1", "1.0.2"]) {
+      write(root, "plugins/demo/.claude-plugin/plugin.json", `${JSON.stringify({ name: "demo", version }, null, 2)}\n`);
+      if (version === "1.0.2") {
+        write(
+          root,
+          "plugins/demo/CHANGELOG.md",
+          `# Changelog\n\n## 1.0.2\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n`,
+        );
+      }
+      run(root, "git", ["add", "-A"]);
+      run(root, "git", ["commit", "-qm", `release ${version}`, "--no-verify"]);
+    }
+    return root;
+  }
+
+  const check = (cwd: string) =>
+    spawnSync(
+      "node",
+      [
+        "scripts/check-changelog-entry.mjs",
+        "plugins/demo/CHANGELOG.md",
+        "1.0.2",
+        "plugins/demo/.claude-plugin/plugin.json",
+      ],
+      { cwd, encoding: "utf8" },
+    );
+
+  it("finds the gap at full depth", () => {
+    const result = check(fixtureWithAGap());
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("released 1.0.1");
+  });
+
+  it("refuses instead of passing the identical tree at depth 1", () => {
+    const clone = shallowCloneOf(fixtureWithAGap());
+    expect(execFileSync("git", ["rev-parse", "--is-shallow-repository"], { cwd: clone, encoding: "utf8" }).trim()).toBe(
+      "true",
+    );
+
+    const result = check(clone);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("shallow");
+    expect(result.stderr).toContain("git fetch --unshallow");
+  });
+
+  it("withholds the git log bound from a shallow author rather than caveating it", () => {
+    const clone = shallowCloneOf(fixtureWithAGap());
+    // A different failure — the newest heading is stale — which prints the
+    // remediation and is reached before the shallow refusal. Handing an author
+    // a bound computed from two commits, presented as the whole release, is
+    // worse than the empty tag listing that advice replaced.
+    const result = spawnSync(
+      "node",
+      [
+        "scripts/check-changelog-entry.mjs",
+        "plugins/demo/CHANGELOG.md",
+        "1.0.9",
+        "plugins/demo/.claude-plugin/plugin.json",
+      ],
+      { cwd: clone, encoding: "utf8" },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).not.toContain("git log --");
+    expect(result.stderr).toContain("git fetch --unshallow");
+  });
+
+  it("refuses to run at all without a version source to check against", () => {
+    const root = fixtureWithAGap();
+    const result = spawnSync("node", ["scripts/check-changelog-entry.mjs", "plugins/demo/CHANGELOG.md", "1.0.2"], {
+      cwd: root,
+      encoding: "utf8",
+    });
+
+    // The argument was optional for one round, and omitting it skipped the
+    // whole interior check in silence — the third time on this card that an
+    // absence read as a pass.
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("versionSource");
+  });
+});
+
+/**
+ * Asking whether a plugin is in scope must not itself become the answer.
+ *
+ * The worklist lookup costs node, so it now runs behind a prefilter — but the
+ * changelogs it returns are the *exclusion* list, and all of them live inside
+ * the directories their plugin owns. A prefilter that decided the whole
+ * question would therefore count a staged CHANGELOG as bump-triggering content
+ * and cut the release after the one the author had just documented, rebuilding
+ * the ratchet the exclusion exists to prevent one step earlier. The prefilter
+ * excludes only the registry surfaces, which makes it a strict superset of the
+ * full test: it can skip work that would have found nothing, and nothing else.
+ */
+describe("the prefilter admits, it does not decide", () => {
+  it("does not bump when only the plugin's changelog is staged", () => {
+    const root = makeFixture();
+    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release, described at last.\n");
+    run(root, "git", ["add", "plugins/demo/CHANGELOG.md"]);
+
+    const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OSTYPE: "linux-gnu" },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
+  it("does not bump when only the package changelog is staged", () => {
+    const root = makeFixture();
+    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release, described at last.\n");
+    run(root, "git", ["add", "packages/demo/CHANGELOG.md"]);
+
+    const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OSTYPE: "linux-gnu" },
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
+  it("still bumps when a changelog is staged alongside real content", () => {
+    const root = makeFixture();
+    // Without this the two tests above would pass on a hook that had stopped
+    // bumping altogether.
+    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.1\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.1\n\nDescribed.\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "-A"]);
+
+    run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
+
+    expect(versions(root).source).toBe("1.0.1");
   });
 });

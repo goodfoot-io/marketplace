@@ -50,11 +50,18 @@ changelog_surfaces_failed() {
     # it with `|| changelog_surfaces_failed`, never inside `< <(...)` or `$(...)`
     # — those run in a subshell where `exit` would end the subshell and let the
     # hook carry on with the empty list it just failed to fill.
+    if ! command -v node &> /dev/null; then
+        echo "pre-commit: node is required to run scripts/changelog-surfaces.mjs, and is not installed." >&2
+        echo "This commit changes ${1:-a plugin}, so its release notes have to be checked before its" >&2
+        echo "version moves. Put node on this shell's PATH and commit again — under nvm, a GUI git" >&2
+        echo "client often starts without it." >&2
+        exit 1
+    fi
     echo "pre-commit: scripts/changelog-surfaces.mjs failed for ${1:-all plugins}; refusing the commit." >&2
     echo "A failed lookup and an empty list are not the same answer. Reading this through a process" >&2
-    echo "substitution made them identical — set -e cannot see a failure inside one — so a missing" >&2
-    echo "node or a redirected registry produced no changelogs to check, and the gate below passed" >&2
-    echo "an undocumented release with exit 0." >&2
+    echo "substitution made them identical — set -e cannot see a failure inside one — so a failing" >&2
+    echo "script or a redirected registry produced no changelogs to check, and the gate below passed" >&2
+    echo "an undocumented release with exit 0. Run \`node scripts/changelog-surfaces.mjs ${1:-}\` to see why." >&2
     exit 1
 }
 
@@ -93,16 +100,50 @@ while IFS=$'\t' read -r NAME SOURCE; do
         [.skillsSrc, .claudePluginRoot, .codexPluginRoot, .opencodePluginRoot,
          (.versionSurfaces.packageJson // empty | sub("/[^/]+$"; ""))] | .[]' "$REGISTRY")
 
+    # The surfaces the registry names outright. Readable with jq alone, which
+    # matters below: the changelogs need a second derivation, and that one costs
+    # node.
+    mapfile -t REGISTRY_SURFACES < <(jq -r --arg name "$NAME" '
+        .plugins[] | select(.name == $name) | .versionSurfaces |
+        [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
+         (.literals // [] | .[].path)] | .[]' "$REGISTRY")
+
+    # Could this plugin possibly be in scope? Asked before anything costs node,
+    # so a commit with nothing to do with any plugin does not need node to be
+    # installed. The lookup used to come first, which meant a contributor whose
+    # PATH had no node — a GUI git client under nvm, say — could not commit a
+    # README typo in this repository. Failing closed is right when the thing
+    # that cannot be checked is in scope; outside it, it is just an outage.
+    #
+    # Deliberately a prefilter and not the decision. It excludes only the
+    # registry surfaces, so it admits everything the full test below admits and
+    # more — a changelog edit among them. Answering the whole question here
+    # instead would count a staged CHANGELOG as bump-triggering content, and the
+    # author who had just written 1.0.7's notes would be told to write 1.0.8's:
+    # the ratchet the exclusion below exists to prevent, rebuilt one step
+    # earlier. A superset can only ever skip work that would have found nothing.
+    MAYBE_TOUCHED=0
+    while IFS= read -r file; do
+        [ -z "$file" ] && continue
+        for surface in "${REGISTRY_SURFACES[@]}"; do
+            [ "$file" = "$surface" ] && continue 2
+        done
+        for owned in "${OWNED[@]}"; do
+            case "$file" in "$owned"/*) MAYBE_TOUCHED=1; break 2;; esac
+        done
+    done <<< "$STAGED_FILES"
+    [ "$MAYBE_TOUCHED" -eq 0 ] && continue
+
     # Version surfaces are what this hook writes. Counting them as changes
     # would make every commit it touches justify the next one — and for the
     # changelogs, which the hook only reads, a commit that adds the notes
     # for a release would demand notes for the release after it.
     CHANGELOGS=$(node scripts/changelog-surfaces.mjs "$NAME") || changelog_surfaces_failed "$NAME"
-    mapfile -t SURFACES < <(jq -r --arg name "$NAME" '
-        .plugins[] | select(.name == $name) | .versionSurfaces |
-        [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
-         (.literals // [] | .[].path)] | .[]' "$REGISTRY"
-        [ -n "$CHANGELOGS" ] && printf '%s\n' "$CHANGELOGS")
+    SURFACES=("${REGISTRY_SURFACES[@]}")
+    while IFS= read -r changelog; do
+        [ -z "$changelog" ] && continue
+        SURFACES+=("$changelog")
+    done <<< "$CHANGELOGS"
 
     TOUCHED=0
     while IFS= read -r file; do

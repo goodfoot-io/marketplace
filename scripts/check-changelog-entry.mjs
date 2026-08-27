@@ -14,23 +14,59 @@ import { readFileSync } from "node:fs";
  * bare `## 1.0.12` would have closed the gate and left the user with a heading
  * that says nothing, so this refuses instead and names what is missing.
  *
- * Usage: check-changelog-entry.mjs <file> <version> [versionSource]
+ * Usage: check-changelog-entry.mjs <file> <version> <versionSource>
  *
- * With a versionSource — the plugin's registry `versionSurfaces.source`, the
- * file whose `.version` field every other surface follows — the whole set of
- * headings is checked against the whole set of versions that file has actually
- * held. Without it only the newest heading is checked, which is what let
- * agent-hooks release 1.0.5 and then document 1.0.6 directly above 1.0.4: the
- * newest heading matched the newest release at every commit, so nothing ever
- * looked below it and the hole was invisible to the gate and to 378 tests.
+ * versionSource is the plugin's registry `versionSurfaces.source`, the file
+ * whose `.version` field every other surface follows. Its history is the whole
+ * set of versions the plugin has released, and the whole set of headings is
+ * checked against it. Checking only the newest heading is what let agent-hooks
+ * release 1.0.5 and then document 1.0.6 directly above 1.0.4: the newest
+ * heading matched the newest release at every commit, so nothing ever looked
+ * below it and the hole was invisible to the gate and to 378 tests.
+ *
+ * It is required rather than optional. It was optional for one round, and an
+ * omitted argument skipped the entire interior check in silence — the third
+ * appearance on this card of an absence reading as a pass, after an undeclared
+ * changelog list and a failed subprocess. Every caller passes it; nothing is
+ * served by leaving a way not to.
  */
 
 const [file, version, versionSource] = process.argv.slice(2);
-if (!file || !version) {
+if (!file || !version || !versionSource) {
 	process.stderr.write(
-		"usage: check-changelog-entry.mjs <file> <version> [versionSource]\n",
+		"usage: check-changelog-entry.mjs <file> <version> <versionSource>\n",
 	);
 	process.exit(2);
+}
+
+/**
+ * Whether this checkout's history is truncated.
+ *
+ * `git log` on a shallow clone succeeds and returns what it has, so the
+ * interior check read one commit as the plugin's entire release history and
+ * passed everything below it. Both evaluators witnessed the same tree refused
+ * at full depth and accepted at `--depth 1`, with CI — checkout@v6, which
+ * defaults to depth 1 — on the accepting side. A truncated history is not a
+ * history with no gaps.
+ *
+ * Probed once. A probe that itself fails leaves the question open, which the
+ * interior check below resolves the same way it resolves any unreadable
+ * history: by refusing.
+ */
+let shallowProbe;
+function isShallow() {
+	if (shallowProbe === undefined) {
+		try {
+			shallowProbe =
+				execFileSync("git", ["rev-parse", "--is-shallow-repository"], {
+					encoding: "utf8",
+					stdio: ["ignore", "pipe", "pipe"],
+				}).trim() === "true";
+		} catch {
+			shallowProbe = null;
+		}
+	}
+	return shallowProbe;
 }
 
 /**
@@ -50,6 +86,13 @@ if (!file || !version) {
  * plugin — at agent-hooks-v1.0.5 the plugin.json is still pinned at 1.0.2 — so
  * it bounds the wrong version line, and for the four plugins with no tags at all
  * it returns nothing, which reads as "there is nothing to cover."
+ *
+ * On a shallow clone that `git log` is withheld rather than caveated. It would
+ * return a confidently wrong bound — a couple of commits presented as the whole
+ * release — and an author who trusts it writes an entry covering a fraction of
+ * what shipped. That is strictly worse than the tag namespace it replaced,
+ * which at least returned visibly nothing, and it is the same asymmetry that
+ * motivated dropping the tags in the first place.
  */
 function remediation(path) {
 	// Callers pass this path relative (the shell scripts) or absolute (the
@@ -60,10 +103,12 @@ function remediation(path) {
 			"No script writes this file: update-package-changelog.sh only handles the packages tree, " +
 			"and pointed here it would write the npm package's changelog instead. " +
 			"Write the entry by hand" +
-			(versionSource
+			(isShallow() === false
 				? ` — \`git log -- ${versionSource}\` is this plugin's own version sequence, ` +
 					"and bounds the commits the entry needs to cover.\n"
-				: " from the commits that changed the plugin since its last release.\n")
+				: " from the commits that changed the plugin since its last release. " +
+					"This checkout is shallow, so `git log` here would name a fraction of them as if it were all of them; " +
+					"run `git fetch --unshallow` first.\n")
 		);
 	}
 	return "scripts/update-package-changelog.sh writes one from the commits since the last tag.\n";
@@ -138,7 +183,17 @@ function compareVersions(a, b) {
 	return 0;
 }
 
-if (versionSource) {
+if (isShallow() !== false) {
+	process.stderr.write(
+		`${file}: this checkout's history is ${isShallow() === null ? "of unknown depth" : "shallow"}, so ` +
+			`${versionSource}'s release sequence cannot be read in full and the versions below the newest ` +
+			`cannot be verified.\nA truncated history is not a history with no gaps; refusing. ` +
+			`Run \`git fetch --unshallow\` (in CI, set the checkout's fetch-depth to 0) and try again.\n`,
+	);
+	process.exit(1);
+}
+
+{
 	let occupied;
 	try {
 		occupied = occupiedVersions(versionSource);

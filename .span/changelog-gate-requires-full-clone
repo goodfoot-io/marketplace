@@ -1,0 +1,5 @@
+.github/workflows/plugin-layout.yml#L16-L24 rk64:65541b5694f66f8c
+scripts/check-changelog-entry.mjs#L56-L69 rk64:e0b781c396181160
+scripts/check-changelog-entry.mjs#L186-L194 rk64:eac33a485b5ca10b
+
+The checkout step declares fetch-depth 0 because isShallow()'s refusal at L186-194 rejects any checkout it cannot confirm is unshallow, and the action's undeclared default depth of 1 would otherwise make CI refuse every commit; removing this depth setting or loosening the refusal reopens the shallow-clone hole this pairing exists to close.

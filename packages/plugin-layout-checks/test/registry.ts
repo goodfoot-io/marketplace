@@ -368,8 +368,15 @@ export function versionDrift(plugin: RegistryPlugin, repoRoot: string): string[]
   for (const changelog of changelogSurfaces(plugin, repoRoot)) {
     const result = spawnSync(
       process.execPath,
-      [path.join(repoRoot, "scripts/check-changelog-entry.mjs"), path.join(repoRoot, changelog), expected],
-      { encoding: "utf8" },
+      // surfaces.source relative, with repoRoot as cwd: the script reads that
+      // path's git history, so it has to be spelled the way git spells it.
+      [
+        path.join(repoRoot, "scripts/check-changelog-entry.mjs"),
+        path.join(repoRoot, changelog),
+        expected,
+        surfaces.source,
+      ],
+      { cwd: repoRoot, encoding: "utf8" },
     );
     if (result.status !== 0) drift.push(`${changelog}: ${(result.stderr ?? "").trim()}`);
   }
