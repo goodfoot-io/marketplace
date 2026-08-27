@@ -102,14 +102,14 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
   # but a CHANGELOG entry's body is a sentence only the author of the change can
   # write. Stamping a bare heading would close this gate while leaving the user
   # who opens the file knowing only which version they installed.
-  CHANGELOG_COUNT="$(jq -r --arg name "$NAME" '.plugins[] | select(.name == $name) | .versionSurfaces.changelogs // [] | length' "$REGISTRY")"
-  CHANGELOG_INDEX=0
-  while [ "$CHANGELOG_INDEX" -lt "$CHANGELOG_COUNT" ]; do
-    CHANGELOG_PATH="$(jq -r --arg name "$NAME" '.plugins[] | select(.name == $name) | .versionSurfaces.changelogs['"$CHANGELOG_INDEX"'].path' "$REGISTRY")"
-    [ -f "$CHANGELOG_PATH" ] || { echo "$NAME: declared changelog $CHANGELOG_PATH does not exist" >&2; exit 1; }
+  #
+  # Which files those are comes from scripts/changelog-surfaces.mjs, the same
+  # derivation the hook and the layout suite read, so none of the three can
+  # disagree about whether a plugin has release notes to check.
+  while IFS= read -r CHANGELOG_PATH; do
+    [ -z "$CHANGELOG_PATH" ] && continue
     node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$VERSION" || MISSING_NOTES=true
-    CHANGELOG_INDEX=$((CHANGELOG_INDEX + 1))
-  done
+  done < <(node scripts/changelog-surfaces.mjs "$NAME")
 
   MARKETPLACE_VERSION="$(jq -r --arg name "$MARKETPLACE_NAME" '.plugins[] | select(.name == $name) | .version' "$MARKETPLACE_JSON")"
   if [ -z "$MARKETPLACE_VERSION" ]; then
@@ -130,8 +130,11 @@ while IFS=$'\t' read -r NAME MARKETPLACE_NAME SOURCE CODEX_MANIFEST OPENCODE_PAC
 done < <(jq -r '.plugins[] | [.name, .marketplace.claude, .versionSurfaces.source, .versionSurfaces.codexManifest, .versionSurfaces.opencodePackage, (.versionSurfaces.packageJson // "null")] | @tsv' "$REGISTRY")
 
 if [ "$MISSING_NOTES" = true ]; then
+  # Each failure above already printed check-changelog-entry.mjs's own
+  # path-aware remediation; a second, path-blind instruction here would
+  # contradict it for a plugins/<name>/CHANGELOG.md path, the same wrong-tool
+  # misdirection check-changelog-entry.mjs's remediation() now avoids.
   echo "Release notes are missing for the version(s) above; no script can write them for you." >&2
-  echo "Run ./scripts/update-package-changelog.sh <package> to draft an entry, then edit it." >&2
   exit 1
 fi
 

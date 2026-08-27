@@ -33,11 +33,6 @@ export interface VersionLiteral {
   note: string;
 }
 
-export interface VersionChangelog {
-  path: string;
-  note: string;
-}
-
 export interface RegistryPlugin {
   name: string;
   /** Authored Eta templates for this plugin. */
@@ -95,12 +90,11 @@ export interface RegistryPlugin {
     packageJson?: string;
     /** Versions embedded in source rather than in a JSON field. */
     literals?: VersionLiteral[];
-    /**
-     * Release notes. Unlike every other surface these cannot be stamped: the
-     * entry's body is a sentence only the change's author can write, so the
-     * gate verifies and refuses rather than writing.
-     */
-    changelogs?: VersionChangelog[];
+    // Release notes are deliberately absent here. They were declared once, as
+    // `changelogs`, and only agent-skills was ever enumerated — so every gate
+    // that iterated the list ran for one plugin of eight and reported success
+    // by iterating nothing for the rest. They are derived from disk instead,
+    // by scripts/changelog-surfaces.mjs; see changelogSurfaces() below.
   };
   /** `<file>:<lineRange>:<rule>` sites, counted against the suppression budget. */
   lintSuppressions: string[];
@@ -162,7 +156,6 @@ function load(): Registry {
       surfaces.opencodePackage,
       ...(surfaces.packageJson ? [surfaces.packageJson] : []),
       ...(surfaces.literals ?? []).map((literal) => literal.path),
-      ...(surfaces.changelogs ?? []).map((changelog) => changelog.path),
     ];
     for (const declared of declaredPaths) {
       if (typeof declared !== "string" || !fs.existsSync(path.join(REPO_ROOT, declared))) {
@@ -372,16 +365,37 @@ export function versionDrift(plugin: RegistryPlugin, repoRoot: string): string[]
     else if (found !== expected) drift.push(`${literal.path}=${found} (expected ${expected})`);
   }
 
-  for (const changelog of surfaces.changelogs ?? []) {
+  for (const changelog of changelogSurfaces(plugin, repoRoot)) {
     const result = spawnSync(
       process.execPath,
-      [path.join(repoRoot, "scripts/check-changelog-entry.mjs"), path.join(repoRoot, changelog.path), expected],
+      [path.join(repoRoot, "scripts/check-changelog-entry.mjs"), path.join(repoRoot, changelog), expected],
       { encoding: "utf8" },
     );
-    if (result.status !== 0) drift.push(`${changelog.path}: ${(result.stderr ?? "").trim()}`);
+    if (result.status !== 0) drift.push(`${changelog}: ${(result.stderr ?? "").trim()}`);
   }
 
   return drift;
+}
+
+/**
+ * The plugin's release-note files, from scripts/changelog-surfaces.mjs — the
+ * one definition the hook and sync-plugin-versions.sh also read.
+ *
+ * Presence on disk, not a registry field. The field existed and was filled in
+ * for agent-skills alone, so every gate that iterated it reported success for
+ * the other seven plugins by iterating an empty array; agent-hooks shipped
+ * 1.0.3 against a changelog ending at 1.0.0 with nothing to say so. Deriving it
+ * also means there is no declared-versus-existing pair left to keep in sync.
+ */
+export function changelogSurfaces(plugin: RegistryPlugin, repoRoot: string): string[] {
+  const result = spawnSync(process.execPath, [path.join(repoRoot, "scripts/changelog-surfaces.mjs"), plugin.name], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  if (result.status !== 0) {
+    throw new Error(`changelog-surfaces failed for ${plugin.name}: ${(result.stderr ?? "").trim()}`);
+  }
+  return result.stdout.split("\n").filter((line) => line.length > 0);
 }
 
 /** OpenCode roots that opencode.json's skills.paths must list, exactly. */

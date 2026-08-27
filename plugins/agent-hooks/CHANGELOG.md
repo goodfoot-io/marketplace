@@ -1,8 +1,16 @@
 # Changelog
 
-## Unreleased
+## 1.0.3
+
+Migrated onto the `agent-skills` bundler. The per-agent skills are now rendered from Eta templates under `skills-src/agent-hooks/` into the Claude Code, Codex, and OpenCode trees, so the three platform copies are generated from one source instead of maintained separately.
+
+## 1.0.2
 
 Added `skills/antigravity` for repository development and review of the typed Antigravity surface. The skill records the current release boundary: the package subpath, CLI build target, scaffolding, and production use remain unavailable pending an authoritative host contract and runnable end-to-end validation.
+
+## 1.0.1
+
+Published the plugin-only layout: `plugins/agent-hooks` with its per-agent skills, deprecation notices on the superseded packages, and the CHANGELOG rollups.
 
 ## 1.0.0
 

@@ -1,0 +1,4 @@
+scripts/changelog-surfaces.mjs#L32-L40 rk64:2143f79897e2f814
+scripts/check-changelog-entry.mjs#L36-L48 rk64:83a62804f0288c5f
+
+changelogSurfaces() treats <claudePluginRoot>/CHANGELOG.md as the plugin-level release-notes path, and remediation() independently matches that same shape to decide update-package-changelog.sh cannot write it; if the plugin-root convention ever changes in one function the other silently gives wrong advice, since no test asserts the two path shapes agree.

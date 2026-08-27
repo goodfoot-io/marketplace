@@ -314,16 +314,6 @@
             "match": "dependencies\\.stdout\\(\"([0-9]+\\.[0-9]+\\.[0-9]+)\\\\n\"\\)",
             "note": "What `agent-skills --version` prints. Hand-maintained it reported a version the package had not shipped, which is the one number a user checks when a build behaves unexpectedly."
           }
-        ],
-        "changelogs": [
-          {
-            "path": "packages/agent-skills/CHANGELOG.md",
-            "note": "What an npm consumer reads to find out what a version changed."
-          },
-          {
-            "path": "plugins/agent-skills/CHANGELOG.md",
-            "note": "What a marketplace installer reads. Both were left out of the lockstep, so the six machine-writable surfaces reached 1.0.12 while the two files a user actually opens still ended at 1.0.11."
-          }
         ]
       },
       "lintBaseline": {

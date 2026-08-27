@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -31,6 +31,7 @@ const HOOK = repoPath(".githooks/pre-commit.plugin-version-bump.sh");
 const SYNC = repoPath("scripts/sync-plugin-versions.sh");
 const LITERAL = repoPath("scripts/rewrite-version-literal.mjs");
 const CHANGELOG_CHECK = repoPath("scripts/check-changelog-entry.mjs");
+const CHANGELOG_SURFACES = repoPath("scripts/changelog-surfaces.mjs");
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "version-bump-hook-"));
 
 afterAll(() => {
@@ -58,6 +59,7 @@ function makeFixture(): string {
     ["scripts/sync-plugin-versions.sh", SYNC],
     ["scripts/rewrite-version-literal.mjs", LITERAL],
     ["scripts/check-changelog-entry.mjs", CHANGELOG_CHECK],
+    ["scripts/changelog-surfaces.mjs", CHANGELOG_SURFACES],
   ] as const) {
     fs.mkdirSync(path.join(root, path.dirname(rel)), { recursive: true });
     fs.copyFileSync(source, path.join(root, rel));
@@ -123,7 +125,9 @@ function makeFixture(): string {
                   match: 'stdout\\("([0-9]+\\.[0-9]+\\.[0-9]+)\\\\n"\\)',
                 },
               ],
-              changelogs: [{ path: "packages/demo/CHANGELOG.md" }, { path: "plugins/demo/CHANGELOG.md" }],
+              // No `changelogs` list: the release notes above are found because
+              // they exist beside the plugin root and the package root, which
+              // is the only thing that decides now.
             },
           },
         ],
@@ -277,6 +281,205 @@ describe("pre-commit version bump", () => {
 
     expect(() => run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"])).toThrow(/no body/);
     expect(versions(root).source).toBe("1.0.0");
+  });
+});
+
+/**
+ * What the hook does when it cannot read the registry.
+ *
+ * The registry block used to be wrapped in `if jq is installed and the registry
+ * is a file`. Everything that makes a registry plugin safe lives inside it: the
+ * changelog gate, the propagation to all six surfaces, and the claim that stops
+ * the legacy single-surface loop below from touching a registry plugin. So the
+ * one condition under which the hook knew least was the condition under which
+ * it did the most — a bump through the legacy path, no gate, no propagation,
+ * exit 0, and a marketplace bump on top because that arm only needs `sed`.
+ *
+ * It cannot know which plugins are gated without the registry, so it refuses.
+ */
+describe("registry unreadable", () => {
+  /** A PATH with everything the hook needs except jq. */
+  function pathWithoutJq(): string {
+    const farm = fs.mkdtempSync(path.join(scratch, "nojq-bin-"));
+    for (const tool of ["sh", "bash", "git", "node", "sed", "grep", "mv", "rm", "cat", "mkdir", "dirname", "env"]) {
+      const resolved = execFileSync("sh", ["-c", `command -v ${tool} || true`], { encoding: "utf8" }).trim();
+      if (resolved.length > 0) fs.symlinkSync(resolved, path.join(farm, tool));
+    }
+    return farm;
+  }
+
+  function runHook(root: string, env: NodeJS.ProcessEnv): { status: number | null; stderr: string } {
+    const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
+      cwd: root,
+      encoding: "utf8",
+      env,
+    });
+    return { status: result.status, stderr: result.stderr ?? "" };
+  }
+
+  function stageAnEdit(root: string): void {
+    write(root, "plugins/demo/skills/thing/SKILL.md", "edited output\n");
+    run(root, "git", ["add", "plugins/demo/skills/thing/SKILL.md"]);
+  }
+
+  it("refuses the commit when jq is not installed", () => {
+    const root = makeFixture();
+    stageAnEdit(root);
+    const farm = pathWithoutJq();
+    expect(execFileSync("sh", ["-c", "command -v jq || true"], { env: { PATH: farm }, encoding: "utf8" }).trim()).toBe(
+      "",
+    );
+
+    const { status, stderr } = runHook(root, { PATH: farm, OSTYPE: "linux-gnu" });
+
+    expect(status, stderr).not.toBe(0);
+    expect(stderr).toContain("jq is required");
+    // The failure that mattered was not the refusal but the bump: silently
+    // taking the legacy path moved one surface and the marketplace, leaving
+    // three numbers where there should be one.
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
+  it("refuses the commit when the registry is not parseable", () => {
+    const root = makeFixture();
+    stageAnEdit(root);
+    write(root, "packages/plugin-layout-checks/registry/plugins.json", "{ this is not json\n");
+
+    const { status, stderr } = runHook(root, { ...process.env, OSTYPE: "linux-gnu" });
+
+    expect(status, stderr).not.toBe(0);
+    expect(stderr).toContain("not parseable JSON");
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
+  it("refuses the commit when the registry is missing", () => {
+    const root = makeFixture();
+    stageAnEdit(root);
+    fs.rmSync(path.join(root, "packages/plugin-layout-checks/registry/plugins.json"));
+
+    const { status, stderr } = runHook(root, { ...process.env, OSTYPE: "linux-gnu" });
+
+    expect(status, stderr).not.toBe(0);
+    expect(stderr).toContain("cannot tell which plugins it gates");
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
+  // Without this the guards could refuse every commit and all three refusals
+  // above would still pass.
+  it("still commits normally when the registry is readable", () => {
+    const root = makeFixture();
+    stageAnEdit(root);
+    const { status, stderr } = runHook(root, { ...process.env, OSTYPE: "linux-gnu" });
+    expect(status, stderr).toBe(0);
+    expect(versions(root).source).toBe("1.0.1");
+  });
+});
+
+/**
+ * The changelog gate applies to whichever plugins have release notes, not to
+ * whichever plugins had them written down.
+ *
+ * It used to iterate `versionSurfaces.changelogs`. Exactly one plugin of eight
+ * ever filled that in, so for the other seven the loop ran zero times and
+ * reported success — including agent-hooks, which has a real CHANGELOG and
+ * reached 1.0.3 while its newest entry still said 1.0.0. Nothing was wrong with
+ * the gate; it was simply never told the file existed.
+ */
+describe("changelog gate follows the files, not the declaration", () => {
+  it("gates a plugin whose changelog was never declared anywhere", () => {
+    const root = makeFixture();
+    // The fixture registry declares no changelogs at all — the same position
+    // agent-hooks was in. Staleness alone has to be enough to refuse.
+    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "-A"]);
+
+    expect(() => run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"])).toThrow(/1\.0\.1/);
+    expect(versions(root).source).toBe("1.0.0");
+  });
+
+  it("gates a changelog that appears after the plugin already shipped without one", () => {
+    const root = makeFixture();
+    fs.rmSync(path.join(root, "plugins/demo/CHANGELOG.md"));
+    fs.rmSync(path.join(root, "packages/demo/CHANGELOG.md"));
+    run(root, "git", ["add", "-A"]);
+    run(root, "git", ["commit", "-qm", "no changelogs"]);
+
+    // A plugin with no notes anywhere is not gated: there is no file to be
+    // stale. This is the state six of the eight plugins are in.
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "first edit\n");
+    run(root, "git", ["add", "-A"]);
+    run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
+    expect(versions(root).source).toBe("1.0.1");
+
+    // The moment someone adds one, the next release is gated by it, with
+    // nothing added to the registry. Under the declared list this file would
+    // have stayed invisible until a human remembered to enumerate it.
+    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.1\n\nNotes for the release just cut.\n");
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "second edit\n");
+    run(root, "git", ["add", "-A"]);
+
+    expect(() => run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"])).toThrow(/1\.0\.2/);
+    expect(versions(root).source).toBe("1.0.1");
+  });
+
+  /**
+   * The gate's advice has to match the file it is complaining about.
+   *
+   * update-package-changelog.sh derives its version from
+   * `packages/<name>/package.json` and writes beside it, so aimed at a
+   * plugin-level CHANGELOG it does not fail — it prepends an entry to the npm
+   * package's changelog, stamped with the npm version, and prints success. When
+   * that version already heads the file (agent-hooks: npm 1.0.5 against a
+   * `## 1.0.5` heading) the author gets a duplicate heading in a file that was
+   * correct, no progress on the file that was wrong, and the same refusal next
+   * commit. Nothing downstream catches a duplicate heading, so it survives
+   * review looking deliberate.
+   */
+  it("tells the author to write a plugin changelog by hand rather than naming a packages-only tool", () => {
+    const root = makeFixture();
+    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "-A"]);
+
+    const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OSTYPE: "linux-gnu" },
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("plugins/demo/CHANGELOG.md");
+    expect(result.stderr).toContain("No script writes this file");
+    expect(result.stderr).not.toContain("update-package-changelog.sh writes one");
+  });
+
+  it("still names the writer for a packages-tree changelog, which does have one", () => {
+    const root = makeFixture();
+    write(root, "packages/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nFirst release.\n");
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "-A"]);
+
+    const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OSTYPE: "linux-gnu" },
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("update-package-changelog.sh writes one");
+  });
+
+  it("agrees with sync --check about which plugins have notes to keep current", () => {
+    const root = makeFixture();
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "-A"]);
+    run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
+
+    // A changelog nobody declared still has to hold the propagating script to
+    // the same answer, or the hook and CI disagree about what shipped.
+    write(root, "plugins/demo/CHANGELOG.md", "# Changelog\n\n## 1.0.0\n\nStale.\n");
+    expect(() => run(root, "bash", ["scripts/sync-plugin-versions.sh", "--check"])).toThrow();
   });
 });
 

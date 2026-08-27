@@ -53,87 +53,124 @@ REGISTRY_PLUGIN_BUMPED=0
 # Registry plugins first. A staged change anywhere the plugin owns — authored
 # templates, any of its three platform trees, its npm package — is a change to
 # that plugin, so the bump follows ownership rather than one directory prefix.
-if [ "$HAVE_JQ" = true ] && [ -f "$REGISTRY" ]; then
-    while IFS=$'\t' read -r NAME SOURCE; do
-        mapfile -t OWNED < <(jq -r --arg name "$NAME" '
-            .plugins[] | select(.name == $name) |
-            [.skillsSrc, .claudePluginRoot, .codexPluginRoot, .opencodePluginRoot,
-             (.versionSurfaces.packageJson // empty | sub("/[^/]+$"; ""))] | .[]' "$REGISTRY")
-
-        # Version surfaces are what this hook writes. Counting them as changes
-        # would make every commit it touches justify the next one — and for the
-        # changelogs, which the hook only reads, a commit that adds the notes
-        # for a release would demand notes for the release after it.
-        mapfile -t SURFACES < <(jq -r --arg name "$NAME" '
-            .plugins[] | select(.name == $name) | .versionSurfaces |
-            [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
-             (.literals // [] | .[].path), (.changelogs // [] | .[].path)] | .[]' "$REGISTRY")
-
-        TOUCHED=0
-        while IFS= read -r file; do
-            [ -z "$file" ] && continue
-            for surface in "${SURFACES[@]}"; do
-                [ "$file" = "$surface" ] && continue 2
-            done
-            for owned in "${OWNED[@]}"; do
-                case "$file" in "$owned"/*) TOUCHED=1; break 2;; esac
-            done
-        done <<< "$STAGED_FILES"
-
-        [ "$TOUCHED" -eq 0 ] && continue
-        [ -f "$SOURCE" ] || { echo "Warning: $SOURCE not found, skipping version bump for $NAME"; continue; }
-
-        NEXT=$(next_version "$SOURCE") || {
-            echo "Warning: Could not parse version from $SOURCE, skipping"
-            continue
-        }
-        PENDING_BUMPS+=("${NAME}"$'\t'"${SOURCE}"$'\t'"${NEXT}")
-    done < <(jq -r '.plugins[] | [.name, .versionSurfaces.source] | @tsv' "$REGISTRY")
-
-    # Gate every pending bump before performing any of them. A release whose
-    # notes are missing is refused with nothing written, so the author fixes the
-    # CHANGELOG and re-commits rather than finding half the surfaces already
-    # advanced by the run that rejected them.
-    for pending in "${PENDING_BUMPS[@]}"; do
-        IFS=$'\t' read -r NAME SOURCE NEXT <<< "$pending"
-        CHANGELOG_COUNT=$(jq -r --arg name "$NAME" '.plugins[] | select(.name == $name) | .versionSurfaces.changelogs // [] | length' "$REGISTRY")
-        CHANGELOG_INDEX=0
-        while [ "$CHANGELOG_INDEX" -lt "$CHANGELOG_COUNT" ]; do
-            CHANGELOG_PATH=$(jq -r --arg name "$NAME" '.plugins[] | select(.name == $name) | .versionSurfaces.changelogs['"$CHANGELOG_INDEX"'].path' "$REGISTRY")
-            node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$NEXT" || {
-                echo "This commit bumps ${NAME} to ${NEXT}, and that release has no notes." >&2
-                echo "Nothing has been written; add the entry and commit again." >&2
-                exit 1
-            }
-            CHANGELOG_INDEX=$((CHANGELOG_INDEX + 1))
-        done
-    done
-
-    for pending in "${PENDING_BUMPS[@]}"; do
-        IFS=$'\t' read -r NAME SOURCE NEXT <<< "$pending"
-        NEW_VERSION=$(bump_patch "$SOURCE")
-        echo "Bumped ${NAME} version: -> ${NEW_VERSION}"
-        PROCESSED_PLUGINS["claude:${NAME}"]=1
-        CLAUDE_PLUGINS_BUMPED=1
-        REGISTRY_PLUGIN_BUMPED=1
-    done
-
-    # Every registry plugin is claimed here, bumped or not. The loop below
-    # bumps any `plugins/<name>/` with a staged non-manifest file, and it used
-    # to reach registry plugins that this block had deliberately declined to
-    # bump — so editing only a declared version surface, a CHANGELOG most of
-    # all, produced an ungated bump through the legacy path: a new version with
-    # no release notes, which is the exact failure the gate above exists to
-    # prevent. Registry plugins are bumped by the gated path or not at all.
-    while IFS= read -r name; do
-        [ -z "$name" ] && continue
-        PROCESSED_PLUGINS["claude:${name}"]=${PROCESSED_PLUGINS["claude:${name}"]:-1}
-    done < <(jq -r '.plugins[].name' "$REGISTRY")
+# The registry is the only thing that tells this hook which plugins are gated.
+# Without it the hook cannot know, and the legacy loop below would cut an
+# ungated release for a registry plugin: a bump with no changelog gate and no
+# propagation, exit 0. This block used to be conditional, which meant a missing
+# jq or an unparseable registry silently selected exactly that path. Refusing is
+# the only answer that cannot ship the wrong thing quietly.
+if [ "$HAVE_JQ" != true ]; then
+    echo "pre-commit: jq is required to read $REGISTRY, and is not installed." >&2
+    echo "Install jq and commit again." >&2
+    exit 1
 fi
+if [ ! -f "$REGISTRY" ]; then
+    echo "pre-commit: $REGISTRY is missing, so this hook cannot tell which plugins it gates." >&2
+    exit 1
+fi
+if ! jq -e . "$REGISTRY" > /dev/null 2>&1; then
+    echo "pre-commit: $REGISTRY is not parseable JSON, so this hook cannot tell which plugins it gates." >&2
+    echo "Restore it and commit again." >&2
+    exit 1
+fi
+
+while IFS=$'\t' read -r NAME SOURCE; do
+    mapfile -t OWNED < <(jq -r --arg name "$NAME" '
+        .plugins[] | select(.name == $name) |
+        [.skillsSrc, .claudePluginRoot, .codexPluginRoot, .opencodePluginRoot,
+         (.versionSurfaces.packageJson // empty | sub("/[^/]+$"; ""))] | .[]' "$REGISTRY")
+
+    # Version surfaces are what this hook writes. Counting them as changes
+    # would make every commit it touches justify the next one — and for the
+    # changelogs, which the hook only reads, a commit that adds the notes
+    # for a release would demand notes for the release after it.
+    mapfile -t SURFACES < <(jq -r --arg name "$NAME" '
+        .plugins[] | select(.name == $name) | .versionSurfaces |
+        [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
+         (.literals // [] | .[].path)] | .[]' "$REGISTRY"
+        node scripts/changelog-surfaces.mjs "$NAME")
+
+    TOUCHED=0
+    while IFS= read -r file; do
+        [ -z "$file" ] && continue
+        for surface in "${SURFACES[@]}"; do
+            [ "$file" = "$surface" ] && continue 2
+        done
+        for owned in "${OWNED[@]}"; do
+            case "$file" in "$owned"/*) TOUCHED=1; break 2;; esac
+        done
+    done <<< "$STAGED_FILES"
+
+    [ "$TOUCHED" -eq 0 ] && continue
+    [ -f "$SOURCE" ] || { echo "Warning: $SOURCE not found, skipping version bump for $NAME"; continue; }
+
+    NEXT=$(next_version "$SOURCE") || {
+        echo "Warning: Could not parse version from $SOURCE, skipping"
+        continue
+    }
+    PENDING_BUMPS+=("${NAME}"$'\t'"${SOURCE}"$'\t'"${NEXT}")
+done < <(jq -r '.plugins[] | [.name, .versionSurfaces.source] | @tsv' "$REGISTRY")
+
+# Gate every pending bump before performing any of them. A release whose
+# notes are missing is refused with nothing written, so the author fixes the
+# CHANGELOG and re-commits rather than finding half the surfaces already
+# advanced by the run that rejected them.
+#
+# Which files count as notes is derived from what exists on disk, not from a
+# registry list. The list was filled in for one plugin of eight, so this loop
+# ran for agent-skills and iterated an empty array — reporting success — for
+# everyone else, agent-hooks included, which is how it reached 1.0.3 against a
+# changelog ending at 1.0.0.
+for pending in "${PENDING_BUMPS[@]}"; do
+    IFS=$'\t' read -r NAME SOURCE NEXT <<< "$pending"
+    while IFS= read -r CHANGELOG_PATH; do
+        [ -z "$CHANGELOG_PATH" ] && continue
+        node scripts/check-changelog-entry.mjs "$CHANGELOG_PATH" "$NEXT" || {
+            echo "This commit bumps ${NAME} to ${NEXT}, and that release has no notes." >&2
+            echo "Nothing has been written; add the entry and commit again." >&2
+            exit 1
+        }
+    done < <(node scripts/changelog-surfaces.mjs "$NAME")
+done
+
+for pending in "${PENDING_BUMPS[@]}"; do
+    IFS=$'\t' read -r NAME SOURCE NEXT <<< "$pending"
+    NEW_VERSION=$(bump_patch "$SOURCE")
+    echo "Bumped ${NAME} version: -> ${NEW_VERSION}"
+    PROCESSED_PLUGINS["claude:${NAME}"]=1
+    CLAUDE_PLUGINS_BUMPED=1
+    REGISTRY_PLUGIN_BUMPED=1
+done
+
+# Every registry plugin is claimed here, bumped or not. The loop below
+# bumps any `plugins/<name>/` with a staged non-manifest file, and it used
+# to reach registry plugins that this block had deliberately declined to
+# bump — so editing only a declared version surface, a CHANGELOG most of
+# all, produced an ungated bump through the legacy path: a new version with
+# no release notes, which is the exact failure the gate above exists to
+# prevent. Registry plugins are bumped by the gated path or not at all.
+#
+# Both keys are claimed. The legacy loop keys on the directory it captures from
+# `plugins/<dir>/`, this block knows the registry `.name`, and the two are equal
+# for all eight plugins today with nothing requiring them to stay equal — so a
+# plugin whose directory diverged from its name would walk straight back through
+# the hole this closes.
+while IFS=$'\t' read -r name root; do
+    [ -z "$name" ] && continue
+    PROCESSED_PLUGINS["claude:${name}"]=${PROCESSED_PLUGINS["claude:${name}"]:-1}
+    case "$root" in
+        plugins/*)
+            dir="${root#plugins/}"
+            dir="${dir%%/*}"
+            PROCESSED_PLUGINS["claude:${dir}"]=${PROCESSED_PLUGINS["claude:${dir}"]:-1}
+            ;;
+    esac
+done < <(jq -r '.plugins[] | [.name, .claudePluginRoot] | @tsv' "$REGISTRY")
 
 # Marketplace plugins outside the registry keep the original single-surface
 # behaviour: they have no declared Codex or OpenCode surface to propagate to.
-for file in $STAGED_FILES; do
+while IFS= read -r file; do
+    [ -z "$file" ] && continue
     PLUGIN_NAME=""
     if [[ "$file" =~ ^plugins/([^/]+)/ ]]; then
         PLUGIN_NAME="${BASH_REMATCH[1]}"
@@ -167,18 +204,18 @@ for file in $STAGED_FILES; do
     echo "Bumped ${PLUGIN_NAME} version: -> ${NEW_VERSION}"
 
     MARKETPLACE_JSON=".claude-plugin/marketplace.json"
-    if [ -f "$MARKETPLACE_JSON" ] && [ "$HAVE_JQ" = true ]; then
+    if [ -f "$MARKETPLACE_JSON" ]; then
         jq --arg name "$PLUGIN_NAME" --arg version "$NEW_VERSION" \
             '(.plugins[] | select(.name == $name)).version = $version' \
             "$MARKETPLACE_JSON" > "${MARKETPLACE_JSON}.tmp" && mv "${MARKETPLACE_JSON}.tmp" "$MARKETPLACE_JSON"
         echo "Synced ${PLUGIN_NAME} version in marketplace.json: ${NEW_VERSION}"
-    elif [ -f "$MARKETPLACE_JSON" ]; then
-        echo "Warning: jq not found, marketplace.json plugin version not synced"
     fi
 
     CLAUDE_PLUGINS_BUMPED=1
     PROCESSED_PLUGINS["claude:${PLUGIN_NAME}"]=1
-done
+    # A herestring, not a pipe: the loop has to run in this shell or every
+    # PROCESSED_PLUGINS claim and the bumped flag are lost with the subshell.
+done <<< "$STAGED_FILES"
 
 # One propagation for all registry plugins bumped above, through the same
 # script CI checks with --check. A bump this hook makes and a surface CI
@@ -191,7 +228,8 @@ if [ "$REGISTRY_PLUGIN_BUMPED" -eq 1 ]; then
     mapfile -t ALL_SURFACES < <(jq -r '
         .plugins[].versionSurfaces |
         [.source, .codexManifest, .opencodePackage, (.packageJson // empty),
-         (.literals // [] | .[].path), (.changelogs // [] | .[].path)] | .[]' "$REGISTRY")
+         (.literals // [] | .[].path)] | .[]' "$REGISTRY"
+        node scripts/changelog-surfaces.mjs)
     git add "${ALL_SURFACES[@]}" .claude-plugin/marketplace.json
 fi
 
