@@ -52,6 +52,7 @@ describe("dead-path check", () => {
             .replaceAll(".yarn/plugins", "")
             .replaceAll("$CLAUDE_CONFIG_DIR/plugins/", "")
             .replaceAll("$CODEX_HOME/plugins/", "")
+            .replaceAll(".gemini/config/plugins/", "")
             // Official upstream docs URL, not a path in this repository.
             .replaceAll("docs.claude.com/en/docs/claude-code/plugins", "");
           if (
