@@ -45,6 +45,7 @@ jobs:
           curl --fail --silent --show-error --location "$AGY_URL" --output "$archive"
           printf '%s  %s\n' "$AGY_SHA512" "$archive" | sha512sum --check
           tar -xzf "$archive" -C "$extract_dir" antigravity
+          mkdir -p "$HOME/.local/bin"
           install -m 0755 "$extract_dir/antigravity" "$HOME/.local/bin/agy"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.local/bin:$PATH"
