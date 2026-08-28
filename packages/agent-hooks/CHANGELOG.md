@@ -1,5 +1,9 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.8
+
+Maintenance release accompanying a repository version-bump hook fix: a version surface is now exempt only for its version, not for its whole contents, so an edit to a manifest or a version-bearing source file can no longer ship unversioned. No changes to the hook API, the compiler, or the CLI.
+
 ## 1.0.7
 
 Corrects the README's OpenCode install rationale. The plugin packages now declare a `main` entrypoint, so `opencode plugin` no longer rejects them with `No plugin targets found`; the reason a checkout is still required is that `opencode plugin` never writes `skills.paths`, so installing the plugin does not deliver the skill. Also moves a sentence about compiling hooks for OpenCode out of the version-checking paragraph it had attached itself to. No changes to the hook API, the compiler, or the CLI.

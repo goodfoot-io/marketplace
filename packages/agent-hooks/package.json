@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/agent-hooks",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Unified agent hooks library: shared core runtime with per-agent entry points for Claude Code, Codex, and Antigravity",
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/agent-hooks",
   "repository": {

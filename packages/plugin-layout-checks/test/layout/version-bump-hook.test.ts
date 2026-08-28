@@ -262,6 +262,54 @@ describe("pre-commit version bump", () => {
     expect(versions(root).source).toBe("1.0.5");
   });
 
+  it("bumps when a version surface gains content that is not its version", () => {
+    const root = makeFixture();
+    // Exactly the change that shipped unversioned: `main` added to the
+    // OpenCode manifest so `opencode plugin` can detect an entrypoint. The
+    // file is a version surface, so the whole file was exempt and eight
+    // plugins took the edit with no bump and no release notes.
+    write(
+      root,
+      "plugins-opencode/demo/package.json",
+      `${JSON.stringify({ name: "demo", version: "1.0.0", main: "./index.js" }, null, 2)}\n`,
+    );
+    run(root, "git", ["add", "plugins-opencode/demo/package.json"]);
+    run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
+
+    expect(versions(root).source).toBe("1.0.1");
+  });
+
+  it("bumps when a literal surface's code changes and its version does not", () => {
+    const root = makeFixture();
+    // The same hole in the more dangerous place: cli.ts is a version surface
+    // because it prints the version, which exempted every other line of it.
+    write(
+      root,
+      "packages/demo/src/cli.ts",
+      'export const banner = () => stdout("1.0.0\\n");\nexport const added = true;\n',
+    );
+    run(root, "git", ["add", "packages/demo/src/cli.ts"]);
+    run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
+
+    expect(versions(root).source).toBe("1.0.1");
+  });
+
+  it("does not bump when a literal surface carries only a moved version", () => {
+    const root = makeFixture();
+    // The residue case the exemption exists for: an earlier aborted run left
+    // the propagated version applied. Re-staging it must not ratchet.
+    write(
+      root,
+      "plugins/demo/.claude-plugin/plugin.json",
+      `${JSON.stringify({ name: "demo", version: "1.0.5" }, null, 2)}\n`,
+    );
+    write(root, "packages/demo/src/cli.ts", 'export const banner = () => stdout("1.0.5\\n");\n');
+    run(root, "git", ["add", "plugins/demo/.claude-plugin/plugin.json", "packages/demo/src/cli.ts"]);
+    run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
+
+    expect(versions(root).source).toBe("1.0.5");
+  });
+
   it("bumps a plugin edited only through its Codex tree", () => {
     const root = makeFixture();
     write(root, "plugins-codex/demo/skills/thing/SKILL.md", "edited codex output\n");

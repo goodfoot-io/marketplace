@@ -108,6 +108,47 @@ bump_marketplace_catalog_version() {
     echo "$next"
 }
 
+# Is this staged change to a version surface only the version moving?
+#
+# A version surface is also a real file. The OpenCode package manifest carries
+# `main` and the export map; a literal surface is source code. Excluding the
+# whole file — so the hook's own writes could not re-trigger it — also excluded
+# every other edit to it, which is how `main` was added to eight OpenCode
+# manifests and shipped unversioned, and how a change to what
+# `agent-skills --version` prints would ship the same way. Only the version is
+# exempt; everything else in the file is content like any other.
+#
+# Undecidable cases count as content. The cost of that default is a bump that
+# asks for release notes. The cost of the other one is another silent
+# unversioned change, which is the bug this exists to close.
+version_only_change() {
+    local file="$1" source_manifest="$2" head staged old_version new_version
+    head=$(git show "HEAD:$file" 2>/dev/null) || return 1
+    staged=$(git show ":$file" 2>/dev/null) || return 1
+
+    case "$file" in
+        *.json)
+            # Compared by value, not bytes, so a reformat is still content.
+            head=$(jq -S 'del(.version)' <<< "$head" 2>/dev/null) || return 1
+            staged=$(jq -S 'del(.version)' <<< "$staged" 2>/dev/null) || return 1
+            ;;
+        *)
+            # A literal surface holds the version as a bare string with no key
+            # to delete, so rewrite HEAD's version to the staged one and
+            # require the rest to be untouched. Blanking every semver instead
+            # would also blank an unrelated one — a dependency range beside it
+            # could change with no bump.
+            old_version=$(git show "HEAD:$source_manifest" 2>/dev/null | jq -r '.version // empty' 2>/dev/null) || return 1
+            new_version=$(git show ":$source_manifest" 2>/dev/null | jq -r '.version // empty' 2>/dev/null) || return 1
+            [ -z "$old_version" ] && return 1
+            [ -z "$new_version" ] && return 1
+            head=${head//"$old_version"/"$new_version"}
+            ;;
+    esac
+
+    [ "$head" = "$staged" ]
+}
+
 changelog_surfaces_failed() {
     # Called when scripts/changelog-surfaces.mjs exits non-zero. Callers invoke
     # it with `|| changelog_surfaces_failed`, never inside `< <(...)` or `$(...)`
@@ -196,9 +237,9 @@ while IFS=$'\t' read -r NAME SOURCE; do
     # README typo in this repository. Failing closed is right when the thing
     # that cannot be checked is in scope; outside it, it is just an outage.
     #
-    # Deliberately a prefilter and not the decision. It excludes only the
-    # registry surfaces, so it admits everything the full test below admits and
-    # more — a changelog edit among them. Answering the whole question here
+    # Deliberately a prefilter and not the decision: ownership only, so it
+    # admits everything the full test below admits and more — a changelog edit
+    # and a version-only bump among them. Answering the whole question here
     # instead would count a staged CHANGELOG as bump-triggering content, and the
     # author who had just written 1.0.7's notes would be told to write 1.0.8's:
     # the ratchet the exclusion below exists to prevent, rebuilt one step
@@ -206,9 +247,6 @@ while IFS=$'\t' read -r NAME SOURCE; do
     MAYBE_TOUCHED=0
     while IFS= read -r file; do
         [ -z "$file" ] && continue
-        for surface in "${REGISTRY_SURFACES[@]}"; do
-            [ "$file" = "$surface" ] && continue 2
-        done
         for owned in "${OWNED[@]}"; do
             case "$file" in "$owned"/*) MAYBE_TOUCHED=1; break 2;; esac
         done
@@ -229,22 +267,31 @@ while IFS=$'\t' read -r NAME SOURCE; do
         exit 1
     fi
 
-    # Version surfaces are what this hook writes. Counting them as changes
-    # would make every commit it touches justify the next one — and for the
-    # changelogs, which the hook only reads, a commit that adds the notes
-    # for a release would demand notes for the release after it.
+    # Changelogs are exempt outright: the hook only reads them, and a commit
+    # that adds the notes for a release must not demand notes for the release
+    # after it.
     CHANGELOGS=$(node scripts/changelog-surfaces.mjs plugin-release "$NAME") || changelog_surfaces_failed "$NAME"
-    SURFACES=("${REGISTRY_SURFACES[@]}")
+    CHANGELOG_SURFACES=()
     while IFS= read -r changelog_surface; do
         [ -z "$changelog_surface" ] && continue
-        SURFACES+=("$(jq -r '.path' <<< "$changelog_surface")")
+        CHANGELOG_SURFACES+=("$(jq -r '.path' <<< "$changelog_surface")")
     done <<< "$CHANGELOGS"
 
+    # Version surfaces are exempt only for the version itself. They are what
+    # this hook writes, so counting a version move would make every commit it
+    # touches justify the next one; counting nothing else in the file let real
+    # edits ship unversioned.
     TOUCHED=0
     while IFS= read -r file; do
         [ -z "$file" ] && continue
-        for surface in "${SURFACES[@]}"; do
+        for surface in "${CHANGELOG_SURFACES[@]}"; do
             [ "$file" = "$surface" ] && continue 2
+        done
+        for surface in "${REGISTRY_SURFACES[@]}"; do
+            if [ "$file" = "$surface" ]; then
+                version_only_change "$file" "$SOURCE" && continue 2
+                break
+            fi
         done
         for owned in "${OWNED[@]}"; do
             case "$file" in "$owned"/*) TOUCHED=1; break 2;; esac

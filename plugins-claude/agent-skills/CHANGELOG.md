@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.24
+
+Maintenance release. Repairs the repository's version-bump hook, which exempted a plugin's whole version-surface file rather than just its version: a real edit to a manifest or to a version-bearing source file took no bump and no release notes. No changes to the skills.
+
 ## 1.0.23
 
 Corrects the Antigravity reference. `agy plugin install` is verified, from a local path or a git URL with the in-repo path appended, so the skill no longer tells Claude that an install command must not be invented or that `agy plugin validate` is the packaging boundary. Behavioral invocation stays unavailable, since `agy -p` requires an authenticated session. Names the per-host skill-loading check in the porting reference, and records that `opencode debug skill` output truncates under `head` and reports a present skill as missing.

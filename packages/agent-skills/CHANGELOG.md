@@ -1,5 +1,9 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.24
+
+Maintenance release accompanying a repository version-bump hook fix: a version surface is now exempt only for its version, not for its whole contents, so an edit to a manifest or a version-bearing source file can no longer ship unversioned. No changes to the compiler, CLI, or package contents.
+
 ## 1.0.23
 
 Adds a `broken-link` lint rule that resolves relative Markdown link targets against the source tree, so a link to a file that does not exist fails the linter instead of rendering into every platform tree. A target is satisfied by either the rendered name or the `.eta` template it renders from, and directory targets by any file beneath them. Absolute URLs, `mailto:` and other schemes, protocol-relative and root-relative paths, bare anchors, and destinations carrying an unrendered template expression are left alone. The rule participates in the existing suppression and baseline machinery; no existing template produces a diagnostic.
