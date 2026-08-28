@@ -1,7 +1,7 @@
 {
-  "name": "workspace-local",
+  "name": "goodfoot",
   "interface": {
-    "displayName": "Workspace Local Plugins"
+    "displayName": "Goodfoot Plugins"
   },
   "plugins": [
     {
