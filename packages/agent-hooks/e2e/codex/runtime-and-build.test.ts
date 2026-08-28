@@ -276,6 +276,13 @@ describe("codex-hooks e2e", () => {
       cwd: packageRoot,
     });
     expect(version.status).toBe(0);
-    expect(version.stdout.trim()).toBe("agent-hooks v1.0.5");
+    // Read the version rather than hardcoding it: the literal went stale on
+    // every release and failed the suite after the bump instead of before it.
+    const ownVersion = (
+      JSON.parse(fs.readFileSync(path.join(packageRoot, "package.json"), "utf-8")) as {
+        version: string;
+      }
+    ).version;
+    expect(version.stdout.trim()).toBe(`agent-hooks v${ownVersion}`);
   });
 });
