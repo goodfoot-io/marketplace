@@ -1,6 +1,6 @@
 {
   "name": "agent-skills",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "Author, build, lint, and port portable agent skills with @goodfoot/agent-skills",
   "author": {
     "name": "Goodfoot",
