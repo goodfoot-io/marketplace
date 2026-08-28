@@ -1,5 +1,5 @@
 {
   "name": "agent-skills",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Author, build, lint, and port portable agent skills with @goodfoot/agent-skills"
 }

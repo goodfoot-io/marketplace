@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.19
+
+Maintenance release. Republishes the 1.0.18 content unchanged after the post-migration verification pass: the four-platform smoke test (Claude Code, Codex, OpenCode, Antigravity) and the reconciliation of the repository's release checks confirmed the shipped compiler, skills, and generated trees; no functional changes.
+
 ## 1.0.18
 
 Documents the operational lessons from migrating the companion skills: generated targets are replaced whole and must not contain maintained or ignored local state; opaque assets fan out to every selected platform; declared targets must render trackable content; and platform support is proven by a real host skill load rather than installation or file presence alone.
