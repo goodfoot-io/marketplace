@@ -9,6 +9,8 @@ description: Load this skill when authoring or reviewing portable .md.eta
 
 Use one source tree for every platform. Markdown templates end in `.md.eta` and render to the same relative path without `.eta`. Files that are not templates are opaque assets: keep them beside the templates so the build copies their bytes and executable mode into each selected output tree.
 
+Opaque copying is unconditional for every selected target. Keep a script beside a template only when each rendered skill tree genuinely needs that script at runtime. Repository verification programs, fixtures, and migration witnesses belong outside the generated target and should be wired into their own typecheck or test graph; otherwise the build silently multiplies unchecked code across platforms and makes disposable output look authoritative.
+
 ## Template invariants
 
 `@goodfoot/agent-skills` renders with Eta using `autoEscape: false` and `autoTrim: false`. Whitespace is therefore authored output, not formatting noise. Use Eta's native `include()` and `layout()` support for reusable fragments, and keep every include inside the declared source root.
@@ -43,3 +45,4 @@ Use `platforms` to gate emission and `outputName` when the same logical file nee
 - Platform references use helpers rather than copied host-specific prose.
 - Lint suppressions are rule-specific and line-bounded, never blanket exemptions.
 - Opaque binaries and scripts remain beside their owning template and preserve executable intent.
+- Generated targets contain no hand-maintained siblings or ignored local state that whole-directory publication could erase.

@@ -1,5 +1,9 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.18
+
+- Expands the companion authoring guidance with migration-proven safety boundaries: whole-target replacement, ignored-file protection, deliberate opaque-asset fanout, trackable non-empty platform targets, and live host discovery checks.
+
 ## 1.0.17
 
 Corrects the generated Antigravity authoring policy to match the package's verified native helper dialect: subagents can be dispatched with `invoke_subagent`, inspected with `manage_subagents`, and contacted with `send_message`. Direct worktree operations remain explicitly unavailable.

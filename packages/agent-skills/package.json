@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/agent-skills",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "Deterministic, cross-platform agent skill compiler and linter",
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/agent-skills",
   "repository": {

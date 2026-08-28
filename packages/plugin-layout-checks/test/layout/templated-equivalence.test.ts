@@ -71,8 +71,7 @@ const agentHooksReference = (body: string, platform: string) => {
 const claudeAuthoringRoot = (body: string) => body.replaceAll("plugins/", "plugins-claude/");
 const codexAuthoringRoot = (body: string) => body.replaceAll("plugins/", "plugins-codex/");
 
-const agentHooksCodex = (body: string, platform: string) =>
-  codexAuthoringRoot(agentHooksReference(body, platform));
+const agentHooksCodex = (body: string, platform: string) => codexAuthoringRoot(agentHooksReference(body, platform));
 
 /**
  * agent-skills' two prose skills each point once at their sibling
@@ -112,6 +111,34 @@ const agentSkillsSkillRef = (body: string, platform: string) => {
         : "`$agent-skills:cli-and-helpers`";
   return body.replaceAll("`agent-skills:cli-and-helpers`", rendered);
 };
+
+const agentSkillsCliLessons = (body: string, platform: string) =>
+  agentSkillsReference(body, platform)
+    .replace(
+      "Builds are fail-closed and transactional. Do not compensate for an error by partially copying output: validation or rendering failure is required to leave every destination untouched. `lint` diagnoses sources and rendered manifests; it does not check whether committed generated trees are fresh.",
+      "Builds are fail-closed and transactional. Do not compensate for an error by partially copying output: validation or rendering failure is required to leave every destination untouched. `lint` diagnoses sources and rendered manifests; it does not check whether committed generated trees are fresh.\n\nA build publishes by replacing each target directory as a unit, not by merging files into it. Point every target at the generated leaf (normally `<plugin>/skills`), never at a plugin root that also contains manifests, binaries, changelogs, or other maintained content. Before publishing, account for every untracked entry in the target, including ignored files: an ignored cache or local configuration is still data the directory swap would destroy. A freshness gate should rebuild all registry targets and require a clean diff; lint alone cannot prove that committed output matches its source.",
+    )
+    .replace(
+      "Use `it.skillInvoke(...)`, rather than `it.skillRef(...)`, when the output must actively load a skill. Invocation may be a block-level construct, so do not embed it inside a sentence.",
+      "Use `it.skillInvoke(...)`, rather than `it.skillRef(...)`, when the output must actively load a skill. Invocation may be a block-level construct, so do not embed it inside a sentence.\n\nWhen a migration adds a platform, verify discovery with that host's real headless invocation. Installing the plugin, listing its files, or validating frontmatter proves packaging only; it does not prove the host can discover and load the skill. Exercise at least one skill from each migrated plugin on every platform where that plugin actually ships, and treat a provider outage separately from a discovery failure.",
+    );
+
+const agentSkillsPlatformLessons = (body: string, platform: string) =>
+  agentSkillsReference(body, platform).replace(
+    "Render each selected platform and review the output in that platform's dialect. Check exact bytes and inventory, including opaque assets, rather than comparing only Markdown meaning. In particular, inspect skill and agent references, conventions filenames, native frontmatter keys, logical destination roots, block-level invocation whitespace, and forbidden plugin-root variables inside skill Markdown.",
+    "Render each selected platform and review the output in that platform's dialect. Check exact bytes and inventory, including opaque assets, rather than comparing only Markdown meaning. In particular, inspect skill and agent references, conventions filenames, native frontmatter keys, logical destination roots, block-level invocation whitespace, and forbidden plugin-root variables inside skill Markdown.\n\nKeep the declared platform set honest. A build target that intentionally renders zero files cannot be represented in Git and will be recreated only on machines that happen to run the build; omit unsupported targets instead of declaring empty output trees. Conversely, do not infer support from a generated directory alone. Confirm each shipped tree with the host's real skill-loading command, and record deliberate platform exceptions where the taught capability exists on only one host.",
+  );
+
+const agentSkillsTemplateLessons = (body: string, platform: string) =>
+  agentSkillsSkillRef(body, platform)
+    .replace(
+      "Use one source tree for every platform. Markdown templates end in `.md.eta` and render to the same relative path without `.eta`. Files that are not templates are opaque assets: keep them beside the templates so the build copies their bytes and executable mode into each selected output tree.",
+      "Use one source tree for every platform. Markdown templates end in `.md.eta` and render to the same relative path without `.eta`. Files that are not templates are opaque assets: keep them beside the templates so the build copies their bytes and executable mode into each selected output tree.\n\nOpaque copying is unconditional for every selected target. Keep a script beside a template only when each rendered skill tree genuinely needs that script at runtime. Repository verification programs, fixtures, and migration witnesses belong outside the generated target and should be wired into their own typecheck or test graph; otherwise the build silently multiplies unchecked code across platforms and makes disposable output look authoritative.",
+    )
+    .replace(
+      "- Opaque binaries and scripts remain beside their owning template and preserve executable intent.",
+      "- Opaque binaries and scripts remain beside their owning template and preserve executable intent.\n- Generated targets contain no hand-maintained siblings or ignored local state that whole-directory publication could erase.",
+    );
 
 /** Verified Antigravity publication replaces only the former validation-only policy claims. */
 const agentSkillsAntigravityPolicy = (body: string) =>
@@ -210,7 +237,7 @@ const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: st
           ? "plugins-opencode/gmail/skills/gmail/advanced/oauth-setup.md"
           : platform === "antigravity"
             ? "plugins-antigravity/gmail/skills/gmail/advanced/oauth-setup.md"
-          : `${CODEX_ROOT_TOKEN}/skills/gmail/advanced/oauth-setup.md`;
+            : `${CODEX_ROOT_TOKEN}/skills/gmail/advanced/oauth-setup.md`;
       return withNote.replaceAll(`${CLAUDE_ROOT_TOKEN}/skills/gmail/advanced/oauth-setup.md`, reference);
     },
   },
@@ -222,9 +249,9 @@ const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: st
   },
   "agent-skills": {
     "antigravity/SKILL.md": agentSkillsAntigravityPolicy,
-    "cli-and-helpers/SKILL.md": agentSkillsReference,
-    "platform-behavior/SKILL.md": agentSkillsReference,
-    "template-authoring/SKILL.md": agentSkillsSkillRef,
+    "cli-and-helpers/SKILL.md": agentSkillsCliLessons,
+    "platform-behavior/SKILL.md": agentSkillsPlatformLessons,
+    "template-authoring/SKILL.md": agentSkillsTemplateLessons,
     "reference/helper-reference.md": helperReferenceTable,
   },
 };

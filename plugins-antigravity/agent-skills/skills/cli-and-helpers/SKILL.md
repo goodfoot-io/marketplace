@@ -20,6 +20,8 @@ agent-skills lint  [--root DIR] --target PLATFORM=DIR [--target PLATFORM=DIR ...
 
 Builds are fail-closed and transactional. Do not compensate for an error by partially copying output: validation or rendering failure is required to leave every destination untouched. `lint` diagnoses sources and rendered manifests; it does not check whether committed generated trees are fresh.
 
+A build publishes by replacing each target directory as a unit, not by merging files into it. Point every target at the generated leaf (normally `<plugin>/skills`), never at a plugin root that also contains manifests, binaries, changelogs, or other maintained content. Before publishing, account for every untracked entry in the target, including ignored files: an ignored cache or local configuration is still data the directory swap would destroy. A freshness gate should rebuild all registry targets and require a clean diff; lint alone cannot prove that committed output matches its source.
+
 ## Helper selection
 
 Use the shared reference at `plugins-antigravity/agent-skills/skills/reference/helper-reference.md` for the helper catalog and platform matrix. Important composition rules:
@@ -34,6 +36,8 @@ Use the shared reference at `plugins-antigravity/agent-skills/skills/reference/h
 - `it.pluginRootVar` is `unavailable` on OpenCode (see the reference table). A template that needs a real, resolvable destination on all three platforms — not just Claude Code and Codex — must guard it explicitly rather than let the helper throw: `it.is("opencode") ? <opencode-relative literal path> : it.pluginRootVar`. The literal is not a workaround; OpenCode genuinely has no plugin-root variable, so a real repository-relative path is the correct value there, not an approximation of one.
 
 Use `it.skillInvoke(...)`, rather than `it.skillRef(...)`, when the output must actively load a skill. Invocation may be a block-level construct, so do not embed it inside a sentence.
+
+When a migration adds a platform, verify discovery with that host's real headless invocation. Installing the plugin, listing its files, or validating frontmatter proves packaging only; it does not prove the host can discover and load the skill. Exercise at least one skill from each migrated plugin on every platform where that plugin actually ships, and treat a provider outage separately from a discovery failure.
 
 ## Known lint false positive
 

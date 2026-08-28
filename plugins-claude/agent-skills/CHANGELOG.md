@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.18
+
+Documents the operational lessons from migrating the companion skills: generated targets are replaced whole and must not contain maintained or ignored local state; opaque assets fan out to every selected platform; declared targets must render trackable content; and platform support is proven by a real host skill load rather than installation or file presence alone.
+
 ## 1.0.17
 
 Aligns the Antigravity authoring policy with the verified native subagent dialect. It now documents dispatch through `invoke_subagent`, state inspection through `manage_subagents`, and communication through `send_message`, while retaining the explicit boundary for unsupported direct worktree operations.
