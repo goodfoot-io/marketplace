@@ -188,11 +188,15 @@ jobs:
             git diff --exit-code
           fi
 
-      # The assertion is re-derived from the same registry entry that drove the
-      # install, and anchored to that plugin's own subtree. A bare skill-name
-      # predicate would be worse than useless here: two plugins in the roster
-      # ship a skill named `cli`, so `-path '*/skills/cli/SKILL.md'` can pass in
-      # a home holding both while proving nothing about which one installed.
+      # The expected skill list is the plugin's committed Codex tree, not the
+      # registry's platform-agnostic skill roster: skills are platform-gated,
+      # so a skill absent from plugins-codex/<name>/skills is absent on
+      # purpose. The tree itself is proven fresh and correctly gated by the
+      # freshness and layout steps above; this step proves the install ships
+      # that tree whole. The assertion stays anchored to the plugin's own
+      # subtree: two plugins in the roster ship a skill named `cli`, so a bare
+      # `-path '*/skills/cli/SKILL.md'` predicate could pass in a home holding
+      # both while proving nothing about which one installed.
       - name: Codex install smoke
         run: |
           set -euo pipefail
@@ -200,12 +204,16 @@ jobs:
           codex --version
           checkout="$(pwd)"
           marketplace_name="$(jq -r '.name' .agents/plugins/marketplace.json)"
-          mapfile -t entries < <(jq -r '.plugins[] | select(.marketplace.codex != null) | [.marketplace.codex, (.skills | join(","))] | @tsv' "$REGISTRY")
+          mapfile -t entries < <(jq -r '.plugins[] | select(.marketplace.codex != null) | [.marketplace.codex, .codexPluginRoot] | @tsv' "$REGISTRY")
           test "${#entries[@]}" -gt 0 || { echo "registry declares no Codex marketplace plugins" >&2; exit 1; }
           for entry in "${entries[@]}"; do
             name="${entry%%$'\t'*}"
-            skills="${entry#*$'\t'}"
+            codex_root="${entry#*$'\t'}"
             echo "::group::codex add $name"
+            # A skill is a SKILL.md-bearing directory; the tree may also ship
+            # non-skill asset directories (agent-skills' shared reference/).
+            skill_count="$(find "$checkout/$codex_root/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l)"
+            test "$skill_count" -gt 0 || { echo "$name: $codex_root/skills ships no skills" >&2; exit 1; }
             smoke_home="$(mktemp -d)"
             # codex only auto-discovers a marketplace manifest from a
             # directory source, not a manifest file path directly; passing
@@ -218,23 +226,17 @@ jobs:
             skills_dir="$(find "$smoke_home" -type d -path "*/$name/*/skills" -print -quit)"
             test -n "$skills_dir" || { echo "$name: installed no skills directory" >&2; exit 1; }
 
-            # Assert the plugin's whole declared skill list, not one
-            # representative, so a partial install is caught.
-            IFS=',' read -ra declared <<< "$skills"
-            for skill in "${declared[@]}"; do
-              manifest="$skills_dir/$skill/SKILL.md"
-              test -f "$manifest" || { echo "$name: missing $skill/SKILL.md" >&2; exit 1; }
-              test ! -L "$manifest" || { echo "$name: $skill/SKILL.md is a symlink" >&2; exit 1; }
-            done
-
-            installed="$(find "$skills_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort | paste -sd,)"
-            expected="$(printf '%s\n' "${declared[@]}" | sort | paste -sd,)"
-            test "$installed" = "$expected" || {
-              echo "$name: installed skills [$installed] != declared [$expected]" >&2
+            # Assert the whole shipped tree installed — every file, not one
+            # representative skill — so a partial install is caught.
+            diff <(cd "$checkout/$codex_root/skills" && find . -mindepth 1 | sort) \
+                 <(cd "$skills_dir" && find . -mindepth 1 | sort) || {
+              echo "$name: installed skills tree differs from shipped $codex_root/skills" >&2
               exit 1
             }
+            symlinks="$(find "$skills_dir" -type l)"
+            test -z "$symlinks" || { echo "$name: installed tree contains symlinks: $symlinks" >&2; exit 1; }
 
-            HOME="$smoke_home" codex plugin remove "$name" || true
+            HOME="$smoke_home" codex plugin remove "$name@$marketplace_name" || true
             rm -rf "$smoke_home"
             echo "::endgroup::"
           done
