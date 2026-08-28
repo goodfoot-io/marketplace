@@ -46,7 +46,8 @@ describe("dead-path check", () => {
           const scrubbed = line
             .replaceAll(".claude/plugins/", "")
             .replaceAll(".agents/plugins/", "")
-            .replaceAll(".yarn/plugins/", "");
+            .replaceAll(".yarn/plugins/", "")
+            .replaceAll("$CLAUDE_CONFIG_DIR/plugins/", "");
           if (/(^|[^A-Za-z0-9_.-])plugins\//.test(scrubbed)) {
             violations.push(`${file}:${index + 1}:${line.trim()}`);
           }
