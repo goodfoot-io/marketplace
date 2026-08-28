@@ -1,8 +1,8 @@
 # @goodfoot/agent-skills npm package changelog
 
 ## 1.0.25
-- Added support for compiling skills that target Antigravity, including its hook configuration
-- Updated documentation to cover Antigravity as a supported platform
+
+Strengthens the four-client smoke-test guidance so every generated skill is loaded through each host's own discovery path and results are labelled behavioral, structural, or blocked. Corrects the Antigravity authenticated invocation and clarifies that generated documents are idiomatic equivalents rather than byte-identical outputs.
 
 ## 1.0.24
 
