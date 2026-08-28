@@ -23,6 +23,9 @@ describe("dead-path check", () => {
       "packages/plugin-layout-checks/test/layout/templated-equivalence.test.ts",
       "packages/plugin-layout-checks/test/layout/version-bump-hook.test.ts",
       "packages/plugin-layout-checks/test/layout/dead-path.test.ts",
+      // Regression assertions that a manifest URL does NOT contain the old
+      // "/plugins/" tree path; the literal is the thing being ruled out.
+      "packages/plugin-layout-checks/test/layout/registry-reconciliation.test.ts",
     ]);
     const violations: string[] = [];
 
@@ -46,9 +49,13 @@ describe("dead-path check", () => {
           const scrubbed = line
             .replaceAll(".claude/plugins/", "")
             .replaceAll(".agents/plugins/", "")
-            .replaceAll(".yarn/plugins/", "")
-            .replaceAll("$CLAUDE_CONFIG_DIR/plugins/", "");
-          if (/(^|[^A-Za-z0-9_.-])plugins\//.test(scrubbed)) {
+            .replaceAll(".yarn/plugins", "")
+            .replaceAll("$CLAUDE_CONFIG_DIR/plugins/", "")
+            // Official upstream docs URL, not a path in this repository.
+            .replaceAll("docs.claude.com/en/docs/claude-code/plugins", "");
+          if (
+            /((^|[^A-Za-z0-9_.-])plugins\/)|(\/plugins($|[^A-Za-z0-9_.-]))/.test(scrubbed)
+          ) {
             violations.push(`${file}:${index + 1}:${line.trim()}`);
           }
         });
