@@ -3,7 +3,7 @@
  * `drive()`/`Transport` interface — the same seam Claude Code's and Codex's
  * transports are rewritten/re-exported against.
  *
- * Antigravity's wire semantics are the simplest of the three shipped agents,
+ * Antigravity's wire semantics are the simplest of the four shipped agents,
  * and also the least forgiving: **every reply exits 0, unconditionally.**
  * There is no exit-code channel at all — not the 2-of-30-events native-deny
  * split Claude Code has, not Codex's uniform stderr+exit-2 `BlockError`
@@ -16,6 +16,8 @@
  *   ...fields }` on stdout at exit 0 — this is why the class is a stated
  *   prerequisite (`outputs.ts` module docs, `events.ts` module docs): with no
  *   exit-code fallback, a block computed mid-throw has nowhere else to land.
+ *   The host acts on that decision for `PreToolUse`; on the other four events
+ *   it is a well-formed reply carrying no decision the host recognizes.
  * - an unexpected handler/runtime failure → its stacktrace on stderr
  *   (diagnostic only, not a wire signal) plus the empty response `{}` on
  *   stdout, still at exit 0.

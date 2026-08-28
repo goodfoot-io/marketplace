@@ -13,5 +13,6 @@ One authored template tree renders per-platform skill trees for Claude Code, Cod
 - `reference/cli-and-helpers.md` — build/lint CLI grammar, transactional publish semantics, helper composition rules, and a known lint false positive. Load before running `agent-skills build` or `agent-skills lint`, or when choosing helpers.
 - `reference/template-authoring.md` — `.md.eta` invariants, front-config (`platforms`, `outputName`, lint suppressions), opaque assets, and the review checklist. Load before writing or reviewing templates.
 - `reference/platform-behavior.md` — verified platform distinctions, dialect vs. substance, and the porting review procedure. Load before porting a skill between platforms or reviewing rendered output.
+- `reference/smoke-test.md` — isolated per-host install routes, the verification command and ceiling for each, and the `behavioral`/`structural`/`blocked` labeling rule. Load before claiming an install works.
 - `reference/antigravity.md` — what Antigravity support does and does not cover. Load whenever Antigravity is in scope.
 - `reference/helper-reference.md` — the generated helper-by-platform matrix. Consult for any helper's per-platform status.

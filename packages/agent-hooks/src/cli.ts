@@ -43,7 +43,7 @@ type HookContext = "plugin" | "agent";
  * Command-line arguments parsed from process.argv.
  */
 interface CliArgs {
-  /** Target agent runtime (required): "claude-code" | "codex" | "antigravity". */
+  /** Target agent runtime (required): "claude-code" | "codex" | "antigravity" | "opencode". */
   agent: string;
   /** Glob pattern for hook source files. */
   input: string;
@@ -144,7 +144,7 @@ interface HooksJson {
 // Constants
 // ============================================================================
 
-const VERSION = "1.0.8";
+const VERSION = "1.0.9";
 const DEFAULT_ESBUILD_LOADERS: HookLoaderMap = {
   ".md": "text",
 };
@@ -190,6 +190,10 @@ Required Arguments:
       bundle. There is no default: omitting this flag is an error.
       With --agent opencode, -o/--output is treated as a plugin artifact
       directory (no hooks.json manifest is generated).
+      With --agent antigravity, -o/--output is the hooks.json path at the
+      plugin root; bundles are written to a bin/ directory beside it and the
+      generated commands are relative to the manifest, which is the working
+      directory Antigravity runs each handler in.
       Example: --agent claude-code
 
 Build Mode (compile existing hooks):
@@ -213,6 +217,8 @@ Scaffold Mode (create new hook project):
       Valid types: PreToolUse, PostToolUse, PostToolUseFailure, Notification,
                    UserPromptSubmit, SessionStart, SessionEnd, Stop,
                    SubagentStart, SubagentStop, PreCompact, PermissionRequest
+      With --agent antigravity the valid types are: PreToolUse, PostToolUse,
+                   PreInvocation, PostInvocation, Stop
       Example: --hooks Stop,SubagentStop,PreToolUse
 
   -o, --output <path>
@@ -1562,11 +1568,59 @@ async function main(): Promise<void> {
     }
   }
 
-  // Antigravity ships in step 5; fail closed until then.
+  // Antigravity's manifest shape has no counterpart in the other agents: the
+  // top-level keys are hook names, only two of the five events wrap their
+  // handlers in a matcher group, and the host sets each handler's working
+  // directory to the manifest's own directory. See
+  // src/agents/antigravity/CONTRACT.md.
+  if (args.agent === "antigravity") {
+    const { runAntigravityCli, validateAntigravityArgs } = await import("./agents/antigravity/cli-support.js");
+    const antigravityValidationError = validateAntigravityArgs({
+      input: args.input,
+      output: args.output,
+      loaderFlags: args.loaderFlags ?? [],
+      sourcemap: args.sourcemap,
+      stableNames: args.stableNames,
+      scaffold: args.scaffold,
+      hooks: args.hooks,
+    });
+    if (antigravityValidationError !== undefined) {
+      process.stderr.write(`Error: ${antigravityValidationError}\n\n`);
+      process.stdout.write(HELP_TEXT);
+      process.exit(1);
+    }
+    try {
+      const compiledCount = await runAntigravityCli({
+        input: args.input,
+        output: args.output,
+        executable: args.executable,
+        loaderFlags: args.loaderFlags ?? [],
+        sourcemap: args.sourcemap,
+        stableNames: args.stableNames,
+        scaffold: args.scaffold,
+        hooks: args.hooks,
+      });
+      if (args.scaffold !== undefined && args.scaffold !== "") {
+        process.stdout.write(`Scaffolded ${path.resolve(process.cwd(), args.scaffold)}\n`);
+      } else {
+        process.stdout.write(`Generated ${path.resolve(process.cwd(), args.output)} with ${compiledCount} hook(s)\n`);
+      }
+      process.exit(0);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log("error", "Antigravity build failed", { error: message });
+      process.stderr.write(`Error: ${message}\n`);
+      process.exit(1);
+    } finally {
+      closeLog();
+    }
+  }
+
+  // Everything below is the Claude Code path. Each other agent returns from
+  // its own branch above, so reaching here with a different agent would mean
+  // a branch was removed without removing its VALID_AGENTS entry.
   if (args.agent !== "claude-code") {
-    process.stderr.write(
-      `Error: --agent ${args.agent} is not implemented in this release; only "claude-code", "codex", and "opencode" build today (antigravity ships in step 5).\n`,
-    );
+    process.stderr.write(`Error: --agent ${args.agent} has no build branch.\n`);
     process.exit(1);
   }
 

@@ -14,7 +14,7 @@ Native subagent operations are verified and exposed by the helpers:
 
 Direct worktree operations remain unavailable: Antigravity can request isolation for a subagent, but it has no documented enter/remove pair matching the helper lifecycle. Any other unavailable helper must throw at render time and identify both the helper and `antigravity`.
 
-Do not invent an Antigravity plugin-root variable, agent naming transformation, worktree tool, frontmatter key, or behavioral smoke test. Do not silently use a Codex or OpenCode value because it looks similar. The verified directory convention is a complete plugin root under `plugins-antigravity/<name>` with a populated skill leaf.
+Do not invent an Antigravity plugin-root variable, agent naming transformation, worktree tool, frontmatter key, or invocation syntax. Do not silently use a Codex or OpenCode value because it looks similar. The verified directory convention is a complete plugin root under `plugins-antigravity/<name>` with a populated skill leaf.
 
 When a user needs an unavailable feature, state which helper or convention is unknown and treat the request as platform-contract work.
 
@@ -24,4 +24,4 @@ When a user needs an unavailable feature, state which helper or convention is un
 
 The `#subdir` fragment form fails with `could not detect plugin structure`. Installed files land in `~/.gemini/config/plugins/<name>/`; `agy plugin list` reports the import and its components.
 
-Behavioral invocation remains unavailable: `agy -p` requires an authenticated session, so structural verification is the ceiling unattended. Report an unauthenticated run as unauthenticated, never as a behavioral pass.
+Behavioral invocation is available from an authenticated session with `agy --print-timeout 45s -p='<prompt>'`. The short `-p` consumes the next token as its prompt, so attach the value or place every option before `-p`. Require the invoked skill's unique sentinel in stdout before claiming a behavioral pass. If no authenticated session is available, report the result as blocked rather than treating structural verification as the host's ceiling.

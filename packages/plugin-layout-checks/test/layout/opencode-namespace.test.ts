@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { duplicateNames, frontmatterName, type SkillName, skillNamesUnder } from "../gates.js";
 import { readJson, repoPath } from "../helpers.js";
-import { PLUGINS, registeredOpencodeRoots } from "../registry.js";
+import { PLUGINS, registeredOpencodePlugins, registeredOpencodeRoots } from "../registry.js";
 
 /** Every skill name OpenCode would actually load, across all registered roots. */
 function shippedNames(): SkillName[] {
@@ -44,16 +44,35 @@ describe("Gate A — OpenCode skill-name collisions", () => {
   });
 });
 
-describe("opencode.json skills.paths", () => {
-  const config = readJson<{ skills?: { paths?: string[] } }>("opencode.json");
+describe("opencode.json plugin registration", () => {
+  const config = readJson<{ plugin?: string[]; skills?: { paths?: string[] } }>("opencode.json");
 
-  it("lists exactly the registry's registered OpenCode roots", () => {
-    expect([...(config.skills?.paths ?? [])].sort()).toEqual([...registeredOpencodeRoots()].sort());
+  it("lists exactly the plugins that own a registered OpenCode root", () => {
+    expect([...(config.plugin ?? [])].sort()).toEqual([...registeredOpencodePlugins()].sort());
   });
 
-  // A skills.paths entry naming a missing directory produces a log warning and
-  // a `continue` — that plugin's skills never load, with nothing failing.
-  it.each(config.skills?.paths ?? [])("resolves %s to a real directory", (entry) => {
+  // `opencode plugin <target>` writes only the `plugin` key, so a tree reaches
+  // OpenCode solely because its module registers itself. A listed plugin whose
+  // module forgot the hook installs clean and ships no skills at all.
+  it.each(registeredOpencodePlugins())("%s registers its own skills root from a config hook", (entry) => {
+    const module = repoPath(`${entry}/index.js`);
+    expect(fs.existsSync(module), `${entry} is listed in opencode.json but has no index.js`).toBe(true);
+    const source = fs.readFileSync(module, "utf8");
+    expect(source, `${entry}/index.js declares no config hook`).toMatch(/\bconfig:\s*async/);
+    expect(source, `${entry}/index.js does not resolve its root from import.meta.url`).toContain("import.meta.url");
+    expect(source, `${entry}/index.js does not push onto skills.paths`).toContain("config.skills.paths");
+  });
+
+  // Registration is the module's job now. A skills.paths entry duplicating a
+  // root a plugin already registers would load that tree twice, and OpenCode
+  // resolves a name collision by silently dropping all but one.
+  it("delegates registration to the plugins rather than restating it", () => {
+    expect(config.skills?.paths ?? []).toEqual([]);
+  });
+
+  // A registered root naming a missing directory produces a log warning and a
+  // `continue` — that plugin's skills never load, with nothing failing.
+  it.each(registeredOpencodeRoots())("resolves %s to a real directory", (entry) => {
     expect(fs.existsSync(repoPath(entry)) && fs.statSync(repoPath(entry)).isDirectory()).toBe(true);
   });
 

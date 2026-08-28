@@ -20,7 +20,7 @@ export interface RegistryTarget {
   platform: Platform;
   /** Repo-relative `--target` path. Never a plugin root — see targetsAreNeverPluginRoots. */
   path: string;
-  /** OpenCode targets only: whether this root is listed in opencode.json's skills.paths. */
+  /** OpenCode targets only: whether the owning plugin registers this root from its `config` hook. */
   opencodeRegistered?: boolean;
   /** Required whenever a declaration needs a reason a reader would otherwise have to guess. */
   note?: string;
@@ -396,7 +396,9 @@ function load(): Registry {
       throw new Error(`registry: ${plugin.name} requires antigravityPluginRoot for its Antigravity target`);
     }
     if (antigravityTarget && !plugin.versionSurfaces.antigravityManifest) {
-      throw new Error(`registry: ${plugin.name} requires versionSurfaces.antigravityManifest for its Antigravity target`);
+      throw new Error(
+        `registry: ${plugin.name} requires versionSurfaces.antigravityManifest for its Antigravity target`,
+      );
     }
     // The platforms a plugin declares targets for must be exactly the platforms
     // its skills render to. Requiring all three instead is what put voice's
@@ -645,9 +647,26 @@ export function changelogSurfaces(plugin: RegistryPlugin, repoRoot: string): str
     .map((line) => (JSON.parse(line) as { path: string }).path);
 }
 
-/** OpenCode roots that opencode.json's skills.paths must list, exactly. */
+/** OpenCode roots the shipped plugins register, as repo-relative `./` paths. */
 export function registeredOpencodeRoots(): string[] {
   return allTargets()
     .filter((target) => target.platform === "opencode" && target.opencodeRegistered === true)
     .map((target) => `./${target.path}`);
+}
+
+/**
+ * Plugin directories that opencode.json's `plugin` array must list, exactly.
+ *
+ * Registration moved out of `skills.paths` and into each module's `config`
+ * hook, so the config key that has to agree with the registry is `plugin`.
+ */
+export function registeredOpencodePlugins(): string[] {
+  const owners = new Set<string>();
+  for (const plugin of PLUGINS) {
+    for (const target of plugin.targets) {
+      if (target.platform !== "opencode" || target.opencodeRegistered !== true) continue;
+      owners.add(`./plugins-opencode/${plugin.name}`);
+    }
+  }
+  return [...owners];
 }

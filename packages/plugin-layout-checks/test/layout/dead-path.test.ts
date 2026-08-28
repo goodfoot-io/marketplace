@@ -55,9 +55,7 @@ describe("dead-path check", () => {
             .replaceAll(".gemini/config/plugins/", "")
             // Official upstream docs URL, not a path in this repository.
             .replaceAll("docs.claude.com/en/docs/claude-code/plugins", "");
-          if (
-            /((^|[^A-Za-z0-9_.-])plugins\/)|(\/plugins($|[^A-Za-z0-9_.-]))/.test(scrubbed)
-          ) {
+          if (/((^|[^A-Za-z0-9_.-])plugins\/)|(\/plugins($|[^A-Za-z0-9_.-]))/.test(scrubbed)) {
             violations.push(`${file}:${index + 1}:${line.trim()}`);
           }
         });

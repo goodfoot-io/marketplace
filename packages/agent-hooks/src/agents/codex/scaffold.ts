@@ -73,7 +73,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
         typecheck: "tsc --noEmit",
       },
       dependencies: {
-        [PACKAGE_NAME]: "^1.0.8",
+        [PACKAGE_NAME]: "^1.0.9",
       },
       devDependencies: {
         "@biomejs/biome": "2.4.9",

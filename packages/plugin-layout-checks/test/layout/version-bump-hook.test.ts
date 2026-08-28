@@ -109,7 +109,11 @@ function makeFixture(): string {
     `${JSON.stringify({ name: "demo", version: "1.0.0" }, null, 2)}\n`,
   );
   write(root, "plugins-opencode/demo/package.json", `${JSON.stringify({ name: "demo", version: "1.0.0" }, null, 2)}\n`);
-  write(root, "plugins-antigravity/demo/plugin.json", `${JSON.stringify({ name: "demo", version: "1.0.0" }, null, 2)}\n`);
+  write(
+    root,
+    "plugins-antigravity/demo/plugin.json",
+    `${JSON.stringify({ name: "demo", version: "1.0.0" }, null, 2)}\n`,
+  );
   write(
     root,
     "packages/demo/package.json",

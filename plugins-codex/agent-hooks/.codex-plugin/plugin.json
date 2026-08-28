@@ -1,7 +1,7 @@
 {
   "name": "agent-hooks",
-  "version": "1.0.12",
-  "description": "Type-safe TypeScript hooks for Claude Code and Codex using @goodfoot/agent-hooks — the unified successor to claude-code-hooks and codex-hooks",
+  "version": "1.0.13",
+  "description": "Type-safe TypeScript hooks for Claude Code, Codex, OpenCode, and Antigravity using @goodfoot/agent-hooks — the unified successor to claude-code-hooks and codex-hooks",
   "author": {
     "name": "Goodfoot",
     "email": "contact@goodfoot.io",
@@ -24,8 +24,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Agent Hooks",
-    "shortDescription": "Type-safe TypeScript hooks for Claude Code and Codex using @goodfoot/agent-hooks — the unified successor to claude-code-hooks and codex-hooks",
-    "longDescription": "Authoring guidance for @goodfoot/agent-hooks, which compiles TypeScript hook handlers into the manifests Claude Code and Codex load. Covers each host's hook types, typed inputs, output builders, logging, environment access, and porting from bash.",
+    "shortDescription": "Type-safe TypeScript hooks for Claude Code, Codex, OpenCode, and Antigravity using @goodfoot/agent-hooks — the unified successor to claude-code-hooks and codex-hooks",
+    "longDescription": "Authoring guidance for @goodfoot/agent-hooks, which packages TypeScript hook handlers in the idiomatic form loaded by Claude Code, Codex, OpenCode, and Antigravity. Covers each host's hook types, typed inputs, output builders, logging, environment access, and porting from bash.",
     "developerName": "Goodfoot",
     "category": "Developer Tools",
     "capabilities": [

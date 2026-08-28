@@ -2,20 +2,19 @@
  * Typed factory functions for Antigravity hooks, built on the shared core
  * {@link ../../core/define-hook.ts|defineHook}.
  *
- * This release ships the typed factory surface and output builders only
- * (plan Step 5, item-6 descope) — no `CONTRACT.md`-derived e2e file, no
- * `./antigravity` export. Every factory injects the advisory allow-list
- * policy gate, so `unexpectedError: "continue"` fails closed at
- * factory-call time for every event ({@link ADVISORY_EVENTS} is empty this
- * release); {@link HookConfigFor} additionally narrows the policy field at
- * compile time.
+ * Every factory injects the advisory allow-list policy gate, so
+ * `unexpectedError: "continue"` fails closed at factory-call time for every
+ * event ({@link ADVISORY_EVENTS} is empty, and `CONTRACT.md` names no event
+ * safe to fail open); {@link HookConfigFor} additionally narrows the policy
+ * field at compile time.
  *
  * Antigravity's config surface is a single conditional type rather than the
  * separate matcher/no-matcher interface pair Claude Code and Codex use: only
  * two of the five events (`PreToolUse`, `PostToolUse`) carry a `matcher`
  * ({@link EVENTS_WITH_MATCHER} in `events.ts`), and a conditional type on the
  * bound event expresses that distinction without duplicating the base field
- * list twice.
+ * list twice. The host ignores a matcher on the other three events entirely,
+ * so accepting one there would be a silent no-op.
  * @module
  */
 

@@ -71,10 +71,9 @@ describe("root-export lint", () => {
 
   it("package.json exports declares exactly the closed entry list with no wildcard", () => {
     const pkg = JSON.parse(readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf-8")) as PackageExportsFixture;
-    // Step 1 ships "." (core only); steps 2.3/3.8 add explicit per-agent
-    // subpaths in the same steps their target files first exist. The list
-    // stays closed — no "./*" wildcard, ever.
-    expect(Object.keys(pkg.exports)).toStrictEqual([".", "./claude-code", "./codex", "./opencode"]);
+    // Every agent surface gets an explicit subpath in the step its target
+    // files first exist. The list stays closed — no "./*" wildcard, ever.
+    expect(Object.keys(pkg.exports)).toStrictEqual([".", "./claude-code", "./codex", "./opencode", "./antigravity"]);
     expect(pkg.exports["."]).toStrictEqual({
       import: "./dist/index.js",
       types: "./types/index.d.ts",
@@ -90,6 +89,10 @@ describe("root-export lint", () => {
     expect(pkg.exports["./opencode"]).toStrictEqual({
       import: "./dist/agents/opencode/index.js",
       types: "./types/agents/opencode/index.d.ts",
+    });
+    expect(pkg.exports["./antigravity"]).toStrictEqual({
+      import: "./dist/agents/antigravity/index.js",
+      types: "./types/agents/antigravity/index.d.ts",
     });
     expect(() => assertClosedExportMap(pkg.exports)).not.toThrow();
   });

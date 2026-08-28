@@ -6,8 +6,8 @@
  * {@link HookBlockError}, the Logger, env utilities, and stdin helpers.
  *
  * Per-agent entry points (`@goodfoot/agent-hooks/claude-code`, `/codex`,
- * `/antigravity`) are added to the package `exports` map only in the step
- * that lands their implementation — never pre-declared.
+ * `/opencode`, `/antigravity`) expose each host's native protocol without
+ * leaking host-specific types through this root module.
  * @module
  */
 

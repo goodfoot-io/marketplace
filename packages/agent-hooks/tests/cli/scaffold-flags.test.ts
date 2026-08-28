@@ -78,10 +78,20 @@ describe("--agent is required", () => {
     fs.rmSync(outDir, { recursive: true, force: true });
   });
 
-  it("antigravity still fails closed until step 5 lands", () => {
-    const result = runCli(["--agent", "antigravity", "-i", "nonexistent-hook.ts", "-o", "hooks.json"]);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("--agent antigravity is not implemented in this release");
+  it("antigravity builds for real, writing hooks.json plus a bundle beside it", () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-hooks-antigravity-cli-"));
+    const srcDir = path.join(outDir, "src");
+    fs.mkdirSync(srcDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(srcDir, "stop.ts"),
+      `import { stopHook } from "${path.resolve(__dirname, "..", "..", "src", "agents", "antigravity", "index.js")}";\n` +
+        `export default stopHook({}, () => undefined);\n`,
+    );
+    const result = runCli(["--agent", "antigravity", "-i", `${srcDir}/*.ts`, "-o", path.join(outDir, "hooks.json")]);
+    expect(result.status).toBe(0);
+    expect(fs.existsSync(path.join(outDir, "hooks.json"))).toBe(true);
+    expect(fs.existsSync(path.join(outDir, "bin", "stop.mjs"))).toBe(true);
+    fs.rmSync(outDir, { recursive: true, force: true });
   });
 });
 
@@ -151,5 +161,36 @@ describe("scaffold output targets the new surface", () => {
     expect(testSource).toContain("hook.eventName");
     expect(testSource).not.toContain("hookEventName");
     fs.rmSync(path.dirname(dir), { recursive: true, force: true });
+  });
+});
+
+describe("Antigravity scaffold output", () => {
+  it("emits the root plugin manifest required by agy plugin install", () => {
+    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "agent-hooks-antigravity-scaffold-"));
+    const dir = path.join(parent, "project");
+
+    const result = runCli([
+      "--agent",
+      "antigravity",
+      "--scaffold",
+      dir,
+      "--hooks",
+      "PreToolUse,Stop",
+      "-o",
+      "hooks.json",
+    ]);
+
+    expect(result.status).toBe(0);
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, "plugin.json"), "utf-8")) as Record<string, unknown>;
+    expect(manifest).toStrictEqual({
+      name: "project",
+      version: "1.0.0",
+      description: "Antigravity hooks built with @goodfoot/agent-hooks",
+    });
+    expect(fs.existsSync(path.join(dir, "package.json"))).toBe(true);
+    expect(fs.existsSync(path.join(dir, "src", "pre-tool-use.ts"))).toBe(true);
+    expect(fs.existsSync(path.join(dir, "src", "stop.ts"))).toBe(true);
+
+    fs.rmSync(parent, { recursive: true, force: true });
   });
 });

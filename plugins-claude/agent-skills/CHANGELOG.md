@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.25
+
+Strengthens the four-client smoke-test guidance so every generated skill is loaded through each host's own discovery path and results are labelled behavioral, structural, or blocked. Corrects the Antigravity authenticated invocation and clarifies that generated documents are idiomatic equivalents rather than byte-identical outputs.
+
 ## 1.0.24
 
 Maintenance release. Repairs the repository's version-bump hook, which exempted a plugin's whole version-surface file rather than just its version: a real edit to a manifest or to a version-bearing source file took no bump and no release notes. No changes to the skills.

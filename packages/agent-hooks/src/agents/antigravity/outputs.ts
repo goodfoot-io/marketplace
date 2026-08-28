@@ -1,3 +1,15 @@
+/**
+ * Antigravity output builders, one per event.
+ *
+ * Unlike Claude Code and Codex, Antigravity gives each event a **different**
+ * stdout shape — there is no single envelope every event shares. `PreToolUse`
+ * returns a permission decision, `PostToolUse` returns `{}` and nothing else,
+ * the two invocation events return injected steps, and `Stop` returns a
+ * continue-or-not decision. Each builder below emits only the fields its own
+ * event's contract names; see `CONTRACT.md` in this directory.
+ * @module
+ */
+
 import { HookBlockError } from "../../core/transport.js";
 
 /**
@@ -14,33 +26,76 @@ export const EXIT_CODES = {
 export type ExitCode = (typeof EXIT_CODES)[keyof typeof EXIT_CODES];
 
 /**
- * The full permission-decision vocabulary a `PreToolUse` handler may return,
- * derived structurally from Codex's narrower `PreToolUsePermissionDecision`
- * (`"allow" | "deny" | "ask"`) plus the two additional values the plan names
- * verbatim (`force_ask`, `deny_unless_prior_grant`) with no further doc to
- * cite this release:
+ * The `PreToolUse` permission vocabulary, verbatim from the host reference:
  *
- * - `force_ask` — like `ask`, but the handler is asserting the host may not
- *   auto-resolve this prompt from a prior grant even if one would otherwise
- *   apply;
- * - `deny_unless_prior_grant` — deny unless the host already holds a prior
- *   grant covering this exact call.
+ * - `allow` — run the tool without prompting;
+ * - `deny` — hard block the execution immediately;
+ * - `ask` — prompt the user, respecting the "Always Allow" cache;
+ * - `force_ask` — always prompt, ignoring cached permissions.
+ *
+ * There is no fifth value. An earlier draft of this surface carried
+ * `deny_unless_prior_grant`; the host reference does not define it, and the
+ * host would treat it as an unrecognized decision.
  */
-export type AntigravityDecision = "allow" | "deny" | "ask" | "force_ask" | "deny_unless_prior_grant";
+export type AntigravityDecision = "allow" | "deny" | "ask" | "force_ask";
 
-/** The narrower decision vocabulary available after a tool has already run. */
-export type AntigravityPostDecision = Extract<AntigravityDecision, "allow" | "deny">;
+/**
+ * The `Stop` decision. `"continue"` blocks the stop and re-enters the loop;
+ * any other value lets the agent stop, so `"stop"` is spelled explicitly here
+ * rather than left to an omitted field.
+ */
+export type StopDecision = "continue" | "stop";
 
-interface BaseSpecificOutput<T extends string> {
-  readonly _type: T;
-  readonly stdout: AntigravityHookOutput;
+/** How the host should treat loop termination after `PostInvocation`. */
+export type TerminationBehavior = "force_continue" | "terminate" | "";
+
+/**
+ * A step injected by `PreInvocation` or `PostInvocation`. Exactly one of the
+ * three forms per entry.
+ */
+export type InjectStep =
+  | { toolCall: { name: string; args: Record<string, unknown> } }
+  | { userMessage: string }
+  | { ephemeralMessage: string };
+
+/** `PreToolUse` stdout. */
+export interface PreToolUseStdout {
+  decision?: AntigravityDecision;
+  reason?: string;
+  permissionOverrides?: string[];
+  overwrite?: Record<string, unknown>;
 }
 
-export type PreToolUseOutput = BaseSpecificOutput<"PreToolUse">;
-export type PostToolUseOutput = BaseSpecificOutput<"PostToolUse">;
-export type PreInvocationOutput = BaseSpecificOutput<"PreInvocation">;
-export type PostInvocationOutput = BaseSpecificOutput<"PostInvocation">;
-export type StopOutput = BaseSpecificOutput<"Stop">;
+/** `PostToolUse` stdout: the contract specifies an empty object and nothing else. */
+export type PostToolUseStdout = Record<string, never>;
+
+/** `PreInvocation` stdout. */
+export interface PreInvocationStdout {
+  injectSteps?: InjectStep[];
+}
+
+/** `PostInvocation` stdout. */
+export interface PostInvocationStdout {
+  injectSteps?: InjectStep[];
+  terminationBehavior?: TerminationBehavior;
+}
+
+/** `Stop` stdout. */
+export interface StopStdout {
+  decision?: StopDecision;
+  reason?: string;
+}
+
+interface BaseSpecificOutput<TType extends string, TStdout> {
+  readonly _type: TType;
+  readonly stdout: TStdout;
+}
+
+export type PreToolUseOutput = BaseSpecificOutput<"PreToolUse", PreToolUseStdout>;
+export type PostToolUseOutput = BaseSpecificOutput<"PostToolUse", PostToolUseStdout>;
+export type PreInvocationOutput = BaseSpecificOutput<"PreInvocation", PreInvocationStdout>;
+export type PostInvocationOutput = BaseSpecificOutput<"PostInvocation", PostInvocationStdout>;
+export type StopOutput = BaseSpecificOutput<"Stop", StopStdout>;
 
 export type SpecificHookOutput =
   | PreToolUseOutput
@@ -49,56 +104,22 @@ export type SpecificHookOutput =
   | PostInvocationOutput
   | StopOutput;
 
-/**
- * The wire shape every event's stdout carries. Termination is expressed the
- * same payload-only way a decision is: `stop: true` asks the host to end the
- * session, there being no separate exit-code channel to carry that signal.
- */
-export interface AntigravityHookOutput {
-  decision?: AntigravityDecision;
-  reason?: string;
-  additionalContext?: string;
-  updatedInput?: unknown;
-  stop?: boolean;
-  systemMessage?: string;
-}
+/** The union of every event's stdout shape. */
+export type AntigravityHookOutput =
+  | PreToolUseStdout
+  | PostToolUseStdout
+  | PreInvocationStdout
+  | PostInvocationStdout
+  | StopStdout;
 
 export interface HookOutput {
   stdout: AntigravityHookOutput;
 }
 
-export interface PreToolUseOptions {
-  decision?: AntigravityDecision;
-  reason?: string;
-  additionalContext?: string;
-  updatedInput?: unknown;
-  systemMessage?: string;
-}
-
-export interface PostToolUseOptions {
-  decision?: AntigravityPostDecision;
-  reason?: string;
-  additionalContext?: string;
-  systemMessage?: string;
-}
-
-export interface PreInvocationOptions {
-  decision?: Extract<AntigravityDecision, "allow" | "deny" | "ask">;
-  reason?: string;
-  additionalContext?: string;
-  systemMessage?: string;
-}
-
-export interface PostInvocationOptions {
-  additionalContext?: string;
-  systemMessage?: string;
-}
-
-export interface StopOptions {
-  stop?: boolean;
-  reason?: string;
-  systemMessage?: string;
-}
+export type PreToolUseOptions = PreToolUseStdout;
+export type PreInvocationOptions = PreInvocationStdout;
+export type PostInvocationOptions = PostInvocationStdout;
+export type StopOptions = StopStdout;
 
 /**
  * The Antigravity block signal, carried as a subclass of the shared core
@@ -106,14 +127,16 @@ export interface StopOptions {
  * **before** consulting `unexpectedError` policy — exactly mirroring Claude
  * Code's `HookBlockError` usage and Codex's `BlockError` re-export.
  *
- * This mechanism is a stated *prerequisite*, not a follow-up, for
- * Antigravity specifically: because every Antigravity event replies at exit
- * 0 with the decision expressed only in the JSON payload (Research, plan
- * Step 5), a handler that throws mid-decision has no narrower exit-code
- * fallback to land on the way Codex's stderr+exit-2 channel does — the block
- * decision would otherwise be indistinguishable from a swallowed crash. This
- * class landing is what makes it safe to ever widen `events.ts`'s advisory
- * allow-list past empty.
+ * The class matters more here than on the other two agents: because every
+ * Antigravity event replies at exit 0 with the decision expressed only in the
+ * JSON payload, a handler that throws mid-decision has no narrower exit-code
+ * fallback to land on the way Codex's stderr+exit-2 channel does. Without
+ * this class the block would be indistinguishable from a swallowed crash.
+ *
+ * The transport serializes it as `{ "decision": "deny", ... }`, which the
+ * host acts on for `PreToolUse` only. On the other four events the reply is
+ * well-formed but carries no decision the host recognizes, so it reads as an
+ * empty response.
  */
 export class AntigravityBlockError extends HookBlockError {
   public readonly reason: string;
@@ -131,55 +154,49 @@ function omitUndefined<T extends object>(value: T): T {
   ) as T;
 }
 
-function buildOutput<T extends SpecificHookOutput["_type"]>(
-  type: T,
-  stdout: AntigravityHookOutput,
-): Extract<SpecificHookOutput, { _type: T }> {
+function buildOutput<TType extends SpecificHookOutput["_type"], TStdout extends object>(
+  type: TType,
+  stdout: TStdout,
+): Extract<SpecificHookOutput, { _type: TType }> {
   return {
     _type: type,
     stdout: omitUndefined(stdout),
-  } as unknown as Extract<SpecificHookOutput, { _type: T }>;
+  } as unknown as Extract<SpecificHookOutput, { _type: TType }>;
 }
 
+/** Builds a `PreToolUse` reply: a permission decision, optionally with argument overwrites. */
 export function preToolUseOutput(options: PreToolUseOptions = {}): PreToolUseOutput {
   return buildOutput("PreToolUse", {
     decision: options.decision,
     reason: options.reason,
-    additionalContext: options.additionalContext,
-    updatedInput: options.updatedInput,
-    systemMessage: options.systemMessage,
+    permissionOverrides: options.permissionOverrides,
+    overwrite: options.overwrite,
   });
 }
 
-export function postToolUseOutput(options: PostToolUseOptions = {}): PostToolUseOutput {
-  return buildOutput("PostToolUse", {
-    decision: options.decision,
-    reason: options.reason,
-    additionalContext: options.additionalContext,
-    systemMessage: options.systemMessage,
-  });
+/**
+ * Builds the `PostToolUse` reply. The contract defines the reply as an empty
+ * object, so this builder takes no options: there is nothing a `PostToolUse`
+ * handler can tell the host.
+ */
+export function postToolUseOutput(): PostToolUseOutput {
+  return buildOutput("PostToolUse", {} as PostToolUseStdout);
 }
 
+/** Builds a `PreInvocation` reply carrying steps to inject before the model runs. */
 export function preInvocationOutput(options: PreInvocationOptions = {}): PreInvocationOutput {
-  return buildOutput("PreInvocation", {
-    decision: options.decision,
-    reason: options.reason,
-    additionalContext: options.additionalContext,
-    systemMessage: options.systemMessage,
-  });
+  return buildOutput("PreInvocation", { injectSteps: options.injectSteps });
 }
 
+/** Builds a `PostInvocation` reply: injected steps, a termination override, or both. */
 export function postInvocationOutput(options: PostInvocationOptions = {}): PostInvocationOutput {
   return buildOutput("PostInvocation", {
-    additionalContext: options.additionalContext,
-    systemMessage: options.systemMessage,
+    injectSteps: options.injectSteps,
+    terminationBehavior: options.terminationBehavior,
   });
 }
 
+/** Builds a `Stop` reply. `decision: "continue"` blocks the stop; `reason` is injected as a system message. */
 export function stopOutput(options: StopOptions = {}): StopOutput {
-  return buildOutput("Stop", {
-    stop: options.stop,
-    reason: options.reason,
-    systemMessage: options.systemMessage,
-  });
+  return buildOutput("Stop", { decision: options.decision, reason: options.reason });
 }

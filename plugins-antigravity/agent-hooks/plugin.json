@@ -1,5 +1,5 @@
 {
   "name": "agent-hooks",
-  "version": "1.0.12",
-  "description": "Type-safe TypeScript hooks for Claude Code and Codex using @goodfoot/agent-hooks"
+  "version": "1.0.13",
+  "description": "Type-safe TypeScript hooks for Claude Code, Codex, OpenCode, and Antigravity using @goodfoot/agent-hooks"
 }

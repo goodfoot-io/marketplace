@@ -1,5 +1,9 @@
 # agent-hooks plugin changelog
 
+## 1.0.13
+
+Documents and smoke-tests equivalent hook functionality across Claude Code, Codex, OpenCode, and Antigravity. The generated skill now distinguishes behavioral host evidence from structural inspection, includes an isolated all-hooks fixture, and records the verified Antigravity invocation and denial behavior. Plugin metadata now describes all four supported clients.
+
 ## 1.0.12
 
 Consolidates the claude-code, codex, and antigravity skills into a single `agent-hooks` skill: one hub SKILL.md routes to per-host `reference/*.md` files, with the former per-host reference trees nested beneath them. Drops the antigravity platform gate, so the Codex and OpenCode trees now carry the Antigravity boundary reference as well. Documentation content is otherwise unchanged.

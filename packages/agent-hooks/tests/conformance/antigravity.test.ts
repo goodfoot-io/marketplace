@@ -1,21 +1,14 @@
 /**
- * Conformance matrix for the Antigravity entry point (plan step 5, item-6
- * descope).
+ * Conformance matrix for the Antigravity entry point.
  *
- * Claude Code's and Codex's matrices assert against an external oracle — a
- * README, or the real host CLI's own e2e suite. Antigravity has neither this
- * release (Step 0 concluded the real CLI cannot run non-interactively here
- * and CI has nothing to provision it — `notes/antigravity-cli-availability.md`
- * in the card repo). This matrix's oracle is therefore the mechanism itself:
- * `core/`'s `drive()` plus `AntigravityBlockError`, exercised through a real
- * compiled hook bundle and a real child process, exactly as the other two
- * agents' matrices exercise their transports — the only difference is what
- * the expected wire shape is checked against (the transport's own documented
- * contract in `transport.ts`, not a third-party doc).
+ * The oracle is `src/agents/antigravity/CONTRACT.md`, which pins the host's
+ * own hook reference verbatim. Every payload piped in below is in the shape
+ * that document specifies — camelCase keys, no event-name field — and every
+ * expected reply is the shape it specifies for that event.
  *
- * The one invariant every case in this file enforces: exit code is always 0.
- * Antigravity has no exit-code channel — every signal, success or block or
- * unexpected failure, is expressed only in stdout/stderr.
+ * The one invariant every case enforces: exit code is always 0. Antigravity
+ * has no exit-code channel, so every signal — success, block, or unexpected
+ * failure — is expressed only in stdout and stderr.
  */
 
 import { spawnSync } from "node:child_process";
@@ -81,25 +74,34 @@ async function runHookBundle(hookSource: string, stdinJson: string | null): Prom
   return { status: result.status ?? -1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 }
 
-function antigravityPayload(eventName: string, extra: Record<string, unknown> = {}): string {
+/**
+ * Builds a payload in the host's own shape. The common fields are exactly the
+ * five `CONTRACT.md` lists, and no event-name field is included — the host
+ * does not send one.
+ */
+function antigravityPayload(extra: Record<string, unknown> = {}): string {
   return JSON.stringify({
-    hook_event_name: eventName,
-    session_id: "conformance-session",
-    cwd: process.cwd(),
+    conversationId: "ec33ebf9-0cba-4100-8142-c61503f6c587",
+    workspacePaths: [process.cwd()],
+    transcriptPath: `${process.cwd()}/.gemini/antigravity/transcript.jsonl`,
+    artifactDirectoryPath: `${process.cwd()}/.gemini/antigravity/artifacts`,
+    modelName: "auto",
     ...extra,
   });
 }
+
+const TOOL_CALL = { toolCall: { name: "run_command", args: { CommandLine: "npm test" } }, stepIdx: 19 };
 
 describe("PreToolUse", () => {
   it("decision + reason pass through as JSON on stdout at exit 0", async () => {
     const result = await runHookBundle(
       `
       import { preToolUseHook, preToolUseOutput } from "${ANTIGRAVITY_SURFACE}/index.js";
-      export default preToolUseHook({ matcher: "Bash" }, () =>
+      export default preToolUseHook({ matcher: "run_command" }, () =>
         preToolUseOutput({ decision: "force_ask", reason: "needs confirmation" }),
       );
       `,
-      antigravityPayload("PreToolUse", { tool_name: "Bash", tool_input: {} }),
+      antigravityPayload(TOOL_CALL),
     );
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
@@ -110,11 +112,11 @@ describe("PreToolUse", () => {
     const result = await runHookBundle(
       `
       import { AntigravityBlockError, preToolUseHook } from "${ANTIGRAVITY_SURFACE}/index.js";
-      export default preToolUseHook({ matcher: "Bash" }, () => {
+      export default preToolUseHook({ matcher: "run_command" }, () => {
         throw new AntigravityBlockError("blocked by policy");
       });
       `,
-      antigravityPayload("PreToolUse", { tool_name: "Bash", tool_input: {} }),
+      antigravityPayload(TOOL_CALL),
     );
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
@@ -127,12 +129,37 @@ describe("PreToolUse", () => {
       import { preToolUseHook, preToolUseOutput } from "${ANTIGRAVITY_SURFACE}/index.js";
       export default preToolUseHook({}, () => preToolUseOutput({ decision: "allow" }));
       `,
-      antigravityPayload("PreToolUse", { tool_name: "Read", tool_input: {} }),
+      antigravityPayload(TOOL_CALL),
     );
     expect(result.status).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({ decision: "allow" });
     expect(result.stdout.includes("reason")).toBe(false);
-    expect(result.stdout.includes("additionalContext")).toBe(false);
+    expect(result.stdout.includes("permissionOverrides")).toBe(false);
+    expect(result.stdout.includes("overwrite")).toBe(false);
+  });
+
+  it("permissionOverrides and overwrite reach stdout verbatim", async () => {
+    const result = await runHookBundle(
+      `
+      import { preToolUseHook, preToolUseOutput } from "${ANTIGRAVITY_SURFACE}/index.js";
+      export default preToolUseHook({ matcher: "run_command" }, (input) =>
+        preToolUseOutput({
+          decision: "ask",
+          reason: "Requires confirmation for test execution.",
+          permissionOverrides: ["command(npm test)"],
+          overwrite: { CommandLine: input.toolCall.args.CommandLine + " --run" },
+        }),
+      );
+      `,
+      antigravityPayload(TOOL_CALL),
+    );
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({
+      decision: "ask",
+      reason: "Requires confirmation for test execution.",
+      permissionOverrides: ["command(npm test)"],
+      overwrite: { CommandLine: "npm test --run" },
+    });
   });
 });
 
@@ -143,7 +170,7 @@ describe("PostToolUse", () => {
       import { postToolUseHook } from "${ANTIGRAVITY_SURFACE}/index.js";
       export default postToolUseHook({}, () => undefined);
       `,
-      antigravityPayload("PostToolUse", { tool_name: "Bash", tool_input: {}, tool_response: {} }),
+      antigravityPayload({ stepIdx: 5 }),
     );
     expect(result.status).toBe(0);
     expect(result.stdout).toBe("{}");
@@ -158,7 +185,7 @@ describe("PostToolUse", () => {
         throw new Error("ANTIGRAVITY_HANDLER_EXPLOSION");
       });
       `,
-      antigravityPayload("PostToolUse", { tool_name: "Bash", tool_input: {}, tool_response: {} }),
+      antigravityPayload({ stepIdx: 5, error: "exit status 1" }),
     );
     expect(result.status).toBe(0);
     expect(result.stdout).toBe("{}");
@@ -166,46 +193,52 @@ describe("PostToolUse", () => {
   });
 });
 
-describe("PreInvocation / PostInvocation (no matcher)", () => {
-  it("PreInvocation ask decision passes through at exit 0", async () => {
+describe("PreInvocation / PostInvocation (flat events, matcher ignored)", () => {
+  it("PreInvocation injects an ephemeral message at exit 0", async () => {
     const result = await runHookBundle(
       `
       import { preInvocationHook, preInvocationOutput } from "${ANTIGRAVITY_SURFACE}/index.js";
-      export default preInvocationHook({}, () => preInvocationOutput({ decision: "ask", reason: "unclear intent" }));
+      export default preInvocationHook({}, (input) =>
+        preInvocationOutput({ injectSteps: [{ ephemeralMessage: "invocation " + input.invocationNum }] }),
+      );
       `,
-      antigravityPayload("PreInvocation", { prompt: "do the thing" }),
+      antigravityPayload({ invocationNum: 3, initialNumSteps: 10 }),
     );
     expect(result.status).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual({ decision: "ask", reason: "unclear intent" });
+    expect(JSON.parse(result.stdout)).toEqual({ injectSteps: [{ ephemeralMessage: "invocation 3" }] });
   });
 
-  it("PostInvocation additionalContext passes through at exit 0", async () => {
+  it("PostInvocation terminationBehavior passes through at exit 0", async () => {
     const result = await runHookBundle(
       `
       import { postInvocationHook, postInvocationOutput } from "${ANTIGRAVITY_SURFACE}/index.js";
-      export default postInvocationHook({}, () => postInvocationOutput({ additionalContext: "logged" }));
+      export default postInvocationHook({}, () =>
+        postInvocationOutput({ injectSteps: [], terminationBehavior: "force_continue" }),
+      );
       `,
-      antigravityPayload("PostInvocation", { response: "done" }),
+      antigravityPayload({ invocationNum: 3, initialNumSteps: 10 }),
     );
     expect(result.status).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual({ additionalContext: "logged" });
+    expect(JSON.parse(result.stdout)).toEqual({ injectSteps: [], terminationBehavior: "force_continue" });
   });
 });
 
 describe("Stop", () => {
-  it("stop:true termination signal is expressed only in the payload, exit 0", async () => {
+  it('decision "continue" blocks the stop and is expressed only in the payload, exit 0', async () => {
     const result = await runHookBundle(
       `
       import { stopHook, stopOutput } from "${ANTIGRAVITY_SURFACE}/index.js";
-      export default stopHook({}, () => stopOutput({ stop: true, reason: "session budget exhausted" }));
+      export default stopHook({}, (input) =>
+        input.fullyIdle ? stopOutput({}) : stopOutput({ decision: "continue", reason: "Tests are still running." }),
+      );
       `,
-      antigravityPayload("Stop", { last_assistant_message: "done" }),
+      antigravityPayload({ executionNum: 1, terminationReason: "model_stop", error: "", fullyIdle: false }),
     );
     expect(result.status).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual({ stop: true, reason: "session budget exhausted" });
+    expect(JSON.parse(result.stdout)).toEqual({ decision: "continue", reason: "Tests are still running." });
   });
 
-  it("AntigravityBlockError on Stop is still expressed as a deny decision, not a session-halt shape — no per-event table exists for Antigravity", async () => {
+  it("AntigravityBlockError on Stop still serializes as a deny decision — the transport has one block translation, not a per-event table", async () => {
     const result = await runHookBundle(
       `
       import { AntigravityBlockError, stopHook } from "${ANTIGRAVITY_SURFACE}/index.js";
@@ -213,7 +246,7 @@ describe("Stop", () => {
         throw new AntigravityBlockError("cannot stop here");
       });
       `,
-      antigravityPayload("Stop", { last_assistant_message: null }),
+      antigravityPayload({ executionNum: 1, terminationReason: "error", error: "boom", fullyIdle: true }),
     );
     expect(result.status).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({ decision: "deny", reason: "cannot stop here" });

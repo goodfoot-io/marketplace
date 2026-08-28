@@ -1,8 +1,9 @@
 // OpenCode plugins are code modules loaded as a default-export factory.
-// Skills surface declaratively through opencode.json's "skills.paths" instead
-// of through this module (OpenCode plugins cannot contribute skills), so this
-// factory only establishes the in-process hook transport with an identity
-// no-op, matching the Claude/Codex hooks pattern.
+// `opencode plugin <target>` writes only opencode.json's "plugin" key, never
+// the disjoint "skills.paths", so a plugin that ships skills has to register
+// its own leaf from the `config` hook. This plugin ships none — it carries the
+// voice MCP server, not skills — so it establishes only the in-process hook
+// transport with an identity no-op, and registers no path.
 //
 // The manifest declares `main` alongside `exports["."]`, which looks redundant
 // and is not: `opencode plugin` detects install targets from the manifest

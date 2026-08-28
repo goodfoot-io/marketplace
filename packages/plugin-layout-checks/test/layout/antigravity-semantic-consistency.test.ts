@@ -9,8 +9,15 @@ describe("Antigravity semantic consistency", () => {
     const root = repoPath("plugins-antigravity/agent-hooks/skills");
     expect(fs.readdirSync(root).sort()).toEqual(["agent-hooks"]);
     const boundary = read("plugins-antigravity/agent-hooks/skills/agent-hooks/reference/antigravity.md");
-    expect(boundary).toContain("Antigravity is not a consumable `@goodfoot/agent-hooks` target yet");
-    expect(boundary).toContain("Do not suggest imports from `@goodfoot/agent-hooks/antigravity`");
+    // Antigravity now builds, so the boundary inverts: the doc must document the
+    // real import and the host-specific manifest location. It previously asserted
+    // the opposite, which encoded the pre-implementation state of the CLI.
+    expect(boundary).toContain("Import from `@goodfoot/agent-hooks/antigravity`");
+    expect(boundary).toContain("--agent antigravity");
+    // The host's contract file is the only oracle for Antigravity payload shapes;
+    // inferring them from Claude Code or Codex previously shipped a fictional
+    // typed surface that compiled and could never work.
+    expect(boundary).toContain("CONTRACT.md");
     for (const doc of ["reference/antigravity.md", "reference/claude-code.md", "reference/codex.md"]) {
       expect(read(`plugins-antigravity/agent-hooks/skills/agent-hooks/${doc}`)).not.toMatch(
         /plugins-antigravity\/.*\/(?:hooks\.json|\.codex\/hooks\.json)/,
@@ -41,15 +48,17 @@ describe("Antigravity semantic consistency", () => {
     expect(text).not.toContain("plugins-antigravity/my-plugin");
   });
 
-  it.each(["plugins-claude", "plugins-codex", "plugins-opencode", "plugins-antigravity"])(
-    "aligns %s agent-skills policy with verified native subagent operations",
-    (tree) => {
-      const policy = read(`${tree}/agent-skills/skills/agent-skills/reference/antigravity.md`);
-      expect(policy).toContain("`invoke_subagent`");
-      expect(policy).toContain("`send_message`");
-      expect(policy).toContain("`manage_subagents`");
-      expect(policy).toContain("worktree operations remain unavailable");
-      expect(policy).not.toMatch(/subagent dispatch[^.\n]*(?:unavailable|prohibit)/i);
-    },
-  );
+  it.each([
+    "plugins-claude",
+    "plugins-codex",
+    "plugins-opencode",
+    "plugins-antigravity",
+  ])("aligns %s agent-skills policy with verified native subagent operations", (tree) => {
+    const policy = read(`${tree}/agent-skills/skills/agent-skills/reference/antigravity.md`);
+    expect(policy).toContain("`invoke_subagent`");
+    expect(policy).toContain("`send_message`");
+    expect(policy).toContain("`manage_subagents`");
+    expect(policy).toContain("worktree operations remain unavailable");
+    expect(policy).not.toMatch(/subagent dispatch[^.\n]*(?:unavailable|prohibit)/i);
+  });
 });

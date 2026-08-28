@@ -48,7 +48,9 @@ const _typeLevelGate: [RecordFactIsNotScalar, RecordFactIsNotList] = [true, true
 const STATUSES = new Set(["verified", "provisional", "unavailable"]);
 
 describe("helper reference tracks the live platform model", () => {
-  it.each(agentSkills.targets.map((target) => target.path))("%s/agent-skills/reference/helper-reference.md", (targetPath) => {
+  it.each(
+    agentSkills.targets.map((target) => target.path),
+  )("%s/agent-skills/reference/helper-reference.md", (targetPath) => {
     const shipped = fs.readFileSync(repoPath(targetPath, "agent-skills/reference/helper-reference.md"), "utf8");
     const begin = shipped.indexOf(BEGIN);
     const end = shipped.indexOf(END);

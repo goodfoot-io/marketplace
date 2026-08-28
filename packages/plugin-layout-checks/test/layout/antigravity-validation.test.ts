@@ -9,14 +9,16 @@ const workflow = fs.readFileSync(repoPath(".github/workflows/plugin-layout.yml")
 
 describe("CI Antigravity plugin validation", () => {
   const sourceApplicability = PLUGINS.map((plugin) => {
-    const sourceEntries = fs.readdirSync(repoPath(plugin.skillsSrc), { withFileTypes: true })
+    const sourceEntries = fs
+      .readdirSync(repoPath(plugin.skillsSrc), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name);
     const applicable = sourceEntries.filter((skill) => {
       const pending = [repoPath(plugin.skillsSrc, skill)];
       const files: string[] = [];
       while (pending.length > 0) {
-        const current = pending.pop()!;
+        const current = pending.pop();
+        if (current === undefined) break;
         for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
           const child = `${current}/${entry.name}`;
           if (entry.isDirectory()) pending.push(child);
@@ -36,7 +38,9 @@ describe("CI Antigravity plugin validation", () => {
   });
 
   it("derives complete applicability from authored source restrictions", () => {
-    const applicable = sourceApplicability.filter(({ applicable }) => applicable.length > 0).map(({ plugin }) => plugin.name);
+    const applicable = sourceApplicability
+      .filter(({ applicable }) => applicable.length > 0)
+      .map(({ plugin }) => plugin.name);
     expect(applicable).toEqual([
       "goodfoot",
       "jsdoczoom",
@@ -48,35 +52,38 @@ describe("CI Antigravity plugin validation", () => {
     ]);
     expect(sourceApplicability.find(({ plugin }) => plugin.name === "voice")?.applicable).toEqual([]);
 
-    for (const { plugin, applicable: skills } of sourceApplicability.filter(({ applicable }) => applicable.length > 0)) {
-      expect(plugin.antigravityPluginRoot, `${plugin.name}: applicable source has no Antigravity root`).toBeTruthy();
+    for (const { plugin, applicable: skills } of sourceApplicability.filter(
+      ({ applicable }) => applicable.length > 0,
+    )) {
+      const root = plugin.antigravityPluginRoot;
+      expect(root, `${plugin.name}: applicable source has no Antigravity root`).toBeTruthy();
+      if (root === undefined) continue;
       expect(plugin.targets).toContainEqual({
         platform: "antigravity",
-        path: `${plugin.antigravityPluginRoot}/skills`,
+        path: `${root}/skills`,
       });
-      expect(fs.readdirSync(repoPath(plugin.antigravityPluginRoot!, "skills")).sort()).toEqual([...skills].sort());
+      expect(fs.readdirSync(repoPath(root, "skills")).sort()).toEqual([...skills].sort());
     }
   });
 
-  it.each(PLUGINS.filter((plugin) => plugin.antigravityPluginRoot).map((plugin) => plugin.name))(
-    "validates a complete, positively processed %s plugin root",
-    (name) => {
-      const plugin = PLUGINS.find((candidate) => candidate.name === name)!;
-      const root = plugin.antigravityPluginRoot!;
-      const manifest = JSON.parse(fs.readFileSync(repoPath(root, "plugin.json"), "utf8")) as Record<string, unknown>;
-      expect(Object.keys(manifest).sort()).toEqual(["description", "name", "version"]);
-      expect(manifest.name).toBe(plugin.name);
-      expect(manifest.version).toBe(
-        JSON.parse(fs.readFileSync(repoPath(plugin.versionSurfaces.source), "utf8")).version,
-      );
-      expect(fs.existsSync(repoPath(root, "hooks"))).toBe(false);
-      expect(fs.existsSync(repoPath(root, ".mcp.json"))).toBe(false);
-      const output = execFileSync("agy", ["plugin", "validate", root], { cwd: repoPath("."), encoding: "utf8" });
-      expect(output).toMatch(/[1-9][0-9]* processed/);
-      expect(output).toMatch(/mcpServers\s*: skipped \(not found\)/);
-      expect(output).toMatch(/hooks\s*: skipped \(not found\)/);
-    },
-  );
+  it.each(
+    PLUGINS.filter((plugin) => plugin.antigravityPluginRoot).map((plugin) => plugin.name),
+  )("validates a complete, positively processed %s plugin root", (name) => {
+    const plugin = PLUGINS.find((candidate) => candidate.name === name);
+    if (plugin === undefined) throw new Error(`${name}: not present in the registry`);
+    const root = plugin.antigravityPluginRoot;
+    if (root === undefined) throw new Error(`${name}: has no Antigravity plugin root`);
+    const manifest = JSON.parse(fs.readFileSync(repoPath(root, "plugin.json"), "utf8")) as Record<string, unknown>;
+    expect(Object.keys(manifest).sort()).toEqual(["description", "name", "version"]);
+    expect(manifest.name).toBe(plugin.name);
+    expect(manifest.version).toBe(JSON.parse(fs.readFileSync(repoPath(plugin.versionSurfaces.source), "utf8")).version);
+    expect(fs.existsSync(repoPath(root, "hooks"))).toBe(false);
+    expect(fs.existsSync(repoPath(root, ".mcp.json"))).toBe(false);
+    const output = execFileSync("agy", ["plugin", "validate", root], { cwd: repoPath("."), encoding: "utf8" });
+    expect(output).toMatch(/[1-9][0-9]* processed/);
+    expect(output).toMatch(/mcpServers\s*: skipped \(not found\)/);
+    expect(output).toMatch(/hooks\s*: skipped \(not found\)/);
+  });
 
   it("derives complete plugin roots from Antigravity registry targets", () => {
     expect(workflow).toContain('select(any(.targets[]?; .platform == "antigravity")) | .antigravityPluginRoot');

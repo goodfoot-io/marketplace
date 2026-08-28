@@ -1,57 +1,58 @@
 # Antigravity hooks
 
-Use the Antigravity surface only for repository development, review, and conformance work in `packages/agent-hooks/src/agents/antigravity`.
+Import from `@goodfoot/agent-hooks/antigravity`. Build with `--agent antigravity -i <glob> -o <pluginRoot>/hooks.json`.
 
-## Current release boundary
+`packages/agent-hooks/src/agents/antigravity/CONTRACT.md` pins the host's own hook reference, extracted from the `agy` binary. It is the only oracle. Never infer an Antigravity field or behavior from Claude Code or Codex — the payloads share nothing.
 
-Antigravity is not a consumable `@goodfoot/agent-hooks` target yet:
+## Events
 
-- `@goodfoot/agent-hooks/antigravity` is not in the package `exports` map.
-- The build CLI recognizes `--agent antigravity` but rejects it as unimplemented.
-- Scaffolding and installation are not supported.
-- No authoritative Antigravity protocol document or runnable non-interactive host CLI is pinned in this repository.
+| Event | Factory | Builder | Input fields | Output |
+| --- | --- | --- | --- | --- |
+| `PreToolUse` | `preToolUseHook` | `preToolUseOutput` | `toolCall{name,args}`, `stepIdx` | `decision`, `reason`, `permissionOverrides`, `overwrite` |
+| `PostToolUse` | `postToolUseHook` | `postToolUseOutput` | `stepIdx`, `error?` | `{}` — no reply channel |
+| `PreInvocation` | `preInvocationHook` | `preInvocationOutput` | `invocationNum`, `initialNumSteps` | `injectSteps` |
+| `PostInvocation` | `postInvocationHook` | `postInvocationOutput` | same as `PreInvocation` | `injectSteps`, `terminationBehavior` |
+| `Stop` | `stopHook` | `stopOutput` | `executionNum`, `terminationReason`, `error?`, `fullyIdle` | `decision`, `reason` |
 
-Do not suggest imports from `@goodfoot/agent-hooks/antigravity`, an Antigravity build command, or production use. Do not infer additional wire fields or behavior from the Claude Code or Codex implementations. When asked to enable the public target, treat that as implementation work requiring the export map, CLI/compiler path, host contract, and end-to-end coverage—not as a documentation-only change.
+Every input also carries `conversationId`, `workspacePaths` (array, sometimes empty), `transcriptPath`, `artifactDirectoryPath`, `modelName`.
 
-## Implemented surface
+All keys are camelCase (protojson). **No payload carries its own event name** — a handler knows its event only from its factory.
 
-The in-repo module exposes five typed factories and their matching output builders:
+`matcher` is accepted only by `PreToolUse` and `PostToolUse`; the host ignores one on the other three. Every factory takes `timeout` (milliseconds; the manifest converts to seconds), `unexpectedError`, and `onUnexpectedError`.
 
-| Event | Factory | Builder | Event fields |
-| --- | --- | --- | --- |
-| `PreToolUse` | `preToolUseHook` | `preToolUseOutput` | `tool_name`, `tool_input` |
-| `PostToolUse` | `postToolUseHook` | `postToolUseOutput` | `tool_name`, `tool_input`, `tool_response` |
-| `PreInvocation` | `preInvocationHook` | `preInvocationOutput` | `prompt` |
-| `PostInvocation` | `postInvocationHook` | `postInvocationOutput` | `response` |
-| `Stop` | `stopHook` | `stopOutput` | `last_assistant_message` |
+`PreToolUse` decisions: `allow | deny | ask | force_ask`. `ask` respects the "Always Allow" cache; `force_ask` ignores it. `overwrite` is a shallow top-level merge into the tool's args.
 
-Every input also has `cwd`, `hook_event_name`, and `session_id`. `matcher` is accepted only by `PreToolUse` and `PostToolUse`; every factory accepts `timeout`, `unexpectedError`, and `onUnexpectedError` in its common configuration shape.
+`Stop` decisions: `continue` blocks the stop; anything else lets the agent stop. `terminationBehavior`: `force_continue | terminate | ""`.
 
-Output builders omit fields whose values are `undefined`. Their supported options are:
+`injectSteps` entries are one of `{ephemeralMessage}`, `{userMessage}`, `{toolCall}`.
 
-- `preToolUseOutput`: `decision`, `reason`, `additionalContext`, `updatedInput`, `systemMessage`.
-- `postToolUseOutput`: `decision`, `reason`, `additionalContext`, `systemMessage`; decision is limited to `allow | deny`.
-- `preInvocationOutput`: `decision`, `reason`, `additionalContext`, `systemMessage`; decision is limited to `allow | deny | ask`.
-- `postInvocationOutput`: `additionalContext`, `systemMessage`.
-- `stopOutput`: `stop`, `reason`, `systemMessage`.
+Builders omit `undefined` fields.
 
-The full pre-tool decision vocabulary is `allow | deny | ask | force_ask | deny_unless_prior_grant`. Treat the meanings documented in source as provisional until an authoritative host contract is available.
+## Manifest shape
 
-## Wire and failure invariants
+`hooks.json` sits at the **plugin root**, not in a `hooks/` subdirectory. Top-level keys are hook **names**, not events; the host merges same-named entries across plugins.
 
-Antigravity has no exit-code signaling channel. Every transport outcome exits `0`:
+```json
+{ "lint-checker": { "PostToolUse": [ { "matcher": "run_command", "hooks": [ { "type": "command", "command": "node \"./bin/lint.mjs\"", "timeout": 10 } ] } ] } }
+```
 
-- A normal result writes the builder's `stdout` object as JSON; `null` or `undefined` writes `{}`.
-- `AntigravityBlockError` writes `{ "decision": "deny", "reason": ... }` to stdout, merging any attached fields.
-- An unexpected failure writes a diagnostic stack trace to stderr and `{}` to stdout.
+`PreToolUse` and `PostToolUse` wrap handlers in a `{ matcher, hooks }` group. The other three are flat lists of handler objects. `enabled: false` at the hook level disables all its handlers.
 
-Do not replace payload decisions with nonzero exit codes. Keep `outputs.ts`, `transport.ts`, and the conformance test's wire-fundamentals assertions aligned whenever this invariant changes.
+The host runs each command through `sh -c` with the working directory set to the manifest's directory, so generated commands are manifest-relative and survive install unchanged. Matcher `"*"` or `""` matches all tools; tool names are the step type lowercased minus the `CORTEX_STEP_TYPE_` prefix.
 
-Although the common config includes `unexpectedError`, all five events currently reject `unexpectedError: "continue"` at both the type and runtime policy gates. The advisory allow-list is deliberately empty until a future host contract identifies an event that is safe to fail open. `AntigravityBlockError` remains a block even if that policy is expanded later because the shared driver classifies block errors before applying unexpected-error policy.
+## Wire invariants
 
-## Repository verification
+Antigravity has no exit-code channel. Every outcome exits `0`:
 
-Use direct relative imports from `src/agents/antigravity/index.js` only in repository tests. After changing this surface, run the Antigravity unit and conformance tests, then the package typecheck:
+- Normal result: the builder's `stdout` object as JSON; `null`/`undefined` writes `{}`.
+- `AntigravityBlockError`: `{ "decision": "deny", "reason": ... }` plus attached fields. The host acts on this for `PreToolUse` only.
+- Unexpected failure: stack trace to stderr, `{}` to stdout.
+
+Never replace a payload decision with a nonzero exit code. Keep `outputs.ts`, `transport.ts`, and the conformance test aligned when this changes.
+
+All five events reject `unexpectedError: "continue"` at the type and runtime gates; the advisory allow-list is empty because the host reference names no event safe to fail open. `AntigravityBlockError` survives any future widening — the shared driver classifies block errors before applying policy.
+
+## Verification
 
 ```bash
 yarn workspace @goodfoot/agent-hooks vitest run \
@@ -60,4 +61,4 @@ yarn workspace @goodfoot/agent-hooks vitest run \
 yarn workspace @goodfoot/agent-hooks typecheck
 ```
 
-Keep claims in this skill grounded in the implementation and conformance matrix. Replace the provisional boundaries only when the repository gains an authoritative contract and runnable host validation.
+Re-verify `CONTRACT.md` against the binary when `agy` changes minor version, and record the version with the result.

@@ -26,16 +26,18 @@ The test before reaching for a helper: does this value's correct form depend on 
 
 Render each selected platform and review the output in that platform's dialect. Check exact bytes and inventory, including opaque assets, rather than comparing only Markdown meaning. In particular, inspect skill and agent references, conventions filenames, native frontmatter keys, logical destination roots, block-level invocation whitespace, and forbidden plugin-root variables inside skill Markdown.
 
-Keep the declared platform set honest. A build target that intentionally renders zero files cannot be represented in Git and will be recreated only on machines that happen to run the build; omit unsupported targets instead of declaring empty output trees. Conversely, do not infer support from a generated directory alone. Confirm each shipped tree with the host's real skill-loading command, and record deliberate platform exceptions where the taught capability exists on only one host:
+Keep the declared platform set honest. A build target that intentionally renders zero files cannot be represented in Git and will be recreated only on machines that happen to run the build; omit unsupported targets instead of declaring empty output trees. Conversely, do not infer support from a generated directory alone. Confirm each shipped tree with the host's real check, and record deliberate platform exceptions where the taught capability exists on only one host. Hosts differ in what their checks prove, and only two can name a loaded skill:
 
-| Platform | Skill-loading check |
-| --- | --- |
-| Claude Code | `claude plugin list` |
-| Codex | `codex plugin list --json` |
-| OpenCode | `opencode debug skill` |
-| Antigravity | `agy plugin list` |
+| Platform | Structural check | Behavioral check |
+| --- | --- | --- |
+| Claude Code | `claude plugin eval`; `claude plugin details <name>` for a component inventory | Invoke a sentinel-bearing skill with `claude -p` |
+| OpenCode | `opencode debug skill` names every loaded skill | Invoke a sentinel-bearing skill with `opencode run` |
+| Codex | `codex plugin list` reports id, version, source, and install status — no component inventory | Invoke a sentinel-bearing skill with `codex exec` |
+| Antigravity | `agy plugin list` reports component kinds, never skill names | From an authenticated session, invoke a sentinel-bearing skill with `agy --print-timeout 45s -p='<prompt>'` |
 
 `opencode debug skill` emits whole skill bodies. Redirect it to a file and search there; piping it to `head` truncates the JSON mid-string and reports a present skill as missing.
+
+Use Codex's table output, not `--json`: through 0.150.1 the JSON mode returns an empty `available` array even when the table lists every uninstalled plugin, so automation must not read availability from it. Installing has three more traps: the subcommand is `codex plugin add`, not `install`; it demands `<plugin>@<marketplace>` even with one marketplace configured; and `CODEX_HOME` must already exist. A Codex install lands under `$CODEX_HOME/plugins/cache/<marketplace>/<plugin>/<version>/`.
 
 Multiple targets for one platform must receive the same already-rendered bytes. If two sources or normalized targets collide, or an output is nested inside an input tree, stop and correct the configuration rather than choosing a winner.
 
@@ -43,16 +45,34 @@ Judge byte-faithful ports against parsed frontmatter values and body bytes, not 
 
 ## Distribution and verification
 
-Installing is delivery, not function. One passing route per platform is not coverage: each host ships through several routes that fail independently — a marketplace, a direct git URL, a local path, an npm name, a packed tarball. Enumerate the routes, exercise the ones you claim, and say which you exercised.
+Installing is delivery, not function. One passing route per platform is not coverage: hosts ship through several independently-failing routes — marketplace, git URL, local path, npm name, packed tarball. Enumerate them, exercise the ones you claim, and say which.
 
-Label every result `behavioral`, `structural`, or `blocked`. A weaker result never borrows the word "pass" from a stronger one: a validated manifest, a listed file, or a successful install proves packaging, and only the host loading and running the skill proves function. Report an unauthenticated or unrunnable host as blocked, not as passing.
+Label every result `behavioral`, `structural`, or `blocked`. A weaker result never borrows "pass" from a stronger one: a validated manifest, a listed file, or a successful install proves packaging; only the host loading and running the skill proves function. Report an unauthenticated or unrunnable host as blocked.
 
-When an installer rejects the package, clone the installer's source and read its detection logic instead of inferring it from the error text. Prove the fix by A/B against the unpatched published copy at the same version; a patched install that merely succeeds does not establish that the patch caused it.
+When an installer rejects the package, read its source's detection logic instead of inferring from the error text. Prove the fix by A/B against the unpatched copy at the same version; a patched install that merely succeeds does not establish causation.
 
-Where a plugin ships a companion binary as per-platform npm packages, `npm pack` each one and run `file` on the binary inside to confirm it matches the package's declared `os`/`cpu`. A same-OS foreign architecture often runs under emulation and proves little; another OS's binary cannot run at all. Structural verification is the ceiling here.
+Where a plugin ships a companion binary as per-platform npm packages, `npm pack` each and run `file` on the binary to confirm it matches the declared `os`/`cpu`. A same-OS foreign architecture often runs under emulation and proves little; another OS's binary cannot run at all. Structural verification is the ceiling.
 
-### OpenCode's dual-purpose manifest
+### OpenCode plugin and skill delivery
 
 `plugins-opencode/<name>/package.json` is both the npm publishing manifest and a version-bearing release surface, so it is hand-maintained; only the generated skill leaf beneath it is build output.
 
 The installer detects targets from that manifest alone, never from the module's exports. A package exposing only `exports["."]` is rejected with `No plugin targets found` even though the code is correct. Declare `main`, `exports["./tui"]`, or `exports["./server"]`. Adding one is inert for consumers: OpenCode patches its config with the package name, so runtime resolution still goes through `exports["."]`.
+
+`config.plugin` and `config.skills` are disjoint keys and `opencode plugin <path>` appends only to the former, so a bare install delivers the module without any skill it bundles. That is a default, not a platform limit: the plugin `Hooks` interface includes `config`, which mutates the resolved config before use, so a plugin can register its own skill leaf and make the bare install sufficient.
+
+```javascript
+const own = join(dirname(fileURLToPath(import.meta.url)), "skills");
+
+export default async function plugin() {
+  return {
+    config: async (config) => {
+      config.skills ??= {};
+      const paths = config.skills.paths ?? [];
+      if (!paths.includes(own)) config.skills.paths = [...paths, own];
+    },
+  };
+}
+```
+
+Resolve that path from `import.meta.url`; the package installs outside the repository, so `process.cwd()` and literals both break. Deduplicate against paths already present, because a developer working in the source repository normally registers the same leaf by hand. Skip a leaf another registered root already serves — duplicate names across two roots collide.

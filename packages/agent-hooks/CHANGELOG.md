@@ -1,5 +1,9 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.9
+
+Adds full Antigravity support to the public package: typed hook factories and outputs, transport behavior, the `@goodfoot/agent-hooks/antigravity` export, CLI compilation, and a scaffold that emits an installable Antigravity plugin manifest. The implementation is covered by unit, conformance, export-surface, scaffold, and live host smoke tests.
+
 ## 1.0.8
 
 Maintenance release accompanying a repository version-bump hook fix: a version surface is now exempt only for its version, not for its whole contents, so an edit to a manifest or a version-bearing source file can no longer ship unversioned. No changes to the hook API, the compiler, or the CLI.

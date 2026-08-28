@@ -6,17 +6,12 @@
     }
   },
   "plugin": [
-    "./plugins-opencode/goodfoot"
-  ],
-  "skills": {
-    "paths": [
-      "./skills",
-      "./plugins-opencode/jsdoczoom/skills",
-      "./plugins-opencode/claude-code-skill-reader/skills",
-      "./plugins-opencode/linear/skills",
-      "./plugins-opencode/gmail/skills",
-      "./plugins-opencode/agent-hooks/skills",
-      "./plugins-opencode/agent-skills/skills"
-    ]
-  }
+    "./plugins-opencode/goodfoot",
+    "./plugins-opencode/agent-hooks",
+    "./plugins-opencode/agent-skills",
+    "./plugins-opencode/claude-code-skill-reader",
+    "./plugins-opencode/gmail",
+    "./plugins-opencode/jsdoczoom",
+    "./plugins-opencode/linear"
+  ]
 }

@@ -1,48 +1,76 @@
 /**
- * Antigravity wire types (plan step 5, item-6 descope: typed factories +
- * output builders + conformance matrix only — no `CONTRACT.md` pin, no
- * published protocol doc exists for this release). Shapes below are the
- * minimal surface the plan names for the five shipped events
- * (`PreToolUse`/`PostToolUse`/`PreInvocation`/`PostInvocation`/`Stop`),
- * derived structurally from Claude Code's and Codex's `types.ts` rather than
- * from any Antigravity-specific reference — there is none to cite yet.
+ * Antigravity wire types, transcribed from the host's own hook reference.
+ *
+ * Source of record: `assets/external/skills/agy-customizations/docs/hooks.md`,
+ * embedded in the `agy` binary and pinned verbatim in this directory's
+ * `CONTRACT.md`. Nothing here is derived by analogy from Claude Code or
+ * Codex — the three agents' payloads share no field.
+ *
+ * Two properties of this contract drive every shape below:
+ *
+ * 1. **All keys are camelCase** (protojson encoding), including `stepIdx` and
+ *    `conversationId`.
+ * 2. **No payload carries its own event name.** Claude Code's
+ *    `hook_event_name` and Codex's equivalent have no counterpart here; a
+ *    handler knows its event only from the factory it was built with.
  * @module
  */
 
 export type HookEventName = "PreToolUse" | "PostToolUse" | "PreInvocation" | "PostInvocation" | "Stop";
 
+/**
+ * System metadata present on every payload.
+ *
+ * `transcriptPath` and `artifactDirectoryPath` name a product-specific
+ * directory (`antigravity/`, `antigravity-cli/`, or `antigravity-ide/`
+ * depending on the interface), so neither may be pattern-matched.
+ */
 export interface BaseHookInput {
-  cwd: string;
-  hook_event_name: HookEventName;
-  session_id: string;
+  conversationId: string;
+  workspacePaths: string[];
+  transcriptPath: string;
+  artifactDirectoryPath: string;
+  modelName: string;
+}
+
+/**
+ * A tool call as the host presents it. `name` is the step type lowercased with
+ * the `CORTEX_STEP_TYPE_` prefix removed — the same string a `matcher` regex
+ * is tested against.
+ */
+export interface AntigravityToolCall {
+  name: string;
+  args: Record<string, unknown>;
 }
 
 export interface PreToolUseInput extends BaseHookInput {
-  hook_event_name: "PreToolUse";
-  tool_name: string;
-  tool_input: unknown;
+  toolCall: AntigravityToolCall;
+  stepIdx: number;
 }
 
+/** `error` is present only when the tool failed (e.g. `"exit status 1"`). */
 export interface PostToolUseInput extends BaseHookInput {
-  hook_event_name: "PostToolUse";
-  tool_name: string;
-  tool_input: unknown;
-  tool_response: unknown;
+  stepIdx: number;
+  error?: string;
 }
 
 export interface PreInvocationInput extends BaseHookInput {
-  hook_event_name: "PreInvocation";
-  prompt: string;
+  invocationNum: number;
+  initialNumSteps: number;
 }
 
+/** Identical to {@link PreInvocationInput}; the host sends the same payload. */
 export interface PostInvocationInput extends BaseHookInput {
-  hook_event_name: "PostInvocation";
-  response: string | null;
+  invocationNum: number;
+  initialNumSteps: number;
 }
 
+/** `terminationReason` is an open string — `"model_stop"`, `"max_steps_exceeded"`, `"error"`, and others. */
 export interface StopInput extends BaseHookInput {
-  hook_event_name: "Stop";
-  last_assistant_message: string | null;
+  executionNum: number;
+  terminationReason: string;
+  error?: string;
+  fullyIdle: boolean;
 }
 
 export type HookInput = PreToolUseInput | PostToolUseInput | PreInvocationInput | PostInvocationInput | StopInput;
@@ -53,9 +81,9 @@ export type HookInput = PreToolUseInput | PostToolUseInput | PreInvocationInput 
  * no exit-code channel at all, so this never changes the process exit code).
  *
  * "continue" would swallow an unexpected failure into the event's empty
- * response. No event currently accepts it: {@link EXCLUDED_FROM_ADVISORY | the
- * advisory allow-list} in `events.ts` defaults to every event until a future
- * `CONTRACT.md` names an enrichment hook safe to opt in.
+ * response. No event accepts it: {@link EXCLUDED_FROM_ADVISORY | the advisory
+ * allow-list} in `events.ts` excludes every event, because the host's
+ * reference names no event as safe to fail open.
  */
 export type UnexpectedErrorPolicy = "error" | "continue";
 
