@@ -51,6 +51,26 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           test "$(agy --version)" = "$AGY_VERSION"
 
+      - name: Install pinned Codex CLI
+        run: |
+          set -euo pipefail
+          CODEX_VERSION="0.150.1"
+          npm install --global "@openai/codex@$CODEX_VERSION"
+          test "$(codex --version)" = "codex-cli $CODEX_VERSION"
+
+      # opencode-ai is a root devDependency pinned in yarn.lock, so
+      # `yarn install --immutable` above already placed the exact binary at
+      # node_modules/.bin/opencode. A plain `run:` step doesn't put that
+      # directory on PATH the way `yarn run` scripts do, so later steps that
+      # invoke `opencode` directly need it added explicitly.
+      - name: Expose pinned OpenCode CLI
+        run: |
+          set -euo pipefail
+          OPENCODE_VERSION="1.18.23"
+          echo "$(pwd)/node_modules/.bin" >> "$GITHUB_PATH"
+          export PATH="$(pwd)/node_modules/.bin:$PATH"
+          test "$(opencode --version)" = "$OPENCODE_VERSION"
+
       - name: Run tri-platform layout checks
         run: yarn workspace @goodfoot/plugin-layout-checks test
 
