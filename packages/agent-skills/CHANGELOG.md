@@ -1,9 +1,5 @@
 # @goodfoot/agent-skills npm package changelog
 
-## 1.0.25
-
-Strengthens the four-client smoke-test guidance so every generated skill is loaded through each host's own discovery path and results are labelled behavioral, structural, or blocked. Corrects the Antigravity authenticated invocation and clarifies that generated documents are idiomatic equivalents rather than byte-identical outputs.
-
 ## 1.0.24
 
 Maintenance release accompanying a repository version-bump hook fix: a version surface is now exempt only for its version, not for its whole contents, so an edit to a manifest or a version-bearing source file can no longer ship unversioned. No changes to the compiler, CLI, or package contents.
