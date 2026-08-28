@@ -198,6 +198,8 @@ jobs:
           set -euo pipefail
           command -v codex >/dev/null 2>&1 || { echo "unsupported runner: pinned codex CLI is unavailable" >&2; exit 1; }
           codex --version
+          checkout="$(pwd)"
+          marketplace_name="$(jq -r '.name' .agents/plugins/marketplace.json)"
           mapfile -t entries < <(jq -r '.plugins[] | select(.marketplace.codex != null) | [.marketplace.codex, (.skills | join(","))] | @tsv' "$REGISTRY")
           test "${#entries[@]}" -gt 0 || { echo "registry declares no Codex marketplace plugins" >&2; exit 1; }
           for entry in "${entries[@]}"; do
@@ -205,8 +207,11 @@ jobs:
             skills="${entry#*$'\t'}"
             echo "::group::codex add $name"
             smoke_home="$(mktemp -d)"
-            HOME="$smoke_home" codex plugin marketplace add .agents/plugins/marketplace.json
-            HOME="$smoke_home" codex plugin add "$name"
+            # codex only auto-discovers a marketplace manifest from a
+            # directory source, not a manifest file path directly; passing
+            # the checkout root lets it find .agents/plugins/marketplace.json.
+            HOME="$smoke_home" codex plugin marketplace add "$checkout"
+            HOME="$smoke_home" codex plugin add "$name@$marketplace_name"
 
             skills_dir="$(find "$smoke_home" -type d -path "*/$name/skills" -print -quit)"
             test -n "$skills_dir" || { echo "$name: installed no skills directory" >&2; exit 1; }
