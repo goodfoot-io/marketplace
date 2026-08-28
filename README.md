@@ -160,11 +160,11 @@ yarn workspace @goodfoot/agent-skills build
 
 ### Local Testing
 
-Test the marketplace locally before publishing:
+From the repository root, start Claude Code and add the current checkout as a local marketplace:
 
 ```bash
-# Add local repository as marketplace
-/plugin marketplace add /workspace
+# Add the repository root as a local marketplace
+/plugin marketplace add ./
 
 # Browse local plugins
 /plugin

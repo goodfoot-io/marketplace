@@ -129,24 +129,43 @@ jobs:
       - name: Claude install smoke
         run: |
           set -euo pipefail
+          checkout="$(pwd)"
+          claude_cli="$(yarn bin claude)"
+          before_status="$(git status --porcelain=v1 --untracked-files=all)"
           smoke_home="$(mktemp -d)"
-          trap 'rm -rf "$smoke_home"' EXIT
+          smoke_project="$(mktemp -d)"
+          trap 'rm -rf "$smoke_home" "$smoke_project"' EXIT
           export HOME="$smoke_home"
           export CLAUDE_CONFIG_DIR="$smoke_home/.claude"
-          yarn claude plugin marketplace add ./
-          mapfile -t names < <(jq -r '.plugins[].name' .claude-plugin/marketplace.json)
+          cd "$smoke_project"
+          test ! -e "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json" || {
+            echo "scratch config unexpectedly contains marketplace state" >&2
+            exit 1
+          }
+          node "$claude_cli" plugin marketplace add "$checkout"
+          mapfile -t names < <(jq -r '.plugins[].name' "$checkout/.claude-plugin/marketplace.json")
           test "${#names[@]}" -eq 10 || { echo "marketplace must declare exactly ten Claude plugins" >&2; exit 1; }
           for name in "${names[@]}"; do
             echo "::group::claude install $name"
-            yarn claude plugin install "$name@goodfoot"
-            yarn claude plugin list --json | jq -e --arg name "$name@goodfoot" \
+            node "$claude_cli" plugin install "$name@goodfoot"
+            node "$claude_cli" plugin list --json | jq -e --arg name "$name@goodfoot" \
               'any(.[]; .id == $name)' >/dev/null
-            yarn claude plugin uninstall "$name@goodfoot"
-            yarn claude plugin list --json | jq -e --arg name "$name@goodfoot" \
+            node "$claude_cli" plugin uninstall "$name@goodfoot"
+            node "$claude_cli" plugin list --json | jq -e --arg name "$name@goodfoot" \
               'all(.[]; .id != $name)' >/dev/null
             echo "::endgroup::"
           done
-          yarn claude plugin marketplace remove goodfoot
+          node "$claude_cli" plugin marketplace remove goodfoot
+          cd "$checkout"
+          after_status="$(git status --porcelain=v1 --untracked-files=all)"
+          test "$after_status" = "$before_status" || {
+            echo "Claude smoke mutated the checkout" >&2
+            diff <(printf '%s\n' "$before_status") <(printf '%s\n' "$after_status") || true
+            exit 1
+          }
+          if test "${GITHUB_ACTIONS:-}" = true; then
+            git diff --exit-code
+          fi
 
       # The assertion is re-derived from the same registry entry that drove the
       # install, and anchored to that plugin's own subtree. A bare skill-name

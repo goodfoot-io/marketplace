@@ -84,9 +84,12 @@ describe("primary documentation matches the registry-driven architecture", () =>
       "Every `SKILL.md` physically exists exactly once",
       "Codex byte-copy",
       "four surfaces",
+      "/plugin marketplace add /workspace",
     ]) {
       expect(docs).not.toContain(obsolete);
     }
+    expect(readme).toContain("From the repository root, start Claude Code");
+    expect(readme).toContain("/plugin marketplace add ./");
   });
 
   it("states applicability and Antigravity release boundaries without universal-platform claims", () => {

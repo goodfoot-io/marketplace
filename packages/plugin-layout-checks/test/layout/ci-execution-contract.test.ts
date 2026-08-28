@@ -1,10 +1,13 @@
+import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
 import { repoPath } from "../helpers.js";
 
 const workflow = fs.readFileSync(repoPath(".github/workflows/plugin-layout.yml"), "utf8");
-const parsed = parseYaml(workflow) as { jobs?: { "layout-checks"?: { steps?: Array<{ name?: string; run?: string }> } } };
+const parsed = parseYaml(workflow) as {
+  jobs?: { "layout-checks"?: { steps?: Array<{ name?: string; run?: string }> } };
+};
 const steps = parsed.jobs?.["layout-checks"]?.steps ?? [];
 const runFor = (name: string): string => steps.find((step) => step.name === name)?.run ?? "";
 
@@ -30,11 +33,11 @@ describe("plugin-layout CI execution contract", () => {
     expect(validateSkills).toContain("for root in ./skills ./plugins-claude/agent-skills");
     expect(validateSkills).toContain("yarn claude plugin validate ./plugins-claude/agent-skills");
     expect(validateSkills).not.toContain("yarn claude plugin validate ./skills");
-    expect(validateSkills).toContain("find \"$root\" -type f -name SKILL.md -size +0c");
+    expect(validateSkills).toContain('find "$root" -type f -name SKILL.md -size +0c');
     expect(validateSkills).toContain("contains no non-empty SKILL.md");
   });
 
-  it("smokes every marketplace-owned Claude plugin through supported marketplace operations", () => {
+  it("smokes every marketplace-owned Claude plugin from a neutral project without mutating the checkout", () => {
     const smoke = runFor("Claude install smoke");
     const marketplace = JSON.parse(fs.readFileSync(repoPath(".claude-plugin/marketplace.json"), "utf8")) as {
       plugins: Array<{ name: string }>;
@@ -52,14 +55,25 @@ describe("plugin-layout CI execution contract", () => {
       "expansion",
       "voice",
     ]);
-    expect(smoke).toContain('plugin marketplace add ./');
+    expect(smoke).toContain('cd "$smoke_project"');
+    expect(smoke).toContain('plugin marketplace add "$checkout"');
     expect(smoke).toContain('export CLAUDE_CONFIG_DIR="$smoke_home/.claude"');
     expect(smoke).toContain("plugin list --json");
     expect(smoke).not.toContain("plugin details");
-    expect(smoke).not.toContain("plugin marketplace add .\n");
+    expect(smoke).not.toContain("plugin marketplace add ./");
     expect(smoke).toContain(".plugins[].name");
     expect(smoke).toContain('plugin uninstall "$name@goodfoot"');
     expect(smoke).toContain("all(.[]; .id != $name)");
     expect(smoke).toContain("plugin marketplace remove goodfoot");
-  });
+    expect(smoke).toContain('test "$after_status" = "$before_status"');
+    expect(smoke).toContain("git diff --exit-code");
+
+    execFileSync("bash", ["-c", smoke], {
+      cwd: repoPath("."),
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_ACTIONS: "false" },
+      maxBuffer: 16 * 1024 * 1024,
+      timeout: 300_000,
+    });
+  }, 310_000);
 });
