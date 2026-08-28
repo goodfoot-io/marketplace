@@ -112,8 +112,9 @@ describe("Gate B — wrong-platform tokens in generated output", () => {
       // Its authoring destinations follow the host being documented, not the
       // tree carrying the documentation; the semantic matrix pins every site.
       if (plugin !== "agent-hooks") return true;
-      if (leak.file.includes("/skills/claude-code/") && leak.token === "plugins-claude/") return false;
-      if (leak.file.includes("/skills/codex/") && leak.token === "plugins-codex/") return false;
+      if (leak.file.includes("/skills/agent-hooks/reference/claude-code") && leak.token === "plugins-claude/")
+        return false;
+      if (leak.file.includes("/skills/agent-hooks/reference/codex") && leak.token === "plugins-codex/") return false;
       return true;
     });
     expect(

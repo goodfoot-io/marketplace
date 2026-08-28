@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { getFilePath, isTsFile, postToolUseHook, postToolUseOutput } from "@goodfoot/agent-hooks/claude-code";
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 
 // ============================================================================
 // Types

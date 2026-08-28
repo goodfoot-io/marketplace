@@ -1,6 +1,6 @@
 {
   "$comment": "Bundler-managed plugin registry. Field-by-field contract: packages/plugin-layout-checks/test/registry.ts",
-  "lintSuppressionBudget": 32,
+  "lintSuppressionBudget": 14,
   "sharedOpencodeRoot": "skills",
   "plugins": [
     {
@@ -554,8 +554,7 @@
         {
           "platform": "opencode",
           "path": "plugins-opencode/agent-hooks/skills",
-          "opencodeRegistered": true,
-          "note": "The 9 codex/SKILL.md reference links render as repo-relative literals here, since pluginRootVar is unavailable on OpenCode (per plan section C3)."
+          "opencodeRegistered": true
         },
         {
           "platform": "antigravity",
@@ -585,16 +584,9 @@
         "antigravity:conventions=plugins-antigravity/agent-hooks/AGENTS.md"
       ],
       "skills": [
-        "antigravity",
-        "claude-code",
-        "codex"
+        "agent-hooks"
       ],
-      "skillPlatforms": {
-        "antigravity": [
-          "claude-code",
-          "antigravity"
-        ]
-      },
+      "skillPlatforms": {},
       "marketplace": {
         "claude": "agent-hooks",
         "codex": "agent-hooks"
@@ -610,16 +602,8 @@
         "diagnostics": []
       },
       "lintSuppressions": [
-        "codex/SKILL.md.eta:25-25:skill-relative-path",
-        "codex/SKILL.md.eta:134-134:skill-relative-path",
-        "codex/SKILL.md.eta:303-303:skill-relative-path",
-        "codex/SKILL.md.eta:309-314:skill-relative-path",
-        "codex/SKILL.md.eta:30-30:plugin-root-variable",
-        "codex/SKILL.md.eta:139-139:plugin-root-variable",
-        "codex/SKILL.md.eta:286-286:plugin-root-variable",
-        "codex/SKILL.md.eta:301-301:plugin-root-variable",
-        "codex/SKILL.md.eta:308-308:plugin-root-variable",
-        "codex/SKILL.md.eta:314-319:plugin-root-variable"
+        "agent-hooks/reference/codex.md.eta:282-282:plugin-root-variable",
+        "agent-hooks/reference/codex.md.eta:297-297:plugin-root-variable"
       ],
       "antigravityPluginRoot": "plugins-antigravity/agent-hooks"
     },
@@ -659,8 +643,7 @@
         {
           "platform": "opencode",
           "path": "plugins-opencode/agent-skills/skills",
-          "opencodeRegistered": true,
-          "note": "The two helper-reference links render as repo-relative literals here, since pluginRootVar is unavailable on OpenCode (per plan section C3)."
+          "opencodeRegistered": true
         },
         {
           "platform": "antigravity",
@@ -690,11 +673,7 @@
         "antigravity:conventions=plugins-antigravity/agent-skills/AGENTS.md"
       ],
       "skills": [
-        "antigravity",
-        "cli-and-helpers",
-        "platform-behavior",
-        "reference",
-        "template-authoring"
+        "agent-skills"
       ],
       "skillPlatforms": {},
       "marketplace": {
@@ -720,21 +699,11 @@
         "diagnostics": []
       },
       "lintSuppressions": [
-        "cli-and-helpers/SKILL.md.eta:4-4:skill-relative-path",
-        "cli-and-helpers/SKILL.md.eta:21-21:skill-relative-path",
-        "cli-and-helpers/SKILL.md.eta:27-27:skill-relative-path",
-        "cli-and-helpers/SKILL.md.eta:44-44:skill-relative-path",
-        "cli-and-helpers/SKILL.md.eta:27-27:plugin-root-variable",
-        "platform-behavior/SKILL.md.eta:3-3:skill-relative-path",
-        "platform-behavior/SKILL.md.eta:14-14:skill-relative-path",
-        "platform-behavior/SKILL.md.eta:20-20:skill-relative-path",
-        "platform-behavior/SKILL.md.eta:24-24:skill-relative-path",
-        "platform-behavior/SKILL.md.eta:20-20:plugin-root-variable",
-        "reference/helper-reference.md.eta:3-3:skill-relative-path",
-        "reference/helper-reference.md.eta:9-33:cross-dialect-reference",
-        "reference/helper-reference.md.eta:9-33:literal-platform-prose",
-        "reference/helper-reference.md.eta:9-33:plugin-root-variable",
-        "antigravity/SKILL.md.eta:16-16:skill-relative-path"
+        "agent-skills/reference/cli-and-helpers.md.eta:37-37:skill-relative-path",
+        "agent-skills/reference/platform-behavior.md.eta:17-17:skill-relative-path",
+        "agent-skills/reference/helper-reference.md.eta:9-33:cross-dialect-reference",
+        "agent-skills/reference/helper-reference.md.eta:9-33:literal-platform-prose",
+        "agent-skills/reference/helper-reference.md.eta:9-33:plugin-root-variable"
       ],
       "antigravityPluginRoot": "plugins-antigravity/agent-skills"
     }

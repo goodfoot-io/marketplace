@@ -1,5 +1,9 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.21
+
+Maintenance release accompanying the consolidation of the authored skill sources: the agent-skills and agent-hooks documentation skills each collapse into a single hub skill with reference files, and the agent-hooks antigravity platform gate is dropped. No changes to the compiler, CLI, or package contents.
+
 ## 1.0.20
 
 Confirms the automated release pipeline end to end following the package's first npm publish: OIDC trusted publishing, the registry-driven plugin reference update, and the repaired CI install smokes. No functional changes.

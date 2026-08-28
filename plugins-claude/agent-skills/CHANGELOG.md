@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.21
+
+Consolidates the cli-and-helpers, platform-behavior, template-authoring, and antigravity skills into a single `agent-skills` skill: one hub SKILL.md routes to `reference/*.md` files, and the formerly shared helper-reference table now lives at `reference/helper-reference.md` inside the skill. Documentation content is otherwise unchanged.
+
 ## 1.0.20
 
 Confirms the automated release pipeline end to end following the package's first npm publish: OIDC trusted publishing, the registry-driven plugin reference update, and the repaired CI install smokes. No functional changes.

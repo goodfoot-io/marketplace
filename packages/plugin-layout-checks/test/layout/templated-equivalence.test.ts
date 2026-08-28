@@ -47,73 +47,65 @@ const OPENCODE_NAME_OVERRIDE: Record<string, Record<string, string>> = {
 };
 
 /**
- * agent-hooks is the one plugin whose two main skills are not two renderings
- * of one document: `claude-code` and `codex` are sibling skills with different
- * `name:` and different subject matter, both shipped to every platform, so
- * their build commands, doc URLs, and hook-type vocabulary are substance and
- * stay verbatim in every tree (plan A2/A3, refined by this card's read).
+ * agent-hooks is the one plugin whose two main documents are not two
+ * renderings of one text: `claude-code` and `codex` teach different subject
+ * matter, both shipped to every platform, so their build commands, doc URLs,
+ * and hook-type vocabulary are substance and stay verbatim in every tree
+ * (plan A2/A3, refined by this card's read).
  *
- * What genuinely varies per tree is the `codex` skill pointing at its own
- * sibling reference files. Reproduced here by construction against the pinned
- * original so the 9 substitution sites are the only permitted drift.
+ * The consolidation folded each plugin's sibling skills into one hub skill:
+ * the former SKILL.md bodies now ship as plain reference files (frontmatter
+ * absorbed into the hub), links between them became same-skill relative
+ * paths, and every file is identical across the four trees. The transforms
+ * below reconstruct that from the pinned pre-migration blobs so the named
+ * substitution sites stay the only permitted drift.
  */
-const agentHooksReference = (body: string, platform: string) => {
-  if (platform === "claude-code") return body;
-  const root =
-    platform === "opencode"
-      ? "plugins-opencode/agent-hooks/skills/codex"
-      : platform === "antigravity"
-        ? "plugins-antigravity/agent-hooks/skills/codex"
-        : `${CODEX_ROOT_TOKEN}/skills/codex`;
-  return body.replaceAll(`${CLAUDE_ROOT_TOKEN}/skills/codex`, root);
-};
-
 const claudeAuthoringRoot = (body: string) => body.replaceAll("plugins/", "plugins-claude/");
 const codexAuthoringRoot = (body: string) => body.replaceAll("plugins/", "plugins-codex/");
 
-const agentHooksCodex = (body: string, platform: string) => codexAuthoringRoot(agentHooksReference(body, platform));
+/** Former claude-code SKILL.md: gains the hub-era H1; its reference links move under claude-code/. */
+const agentHooksClaudeCode = (body: string) =>
+  `# Claude Code hooks\n\n${claudeAuthoringRoot(body).replaceAll("](reference/", "](claude-code/")}`;
 
 /**
- * agent-skills' two prose skills each point once at their sibling
- * `reference/helper-reference.md`, which resolves per-platform the same way
- * agent-hooks' codex references do.
+ * Former codex SKILL.md: gains the hub-era H1, and its 9 per-platform
+ * plugin-root reference links become same-skill relative paths — identical in
+ * every tree, which is what dissolved agent-hooks' per-platform drift.
  */
-const agentSkillsReference = (body: string, platform: string) => {
-  if (platform === "claude-code") return body;
-  const root =
-    platform === "opencode"
-      ? "plugins-opencode/agent-skills/skills"
-      : platform === "antigravity"
-        ? "plugins-antigravity/agent-skills/skills"
-        : `${CODEX_ROOT_TOKEN}/skills`;
-  return body.replaceAll(
-    `${CLAUDE_ROOT_TOKEN}/skills/reference/helper-reference.md`,
-    `${root}/reference/helper-reference.md`,
+const agentHooksCodex = (body: string) =>
+  `# Codex hooks\n\n${codexAuthoringRoot(body).replaceAll(`(@${CLAUDE_ROOT_TOKEN}/skills/codex/reference/`, "(codex/")}`;
+
+/**
+ * agent-skills' two prose documents each pointed once at the shared
+ * `reference/helper-reference.md` through a per-platform plugin-root path;
+ * consolidation made that file a sibling inside the one skill, so the link is
+ * now a bare relative filename in every tree.
+ */
+const agentSkillsCliReference = (body: string) =>
+  body.replace(
+    `Use the shared reference at \`${CLAUDE_ROOT_TOKEN}/skills/reference/helper-reference.md\` for`,
+    "Use the sibling reference `helper-reference.md` for",
   );
-};
+
+const agentSkillsPlatformReference = (body: string) =>
+  body.replace(
+    `Consult \`${CLAUDE_ROOT_TOKEN}/skills/reference/helper-reference.md\` for`,
+    "Consult the sibling reference `helper-reference.md` for",
+  );
 
 /**
- * `template-authoring` tells the reader to prefer portable helpers over
- * literal platform syntax, and used to demonstrate the opposite: a hardcoded
- * Claude-dialect `agent-skills:cli-and-helpers` that resolves to nothing on
- * Codex and OpenCode. It now routes through `it.skillRef()`. The expected
- * strings are written out rather than re-derived from the helper, so this
- * stays falsifiable — a helper that changed dialect wrongly would move the
- * tree and a derived expectation together and prove nothing.
+ * `template-authoring` used to route its cross-skill pointer through
+ * `it.skillRef("agent-skills:cli-and-helpers")`; the target is now a sibling
+ * file inside the same skill, so the pointer is a plain relative filename.
  */
-const agentSkillsSkillRef = (body: string, platform: string) => {
-  if (platform === "claude-code") return body;
-  const rendered =
-    platform === "opencode"
-      ? "`$cli-and-helpers`"
-      : platform === "antigravity"
-        ? "`cli-and-helpers`"
-        : "`$agent-skills:cli-and-helpers`";
-  return body.replaceAll("`agent-skills:cli-and-helpers`", rendered);
-};
+const agentSkillsSkillRef = (body: string) =>
+  body.replace(
+    "Load the `agent-skills:cli-and-helpers` skill for",
+    "Consult the sibling reference `cli-and-helpers.md` for",
+  );
 
-const agentSkillsCliLessons = (body: string, platform: string) =>
-  agentSkillsReference(body, platform)
+const agentSkillsCliLessons = (body: string) =>
+  agentSkillsCliReference(body)
     .replace(
       "Builds are fail-closed and transactional. Do not compensate for an error by partially copying output: validation or rendering failure is required to leave every destination untouched. `lint` diagnoses sources and rendered manifests; it does not check whether committed generated trees are fresh.",
       "Builds are fail-closed and transactional. Do not compensate for an error by partially copying output: validation or rendering failure is required to leave every destination untouched. `lint` diagnoses sources and rendered manifests; it does not check whether committed generated trees are fresh.\n\nA build publishes by replacing each target directory as a unit, not by merging files into it. Point every target at the generated leaf (normally `<plugin>/skills`), never at a plugin root that also contains manifests, binaries, changelogs, or other maintained content. Before publishing, account for every untracked entry in the target, including ignored files: an ignored cache or local configuration is still data the directory swap would destroy. A freshness gate should rebuild all registry targets and require a clean diff; lint alone cannot prove that committed output matches its source.",
@@ -123,14 +115,14 @@ const agentSkillsCliLessons = (body: string, platform: string) =>
       "Use `it.skillInvoke(...)`, rather than `it.skillRef(...)`, when the output must actively load a skill. Invocation may be a block-level construct, so do not embed it inside a sentence.\n\nWhen a migration adds a platform, verify discovery with that host's real headless invocation. Installing the plugin, listing its files, or validating frontmatter proves packaging only; it does not prove the host can discover and load the skill. Exercise at least one skill from each migrated plugin on every platform where that plugin actually ships, and treat a provider outage separately from a discovery failure.",
     );
 
-const agentSkillsPlatformLessons = (body: string, platform: string) =>
-  agentSkillsReference(body, platform).replace(
+const agentSkillsPlatformLessons = (body: string) =>
+  agentSkillsPlatformReference(body).replace(
     "Render each selected platform and review the output in that platform's dialect. Check exact bytes and inventory, including opaque assets, rather than comparing only Markdown meaning. In particular, inspect skill and agent references, conventions filenames, native frontmatter keys, logical destination roots, block-level invocation whitespace, and forbidden plugin-root variables inside skill Markdown.",
     "Render each selected platform and review the output in that platform's dialect. Check exact bytes and inventory, including opaque assets, rather than comparing only Markdown meaning. In particular, inspect skill and agent references, conventions filenames, native frontmatter keys, logical destination roots, block-level invocation whitespace, and forbidden plugin-root variables inside skill Markdown.\n\nKeep the declared platform set honest. A build target that intentionally renders zero files cannot be represented in Git and will be recreated only on machines that happen to run the build; omit unsupported targets instead of declaring empty output trees. Conversely, do not infer support from a generated directory alone. Confirm each shipped tree with the host's real skill-loading command, and record deliberate platform exceptions where the taught capability exists on only one host.",
   );
 
-const agentSkillsTemplateLessons = (body: string, platform: string) =>
-  agentSkillsSkillRef(body, platform)
+const agentSkillsTemplateLessons = (body: string) =>
+  agentSkillsSkillRef(body)
     .replace(
       "Use one source tree for every platform. Markdown templates end in `.md.eta` and render to the same relative path without `.eta`. Files that are not templates are opaque assets: keep them beside the templates so the build copies their bytes and executable mode into each selected output tree.",
       "Use one source tree for every platform. Markdown templates end in `.md.eta` and render to the same relative path without `.eta`. Files that are not templates are opaque assets: keep them beside the templates so the build copies their bytes and executable mode into each selected output tree.\n\nOpaque copying is unconditional for every selected target. Keep a script beside a template only when each rendered skill tree genuinely needs that script at runtime. Repository verification programs, fixtures, and migration witnesses belong outside the generated target and should be wired into their own typecheck or test graph; otherwise the build silently multiplies unchecked code across platforms and makes disposable output look authoritative.",
@@ -184,10 +176,15 @@ const HELPER_TABLE_END = "<!-- END GENERATED AGENT-SKILLS HELPER REFERENCE -->";
  * byte-identical to the pre-migration blob.
  */
 const helperReferenceTable = (body: string) => {
-  const relocated = body.replace(
-    "plugins/agent-skills/scripts/sync-helper-reference.mjs",
-    "plugins-claude/agent-skills/scripts/sync-helper-reference.mjs",
-  );
+  const relocated = body
+    .replace(
+      "plugins/agent-skills/scripts/sync-helper-reference.mjs",
+      "plugins-claude/agent-skills/scripts/sync-helper-reference.mjs",
+    )
+    .replace(
+      "This file is shared by the `agent-skills` documentation skills.",
+      "This file is the `agent-skills` skill's helper catalog.",
+    );
   const begin = relocated.indexOf(HELPER_TABLE_BEGIN);
   const end = relocated.indexOf(HELPER_TABLE_END);
   if (begin < 0 || end <= begin) throw new Error("pinned helper reference has no generated-region markers");
@@ -242,7 +239,7 @@ const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: st
     },
   },
   "agent-hooks": {
-    "claude-code/SKILL.md": claudeAuthoringRoot,
+    "claude-code/SKILL.md": agentHooksClaudeCode,
     "claude-code/reference/installation.md": claudeAuthoringRoot,
     "codex/SKILL.md": agentHooksCodex,
     "codex/reference/installation.md": codexAuthoringRoot,
@@ -253,6 +250,41 @@ const BODY_TRANSFORMS: Record<string, Record<string, (body: string, platform: st
     "platform-behavior/SKILL.md": agentSkillsPlatformLessons,
     "template-authoring/SKILL.md": agentSkillsTemplateLessons,
     "reference/helper-reference.md": helperReferenceTable,
+  },
+};
+
+/**
+ * Where the consolidation moved each pinned pre-migration file. Fixture paths
+ * are immutable (they name git blobs), so the mapping to today's generated
+ * layout lives here. A fixture entry absent from a plugin's map keeps its
+ * original path. The hub SKILL.md files are new authored material with no
+ * pre-migration counterpart; their correctness is owned by the freshness and
+ * lint gates, not this equivalence contract.
+ */
+const CONSOLIDATED_PATHS: Record<string, Record<string, string>> = {
+  "agent-hooks": {
+    "antigravity/SKILL.md": "agent-hooks/reference/antigravity.md",
+    "claude-code/SKILL.md": "agent-hooks/reference/claude-code.md",
+    "claude-code/reference/environment.md": "agent-hooks/reference/claude-code/environment.md",
+    "claude-code/reference/input-types.md": "agent-hooks/reference/claude-code/input-types.md",
+    "claude-code/reference/installation.md": "agent-hooks/reference/claude-code/installation.md",
+    "claude-code/reference/logging.md": "agent-hooks/reference/claude-code/logging.md",
+    "claude-code/reference/output-builders.md": "agent-hooks/reference/claude-code/output-builders.md",
+    "claude-code/reference/porting.md": "agent-hooks/reference/claude-code/porting.md",
+    "codex/SKILL.md": "agent-hooks/reference/codex.md",
+    "codex/reference/environment.md": "agent-hooks/reference/codex/environment.md",
+    "codex/reference/input-types.md": "agent-hooks/reference/codex/input-types.md",
+    "codex/reference/installation.md": "agent-hooks/reference/codex/installation.md",
+    "codex/reference/logging.md": "agent-hooks/reference/codex/logging.md",
+    "codex/reference/output-builders.md": "agent-hooks/reference/codex/output-builders.md",
+    "codex/reference/porting.md": "agent-hooks/reference/codex/porting.md",
+  },
+  "agent-skills": {
+    "antigravity/SKILL.md": "agent-skills/reference/antigravity.md",
+    "cli-and-helpers/SKILL.md": "agent-skills/reference/cli-and-helpers.md",
+    "platform-behavior/SKILL.md": "agent-skills/reference/platform-behavior.md",
+    "template-authoring/SKILL.md": "agent-skills/reference/template-authoring.md",
+    "reference/helper-reference.md": "agent-skills/reference/helper-reference.md",
   },
 };
 
@@ -301,27 +333,47 @@ describe("templated-plugin equivalence (pre-migration blob vs generated output)"
 
         it(`renders ${target.platform} tree (${target.path}) as the pinned corpus, parsed-frontmatter-plus-body`, () => {
           for (const entry of fixture.files) {
+            const generatedPath = CONSOLIDATED_PATHS[plugin.name]?.[entry.path] ?? entry.path;
+
             // A front-config `platforms:` restriction keeps a skill out of
             // this tree entirely. Asserted as absent rather than skipped, so
             // the restriction cannot quietly stop applying.
-            const owner = entry.path.split("/")[0] ?? "";
+            const owner = generatedPath.split("/")[0] ?? "";
             if (!shipped.includes(owner)) {
               expect(
-                fs.existsSync(repoPath(target.path, entry.path)),
-                `${target.path}/${entry.path} is platform-restricted and must not be generated`,
+                fs.existsSync(repoPath(target.path, generatedPath)),
+                `${target.path}/${generatedPath} is platform-restricted and must not be generated`,
               ).toBe(false);
               continue;
             }
 
             const originalBytes = catFile(entry.gitObject);
             const originalText = originalBytes.toString("utf8");
-            const outputPath = repoPath(target.path, entry.path);
-            expect(fs.existsSync(outputPath), `${target.path}/${entry.path} missing`).toBe(true);
+            const outputPath = repoPath(target.path, generatedPath);
+            expect(fs.existsSync(outputPath), `${target.path}/${generatedPath} missing`).toBe(true);
             const outputText = fs.readFileSync(outputPath, "utf8");
 
             const original = splitFrontmatter(originalText);
             const output = splitFrontmatter(outputText);
             const bodyTransform = BODY_TRANSFORMS[plugin.name]?.[entry.path];
+
+            // Consolidation demoted a former SKILL.md to a plain reference
+            // file: its frontmatter was absorbed into the plugin's single hub
+            // SKILL.md, and only the body ships. Anything else losing its
+            // frontmatter is drift, so the demotion is permitted only where a
+            // path remap says the file moved.
+            if (original.header !== "" && output.header === "") {
+              expect(
+                CONSOLIDATED_PATHS[plugin.name]?.[entry.path],
+                `${target.path}/${generatedPath} lost its frontmatter without a consolidation remap`,
+              ).toBeDefined();
+              // splitFrontmatter leaves the separator newline on the body;
+              // the demoted file starts at its first content line.
+              const demotedBody = original.body.replace(/^\n/, "");
+              const expectedBody = bodyTransform ? bodyTransform(demotedBody, target.platform) : demotedBody;
+              expect(outputText, entry.path).toBe(expectedBody);
+              continue;
+            }
 
             if (original.header === "" && output.header === "") {
               // No frontmatter on either side (a reference/*.md asset). These

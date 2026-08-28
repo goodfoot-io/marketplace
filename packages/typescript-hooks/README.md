@@ -26,13 +26,23 @@ Validates TypeScript type checking and ESLint rules after file changes.
 **When it runs:** After Write/Edit/MultiEdit operations on TypeScript files
 
 **Features:**
-- Runs project-wide TypeScript type checking using `tsc --noEmit`
+- Runs project-wide TypeScript type checking using `tsc --noEmit`, backed by TypeScript 7's native Go compiler for speed
 - Runs ESLint validation using `yarn eslint:files`
 - Checks up to 5 dependent files for type errors caused by changes
 - Provides detailed error output in YAML format including:
   - Error location (file, line, column)
   - Error message and code
   - Code context around the error
+
+## TypeScript Tooling
+
+`tsc` (`typescript@^7`) runs as the native Go compiler for the project-wide type check the PostToolUse hook shells out to — this is the hot path run on every file edit, so its speed matters most.
+
+TypeScript 7's package no longer ships the JS compiler API (`ts.createSourceFile`, `ts.forEachChild`, etc.), so the swallowed-error AST scan in `src/typescript-check.ts` imports that API from `@typescript/typescript6` instead, Microsoft's compatibility shim re-exporting the old TypeScript 6 API. `typescript` and `@typescript/typescript6` are independent dependencies here — one for the CLI, one for the in-process API — not an alias of one to the other.
+
+Yarn's builtin `compat/typescript` patch (meant for PnP) hard-errors against both the native compiler's package layout and the `@typescript/typescript6` shim, so the repo carries a local plugin (`.yarn/plugins/@yarnpkg/plugin-disable-typescript-compat.cjs`) that strips it — safe since the repo uses `nodeLinker: node-modules`, not PnP. See [yarnpkg/berry#7191](https://github.com/yarnpkg/berry/issues/7191).
+
+TypeScript 6+ no longer auto-includes every installed `@types/*` package; `tsconfig.json` explicitly lists `"types": ["node"]` to keep Node globals (`process`, `Buffer`, `node:fs`, etc.) available.
 
 ## Development
 

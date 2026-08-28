@@ -1,5 +1,9 @@
 # agent-hooks plugin changelog
 
+## 1.0.12
+
+Consolidates the claude-code, codex, and antigravity skills into a single `agent-hooks` skill: one hub SKILL.md routes to per-host `reference/*.md` files, with the former per-host reference trees nested beneath them. Drops the antigravity platform gate, so the Codex and OpenCode trees now carry the Antigravity boundary reference as well. Documentation content is otherwise unchanged.
+
 ## 1.0.11
 
 Keeps hook-authoring destinations tied to the hook's subject platform across every generated tree: Claude guidance writes under `plugins-claude`, and Codex guidance writes under `plugins-codex`. Antigravity readers therefore no longer receive instructions to create inert hook manifests under `plugins-antigravity`, while the native boundary continues to state that Antigravity host hooks are unsupported.

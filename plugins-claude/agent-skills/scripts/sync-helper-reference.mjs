@@ -9,7 +9,7 @@ import { renderHelperReferenceMarkdown } from "@goodfoot/agent-skills/helper-ref
 // instead makes `sync; build` the only meaningful order, so the build stays
 // reproducible and `--check` measures template freshness rather than a race.
 const referenceUrl = new URL(
-  "../../../skills-src/agent-skills/reference/helper-reference.md.eta",
+  "../../../skills-src/agent-skills/agent-skills/reference/helper-reference.md.eta",
   import.meta.url,
 );
 const referencePath = fileURLToPath(referenceUrl);

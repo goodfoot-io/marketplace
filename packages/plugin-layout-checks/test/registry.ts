@@ -93,10 +93,9 @@ export interface RegistryPlugin {
    * freshness inventory, and the equivalence check all derive from — rather
    * than each test carrying its own copy of which skill is missing where.
    *
-   * agent-hooks/antigravity is the only member: it is intentionally limited to
-   * Claude Code and Antigravity, the two hosts where its Antigravity boundary
-   * is directly actionable, and stays out of the flat OpenCode namespace where
-   * it would collide with agent-skills/antigravity.
+   * Currently empty for every plugin: agent-hooks/antigravity was the last
+   * member until the agent-hooks consolidation folded it into the single
+   * `agent-hooks` skill, whose antigravity reference now ships in every tree.
    */
   skillPlatforms?: Record<string, Platform[]>;
   /**
