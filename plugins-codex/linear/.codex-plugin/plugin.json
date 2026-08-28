@@ -1,6 +1,6 @@
 {
   "name": "linear",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Linear webhook comment parsing and issue reference validation utilities",
   "author": {
     "name": "Goodfoot",
