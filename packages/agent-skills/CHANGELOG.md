@@ -1,5 +1,9 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.22
+
+Adds an Install section to the README covering both the npm package and the plugin, with verified per-host instructions for Claude Code, Codex, Antigravity, and OpenCode. Drops a stale `assets` entry from the package's `files` list, which named a directory that does not exist. No changes to the compiler, CLI, or published code.
+
 ## 1.0.21
 
 Maintenance release accompanying the consolidation of the authored skill sources: the agent-skills and agent-hooks documentation skills each collapse into a single hub skill with reference files, and the agent-hooks antigravity platform gate is dropped. No changes to the compiler, CLI, or package contents.

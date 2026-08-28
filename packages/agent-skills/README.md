@@ -2,6 +2,81 @@
 
 Compile one Eta skill source tree into deterministic platform-specific trees, and lint templates and rendered Markdown for portability defects.
 
+## Install
+
+Two things ship under the `agent-skills` name. The **npm package** is the compiler and
+linter you build skill trees with. The **plugin** carries the `agent-skills` skill, which
+teaches a coding agent how to author templates against this package — install it in
+whichever agent you develop with.
+
+### The npm package
+
+```bash
+yarn add --dev @goodfoot/agent-skills
+# or npm install, pnpm, etc.
+```
+
+### The plugin, for development
+
+All four hosts install from the published marketplace at
+[`goodfoot-io/marketplace`](https://github.com/goodfoot-io/marketplace). Claude Code and
+Codex resolve the repository directly; Antigravity and OpenCode need a local checkout
+because neither exposes a remote marketplace for skills.
+
+#### Claude Code
+
+```bash
+claude plugin marketplace add goodfoot-io/marketplace
+claude plugin install agent-skills@goodfoot
+```
+
+Verify with `claude plugin list` — `agent-skills@goodfoot` should be listed as enabled.
+
+#### Codex
+
+```bash
+codex plugin marketplace add goodfoot-io/marketplace
+codex plugin add agent-skills@goodfoot
+```
+
+The marketplace source must be a repository, git URL, or directory; passing the manifest
+path itself is rejected. `codex plugin add` requires the `<plugin>@<marketplace>` form.
+Verify with `codex plugin list --json`; the skill tree lands under
+`$CODEX_HOME/plugins/cache/goodfoot/agent-skills/<version>/skills`.
+
+#### Antigravity
+
+`agy` has no marketplace command, so install from a checkout:
+
+```bash
+git clone https://github.com/goodfoot-io/marketplace.git
+agy plugin install ./marketplace/plugins-antigravity/agent-skills
+```
+
+A successful install reports `skills : N processed`; `agents`, `commands`, `mcpServers`,
+and `hooks` report `skipped (not found)`, which is expected for a skills-only plugin.
+Verify with `agy plugin list`.
+
+#### OpenCode
+
+OpenCode plugins are hook-transport modules and cannot contribute skills — skills load
+only from `skills.paths`. `opencode plugin` will not install this. Clone the repository
+and register the skill directory in `opencode.json`:
+
+```bash
+git clone https://github.com/goodfoot-io/marketplace.git
+```
+
+```json
+{
+  "skills": {
+    "paths": ["./marketplace/plugins-opencode/agent-skills/skills"]
+  }
+}
+```
+
+Verify with `opencode debug skill`, which lists every discovered skill.
+
 ## Quick start
 
 ```eta

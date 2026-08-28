@@ -1,5 +1,9 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.6
+
+Restructures the README's Install section to separate the npm package from the plugin, and documents verified plugin installation for Claude Code, Codex, Antigravity, and OpenCode. Adds `README.md` and `CHANGELOG.md` to the package's `files` list so both ship to npm; previously neither was published. No changes to the hook API, the compiler, or the CLI.
+
 ## 1.0.5
 - Fixed Codex hook scaffold's PreToolUse/PostToolUse examples to avoid accessing unknown tool_input fields
 

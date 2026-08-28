@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.22
+
+Documents how to install the plugin for development on all four supported hosts. Claude Code and Codex install from the `goodfoot-io/marketplace` marketplace directly; Antigravity and OpenCode install from a checkout, because neither exposes a remote marketplace for skills.
+
 ## 1.0.21
 
 Consolidates the cli-and-helpers, platform-behavior, template-authoring, and antigravity skills into a single `agent-skills` skill: one hub SKILL.md routes to `reference/*.md` files, and the formerly shared helper-reference table now lives at `reference/helper-reference.md` inside the skill. Documentation content is otherwise unchanged.

@@ -20,10 +20,85 @@ validate against.
 
 ## Install
 
+Two things ship under the `agent-hooks` name. The **npm package** is the hook API and the
+compiler CLI. The **plugin** carries the `agent-hooks` skill, which teaches a coding agent
+how to write and compile hooks against this package — install it in whichever agent you
+develop with.
+
+### The npm package
+
 ```bash
 yarn add @goodfoot/agent-hooks
 # or npm install, pnpm, etc.
 ```
+
+### The plugin, for development
+
+All four hosts install from the published marketplace at
+[`goodfoot-io/marketplace`](https://github.com/goodfoot-io/marketplace). Claude Code and
+Codex resolve the repository directly; Antigravity and OpenCode need a local checkout
+because neither exposes a remote marketplace for skills.
+
+Note that the plugin and the npm package version independently — the plugin version you
+install will not match the package version above.
+
+#### Claude Code
+
+```bash
+claude plugin marketplace add goodfoot-io/marketplace
+claude plugin install agent-hooks@goodfoot
+```
+
+Verify with `claude plugin list` — `agent-hooks@goodfoot` should be listed as enabled.
+
+#### Codex
+
+```bash
+codex plugin marketplace add goodfoot-io/marketplace
+codex plugin add agent-hooks@goodfoot
+```
+
+The marketplace source must be a repository, git URL, or directory; passing the manifest
+path itself is rejected. `codex plugin add` requires the `<plugin>@<marketplace>` form.
+Verify with `codex plugin list --json`; the skill tree lands under
+`$CODEX_HOME/plugins/cache/goodfoot/agent-hooks/<version>/skills`.
+
+#### Antigravity
+
+`agy` has no marketplace command, so install from a checkout:
+
+```bash
+git clone https://github.com/goodfoot-io/marketplace.git
+agy plugin install ./marketplace/plugins-antigravity/agent-hooks
+```
+
+A successful install reports `skills : N processed`; `agents`, `commands`, `mcpServers`,
+and `hooks` report `skipped (not found)`, which is expected for a skills-only plugin.
+Verify with `agy plugin list`.
+
+This installs the authoring skill only. It is unrelated to `--agent antigravity`, which
+the compiler CLI still rejects (see the status note above).
+
+#### OpenCode
+
+OpenCode plugins are hook-transport modules and cannot contribute skills — skills load
+only from `skills.paths`. `opencode plugin` will not install this. Clone the repository
+and register the skill directory in `opencode.json`:
+
+```bash
+git clone https://github.com/goodfoot-io/marketplace.git
+```
+
+```json
+{
+  "skills": {
+    "paths": ["./marketplace/plugins-opencode/agent-hooks/skills"]
+  }
+}
+```
+
+Verify with `opencode debug skill`, which lists every discovered skill. This is separate
+from compiling hooks *for* OpenCode, covered in [OpenCode](#opencode) below.
 
 ## Quick Start
 
