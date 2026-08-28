@@ -48,6 +48,34 @@ function write(root: string, rel: string, body: string): void {
   fs.writeFileSync(path.join(root, rel), body);
 }
 
+/**
+ * The catalog file, in either key order.
+ *
+ * Shaped like the real `.claude-plugin/marketplace.json`: the catalog's own
+ * version is a top-level `version` key, on its own release track, and the
+ * plugin entries carry the plugin versions. `"version-last"` writes exactly
+ * the same document with the top-level key moved below `plugins` — no schema
+ * change, just a key order JSON does not constrain.
+ */
+function writeMarketplace(root: string, order: "version-first" | "version-last"): void {
+  const catalog = { version: "2.0.0" };
+  const rest = {
+    name: "fixture",
+    metadata: { description: "Braces { } and brackets [ ] inside a string value." },
+    plugins: [{ name: "demo", source: "./plugins/demo", version: "1.0.0" }],
+  };
+  const body = order === "version-first" ? { ...catalog, ...rest } : { ...rest, ...catalog };
+  write(root, ".claude-plugin/marketplace.json", `${JSON.stringify(body, null, 2)}\n`);
+}
+
+/** The catalog's own version, read by name rather than by position. */
+function catalogVersion(root: string): string {
+  const body = JSON.parse(fs.readFileSync(path.join(root, ".claude-plugin/marketplace.json"), "utf8")) as {
+    version: string;
+  };
+  return body.version;
+}
+
 /** A repository shaped like this one: one registry plugin, all eight surfaces. */
 function makeFixture(): string {
   const root = fs.mkdtempSync(path.join(scratch, "repo-"));
@@ -99,11 +127,7 @@ function makeFixture(): string {
       `# ${title} changelog\n\n## 1.0.1\n\nDescribes what this fixture release changed.\n\n## 1.0.0\n\nFirst release.\n`,
     );
   }
-  write(
-    root,
-    ".claude-plugin/marketplace.json",
-    `${JSON.stringify({ metadata: { version: "2.0.0" }, plugins: [{ name: "demo", source: "./plugins/demo", version: "1.0.0" }] }, null, 2)}\n`,
-  );
+  writeMarketplace(root, "version-first");
   write(
     root,
     "packages/plugin-layout-checks/registry/plugins.json",
@@ -296,10 +320,75 @@ describe("pre-commit version bump", () => {
     run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
 
     expect(versions(root).source).toBe("1.0.0");
-    const marketplace = JSON.parse(fs.readFileSync(path.join(root, ".claude-plugin/marketplace.json"), "utf8")) as {
-      metadata: { version: string };
-    };
-    expect(marketplace.metadata.version).toBe("2.0.0");
+    expect(catalogVersion(root)).toBe("2.0.0");
+  });
+
+  /**
+   * The catalog version is addressed by key, not by where it sits in the file.
+   *
+   * The bump used to read the catalog version with
+   * `grep '"version"...' | head -1` and write it with a `0,/.../` sed. Both
+   * mean "the first `"version"` literal in the file", which was the catalog's
+   * only because the top-level key happens to be declared above the `plugins`
+   * array — an ordering JSON does not constrain and no check enforced. Move it
+   * below, and the pair silently bumped the first plugin entry instead:
+   * against the real catalog that rewrote agent-hooks 1.0.91 -> 1.0.92 and
+   * left the catalog frozen, so one plugin ran a patch ahead of the six
+   * surfaces the propagation had just converged, and the catalog never moved.
+   *
+   * Both orders are exercised, so a fix that merely re-hardcoded a different
+   * position fails one of them.
+   */
+  it.each([
+    { order: "version-first" as const, placement: "above" },
+    { order: "version-last" as const, placement: "below" },
+  ])("bumps the catalog's own version when its key is declared $placement the plugins array", ({ order }) => {
+    const root = makeFixture();
+    writeMarketplace(root, order);
+    run(root, "git", ["add", ".claude-plugin/marketplace.json"]);
+    // --allow-empty: "version-first" is what the fixture already wrote, and a
+    // no-op commit must not be mistaken for a broken test setup.
+    run(root, "git", ["commit", "-q", "--allow-empty", "-m", `marketplace ${order}`]);
+
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "skills-src/demo/thing/SKILL.md.eta"]);
+    run(root, "bash", [".githooks/pre-commit.plugin-version-bump.sh"]);
+
+    // The catalog track advanced, and the plugin entry holds the plugin's own
+    // version — the number the propagation converged, not a stray increment.
+    expect(catalogVersion(root)).toBe("2.0.1");
+    expect(versions(root).marketplaceEntry).toBe("1.0.1");
+  });
+
+  /**
+   * A catalog with no top-level `version` is refused, not skipped.
+   *
+   * The old arm printed a warning and exited 0, so a marketplace.json the read
+   * could not parse shipped every bumped plugin under an unchanged catalog
+   * version — the fail-open the position dependency above turned into a
+   * routine outcome rather than a rare one.
+   */
+  it("refuses the commit when the catalog has no top-level version", () => {
+    const root = makeFixture();
+    write(
+      root,
+      ".claude-plugin/marketplace.json",
+      `${JSON.stringify({ plugins: [{ name: "demo", source: "./plugins/demo", version: "1.0.0" }] }, null, 2)}\n`,
+    );
+    run(root, "git", ["add", ".claude-plugin/marketplace.json"]);
+    run(root, "git", ["commit", "-qm", "catalog without a version"]);
+
+    write(root, "skills-src/demo/thing/SKILL.md.eta", "edited template\n");
+    run(root, "git", ["add", "skills-src/demo/thing/SKILL.md.eta"]);
+
+    const result = spawnSync("bash", [".githooks/pre-commit.plugin-version-bump.sh"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, OSTYPE: "linux-gnu" },
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('could not read a top-level "version"');
   });
 
   it("refuses a heading with no body, rather than accepting it as notes", () => {
@@ -478,9 +567,14 @@ describe("changelog gate follows the files, not the declaration", () => {
     ]);
 
     const registryPath = path.join(root, "packages/plugin-layout-checks/registry/plugins.json");
-    const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
-    registry.plugins[0].releaseIdentity.npm.relationship = "independent";
-    delete registry.plugins[0].versionSurfaces.packageJson;
+    const registry = JSON.parse(fs.readFileSync(registryPath, "utf8")) as { plugins: RegistryPlugin[] };
+    const demo = registry.plugins[0];
+    // The fixture declares a lockstep npm identity; asserting it rather than
+    // optional-chaining keeps a fixture that lost it from silently turning this
+    // into a no-op that still passes.
+    expect(demo.releaseIdentity.npm).not.toBeNull();
+    if (demo.releaseIdentity.npm !== null) demo.releaseIdentity.npm.relationship = "independent";
+    delete demo.versionSurfaces.packageJson;
     write(root, "packages/plugin-layout-checks/registry/plugins.json", `${JSON.stringify(registry, null, 2)}\n`);
 
     expect(surfaces()).toEqual([

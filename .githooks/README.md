@@ -21,7 +21,7 @@ reordering a behavior is editing one `PARTS=(...)` list and dropping in one file
 
 | Event | Sub-script | Concern | Can block |
 |-------|------------|---------|-----------|
-| pre-commit | `pre-commit.plugin-version-bump.sh` | Bump the patch version of any plugin (Claude or Codex) with staged changes; bump the Claude `marketplace.json` metadata version when any Claude plugin is bumped. Re-stages. | No (auto-fix only) |
+| pre-commit | `pre-commit.plugin-version-bump.sh` | Bump the patch version of any plugin (Claude or Codex) with staged changes; bump the Claude `marketplace.json` catalog version — its own top-level `version` key, on a release track separate from the plugin versions in `plugins[]` — when any Claude plugin is bumped. Re-stages. | Yes (missing release notes; unreadable registry or catalog version; no `jq`) |
 | pre-commit | `pre-commit.marketplace-sync.sh` | Sync each Claude `marketplace.json` plugin entry's version to its `plugin.json` version. No-ops without `jq`. Re-stages. | No (auto-fix only) |
 
 ## Conventions

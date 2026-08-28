@@ -4,6 +4,7 @@
   "private": true,
   "description": "OpenCode plugin registration for the claude-code-skill-reader skill set (cli).",
   "type": "module",
+  "main": "./index.js",
   "exports": {
     ".": "./index.js"
   }

@@ -5,7 +5,7 @@ export type VariantMap<T = string> = Partial<Record<Platform | PlatformAlias, T>
 export type ContentKind = "skill" | "agent" | "hook" | "manifest" | "documentation";
 export type PlatformPathKind = "skills" | "agents" | "hooks" | "plugin" | "conventions";
 export type PlatformDirectoryMap = Partial<Record<Platform, Partial<Record<PlatformPathKind, string>>>>;
-export type LintRuleId = "config" | "include" | "unexpanded-eta" | "frontmatter-key" | "cross-dialect-reference" | "literal-platform-prose" | "plugin-root-variable" | "skill-relative-path" | "opencode-name";
+export type LintRuleId = "config" | "include" | "unexpanded-eta" | "frontmatter-key" | "cross-dialect-reference" | "literal-platform-prose" | "plugin-root-variable" | "skill-relative-path" | "opencode-name" | "broken-link";
 export interface LintSuppression {
     readonly rule: LintRuleId;
     readonly lines: readonly [start: number, end: number];

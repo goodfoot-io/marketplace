@@ -18,10 +18,10 @@ yarn add --dev @goodfoot/agent-skills
 
 ### The plugin, for development
 
-All four hosts install from the published marketplace at
-[`goodfoot-io/marketplace`](https://github.com/goodfoot-io/marketplace). Claude Code and
-Codex resolve the repository directly; Antigravity and OpenCode need a local checkout
-because neither exposes a remote marketplace for skills.
+All four hosts install from
+[`goodfoot-io/marketplace`](https://github.com/goodfoot-io/marketplace). Claude Code,
+Codex, and Antigravity resolve the repository directly. Only OpenCode needs a checkout,
+because it loads skills from a config path rather than from a plugin.
 
 #### Claude Code
 
@@ -46,22 +46,27 @@ Verify with `codex plugin list --json`; the skill tree lands under
 
 #### Antigravity
 
-`agy` has no marketplace command, so install from a checkout:
+`agy` has no marketplace command. It installs a plugin root directly, from a git URL
+with the in-repo path appended:
 
 ```bash
-git clone https://github.com/goodfoot-io/marketplace.git
-agy plugin install ./marketplace/plugins-antigravity/agent-skills
+agy plugin install https://github.com/goodfoot-io/marketplace.git/plugins-antigravity/agent-skills
 ```
 
-A successful install reports `skills : N processed`; `agents`, `commands`, `mcpServers`,
-and `hooks` report `skipped (not found)`, which is expected for a skills-only plugin.
-Verify with `agy plugin list`.
+The `#subdir` fragment form other tools accept fails here with `could not detect plugin
+structure`. A local path works the same way: `agy plugin install
+./plugins-antigravity/agent-skills`.
+
+A successful install reports `skills : 1 processed`; `agents`, `commands`, `mcpServers`,
+and `hooks` report `skipped (not found)`, expected for a skills-only plugin. Files land
+in `~/.gemini/config/plugins/agent-skills/`. Verify with `agy plugin list`.
 
 #### OpenCode
 
 OpenCode plugins are hook-transport modules and cannot contribute skills — skills load
-only from `skills.paths`. `opencode plugin` will not install this. Clone the repository
-and register the skill directory in `opencode.json`:
+only from `skills.paths`, and `opencode plugin` never writes that key. Installing the
+plugin is not a way to get the skill. Clone the repository and register the skill
+directory in `opencode.json`:
 
 ```bash
 git clone https://github.com/goodfoot-io/marketplace.git
@@ -75,7 +80,25 @@ git clone https://github.com/goodfoot-io/marketplace.git
 }
 ```
 
-Verify with `opencode debug skill`, which lists every discovered skill.
+Verify with `opencode debug skill`. Its output is large and embeds whole skill bodies:
+redirect it to a file and search there. Piping it to `head` truncates the JSON mid-string
+and reports a present skill as missing.
+
+#### Updating an existing install
+
+Re-running the install command does not move the version on every host.
+
+- **Claude Code** — `plugin install` is a no-op once the plugin is installed: it reports
+  success and leaves the old version pinned. Use `claude plugin marketplace update
+  goodfoot`, then `claude plugin update agent-skills@goodfoot`. A restart applies it.
+- **Codex** — `codex plugin marketplace upgrade goodfoot` moves the installed version;
+  there is no separate plugin-update command.
+- **Antigravity** — re-run `agy plugin install`.
+- **OpenCode** — pull the checkout.
+
+Check the installed version rather than the exit code. Several hosts report success while
+leaving a stale version in place, and a newer directory in a host's cache proves only that
+it was fetched, not that it is the active install.
 
 ## Quick start
 

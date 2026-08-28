@@ -1,5 +1,9 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.7
+
+Corrects the README's OpenCode install rationale. The plugin packages now declare a `main` entrypoint, so `opencode plugin` no longer rejects them with `No plugin targets found`; the reason a checkout is still required is that `opencode plugin` never writes `skills.paths`, so installing the plugin does not deliver the skill. Also moves a sentence about compiling hooks for OpenCode out of the version-checking paragraph it had attached itself to. No changes to the hook API, the compiler, or the CLI.
+
 ## 1.0.6
 
 Restructures the README's Install section to separate the npm package from the plugin, and documents verified plugin installation for Claude Code, Codex, Antigravity, and OpenCode. Adds `README.md` and `CHANGELOG.md` to the package's `files` list so both ship to npm; previously neither was published. No changes to the hook API, the compiler, or the CLI.

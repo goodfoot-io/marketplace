@@ -4,6 +4,8 @@ Use one source tree for every platform. Markdown templates end in `.md.eta` and 
 
 Opaque copying is unconditional for every selected target. Keep a script beside a template only when each rendered skill tree genuinely needs that script at runtime. Repository verification programs, fixtures, and migration witnesses belong outside the generated target and should be wired into their own typecheck or test graph; otherwise the build silently multiplies unchecked code across platforms and makes disposable output look authoritative.
 
+Not everything under a platform tree is generated. "Never hand-edit a generated tree" is a default, not a universal: a plugin root can hold a hand-maintained manifest beside a generated skill leaf. Decide by provenance — grep the renderer and the packer for writes to the path — before editing or reverting one. Getting it backwards costs time in both directions: reverting a legitimate manifest fix as "generated output", or hand-patching a page the next build discards.
+
 ## Template invariants
 
 `@goodfoot/agent-skills` renders with Eta using `autoEscape: false` and `autoTrim: false`. Whitespace is therefore authored output, not formatting noise. Use Eta's native `include()` and `layout()` support for reusable fragments, and keep every include inside the declared source root.

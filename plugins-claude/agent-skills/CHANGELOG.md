@@ -1,5 +1,13 @@
 # agent-skills plugin changelog
 
+## 1.0.23
+
+Corrects the Antigravity reference. `agy plugin install` is verified, from a local path or a git URL with the in-repo path appended, so the skill no longer tells Claude that an install command must not be invented or that `agy plugin validate` is the packaging boundary. Behavioral invocation stays unavailable, since `agy -p` requires an authenticated session. Names the per-host skill-loading check in the porting reference, and records that `opencode debug skill` output truncates under `head` and reports a present skill as missing.
+
+Adds a distribution-and-verification section to the porting reference. One passing route per platform is not coverage, because each host ships through several independently failing routes; results are labelled behavioral, structural, or blocked, and a weaker result may not borrow the word "pass" from a stronger one. When an installer rejects a package, read its detection logic from source rather than the error text, and prove the fix by A/B against the unpatched copy at the same version. Records OpenCode's dual-purpose manifest: `package.json` is both the publishing manifest and a version surface, so it is hand-maintained, and the installer detects targets from it alone — a package exposing only `exports["."]` is rejected with `No plugin targets found` despite correct code.
+
+Qualifies the never-hand-edit-a-generated-tree rule in the authoring reference: it is a default, not a universal, and provenance decides — a plugin root can hold a hand-maintained manifest beside a generated skill leaf.
+
 ## 1.0.22
 
 Documents how to install the plugin for development on all four supported hosts. Claude Code and Codex install from the `goodfoot-io/marketplace` marketplace directly; Antigravity and OpenCode install from a checkout, because neither exposes a remote marketplace for skills.

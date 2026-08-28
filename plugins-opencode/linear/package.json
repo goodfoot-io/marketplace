@@ -4,6 +4,7 @@
   "private": true,
   "description": "OpenCode plugin registration for the linear skill set (linear).",
   "type": "module",
+  "main": "./index.js",
   "exports": {
     ".": "./index.js"
   }

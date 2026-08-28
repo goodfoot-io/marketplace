@@ -4,6 +4,7 @@
   "private": true,
   "description": "OpenCode plugin registration for the gmail skill set (gmail).",
   "type": "module",
+  "main": "./index.js",
   "exports": {
     ".": "./index.js"
   }

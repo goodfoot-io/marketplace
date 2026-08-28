@@ -49,6 +49,65 @@ bump_patch() {
     echo "$next"
 }
 
+bump_marketplace_catalog_version() {
+    # bump_marketplace_catalog_version <file>; echoes the new catalog version.
+    #
+    # The catalog carries its own version track, deliberately separate from the
+    # plugin versions in `.plugins[]`. This used to read it with
+    # `grep ... | head -1` and write it with a `0,/.../` sed — both of which
+    # mean "the first `"version"` literal in the file", not "the catalog's".
+    # That was only ever right because the top-level key happens to sit above
+    # the `plugins` array. Reorder the keys and the same two commands would
+    # silently read and bump a plugin entry's version instead, leaving the
+    # catalog frozen and one plugin a patch ahead of every other surface.
+    #
+    # Read through jq, so the value comes from `.version` by name. Written with
+    # an awk pass that tracks JSON nesting depth and only rewrites the
+    # `"version"` key at depth 1, so the write is addressed by position in the
+    # tree rather than position in the file, and every other byte — indentation,
+    # key order, the plugin entries — is passed through untouched.
+    local file="$1" current next
+    current=$(jq -r '.version // empty' "$file" 2>/dev/null) || current=""
+    if [[ ! "$current" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "pre-commit: could not read a top-level \"version\" from $file." >&2
+        echo "The marketplace catalog has its own version track and this hook has to advance it," >&2
+        echo "so a catalog with no readable version is refused rather than skipped: skipping ships" >&2
+        echo "bumped plugins under an unchanged catalog version." >&2
+        return 1
+    fi
+    local major minor patch
+    IFS='.' read -r major minor patch <<< "$current"
+    next="${major}.${minor}.$((patch + 1))"
+    # `cur`/`nxt`, not `current`/`next`: `next` is an awk keyword, and
+    # `-v next=...` is a run-time error rather than a silent no-op.
+    awk -v cur="$current" -v nxt="$next" '
+        {
+            line = $0
+            if (depth == 1 && !done && line ~ /^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"/ \
+                && index(line, "\"" cur "\"") > 0) {
+                sub(/"version"[[:space:]]*:[[:space:]]*"[^"]*"/, "\"version\": \"" nxt "\"", line)
+                done = 1
+            }
+            print line
+            # Depth for the NEXT line. String literals are removed first so a
+            # brace or bracket inside a description cannot shift the count.
+            stripped = line
+            gsub(/\\./, "", stripped)
+            gsub(/"[^"]*"/, "", stripped)
+            opens = gsub(/[{[]/, "", stripped)
+            closes = gsub(/[}\]]/, "", stripped)
+            depth += opens - closes
+        }
+        END { if (!done) exit 1 }
+    ' "$file" > "${file}.tmp" || {
+        rm -f "${file}.tmp"
+        echo "pre-commit: could not locate the top-level \"version\" key in $file to rewrite it." >&2
+        return 1
+    }
+    mv "${file}.tmp" "$file"
+    echo "$next"
+}
+
 changelog_surfaces_failed() {
     # Called when scripts/changelog-surfaces.mjs exits non-zero. Callers invoke
     # it with `|| changelog_surfaces_failed`, never inside `< <(...)` or `$(...)`
@@ -344,20 +403,10 @@ fi
 if [ "$CLAUDE_PLUGINS_BUMPED" -eq 1 ]; then
     MARKETPLACE_JSON=".claude-plugin/marketplace.json"
     if [ -f "$MARKETPLACE_JSON" ]; then
-        MARKETPLACE_VERSION=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$MARKETPLACE_JSON" | head -1 | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
-        if [ -n "$MARKETPLACE_VERSION" ]; then
-            IFS='.' read -r M_MAJOR M_MINOR M_PATCH <<< "$MARKETPLACE_VERSION"
-            NEW_MARKETPLACE_VERSION="${M_MAJOR}.${M_MINOR}.$((M_PATCH + 1))"
-            if [[ "$OSTYPE" == "darwin"* ]]; then
-                sed -i '' "0,/\"version\"[[:space:]]*:[[:space:]]*\"${MARKETPLACE_VERSION}\"/s//\"version\": \"${NEW_MARKETPLACE_VERSION}\"/" "$MARKETPLACE_JSON"
-            else
-                sed -i "0,/\"version\"[[:space:]]*:[[:space:]]*\"${MARKETPLACE_VERSION}\"/s//\"version\": \"${NEW_MARKETPLACE_VERSION}\"/" "$MARKETPLACE_JSON"
-            fi
-            git add "$MARKETPLACE_JSON"
-            echo "Bumped marketplace.json version: ${MARKETPLACE_VERSION} -> ${NEW_MARKETPLACE_VERSION}"
-        else
-            echo "Warning: Could not parse version from $MARKETPLACE_JSON, skipping marketplace bump"
-        fi
+        MARKETPLACE_VERSION=$(jq -r '.version // empty' "$MARKETPLACE_JSON" 2>/dev/null || true)
+        NEW_MARKETPLACE_VERSION=$(bump_marketplace_catalog_version "$MARKETPLACE_JSON") || exit 1
+        git add "$MARKETPLACE_JSON"
+        echo "Bumped marketplace.json version: ${MARKETPLACE_VERSION} -> ${NEW_MARKETPLACE_VERSION}"
     else
         echo "Warning: $MARKETPLACE_JSON not found, skipping marketplace bump"
     fi

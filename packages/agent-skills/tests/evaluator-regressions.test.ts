@@ -470,3 +470,48 @@ describe("helper, mapping, and lint controls", () => {
     );
   });
 });
+
+describe("relative link resolution", () => {
+  async function linkFixture(body: string): Promise<{ parent: string; root: string }> {
+    const { parent, root } = await fixture();
+    await fs.mkdir(join(root, "one", "reference"), { recursive: true });
+    await fs.writeFile(join(root, "one", "sibling.md.eta"), "# sibling\n");
+    await fs.writeFile(join(root, "one", "reference", "guide.md"), "# guide\n");
+    await fs.writeFile(join(root, "one", "SKILL.md.eta"), body);
+    return { parent, root };
+  }
+
+  it("resolves relative links against the source tree and flags only unresolvable ones", async () => {
+    const { parent, root } = await linkFixture(
+      "# Links\n\n[sibling](sibling.md)\n[nested](reference/guide.md)\n[broken](reference/missing.md)\n" +
+        "[anchor](#section)\n[external](https://example.com/x.md)\n[mail](mailto:someone@example.com)\n" +
+        "[protocol](//example.com/x.md)\n[fragment](sibling.md#top)\n[directory](reference)\n" +
+        "[templated](" +
+        "$" +
+        "{webhook.url})\n",
+    );
+    const result = await lint({
+      root,
+      patterns: ["one/*.md.eta"],
+      targets: [{ platform: "codex", outDir: join(parent, "links") }],
+    });
+    const broken = result.diagnostics.filter((item) => item.rule === "broken-link");
+    expect(broken).toHaveLength(1);
+    expect(broken[0]).toMatchObject({ sourcePath: "one/SKILL.md.eta", location: { line: 5 } });
+    expect(broken[0]?.message).toContain("reference/missing.md");
+    expect(result.ok).toBe(false);
+  });
+
+  it("ignores fenced examples and honors rule-scoped suppressions for broken links", async () => {
+    const { parent, root } = await linkFixture(
+      "<!-- agent-skills\nlintSuppressions:\n  - rule: broken-link\n    lines: [1, 1]\n-->" +
+        "[gone](reference/gone.md)\n```\n[fenced](reference/also-gone.md)\n```\n",
+    );
+    const result = await lint({
+      root,
+      patterns: ["one/*.md.eta"],
+      targets: [{ platform: "codex", outDir: join(parent, "suppressed") }],
+    });
+    expect(result.diagnostics.filter((item) => item.rule === "broken-link")).toHaveLength(0);
+  });
+});

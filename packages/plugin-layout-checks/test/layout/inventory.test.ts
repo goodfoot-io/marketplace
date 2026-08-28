@@ -100,6 +100,20 @@ describe("opencode tree inventory", () => {
     expect(pkg.exports?.["."]).toBe("./index.js");
   });
 
+  // `opencode plugin <path>` resolves a plugin entrypoint from exports["./tui"],
+  // exports["./server"], or a top-level `main`. A package carrying only
+  // exports["."] is rejected with "No plugin targets found" and installs
+  // nothing, so every OpenCode plugin root must also declare `main`.
+  it.each(
+    fs.readdirSync(repoPath("plugins-opencode")).sort(),
+  )("gives plugins-opencode/%s a top-level main opencode can resolve", (name) => {
+    const pkg = readJson<{ main?: string; exports?: Record<string, string> }>(
+      path.join("plugins-opencode", name, "package.json"),
+    );
+    expect(pkg.main).toBe("./index.js");
+    expect(fs.statSync(repoPath("plugins-opencode", name, "index.js")).isFile()).toBe(true);
+  });
+
   it("exposes all six skills as directory entries", () => {
     const skillsDir = repoPath(OPENCODE_TREE, "skills");
     expect(fs.readdirSync(skillsDir).sort()).toEqual([...EXPECTED_SKILLS].sort());

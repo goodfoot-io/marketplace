@@ -144,7 +144,7 @@ interface HooksJson {
 // Constants
 // ============================================================================
 
-const VERSION = "1.0.6";
+const VERSION = "1.0.7";
 const DEFAULT_ESBUILD_LOADERS: HookLoaderMap = {
   ".md": "text",
 };

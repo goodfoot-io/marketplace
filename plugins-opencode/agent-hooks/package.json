@@ -4,6 +4,7 @@
   "private": true,
   "description": "OpenCode plugin registration for the agent-hooks skill set (claude-code, codex).",
   "type": "module",
+  "main": "./index.js",
   "exports": {
     ".": "./index.js"
   }

@@ -4,6 +4,7 @@
   "private": true,
   "description": "OpenCode plugin registration for the voice skill set (handbook).",
   "type": "module",
+  "main": "./index.js",
   "exports": {
     ".": "./index.js"
   }

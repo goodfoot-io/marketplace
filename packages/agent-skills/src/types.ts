@@ -15,7 +15,8 @@ export type LintRuleId =
   | "literal-platform-prose"
   | "plugin-root-variable"
   | "skill-relative-path"
-  | "opencode-name";
+  | "opencode-name"
+  | "broken-link";
 
 export interface LintSuppression {
   readonly rule: LintRuleId;

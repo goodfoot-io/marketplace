@@ -4,6 +4,7 @@
   "private": true,
   "description": "OpenCode plugin registration for the goodfoot skill set (documentation, instructions, marketing, skillify, typescript-metrics, worktree-cleanup).",
   "type": "module",
+  "main": "./index.js",
   "exports": {
     ".": "./index.js"
   }

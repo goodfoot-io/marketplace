@@ -1,5 +1,11 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.23
+
+Adds a `broken-link` lint rule that resolves relative Markdown link targets against the source tree, so a link to a file that does not exist fails the linter instead of rendering into every platform tree. A target is satisfied by either the rendered name or the `.eta` template it renders from, and directory targets by any file beneath them. Absolute URLs, `mailto:` and other schemes, protocol-relative and root-relative paths, bare anchors, and destinations carrying an unrendered template expression are left alone. The rule participates in the existing suppression and baseline machinery; no existing template produces a diagnostic.
+
+Corrects the README's install instructions against the published marketplace. Antigravity installs from a git URL with the in-repo path appended and needs no checkout; the previous entry's claim that it required one was wrong. Adds an updating section: `claude plugin install` is a no-op once installed and only `claude plugin update` moves the version, while Codex moves it through `codex plugin marketplace upgrade`. Warns that `opencode debug skill` output truncates under `head`, and states the real reason a checkout is still required for OpenCode: `opencode plugin` never writes `skills.paths`, so installing the plugin does not deliver the skill.
+
 ## 1.0.22
 
 Adds an Install section to the README covering both the npm package and the plugin, with verified per-host instructions for Claude Code, Codex, Antigravity, and OpenCode. Drops a stale `assets` entry from the package's `files` list, which named a directory that does not exist. No changes to the compiler, CLI, or published code.

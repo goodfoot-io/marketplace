@@ -34,10 +34,10 @@ yarn add @goodfoot/agent-hooks
 
 ### The plugin, for development
 
-All four hosts install from the published marketplace at
-[`goodfoot-io/marketplace`](https://github.com/goodfoot-io/marketplace). Claude Code and
-Codex resolve the repository directly; Antigravity and OpenCode need a local checkout
-because neither exposes a remote marketplace for skills.
+All four hosts install from
+[`goodfoot-io/marketplace`](https://github.com/goodfoot-io/marketplace). Claude Code,
+Codex, and Antigravity resolve the repository directly. Only OpenCode needs a checkout,
+because it loads skills from a config path rather than from a plugin.
 
 Note that the plugin and the npm package version independently — the plugin version you
 install will not match the package version above.
@@ -65,16 +65,20 @@ Verify with `codex plugin list --json`; the skill tree lands under
 
 #### Antigravity
 
-`agy` has no marketplace command, so install from a checkout:
+`agy` has no marketplace command. It installs a plugin root directly, from a git URL
+with the in-repo path appended:
 
 ```bash
-git clone https://github.com/goodfoot-io/marketplace.git
-agy plugin install ./marketplace/plugins-antigravity/agent-hooks
+agy plugin install https://github.com/goodfoot-io/marketplace.git/plugins-antigravity/agent-hooks
 ```
 
-A successful install reports `skills : N processed`; `agents`, `commands`, `mcpServers`,
-and `hooks` report `skipped (not found)`, which is expected for a skills-only plugin.
-Verify with `agy plugin list`.
+The `#subdir` fragment form other tools accept fails here with `could not detect plugin
+structure`. A local path works the same way: `agy plugin install
+./plugins-antigravity/agent-hooks`.
+
+A successful install reports `skills : 1 processed`; `agents`, `commands`, `mcpServers`,
+and `hooks` report `skipped (not found)`, expected for a skills-only plugin. Files land
+in `~/.gemini/config/plugins/agent-hooks/`. Verify with `agy plugin list`.
 
 This installs the authoring skill only. It is unrelated to `--agent antigravity`, which
 the compiler CLI still rejects (see the status note above).
@@ -82,8 +86,9 @@ the compiler CLI still rejects (see the status note above).
 #### OpenCode
 
 OpenCode plugins are hook-transport modules and cannot contribute skills — skills load
-only from `skills.paths`. `opencode plugin` will not install this. Clone the repository
-and register the skill directory in `opencode.json`:
+only from `skills.paths`, and `opencode plugin` never writes that key. Installing the
+plugin is not a way to get the skill. Clone the repository and register the skill
+directory in `opencode.json`:
 
 ```bash
 git clone https://github.com/goodfoot-io/marketplace.git
@@ -97,8 +102,28 @@ git clone https://github.com/goodfoot-io/marketplace.git
 }
 ```
 
-Verify with `opencode debug skill`, which lists every discovered skill. This is separate
-from compiling hooks *for* OpenCode, covered in [OpenCode](#opencode) below.
+Verify with `opencode debug skill`. Its output is large and embeds whole skill bodies:
+redirect it to a file and search there. Piping it to `head` truncates the JSON mid-string
+and reports a present skill as missing.
+
+Installing this skill is separate from compiling hooks *for* OpenCode, covered in
+[OpenCode](#opencode) below.
+
+#### Updating an existing install
+
+Re-running the install command does not move the version on every host.
+
+- **Claude Code** — `plugin install` is a no-op once the plugin is installed: it reports
+  success and leaves the old version pinned. Use `claude plugin marketplace update
+  goodfoot`, then `claude plugin update agent-hooks@goodfoot`. A restart applies it.
+- **Codex** — `codex plugin marketplace upgrade goodfoot` moves the installed version;
+  there is no separate plugin-update command.
+- **Antigravity** — re-run `agy plugin install`.
+- **OpenCode** — pull the checkout.
+
+Check the installed version rather than the exit code. Several hosts report success while
+leaving a stale version in place, and a newer directory in a host's cache proves only that
+it was fetched, not that it is the active install.
 
 ## Quick Start
 

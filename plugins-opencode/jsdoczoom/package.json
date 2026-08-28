@@ -4,6 +4,7 @@
   "private": true,
   "description": "OpenCode plugin registration for the jsdoczoom skill set (style, cli).",
   "type": "module",
+  "main": "./index.js",
   "exports": {
     ".": "./index.js"
   }

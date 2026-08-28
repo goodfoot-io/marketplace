@@ -513,6 +513,7 @@ const LINT_RULES = new Set<Diagnostic["rule"]>([
   "plugin-root-variable",
   "skill-relative-path",
   "opencode-name",
+  "broken-link",
 ]);
 function markdownVisible(content: string, preserveInlineCode = false): string {
   let fenced = false;
@@ -528,7 +529,55 @@ function markdownVisible(content: string, preserveInlineCode = false): string {
     })
     .join("");
 }
-function sourceDiagnostics(content: string, sourcePath: string): Diagnostic[] {
+const MARKDOWN_LINK = /\[[^\]\n]*\]\(([^)\n]*)\)/g;
+/**
+ * Reduces a raw Markdown link destination to the relative source path it
+ * addresses, or `undefined` when the destination is not a resolvable relative
+ * path. Absolute URLs, protocol-relative and root-relative paths, bare
+ * anchors, and destinations carrying an unrendered template expression are all
+ * outside what the source tree can answer for.
+ */
+function linkTarget(raw: string): string | undefined {
+  const trimmed = raw.trim();
+  const bracketed = trimmed.startsWith("<") && trimmed.endsWith(">");
+  const destination = (bracketed ? trimmed.slice(1, -1).trim() : (trimmed.split(/\s+/)[0] ?? "")).trim();
+  if (!destination || destination.startsWith("#") || destination.startsWith("/")) return undefined;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(destination)) return undefined;
+  if (destination.includes("${") || destination.includes("<%") || destination.includes("{{")) return undefined;
+  const path = destination.split("#")[0]?.split("?")[0] ?? "";
+  if (!path) return undefined;
+  if (!path.includes("%")) return path;
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
+/**
+ * Resolves relative Markdown links against the source tree. Templates address
+ * each other by rendered name, so `foo.md` is satisfied by either `foo.md` or
+ * the `foo.md.eta` it is rendered from. `sources` carries the directories that
+ * hold those files too, so a destination naming a directory resolves.
+ */
+function brokenLinks(visible: string, content: string, sourcePath: string, sources: ReadonlySet<string>): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  const directory = dirname(sourcePath);
+  for (const match of visible.matchAll(MARKDOWN_LINK)) {
+    const target = linkTarget(match[1] ?? "");
+    if (target === undefined) continue;
+    const resolved = posix(join(directory, target)).replace(/\/+$/, "");
+    if (!resolved || resolved === "." || resolved.startsWith("../")) continue;
+    if (sources.has(resolved) || sources.has(`${resolved}.eta`)) continue;
+    diagnostics.push({
+      rule: "broken-link",
+      message: `Relative link target does not exist: ${target}`,
+      sourcePath,
+      location: location(content, match.index),
+    });
+  }
+  return diagnostics;
+}
+function sourceDiagnostics(content: string, sourcePath: string, sources: ReadonlySet<string>): Diagnostic[] {
   const visible = markdownVisible(content);
   const diagnostics: Diagnostic[] = [];
   const patterns: readonly [Diagnostic["rule"], RegExp, string][] = [
@@ -547,6 +596,7 @@ function sourceDiagnostics(content: string, sourcePath: string): Diagnostic[] {
   for (const [rule, pattern, message] of patterns)
     for (const match of visible.matchAll(pattern))
       diagnostics.push({ rule, message, sourcePath, location: location(content, match.index) });
+  diagnostics.push(...brokenLinks(visible, content, sourcePath, sources));
   return diagnostics;
 }
 function applySuppressions(diagnostics: readonly Diagnostic[], config?: TemplateFrontConfig): Diagnostic[] {
@@ -579,13 +629,20 @@ export async function lint(options: LintOptions): Promise<LintResult> {
   const diagnostics: Diagnostic[] = [];
   const discovery = await discover(options);
   const configs = new Map<string, TemplateFrontConfig | undefined>();
+  const parsedTemplates = new Map<string, { config?: TemplateFrontConfig; body: string }>();
+  const sources = new Set<string>([...discovery.paths, ...discovery.templates]);
   for (const path of discovery.templates) {
     const source = await readFile(resolve(options.root, path), "utf8");
     const parsed = parseFrontConfig(source);
-    diagnostics.push(...applySuppressions(sourceDiagnostics(parsed.body, path), parsed.config));
+    parsedTemplates.set(path, parsed);
     const output = posix(join(dirname(path), parsed.config?.outputName ?? basename(path).replace(/\.eta$/, "")));
+    sources.add(output);
     configs.set(output, parsed.config);
   }
+  for (const path of [...sources])
+    for (let parent = dirname(path); parent !== "." && parent !== "/"; parent = dirname(parent)) sources.add(parent);
+  for (const [path, parsed] of parsedTemplates)
+    diagnostics.push(...applySuppressions(sourceDiagnostics(parsed.body, path, sources), parsed.config));
   for (const [platform, manifest] of rendered)
     for (const file of manifest.files.values()) {
       if (file.path.endsWith(".md"))
