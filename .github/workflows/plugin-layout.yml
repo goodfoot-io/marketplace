@@ -213,7 +213,9 @@ jobs:
             HOME="$smoke_home" codex plugin marketplace add "$checkout"
             HOME="$smoke_home" codex plugin add "$name@$marketplace_name"
 
-            skills_dir="$(find "$smoke_home" -type d -path "*/$name/skills" -print -quit)"
+            # codex caches the installed plugin under a version segment
+            # (…/cache/<marketplace>/<name>/<version>/skills).
+            skills_dir="$(find "$smoke_home" -type d -path "*/$name/*/skills" -print -quit)"
             test -n "$skills_dir" || { echo "$name: installed no skills directory" >&2; exit 1; }
 
             # Assert the plugin's whole declared skill list, not one
