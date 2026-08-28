@@ -231,7 +231,11 @@ describe("plugin manifest history sequence", () => {
     expect(result.status).toBe(0);
     const sequence = JSON.parse(result.stdout) as { versions: string[]; historySource: string };
     expect(sequence.historySource).toBe("manifest-git-history");
-    expect(sequence.versions.at(-1)).toBe("1.0.78");
+    // Checked against the library's own answer rather than a pinned literal.
+    // The literal named whatever voice had shipped at the time, so it failed
+    // the suite after the next bump instead of before it — and what this test
+    // is for is that the CLI and the library report the same sequence.
+    expect(sequence.versions).toEqual(pluginReleaseSequence({ pluginName: "voice", surface: "plugin" }).versions);
   });
 
   it("excludes a dirty working-tree bump", () => {
