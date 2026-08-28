@@ -1,5 +1,9 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.25
+- Added support for compiling skills that target Antigravity, including its hook configuration
+- Updated documentation to cover Antigravity as a supported platform
+
 ## 1.0.24
 
 Maintenance release accompanying a repository version-bump hook fix: a version surface is now exempt only for its version, not for its whole contents, so an edit to a manifest or a version-bearing source file can no longer ship unversioned. No changes to the compiler, CLI, or package contents.
