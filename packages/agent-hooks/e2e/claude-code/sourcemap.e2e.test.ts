@@ -1,9 +1,8 @@
 /**
- * E2E tests for the CLI's inline-sourcemap behavior (--no-sourcemap).
+ * E2E tests for the CLI's inline-sourcemap behavior.
  *
- * By default the CLI embeds an inline sourcemap in every compiled bundle.
- * `--no-sourcemap` opts out, shrinking the emitted bytes while keeping the
- * shebang and the hooks.json manifest intact, and the bundle must still run.
+ * By default the CLI omits inline sourcemaps. `--sourcemap` opts in when
+ * original TypeScript locations are needed in stack traces.
  */
 
 import { spawnSync } from "node:child_process";
@@ -102,7 +101,7 @@ describe("E2E: Sourcemap Handling", () => {
     expect(content.startsWith(SHEBANG)).toBe(true);
   });
 
-  it("builds with defaults: bundle still contains the inline sourcemap", () => {
+  it("builds with defaults: bundle omits the inline sourcemap", () => {
     const outputDir = path.join(SOURCEMAP_TEST_OUTPUT, "default");
     const outputPath = path.join(outputDir, "hooks.json");
     fs.mkdirSync(outputDir, { recursive: true });
@@ -117,16 +116,16 @@ describe("E2E: Sourcemap Handling", () => {
     };
     const bundlePath = path.join(outputDir, "bin", hooksJson.__generated.files[0]);
     const content = fs.readFileSync(bundlePath, "utf-8");
-    expect(content).toContain("sourceMappingURL=data:application/json;base64,");
+    expect(content).not.toContain("sourceMappingURL");
   });
 
-  it("built hook still executes when compiled with --no-sourcemap", () => {
+  it("built hook still executes when compiled with --sourcemap", () => {
     const outputDir = path.join(SOURCEMAP_TEST_OUTPUT, "no-sourcemap-run");
     const outputPath = path.join(outputDir, "hooks.json");
     fs.mkdirSync(outputDir, { recursive: true });
 
     const inputPath = path.join(SOURCEMAP_TEST_FIXTURES, "hook-with-timeout.ts");
-    const result = runCli(inputPath, outputPath, ["--no-sourcemap"]);
+    const result = runCli(inputPath, outputPath, ["--sourcemap"]);
     expect(result.success).toBe(true);
 
     const hooksJson = JSON.parse(fs.readFileSync(outputPath, "utf-8")) as {

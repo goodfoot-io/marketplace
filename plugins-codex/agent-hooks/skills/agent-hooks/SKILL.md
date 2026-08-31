@@ -15,4 +15,6 @@ description: Load this skill immediately after a user mentions
 
 `--agent opencode` also builds, emitting plugin modules rather than a manifest; it has no dedicated reference yet.
 
+Builds omit inline sourcemaps by default for smaller, reviewable, reproducible artifacts. Pass `--sourcemap` explicitly when original TypeScript locations are needed in runtime stack traces.
+
 Do not answer from one host's reference about another host: the hosts differ in substance (hook vocabularies, output envelopes, capabilities), not just syntax.

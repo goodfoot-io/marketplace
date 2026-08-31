@@ -43,7 +43,7 @@ interface CompiledOpenCodePlugin {
 export async function compileOpenCodePlugin(
   sourcePath: string,
   loaders: HookLoaderMap,
-  sourcemap: boolean = true,
+  sourcemap: boolean = false,
 ): Promise<string> {
   const result = await esbuild.build({
     entryPoints: [sourcePath],

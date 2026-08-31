@@ -185,7 +185,7 @@ describe("compileHook install-topology reproducibility", () => {
     // standalone context emits a content-hashed filename we could not find.
     const result = spawnSync(
       process.execPath,
-      [TSX_CLI_PATH, cliPath, "--agent", "codex", "-i", hookPath, "-o", hooksJsonPath, "--stable-names"],
+      [TSX_CLI_PATH, cliPath, "--agent", "codex", "-i", hookPath, "-o", hooksJsonPath, "--stable-names", "--sourcemap"],
       { cwd: checkoutDir, encoding: "utf-8" },
     );
     if (result.status !== 0) {

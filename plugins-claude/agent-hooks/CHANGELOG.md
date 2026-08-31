@@ -1,5 +1,9 @@
 # agent-hooks plugin changelog
 
+## 1.0.14
+
+Documents the compiler's new sourcemap default across every generated agent-hooks skill: builds omit inline sourcemaps unless callers explicitly pass `--sourcemap` for TypeScript stack locations.
+
 ## 1.0.13
 
 Documents and smoke-tests equivalent hook functionality across Claude Code, Codex, OpenCode, and Antigravity. The generated skill now distinguishes behavioral host evidence from structural inspection, includes an isolated all-hooks fixture, and records the verified Antigravity invocation and denial behavior. Plugin metadata now describes all four supported clients.

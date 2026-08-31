@@ -69,7 +69,7 @@ interface CliArgs {
   pluginRoot?: boolean;
   /** Emit hash-free `<name>.mjs` bundles. Defaults to true; set false with --no-stable-names. */
   stableNames?: boolean;
-  /** Embed an inline sourcemap in compiled bundles. Defaults to true; set false with --no-sourcemap. */
+  /** Embed an inline sourcemap in compiled bundles. Defaults to false; enable with --sourcemap. */
   sourcemap?: boolean;
 }
 
@@ -144,7 +144,7 @@ interface HooksJson {
 // Constants
 // ============================================================================
 
-const VERSION = "1.0.9";
+const VERSION = "1.0.10";
 const DEFAULT_ESBUILD_LOADERS: HookLoaderMap = {
   ".md": "text",
 };
@@ -261,13 +261,13 @@ Optional Arguments:
   --no-stable-names
       Restore the pre-1.7 behavior: hashed compiled bundles (<name>.<hash>.mjs).
 
-  --sourcemap (default)
+  --sourcemap
       Embed an inline sourcemap in each compiled bundle so stack traces show
       original TypeScript source locations.
 
-  --no-sourcemap
-      Emit bundles without the inline sourcemap, shrinking compiled output by
-      roughly 85-90%. The content hash is unaffected.
+  --no-sourcemap (default)
+      Emit bundles without the inline sourcemap, shrinking compiled output.
+      The content hash is unaffected.
 
   -h, --help
       Show this help message.
@@ -383,7 +383,7 @@ function parseArgs(argv: string[]): CliArgs {
     // as true, while the Codex branch defaults by command context
     // (plugin mode → stable, otherwise hashed).
     stableNames: undefined,
-    sourcemap: true,
+    sourcemap: false,
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -717,7 +717,7 @@ interface CompileHookOptions {
   logEnvVar?: string;
   /** Explicit esbuild loaders for non-code imports. */
   loaders: HookLoaderMap;
-  /** Embed an inline sourcemap in the compiled content. Defaults to true; set false with --no-sourcemap. */
+  /** Embed an inline sourcemap in the compiled content. Defaults to false; enable with --sourcemap. */
   sourcemap?: boolean;
 }
 
@@ -725,7 +725,7 @@ interface CompileHookOptions {
  * Result of compiling a hook.
  */
 interface CompileHookResult {
-  /** Compiled content, with inline sourcemaps unless disabled. */
+  /** Compiled content, with inline sourcemaps when enabled. */
   content: string;
   /** Stable content hash generated from sourcemap-free output. */
   contentHash: string;
@@ -843,6 +843,29 @@ function symlinkVisiblePath(realPath: string, resolveDir: string): string {
 }
 
 /**
+ * Returns the stable project anchor for a module reached through node_modules.
+ *
+ * esbuild otherwise uses process.cwd() when rendering module-boundary comments
+ * and sourcemap source paths. A workspace script normally runs from the
+ * consuming package, while its dependencies may be hoisted several directories
+ * higher, making those emitted paths depend on the consumer's nesting depth.
+ * Anchoring at the directory which owns the visible node_modules keeps the
+ * canonical `node_modules/...` form in every such layout.
+ */
+function moduleWorkingDir(modulePath: string, fallback: string): string {
+  for (let dir = path.dirname(modulePath); ; ) {
+    if (path.basename(dir) === "node_modules") {
+      return path.dirname(dir);
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      return fallback;
+    }
+    dir = parent;
+  }
+}
+
+/**
  * Compiles a TypeScript hook file to a self-contained ESM executable.
  *
  * Uses esbuild's stdin option to avoid writing temporary wrapper files to disk.
@@ -876,6 +899,7 @@ async function compileHook(options: CompileHookOptions): Promise<CompileHookResu
     path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./agents/claude-code/transport.js"),
     resolveDir,
   );
+  const absWorkingDir = moduleWorkingDir(runtimePathAbsolute, resolveDir);
 
   // Compute relative paths from resolveDir to avoid absolute paths in source maps.
   // This ensures reproducible builds regardless of checkout directory.
@@ -942,6 +966,7 @@ execute(hook);
 
   // Common esbuild options
   const commonOptions: esbuild.BuildOptions = {
+    absWorkingDir,
     stdin: stdinOptions,
     loader: loaders,
     format: "esm",
@@ -997,7 +1022,7 @@ execute(hook);
   // output minus the trailing sourceMappingURL comment (verified on esbuild
   // 0.24.2), so the sourcemap-free content is emitted directly. The content
   // hash is always derived from pass-1 output, so it is unchanged by the flag.
-  if (sourcemap === false) {
+  if (sourcemap !== true) {
     return { content: contentForHash, contentHash };
   }
 
@@ -1039,7 +1064,7 @@ interface CompileAllHooksOptions {
   loaders: HookLoaderMap;
   /** Emit hash-free `<name>.mjs` bundles (default true). */
   stableNames?: boolean;
-  /** Embed inline sourcemaps in compiled bundles (default true). */
+  /** Embed inline sourcemaps in compiled bundles (default false). */
   sourcemap?: boolean;
 }
 
@@ -1800,6 +1825,7 @@ export {
   groupHooksByEventAndMatcher,
   HOOK_FACTORY_TO_EVENT,
   mergeHooksJson,
+  moduleWorkingDir,
   parseArgs,
   parseLoaderFlag,
   parseLoaderFlag as parseEsbuildLoaderFlag,

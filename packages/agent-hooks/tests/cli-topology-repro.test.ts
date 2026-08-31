@@ -85,12 +85,14 @@ describe("compileHook install-topology reproducibility", () => {
   let checkoutS: string;
   let checkoutD: string;
   let checkoutE: string;
+  let checkoutH: string;
 
   beforeEach(() => {
     baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "cli-topology-repro-"));
     checkoutS = path.join(baseDir, "checkoutS");
     checkoutD = path.join(baseDir, "checkoutD");
     checkoutE = path.join(baseDir, "checkoutE");
+    checkoutH = path.join(baseDir, "checkoutH");
 
     // checkoutS: the package directory is a physical copy under the
     // checkout's own node_modules — the single-path topology.
@@ -107,6 +109,12 @@ describe("compileHook install-topology reproducibility", () => {
       path.join(checkoutD, "node_modules", "@goodfoot", "agent-hooks"),
       "dir",
     );
+
+    // checkoutH: a plain, non-symlinked hoisted workspace install. The hook
+    // runs two directories below the node_modules which owns the CLI package.
+    fs.mkdirSync(path.join(checkoutH, "node_modules", "@goodfoot"), { recursive: true });
+    installPhysicalCliPackage(path.join(checkoutH, "node_modules", "@goodfoot", "agent-hooks"));
+    fs.mkdirSync(path.join(checkoutH, "packages", "consumer"), { recursive: true });
 
     // checkoutE: the package directory is the checkout's own source tree —
     // a physical `packages/claude-code-hooks` copy, with the checkout's
@@ -179,12 +187,12 @@ describe("compileHook install-topology reproducibility", () => {
    * Compiles the hook in `checkoutDir` by invoking the installed CLI through
    * the checkout's own node_modules, and returns the generated .mjs content.
    */
-  function compileViaCli(checkoutDir: string, hookPath: string): string {
-    const cliPath = path.join(checkoutDir, "node_modules", "@goodfoot", "agent-hooks", "src", "cli.ts");
+  function compileViaCli(checkoutDir: string, hookPath: string, installRoot: string = checkoutDir): string {
+    const cliPath = path.join(installRoot, "node_modules", "@goodfoot", "agent-hooks", "src", "cli.ts");
     const hooksJsonPath = path.join(checkoutDir, "hooks.json");
     const result = spawnSync(
       process.execPath,
-      [TSX_CLI_PATH, cliPath, "--agent", "claude-code", "-i", hookPath, "-o", hooksJsonPath],
+      [TSX_CLI_PATH, cliPath, "--agent", "claude-code", "-i", hookPath, "-o", hooksJsonPath, "--sourcemap"],
       {
         cwd: checkoutDir,
         encoding: "utf-8",
@@ -272,5 +280,21 @@ describe("compileHook install-topology reproducibility", () => {
     expect(entryWrapper).toContain(
       `import { execute } from './node_modules/@goodfoot/agent-hooks/src/agents/claude-code/transport`,
     );
+  }, 60000);
+
+  it("uses bare node_modules paths when dependencies are hoisted above the invoking cwd", () => {
+    const consumerDir = path.join(checkoutH, "packages", "consumer");
+    const content = compileViaCli(consumerDir, createHookFile(consumerDir), checkoutH);
+
+    expect(content).toContain("// node_modules/@goodfoot/agent-hooks/src/core/logger.ts");
+    expect(content).not.toMatch(/^\/\/ \.\.\/.*node_modules\/@goodfoot\/agent-hooks/m);
+
+    const sourcemapMatch = /sourceMappingURL=data:application\/json;base64,([A-Za-z0-9+/=]+)/.exec(content);
+    expect(sourcemapMatch).not.toBeNull();
+    const sourcemap = JSON.parse(Buffer.from(sourcemapMatch?.[1] ?? "", "base64").toString("utf-8"));
+    expect(sourcemap.sources).toContain("node_modules/@goodfoot/agent-hooks/src/core/logger.ts");
+    expect(
+      sourcemap.sources.some((source: string) => source.startsWith("../") && source.includes("node_modules")),
+    ).toBe(false);
   }, 60000);
 });

@@ -173,8 +173,8 @@ describe("parseArgs", () => {
 });
 
 describe("parseArgs sourcemap flag", () => {
-  it("defaults sourcemap to true", () => {
-    expect(parseArgs([]).sourcemap).toBe(true);
+  it("defaults sourcemap to false", () => {
+    expect(parseArgs([]).sourcemap).toBe(false);
   });
 
   it("parses --sourcemap flag", () => {

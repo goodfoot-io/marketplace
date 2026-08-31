@@ -2,6 +2,8 @@
 
 **Build AI coding agent hooks in TypeScript — one package, any supported agent.**
 
+Compiled bundles omit inline sourcemaps by default. Pass `--sourcemap` when original TypeScript locations are needed in runtime stack traces.
+
 `@goodfoot/agent-hooks` is the unified successor to `@goodfoot/claude-code-hooks` and
 `@goodfoot/codex-hooks`: a shared agent-neutral core (hook factory primitive, transport
 driver, `Logger`, env/stdin utilities) with a per-agent entry point on top. Write

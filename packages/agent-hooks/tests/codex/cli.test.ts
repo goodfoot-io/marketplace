@@ -185,8 +185,8 @@ describe("cli helpers", () => {
 });
 
 describe("parseArgs", () => {
-  it("defaults sourcemap to true", () => {
-    expect(parseArgs([]).sourcemap).toBe(true);
+  it("defaults sourcemap to false", () => {
+    expect(parseArgs([]).sourcemap).toBe(false);
   });
 
   it("parses --sourcemap as true", () => {

@@ -22,26 +22,26 @@ function createHookFile(): string {
 }
 
 describe("compileHook sourcemap behavior", () => {
-  it("embeds an inline sourcemap by default", async () => {
+  it("emits no inline sourcemap by default", async () => {
     const { content } = await compileHook(createHookFile(), DEFAULT_ESBUILD_LOADERS);
-    expect(content).toContain("sourceMappingURL=data:application/json;base64,");
+    expect(content).not.toContain("sourceMappingURL");
   });
 
-  it("emits no sourcemap when disabled", async () => {
-    const { content } = await compileHook(createHookFile(), DEFAULT_ESBUILD_LOADERS, false);
-    expect(content).not.toContain("sourceMappingURL");
+  it("emits a sourcemap when enabled", async () => {
+    const { content } = await compileHook(createHookFile(), DEFAULT_ESBUILD_LOADERS, true);
+    expect(content).toContain("sourceMappingURL=data:application/json;base64,");
   });
 
   it("derives a different content hash without a sourcemap", async () => {
     const sourcePath = createHookFile();
-    const withSourcemap = await compileHook(sourcePath, DEFAULT_ESBUILD_LOADERS);
+    const withSourcemap = await compileHook(sourcePath, DEFAULT_ESBUILD_LOADERS, true);
     const withoutSourcemap = await compileHook(sourcePath, DEFAULT_ESBUILD_LOADERS, false);
     expect(withoutSourcemap.contentHash).not.toBe(withSourcemap.contentHash);
   });
 
   it("sourcemap-free output equals default output minus the trailing sourceMappingURL line", async () => {
     const sourcePath = createHookFile();
-    const withSourcemap = await compileHook(sourcePath, DEFAULT_ESBUILD_LOADERS);
+    const withSourcemap = await compileHook(sourcePath, DEFAULT_ESBUILD_LOADERS, true);
     const withoutSourcemap = await compileHook(sourcePath, DEFAULT_ESBUILD_LOADERS, false);
     const stripped = withSourcemap.content.replace(/^\/\/# sourceMappingURL=data:application\/json;base64,.+\n?$/m, "");
     expect(withoutSourcemap.content).toBe(stripped);

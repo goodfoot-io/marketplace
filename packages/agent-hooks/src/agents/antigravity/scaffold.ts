@@ -68,7 +68,7 @@ function packageJson(projectName: string, outputPath: string): string {
         lint: "biome check .",
         typecheck: "tsc --noEmit",
       },
-      dependencies: { [PACKAGE_NAME]: "^1.0.9" },
+      dependencies: { [PACKAGE_NAME]: "^1.0.10" },
       devDependencies: {
         "@biomejs/biome": "2.4.9",
         "@types/node": "^24.0.0",

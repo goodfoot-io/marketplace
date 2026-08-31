@@ -138,7 +138,7 @@ describe("compileHook symlinked dependency reproducibility", () => {
     const hooksJsonPath = path.join(checkoutDir, "hooks.json");
     const result = spawnSync(
       process.execPath,
-      [TSX_CLI_PATH, cliPath, "--agent", "claude-code", "-i", hookPath, "-o", hooksJsonPath],
+      [TSX_CLI_PATH, cliPath, "--agent", "claude-code", "-i", hookPath, "-o", hooksJsonPath, "--sourcemap"],
       {
         cwd: checkoutDir,
         encoding: "utf-8",

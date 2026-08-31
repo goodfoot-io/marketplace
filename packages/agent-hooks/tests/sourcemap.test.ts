@@ -1,14 +1,13 @@
 /**
  * Unit tests for compileHook's inline-sourcemap behavior.
  *
- * The CLI embeds an inline sourcemap in compiled bundles by default so stack
- * traces map back to original TypeScript source. `--no-sourcemap` (threaded
- * through as `CompileHookOptions.sourcemap === false`) skips the second
+ * The CLI omits inline sourcemaps by default. `--sourcemap` (threaded through
+ * as `CompileHookOptions.sourcemap === true`) enables the second
  * esbuild pass and emits pass-1 (sourcemap-free) output directly.
  *
  * These checks pin down the flag contract:
- * - default output carries the inline `sourceMappingURL` comment;
- * - `sourcemap: false` output carries none;
+ * - default output carries no inline `sourceMappingURL` comment;
+ * - `sourcemap: true` output carries one;
  * - the content hash is identical in both modes (it is always derived from
  *   pass-1 output);
  * - the sourcemap-free output is byte-identical to the default output with the
@@ -44,23 +43,23 @@ describe("compileHook sourcemap behavior", () => {
     return filePath;
   }
 
-  it("embeds an inline sourcemap in the compiled content by default", async () => {
+  it("omits an inline sourcemap from the compiled content by default", async () => {
     const sourcePath = writeHookFile();
     const result = await compileHook({ sourcePath, outputDir: tempDir, loaders: {} });
-
-    expect(result.content).toContain("sourceMappingURL=data:application/json;base64,");
-  });
-
-  it("omits the sourceMappingURL comment when sourcemap is false", async () => {
-    const sourcePath = writeHookFile();
-    const result = await compileHook({ sourcePath, outputDir: tempDir, loaders: {}, sourcemap: false });
 
     expect(result.content).not.toContain("sourceMappingURL");
   });
 
+  it("embeds the sourceMappingURL comment when sourcemap is true", async () => {
+    const sourcePath = writeHookFile();
+    const result = await compileHook({ sourcePath, outputDir: tempDir, loaders: {}, sourcemap: true });
+
+    expect(result.content).toContain("sourceMappingURL=data:application/json;base64,");
+  });
+
   it("derives the same content hash with and without sourcemaps", async () => {
     const sourcePath = writeHookFile();
-    const withSourcemap = await compileHook({ sourcePath, outputDir: tempDir, loaders: {} });
+    const withSourcemap = await compileHook({ sourcePath, outputDir: tempDir, loaders: {}, sourcemap: true });
     const withoutSourcemap = await compileHook({ sourcePath, outputDir: tempDir, loaders: {}, sourcemap: false });
 
     expect(withoutSourcemap.contentHash).toBe(withSourcemap.contentHash);
@@ -68,7 +67,7 @@ describe("compileHook sourcemap behavior", () => {
 
   it("emits pass-1 content identical to default content minus the sourceMappingURL line", async () => {
     const sourcePath = writeHookFile();
-    const withSourcemap = await compileHook({ sourcePath, outputDir: tempDir, loaders: {} });
+    const withSourcemap = await compileHook({ sourcePath, outputDir: tempDir, loaders: {}, sourcemap: true });
     const withoutSourcemap = await compileHook({ sourcePath, outputDir: tempDir, loaders: {}, sourcemap: false });
 
     const strippedDefault = withSourcemap.content.replace(

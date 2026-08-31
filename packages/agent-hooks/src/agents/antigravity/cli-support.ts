@@ -26,6 +26,7 @@ import ts from "typescript";
 import {
   buildEsbuildLoaderMap,
   discoverHookSourceFiles,
+  moduleWorkingDir,
   parseEsbuildLoaderFlag,
   pruneStaleHashedBundles,
   sha256Prefix8,
@@ -162,13 +163,14 @@ export function analyzeAntigravityHookFile(sourcePath: string): AntigravityHookM
 export async function compileAntigravityHook(
   sourcePath: string,
   loaders: Record<string, esbuild.Loader>,
-  sourcemap: boolean = true,
+  sourcemap: boolean = false,
 ): Promise<{ content: string; contentHash: string }> {
   const resolveDir = path.dirname(sourcePath);
   const runtimeAbsolute = symlinkVisiblePath(
     path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./transport.js"),
     resolveDir,
   );
+  const absWorkingDir = moduleWorkingDir(runtimeAbsolute, resolveDir);
   const runtimeRelative = path.relative(resolveDir, runtimeAbsolute).replace(/\\/g, "/");
   const runtimeSpecifier = runtimeRelative.startsWith(".") ? runtimeRelative : `./${runtimeRelative}`;
   const entry = [
@@ -179,6 +181,7 @@ export async function compileAntigravityHook(
   ].join("\n");
 
   const built = await esbuild.build({
+    absWorkingDir,
     stdin: {
       contents: entry,
       resolveDir,

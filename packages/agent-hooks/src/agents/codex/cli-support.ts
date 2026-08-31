@@ -19,6 +19,7 @@ import ts from "typescript";
 import {
   buildEsbuildLoaderMap,
   discoverHookSourceFiles,
+  moduleWorkingDir,
   parseEsbuildLoaderFlag,
   pruneStaleHashedBundles,
   sha256Prefix8,
@@ -161,13 +162,14 @@ export function analyzeCodexHookFile(sourcePath: string): CodexHookMetadata | un
 export async function compileCodexHook(
   sourcePath: string,
   loaders: HookLoaderMap,
-  sourcemap: boolean = true,
+  sourcemap: boolean = false,
 ): Promise<{ content: string; contentHash: string }> {
   const resolveDir = path.dirname(sourcePath);
   const runtimePathAbsolute = symlinkVisiblePath(
     path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./transport.js"),
     resolveDir,
   );
+  const absWorkingDir = moduleWorkingDir(runtimePathAbsolute, resolveDir);
   let relativeRuntimePath = path.relative(resolveDir, runtimePathAbsolute).replace(/\\/g, "/");
   if (!relativeRuntimePath.startsWith(".")) {
     relativeRuntimePath = `./${relativeRuntimePath}`;
@@ -179,6 +181,7 @@ execute(hook);
 `;
   const baseName = path.basename(sourcePath, path.extname(sourcePath));
   const result = await esbuild.build({
+    absWorkingDir,
     stdin: {
       contents: wrapperContent,
       resolveDir,

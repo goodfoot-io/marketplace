@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "goodfoot",
   "displayName": "Goodfoot",
-  "version": "1.0.300",
+  "version": "1.0.301",
   "metadata": {
     "description": "Professional development workflows, MCP servers, and productivity tools from Goodfoot. Includes project management, browser automation, VSCode integration, code quality enforcement, and comprehensive development utilities."
   },
@@ -84,7 +84,7 @@
         "opencode",
         "antigravity"
       ],
-      "version": "1.0.13"
+      "version": "1.0.14"
     },
     {
       "name": "agent-skills",

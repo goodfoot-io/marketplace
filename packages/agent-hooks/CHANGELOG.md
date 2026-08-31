@@ -1,5 +1,9 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.10
+
+Makes compiled bundles portable across ordinary hoisted workspace layouts by anchoring esbuild's module-boundary comments and sourcemap source paths at the directory that owns the resolved `node_modules`. Inline sourcemaps are now disabled by default for smaller, reviewable build artifacts and remain available with the explicit `--sourcemap` flag.
+
 ## 1.0.9
 
 Adds full Antigravity support to the public package: typed hook factories and outputs, transport behavior, the `@goodfoot/agent-hooks/antigravity` export, CLI compilation, and a scaffold that emits an installable Antigravity plugin manifest. The implementation is covered by unit, conformance, export-surface, scaffold, and live host smoke tests.
