@@ -1,11 +1,6 @@
 # @goodfoot/agent-hooks npm package changelog
 
 ## 1.0.10
-- Fixed scaffolded hook bundles to work when the install path is a symlink or otherwise differs from the project root, so hooks resolve correctly across repository layouts
-- Improved stack traces from hooks by making source map resolution reliable in relocated or symlinked installs
-- Applied the portability fixes consistently across the Claude Code, Codex, and Antigravity entry points
-
-## 1.0.10
 
 Makes compiled bundles portable across ordinary hoisted workspace layouts by anchoring esbuild's module-boundary comments and sourcemap source paths at the directory that owns the resolved `node_modules`. Inline sourcemaps are now disabled by default for smaller, reviewable build artifacts and remain available with the explicit `--sourcemap` flag.
 
