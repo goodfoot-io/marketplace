@@ -5,6 +5,8 @@ const jestConfig = {
   ...preset,
   verbose: true,
   testEnvironment: './src/jest-environment.ts',
+  globalSetup: './src/jest-global-setup.ts',
+  globalTeardown: './src/jest-global-teardown.ts',
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
