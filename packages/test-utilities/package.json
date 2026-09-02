@@ -45,6 +45,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "embedded-postgres": "18.4.0-beta.17",
     "p-queue": "^9.0.1",
     "postgres": "^3.4.7"
   }

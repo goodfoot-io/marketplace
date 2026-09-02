@@ -10,6 +10,7 @@ export default defineConfig({
           globals: true,
           reporters: 'verbose',
           environment: 'node',
+          globalSetup: ['./src/vitest-global-setup.ts'],
           setupFiles: ['./src/vitest-setup.ts'],
           include: ['tests/**/*.test.ts'],
           exclude: ['**/node_modules/**', '**/dist/**', '**/build/**']
