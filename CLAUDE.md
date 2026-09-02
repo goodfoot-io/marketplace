@@ -6,6 +6,8 @@ Resolve every warning and failure from the required checks, including ones you d
 
 <workspace>
 Greenfield Yarn 4.x monorepo, packages in `./packages/`. Use Yarn, never `npm`; prefer local over origin branches. No migrations, backwards compatibility, or fallbacks. Choose the "right way" over the "easy way"; prefer fail-closed workflows over fail-open. When asked to commit, commit to the current local branch — never create a new branch first, even on `main`.
+
+Packages are independent. Never run build/lint/test repo-wide (e.g. `yarn workspaces foreach -A run <script>` from the root, or a root-level `yarn test`/`yarn validate`). Run validation scoped to the specific package(s) you changed, e.g. `yarn workspace <package-name> run test`.
 </workspace>
 
 <tools>

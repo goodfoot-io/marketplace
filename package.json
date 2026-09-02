@@ -16,8 +16,7 @@
     "knip": "knip --config ./knip.config.json",
     "knip:fix": "knip --fix --config ./knip.config.json",
     "build": "yarn workspaces foreach -A run build",
-    "lint": "yarn workspaces foreach -A run lint",
-    "test": "yarn workspaces foreach -A run test"
+    "lint": "yarn workspaces foreach -A run lint"
   },
   "private": true,
   "packageManager": "yarn@4.12.0",
