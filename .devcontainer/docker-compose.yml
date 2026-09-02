@@ -1,5 +1,4 @@
 volumes:
-  db_storage_pg18:
   opencode-data:
   cards-worktrees:
   rustup-data:
@@ -41,21 +40,3 @@ services:
     # No dns: pin — `tailscale up --accept-dns` manages /etc/resolv.conf
     # (MagicDNS at 100.100.100.100, with split-DNS to upstreams).
     command: sleep infinity
-
-  postgres:
-    image: postgres:18.1
-    restart: "no"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=postgres
-    volumes:
-      - db_storage_pg18:/var/lib/postgresql
-      - ./init-data.sh:/docker-entrypoint-initdb.d/init-data.sh
-    ports:
-      - "54322:5432"
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -h localhost -U postgres -d postgres']
-      interval: 5s
-      timeout: 5s
-      retries: 10

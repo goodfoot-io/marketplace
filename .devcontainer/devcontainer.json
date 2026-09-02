@@ -63,12 +63,7 @@
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
-    "PATH": "${containerEnv:PATH}:/home/node/.local/bin:/workspace/.devcontainer/claude-code:/workspace/.devcontainer/utilities",
-    "PGHOST": "postgres",
-    "PGUSER": "postgres",
-    "PGPASSWORD": "postgres",
-    "PGDATABASE": "postgres",
-    "PGPORT": "5432"
+    "PATH": "${containerEnv:PATH}:/home/node/.local/bin:/workspace/.devcontainer/claude-code:/workspace/.devcontainer/utilities"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "postCreateCommand": "/workspace/.devcontainer/post-create.sh"

@@ -17,7 +17,6 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && apt-get install -
   ipset \
   iptables \
   musl \
-  postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
 # Build and install FTA from source (root Rust; not kept on the image).
