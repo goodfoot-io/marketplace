@@ -25,11 +25,22 @@ export interface PlatformDefinition {
 const verified = <T>(value: T): PlatformFact<T> => ({ status: "verified", value });
 const provisional = <T>(value: T): PlatformFact<T> => ({ status: "provisional", value });
 const unavailable = <T>(): PlatformFact<T> => ({ status: "unavailable" });
-const paths = (prefix: string, conventions: string): Readonly<Record<PlatformPathKind, PlatformFact<string>>> => ({
-  skills: verified(`${prefix}/skills`),
-  agents: verified(`${prefix}/agents`),
-  hooks: verified(`${prefix}/hooks`),
-  plugin: verified(prefix),
+/**
+ * `skills`/`agents`/`hooks`/`plugin` have no plugin-agnostic default: a bare
+ * constant here can only ever be one specific plugin's own path, which made
+ * every other plugin that omitted `--platform-dir` silently publish into that
+ * plugin's tree instead of its own. Leaving them `unavailable` fails closed —
+ * every plugin must supply its own path — instead of failing open with a
+ * default that is wrong for everyone but the one plugin it was copied from.
+ * `conventions` is the one kind with a genuine platform-wide default: the host
+ * convention file lives at a fixed repo-root path regardless of which plugin
+ * is building.
+ */
+const logicalPaths = (conventions: string): Readonly<Record<PlatformPathKind, PlatformFact<string>>> => ({
+  skills: unavailable(),
+  agents: unavailable(),
+  hooks: unavailable(),
+  plugin: unavailable(),
   conventions: verified(conventions),
 });
 
@@ -46,7 +57,7 @@ export const PLATFORM_DEFINITIONS = {
     conventionsFile: verified("CLAUDE.md"),
     hostIdentity: verified(""),
     pluginRootVar: verified("$" + "{CLAUDE_PLUGIN_ROOT}"),
-    logicalPaths: paths("plugins-claude/goodfoot", "CLAUDE.md"),
+    logicalPaths: logicalPaths("CLAUDE.md"),
     frontmatterKeys: verified(["name", "description", "allowed-tools", "argument-hint", "model"]),
   },
   codex: {
@@ -61,7 +72,7 @@ export const PLATFORM_DEFINITIONS = {
     conventionsFile: verified("AGENTS.md"),
     hostIdentity: verified("You are a Codex sub-agent"),
     pluginRootVar: verified("$" + "{PLUGIN_ROOT}"),
-    logicalPaths: paths("plugins-codex/goodfoot", "AGENTS.md"),
+    logicalPaths: logicalPaths("AGENTS.md"),
     frontmatterKeys: verified(["name", "description"]),
   },
   opencode: {
@@ -76,7 +87,7 @@ export const PLATFORM_DEFINITIONS = {
     conventionsFile: verified("AGENTS.md"),
     hostIdentity: verified("You are a sub-agent running in OpenCode"),
     pluginRootVar: unavailable(),
-    logicalPaths: paths("plugins-opencode/goodfoot", "AGENTS.md"),
+    logicalPaths: logicalPaths("AGENTS.md"),
     frontmatterKeys: verified(["name", "description"]),
   },
   antigravity: {
@@ -100,14 +111,19 @@ export const PLATFORM_DEFINITIONS = {
     hostIdentity: provisional("You are an Antigravity sub-agent"),
     // Plugins have a root plugin.json, but no documented plugin-root variable.
     pluginRootVar: unavailable(),
+    // No plugin-agnostic default exists for any of these five: every real
+    // plugin overrides every one of them via --platform-dir, including
+    // `conventions` (Antigravity has no repo-root convention file the way
+    // CLAUDE.md/AGENTS.md serve the other three platforms).
     logicalPaths: {
-      skills: verified("skills"),
-      agents: verified("agents"),
-      // Hooks are a root hooks.json file, not a hooks directory, and agy 1.1.21
-      // reports the tested fixture as skipped rather than positively processed.
+      skills: unavailable(),
+      agents: unavailable(),
+      // Hooks are additionally unsupported outright: they are a root
+      // hooks.json file, not a hooks directory, and agy 1.1.21 reports the
+      // tested fixture as skipped rather than positively processed.
       hooks: unavailable(),
-      plugin: verified("."),
-      conventions: verified("AGENTS.md"),
+      plugin: unavailable(),
+      conventions: unavailable(),
     },
     frontmatterKeys: verified(["name", "description"]),
   },

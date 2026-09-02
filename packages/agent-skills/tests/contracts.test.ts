@@ -84,11 +84,11 @@ describe("portable helper contract", () => {
     expect(definition.conventionsFile).toEqual({ status: "verified", value: "AGENTS.md" });
     expect(definition.frontmatterKeys).toEqual({ status: "verified", value: ["name", "description"] });
     expect(definition.logicalPaths).toMatchObject({
-      skills: { status: "verified", value: "skills" },
-      agents: { status: "verified", value: "agents" },
+      skills: { status: "unavailable" },
+      agents: { status: "unavailable" },
       hooks: { status: "unavailable" },
-      plugin: { status: "verified", value: "." },
-      conventions: { status: "verified", value: "AGENTS.md" },
+      plugin: { status: "unavailable" },
+      conventions: { status: "unavailable" },
     });
     expect(definition.embeddedBash).toEqual({ status: "unavailable" });
     expect(definition.pluginRootVar).toEqual({ status: "unavailable" });

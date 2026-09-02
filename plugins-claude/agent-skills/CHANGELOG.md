@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.26
+
+Fixes the compiler's `--platform-dir` defaults for `skills`, `agents`, `hooks`, and `plugin`: on Claude Code, Codex, and OpenCode they were hardcoded to the `goodfoot` plugin's own paths, so any other plugin that omitted an override would silently publish into `goodfoot`'s directories rather than failing. Antigravity's bare relative defaults were equally unusable, since every real plugin already overrides all five of its kinds. All of these now report unavailable when not explicitly configured, so an omitted override fails the build instead of resolving to the wrong plugin's tree. `conventions` keeps its genuine platform-wide default (`CLAUDE.md`/`AGENTS.md`) on Claude Code, Codex, and OpenCode, since that default is correct regardless of which plugin is building.
+
 ## 1.0.25
 
 Strengthens the four-client smoke-test guidance so every generated skill is loaded through each host's own discovery path and results are labelled behavioral, structural, or blocked. Corrects the Antigravity authenticated invocation and clarifies that generated documents are idiomatic equivalents rather than byte-identical outputs.
