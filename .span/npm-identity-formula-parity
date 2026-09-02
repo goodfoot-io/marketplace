@@ -1,0 +1,4 @@
+scripts/release-package.sh#L85-L87 rk64:ebad638de9786481
+scripts/update-package-changelog.sh#L69-L71 rk64:63ad1739620a0c3b
+
+Both scripts independently derive an npm package's published name, tag prefix, and release label from its own package.json using the same formula; changing that formula in one script without the other would silently produce mismatched tags or labels between a release and its changelog entry, and no compiler or test catches the divergence.

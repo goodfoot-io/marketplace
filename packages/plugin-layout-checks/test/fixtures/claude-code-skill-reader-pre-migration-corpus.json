@@ -1,8 +1,0 @@
-{
-  "sourceRevision": "b7848a7eb733672a9c72e8523f501b4e9016f07d",
-  "authoredRoot": "skills-src/claude-code-skill-reader",
-  "skills": ["cli"],
-  "files": [
-    { "path": "cli/SKILL.md", "mode": 420, "gitObject": "491acd2a9a3ccbfee8706c4cb30cefbf50e743f0", "sha256": "6ecf414deb9b950d3111ef25fb20248a21a275772a695d738efc5fc88bf8c8ce" }
-  ]
-}

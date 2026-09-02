@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { build, lint } from "./index.js";
 import type {
   BuildOptions,
@@ -136,7 +138,12 @@ export async function run(
       return 0;
     }
     if (parsed.version) {
-      dependencies.stdout("1.0.26\n");
+      // Read at runtime rather than embedding a literal: the CLI ships as this
+      // package's bin, so its own package.json is the one number that cannot
+      // drift from what was actually published.
+      const packageJsonPath = fileURLToPath(new URL("../package.json", import.meta.url));
+      const { version } = JSON.parse(readFileSync(packageJsonPath, "utf8")) as { version: string };
+      dependencies.stdout(`${version}\n`);
       return 0;
     }
     const options = validateArgs(parsed);

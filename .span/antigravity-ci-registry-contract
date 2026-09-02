@@ -1,6 +1,0 @@
-.github/workflows/plugin-layout.yml#L101-L127 rk64:411a7e72291c025b
-packages/plugin-layout-checks/test/layout/antigravity-validation.test.ts#L5-L77 rk64:2d36072c92560333
-packages/plugin-layout-checks/test/registry.ts#L80-L81 rk64:59c9a125900de660
-packages/plugin-layout-checks/test/registry.ts#L395-L400 rk64:500e6fe18a9eed06
-
-The CI workflow derives Antigravity plugin roots from target declarations and requires positive skill processing, while the focused test independently derives source applicability, verifies every applicable registry entry has a complete target tree and version-owned manifest, and exercises the validator; the registry loader enforces each Antigravity target's root and manifest declarations, so these gates must evolve together.

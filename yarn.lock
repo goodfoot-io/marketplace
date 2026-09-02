@@ -2289,6 +2289,7 @@ __metadata:
     eslint-config-prettier: "npm:^10.1.8"
     eslint-import-resolver-typescript: "npm:^4.4.4"
     eslint-plugin-import: "npm:^2.32.0"
+    glob: "npm:^13.0.6"
     glob-gitignore: "npm:^1.0.15"
     google-auth-library: "npm:^10.5.0"
     googleapis: "npm:^166.0.0"
@@ -2308,18 +2309,6 @@ __metadata:
     yjs: "npm:^13.6.27"
     yoga-layout-wasm: "npm:^1.9.3-alpha.7"
     zod: "npm:^3.24.1"
-  languageName: unknown
-  linkType: soft
-
-"@goodfoot/plugin-layout-checks@workspace:packages/plugin-layout-checks":
-  version: 0.0.0-use.local
-  resolution: "@goodfoot/plugin-layout-checks@workspace:packages/plugin-layout-checks"
-  dependencies:
-    "@biomejs/biome": "npm:2.3.11"
-    "@types/node": "npm:^24"
-    typescript: "npm:^5.9.3"
-    vitest: "npm:^4.0.16"
-    yaml: "npm:^2.9.0"
   languageName: unknown
   linkType: soft
 

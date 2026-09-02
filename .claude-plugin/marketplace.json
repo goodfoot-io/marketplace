@@ -137,7 +137,7 @@
     {
       "name": "voice",
       "version": "1.0.80",
-      "source": "./plugins-voice/voice",
+      "source": "./plugins-claude/voice",
       "tags": [
         "voice",
         "conversation",

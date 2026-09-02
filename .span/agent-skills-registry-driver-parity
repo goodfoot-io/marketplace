@@ -1,5 +1,0 @@
-packages/plugin-layout-checks/test/registry.ts#L393-L421 rk64:acb4363edad2a82a
-packages/plugin-layout-checks/test/registry.ts#L476-L484 rk64:54938155d304a8d5
-scripts/agent-skills-registry.mjs#L37-L87 rk64:bf962f3c4b57bb97
-
-The layout-suite registry loader and the production build driver independently enforce the same target-root allow-list, Antigravity root requirement, and default rendered-platform set; neither invokes the other, so they must continue to accept and reject the same registry declarations.

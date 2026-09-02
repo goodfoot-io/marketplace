@@ -79,29 +79,12 @@ if [ -z "$VERSION" ]; then
   exit 1
 fi
 
-# Registry packages must resolve their explicit npm release line. Only packages
-# absent from the registry retain the conventional package-only fallback.
-REGISTRY_FILE="$WORKSPACE_ROOT/packages/plugin-layout-checks/registry/plugins.json"
-REGISTRY_PLUGIN_NAME=$(node -e '
-  const fs = require("node:fs");
-  const [registryPath, packageName, packageJson] = process.argv.slice(1);
-  const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
-  const matches = registry.plugins.filter((plugin) => plugin.name === packageName || plugin.releaseIdentity?.npm?.packageJson === packageJson);
-  if (matches.length > 1) throw new Error(`multiple registry npm identities declare ${packageJson}`);
-  if (matches.length === 1) process.stdout.write(matches[0].name);
-' "$REGISTRY_FILE" "$PACKAGE_NAME" "packages/$PACKAGE_NAME/package.json")
-
+# An npm package is a release line of its own, independent of any plugin
+# version. Its identity is read straight from its own package.json; nothing
+# else names it.
 PACKAGE_PUBLISHED_NAME=$(node -p "require('$PACKAGE_JSON').name" 2>/dev/null)
 RELEASE_LABEL="$PACKAGE_PUBLISHED_NAME npm package"
 TAG_PREFIX="${PACKAGE_NAME//\//-}-v"
-
-if [ -n "$REGISTRY_PLUGIN_NAME" ]; then
-  RELEASE_JSON=$(node "$WORKSPACE_ROOT/scripts/release-identity.mjs" "$REGISTRY_PLUGIN_NAME" npm)
-  VERSION=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.currentVersion)' "$RELEASE_JSON")
-  PACKAGE_PUBLISHED_NAME=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.identity)' "$RELEASE_JSON")
-  RELEASE_LABEL=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.label)' "$RELEASE_JSON")
-  TAG_PREFIX=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.legacyTagPrefix)' "$RELEASE_JSON")
-fi
 
 TAG="${TAG_PREFIX}${VERSION}"
 
@@ -261,9 +244,9 @@ else
       # the normal outcome for a package no .mcp.json references. Swallowing
       # git's error with `|| true` conflated them into a silent skip.
       cd "$WORKSPACE_ROOT"
-      MCP_MANIFESTS=$(jq -r '.plugins[] | [.claudePluginRoot, .codexPluginRoot, .opencodePluginRoot, .antigravityPluginRoot] | .[]? | select(.) | . + "/.mcp.json"' "$REGISTRY_FILE" | xargs -r git ls-files --)
+      MCP_MANIFESTS=$(git ls-files -- 'plugins-claude/*/.mcp.json' 'plugins-codex/*/.mcp.json' 'plugins-opencode/*/.mcp.json' 'plugins-antigravity/*/.mcp.json')
       if [ -z "$MCP_MANIFESTS" ]; then
-        echo -e "${RED}❌ Error: No tracked .mcp.json files found under registry-declared plugin roots${NC}" >&2
+        echo -e "${RED}❌ Error: No tracked .mcp.json files found under plugins-*/*/${NC}" >&2
         echo "   Plugin package references cannot be verified; refusing to report a successful release." >&2
         exit 1
       fi

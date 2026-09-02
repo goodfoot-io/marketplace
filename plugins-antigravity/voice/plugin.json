@@ -1,0 +1,5 @@
+{
+  "name": "voice",
+  "version": "1.0.80",
+  "description": "Voice conversation SDK skills and CLI tools for launching and interacting with realtime voice agents. Not yet available on Antigravity: the voice MCP server this plugin's handbook documents only ships on Claude Code, so this manifest exists for version parity across platforms and ships no skill content."
+}

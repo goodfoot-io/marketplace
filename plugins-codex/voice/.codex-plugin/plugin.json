@@ -7,7 +7,7 @@
     "email": "contact@goodfoot.io",
     "url": "https://github.com/goodfoot-io"
   },
-  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-voice/voice",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/voice",
   "repository": "https://github.com/goodfoot-io/marketplace",
   "license": "MIT",
   "keywords": [
@@ -22,14 +22,14 @@
   "interface": {
     "displayName": "Voice",
     "shortDescription": "Not yet available on Codex: the voice MCP server this plugin's handbook documents only ships on Claude Code.",
-    "longDescription": "The voice MCP server (bin/voice-mcp-server.mjs, .mcp.json) is registered on Claude Code only, so this plugin's handbook skill is gated to claude-code and ships no content here. This manifest exists for version lockstep and is not published to the Codex marketplace.",
+    "longDescription": "The voice MCP server (bin/voice-mcp-server.mjs, .mcp.json) is registered on Claude Code only, so this plugin's handbook skill is gated to claude-code and ships no content here. This manifest exists for version parity across platforms and is not published to the Codex marketplace.",
     "developerName": "Goodfoot",
     "category": "Developer Tools",
     "capabilities": [
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-voice/voice",
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-claude/voice",
     "brandColor": "#1F6FEB"
   }
 }

@@ -1,0 +1,4 @@
+.githooks/pre-commit.plugin-version-bump.sh#L165-L178 rk64:1e0a5bc48eb42a10
+scripts/sync-plugin-versions.sh#L65-L68 rk64:75c7287fb2044e81
+
+The pre-commit hook's SOURCE/OWNED/SURFACES formula and sync-plugin-versions.sh's SOURCE/CODEX_MANIFEST/OPENCODE_PACKAGE/ANTIGRAVITY_MANIFEST formula both derive each full plugin's four platform-manifest paths from the same plugins-<platform>/<name>/... convention; the hook's version_only_change diffing and git-add calls, and the sync script's propagation, both depend on these staying byte-identical, so a convention change in one without the other silently targets the wrong (or a nonexistent) file.

@@ -30,7 +30,7 @@ This file should stay in sync with:
 - Individual plugin `plugin.json` files - Plugin metadata
 - Plugin `.mcp.json` files - MCP server configurations
 
-**Last Updated**: 2026-08-27 (Updated portable registry architecture)
+**Last Updated**: 2026-09-02 (Dropped the plugin-layout registry; plugin shape and version surfaces are now convention-driven)
 
 ## MCP Server Tool Naming
 
@@ -52,15 +52,15 @@ When MCP servers are packaged as Claude Code plugins, their tools follow a speci
 ### Example: Voice Plugin
 
 For the voice plugin:
-- **Plugin name** (from `/workspace/plugins-voice/voice/.claude-plugin/plugin.json`): `"voice"`
-- **Server key** (from `/workspace/plugins-voice/voice/.mcp.json`): `"voice"` (key in mcpServers object)
+- **Plugin name** (from `/workspace/plugins-claude/voice/.claude-plugin/plugin.json`): `"voice"`
+- **Server key** (from `/workspace/plugins-claude/voice/.mcp.json`): `"voice"` (key in mcpServers object)
 - **MCP tool name** (from MCP server code): `"conversation"`
 - **Final tool name**: `mcp__plugin_voice_voice__conversation`
 
 ### File Structure
 
 ```
-plugins-voice/voice/
+plugins-claude/voice/
 ├── .claude-plugin/
 │   └── plugin.json          # Contains: { "name": "voice", ... }
 ├── .mcp.json                # Contains: { "mcpServers": { "voice": { ... } } }
@@ -419,8 +419,8 @@ ls -la "${CLAUDE_PLUGIN_ROOT}"
 ### Path Resolution
 
 `${CLAUDE_PLUGIN_ROOT}` can be **either relative or absolute** depending on the execution context:
-- **Relative** (from workspace root): `plugins-voice/voice`, `plugins-claude/expansion`
-- **Absolute**: `/workspace/plugins-voice/voice`, `/workspace/plugins-claude/expansion`
+- **Relative** (from workspace root): `plugins-claude/voice`, `plugins-claude/expansion`
+- **Absolute**: `/workspace/plugins-claude/voice`, `/workspace/plugins-claude/expansion`
 
 Both forms work correctly since embedded bash executes from the workspace root. Your code should handle both cases by using `"${CLAUDE_PLUGIN_ROOT}"` directly without assumptions about its format.
 
@@ -487,7 +487,7 @@ Use `${CLAUDE_PLUGIN_ROOT}` syntax - this expands the path when rendered so user
 ````markdown
 **Usage:**
 ```bash
-# Users will see "plugins-voice/voice/bin/voice-mcp-server.mjs" (actual path)
+# Users will see "plugins-claude/voice/bin/voice-mcp-server.mjs" (actual path)
 ${CLAUDE_PLUGIN_ROOT}/bin/voice-mcp-server.mjs
 ${CLAUDE_PLUGIN_ROOT}/bin/my-script.sh
 ```
@@ -542,7 +542,7 @@ RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 ````markdown
 **Usage:**
 ```bash
-# Users will see "plugins-voice/voice/bin/process-data" or the actual path
+# Users will see "plugins-claude/voice/bin/process-data" or the actual path
 RESULT=$(${CLAUDE_PLUGIN_ROOT}/bin/process-data)
 ```
 ````
@@ -568,7 +568,7 @@ RESULT=$("${CLAUDE_PLUGIN_ROOT}"/bin/process-data)
 **✓ Fix: Use embedded bash expansion**
 ```bash
 # In a command file's ```bash block
-# Users see actual path like "plugins-voice/voice/bin/my-tool" - helpful!
+# Users see actual path like "plugins-claude/voice/bin/my-tool" - helpful!
 ${CLAUDE_PLUGIN_ROOT}/bin/my-tool
 ```
 
@@ -992,9 +992,9 @@ plugins-claude/my-plugin/skills/fix-imports/SKILL.md
 
 **Note**: The `mcp__plugin_` prefix pattern is an observed implementation detail and may not be fully documented in official Claude Code documentation as of this writing. This document reflects empirical findings from the actual codebase and tool names.
 
-## Registry-driven portable plugin layout
+## Convention-driven portable plugin layout
 
-Portable skills are authored once as Eta templates under `skills-src/<plugin>/`. The registry at `packages/plugin-layout-checks/registry/plugins.json` declares each applicable target, and `yarn build:agent-skills` renders regular generated files into the corresponding roots:
+Portable skills are authored once as Eta templates under `skills-src/<plugin>/`. There is no declared registry of plugin build targets, platform directories, or release identities anywhere in the repository — a plugin's shape is computed from where it sits on disk. Every directory under `skills-src/` is a plugin, and `yarn build:agent-skills` renders it into all four standard platform roots:
 
 ```text
 skills-src/<plugin>/<skill>/SKILL.md.eta
@@ -1004,7 +1004,9 @@ plugins-opencode/<plugin>/skills/<skill>/SKILL.md
 plugins-antigravity/<plugin>/skills/<skill>/SKILL.md
 ```
 
-This is an applicability model, not a promise that every plugin targets every platform. `plugins-voice/voice` remains Claude-only. `plugins-claude/typescript-hooks` and `plugins-claude/expansion` have no portable skill templates and remain hand-relocated Claude plugins.
+A skill file can still gate itself to a subset of platforms with a `platforms:` front-config declaration (e.g. `plugins-claude/voice`'s `handbook` skill declares `platforms: [claude-code]`, since the MCP server it documents doesn't run anywhere else) — but the plugin's directory, and its version-carrying manifest, exists at all four standard roots regardless, with no per-plugin opt-out.
+
+`plugins-claude/typescript-hooks` and `plugins-claude/expansion` have no `skills-src/` sibling and remain hand-maintained, Claude-only plugins outside this build.
 
 ### Generated ownership and validation
 
@@ -1012,9 +1014,8 @@ Edit `skills-src/`, not generated `SKILL.md` files. Build and validate with the 
 
 ```bash
 yarn build:agent-skills
+yarn build:agent-skills --check-targets
 yarn lint:agent-skills
-yarn workspace @goodfoot/plugin-layout-checks typecheck
-yarn workspace @goodfoot/plugin-layout-checks test
 ./scripts/sync-plugin-versions.sh --check
 ```
 
@@ -1022,7 +1023,11 @@ Antigravity plugins use a bare `plugin.json` at `plugins-antigravity/<plugin>/` 
 
 ### Version surfaces
 
-The registry is the source of truth for version surfaces. The authoritative Claude manifest is propagated to every declared surface: the Claude marketplace, Codex manifest, OpenCode package, Antigravity root manifest when applicable, and any package or CLI literal owned by package-backed plugins. Do not maintain a fixed numeric surface checklist; applicability and package ownership determine the set.
+A plugin with a `skills-src/<name>` sibling has exactly one canonical version file: `plugins-claude/<name>/.claude-plugin/plugin.json`. Committing a change to a plugin bumps that file's patch version, with no changelog-entry requirement gating the commit, and `./scripts/sync-plugin-versions.sh` propagates it to the Codex manifest, the OpenCode package, the Antigravity manifest, and the Claude marketplace entry — the same script CI runs with `--check`, so a bump the pre-commit hook makes and the surface CI verifies can never disagree about what a plugin's surfaces are. The Codex marketplace catalog (`.agents/plugins/marketplace.json`) carries its own top-level version, independent of the Claude catalog's, and advances whenever a plugin it lists is bumped.
+
+Hand-maintained, Claude-only plugins (`typescript-hooks`, `expansion`) bump only their own manifest and the Claude marketplace entry.
+
+A plugin's npm package (`packages/<name>`), where one exists, is a separate release line with its own version, read from — never written to — by `scripts/release-package.sh` and `scripts/update-package-changelog.sh`. A maintainer bumps `packages/<name>/package.json` by hand before releasing; nothing propagates a plugin version bump into it.
 
 ### Skill-owned assets
 

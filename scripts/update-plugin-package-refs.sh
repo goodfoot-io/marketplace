@@ -52,7 +52,6 @@ fi
 WORKSPACE_ROOT="$(git rev-parse --show-toplevel)"
 PACKAGE_DIR="$WORKSPACE_ROOT/packages/$PACKAGE_NAME"
 PACKAGE_JSON="$PACKAGE_DIR/package.json"
-REGISTRY_FILE="$WORKSPACE_ROOT/packages/plugin-layout-checks/registry/plugins.json"
 
 # Validate package exists
 if [ ! -d "$PACKAGE_DIR" ]; then
@@ -73,28 +72,17 @@ fi
 echo -e "${CYAN}🔄 Updating plugin references for ${NPM_PACKAGE_NAME}@${VERSION}${NC}"
 echo ""
 
-# Find all .mcp.json files under the plugin roots declared in the registry
-# (claudePluginRoot/codexPluginRoot/opencodePluginRoot/antigravityPluginRoot),
-# rather than hard-coding a directory name that migrations can leave stale.
-if [ ! -f "$REGISTRY_FILE" ]; then
-  echo -e "${RED}❌ Error: Plugin registry not found at $REGISTRY_FILE${NC}" >&2
-  exit 1
-fi
-
-MCP_FILES=$(jq -r '.plugins[] | [.claudePluginRoot, .codexPluginRoot, .opencodePluginRoot, .antigravityPluginRoot] | .[]? | select(.) | . + "/.mcp.json"' "$REGISTRY_FILE" | while IFS= read -r rel_path; do
-  candidate="$WORKSPACE_ROOT/$rel_path"
-  if [ -f "$candidate" ]; then
-    echo "$candidate"
-  fi
-done)
+# Find every .mcp.json a plugin ships, across all 4 platform trees, by the
+# same plugins-<platform>/<name>/ convention every other build/lint/version
+# driver uses — no hard-coded directory name, no registry to fall behind it.
+MCP_FILES=$(cd "$WORKSPACE_ROOT" && git ls-files -- 'plugins-claude/*/.mcp.json' 'plugins-codex/*/.mcp.json' 'plugins-opencode/*/.mcp.json' 'plugins-antigravity/*/.mcp.json' | sed "s|^|$WORKSPACE_ROOT/|")
 
 if [ -z "$MCP_FILES" ]; then
-  # Fails closed deliberately. This registry-driven scan is the only thing
-  # that keeps voice's MCP package version moving at release time, and an
-  # empty result means the registry roots are wrong or missing — not that
-  # there is nothing to do. Exiting 0 here made that a green no-op with no
-  # error anywhere.
-  echo -e "${RED}❌ Error: No .mcp.json files found under any registry-declared plugin root${NC}" >&2
+  # Fails closed deliberately. This scan is the only thing that keeps voice's
+  # MCP package version moving at release time, and an empty result means the
+  # plugin trees are missing — not that there is nothing to do. Exiting 0
+  # here made that a green no-op with no error anywhere.
+  echo -e "${RED}❌ Error: No .mcp.json files found under any plugins-*/*/ tree${NC}" >&2
   echo "   At least one plugin ships an .mcp.json; an empty result means this script is looking in the wrong place." >&2
   exit 1
 fi

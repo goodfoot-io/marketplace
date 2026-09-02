@@ -1,4 +1,0 @@
-scripts/changelog-surfaces.mjs#L19-L38 rk64:2e7e0d8ea3bdc4f7
-scripts/check-changelog-entry.mjs#L81-L124 rk64:cde549a872757079
-
-changelogSurfaces() derives each plugin-release CHANGELOG.md from the resolved authoritative plugin root (plus only a lockstep npm root), while remediation() independently recognizes the resulting plugin-root path shape to explain that package-only tooling cannot write it; changing either convention without the other would make release guidance incorrect, and the relationship-filtering fixture protects the worklist boundary.

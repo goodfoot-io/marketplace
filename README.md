@@ -30,18 +30,19 @@ Install any plugin from this marketplace:
 
 ## Repository Structure
 
-The registry drives authored skill templates into only the platform targets that apply:
+Every plugin under `skills-src/` builds into all four platform roots by convention — no declared target list, no exceptions:
 
 ```
 marketplace/
 ├── .claude-plugin/
 │   └── marketplace.json          # Marketplace manifest for Claude Code
+├── .agents/plugins/
+│   └── marketplace.json          # Marketplace manifest for Codex
 ├── skills-src/                   # Authored portable Eta skill templates
-├── plugins-claude/               # Claude plugin roots and generated skills
-├── plugins-codex/                # Codex manifests and generated skills
-├── plugins-opencode/             # OpenCode packages and generated skills
-├── plugins-antigravity/          # Bare manifests and generated applicable skills
-├── plugins-voice/voice/          # Claude-only voice plugin
+├── plugins-claude/                # Claude plugin roots and generated skills
+├── plugins-codex/                 # Codex manifests and generated skills
+├── plugins-opencode/               # OpenCode packages and generated skills
+├── plugins-antigravity/            # Bare manifests and generated applicable skills
 ├── packages/                     # Compiler, validation, and runtime packages
 ├── .claude/                       # Project-level commands (not distributed)
 │   ├── commands/                  # Local development commands
@@ -53,13 +54,13 @@ marketplace/
 
 | Directory | Purpose | Distribution |
 |-----------|---------|--------------|
-| `.claude-plugin/` | Marketplace manifest | Required for marketplace functionality |
-| `skills-src/` | Authored portable skill templates | Input to the registry-driven build |
-| `plugins-claude/` | Reusable Claude Code plugins | Distributed via marketplace |
-| `plugins-codex/` | Generated Codex plugin trees | Codex distribution |
-| `plugins-opencode/` | Generated OpenCode plugin trees | OpenCode distribution |
-| `plugins-antigravity/` | Applicable generated Antigravity plugins | Antigravity distribution |
-| `plugins-voice/voice/` | Voice MCP plugin | Claude-only distribution |
+| `.claude-plugin/` | Claude marketplace manifest | Required for marketplace functionality |
+| `.agents/plugins/` | Codex marketplace manifest | Required for Codex distribution |
+| `skills-src/` | Authored portable skill templates | Input to the convention-driven build |
+| `plugins-claude/` | Claude Code plugins (generated + hand-maintained) | Distributed via marketplace |
+| `plugins-codex/` | Codex plugin trees | Codex distribution |
+| `plugins-opencode/` | OpenCode plugin trees | OpenCode distribution |
+| `plugins-antigravity/` | Antigravity plugin trees | Antigravity distribution |
 | `packages/` | Compiler, validation, and runtime packages | Workspace/npm packages |
 | `.claude/` | Project-specific workflows | Local only (not distributed) |
 | `documentation/` | Development guides | Repository documentation |
@@ -78,10 +79,10 @@ The marketplace allows users to discover and install Claude Code plugins that ex
 
 **Currently available plugins:**
 
-- Nine non-voice plugins: `goodfoot`, `typescript-hooks`, `linear`, `gmail`, `agent-hooks`, `agent-skills`, `jsdoczoom`, `claude-code-skill-reader`, and `expansion`
-- One Claude-only plugin: `voice` at `plugins-voice/voice`
+- Eight plugins built from `skills-src/` and distributed at the standard per-platform path (`plugins-claude/<name>`, `plugins-codex/<name>`, `plugins-opencode/<name>`, `plugins-antigravity/<name>`): `agent-hooks`, `agent-skills`, `claude-code-skill-reader`, `gmail`, `goodfoot`, `jsdoczoom`, `linear`, and `voice`
+- Two hand-maintained, Claude-only plugins with no `skills-src/` source: `typescript-hooks` and `expansion`
 
-This roster does not imply that every plugin targets every platform. `typescript-hooks` and `expansion` have no portable skill source and remain hand-relocated under `plugins-claude/`; voice remains Claude-only.
+Among the eight, a plugin's rendered content can still be gated to a subset of platforms per skill (`voice`'s handbook, for instance, only ships on Claude Code, since the MCP server it documents doesn't run anywhere else) — but its directory exists at all four standard roots regardless, with no per-plugin opt-out.
 
 ### 2. MCP Server Packages
 
@@ -201,7 +202,7 @@ Note: These commands are only available when working within this repository, the
 
 Contributions are welcome! You can contribute:
 
-1. **New Plugins:** Add portable skills under `skills-src/` and declare targets in the registry, or add a genuinely Claude-only plugin under `plugins-claude/`
+1. **New Plugins:** Add portable skills under `skills-src/<name>/` to build across all four platforms by convention, or add a genuinely hand-maintained, Claude-only plugin directly under `plugins-claude/`
 2. **MCP Servers:** Create new packages in `packages/`
 3. **Documentation:** Improve guides and examples
 4. **Bug Fixes:** Report or fix issues
@@ -232,16 +233,16 @@ yarn workspace @goodfoot/voice build
 
 ## Architecture
 
-Portable plugin architecture:
+Portable plugin architecture, computed by convention rather than declared in a registry:
 
-1. `skills-src/<plugin>/` owns authored Eta templates and opaque skill assets.
-2. `packages/plugin-layout-checks/registry/plugins.json` owns applicability, build targets, marketplace identity, version surfaces, and validation baselines.
-3. `yarn build:agent-skills` produces applicable Claude/Codex/OpenCode/Antigravity trees; generated `SKILL.md` files are not authoring surfaces.
-4. `yarn lint:agent-skills` and the plugin-layout package validate generated ownership and portability.
+1. `skills-src/<plugin>/` owns authored Eta templates and opaque skill assets. Every directory here is a plugin; its shape — which platforms it renders to, where its manifest lives — follows fixed, formulaic per-platform paths (`plugins-claude/<plugin>`, `plugins-codex/<plugin>`, `plugins-opencode/<plugin>`, `plugins-antigravity/<plugin>`), not a declared target list. A skill file can still gate itself to a subset of platforms with a `platforms:` front-config declaration.
+2. `yarn build:agent-skills` produces the Claude/Codex/OpenCode/Antigravity trees for every `skills-src/` plugin; generated `SKILL.md` files are not authoring surfaces.
+3. `yarn lint:agent-skills` validates generated ownership and portability.
+4. Hand-maintained, Claude-only plugins with no `skills-src/` sibling (`typescript-hooks`, `expansion`) live directly under `plugins-claude/` and are out of scope for the build.
 
 Antigravity plugins use a bare root `plugin.json`. Hooks use a root `hooks.json`, not Claude's `hooks/hooks.json`; this repository does not publish Antigravity hooks or MCP payloads until `agy plugin validate` reports a positive processed category.
 
-The authoritative Claude manifest version is synchronized to every registry-declared surface, including the Antigravity manifest when applicable. The registry is the source of truth rather than a fixed numeric checklist.
+A plugin's Claude manifest is the version of record. `./scripts/sync-plugin-versions.sh` propagates it to the Codex manifest, OpenCode package, Antigravity manifest, and the Claude marketplace entry for every `skills-src/` plugin; the pre-commit hook runs it automatically whenever a plugin's owned files change. A plugin's npm package (`packages/<name>`), where one exists, is a separate release line with its own manually-bumped version.
 
 ## Support
 
@@ -260,9 +261,8 @@ The authoritative Claude manifest version is synchronized to every registry-decl
 
 ```bash
 yarn build:agent-skills
+yarn build:agent-skills --check-targets
 yarn lint:agent-skills
-yarn workspace @goodfoot/plugin-layout-checks typecheck
-yarn workspace @goodfoot/plugin-layout-checks test
 ./scripts/sync-plugin-versions.sh --check
 ```
 

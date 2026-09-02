@@ -1,0 +1,4 @@
+scripts/release-package.sh#L247-L247 rk64:cc9fe9a71d5b6d9c
+scripts/update-plugin-package-refs.sh#L78-L78 rk64:aee60604f42f4a5e
+
+Both scripts independently reimplement the same fixed-glob scan for every plugin's .mcp.json across the four platform-root trees; changing the platform-root convention in one without the other silently breaks .mcp.json discovery for whichever script was missed, and no compiler or test catches the divergence.

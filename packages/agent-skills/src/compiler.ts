@@ -33,7 +33,7 @@ const inside = (root: string, candidate: string): boolean => {
 const validPlatform = (value: unknown): value is Platform =>
   typeof value === "string" && (PLATFORMS as readonly string[]).includes(value);
 
-function parseFrontConfig(template: string): { config?: TemplateFrontConfig; body: string } {
+export function parseFrontConfig(template: string): { config?: TemplateFrontConfig; body: string } {
   if (!template.startsWith(FRONT_OPEN)) return { body: template };
   const close = template.indexOf(FRONT_CLOSE, FRONT_OPEN.length);
   if (close < 0) throw new Error("Unterminated agent-skills front-config");

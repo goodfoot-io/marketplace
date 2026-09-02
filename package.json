@@ -8,8 +8,8 @@
     ]
   },
   "scripts": {
-    "build:agent-skills": "node scripts/build-agent-skills.mjs",
-    "lint:agent-skills": "node scripts/lint-agent-skills.mjs",
+    "build:agent-skills": "tsx scripts/build-agent-skills.mts",
+    "lint:agent-skills": "tsx scripts/lint-agent-skills.mts",
     "verify:gmail": "tsx plugins-claude/gmail/tests/verify-sdk-behavior.ts",
     "verify:linear": "dotenv -- tsx plugins-claude/linear/tests/verify-decision-edges.ts && dotenv -- tsx plugins-claude/linear/tests/verify-sdk-behavior.ts",
     "reset": "find . -type d -name node_modules | xargs rm -rf && rm -rf yarn.lock",
@@ -30,6 +30,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
+    "glob": "^13.0.6",
     "google-auth-library": "^10.5.0",
     "googleapis": "^166.0.0",
     "js-yaml": "^4.1.0",

@@ -1,8 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "include": ["test/**/*.ts", "../agent-skills/src/helper-reference.ts"],
-  "exclude": ["node_modules"],
-  "compilerOptions": {
-    "types": ["node"]
-  }
-}

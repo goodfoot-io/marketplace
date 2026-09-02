@@ -63,33 +63,13 @@ if [ -z "$CURRENT_VERSION" ]; then
 fi
 echo -e "Current version: ${GREEN}$CURRENT_VERSION${NC}"
 
-# Registry twins have two release lines behind the same conventional name. Find
-# the package by its declared manifest path, then require the npm resolver to
-# classify it; a broken declaration must not silently fall back to package-only
-# behavior.
-REGISTRY_FILE="$WORKSPACE_ROOT/packages/plugin-layout-checks/registry/plugins.json"
-REGISTRY_PLUGIN_NAME=$(node -e '
-  const fs = require("node:fs");
-  const [registryPath, packageName, packageJson] = process.argv.slice(1);
-  const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
-  const matches = registry.plugins.filter((plugin) => plugin.name === packageName || plugin.releaseIdentity?.npm?.packageJson === packageJson);
-  if (matches.length > 1) throw new Error(`multiple registry npm identities declare ${packageJson}`);
-  if (matches.length === 1) process.stdout.write(matches[0].name);
-' "$REGISTRY_FILE" "$PACKAGE_NAME" "packages/$PACKAGE_NAME/package.json")
-
+# An npm package is a release line of its own, independent of any plugin
+# version. Its identity is read straight from its own package.json; nothing
+# else names it.
 PACKAGE_PUBLISHED_NAME=$(node -p "require('$PACKAGE_JSON').name" 2>/dev/null)
 TAG_PREFIX="${PACKAGE_NAME//\//-}-v"
 RELEASE_LABEL="$PACKAGE_PUBLISHED_NAME npm package"
 HISTORY_SOURCE="legacy-npm-tags"
-
-if [ -n "$REGISTRY_PLUGIN_NAME" ]; then
-  RELEASE_JSON=$(node "$WORKSPACE_ROOT/scripts/release-identity.mjs" "$REGISTRY_PLUGIN_NAME" npm)
-  CURRENT_VERSION=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.currentVersion)' "$RELEASE_JSON")
-  PACKAGE_PUBLISHED_NAME=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.identity)' "$RELEASE_JSON")
-  RELEASE_LABEL=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.label)' "$RELEASE_JSON")
-  HISTORY_SOURCE=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.historySource)' "$RELEASE_JSON")
-  TAG_PREFIX=$(node -e 'const value = JSON.parse(process.argv[1]); process.stdout.write(value.legacyTagPrefix)' "$RELEASE_JSON")
-fi
 
 echo -e "Release line: ${GREEN}$RELEASE_LABEL${NC} (history: $HISTORY_SOURCE)"
 
