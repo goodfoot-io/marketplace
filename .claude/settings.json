@@ -59,7 +59,6 @@
       }
     }
   },
-  "effortLevel": "medium",
   "askUserQuestionTimeout": "never",
   "autoMemoryEnabled": false
 }
