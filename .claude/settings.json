@@ -10,20 +10,6 @@
     "pr": "",
     "sessionUrl": false
   },
-  "permissions": {
-    "allow": [],
-    "deny": [
-      "EnterPlanMode",
-      "ExitPlanMode",
-      "DesignSync",
-      "NotebookEdit",
-      "PushNotification",
-      "RemoteTrigger",
-      "ReportFindings"
-    ],
-    "defaultMode": "bypassPermissions",
-    "disableAutoMode": "disable"
-  },
   "disableClaudeAiConnectors": true,
   "disableBundledSkills": true,
   "worktree": {
