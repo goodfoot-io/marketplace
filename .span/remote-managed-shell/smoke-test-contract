@@ -1,10 +1,10 @@
-packages/remote-managed-shell/src/config.ts#L11-L18 rk64:7a67a0687e7686c8
+packages/remote-managed-shell/src/config.ts#L4-L6 rk64:e2f1465bdf8a5a09
 packages/remote-managed-shell/src/main.ts#L50-L64 rk64:eb62be51d2d0c581
 packages/remote-managed-shell/src/main.ts#L73-L81 rk64:f57dda7cdac239ab
-packages/remote-managed-shell/src/serve.ts#L20-L31 rk64:5a776eb6133e944a
+packages/remote-managed-shell/src/serve.ts#L13-L28 rk64:79acc85aa8848ff8
 packages/remote-managed-shell/src/serve.ts#L109-L122 rk64:98041767b957167c
 packages/remote-managed-shell/src/serve.ts#L186-L224 rk64:5cd15c333084fe11
-packages/remote-managed-shell/src/server.ts#L16-L52 rk64:ac70fe616f2269f6
-packages/remote-managed-shell/wiki/smoke-test.md rk64:fcbcf02e675fb222
+packages/remote-managed-shell/src/server.ts#L9-L94 rk64:5e52adf15fb9ca52
+packages/remote-managed-shell/wiki/smoke-test.md rk64:c10a044f6343fcc2
 
 The smoke procedure is this package's only third-party-client evidence — the Vitest suite talks to the server in-process — and its documented contract (the readiness record's shape and default path, the loopback port and MCP route, the echo tool's schema and annotation hints) must match the implementation, which nothing automated compares it against; the implementation is authoritative, so a transport, HTTP-composition, or tool-surface change is re-verified by re-running the procedure and updating its expected outputs.
