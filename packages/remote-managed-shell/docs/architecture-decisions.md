@@ -6,9 +6,9 @@ The service implements the specified five-tool API. A Codex-shaped two-tool API 
 
 ## Lifetime and ownership
 
-One composition root owns one `ProcessManager`, authorization service, MCP handler, HTTP listener, and logger. HTTP requests borrow the manager. Request cancellation and transport disposal cancel observation only. Shutdown closes start admission before cleaning active managed groups.
+One composition root owns one `ProcessManager`, MCP handler, HTTP listener, and logger. HTTP requests borrow the manager. Request cancellation and transport disposal cancel observation only. Shutdown closes start admission before cleaning active managed groups.
 
-The prepared top-level structure remains: `main.ts` owns CLI signals, `serve.ts` owns HTTP/readiness, `server.ts` registers tools, and `config.ts` validates startup. Focused subdirectories contain recovered adapters, authorization, logging, and utility code.
+The prepared top-level structure remains: `main.ts` owns CLI signals, `serve.ts` owns HTTP/readiness, `server.ts` registers tools, and `config.ts` validates startup. Focused subdirectories contain recovered adapters, logging, and utility code.
 
 ## Execution and recovery
 
@@ -18,11 +18,11 @@ Output events keep collector order and their stream label. Opaque cursors bind s
 
 The recovered process-group anchor design is retained because it can observe output held open by descendants after Bash exits and can distinguish a leader outcome from group disappearance. Cleanup is explicitly limited to the managed process group; `setsid`, service managers, and other job-control groups can escape it.
 
-## Authentication
+## Boundary
 
-The public URL is a configured, canonical, unverified identity. It is never derived from `Host`, forwarding headers, or peer address. Local mode uses the bound loopback URL. The co-hosted authorization service owns only bounded in-memory auth state and cannot access process control. Every MCP request crosses the bearer boundary first.
+The package performs no authentication and validates no request identity. The server binds loopback and serves whoever reaches it; it advertises no public URL, serves no discovery document, and issues no challenge, because it has no external identity to advertise. Neither `Host` nor `Origin` is inspected. The tunnel and the operator's organization membership are the entire boundary, and both live outside this process: reaching the port is the OpenAI Secure MCP Tunnel's job, and this package is infrastructure rather than a gatekeeper.
 
-Client identity uses Client ID Metadata Documents. Fetching is size-, time-, redirect-, concurrency-, cache-, DNS-, and address-bounded. Public mode rejects loopback, private, link-local, multicast, and special-use destinations. Local mode permits loopback HTTP client documents for local testing only.
+That is a deliberate choice for a sandboxed, single-user environment, and its consequence is accepted rather than mitigated. With no `Host` check, a web page the operator visits can reach the loopback port through DNS rebinding. Removing the guard also removes the one assumption nothing local could verify, so the tunnel hop can no longer break on a `Host` the design did not anticipate.
 
 ## Recovered alternatives
 

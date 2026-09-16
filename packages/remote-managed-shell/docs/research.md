@@ -11,22 +11,37 @@ Revision `50d77959bf927293c4b5ddcca81d05331ae582ea` from `openai/codex` was the 
 
 ## localmcpcoder
 
-Revision `6d8c0f939d93bfdf903ba31e50fc7460327e2433` was the inspected head. It demonstrates a loopback Streamable HTTP MCP server, finite tool responses, OAuth discovery, and a console consent secret. Its tunnel lifecycle, persistent `.env` passphrase, dynamic registration, direct bearer compatibility, broad tool suite, and execution engine are deliberately not adopted.
+Revision `6d8c0f939d93bfdf903ba31e50fc7460327e2433` was the inspected head. It demonstrates a loopback Streamable HTTP MCP server, finite tool responses, OAuth discovery, and a console consent secret. Its tunnel lifecycle, persistent `.env` passphrase, dynamic registration, direct bearer compatibility, broad tool suite, and execution engine are deliberately not adopted; of the OAuth surface, only the loopback Streamable HTTP server and finite tool responses survive the adoption of the Secure MCP Tunnel.
 
 - https://github.com/JuanseGZZ/localmcpcoder/tree/6d8c0f939d93bfdf903ba31e50fc7460327e2433
 
-## MCP and OAuth
+## MCP transport
 
-The implementation follows the MCP authorization profile dated 2025-11-25 plus the installed 2.0.0 SDK behavior. The profile requires OAuth protected-resource metadata and a `WWW-Authenticate` discovery challenge, recommends Client ID Metadata Documents, and requires OAuth 2.1 protections for public clients. The current draft also keeps `offline_access` out of protected-resource metadata and challenges.
+The installed `@modelcontextprotocol/server@2.0.0` source was treated as authoritative for integration details. `createMcpHandler` supports finite JSON through `responseMode: "json"`. Its stateless legacy path answers a GET on the MCP route with `405`, which this package replaces with an empty `text/event-stream` response for the reason recorded at `sseKeepaliveResponse()` in `src/serve.ts`.
 
-- https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
-- https://modelcontextprotocol.io/specification/draft/basic/authorization
+The package implements no part of the MCP authorization profile: no protected-resource metadata, no `WWW-Authenticate` challenge, no Client ID Metadata Documents, and no security scheme on any tool. The profile was read and deliberately not implemented — see `rejected-approaches` in the change that removed it, and `architecture-decisions.md` for the boundary that replaced it.
 
-The installed `@modelcontextprotocol/server@2.0.0` source was treated as authoritative for integration details. `requireBearerAuth` validates bearer shape, expiry, and required scope but leaves audience/resource validation to the verifier. `createMcpHandler` supports finite JSON through `responseMode: "json"`. `oauthMetadataResponse` serves root and path-aware discovery documents. All access tokens therefore carry an explicit expiry, and the local verifier checks the configured resource on every call.
+## OpenAI Secure MCP Tunnel
+
+The 2026-09 evaluation behind this change read the public Secure MCP Tunnel guide and the `openai/tunnel-client` source at commit `3917788`. Its `docs/security/` holds only release-artifact scan boundaries; there is no threat model, no rate-limit statement, and no revocation story.
+
+The finding the package turns on is that the tunnel is a transport, not an authenticator:
+
+| Question | Finding |
+| --- | --- |
+| Does anything authenticate a caller to `/v1/mcp/{tunnel_id}`? | No first-party source states it does; the path is never named in the public guide. |
+| What arrives at the MCP server per request? | A polled command carrying only `request_id`, `shard_token`, `command_type`, `channel`, `created_at`, `headers`, and `response_timeout` — **no caller identity field** (`pkg/controlplane/wiretypes/wire.go:91-110`). |
+| Is there an authorization layer above the daemon? | tunnel-client strips `x-openai-authorization` and `x-openai-actor-authorization`, implying one; nothing documents what it verifies against. |
+| Does the daemon's credential reach the server? | No: `CONTROL_PLANE_API_KEY` authenticates tunnel-client to OpenAI for poll, response, and metadata calls and is never forwarded to the MCP server. |
+| Can auth artifacts stay local? | "Strict-local-auth is not supported by Tunnel." |
+
+The five auth modes the tunnel does offer all attach identity to the *connector* or to the *daemon*, never to the person invoking a tool, and the ChatGPT connector model holds one authorization per connector and reuses it for every user. A static header is worse than neutral: tunnel-client injects env- or file-backed `MCP_EXTRA_HEADERS` on every outbound request to the configured MCP origin, so it authenticates the hop rather than the caller. Per-caller authorization is therefore impossible from tunnel metadata, which is why this package makes no authorization decision at all.
+
+- https://github.com/openai/tunnel-client
 
 ## Target client and deployment
 
-OpenAI's API documentation represents a remote MCP server as a server URL with an OAuth access token. The operator supplies and operates the public HTTPS route; this process only binds loopback and advertises the canonical URL passed at startup.
+OpenAI's API documentation represents a remote MCP server as a server URL. The operator creates the tunnel in the OpenAI Platform, supplies its id and a runtime key to `tunnel-client`, and configures a custom connector for the tunnel's MCP endpoint. This process binds loopback and knows nothing about any of it: it advertises no URL, and the only thing that reaches it is whatever the tunnel forwards.
 
 - https://platform.openai.com/docs/guides/tools-remote-mcp
 

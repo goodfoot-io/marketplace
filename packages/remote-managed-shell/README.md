@@ -1,8 +1,8 @@
 # Remote managed shell
 
-`@goodfoot/remote-managed-shell` exposes one managed Bash service through five authenticated MCP tools: `exec_command`, `read_process`, `write_stdin`, `terminate_process`, and `list_processes`. Commands run as the Unix account that starts the server. This is direct shell access; only publish it to clients and machines you trust.
+`@goodfoot/remote-managed-shell` exposes one managed Bash service through five MCP tools: `exec_command`, `read_process`, `write_stdin`, `terminate_process`, and `list_processes`. Commands run as the Unix account that starts the server. This is direct shell access; only publish it to clients and machines you trust.
 
-The server always binds `127.0.0.1`. Local mode is useful for development. Public mode advertises an operator-owned HTTPS URL; the server never creates or supervises a tunnel or proxy — the companion `start:tunnel` script below puts one in front of it.
+The server binds `127.0.0.1` and nowhere else, and it authenticates nobody: no credential, no `Host` check, no `Origin` check, no discovery route, no challenge, and no startup secret, because it has no external identity to advertise. Whoever can reach that port has the shell, so the boundary is whatever publishes the port — normally the operator's OpenAI Secure MCP Tunnel, where the tunnel and the operator's organization membership are the entire gate. The `start:tunnel` script below puts that tunnel in front of this server.
 
 ## Run
 
@@ -11,32 +11,30 @@ From the repository root:
 ```bash
 yarn install
 yarn workspace @goodfoot/remote-managed-shell run build
-yarn workspace @goodfoot/remote-managed-shell run start:local --port=38147
-yarn workspace @goodfoot/remote-managed-shell run start --url=https://shell.example.net --port=38147
+yarn workspace @goodfoot/remote-managed-shell run start --port=38147
 ```
 
-The process prints a fresh startup secret and authorization URL once. The secret exists only in memory and terminal output. It is absent from the readiness file, health route, logs, environment, and tool results. Restarting creates a new server instance and invalidates the secret, authorization codes, and tokens.
+`--help` lists every option. The process prints its loopback endpoint, its server instance, and the readiness file it owns.
 
-## Instant Tunnel
+## Secure MCP Tunnel
 
-`start:tunnel` publishes the loopback port with a Cloudflare Instant Tunnel — the account-less `cloudflared tunnel --url` quick tunnel — so a client can reach the server without a named tunnel, a Cloudflare login, or a DNS record:
+`start:tunnel` supervises two children as one unit: the built server on loopback, and `tunnel-client` holding the operator's tunnel identity.
 
 ```bash
 yarn workspace @goodfoot/remote-managed-shell run start:tunnel
 yarn workspace @goodfoot/remote-managed-shell run start:tunnel --port=38147 -- --workdir=/srv
 ```
 
-`cloudflared` must be on `PATH` or passed as `--cloudflared=<path>`. The script starts the tunnel first and the server second, because public mode bakes the advertised base URL into the issuer, the resource indicator, and every discovery document. It reports the `<url>/mcp` endpoint only after `/healthz`, the protected-resource metadata, and the MCP `401` challenge all answer with that URL, and it stops everything if either child exits on its own. A quick-tunnel hostname exists only for the life of the run: each restart mints a new one and invalidates the startup secret, codes, and tokens. Ctrl+C retires the server before the tunnel. Cloudflare rate-limits account-less tunnels per source address, so back-to-back runs can be refused with `429`; the script reports that and stops rather than retrying.
+The operator creates the tunnel in the OpenAI Platform, then supplies its id and a runtime key — `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY`, or the explicit flags described by `start:tunnel --help`. `tunnel-client` must be on `PATH` or passed as `--tunnel-client=<path>`. The script reports the endpoint only after the server publishes its readiness claim and `tunnel-client` reports ready, which requires that client's startup MCP probe to have reached this server; either child exiting on its own stops the run, and Ctrl+C retires the server before the tunnel. The connection is outbound-only: no public DNS record, no certificate, and no inbound port is needed.
 
 ## Connect from ChatGPT
 
-1. Publish the loopback port with an operator-managed HTTPS route and start public mode with that exact base URL.
-2. Configure a custom MCP connector whose URL is `<public-url>/mcp` and authentication is OAuth.
-3. When ChatGPT opens the authorization page, enter the startup secret printed by this server.
-4. Approve the link. The server validates ChatGPT's Client ID Metadata Document, redirect URI, S256 PKCE challenge, and resource audience before issuing an instance-bound code.
-5. If the server restarts, reconnect the account. Old tokens receive a fresh `401` OAuth challenge rather than a process/tool error.
+1. Create a tunnel in the OpenAI Platform.
+2. Mint a runtime key permitted to read, write, and use that tunnel.
+3. Start `start:tunnel` with that tunnel id and key; it reports ready only once `tunnel-client`'s startup MCP probe has reached this server.
+4. Configure a custom MCP connector whose URL is the tunnel's MCP endpoint. There is no authorization step to complete: this server serves no discovery document and issues no challenge, so the connector does not enter an OAuth flow.
 
-The authorization server supports public clients, authorization-code plus S256 PKCE, and refresh tokens. It has no dynamic registration endpoint, user database, persistent credentials, static bearer bypass, or client secret.
+Restarting the server needs no re-link and no secret to transcribe. The tunnel identity is the whole connection, and re-connecting is the Platform's business rather than this package's.
 
 ## Tool workflow
 
@@ -53,7 +51,7 @@ yarn workspace @goodfoot/remote-managed-shell run test
 yarn workspace @goodfoot/remote-managed-shell run smoke:local
 ```
 
-`dev` runs the same composition root under `tsx watch`. See [wiki/smoke-test.md](wiki/smoke-test.md) for the independent Inspector workflow and credential-handling rules. Long-duration, soak, public-route, hosted ChatGPT, PTY, and macOS checks are opt-in and must be reported as not run when their environment is unavailable.
+`dev` runs the same composition root under `tsx watch`. See [wiki/smoke-test.md](wiki/smoke-test.md) for the independent Inspector workflow. Long-duration, soak, tunnel-hop, hosted ChatGPT, PTY, and macOS checks are opt-in and must be reported as not run when their environment is unavailable.
 
 Design rationale, recovery provenance, and the validation ledger live in [docs/architecture-decisions.md](docs/architecture-decisions.md), [docs/recovery-provenance.md](docs/recovery-provenance.md), and [docs/validation.md](docs/validation.md).
 Primary-source revisions, FMEA coverage, and the registry-verified dependency closure are recorded in [docs/research.md](docs/research.md), [docs/fmea-traceability.md](docs/fmea-traceability.md), and [docs/dependencies.md](docs/dependencies.md).

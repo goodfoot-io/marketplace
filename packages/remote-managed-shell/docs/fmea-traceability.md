@@ -8,22 +8,22 @@ part of the Appendix F scenario. `not run` means there is no execution
 evidence for that scenario.
 
 The current package baseline is `yarn workspace @goodfoot/remote-managed-shell
-typecheck`, `build`, and `test`: typecheck and build passed; Vitest reported 34
+typecheck`, `build`, and `test`: typecheck and build passed; Vitest reported 29
 passed and two skipped opt-in tests (the ten-minute duration and one-hour soak).
 The baseline ran on Node.js v24.16.0, Yarn 4.12.0, Bash 5.2.37, Linux aarch64
-(kernel 7.0.12-linuxkit), with MCP server/node/client 2.0.0. The public route,
+(kernel 7.0.12-linuxkit), with MCP server/node/client 2.0.0. The tunnel hop,
 hosted ChatGPT, MCP Inspector, native PTY behavior, crash/restart behavior,
 and the opt-in duration/soak tests were not run.
 
 | ID | Implementation | Current evidence | Status | Residual boundary |
 |---|---|---|---|---|
-| T01 | `src/serve.ts`, `src/server.ts`, `src/contracts.ts` | `tests/http.test.ts` runs the real local Streamable HTTP endpoint, finite JSON responses, and all five tools | known boundary | The operator-owned public URL and a target public MCP host were not exercised; public-route streaming is intentionally unobservable here |
+| T01 | `src/serve.ts`, `src/server.ts`, `src/contracts.ts` | `tests/http.test.ts` runs the real local Streamable HTTP endpoint, finite JSON responses, and all five tools | known boundary | The tunnel hop and an intended client host were not exercised; they are outside this package, which binds loopback and is reached only by whatever forwards to it |
 | T02 | `src/server.ts`, `src/serve.ts`, `package.json` | `tests/http.test.ts` uses the pinned v2 SDK client and verifies the five-tool surface; package build/typecheck passed | passed | Independent target-host contract testing and reconnect/error coverage were not run |
 | T03 | `src/serve.ts`, `src/process-manager.ts`, `src/adapters/adapter.ts` | Manager-owned scope and shutdown paths are present | not run | No dropped-response, transport-disposal, disconnect, or reconnect test proves that accepted work survives observation cancellation |
 | T04 | `src/process-manager.ts`, `src/contracts.ts`, `src/errors.ts` | `tests/process-manager.test.ts` verifies operation replay and conflicting payload rejection | known boundary | The test does not lose a real HTTP response or race serial and concurrent retries |
 | T05 | `src/process-manager.ts`, `src/util/time.ts`, `src/contracts.ts` | `read_process` and `exec_command` enforce the configured wait cap in source | known boundary | No short-client-deadline, silent-job, or observer-cancellation gate was run |
-| T06 | `src/config.ts`, `src/serve.ts` | `tests/config.test.ts` covers required public URL, normalization, and special-use rejection; `tests/http.test.ts` proves atomic readiness facts, secret absence, and that an older instance cannot unlink a replacement claim | passed | The full Appendix F malformed-value matrix was not run |
-| T07 | `src/config.ts`, `src/serve.ts`, `src/process-manager.ts` | Readiness and health label a public URL `configured_unverified`; no public self-probe path exists | known boundary | An external publisher outage during an accepted job cannot be tested by this package and was not simulated |
+| T06 | `src/config.ts`, `src/serve.ts` | `tests/config.test.ts` covers unknown, repeated, malformed, and out-of-range options and the rejection of the retired `--mode`/`--url`; `tests/http.test.ts` proves atomic readiness facts and that an older instance cannot unlink a replacement claim | known boundary | The full Appendix F malformed-value matrix was not run, and no `Host` or `Origin` is inspected by design, so an unanticipated header is served rather than refused |
+| T07 | `src/config.ts`, `src/serve.ts`, `src/process-manager.ts` | Readiness and health describe only the loopback endpoint and the server instance; there is no public identity to label and no self-probe path | known boundary | A tunnel outage during an accepted job cannot be tested by this package and was not simulated |
 | O01 | `src/process-manager.ts`, `src/util/opaque.ts`, `src/contracts.ts` | Cursor reads are implemented as non-destructive snapshots; `tests/process-manager.test.ts` retries a cursor indirectly through paging | known boundary | Two independent readers and a deliberately lost read response were not run |
 | O02 | `src/process-manager.ts`, `src/util/opaque.ts`, `src/util/utf8.ts` | `tests/process-manager.test.ts` reconstructs a newline-free multibyte event with four-byte pages | passed | The minimum-budget and alternating-stream matrix was not run |
 | O03 | `src/process-manager.ts` | Fast completion retains a session and output; `tests/process-manager.test.ts` covers fast output and completion | known boundary | No immediate verbose command exceeding one response page was run |
@@ -54,19 +54,33 @@ and the opt-in duration/soak tests were not run.
 | U06 | `src/process-manager.ts`, `src/contracts.ts` | Atomic-looking admission checks and active/input/output/identity limits are implemented | not run | Raced starts, each capacity limit, retained-completion pressure, and reserved control headroom were not run |
 | U07 | `src/adapters/adapter.ts`, `src/process-manager.ts`, `src/contracts.ts` | The ordinary suite runs without `node-pty`; listing reports the actual disabled/unavailable/available state and pipe-mode tests pass | known boundary | Native PTY installation and behavior were not run |
 | U08 | `src/server.ts`, `src/contracts.ts`, `src/process-manager.ts` | Tool descriptions label reads/listing as non-destructive; HTTP test calls `list_processes` before and after execution | known boundary | Multi-poll mutation checks and intended-host annotation/confirmation behavior were not run |
-| A01 | `src/serve.ts`, `src/auth/service.ts`, `src/server.ts` | Real HTTP tests get the discovery challenge for missing and unknown bearers, then use OAuth for the MCP SDK client; auth tests cover insufficient scope | known boundary | Every MCP method and malformed-header class was not run |
-| A02 | `src/auth/service.ts`, `src/serve.ts` | Unit and real HTTP tests verify mutually consistent issuer/resource discovery, S256, Client ID Metadata support, and no registration endpoint | passed | Public endpoint reachability was not run |
-| A03 | `src/auth/service.ts`, `src/config.ts` | `tests/auth.test.ts` rejects a public-mode private resolution and exercises local loopback metadata injection | known boundary | Redirects, oversized/slow/non-JSON/mismatched documents, concurrency caps, and all special-use address classes were not run |
-| A04 | `src/auth/service.ts`, `src/serve.ts` | `tests/auth.test.ts` checks wrong-secret non-echo; `tests/http.test.ts` checks readiness and health do not contain the startup secret | known boundary | No full console/log/transcript/environment grep or restart-secret invalidation test was run |
-| A05 | `src/auth/service.ts` | Constant-time comparison and per-client/global attempt limits are implemented; wrong-secret behavior is exercised in `tests/auth.test.ts` | known boundary | Timing, repeated-attempt rate limiting, and listener responsiveness under attack were not measured |
-| A06 | `src/auth/service.ts`, `src/auth/index.ts` | `tests/auth.test.ts` covers S256 authorization, tampered verifier, single-use code replay, redirect binding, and `iss` on the consent error | known boundary | Expiry, absent/foreign resource, plain PKCE, and every structured error variant were not run |
-| A07 | `src/auth/service.ts` | Auth tests check explicit positive expiry, refresh, and replacement; a real HTTP restart test proves an earlier token receives a fresh `401` challenge | known boundary | Clock-driven access-token expiry was not tested; no JWT/JWKS path exists by design |
-| A08 | `src/auth/service.ts`, `src/serve.ts` | A real HTTP restart test proves in-memory authorization state does not cross instances; token-attempt bounds are unit tested | known boundary | Every registry-cap and metadata-fetch pressure path was not run |
-| A09 | `src/auth/service.ts`, `src/serve.ts`, `src/logging/logger.ts` | Secret-free readiness/health and wrong-secret redirect are checked by the auth/HTTP tests; credentials are kept in service memory | known boundary | No comprehensive search of logs, errors, results, transcripts, or environment was run |
-| A10 | `src/auth/service.ts`, `src/serve.ts`, `src/errors.ts` | Missing, unknown, and prior-instance tokens are refused at real HTTP with OAuth challenges, separately from tool-domain errors | known boundary | Every refusal category and target-host account-linking UI were not run |
+
+## Authentication risks (A01–A10)
+
+Appendix F's authentication class has no implementation in this package and no
+evidence here. Every one of A01–A10 named the authorization server as its
+control, and that subsystem — together with the public identity it existed to
+gate — has been removed. The package performs no authentication, inspects no
+`Host` and no `Origin`, serves no discovery document, and issues no challenge;
+it is infrastructure, and deciding who may call is not its job.
+
+The boundary that replaced it is the OpenAI Secure MCP Tunnel plus the
+operator's organization membership, and neither is verifiable from this
+process: the polled command payload carries no caller identity, so the server
+could not make a per-caller authorization decision even if it kept one
+(`docs/research.md`). Two consequences are accepted rather than mitigated, and
+are recorded in the change's Risks section rather than assumed away:
+
+- **No local guard against DNS rebinding.** A web page the operator visits can
+  reach the loopback port and drive the shell. The design target is a sandboxed,
+  single-user environment in which any process in the container can already
+  reach that port.
+- **No per-user authorization, and no revocation path this package owns.**
+  ChatGPT holds one authorization per connector and reuses it for every user, so
+  even the removed OAuth surface supplied no per-user granularity.
 
 The skipped opt-in tests are intentionally not evidence for P02 or O06:
 `tests/duration.opt-in.test.ts` requires ten minutes of wall time and
-`tests/soak.opt-in.test.ts` requires one hour. The public-route and hosted-client
+`tests/soak.opt-in.test.ts` requires one hour. The tunnel-hop and hosted-client
 claims remain external verification boundaries because this process neither
-owns nor probes the operator's publisher.
+owns nor probes the operator's tunnel.
