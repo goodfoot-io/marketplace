@@ -2,7 +2,7 @@
   "format": "shell-mcp-dependency-closure-v1",
   "package": {
     "name": "@goodfoot/shell-mcp",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "package_manager": "yarn@4.12.0"
   },
   "provenance": {
