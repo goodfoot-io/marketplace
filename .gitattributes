@@ -7,3 +7,4 @@ plugins-opencode/goodfoot/skills/** linguist-generated=true
 # Generated Antigravity outputs preserve source bytes; source-owned whitespace
 # is verified by freshness/equivalence rather than normalized in the materialized tree.
 plugins-antigravity/** linguist-generated=true whitespace=-trailing-space,-blank-at-eof
+.span/** merge=span
