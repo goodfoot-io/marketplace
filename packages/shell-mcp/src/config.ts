@@ -68,6 +68,12 @@ export class UsageRequested extends Error {
 }
 
 export const USAGE = `Usage: shell-mcp [options]
+       shell-mcp openai [options]
+
+  openai                  Run under an OpenAI Secure MCP Tunnel: the server and
+                          the tunnel client are supervised as one unit. Options
+                          after it go to the launcher, whose own --help lists
+                          them.
 
   --port=<0-65535>        Loopback listen port (default ${DEFAULT_PORT}; 0 is ephemeral).
   --ready-file=<path>     Atomic readiness-file location.

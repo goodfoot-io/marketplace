@@ -1,16 +1,27 @@
 {
   "name": "@goodfoot/shell-mcp",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "sideEffects": false,
   "description": "Remote managed Bash MCP server over Streamable HTTP, reached through an OpenAI Secure MCP Tunnel.",
   "engines": {
     "node": ">=22"
   },
+  "bin": {
+    "shell-mcp": "build/dist/src/main.js"
+  },
+  "files": [
+    "build/dist/**",
+    "scripts/**"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
+    "clean": "rm -rf build",
     "typecheck": "tsc --noEmit",
     "build": "tsc --build tsconfig.build.json",
+    "prepack": "yarn run clean && yarn run build",
     "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests",
     "test": "vitest run",
     "dev": "tsx watch --clear-screen=false src/main.ts",

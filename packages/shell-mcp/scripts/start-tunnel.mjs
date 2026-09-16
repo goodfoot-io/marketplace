@@ -71,7 +71,8 @@ const FORCE_KILL_GRACE_MS = 2_000;
 /** Options this script owns; passing them after `--` would be a silent conflict. */
 const MANAGED_SERVER_OPTIONS = new Set(["--port", "--ready-file"]);
 
-const USAGE = `Usage: start-tunnel.mjs [options] [-- server options]
+const USAGE = `Usage: shell-mcp openai [options] [-- server options]
+       node scripts/start-tunnel.mjs [options] [-- server options]
 
 Starts the built server on loopback behind an OpenAI Secure MCP Tunnel and
 reports ready only after the server published its readiness claim,
