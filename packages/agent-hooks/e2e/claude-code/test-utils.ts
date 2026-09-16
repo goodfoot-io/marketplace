@@ -5,6 +5,7 @@
 import { execSync, type SpawnSyncReturns, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import { createRequire } from "node:module";
+import * as path from "node:path";
 
 /**
  * Resolves the tsx CLI entrypoint (a `.mjs` file) so it can be executed
@@ -60,13 +61,10 @@ export interface MatcherEntry {
 }
 
 /**
- * Represents the hooks.json file structure.
+ * Represents the hooks.json file structure. `hooks` is the only key the host
+ * accepts here — build tracking lives in the sidecar (see HooksMeta).
  */
 export interface HooksJson {
-  __generated: {
-    files: string[];
-    timestamp: string;
-  };
   hooks: {
     PreToolUse?: MatcherEntry[];
     PostToolUse?: MatcherEntry[];
@@ -97,6 +95,36 @@ export interface HooksJson {
  */
 export function readHooksJson(hooksJsonPath: string): HooksJson {
   return JSON.parse(fs.readFileSync(hooksJsonPath, "utf-8")) as HooksJson;
+}
+
+/**
+ * Build tracking metadata for a generated hooks.json.
+ */
+export interface HooksMeta {
+  files: string[];
+}
+
+/**
+ * Gets the path of the tracking sidecar that sits beside a hooks.json.
+ * @param hooksJsonPath - Absolute path to the hooks.json file
+ * @returns Path to the hooks.meta.json file beside it
+ */
+export function getHooksMetaPath(hooksJsonPath: string): string {
+  return path.join(path.dirname(hooksJsonPath), "hooks.meta.json");
+}
+
+/**
+ * Reads and parses the tracking sidecar beside a hooks.json file.
+ * @param hooksJsonPath - Absolute path to the hooks.json file
+ * @returns Parsed sidecar content with typed structure
+ * @example
+ * ```typescript
+ * const meta = readHooksMeta('/path/to/hooks.json');
+ * console.log(meta.files);
+ * ```
+ */
+export function readHooksMeta(hooksJsonPath: string): HooksMeta {
+  return JSON.parse(fs.readFileSync(getHooksMetaPath(hooksJsonPath), "utf-8")) as HooksMeta;
 }
 
 /**

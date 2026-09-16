@@ -127,24 +127,32 @@ interface MatcherEntry {
  * The complete hooks.json structure expected by Claude Code.
  *
  * Format: { hooks: { EventType: [ { matcher?, hooks: [...] } ] } }
+ *
+ * `hooks` is the only key that may appear here: the host validates hooks.json
+ * against its own schema and rejects files carrying unknown keys, so build
+ * tracking lives in the sidecar instead (see HooksMeta).
  */
 interface HooksJson {
   /** Object keyed by event type (PreToolUse, SessionStart, etc.). */
   hooks: Partial<Record<HookEventName, MatcherEntry[]>>;
-  /** Generated file tracking metadata. */
-  __generated: {
-    /** Array of generated filenames. */
-    files: string[];
-    /** ISO timestamp of generation. */
-    timestamp: string;
-  };
+}
+
+/**
+ * Build tracking metadata for a generated hooks.json, written to a sidecar
+ * file beside it (hooks.meta.json) rather than inside hooks.json itself.
+ */
+interface HooksMeta {
+  /** Bundle filenames this package generated, relative to the bin/ directory. */
+  files: string[];
 }
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-const VERSION = "1.0.10";
+const VERSION = "1.0.11";
+/** Filename of the tracking sidecar written beside hooks.json. */
+const HOOKS_META_FILENAME = "hooks.meta.json";
 const DEFAULT_ESBUILD_LOADERS: HookLoaderMap = {
   ".md": "text",
 };
@@ -781,8 +789,12 @@ function symlinkVisiblePath(realPath: string, resolveDir: string): string {
           pkgEntry = manifest.name;
           pkgRel = path.relative(dir, realPath);
         }
-      } catch {
-        // Not a readable package.json — the realpath is not under a package.
+      } catch (error) {
+        // An unreadable or malformed manifest is the same case as no manifest
+        // at all: identity stays undefined and the caller falls back below.
+        log("debug", `Could not read package manifest: ${pkgJsonPath}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
       break;
     }
@@ -1338,13 +1350,7 @@ function generateHooksJson(
     hooks[eventName] = entries;
   }
 
-  return {
-    hooks,
-    __generated: {
-      files: compiledHooks.map((h) => h.outputFilename),
-      timestamp: new Date().toISOString(),
-    },
-  };
+  return { hooks };
 }
 
 /**
@@ -1369,15 +1375,73 @@ function readExistingHooksJson(outputPath: string): HooksJson | undefined {
 }
 
 /**
- * Removes previously generated hook files from disk.
- * Only removes files that were tracked in __generated.files.
- * @param existingHooksJson - The existing hooks.json content
- * @param outputDir - Directory containing the generated files
+ * Absolute path of the tracking sidecar that sits beside hooks.json.
+ * @param outputPath - Path to hooks.json
+ * @returns Path to hooks.meta.json
  */
-function removeOldGeneratedFiles(existingHooksJson: HooksJson, outputDir: string): void {
-  const filesToRemove = existingHooksJson.__generated?.files ?? [];
+function hooksMetaPath(outputPath: string): string {
+  return path.join(path.dirname(outputPath), HOOKS_META_FILENAME);
+}
+
+/**
+ * Reads the tracking sidecar beside hooks.json if it exists.
+ *
+ * A missing or unreadable sidecar is not fatal: it only means no generated
+ * filenames are known, so every existing entry is treated as externally
+ * authored and preserved.
+ * @param outputPath - Path to the hooks.json the sidecar describes
+ * @returns Parsed HooksMeta or undefined if absent or unusable
+ */
+function readHooksMeta(outputPath: string): HooksMeta | undefined {
+  const metaPath = hooksMetaPath(outputPath);
+  if (!fs.existsSync(metaPath)) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(metaPath, "utf-8")) as { files?: unknown };
+    const rawFiles = parsed.files;
+    if (!Array.isArray(rawFiles)) {
+      log("warn", "hooks.meta.json has no files array, treating generated hooks as untracked", { path: metaPath });
+      return undefined;
+    }
+    const files = rawFiles.filter((entry): entry is string => typeof entry === "string");
+    if (files.length !== rawFiles.length) {
+      log("warn", "hooks.meta.json lists non-string filenames, treating generated hooks as untracked", {
+        path: metaPath,
+      });
+      return undefined;
+    }
+    return { files };
+  } catch (error) {
+    log("warn", "Failed to parse hooks.meta.json, treating generated hooks as untracked", {
+      path: metaPath,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return undefined;
+  }
+}
+
+/**
+ * Removes bundles a previous build generated that this build did not. Only
+ * filenames tracked in the sidecar are ever removed, and callers must run this
+ * after the new hooks.json is on disk so no reachable state loses a file it
+ * references.
+ * @param previousMeta - Tracking sidecar from the previous build, if any
+ * @param outputDir - Directory containing the generated files
+ * @param keepFilenames - Filenames written by the current build
+ */
+function removeStaleGeneratedFiles(
+  previousMeta: HooksMeta | undefined,
+  outputDir: string,
+  keepFilenames: Set<string>,
+): void {
+  const filesToRemove = previousMeta?.files ?? [];
 
   for (const filename of filesToRemove) {
+    if (keepFilenames.has(filename)) {
+      continue;
+    }
     const filePath = path.join(outputDir, filename);
     if (fs.existsSync(filePath)) {
       try {
@@ -1393,13 +1457,18 @@ function removeOldGeneratedFiles(existingHooksJson: HooksJson, outputDir: string
 }
 
 /**
- * Extracts hooks from an existing hooks.json that were NOT generated by this package.
- * Identifies generated hooks by checking if their command path matches the generated file pattern.
+ * Extracts hooks from an existing hooks.json that were NOT generated by this
+ * package. Generated hooks are identified by the filenames tracked in the
+ * sidecar, so entries authored anywhere else survive a rebuild untouched.
  * @param existingHooksJson - The existing hooks.json content
+ * @param meta - Tracking sidecar from the previous build, if any
  * @returns Object containing preserved hooks (keyed by event type)
  */
-function extractPreservedHooks(existingHooksJson: HooksJson): Partial<Record<HookEventName, MatcherEntry[]>> {
-  const generatedFiles = new Set(existingHooksJson.__generated?.files ?? []);
+function extractPreservedHooks(
+  existingHooksJson: HooksJson,
+  meta: HooksMeta | undefined,
+): Partial<Record<HookEventName, MatcherEntry[]>> {
+  const generatedFiles = new Set(meta?.files ?? []);
   const preserved: Partial<Record<HookEventName, MatcherEntry[]>> = {};
 
   for (const [eventType, entries] of Object.entries(existingHooksJson.hooks)) {
@@ -1459,31 +1528,27 @@ function mergeHooksJson(
     mergedHooks[eventType] = [...preserved, ...generated];
   }
 
-  return {
-    hooks: mergedHooks,
-    __generated: newHooksJson.__generated,
-  };
+  return { hooks: mergedHooks };
 }
 
 /**
- * Writes hooks.json to the specified path atomically.
- * Uses write-to-temp-then-rename pattern for atomicity.
- * @param hooksJson - The hooks.json content
- * @param outputPath - Path to write hooks.json
+ * Writes a JSON document atomically, using write-to-temp-then-rename.
+ * @param value - Value to serialize
+ * @param filePath - Destination path
  */
-function writeHooksJson(hooksJson: HooksJson, outputPath: string): void {
-  const dir = path.dirname(outputPath);
+function writeJsonAtomic(value: unknown, filePath: string): void {
+  const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
   // Write to a temporary file first, then rename for atomicity
-  const tempPath = `${outputPath}.tmp.${process.pid}`;
-  const content = `${JSON.stringify(hooksJson, null, 2)}\n`;
+  const tempPath = `${filePath}.tmp.${process.pid}`;
+  const content = `${JSON.stringify(value, null, 2)}\n`;
 
   try {
     fs.writeFileSync(tempPath, content, "utf-8");
-    fs.renameSync(tempPath, outputPath);
+    fs.renameSync(tempPath, filePath);
   } catch (error) {
     // Clean up temp file if rename failed
     if (fs.existsSync(tempPath)) {
@@ -1495,6 +1560,24 @@ function writeHooksJson(hooksJson: HooksJson, outputPath: string): void {
     }
     throw error;
   }
+}
+
+/**
+ * Writes hooks.json to the specified path atomically.
+ * @param hooksJson - The hooks.json content
+ * @param outputPath - Path to write hooks.json
+ */
+function writeHooksJson(hooksJson: HooksJson, outputPath: string): void {
+  writeJsonAtomic(hooksJson, outputPath);
+}
+
+/**
+ * Writes the tracking sidecar beside hooks.json atomically.
+ * @param meta - Tracking metadata for this build
+ * @param outputPath - Path to the hooks.json the sidecar describes
+ */
+function writeHooksMeta(meta: HooksMeta, outputPath: string): void {
+  writeJsonAtomic(meta, hooksMetaPath(outputPath));
 }
 
 // ============================================================================
@@ -1693,18 +1776,16 @@ async function main(): Promise<void> {
       process.exit(1);
     }
 
-    // Read existing hooks.json to preserve non-generated hooks
+    // Read existing hooks.json and its tracking sidecar to preserve non-generated hooks
     const existingHooksJson = readExistingHooksJson(outputPath);
+    const existingMeta = readHooksMeta(outputPath);
     let preservedHooks: Partial<Record<HookEventName, MatcherEntry[]>> = {};
 
     if (existingHooksJson !== undefined) {
       log("info", "Found existing hooks.json, will preserve non-generated hooks");
 
       // Extract hooks that were NOT generated by this package
-      preservedHooks = extractPreservedHooks(existingHooksJson);
-
-      // Remove old generated files from disk
-      removeOldGeneratedFiles(existingHooksJson, buildDir);
+      preservedHooks = extractPreservedHooks(existingHooksJson, existingMeta);
 
       const preservedCount = Object.values(preservedHooks).reduce(
         (sum, entries) => sum + (entries?.reduce((s, e) => s + e.hooks.length, 0) ?? 0),
@@ -1737,22 +1818,17 @@ async function main(): Promise<void> {
     const executable = args.executable !== undefined && args.executable !== "" ? args.executable : "node";
     const newHooksJson = generateHooksJson(compiledHooks, buildDir, hookContext, executable);
 
-    // Preserve timestamp if generated files haven't changed
-    if (existingHooksJson !== undefined) {
-      const existingFiles = [...(existingHooksJson.__generated?.files ?? [])].sort();
-      const newFiles = [...newHooksJson.__generated.files].sort();
-      const filesUnchanged =
-        existingFiles.length === newFiles.length && existingFiles.every((f, i) => f === newFiles[i]);
-
-      if (filesUnchanged && existingHooksJson.__generated?.timestamp) {
-        newHooksJson.__generated.timestamp = existingHooksJson.__generated.timestamp;
-        log("info", "Files unchanged, preserving existing timestamp");
-      }
-    }
-
     // Merge with preserved hooks
     const finalHooksJson = mergeHooksJson(newHooksJson, preservedHooks);
     writeHooksJson(finalHooksJson, outputPath);
+
+    // Drop the bundles the previous build produced that this one did not, then
+    // record what this build wrote. Stale files go only after the hooks.json
+    // that references the current set is on disk, so every state on disk
+    // between the two writes stays runnable.
+    const writtenFilenames = new Set(compiledHooks.map((hook) => hook.outputFilename));
+    removeStaleGeneratedFiles(existingMeta, buildDir, writtenFilenames);
+    writeHooksMeta({ files: [...writtenFilenames].sort() }, outputPath);
 
     log("info", "Compilation complete", {
       hooksCompiled: compiledHooks.length,
@@ -1824,6 +1900,7 @@ export {
   generateHooksJson,
   groupHooksByEventAndMatcher,
   HOOK_FACTORY_TO_EVENT,
+  hooksMetaPath,
   mergeHooksJson,
   moduleWorkingDir,
   parseArgs,
@@ -1831,7 +1908,8 @@ export {
   parseLoaderFlag as parseEsbuildLoaderFlag,
   pruneStaleHashedBundles,
   readExistingHooksJson,
-  removeOldGeneratedFiles,
+  readHooksMeta,
+  removeStaleGeneratedFiles,
   symlinkVisiblePath,
   validateArgs,
 };

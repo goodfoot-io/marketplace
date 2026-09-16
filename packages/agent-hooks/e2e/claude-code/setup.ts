@@ -59,7 +59,6 @@ function uniqueSuffix(): string {
  */
 interface HooksJsonStructure {
   hooks: Record<string, Array<{ matcher?: string; hooks: Array<{ type: string; command: string; timeout?: number }> }>>;
-  __generated?: { files: string[]; timestamp: string };
 }
 
 /**

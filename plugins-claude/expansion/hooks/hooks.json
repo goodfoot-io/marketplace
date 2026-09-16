@@ -10,11 +10,5 @@
         ]
       }
     ]
-  },
-  "__generated": {
-    "files": [
-      "user-prompt-submit.mjs"
-    ],
-    "timestamp": "2026-08-12T16:01:29.335Z"
   }
 }

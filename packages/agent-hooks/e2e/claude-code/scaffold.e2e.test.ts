@@ -12,7 +12,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { runTsxCli } from "./test-utils.js";
+import { readHooksMeta, runTsxCli } from "./test-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -366,10 +366,10 @@ describe("E2E: Scaffold Command", () => {
       const hooksJsonPath = path.join(testDir, "dist", "hooks.json");
       expect(fs.existsSync(hooksJsonPath)).toBe(true);
 
-      // Verify hooks.json has correct structure
+      // Verify hooks.json has correct structure and keeps tracking in the sidecar
       const hooksJson = JSON.parse(fs.readFileSync(hooksJsonPath, "utf-8")) as Record<string, unknown>;
-      expect(hooksJson.hooks).toBeDefined();
-      expect(hooksJson.__generated).toBeDefined();
+      expect(Object.keys(hooksJson)).toEqual(["hooks"]);
+      expect(readHooksMeta(hooksJsonPath).files.length).toBeGreaterThan(0);
 
       const hooks = hooksJson.hooks as Record<string, unknown>;
       expect(hooks.Stop).toBeDefined();

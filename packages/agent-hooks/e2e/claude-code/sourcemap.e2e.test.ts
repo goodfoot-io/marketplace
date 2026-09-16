@@ -10,7 +10,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { runTsxCli } from "./test-utils.js";
+import { readHooksMeta, runTsxCli } from "./test-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -87,14 +87,16 @@ describe("E2E: Sourcemap Handling", () => {
 
     expect(result.success).toBe(true);
 
-    // hooks.json still generates
-    const hooksJson = JSON.parse(fs.readFileSync(outputPath, "utf-8")) as {
-      __generated: { files: string[] };
-    };
-    expect(hooksJson.__generated.files).toHaveLength(1);
+    // hooks.json still generates, carrying only what the host accepts
+    const hooksJson = JSON.parse(fs.readFileSync(outputPath, "utf-8")) as Record<string, unknown>;
+    expect(Object.keys(hooksJson)).toEqual(["hooks"]);
+
+    // The sidecar tracks the emitted bundle
+    const generatedFiles = readHooksMeta(outputPath).files;
+    expect(generatedFiles).toHaveLength(1);
 
     // The emitted bundle lacks the sourcemap comment and keeps the shebang
-    const bundlePath = path.join(outputDir, "bin", hooksJson.__generated.files[0]);
+    const bundlePath = path.join(outputDir, "bin", generatedFiles[0]);
     expect(fs.existsSync(bundlePath)).toBe(true);
     const content = fs.readFileSync(bundlePath, "utf-8");
     expect(content).not.toContain("sourceMappingURL");
@@ -111,10 +113,7 @@ describe("E2E: Sourcemap Handling", () => {
 
     expect(result.success).toBe(true);
 
-    const hooksJson = JSON.parse(fs.readFileSync(outputPath, "utf-8")) as {
-      __generated: { files: string[] };
-    };
-    const bundlePath = path.join(outputDir, "bin", hooksJson.__generated.files[0]);
+    const bundlePath = path.join(outputDir, "bin", readHooksMeta(outputPath).files[0]);
     const content = fs.readFileSync(bundlePath, "utf-8");
     expect(content).not.toContain("sourceMappingURL");
   });

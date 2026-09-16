@@ -11,7 +11,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { runTsxCli } from "./test-utils.js";
+import { readHooksMeta, runTsxCli } from "./test-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,13 +44,10 @@ interface MatcherEntry {
 }
 
 /**
- * Represents the hooks.json file structure.
+ * Represents the hooks.json file structure. The host rejects unknown keys, so
+ * `hooks` is the only key that may appear.
  */
 interface HooksJson {
-  __generated: {
-    files: string[];
-    timestamp: string;
-  };
   hooks: Record<string, MatcherEntry[]>;
 }
 
@@ -335,7 +332,7 @@ describe("E2E: Build Process", () => {
   });
 
   describe("Generated Files", () => {
-    it("generates __generated metadata with files and timestamp", () => {
+    it("writes tracking metadata to hooks.meta.json, never into hooks.json", () => {
       const outputDir = path.join(BUILD_TEST_OUTPUT, "generated-meta");
       const outputPath = path.join(outputDir, "hooks.json");
       fs.mkdirSync(outputDir, { recursive: true });
@@ -345,16 +342,13 @@ describe("E2E: Build Process", () => {
 
       expect(result.success).toBe(true);
 
+      // hooks.json carries only what the host accepts...
       const hooksJson = readHooksJson(outputPath);
+      expect(Object.keys(hooksJson)).toEqual(["hooks"]);
 
-      expect(hooksJson.__generated).toBeDefined();
-      expect(Array.isArray(hooksJson.__generated.files)).toBe(true);
-      expect(hooksJson.__generated.files.length).toBeGreaterThan(0);
-      expect(typeof hooksJson.__generated.timestamp).toBe("string");
-
-      // Verify timestamp is valid ISO format
-      const timestamp = new Date(hooksJson.__generated.timestamp);
-      expect(timestamp.getTime()).not.toBeNaN();
+      // ...and the sidecar beside it records what this build generated.
+      const meta = readHooksMeta(outputPath);
+      expect(meta.files.length).toBeGreaterThan(0);
     });
 
     it("emits stable, hash-free filenames by default", () => {
@@ -367,8 +361,8 @@ describe("E2E: Build Process", () => {
 
       expect(result.success).toBe(true);
 
-      const hooksJson = readHooksJson(outputPath);
-      expect(hooksJson.__generated.files[0]).toBe("hook-with-timeout.mjs");
+      const meta = readHooksMeta(outputPath);
+      expect(meta.files[0]).toBe("hook-with-timeout.mjs");
     });
 
     it("generates content-hashed filenames with --no-stable-names", () => {
@@ -381,10 +375,8 @@ describe("E2E: Build Process", () => {
 
       expect(result.success).toBe(true);
 
-      const hooksJson = readHooksJson(outputPath);
-
       // Filename should match pattern: {name}.{hash}.mjs
-      const filename = hooksJson.__generated.files[0];
+      const filename = readHooksMeta(outputPath).files[0];
       expect(filename).toMatch(/^[\w-]+\.[a-f0-9]{8}\.mjs$/);
     });
 
@@ -409,12 +401,9 @@ describe("E2E: Build Process", () => {
       expect(result1.success).toBe(true);
       expect(result2.success).toBe(true);
 
-      const hooksJson1 = readHooksJson(outputPath1);
-      const hooksJson2 = readHooksJson(outputPath2);
-
       // Extract the hash portion from filenames
-      const hash1 = hooksJson1.__generated.files[0].match(/\.([a-f0-9]{8})\.mjs$/)?.[1];
-      const hash2 = hooksJson2.__generated.files[0].match(/\.([a-f0-9]{8})\.mjs$/)?.[1];
+      const hash1 = readHooksMeta(outputPath1).files[0].match(/\.([a-f0-9]{8})\.mjs$/)?.[1];
+      const hash2 = readHooksMeta(outputPath2).files[0].match(/\.([a-f0-9]{8})\.mjs$/)?.[1];
 
       expect(hash1).toBeDefined();
       expect(hash2).toBeDefined();

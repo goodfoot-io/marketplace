@@ -1,6 +1,8 @@
-packages/agent-hooks/src/cli.ts#L249-L256 rk64:88ab4cb0b8968322
-packages/agent-hooks/src/cli.ts#L1661-L1669 rk64:8bd648aecf5c4535
-plugins-claude/expansion/hooks/hooks.json rk64:5b648b93428e9d34
-plugins-claude/typescript-hooks/hooks/hooks.json rk64:3407e559f65b9817
+packages/agent-hooks/src/cli.ts#L263-L270 rk64:88ab4cb0b8968322
+packages/agent-hooks/src/cli.ts#L1821-L1831 rk64:042029d040d146fe
+plugins-claude/expansion/hooks/hooks.json rk64:dbf3f596ce66c257
+plugins-claude/expansion/hooks/hooks.meta.json rk64:672b7031e26d6a20
+plugins-claude/typescript-hooks/hooks/hooks.json rk64:60ae4cec85f0724b
+plugins-claude/typescript-hooks/hooks/hooks.meta.json rk64:24f23cba8c5dfec3
 
-The agent-hooks CLI's stable-names default and its timestamp-preservation logic (ported from claude-code-hooks per card main-4's consumer repoint) are the authority for the committed hook manifests, and each committed hooks.json command reference and __generated.files list must match what a fresh build emits; changing the bundle-naming or pruning behavior without regenerating the manifests silently breaks the plugins' hook wiring, as the pre-1.7 hash-named bundles did for three months.
+The agent-hooks CLI's stable-names default and its generated-file tracking (the sibling hooks.meta.json sidecar) are the authority for the committed hook manifests, and each committed hooks.json command reference and hooks.meta.json files list must match what a fresh build emits — the manifest is a pure function of its inputs, so an unchanged rebuild writes identical bytes and the host's hook-trust hash survives. Changing the bundle-naming, pruning, or sidecar behavior without regenerating the manifests silently breaks the plugins' hook wiring, as the pre-1.7 hash-named bundles did for three months.

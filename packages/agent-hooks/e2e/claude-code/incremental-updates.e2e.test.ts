@@ -11,7 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { runTsxCli } from "./test-utils.js";
+import { readHooksMeta, runTsxCli } from "./test-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,13 +44,10 @@ interface MatcherEntry {
 }
 
 /**
- * Represents the hooks.json file structure.
+ * Represents the hooks.json file structure. The host rejects unknown keys, so
+ * `hooks` is the only key that may appear; build tracking lives in the sidecar.
  */
 interface HooksJson {
-  __generated?: {
-    files: string[];
-    timestamp: string;
-  };
   hooks: Record<string, MatcherEntry[]>;
 }
 
@@ -183,9 +180,9 @@ describe("E2E: Incremental Updates", () => {
       );
       expect(externalSessionHook).toBeDefined();
 
-      // Should have __generated metadata
-      expect(hooksJson.__generated).toBeDefined();
-      expect(hooksJson.__generated?.files.length).toBeGreaterThan(0);
+      // Generated files are tracked in the sidecar, never in hooks.json
+      expect(Object.keys(hooksJson)).toEqual(["hooks"]);
+      expect(readHooksMeta(outputPath).files.length).toBeGreaterThan(0);
     });
 
     it("handles mixed external and generated hooks in the same matcher group", () => {
@@ -245,8 +242,7 @@ describe("E2E: Incremental Updates", () => {
       expect(result.success).toBe(true);
 
       // Get the generated file from the first build
-      let hooksJson = readHooksJson(outputPath);
-      const firstBuildFiles = hooksJson.__generated?.files ?? [];
+      const firstBuildFiles = readHooksMeta(outputPath).files;
       expect(firstBuildFiles.length).toBe(1);
 
       const firstBuildFilePath = path.join(buildDir, firstBuildFiles[0]);
@@ -262,8 +258,7 @@ describe("E2E: Incremental Updates", () => {
       expect(fs.existsSync(firstBuildFilePath)).toBe(false);
 
       // New file should exist
-      hooksJson = readHooksJson(outputPath);
-      const secondBuildFiles = hooksJson.__generated?.files ?? [];
+      const secondBuildFiles = readHooksMeta(outputPath).files;
       expect(secondBuildFiles.length).toBe(1);
       expect(secondBuildFiles[0]).not.toBe(firstBuildFiles[0]); // Different file
 
@@ -271,14 +266,14 @@ describe("E2E: Incremental Updates", () => {
       expect(fs.existsSync(secondBuildFilePath)).toBe(true);
     });
 
-    it("does not remove files not tracked in __generated", () => {
+    it("does not remove files the sidecar does not track", () => {
       const { pluginDir, outputPath } = createPluginStructure("preserve-untracked");
 
       // Create an untracked file in the plugin directory
       const untrackedFile = path.join(pluginDir, "untracked-file.txt");
       fs.writeFileSync(untrackedFile, "This should not be deleted");
 
-      // Create initial hooks.json without __generated
+      // Create initial hooks.json with no tracking sidecar beside it
       const initialHooksJson: HooksJson = {
         hooks: {
           PreToolUse: [
@@ -329,35 +324,29 @@ describe("E2E: Incremental Updates", () => {
       expect(hooksJson.hooks.Notification).toBeDefined();
     });
 
-    it("updates __generated metadata on each rebuild", () => {
+    it("keeps hooks.json byte-stable across identical rebuilds and updates the sidecar", () => {
       const { hooksDir, outputPath } = createPluginStructure("update-generated-meta");
       const buildDir = path.join(hooksDir, "bin");
 
       // First build
       const inputPath = path.join(BUILD_TEST_FIXTURES, "hook-with-timeout.ts");
-      let result = runCli(inputPath, outputPath);
+      const result = runCli(inputPath, outputPath);
       expect(result.success).toBe(true);
 
-      let hooksJson = readHooksJson(outputPath);
-      const firstTimestamp = hooksJson.__generated?.timestamp;
-      const firstFiles = [...(hooksJson.__generated?.files ?? [])];
-
-      expect(firstTimestamp).toBeDefined();
+      const firstFiles = readHooksMeta(outputPath).files;
       expect(firstFiles.length).toBe(1);
       expect(firstFiles[0]).toBe("hook-with-timeout.mjs");
 
+      const firstHooksJson = fs.readFileSync(outputPath, "utf-8");
+
       // Second build with same input
-      result = runCli(inputPath, outputPath);
-      expect(result.success).toBe(true);
+      const rebuild = runCli(inputPath, outputPath);
+      expect(rebuild.success).toBe(true);
 
-      hooksJson = readHooksJson(outputPath);
-      const secondTimestamp = hooksJson.__generated?.timestamp;
-      const secondFiles = hooksJson.__generated?.files ?? [];
+      // The manifest must not change: the host hashes it to track hook trust
+      expect(fs.readFileSync(outputPath, "utf-8")).toBe(firstHooksJson);
 
-      // Timestamp should be valid
-      expect(secondTimestamp).toBeDefined();
-
-      // Should still have exactly one file with the expected naming pattern
+      const secondFiles = readHooksMeta(outputPath).files;
       expect(secondFiles.length).toBe(1);
       expect(secondFiles[0]).toBe("hook-with-timeout.mjs");
 
@@ -432,10 +421,10 @@ describe("E2E: Incremental Updates", () => {
       expect(hooksJson.hooks.PreToolUse).toBeDefined();
     });
 
-    it("handles hooks.json without __generated field", () => {
+    it("treats a hooks.json with no sidecar as having no generated hooks", () => {
       const { outputPath } = createPluginStructure("no-generated-field");
 
-      // Create hooks.json without __generated
+      // Create hooks.json with no tracking sidecar beside it
       const legacyHooksJson: HooksJson = {
         hooks: {
           PreToolUse: [
@@ -455,7 +444,7 @@ describe("E2E: Incremental Updates", () => {
 
       const hooksJson = readHooksJson(outputPath);
 
-      // Legacy hook should be preserved (no __generated means nothing to remove)
+      // Legacy hook should be preserved (no sidecar means nothing is tracked as ours)
       const legacyEntry = hooksJson.hooks.PreToolUse?.find((e) => e.matcher === "Legacy");
       expect(legacyEntry).toBeDefined();
 
@@ -463,8 +452,8 @@ describe("E2E: Incremental Updates", () => {
       const newEntry = hooksJson.hooks.PreToolUse?.find((e) => e.matcher === "Write");
       expect(newEntry).toBeDefined();
 
-      // __generated should now exist
-      expect(hooksJson.__generated).toBeDefined();
+      // The sidecar should now record what this build generated
+      expect(readHooksMeta(outputPath).files.length).toBeGreaterThan(0);
     });
   });
 });

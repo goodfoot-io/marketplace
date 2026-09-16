@@ -24,12 +24,5 @@
         "matcher": "Write|Edit|MultiEdit"
       }
     ]
-  },
-  "__generated": {
-    "files": [
-      "typescript-check.mjs",
-      "eslint-typescript-bypass.mjs"
-    ],
-    "timestamp": "2026-08-26T15:04:36.640Z"
   }
 }

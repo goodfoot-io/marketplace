@@ -1,5 +1,5 @@
-packages/agent-hooks/src/cli.ts#L249-L256 rk64:88ab4cb0b8968322
-packages/agent-hooks/src/cli.ts#L1661-L1669 rk64:8bd648aecf5c4535
+packages/agent-hooks/src/cli.ts#L263-L270 rk64:88ab4cb0b8968322
+packages/agent-hooks/src/cli.ts#L1746-L1751 rk64:0c4f6b1bc52bd60b
 packages/typescript-hooks/package.json#L5-L7 rk64:db77d1ec16ce6304
 plugins-claude/typescript-hooks/tests/test-eslint-typescript-bypass.sh#L16-L18 rk64:f61bbf3d165b8cb6
 plugins-claude/typescript-hooks/tests/test-typescript-check.sh#L15-L17 rk64:df11540156670bf2

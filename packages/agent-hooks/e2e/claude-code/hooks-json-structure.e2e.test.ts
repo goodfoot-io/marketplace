@@ -7,7 +7,7 @@
 import * as fs from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from "./setup.js";
-import { readHooksJson } from "./test-utils.js";
+import { readHooksJson, readHooksMeta } from "./test-utils.js";
 
 describe("E2E: hooks.json Structure Validation", () => {
   let pluginDir: string;
@@ -20,14 +20,16 @@ describe("E2E: hooks.json Structure Validation", () => {
     cleanOutputDir(pluginDir);
   });
 
-  it("includes __generated metadata with files and timestamp", () => {
+  it("carries no keys beyond hooks and tracks generated files in the sidecar", () => {
     const hooksJsonPath = getHooksJsonPath(pluginDir);
     const hooksJson = readHooksJson(hooksJsonPath);
 
-    expect(hooksJson.__generated).toBeDefined();
-    expect(Array.isArray(hooksJson.__generated.files)).toBe(true);
-    expect(hooksJson.__generated.files.length).toBeGreaterThan(0);
-    expect(typeof hooksJson.__generated.timestamp).toBe("string");
+    // The host rejects unknown keys here, so tracking must live beside it
+    expect(Object.keys(hooksJson)).toEqual(["hooks"]);
+
+    const meta = readHooksMeta(hooksJsonPath);
+    expect(Array.isArray(meta.files)).toBe(true);
+    expect(meta.files.length).toBeGreaterThan(0);
   });
 
   it("compiled hook files are executable", () => {

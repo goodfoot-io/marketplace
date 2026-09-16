@@ -43,13 +43,10 @@ interface MatcherEntry {
 }
 
 /**
- * Represents the hooks.json file structure.
+ * Represents the hooks.json file structure. The host rejects unknown keys, so
+ * `hooks` is the only key that may appear.
  */
 interface HooksJson {
-  __generated: {
-    files: string[];
-    timestamp: string;
-  };
   hooks: Record<string, MatcherEntry[]>;
 }
 

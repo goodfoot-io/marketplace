@@ -1,5 +1,9 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.11
+
+Moves generated-file tracking out of `hooks.json` into a sibling `hooks.meta.json`, because Claude Code rejects a hooks manifest carrying any key besides `hooks`. The manifest is now a pure function of its inputs, so a rebuild that changes nothing writes identical bytes and leaves the host's hook-trust hash intact. A missing or unreadable sidecar is treated as "nothing tracked as generated", which preserves the entries already in the manifest rather than pruning them.
+
 ## 1.0.10
 
 Makes compiled bundles portable across ordinary hoisted workspace layouts by anchoring esbuild's module-boundary comments and sourcemap source paths at the directory that owns the resolved `node_modules`. Inline sourcemaps are now disabled by default for smaller, reviewable build artifacts and remain available with the explicit `--sourcemap` flag.
