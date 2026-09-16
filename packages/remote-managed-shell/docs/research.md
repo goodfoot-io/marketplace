@@ -39,9 +39,27 @@ The five auth modes the tunnel does offer all attach identity to the *connector*
 
 - https://github.com/openai/tunnel-client
 
+### Client health and control-plane surface
+
+`start:tunnel` gates on the client's own surfaces, so those surfaces were read at the same commit. The client's readiness verdict is deliberately looser than a supervisor can accept:
+
+| Question | Finding |
+| --- | --- |
+| Is a bare `--mcp.server-url` valid? | Yes. `isQualifiedMCPEntry` (`pkg/runtimeconfig/config.go:2293`) treats a URL with no `channel=` qualifier as unqualified, so `NormalizeChannel("")` (`pkg/types/channel.go:19`) returns `DefaultChannel = "main"` (`pkg/types/channel.go:12`). The "main channel is required" error (`pkg/runtimeconfig/config.go:1311-1313`) fires only when entries exist and none of them is main. |
+| What does `/readyz` report when all is well? | Exactly `ready`, and only when no gate, discovery, or startup probe is still pending (`readinessStatus`, `pkg/runtimehealth/health.go:385-424`). |
+| When is a *failed* probe still reported ready? | Two 200s: `ready (mcp initialize requires auth: …)` when the probe's `initialize` drew HTTP 401, and `ready (mcp startup probe timed out: …)`, which the client treats as readiness-compatible. Each one means the one-shot startup probe never confirmed the configured server, and the client never repeats it. |
+| Is control-plane connectivity part of readiness? | No. Poll and delivery health are registered as status components (`pkg/controlplane/fx/fxmodule.go:32-33`), while `/readyz` consults only the gates and probe state (`pkg/runtimehealth/health.go:152`). A runtime key the tunnel rejects therefore leaves `/readyz` green indefinitely. |
+| What locally proves a poll succeeded? | Only the client's own gauge `commands_poll_last_successful_timestamp_seconds` (`pkg/controlplane/internal/metrics.go:34`): an observable gauge (`:116`, `:141`) over an atomic stored when a poll cycle is accepted (`pkg/controlplane/internal/poller.go:216`), served at `/metrics` on the same loopback admin mux (`pkg/runtimehealth/health.go:153`). |
+| What does `--health.url-file` contain? | The health base URL alone, written atomically as soon as the listener binds (`pkg/runtimehealth/health.go:189-216`, `:240`) — before readiness, and with no trailing newline. |
+| Must the runtime key be a reference? | Yes: `--control-plane.api-key` is documented as `env:VARNAME` or `file:/path` (`pkg/runtimeconfig/config.go:528`), and any other value is refused as "value must be prefixed with …" (`:1817`). A literal key on the command line is never accepted. |
+
+The launcher therefore accepts the exact body `ready` and additionally requires a poll the metrics record, because neither gate exists in the client: a probe that never reached the server is still called readiness-compatible, and a rejected key is not a readiness failure at all.
+
+- https://github.com/openai/tunnel-client/blob/3917788/pkg/runtimehealth/health.go
+
 ## Target client and deployment
 
-OpenAI's API documentation represents a remote MCP server as a server URL. The operator creates the tunnel in the OpenAI Platform, supplies its id and a runtime key to `tunnel-client`, and configures a custom connector for the tunnel's MCP endpoint. This process binds loopback and knows nothing about any of it: it advertises no URL, and the only thing that reaches it is whatever the tunnel forwards.
+OpenAI's API documentation represents a remote MCP server as a server URL. The operator creates the tunnel in the OpenAI Platform, supplies its id and a runtime key to `tunnel-client`, and configures a custom connector for the tunnel's MCP endpoint. The connector UI takes Tunnel mode plus a selected or pasted tunnel id rather than a URL; underneath, the product targets `<control-plane base>/v1/mcp/<tunnel_id>`. This process binds loopback and knows nothing about any of it: it advertises no URL, and the only thing that reaches it is whatever the tunnel forwards.
 
 - https://platform.openai.com/docs/guides/tools-remote-mcp
 

@@ -25,14 +25,14 @@ yarn workspace @goodfoot/remote-managed-shell run start:tunnel
 yarn workspace @goodfoot/remote-managed-shell run start:tunnel --port=38147 -- --workdir=/srv
 ```
 
-The operator creates the tunnel in the OpenAI Platform, then supplies its id and a runtime key — `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY`, or the explicit flags described by `start:tunnel --help`. `tunnel-client` must be on `PATH` or passed as `--tunnel-client=<path>`. The script reports the endpoint only after the server publishes its readiness claim and `tunnel-client` reports ready, which requires that client's startup MCP probe to have reached this server; either child exiting on its own stops the run, and Ctrl+C retires the server before the tunnel. The connection is outbound-only: no public DNS record, no certificate, and no inbound port is needed.
+The operator creates the tunnel in the OpenAI Platform, then supplies its id and a runtime key — `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY`, or the explicit flags described by `start:tunnel --help`. `tunnel-client` must be on `PATH` or passed as `--tunnel-client=<path>`. The script reports ready only when three things hold: the server published its readiness claim, `tunnel-client`'s `/readyz` reads exactly `ready` — the client calls two further outcomes readiness-compatible when its startup MCP probe did not actually reach the server, and this script refuses those — and the client's metrics show a poll the control plane accepted, because control-plane connectivity is deliberately not part of the client's readiness, so a key the tunnel rejects otherwise looks healthy forever. Either child exiting on its own stops the run, and Ctrl+C retires the server before the tunnel. The connection is outbound-only: no public DNS record, no certificate, and no inbound port is needed.
 
 ## Connect from ChatGPT
 
 1. Create a tunnel in the OpenAI Platform.
 2. Mint a runtime key permitted to read, write, and use that tunnel.
-3. Start `start:tunnel` with that tunnel id and key; it reports ready only once `tunnel-client`'s startup MCP probe has reached this server.
-4. Configure a custom MCP connector whose URL is the tunnel's MCP endpoint. There is no authorization step to complete: this server serves no discovery document and issues no challenge, so the connector does not enter an OAuth flow.
+3. Start `start:tunnel` with that tunnel id and key. It reports ready only after the three checks above, so a mistyped id or an under-permissioned key fails there instead of at the connector.
+4. Attach the tunnel to a custom MCP connector by selecting it or pasting its id: the connector UI takes a tunnel id, not a URL. Underneath, the product targets `<control-plane base>/v1/mcp/<tunnel_id>`, which is the endpoint the script prints. There is no authorization step to complete: this server serves no discovery document and issues no challenge, so the connector does not enter an OAuth flow.
 
 Restarting the server needs no re-link and no secret to transcribe. The tunnel identity is the whole connection, and re-connecting is the Platform's business rather than this package's.
 

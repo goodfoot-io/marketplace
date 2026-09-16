@@ -102,7 +102,12 @@ error. A transport failure must never be recorded as a passed tool call.
 
 Nothing in this package creates, probes, or reimplements a tunnel. `start:tunnel`
 (README: Secure MCP Tunnel) supervises the operator's `tunnel-client` alongside
-the server, and reports its endpoint only after both children are healthy.
+the server, and reports ready only after three gates: the server's readiness
+claim, `/readyz` on the client reading exactly `ready`, and a control-plane poll
+the client's metrics record as accepted. The second gate is stricter than the
+client's own verdict, which also calls a probe that never reached the server
+readiness-compatible; the third exists because control-plane connectivity is
+deliberately not part of that client's readiness.
 
 The hop a client actually crosses — the tunnel's own MCP endpoint — cannot be
 exercised without an OpenAI organization and a configured tunnel, so it stays an

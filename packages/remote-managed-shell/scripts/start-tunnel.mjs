@@ -13,12 +13,14 @@
  *
  * Startup is fail-closed. The script refuses to run without the build, the
  * tunnel-client binary, a tunnel id, a key reference, and a free loopback port;
- * after both children are up it requires the server's own readiness claim and
- * tunnel-client's `/readyz`, which turns green only when that client's MCP
- * initialize probe reached this server. A child that exits on its own takes the
- * whole arrangement down with a non-zero status, and an orderly stop always
- * retires the server before the tunnel so the server can remove the readiness
- * claim it owns.
+ * after both children are up it requires the server's own readiness claim,
+ * tunnel-client's `/readyz` to report exactly `ready` — not the two verdicts
+ * that client calls readiness-compatible when its probe did not actually
+ * succeed — and the control-plane poll timestamp the client's metrics expose,
+ * because readiness stays green while every poll is refused and the tunnel then
+ * receives nothing. A child that exits on its own takes the whole arrangement
+ * down with a non-zero status, and an orderly stop always retires the server
+ * before the tunnel so the server can remove the readiness claim it owns.
  *
  * The runtime key is never handled as a value here: it reaches tunnel-client as
  * the `env:VARNAME` or `file:/path` reference that CLI requires, so no key ever
@@ -48,6 +50,16 @@ const HEALTH_LISTEN_ADDR = "127.0.0.1:0";
 const TUNNEL_ID_PREFIX = "tunnel_";
 /** The only two forms `--control-plane.api-key` accepts. */
 const KEY_REFERENCE_PREFIXES = ["env:", "file:"];
+/**
+ * The one readiness body tunnel-client writes when its startup probe actually
+ * succeeded. Its two fail-open verdicts ("ready (mcp initialize requires auth…)",
+ * "ready (mcp startup probe timed out…)") are readiness-compatible for the
+ * client but not for this launcher, whose claim is that the probe reached this
+ * server, so anything else on a 200 is a failure here.
+ */
+const READY_BODY = "ready";
+/** The Prometheus gauge tunnel-client updates only after a poll the control plane accepted. */
+const POLL_METRIC = "commands_poll_last_successful_timestamp_seconds";
 const TUNNEL_HEALTH_TIMEOUT_MS = 30_000;
 const READY_TIMEOUT_MS = 60_000;
 const SERVER_READY_TIMEOUT_MS = 20_000;
@@ -62,8 +74,8 @@ const MANAGED_SERVER_OPTIONS = new Set(["--port", "--ready-file"]);
 const USAGE = `Usage: start-tunnel.mjs [options] [-- server options]
 
 Starts the built server on loopback behind an OpenAI Secure MCP Tunnel and
-reports the endpoint only after the server published its readiness claim and
-tunnel-client's MCP probe reached it.
+reports ready only after the server published its readiness claim,
+tunnel-client's MCP probe reached it, and the control plane accepted a poll.
 
   --port=<1-65535>        Loopback port the server binds and the tunnel
                           forwards to (default ${DEFAULT_PORT}).
@@ -330,24 +342,35 @@ function readHealthUrl(path) {
 
 /**
  * Requires tunnel-client's own readiness verdict. `/readyz` is green only after
- * its one-shot startup MCP initialize probe succeeded against this server, so a
- * non-200 body names the component that is not up yet.
+ * its one-shot startup MCP initialize probe settled, so a non-200 body names the
+ * component that is not up yet. A 200 is not sufficient: the client calls two
+ * probe outcomes readiness-compatible that this launcher cannot accept, and the
+ * probe never runs twice, so those verdicts are final and reported at once.
  */
 async function waitForReady(healthBase) {
   const deadline = Date.now() + READY_TIMEOUT_MS;
   let last = "no attempt completed";
   let reportedAt = 0;
   while (Date.now() < deadline) {
+    let response;
     try {
-      const response = await fetch(`${healthBase}/readyz`, {
+      response = await fetch(`${healthBase}/readyz`, {
         redirect: "error",
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
-      const body = (await response.text()).trim();
-      if (response.ok) return body === "" ? "ready" : body;
-      last = `readyz returned ${response.status}${body === "" ? "" : `: ${body}`}`;
     } catch (error) {
       last = message(error);
+      response = undefined;
+    }
+    if (response !== undefined) {
+      const body = (await response.text().catch(() => "")).trim();
+      if (response.ok) {
+        if (body === READY_BODY) return body;
+        throw new Error(
+          `tunnel-client reported ${JSON.stringify(body)} on /readyz: its one-shot startup MCP probe did not reach this server, and the client never repeats it`,
+        );
+      }
+      last = `readyz returned ${response.status}${body === "" ? "" : `: ${body}`}`;
     }
     if (Date.now() - reportedAt > 10_000) {
       console.error(`remote-managed-tunnel: waiting for tunnel-client readiness: ${last}`);
@@ -358,6 +381,52 @@ async function waitForReady(healthBase) {
   throw new Error(
     `tunnel-client did not report ready within ${READY_TIMEOUT_MS / 1000}s (last failure: ${last}); the tunnel cannot forward until its MCP probe passes`,
   );
+}
+
+/**
+ * Requires evidence that the control plane accepted a poll. Readiness alone does
+ * not carry it: control-plane connectivity is deliberately not a readiness gate,
+ * so a client holding a key the tunnel rejects reports ready forever while every
+ * poll fails, and the tunnel then never receives a command. The poll timestamp
+ * is the only local signal that says otherwise.
+ */
+async function waitForPoll(healthBase) {
+  const deadline = Date.now() + READY_TIMEOUT_MS;
+  let last = "no attempt completed";
+  let reportedAt = 0;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${healthBase}/metrics`, {
+        redirect: "error",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      if (response.ok) {
+        const timestamp = readPollTimestamp(await response.text());
+        if (timestamp === undefined) last = `${POLL_METRIC} is absent from /metrics`;
+        else if (timestamp > 0) return timestamp;
+        else last = `${POLL_METRIC} is 0: no poll has succeeded`;
+      } else {
+        last = `metrics returned ${response.status}`;
+      }
+    } catch (error) {
+      last = message(error);
+    }
+    if (Date.now() - reportedAt > 10_000) {
+      console.error(`remote-managed-tunnel: waiting for a successful control-plane poll: ${last}`);
+      reportedAt = Date.now();
+    }
+    await delay(500);
+  }
+  throw new Error(
+    `tunnel-client completed no control-plane poll within ${READY_TIMEOUT_MS / 1000}s (last: ${last}); the tunnel cannot receive commands — check the tunnel id and the runtime key's permissions`,
+  );
+}
+
+/** Reads one Prometheus sample, with or without labels. */
+function readPollTimestamp(text) {
+  const match = new RegExp(`^${POLL_METRIC}(?:\\{[^}]*\\})?\\s+([^\\s]+)\\s*$`, "mu").exec(text);
+  const value = match === null ? Number.NaN : Number(match[1]);
+  return Number.isFinite(value) ? value : undefined;
 }
 
 /** Waits for the readiness claim this script's own server instance wrote. */
@@ -463,19 +532,25 @@ function delay(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
-function reportReady({ connectorUrl, tunnelId, healthBase, ready, readyFile, claim, serverPid, tunnelPid }) {
-  console.log("remote-managed-tunnel: ready: the server published its claim and tunnel-client's MCP probe reached it");
-  console.log(`remote-managed-tunnel:   connector ${connectorUrl}`);
+function reportReady({ connectorUrl, baseUrl, tunnelId, healthBase, ready, polledAt, readyFile, claim, serverPid, tunnelPid }) {
+  console.log("remote-managed-tunnel: ready: the server published its claim, tunnel-client's MCP probe reached it,");
+  console.log("remote-managed-tunnel: and the control plane has accepted a poll");
   console.log(`remote-managed-tunnel:   tunnel    ${tunnelId}`);
+  console.log(`remote-managed-tunnel:   connector ${connectorUrl}`);
+  console.log("remote-managed-tunnel:             the endpoint the tunnel service targets underneath, not something to");
+  console.log("remote-managed-tunnel:             paste: attach the connector by selecting this tunnel or its id");
   console.log(
     `remote-managed-tunnel:   server    pid ${String(serverPid)}, instance ${String(claim.serverInstanceId)}, ${String(claim.endpoint)}`,
   );
-  console.log(`remote-managed-tunnel:   client    pid ${String(tunnelPid)}, health ${healthBase} (${ready})`);
+  console.log(
+    `remote-managed-tunnel:   client    pid ${String(tunnelPid)}, ${healthBase} (${ready}; poll accepted ${new Date(polledAt * 1000).toISOString()})`,
+  );
+  console.log(`remote-managed-tunnel:   control   ${baseUrl}`);
   console.log(`remote-managed-tunnel:   readiness ${readyFile}`);
-  console.log("remote-managed-tunnel: point the connector at that endpoint, or select the tunnel id in ChatGPT. This");
-  console.log("remote-managed-tunnel: server serves no discovery document and issues no challenge, so the connector");
-  console.log("remote-managed-tunnel: completes no authorization step. Nothing local proves an OpenAI-side caller");
-  console.log("remote-managed-tunnel: reached this shell: a healthy client proves the hop this host owns.");
+  console.log("remote-managed-tunnel: This server serves no discovery document and issues no challenge, so the connector");
+  console.log("remote-managed-tunnel: completes no authorization step, and nothing local proves an OpenAI-side caller");
+  console.log("remote-managed-tunnel: reached this shell: a healthy client proves the two hops this host owns — the");
+  console.log("remote-managed-tunnel: probe to this server and the poll the control plane accepted.");
   console.log("remote-managed-tunnel: Ctrl+C retires the server before the tunnel; the tunnel id outlives the run.");
 }
 
@@ -612,11 +687,14 @@ async function run(options) {
 
     const healthBase = await step(waitForHealthUrl(healthUrlFile));
     const ready = await step(waitForReady(healthBase));
+    const polledAt = await step(waitForPoll(healthBase));
     reportReady({
       connectorUrl,
+      baseUrl,
       tunnelId,
       healthBase,
       ready,
+      polledAt,
       readyFile,
       claim,
       serverPid: server.pid,

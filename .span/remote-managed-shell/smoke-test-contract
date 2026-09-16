@@ -9,6 +9,6 @@ packages/remote-managed-shell/src/serve.ts#L12-L30 rk64:821175301766fb77
 packages/remote-managed-shell/src/serve.ts#L107-L117 rk64:6e04ebb165094104
 packages/remote-managed-shell/src/serve.ts#L239-L253 rk64:bdb03f64121d1c4f
 packages/remote-managed-shell/src/server.ts#L9-L91 rk64:74d7c2301ae8bdc4
-packages/remote-managed-shell/wiki/smoke-test.md rk64:26f77be13432e76c
+packages/remote-managed-shell/wiki/smoke-test.md rk64:8bfdc9c9598c7d85
 
 The smoke procedure is this package's only third-party-client evidence — the Vitest suite talks to the server in-process — and its two scripts and the contract its documentation states (the readiness record's shape and default path, the loopback port and MCP route, the five tools' input schemas and annotation hints, and the credential-free Inspector gates) must all match the server, which nothing automated compares them against; the implementation is authoritative, so a transport, HTTP-composition, or tool-surface change is re-verified by re-running the procedure and updating its expected outputs.
