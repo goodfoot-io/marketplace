@@ -1,4 +1,4 @@
-packages/shell-mcp/package.json#L3-L3 rk64:bb31ebdfc292cee5
+packages/shell-mcp/package.json#L3-L3 rk64:bb38b7dfc2989537
 packages/shell-mcp/src/server.ts#L16-L16 rk64:489d2e55fe676de1
 
 The MCP initialize response advertises the version the package manifest carries, imported at module load, so the advertised number cannot disagree with the manifest; the compiler emits a copy of that manifest beside the emitted module for the import to resolve against, and the published archive file selection must keep carrying that copy, which nothing verifies.
