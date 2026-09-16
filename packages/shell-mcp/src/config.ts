@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { resolveLogFile } from "./logging/logger.js";
 
 export const DEFAULT_PORT = 38147;
 export const LISTEN_HOST = "127.0.0.1";
@@ -56,6 +57,7 @@ export interface ServerConfig {
   bash?: string;
   workdir?: string;
   spoolRoot?: string;
+  logFile?: string;
   disablePty?: boolean;
   limits?: Limits;
 }
@@ -83,7 +85,11 @@ export const USAGE = `Usage: shell-mcp [options]
                           per-instance directory under the system temp directory).
   --max-wait-ms=<0-20000> Maximum observation wait for this validated profile.
   --disable-pty           Refuse tty:true starts even when node-pty is installed.
-  --help                  Print this message.`;
+  --help                  Print this message.
+
+Environment:
+  SHELL_MCP_LOG=<path>     Append JSONL diagnostics to a file; unset/empty disables it.
+  NO_COLOR                Disable console colors.`;
 
 export function parseArgs(argv: readonly string[]): ServerConfig {
   const values = new Map<string, string>();
@@ -120,8 +126,10 @@ export function parseArgs(argv: readonly string[]): ServerConfig {
   const workdir = values.get("--workdir") ?? process.cwd();
   if (workdir.length === 0) throw new ConfigError("--workdir requires a path");
   const spoolDirectory = values.get("--spool-dir");
+  const logFile = resolveLogFile();
   return {
     port,
+    ...(logFile === undefined ? {} : { logFile }),
     ...(readyFile === undefined ? {} : { readyFile: resolve(readyFile) }),
     bash,
     workdir: resolve(workdir),

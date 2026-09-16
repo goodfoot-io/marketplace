@@ -33,9 +33,13 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { createInterface } from "node:readline";
+import { dirname, join, resolve } from "node:path";
+import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
+
+// Resolve before spawning children with PACKAGE_ROOT as their working directory.
+const LOG_FILE = process.env.SHELL_MCP_LOG ? resolve(process.cwd(), process.env.SHELL_MCP_LOG) : undefined;
+let relay;
 
 const PACKAGE_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SERVER_ENTRY = join(PACKAGE_ROOT, "build", "dist", "src", "main.js");
@@ -98,7 +102,7 @@ tunnel-client's MCP probe reached it, and the control plane accepted a poll.
                           --ready-file belong to this script.
 
 Environment: CONTROL_PLANE_TUNNEL_ID, CONTROL_PLANE_API_KEY, TUNNEL_CLIENT,
-and CONTROL_PLANE_BASE_URL (default ${DEFAULT_BASE_URL}).`;
+CONTROL_PLANE_BASE_URL (default ${DEFAULT_BASE_URL}), and SHELL_MCP_LOG (optional JSONL file).`;
 
 class UsageRequested extends Error {
   constructor() {
@@ -296,11 +300,17 @@ function spawnTunnelClient({ command, port, tunnelId, apiKeyReference, baseUrl, 
     ],
     { cwd: PACKAGE_ROOT, stdio: ["ignore", "pipe", "pipe"], detached: true },
   );
-  for (const stream of [child.stdout, child.stderr]) {
-    createInterface({ input: stream, crlfDelay: Infinity }).on("line", (line) => {
-      const text = line.trim();
-      if (text !== "") console.error(`[tunnel-client] ${text}`);
-    });
+  for (const [name, stream] of [["stdout", child.stdout], ["stderr", child.stderr]]) {
+    const decoder = new StringDecoder("utf8");
+    // Drain both streams even with logging disabled. Bounded chunks avoid the
+    // unbounded partial-line buffer of readline on a noisy or malformed client.
+    const logChunk = (text) => {
+      for (let offset = 0; offset < text.length; offset += 4096) {
+        relay?.log("tunnel.output", text.slice(offset, offset + 4096), { logger: "tunnel-client", stream: name });
+      }
+    };
+    stream.on("data", (data) => logChunk(decoder.write(data)));
+    stream.on("end", () => logChunk(decoder.end()));
   }
   return child;
 }
@@ -374,7 +384,7 @@ async function waitForReady(healthBase) {
       last = `readyz returned ${response.status}${body === "" ? "" : `: ${body}`}`;
     }
     if (Date.now() - reportedAt > 10_000) {
-      console.error(`shell-mcp-tunnel: waiting for tunnel-client readiness: ${last}`);
+      relay?.log("tunnel.waiting", last, { logger: "launcher" });
       reportedAt = Date.now();
     }
     await delay(500);
@@ -413,7 +423,7 @@ async function waitForPoll(healthBase) {
       last = message(error);
     }
     if (Date.now() - reportedAt > 10_000) {
-      console.error(`shell-mcp-tunnel: waiting for a successful control-plane poll: ${last}`);
+      relay?.log("tunnel.poll.waiting", last, { logger: "launcher" });
       reportedAt = Date.now();
     }
     await delay(500);
@@ -534,25 +544,11 @@ function delay(ms) {
 }
 
 function reportReady({ connectorUrl, baseUrl, tunnelId, healthBase, ready, polledAt, readyFile, claim, serverPid, tunnelPid }) {
-  console.log("shell-mcp-tunnel: ready: the server published its claim, tunnel-client's MCP probe reached it,");
-  console.log("shell-mcp-tunnel: and the control plane has accepted a poll");
-  console.log(`shell-mcp-tunnel:   tunnel    ${tunnelId}`);
-  console.log(`shell-mcp-tunnel:   connector ${connectorUrl}`);
-  console.log("shell-mcp-tunnel:             the endpoint the tunnel service targets underneath, not something to");
-  console.log("shell-mcp-tunnel:             paste: attach the connector by selecting this tunnel or its id");
-  console.log(
-    `shell-mcp-tunnel:   server    pid ${String(serverPid)}, instance ${String(claim.serverInstanceId)}, ${String(claim.endpoint)}`,
-  );
-  console.log(
-    `shell-mcp-tunnel:   client    pid ${String(tunnelPid)}, ${healthBase} (${ready}; poll accepted ${new Date(polledAt * 1000).toISOString()})`,
-  );
-  console.log(`shell-mcp-tunnel:   control   ${baseUrl}`);
-  console.log(`shell-mcp-tunnel:   readiness ${readyFile}`);
-  console.log("shell-mcp-tunnel: This server serves no discovery document and issues no challenge, so the connector");
-  console.log("shell-mcp-tunnel: completes no authorization step, and nothing local proves an OpenAI-side caller");
-  console.log("shell-mcp-tunnel: reached this shell: a healthy client proves the two hops this host owns — the");
-  console.log("shell-mcp-tunnel: probe to this server and the poll the control plane accepted.");
-  console.log("shell-mcp-tunnel: Ctrl+C retires the server before the tunnel; the tunnel id outlives the run.");
+  relay?.log("tunnel.ready", "MCP probe reached the server and the control plane accepted a poll", {
+    logger: "launcher", level: "info", connectorUrl, baseUrl, tunnelId, healthBase, ready, polledAt,
+    readyFile, serverInstanceId: claim.serverInstanceId, serverPid, tunnelPid,
+  });
+  relay?.notice(`Tunnel ready · ${tunnelId}`);
 }
 
 async function run(options) {
@@ -629,9 +625,7 @@ async function run(options) {
   const conclude = async (outcome) => {
     await stopEverything();
     if (outcome.kind === "signal") {
-      console.log(
-        `shell-mcp-tunnel: received ${outcome.signal}; the server retired its claim and tunnel-client is closed`,
-      );
+      console.log("shell-mcp stopped");
       return 0;
     }
     console.error(`shell-mcp-tunnel: ${message(outcome.error)}`);
@@ -639,13 +633,15 @@ async function run(options) {
   };
 
   try {
+    const { LauncherRelay } = await import("../build/dist/src/logging/relay.js");
     // The server goes first: tunnel-client's startup probe runs once, so a
     // client that probed before this listener existed would never turn green.
     const server = spawn(
       process.execPath,
       [SERVER_ENTRY, `--port=${String(options.port)}`, `--ready-file=${readyFile}`, ...options.serverArgs],
-      { cwd: PACKAGE_ROOT, stdio: ["ignore", "inherit", "inherit"], detached: true },
+      { cwd: PACKAGE_ROOT, env: { ...process.env, SHELL_MCP_LOG: LOG_FILE ?? "" }, stdio: ["ignore", "inherit", "inherit", "ipc"], detached: true },
     );
+    relay = new LauncherRelay(server, LOG_FILE !== undefined);
     state.server = server;
     state.serverPid = server.pid;
     server.on("error", (error) => halt({ kind: "failure", error }));
@@ -662,11 +658,7 @@ async function run(options) {
     );
 
     const claim = await step(waitForClaim(readyFile, server.pid, serverEndpoint));
-    console.log(
-      `shell-mcp-tunnel: server ready at ${serverEndpoint} (instance ${String(claim.serverInstanceId)})`,
-    );
-    console.log(`shell-mcp-tunnel: ${tunnelClient.version}`);
-    console.log(`shell-mcp-tunnel: starting tunnel-client for ${tunnelId}`);
+    relay.log("tunnel.starting", tunnelClient.version, { logger: "launcher", tunnelId, endpoint: serverEndpoint });
 
     rmSync(healthUrlFile, { force: true });
     const tunnel = spawnTunnelClient({
@@ -706,6 +698,8 @@ async function run(options) {
   } catch (error) {
     return await conclude(error instanceof Halted ? error.outcome : { kind: "failure", error });
   } finally {
+    relay?.close();
+    relay = undefined;
     process.off("SIGINT", onSigint);
     process.off("SIGTERM", onSigterm);
   }

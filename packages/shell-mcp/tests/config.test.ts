@@ -1,8 +1,19 @@
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConfigError, DEFAULT_PORT, parseArgs, USAGE, UsageRequested } from "../src/config.js";
 
 describe("configuration", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("resolves SHELL_MCP_LOG from the launch directory, not --workdir", () => {
+    vi.stubEnv("SHELL_MCP_LOG", "./diagnostics.jsonl");
+    expect(parseArgs(["--workdir=/tmp"]).logFile).toBe(resolve("./diagnostics.jsonl"));
+    vi.stubEnv("SHELL_MCP_LOG", "");
+    expect(parseArgs([]).logFile).toBeUndefined();
+    vi.stubEnv("SHELL_MCP_LOG", undefined);
+    expect(parseArgs([]).logFile).toBeUndefined();
+  });
+
   it("defaults to a loopback server with no external identity", () => {
     expect(parseArgs([])).toMatchObject({ port: DEFAULT_PORT, bash: "/bin/bash", disablePty: false });
   });

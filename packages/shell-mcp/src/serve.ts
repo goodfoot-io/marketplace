@@ -5,7 +5,8 @@ import { dirname, join } from "node:path";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { DEFAULT_LIMITS, LISTEN_HOST, MCP_PATH, type ServerConfig } from "./config.js";
-import { IsolatedLogger } from "./logging/logger.js";
+import { IsolatedLogger, type Logger } from "./logging/logger.js";
+import { captureStartupWarnings } from "./logging/sdk-diagnostics.js";
 import { ProcessManager } from "./process-manager.js";
 import { createServer } from "./server.js";
 
@@ -26,12 +27,13 @@ export interface RunningServer {
   endpoint: URL;
   readyFile: string;
   serverInstanceId: string;
+  logger: Logger;
   close(): Promise<void>;
 }
 
 export async function startServer(config: ServerConfig): Promise<RunningServer> {
   const limits = config.limits ?? DEFAULT_LIMITS;
-  const logger = new IsolatedLogger(limits.loggerBytes, limits.loggerRecords);
+  const logger = new IsolatedLogger(limits.loggerBytes, limits.loggerRecords, { logFile: config.logFile });
   const manager = new ProcessManager({
     cwd: config.workdir ?? process.cwd(),
     bash: config.bash ?? "/bin/bash",
@@ -57,11 +59,23 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
       spoolQueueEntries: limits.spoolQueueEntries,
     },
   });
-  const mcpHandler = createMcpHandler(() => createServer(manager), {
-    legacy: "stateless",
-    responseMode: "json",
-    onerror: (error) => console.error(`shell-mcp: MCP handler error: ${error.message}`),
-  });
+  logger.setServerInstanceId(manager.instanceId);
+  const reportError = (kind: string, error: unknown): void => {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.log(kind, "server", message, {
+      logger: "server",
+      level: "error",
+      stack: error instanceof Error ? (error.stack ?? "") : "",
+    });
+    logger.display({ type: "notice", text: `shell-mcp: ${message}` });
+  };
+  const mcpHandler = captureStartupWarnings(logger, () =>
+    createMcpHandler(() => createServer(manager), {
+      legacy: "stateless",
+      responseMode: "json",
+      onerror: (error) => reportError("mcp.error", error),
+    }),
+  );
 
   let boundPortValue = 0;
   const fetchHandler = {
@@ -87,11 +101,11 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
     },
   };
   const nodeHandler = toNodeHandler(fetchHandler, {
-    onerror: (error) => console.error(`shell-mcp: request error: ${error.message}`),
+    onerror: (error) => reportError("http.error", error),
   });
   const httpServer = createHttpServer((request, response) => {
     void serveNodeRequest(request, response, nodeHandler).catch((error: unknown) => {
-      console.error(`shell-mcp: unhandled request failure: ${error instanceof Error ? error.message : String(error)}`);
+      reportError("http.unhandled", error);
       if (response.headersSent) response.destroy();
       else sendJson(response, 500, { error: "internal_error" });
     });
@@ -113,6 +127,13 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
       capabilities: { tools: 5, transport: "streamable-http-json", maxWaitMs: limits.maxWaitMs },
       startedAt: new Date().toISOString(),
     });
+    logger.log("server.ready", "server", "", {
+      logger: "server",
+      level: "info",
+      endpoint: endpoint.href,
+      readyFile,
+      pid: process.pid,
+    });
     let closePromise: Promise<void> | undefined;
     return {
       host: LISTEN_HOST,
@@ -120,6 +141,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
       endpoint,
       readyFile,
       serverInstanceId: manager.instanceId,
+      logger,
       close: () => (closePromise ??= closeRunning(httpServer, mcpHandler, manager, readyFile, manager.instanceId)),
     };
   } catch (error) {

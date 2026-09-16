@@ -12,6 +12,7 @@
  */
 
 import { ConfigError, parseArgs, type ServerConfig, USAGE, UsageRequested } from "./config.js";
+import { receiveLauncherRecord } from "./logging/relay.js";
 import { startServer } from "./serve.js";
 import { isTunnelCommand, runTunnelLauncher, tunnelArguments } from "./tunnel-launcher.js";
 
@@ -38,12 +39,15 @@ async function main(argv: readonly string[]): Promise<number> {
   }
 
   const running = await startServer(config);
-  console.log(`shell-mcp: listening on ${running.endpoint.href}`);
-  console.log(`shell-mcp: server instance ${running.serverInstanceId}`);
-  console.log(`shell-mcp: ready file ${running.readyFile}`);
-  console.log("shell-mcp: WARNING: this server authenticates nobody; any caller that reaches this endpoint");
-  console.log("shell-mcp: receives the full shell authority of this Unix account. Reaching it is the OpenAI tunnel's");
-  console.log("shell-mcp: job, together with the operator's organization membership.");
+  if (process.send) {
+    process.on("message", (value: unknown) => {
+      if (receiveLauncherRecord(value, running.logger) && process.connected) {
+        process.send?.({ shellMcpLogAck: true }, () => {});
+      }
+    });
+  }
+  running.logger.display({ type: "notice", text: `shell-mcp ready on ${running.host}:${running.port}` });
+  running.logger.display({ type: "notice", text: "Warning: anyone reaching this endpoint has full shell access.\n" });
 
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals): void => {
@@ -51,7 +55,7 @@ async function main(argv: readonly string[]): Promise<number> {
       return;
     }
     shuttingDown = true;
-    console.log(`shell-mcp: received ${signal}, shutting down`);
+    running.logger.log("server.shutdown", "server", "", { logger: "server", level: "info", signal });
     running.close().then(
       () => {
         process.exit(0);

@@ -1,13 +1,15 @@
 import { IsolatedLogger } from "../../src/logging/logger.ts";
 
-const logger = new IsolatedLogger(32_768, 32);
+const logger = new IsolatedLogger(32_768, 32, { logFile: process.env.SHELL_TEST_LOG });
 // The test parent intentionally does not drain this process's stdout. The
 // isolated helper eventually blocks, exercising the bounded manager queue.
+logger.display({ type: "command", session: "fixture", cwd: "/tmp", command: "fixture", label: null, tty: false });
 const timer = setInterval(() => {
-  for (let i = 0; i < 128; i++) logger.log("stdout", "fixture", "x".repeat(4096));
+  for (let i = 0; i < 128; i++) logger.display({ type: "output", session: "fixture", stream: "stdout", text: "x".repeat(4096) });
 }, 10);
 
 process.on("message", async (message) => {
+  if (message === "diagnostic") logger.log("test.probe", "server", "File writer is independent");
   if (message === "health") process.send?.({ kind: "health", health: logger.health() });
   if (message === "stop") {
     clearInterval(timer);

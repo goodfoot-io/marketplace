@@ -98,7 +98,9 @@ export class Scope {
     }
     const compiledWorker = fileURLToPath(new URL("./scope-worker.js", import.meta.url));
     const sourceWorker = fileURLToPath(new URL("./scope-worker.ts", import.meta.url));
-    const workerArguments = existsSync(compiledWorker) ? [compiledWorker] : ["--import", "tsx", sourceWorker];
+    const workerArguments = existsSync(compiledWorker)
+      ? [compiledWorker]
+      : ["--import", import.meta.resolve("tsx"), sourceWorker];
     const child = spawn(process.execPath, workerArguments, { detached: true, stdio: ["pipe", "pipe", "pipe", "ipc"] });
     this.anchored = true;
     this.child = child;

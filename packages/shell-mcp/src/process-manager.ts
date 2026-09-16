@@ -3,7 +3,8 @@ import { resolve } from "node:path";
 import { loadPty, Scope, type Stream } from "./adapters/adapter.js";
 import { type ExecInput, inputs, type ListInput, type ReadInput, type WriteInput } from "./contracts.js";
 import { DomainError, requireThat } from "./errors.js";
-import { type Logger, NullLogger } from "./logging/logger.js";
+import type { ConsoleEvent } from "./logging/console-renderer.js";
+import { type DiagnosticFields, type Logger, NullLogger } from "./logging/logger.js";
 import { type TranscriptEvent, TranscriptGapError, TranscriptStore } from "./output/transcript-store.js";
 import { CursorCodec, hash, randomId } from "./util/opaque.js";
 import { deadline, mono } from "./util/time.js";
@@ -100,6 +101,7 @@ interface Session {
   };
   stdinOpen: boolean;
   outputClosed: boolean;
+  consoleDone: boolean;
   invalidUtf8: boolean;
   spawnError: { code: string; message: string } | null;
   events: Event[];
@@ -303,6 +305,7 @@ export class ProcessManager {
       cleanup: { scope: "managed_process_group", status: "not_requested", detail: "No cleanup was requested." },
       stdinOpen: true,
       outputClosed: false,
+      consoleDone: false,
       invalidUtf8: false,
       spawnError: null,
       events: [],
@@ -331,7 +334,19 @@ export class ProcessManager {
     this.sessions.set(session.id, session);
     this.operations.set(input.operation_id, { sessionId: session.id, fingerprint, resultExpired: false });
     this.active++;
-    this.log("command.accepted", session, `${input.cmd}\n[cwd=${cwd}]`);
+    this.display({
+      type: "command",
+      session: session.id,
+      cwd,
+      command: input.cmd,
+      label: session.label,
+      tty: session.tty,
+    });
+    this.log("command.accepted", session, "", {
+      cwd,
+      tty: session.tty,
+      commandBytes: Buffer.byteLength(input.cmd, "utf8"),
+    });
     session.scope = new Scope(
       { bash: this.bash, cmd: input.cmd, login: input.login, cwd, env: this.env, tty: input.tty },
       this.hooks(session),
@@ -440,12 +455,14 @@ export class ProcessManager {
     session.queuedInputBytes += charsBytes;
     session.queuedInputRecords++;
     this.inputGlobal += charsBytes;
-    this.log(
-      "stdin.accepted",
-      session,
-      `write_id=${input.write_id} chars=${JSON.stringify(input.chars)} close=${String(input.close_stdin)} interrupt=${String(input.interrupt)}`,
-    );
+    this.log("stdin.accepted", session, "", {
+      writeId: input.write_id,
+      bytes: charsBytes,
+      closeStdin: input.close_stdin,
+      interrupt: input.interrupt,
+    });
     session.inputTail = session.inputTail.then(async () => {
+      this.display({ type: "input", session: session.id, text: input.chars, interrupt: input.interrupt });
       try {
         if (input.interrupt) {
           const accepted = session.scope?.interrupt() ?? false;
@@ -470,11 +487,18 @@ export class ProcessManager {
         record.detail = error instanceof Error ? error.message.slice(0, 256) : "Input delivery outcome is unknown.";
       }
       record.settled_at = new Date().toISOString();
-      this.log(
-        "stdin.settled",
-        session,
-        `write_id=${input.write_id} status=${String(record.delivery_status)} detail=${String(record.detail)}`,
-      );
+      this.log("stdin.settled", session, String(record.detail), {
+        writeId: input.write_id,
+        deliveryStatus: String(record.delivery_status),
+        bytes: charsBytes,
+      });
+      if (record.delivery_status !== "handed_off") {
+        this.display({
+          type: "notice",
+          session: session.id,
+          text: `shell-mcp: input delivery ${String(record.delivery_status)}: ${String(record.detail)}`,
+        });
+      }
       session.queuedInputBytes -= charsBytes;
       session.queuedInputRecords--;
       this.inputGlobal -= charsBytes;
@@ -643,7 +667,8 @@ export class ProcessManager {
         this.syncTranscript(session);
         session.lastOutputAt = new Date().toISOString();
         session.invalidUtf8 ||= decoder.invalid;
-        this.log(`output.${stream}`, session, text);
+        this.display({ type: "output", session: session.id, stream, text });
+        this.log(`output.${stream}`, session, "", { bytes: bytes.length, sequence: event.seq });
         session.stateVersion++;
         this.signal(session);
       },
@@ -666,6 +691,8 @@ export class ProcessManager {
           session.nextOutputByte += bytes.length;
           session.invalidUtf8 ||= decoder?.invalid ?? false;
           this.syncTranscript(session);
+          this.display({ type: "output", session: session.id, stream, text: tail });
+          this.log(`output.${stream}`, session, "", { bytes: bytes.length, sequence: event.seq });
         }
         session.closedStreams.add(stream);
         if (
@@ -679,6 +706,7 @@ export class ProcessManager {
           this.trimCompleted();
         }
         this.log(`stream.${stream}.closed`, session, "");
+        this.finishConsole(session);
         session.stateVersion++;
         this.signal(session);
       },
@@ -697,7 +725,8 @@ export class ProcessManager {
         session.signal = signal;
         session.stdinOpen = false;
         session.exitedAt = new Date().toISOString();
-        this.log("command.exited", session, `code=${String(code)} signal=${String(signal)}`);
+        this.log("command.exited", session, "", { code, signal, reason: session.stopReason });
+        this.finishConsole(session);
         if (session.outputClosed) {
           this.armResultExpiry(session);
           this.trimCompleted();
@@ -711,7 +740,13 @@ export class ProcessManager {
         session.stdinOpen = false;
         session.spawnError = { code: "SPAWN_FAILED", message: message.slice(0, 256) };
         session.exitedAt = new Date().toISOString();
-        this.log("command.failed_to_start", session, message.slice(0, 256));
+        this.log("command.failed_to_start", session, message.slice(0, 256), { level: "error" });
+        this.display({
+          type: "notice",
+          session: session.id,
+          text: `shell-mcp: failed to start: ${message.slice(0, 256)}`,
+        });
+        this.finishConsole(session);
         if (session.outputClosed) {
           this.armResultExpiry(session);
           this.trimCompleted();
@@ -722,7 +757,8 @@ export class ProcessManager {
       lost: (message: string) => {
         session.cleanup.status = "unverified";
         session.cleanup.detail = message.slice(0, 256);
-        this.log("scope.lost", session, session.cleanup.detail);
+        this.log("scope.lost", session, session.cleanup.detail, { level: "error" });
+        this.display({ type: "notice", session: session.id, text: `shell-mcp: ${session.cleanup.detail}` });
         session.stateVersion++;
         this.signal(session);
       },
@@ -738,9 +774,35 @@ export class ProcessManager {
       },
     };
   }
-  private log(kind: string, session: Session, text: string): void {
+  /** Completion requires both a leader outcome and closed output, in either order. */
+  private finishConsole(session: Session): void {
+    if (
+      session.consoleDone ||
+      !session.outputClosed ||
+      (session.status !== "exited" && session.status !== "failed_to_start")
+    )
+      return;
+    session.consoleDone = true;
+    this.display({
+      type: "complete",
+      session: session.id,
+      code: session.exitCode,
+      signal: session.signal,
+      reason: session.status === "failed_to_start" ? "failed_to_start" : session.stopReason,
+    });
+  }
+
+  private display(event: ConsoleEvent): void {
     try {
-      this.logger.log(kind, session.id, text);
+      this.logger.display(event);
+    } catch {
+      /* Presentation is observational and never owns a command's lifetime. */
+    }
+  }
+
+  private log(kind: string, session: Session, text: string, fields: DiagnosticFields = {}): void {
+    try {
+      this.logger.log(kind, session.id, text, { ...fields, operationId: session.operationId });
     } catch {
       /* logger failure is reflected by health and never breaks process control */
     }
