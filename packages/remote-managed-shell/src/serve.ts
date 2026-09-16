@@ -109,6 +109,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
         return authenticated;
       }
       logger.log("auth.resource", "auth", `accepted client=${authenticated.clientId ?? "unknown"}`);
+      if (request.method === "GET") return sseKeepaliveResponse();
       return mcpHandler.fetch(request, { authInfo: authenticated });
     },
   };
@@ -289,6 +290,30 @@ function listen(server: ReturnType<typeof createHttpServer>, port: number): Prom
 function boundPort(server: ReturnType<typeof createHttpServer>, requested: number): number {
   const address = server.address();
   return address !== null && typeof address === "object" ? address.port : requested;
+}
+
+/**
+ * `createMcpHandler`'s stateless legacy path answers a GET on the MCP route
+ * with a 405 — the canonical stateless-transport behavior, since there is no
+ * session for it to stream from. Some MCP clients (observed: ChatGPT's
+ * connector) treat a 405 there as a dead connection and surface a hard
+ * "reconnect" prompt instead of just retrying over POST. This answers GET
+ * with a minimal, honestly-empty SSE stream instead: a well-formed
+ * `text/event-stream` response that opens and immediately closes with
+ * nothing to report, never a session-bound push channel this stateless
+ * server cannot back.
+ */
+function sseKeepaliveResponse(): Response {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(": ok\n\n"));
+      controller.close();
+    },
+  });
+  return new Response(body, {
+    status: 200,
+    headers: { "content-type": "text/event-stream", "cache-control": "no-store" },
+  });
 }
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {

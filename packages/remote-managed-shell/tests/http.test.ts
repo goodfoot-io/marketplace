@@ -90,6 +90,21 @@ describe("authenticated server over real HTTP", () => {
     expect(oversized.status).toBe(413);
   });
 
+  it("answers an authenticated GET on the MCP route with a minimal SSE stream, not the legacy 405", async () => {
+    const accessToken = await obtainToken();
+    const authenticated = await fetch(server.endpoint, {
+      method: "GET",
+      headers: { authorization: `Bearer ${accessToken}`, accept: "text/event-stream" },
+    });
+    expect(authenticated.status).toBe(200);
+    expect(authenticated.headers.get("content-type")).toContain("text/event-stream");
+    expect(await authenticated.text()).toBe(": ok\n\n");
+
+    const anonymous = await fetch(server.endpoint, { method: "GET" });
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.headers.get("www-authenticate")).toContain("resource_metadata=");
+  });
+
   it("runs the exact five-tool surface through OAuth and the SDK client", async () => {
     const accessToken = await obtainToken();
     const client = new Client({ name: "integration", version: "0.0.0" });
