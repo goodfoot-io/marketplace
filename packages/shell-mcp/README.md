@@ -97,6 +97,14 @@ again; a failed file writer produces an actionable console warning. The supervis
 relays its diagnostics through bounded, acknowledged IPC to the server, so each
 supervised run has one diagnostic-file writer rather than competing appenders.
 
+The known tunnel authentication-discovery probe (an empty `POST /mcp`,
+`Accept: application/json`, no `Content-Type`, and an `oai-tunnel-client/<version>`
+user agent) still receives HTTP 415, but its exact content-type rejection is not
+printed to the console. It remains in the diagnostic file with
+`consoleSuppressed: true` and `requestPattern: "tunnel-auth-probe"`. This is only a
+request-pattern match, not authenticated client identification; other request
+errors retain their existing console behavior.
+
 ## Secure MCP Tunnel
 
 `openai` — the package's one subcommand — supervises two children as one unit: the built server on loopback, and `tunnel-client` holding the operator's tunnel identity. The `start:openai` script runs the same launcher from a checkout.

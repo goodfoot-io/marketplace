@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
@@ -60,14 +61,23 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
     },
   });
   logger.setServerInstanceId(manager.instanceId);
+  // The SDK's shared onerror callback does not carry its Request. Keep this
+  // display-only exception request-local, including across concurrent awaits.
+  const tunnelAuthProbe = new AsyncLocalStorage<boolean>();
   const reportError = (kind: string, error: unknown): void => {
     const message = error instanceof Error ? error.message : String(error);
+    const suppressProbeNotice =
+      kind === "mcp.error" &&
+      error instanceof Error &&
+      message === "Unsupported Media Type: Content-Type must be application/json" &&
+      tunnelAuthProbe.getStore() === true;
     logger.log(kind, "server", message, {
       logger: "server",
       level: "error",
       stack: error instanceof Error ? (error.stack ?? "") : "",
+      ...(suppressProbeNotice ? { consoleSuppressed: true, requestPattern: "tunnel-auth-probe" } : {}),
     });
-    logger.display({ type: "notice", text: `shell-mcp: ${message}` });
+    if (!suppressProbeNotice) logger.display({ type: "notice", text: `shell-mcp: ${message}` });
   };
   const mcpHandler = captureStartupWarnings(logger, () =>
     createMcpHandler(() => createServer(manager), {
@@ -82,7 +92,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
     fetch: async (incoming: Request): Promise<Response> => {
       const bounded = await boundedRequest(incoming, 524_288);
       if (bounded instanceof Response) return bounded;
-      const request = bounded;
+      const { request, bodyBytes } = bounded;
       const url = new URL(request.url);
       if (url.pathname === "/healthz") {
         return Response.json(
@@ -97,7 +107,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
       if (url.pathname !== MCP_PATH)
         return Response.json({ error: "not_found", message: `MCP is served at ${MCP_PATH}` }, { status: 404 });
       if (request.method === "GET") return sseKeepaliveResponse();
-      return mcpHandler.fetch(request);
+      return tunnelAuthProbe.run(isTunnelAuthProbe(request, bodyBytes), () => mcpHandler.fetch(request));
     },
   };
   const nodeHandler = toNodeHandler(fetchHandler, {
@@ -152,8 +162,30 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
   }
 }
 
-async function boundedRequest(request: Request, maximum: number): Promise<Request | Response> {
-  if (request.method === "GET" || request.method === "HEAD" || request.body === null) return request;
+/**
+ * tunnel-client's WWW-Authenticate discovery sends an empty POST with this
+ * user-agent family and Accept header, but no Content-Type. Match the observed
+ * request shape, not a claimed identity; it still receives the SDK's HTTP 415.
+ * Never trust Content-Length alone to decide whether a request has a body.
+ */
+function isTunnelAuthProbe(request: Request, bodyBytes: number): boolean {
+  const url = new URL(request.url);
+  return (
+    request.method === "POST" &&
+    url.pathname === MCP_PATH &&
+    url.search === "" &&
+    request.headers.get("accept") === "application/json" &&
+    !request.headers.has("content-type") &&
+    /^oai-tunnel-client\/\S+$/u.test(request.headers.get("user-agent") ?? "") &&
+    bodyBytes === 0
+  );
+}
+
+async function boundedRequest(
+  request: Request,
+  maximum: number,
+): Promise<{ request: Request; bodyBytes: number } | Response> {
+  if (request.method === "GET" || request.method === "HEAD" || request.body === null) return { request, bodyBytes: 0 };
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (Number.isFinite(declared) && declared > maximum)
     return Response.json({ error: "request_too_large" }, { status: 413 });
@@ -176,7 +208,15 @@ async function boundedRequest(request: Request, maximum: number): Promise<Reques
     body.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new Request(request.url, { method: request.method, headers: request.headers, body, signal: request.signal });
+  return {
+    request: new Request(request.url, {
+      method: request.method,
+      headers: request.headers,
+      body,
+      signal: request.signal,
+    }),
+    bodyBytes: size,
+  };
 }
 
 async function serveNodeRequest(

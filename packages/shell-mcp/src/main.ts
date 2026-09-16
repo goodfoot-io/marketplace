@@ -42,7 +42,7 @@ async function main(argv: readonly string[]): Promise<number> {
   if (process.send) {
     process.on("message", (value: unknown) => {
       if (receiveLauncherRecord(value, running.logger) && process.connected) {
-        process.send?.({ shellMcpLogAck: true }, () => {});
+        process.send?.({ shellMcpLogAck: true }, undefined, undefined, () => {});
       }
     });
   }
