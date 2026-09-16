@@ -44,6 +44,32 @@ describe("package root discovery", () => {
     expect(existsSync(join(findPackageRoot(sourceDirectory), "scripts", "start-tunnel.mjs"))).toBe(true);
   });
 
+  it("walks past the manifest copy the compiler emits inside the build output", () => {
+    const root = join(scratch, "installed");
+    const compiled = join(root, "build", "dist", "src");
+    mkdirSync(compiled, { recursive: true });
+    mkdirSync(join(root, "scripts"));
+    writeFileSync(join(root, "package.json"), '{"name":"@goodfoot/shell-mcp","version":"1.0.2"}\n');
+    writeFileSync(join(root, "scripts", "start-tunnel.mjs"), "");
+    // The compiler emits this copy because the server imports the manifest for
+    // its version. It names the package but holds no launcher, so it is the
+    // build output rather than the installation the launcher starts from.
+    writeFileSync(join(root, "build", "dist", "package.json"), '{"name":"@goodfoot/shell-mcp","version":"1.0.2"}\n');
+    expect(findPackageRoot(compiled)).toBe(root);
+    expect(findPackageRoot(join(root, "build", "dist"))).toBe(root);
+  });
+
+  it("names the directory that declares the package when none holds the launcher", () => {
+    const root = join(scratch, "unlaunched");
+    const compiled = join(root, "build", "dist", "src");
+    mkdirSync(compiled, { recursive: true });
+    writeFileSync(join(root, "package.json"), '{"name":"@goodfoot/shell-mcp","version":"1.0.2"}\n');
+    writeFileSync(join(root, "build", "dist", "package.json"), '{"name":"@goodfoot/shell-mcp","version":"1.0.2"}\n');
+    expect(() => findPackageRoot(compiled)).toThrow(
+      `tunnel launcher missing from this installation: ${join(root, "scripts", "start-tunnel.mjs")}`,
+    );
+  });
+
   it("walks past a manifest that is not this package", () => {
     const foreign = join(scratch, "foreign", "nested");
     mkdirSync(foreign, { recursive: true });

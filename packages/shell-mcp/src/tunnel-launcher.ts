@@ -35,21 +35,37 @@ export function tunnelArguments(argv: readonly string[]): readonly string[] {
 }
 
 /**
- * Walk up from a directory inside the installed package to the root that
- * declares it, so the launcher resolves the same way from `src/` and from the
- * compiled `build/dist/src/`.
+ * Walk up from a directory inside the installed package to the root the
+ * launcher can be started from, so it resolves the same way from `src/` and
+ * from the compiled `build/dist/src/`.
  *
- * Only this package's own manifest is accepted: a manifest that merely exists —
- * another workspace member, a consumer's own package.json — is not a place the
- * launcher can be found from, and a manifest that cannot be read is a defect
+ * Declaring this package is not enough to be that root: the compiler emits a
+ * copy of the manifest beside the compiled `src/`, so the nearest manifest
+ * naming this package is the build output, and stopping there aims the launcher
+ * at a path no archive contains. The root is the directory that both declares
+ * the package and holds the launcher, so a nearer copy that does not is walked
+ * past, and when none holds it the error names the directory that declares it
+ * rather than the copy.
+ *
+ * A manifest that merely exists is never the root — another workspace member, a
+ * consumer's own package.json — and a manifest that cannot be read is a defect
  * rather than a place to keep walking past.
  */
 export function findPackageRoot(startDir: string): string {
+  let declared: string | undefined;
   for (let directory = startDir; ; ) {
     const manifest = join(directory, "package.json");
-    if (existsSync(manifest) && packageName(manifest) === PACKAGE_NAME) return directory;
+    if (existsSync(manifest) && packageName(manifest) === PACKAGE_NAME) {
+      if (existsSync(join(directory, LAUNCHER_PATH))) return directory;
+      declared = directory;
+    }
     const parent = dirname(directory);
-    if (parent === directory) throw new Error(`no ${PACKAGE_NAME} package.json above ${startDir}`);
+    if (parent === directory) {
+      if (declared !== undefined) {
+        throw new Error(`tunnel launcher missing from this installation: ${join(declared, LAUNCHER_PATH)}`);
+      }
+      throw new Error(`no ${PACKAGE_NAME} package.json above ${startDir}`);
+    }
     directory = parent;
   }
 }
@@ -80,9 +96,6 @@ function packageName(manifestPath: string): string | undefined {
  */
 export async function runTunnelLauncher(argv: readonly string[]): Promise<number> {
   const launcher = join(findPackageRoot(dirname(fileURLToPath(import.meta.url))), LAUNCHER_PATH);
-  if (!existsSync(launcher)) {
-    throw new Error(`tunnel launcher missing from this installation: ${launcher}`);
-  }
   const child = spawn(process.execPath, [launcher, ...argv], { stdio: "inherit" });
   const stopRelaying = (): void => {
     process.off("SIGINT", stopRelaying);
