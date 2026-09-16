@@ -1,9 +1,14 @@
 #!/usr/bin/env node
+/**
+ * Drives the five-tool surface through the pinned MCP Inspector CLI against a
+ * live loopback server. Gate 1 asserts the boundary this package now intends:
+ * an Inspector that presents no credential at all is served.
+ */
 
 import { randomBytes } from "node:crypto";
 import { access, constants, rm } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { performLoopbackOAuth, startLocalProcess, stopLocalProcess } from "./smoke-local.mjs";
+import { startLocalProcess, stopLocalProcess } from "./smoke-local.mjs";
 import { spawn } from "node:child_process";
 
 const INSPECTOR_VERSION = "2.6.0";
@@ -24,7 +29,7 @@ async function runInspector(args) {
   });
 }
 
-function inspectorArgs(endpoint, method, token, extra = []) {
+function inspectorArgs(endpoint, method, extra = []) {
   return [
     "--cli",
     "--transport", "http",
@@ -32,7 +37,6 @@ function inspectorArgs(endpoint, method, token, extra = []) {
     "--method", method,
     "--connect-timeout", "5000",
     "--format", "json",
-    ...(token === undefined ? [] : ["--header", `Authorization: Bearer ${token}`]),
     ...extra,
   ];
 }
@@ -62,24 +66,20 @@ async function main() {
   let running;
   try {
     running = await startLocalProcess({ command: "dev", port: 38147 });
-    const oauth = await performLoopbackOAuth({ endpoint: running.ready.endpoint, authorizationUrl: new URL(`${running.ready.issuer}/authorize`), startupSecret: running.startupSecret, includeRefresh: false });
-    const unauthenticated = await runInspector(inspectorArgs(running.ready.endpoint, "initialize", undefined, ["--stored-auth-only"]));
-    if (unauthenticated.code !== 3) throw new Error(`unauthenticated Inspector probe exited ${unauthenticated.code ?? "without a code"}; expected 3`);
-
-    const initialized = await runInspector(inspectorArgs(running.ready.endpoint, "initialize", oauth.access_token));
-    if (initialized.code !== 0) throw new Error(`authenticated Inspector initialize exited ${initialized.code ?? "without a code"}`);
-    const listed = await runInspector(inspectorArgs(running.ready.endpoint, "tools/list", oauth.access_token));
+    const initialized = await runInspector(inspectorArgs(running.ready.endpoint, "initialize"));
+    if (initialized.code !== 0) throw new Error(`credential-free Inspector initialize exited ${initialized.code ?? "without a code"}; expected 0`);
+    const listed = await runInspector(inspectorArgs(running.ready.endpoint, "tools/list"));
     if (listed.code !== 0) throw new Error(`Inspector tools/list exited ${listed.code ?? "without a code"}`);
     const listedResult = parseJson(listed)?.result;
     const names = listedResult?.tools?.map((tool) => tool.name) ?? [];
     const expected = ["exec_command", "read_process", "write_stdin", "terminate_process", "list_processes"];
     if (names.length !== expected.length || expected.some((name) => !names.includes(name))) throw new Error("Inspector tools/list did not return the five-tool surface");
 
-    const discoveryCall = await runInspector(inspectorArgs(running.ready.endpoint, "tools/call", oauth.access_token, ["--tool-name", "list_processes", "--tool-args-json", JSON.stringify({ include_completed: true, limit: 50 })]));
+    const discoveryCall = await runInspector(inspectorArgs(running.ready.endpoint, "tools/call", ["--tool-name", "list_processes", "--tool-args-json", JSON.stringify({ include_completed: true, limit: 50 })]));
     if (discoveryCall.code !== 0) throw new Error(`Inspector list_processes exited ${discoveryCall.code ?? "without a code"}`);
     const discovery = toolResult(discoveryCall);
     const operationId = `inspector-${randomBytes(8).toString("hex")}`;
-    const execCall = await runInspector(inspectorArgs(running.ready.endpoint, "tools/call", oauth.access_token, ["--tool-name", "exec_command", "--tool-args-json", JSON.stringify({
+    const execCall = await runInspector(inspectorArgs(running.ready.endpoint, "tools/call", ["--tool-name", "exec_command", "--tool-args-json", JSON.stringify({
       expected_server_instance_id: discovery.server_instance_id,
       operation_id: operationId,
       cmd: "printf '%s' smoke-inspector-output",
@@ -92,17 +92,17 @@ async function main() {
     if (execCall.code !== 0) throw new Error(`Inspector exec_command exited ${execCall.code ?? "without a code"}`);
     const execution = toolResult(execCall);
     if (typeof execution.session_id !== "string") throw new Error("Inspector exec_command omitted session_id");
-    const readCall = await runInspector(inspectorArgs(running.ready.endpoint, "tools/call", oauth.access_token, ["--tool-name", "read_process", "--tool-args-json", JSON.stringify({ session_id: execution.session_id, cursor: "start", wait_ms: 2_000, max_output_bytes: 16_384 })]));
+    const readCall = await runInspector(inspectorArgs(running.ready.endpoint, "tools/call", ["--tool-name", "read_process", "--tool-args-json", JSON.stringify({ session_id: execution.session_id, cursor: "start", wait_ms: 2_000, max_output_bytes: 16_384 })]));
     if (readCall.code !== 0) throw new Error(`Inspector read_process exited ${readCall.code ?? "without a code"}`);
     const read = toolResult(readCall);
     if (!(read.output ?? []).some((event) => event.data?.includes("smoke-inspector-output"))) throw new Error("Inspector read_process omitted command output");
-    const listCall = await runInspector(inspectorArgs(running.ready.endpoint, "tools/call", oauth.access_token, ["--tool-name", "list_processes", "--tool-args-json", JSON.stringify({ operation_id: operationId, include_completed: true, limit: 50 })]));
+    const listCall = await runInspector(inspectorArgs(running.ready.endpoint, "tools/call", ["--tool-name", "list_processes", "--tool-args-json", JSON.stringify({ operation_id: operationId, include_completed: true, limit: 50 })]));
     if (listCall.code !== 0) throw new Error(`Inspector list_processes recovery exited ${listCall.code ?? "without a code"}`);
     const listing = toolResult(listCall);
     if (!(listing.processes ?? []).some((process) => process.session_id === execution.session_id)) throw new Error("Inspector list_processes did not recover the execution");
-    console.log(`PASS: Inspector ${INSPECTOR_VERSION} OAuth boundary and five-tool CLI smoke`);
+    console.log(`PASS: Inspector ${INSPECTOR_VERSION} credential-free five-tool CLI smoke`);
   } catch (error) {
-    console.error(`FAIL: MCP Inspector smoke: ${error instanceof Error ? error.message : "unknown error"}`);
+    console.error(`FAIL: MCP Inspector smoke: ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;
   } finally {
     if (running) await stopLocalProcess(running.child).catch(() => {});

@@ -1,29 +1,30 @@
 #!/usr/bin/env node
 /**
- * Starts the built server in public mode behind a Cloudflare Instant Tunnel:
- * `cloudflared tunnel --url`, the account-less `*.trycloudflare.com` quick
- * tunnel that needs no Cloudflare login, DNS record, or named tunnel.
+ * Starts the built server on loopback and holds it behind an OpenAI Secure MCP
+ * Tunnel: one `tunnel-client run` child polling the operator's tunnel with their
+ * runtime key and forwarding connector traffic to this server's `/mcp` route.
  *
- * The ordering is forced by the OAuth identity. Public mode bakes the
- * advertised HTTPS base URL into the issuer, the resource indicator, and every
- * discovery document, so the server cannot start until the tunnel reports its
- * URL. The tunnel therefore starts first, its URL is parsed from the child's
- * log, and the server starts afterwards with that exact base URL.
+ * Nothing forces an ordering between the two children. The server has no
+ * external identity to configure — it advertises no URL, serves no discovery
+ * document, and issues no challenge — so the server starts first only because
+ * tunnel-client's startup MCP probe is one-shot: a client that probed before the
+ * listener existed would latch a connection failure into `/readyz` forever
+ * instead of retrying it.
  *
  * Startup is fail-closed. The script refuses to run without the build, the
- * cloudflared binary, and a free loopback port; after both children are up, it
- * requires the public route to answer with this instance's own identity
- * (`/healthz`, the protected-resource metadata, and the authenticated MCP
- * challenge) before it reports an endpoint. A child that exits on its own takes
- * the whole arrangement down with a non-zero status, and an orderly stop always
+ * tunnel-client binary, a tunnel id, a key reference, and a free loopback port;
+ * after both children are up it requires the server's own readiness claim and
+ * tunnel-client's `/readyz`, which turns green only when that client's MCP
+ * initialize probe reached this server. A child that exits on its own takes the
+ * whole arrangement down with a non-zero status, and an orderly stop always
  * retires the server before the tunnel so the server can remove the readiness
  * claim it owns.
  *
- * The startup secret is printed once by the server on this process's inherited
- * stdout, where the operator reads it for the browser consent step. This script
- * never captures, reprints, logs, or persists it. The tunnel URL is not a
- * credential: reachability only exposes the OAuth 2.1 surface, and a client
- * still needs the startup secret to obtain a token.
+ * The runtime key is never handled as a value here: it reaches tunnel-client as
+ * the `env:VARNAME` or `file:/path` reference that CLI requires, so no key ever
+ * appears in this process's command line. Nothing local can prove that an
+ * OpenAI-side caller reached the shell — a healthy client only proves the hop
+ * this host owns.
  */
 
 import { spawn, spawnSync } from "node:child_process";
@@ -39,39 +40,52 @@ const SERVER_ENTRY = join(PACKAGE_ROOT, "build", "dist", "src", "main.js");
 const LISTEN_HOST = "127.0.0.1";
 /** Must match DEFAULT_PORT in src/config.ts. */
 const DEFAULT_PORT = 38147;
-/** Every Cloudflare quick tunnel is a hostname on this zone. */
-const TUNNEL_URL = /https:\/\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.trycloudflare\.com/u;
-/** Cloudflare refuses new account-less tunnels per source address: HTTP 429. */
-const TUNNEL_RATE_LIMIT = /provisioning failed with status 429|error code: 1015/iu;
-const TUNNEL_SETUP_TIMEOUT_MS = 30_000;
+/** The control plane tunnel-client polls; its own default, restated for the report. */
+const DEFAULT_BASE_URL = "https://api.openai.com";
+/** Port 0 lets the OS pick; the URL file below reports what it picked. */
+const HEALTH_LISTEN_ADDR = "127.0.0.1:0";
+/** A tunnel id is `tunnel_` plus 32 lowercase alphanumerics; tunnel-client owns the exact check. */
+const TUNNEL_ID_PREFIX = "tunnel_";
+/** The only two forms `--control-plane.api-key` accepts. */
+const KEY_REFERENCE_PREFIXES = ["env:", "file:"];
+const TUNNEL_HEALTH_TIMEOUT_MS = 30_000;
+const READY_TIMEOUT_MS = 60_000;
 const SERVER_READY_TIMEOUT_MS = 20_000;
-const ROUTE_VERIFY_TIMEOUT_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 /** The server's own shutdown budget is `shutdownMs` (10s) from src/config.ts. */
 const SERVER_STOP_GRACE_MS = 12_000;
-const TUNNEL_STOP_GRACE_MS = 5_000;
+const TUNNEL_STOP_GRACE_MS = 8_000;
 const FORCE_KILL_GRACE_MS = 2_000;
 /** Options this script owns; passing them after `--` would be a silent conflict. */
-const MANAGED_SERVER_OPTIONS = new Set(["--mode", "--url", "--port", "--ready-file"]);
+const MANAGED_SERVER_OPTIONS = new Set(["--port", "--ready-file"]);
 
 const USAGE = `Usage: start-tunnel.mjs [options] [-- server options]
 
-Starts the built server in public mode behind a Cloudflare Instant Tunnel and
-reports the MCP endpoint only after the public route answers with this
-instance's own OAuth identity.
+Starts the built server on loopback behind an OpenAI Secure MCP Tunnel and
+reports the endpoint only after the server published its readiness claim and
+tunnel-client's MCP probe reached it.
 
   --port=<1-65535>        Loopback port the server binds and the tunnel
-                          publishes (default ${DEFAULT_PORT}).
+                          forwards to (default ${DEFAULT_PORT}).
   --ready-file=<path>     Atomic readiness-claim location (default: a
-                          ready-public-<port>.json claim in the system temp
+                          ready-<port>.json claim in the system temp
                           directory).
-  --cloudflared=<path>    cloudflared executable (default: $CLOUDFLARED, then
-                          cloudflared on PATH).
+  --tunnel-client=<path>  tunnel-client executable (default: $TUNNEL_CLIENT,
+                          then tunnel-client on PATH).
+  --tunnel-id=<id>        Tunnel to serve (default: $CONTROL_PLANE_TUNNEL_ID).
+                          Create one at
+                          https://platform.openai.com/settings/organization/tunnels
+  --api-key=<reference>   env:VARNAME or file:/path holding the runtime key,
+                          never the key itself. Default: env:CONTROL_PLANE_API_KEY
+                          when that variable is set, then env:OPENAI_API_KEY.
   -h, --help              Print this message.
 
   -- <options>            Pass the remaining options to the server, for example
-                          -- --workdir=/srv --disable-pty. --mode, --url,
-                          --port, and --ready-file belong to this script.`;
+                          -- --workdir=/srv --disable-pty. --port and
+                          --ready-file belong to this script.
+
+Environment: CONTROL_PLANE_TUNNEL_ID, CONTROL_PLANE_API_KEY, TUNNEL_CLIENT,
+and CONTROL_PLANE_BASE_URL (default ${DEFAULT_BASE_URL}).`;
 
 class UsageRequested extends Error {
   constructor() {
@@ -97,7 +111,14 @@ class Halted extends Error {
 }
 
 function parseArgs(argv) {
-  const options = { port: DEFAULT_PORT, readyFile: undefined, cloudflared: undefined, serverArgs: [] };
+  const options = {
+    port: DEFAULT_PORT,
+    readyFile: undefined,
+    tunnelClient: undefined,
+    tunnelId: undefined,
+    apiKey: undefined,
+    serverArgs: [],
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--") {
@@ -111,7 +132,9 @@ function parseArgs(argv) {
     const value = separator === -1 ? undefined : argument.slice(separator + 1);
     if (key === "--port") options.port = parsePort(value);
     else if (key === "--ready-file") options.readyFile = requireValue(key, value);
-    else if (key === "--cloudflared") options.cloudflared = requireValue(key, value);
+    else if (key === "--tunnel-client") options.tunnelClient = requireValue(key, value);
+    else if (key === "--tunnel-id") options.tunnelId = parseTunnelId(value);
+    else if (key === "--api-key") options.apiKey = parseKeyReference(value);
     else throw new UsageError(`unknown option: ${key}`);
   }
   for (const argument of options.serverArgs) {
@@ -135,18 +158,93 @@ function requireValue(key, value) {
   return value;
 }
 
-/** Resolves the tunnel binary and proves it runs before anything is published. */
-function resolveCloudflared(explicit) {
-  const command = explicit ?? process.env.CLOUDFLARED ?? "cloudflared";
+/** A tunnel id is not a credential; the prefix check catches a pasted key. */
+function parseTunnelId(value) {
+  if (value === undefined || !value.startsWith(TUNNEL_ID_PREFIX))
+    throw new UsageError(`--tunnel-id takes a tunnel id (${TUNNEL_ID_PREFIX}<32 lowercase letters or digits>)`);
+  return value;
+}
+
+/** Only a reference crosses this command line; the key itself never does. */
+function parseKeyReference(value) {
+  const separator = value === undefined ? -1 : value.indexOf(":");
+  const scheme = separator === -1 ? "" : `${value.slice(0, separator)}:`;
+  const target = separator === -1 ? "" : value.slice(separator + 1);
+  if (!KEY_REFERENCE_PREFIXES.includes(scheme) || target === "")
+    throw new UsageError(
+      "--api-key takes an env:VARNAME or file:/path reference, never the key itself; a literal key would be visible in the process list",
+    );
+  return value;
+}
+
+/** Resolves the tunnel client and proves it runs before anything is spawned. */
+function resolveTunnelClient(explicit) {
+  const command = explicit ?? process.env.TUNNEL_CLIENT ?? "tunnel-client";
   const probe = spawnSync(command, ["--version"], { encoding: "utf8", timeout: 10_000 });
   if (probe.error?.code === "ENOENT")
     throw new Error(
-      `${command} is not executable; install cloudflared (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) or pass --cloudflared=<path>`,
+      `${command} is not executable; install tunnel-client (brew install openai/tools/tunnel-client, or the image at ghcr.io/openai/tunnel-client) or pass --tunnel-client=<path>`,
     );
   if (probe.error !== undefined) throw new Error(`${command} could not be run: ${probe.error.message}`);
   if (probe.status !== 0) throw new Error(`${command} --version exited ${String(probe.status)}`);
   const version = `${probe.stdout}${probe.stderr}`.trim().split("\n")[0];
   return { command, version: version === undefined || version === "" ? command : version };
+}
+
+/** Names the tunnel to serve; the id itself is not a credential. */
+function resolveTunnelId(explicit) {
+  const id = explicit ?? process.env.CONTROL_PLANE_TUNNEL_ID;
+  if (id === undefined || id === "")
+    throw new Error(
+      "no tunnel to serve: set CONTROL_PLANE_TUNNEL_ID or pass --tunnel-id=<id>; create one at https://platform.openai.com/settings/organization/tunnels",
+    );
+  return id;
+}
+
+/**
+ * Resolves a key *reference* for tunnel-client and proves it points at
+ * something. The key itself is deliberately never read: it stays in the
+ * environment or in the file, and only the reference crosses this process's
+ * command line.
+ */
+function resolveApiKeyReference(explicit) {
+  const reference = explicit ?? defaultKeyReference();
+  if (reference === undefined)
+    throw new Error(
+      "no runtime key reference: set CONTROL_PLANE_API_KEY, or pass --api-key=env:<VARNAME> or --api-key=file:/path/to/secret",
+    );
+  const target = reference.slice(reference.indexOf(":") + 1);
+  if (reference.startsWith("env:")) {
+    const value = process.env[target];
+    if (value === undefined || value === "")
+      throw new Error(`--api-key=env:${target} names a variable that is not set to a non-empty value`);
+  } else if (!existsSync(target)) {
+    throw new Error(`--api-key=file:${target} does not exist`);
+  }
+  return reference;
+}
+
+function defaultKeyReference() {
+  for (const name of ["CONTROL_PLANE_API_KEY", "OPENAI_API_KEY"]) {
+    const value = process.env[name];
+    if (value !== undefined && value !== "") return `env:${name}`;
+  }
+  return undefined;
+}
+
+/** The control plane the client polls; the tunnel's MCP endpoint hangs off it. */
+function resolveBaseUrl() {
+  const raw = process.env.CONTROL_PLANE_BASE_URL;
+  const base = raw === undefined || raw === "" ? DEFAULT_BASE_URL : raw;
+  let parsed;
+  try {
+    parsed = new URL(base);
+  } catch {
+    throw new Error(`CONTROL_PLANE_BASE_URL is not a URL: ${base}`);
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:")
+    throw new Error(`CONTROL_PLANE_BASE_URL must be http or https: ${base}`);
+  return parsed.href.replace(/\/+$/u, "");
 }
 
 /** Fails closed on a busy port instead of letting the server hit EADDRINUSE. */
@@ -170,127 +268,113 @@ async function assertPortFree(port) {
   }
 }
 
-/** Starts the tunnel and resolves with the public URL cloudflared reports. */
-function spawnTunnel(command, port) {
-  const target = `http://${LISTEN_HOST}:${port}`;
-  const child = spawn(command, ["tunnel", "--no-autoupdate", "--url", target], {
-    stdio: ["ignore", "pipe", "pipe"],
-    detached: true,
-  });
-  let settled = false;
-  let rateLimited = false;
-  const url = new Promise((resolvePromise, rejectPromise) => {
-    const finish = (handler, value) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      child.off("exit", onExit);
-      handler(value);
-    };
-    const timer = setTimeout(
-      () =>
-        finish(
-          rejectPromise,
-          new Error(`cloudflared did not report a tunnel URL within ${TUNNEL_SETUP_TIMEOUT_MS / 1000}s`),
-        ),
-      TUNNEL_SETUP_TIMEOUT_MS,
-    );
-    const onExit = (code, signal) =>
-      finish(rejectPromise, new Error(`cloudflared exited before creating a tunnel (${describeExit(code, signal)})`));
-    child.once("exit", onExit);
-    for (const stream of [child.stdout, child.stderr]) {
-      createInterface({ input: stream, crlfDelay: Infinity }).on("line", (line) => {
-        const text = line.trim();
-        if (text === "") return;
-        console.error(`[cloudflared] ${text}`);
-        if (TUNNEL_RATE_LIMIT.test(text) && !rateLimited) {
-          rateLimited = true;
-          console.error(
-            "remote-managed-tunnel: Cloudflare refused this source address a new quick tunnel; account-less tunnels are rate-limited, so retry later or publish with a named tunnel.",
-          );
-        }
-        const match = TUNNEL_URL.exec(text);
-        if (match !== null) finish(resolvePromise, match[0]);
+/** Starts tunnel-client against the loopback route and streams its log. */
+function spawnTunnelClient({ command, port, tunnelId, apiKeyReference, baseUrl, healthUrlFile }) {
+  const child = spawn(
+    command,
+    [
+      "run",
+      `--control-plane.tunnel-id=${tunnelId}`,
+      `--control-plane.api-key=${apiKeyReference}`,
+      `--control-plane.base-url=${baseUrl}`,
+      `--mcp.server-url=http://${LISTEN_HOST}:${port}/mcp`,
+      `--health.listen-addr=${HEALTH_LISTEN_ADDR}`,
+      `--health.url-file=${healthUrlFile}`,
+    ],
+    { cwd: PACKAGE_ROOT, stdio: ["ignore", "pipe", "pipe"], detached: true },
+  );
+  for (const stream of [child.stdout, child.stderr]) {
+    createInterface({ input: stream, crlfDelay: Infinity }).on("line", (line) => {
+      const text = line.trim();
+      if (text !== "") console.error(`[tunnel-client] ${text}`);
+    });
+  }
+  return child;
+}
+
+/**
+ * Waits for the health base URL tunnel-client writes atomically at startup. An
+ * empty file means the write has not landed yet; a non-empty file that is not
+ * an HTTP URL is final, because the client never writes a partial one.
+ */
+async function waitForHealthUrl(path) {
+  const deadline = Date.now() + TUNNEL_HEALTH_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const health = readHealthUrl(path);
+    if (typeof health === "string" && health.startsWith("http://")) return health;
+    if (health !== undefined) throw new Error(`${path} holds ${JSON.stringify(health)}, not an HTTP health URL`);
+    await delay(50);
+  }
+  throw new Error(
+    `tunnel-client did not publish its health URL within ${TUNNEL_HEALTH_TIMEOUT_MS / 1000}s (${path} was never written)`,
+  );
+}
+
+/** Returns the URL, the unparsable content, or undefined while the write is pending. */
+function readHealthUrl(path) {
+  let text;
+  try {
+    text = readFileSync(path, "utf8").trim();
+  } catch {
+    return undefined;
+  }
+  if (text === "") return undefined;
+  try {
+    const parsed = new URL(text);
+    if (parsed.protocol === "http:") return parsed.origin;
+  } catch {
+    // Reported as the raw content below.
+  }
+  return text;
+}
+
+/**
+ * Requires tunnel-client's own readiness verdict. `/readyz` is green only after
+ * its one-shot startup MCP initialize probe succeeded against this server, so a
+ * non-200 body names the component that is not up yet.
+ */
+async function waitForReady(healthBase) {
+  const deadline = Date.now() + READY_TIMEOUT_MS;
+  let last = "no attempt completed";
+  let reportedAt = 0;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${healthBase}/readyz`, {
+        redirect: "error",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
+      const body = (await response.text()).trim();
+      if (response.ok) return body === "" ? "ready" : body;
+      last = `readyz returned ${response.status}${body === "" ? "" : `: ${body}`}`;
+    } catch (error) {
+      last = message(error);
     }
-  });
-  return { child, url };
+    if (Date.now() - reportedAt > 10_000) {
+      console.error(`remote-managed-tunnel: waiting for tunnel-client readiness: ${last}`);
+      reportedAt = Date.now();
+    }
+    await delay(500);
+  }
+  throw new Error(
+    `tunnel-client did not report ready within ${READY_TIMEOUT_MS / 1000}s (last failure: ${last}); the tunnel cannot forward until its MCP probe passes`,
+  );
 }
 
 /** Waits for the readiness claim this script's own server instance wrote. */
-async function waitForClaim(path, pid, publicBase) {
+async function waitForClaim(path, pid, endpoint) {
   const deadline = Date.now() + SERVER_READY_TIMEOUT_MS;
   let observed = "no claim";
   while (Date.now() < deadline) {
     const claim = readClaim(path);
     if (claim !== undefined) {
-      if (claim.pid === pid && claim.stage === "ready" && claim.mode === "public" && claim.publicUrl === publicBase)
-        return claim;
-      observed = `pid ${String(claim.pid)}, stage ${String(claim.stage)}, mode ${String(claim.mode)}, publicUrl ${String(claim.publicUrl)}`;
+      if (claim.pid === pid && claim.stage === "ready" && claim.endpoint === endpoint) return claim;
+      observed = `pid ${String(claim.pid)}, stage ${String(claim.stage)}, endpoint ${String(claim.endpoint)}`;
     }
     await delay(50);
   }
   throw new Error(
     `the server did not publish its readiness claim within ${SERVER_READY_TIMEOUT_MS / 1000}s (${path} held ${observed})`,
   );
-}
-
-/**
- * Requires the public route to answer with this instance's identity: the health
- * route, the protected-resource metadata, and the MCP challenge a real client
- * sees first. A quick tunnel's DNS can lag its creation, so failures retry
- * until the deadline rather than failing on the first 502.
- */
-async function verifyPublicRoute(publicBase, mcpUrl) {
-  const deadline = Date.now() + ROUTE_VERIFY_TIMEOUT_MS;
-  const hostname = new URL(publicBase).hostname;
-  let last = "no attempt completed";
-  let reportedAt = 0;
-  while (Date.now() < deadline) {
-    try {
-      const health = await getJson(`${publicBase}/healthz`);
-      if (health.mode !== "public") throw new Error(`health route reported mode ${String(health.mode)}`);
-      if (health.public_endpoint !== mcpUrl)
-        throw new Error(`health route advertised ${String(health.public_endpoint)} instead of ${mcpUrl}`);
-      const metadata = await getJson(`${publicBase}/.well-known/oauth-protected-resource`);
-      if (metadata.resource !== mcpUrl)
-        throw new Error(`protected-resource metadata named ${String(metadata.resource)} instead of ${mcpUrl}`);
-      const servers = Array.isArray(metadata.authorization_servers) ? metadata.authorization_servers : [];
-      if (!servers.includes(publicBase))
-        throw new Error("protected-resource metadata omitted this tunnel as the authorization server");
-      const challenge = await fetch(mcpUrl, {
-        headers: { accept: "application/json, text/event-stream" },
-        redirect: "error",
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-      if (challenge.status !== 401)
-        throw new Error(`an unauthenticated MCP request returned ${challenge.status} instead of 401`);
-      const header = challenge.headers.get("www-authenticate") ?? "";
-      if (!header.includes("resource_metadata") || !header.includes(hostname))
-        throw new Error("the MCP challenge did not advertise this tunnel as the protected resource");
-      return;
-    } catch (error) {
-      last = message(error);
-      if (Date.now() - reportedAt > 10_000) {
-        console.error(`remote-managed-tunnel: waiting for the public route: ${last}`);
-        reportedAt = Date.now();
-      }
-      await delay(1_000);
-    }
-  }
-  throw new Error(
-    `the public route did not answer with this instance's identity within ${ROUTE_VERIFY_TIMEOUT_MS / 1000}s (last failure: ${last})`,
-  );
-}
-
-async function getJson(url) {
-  const response = await fetch(url, {
-    headers: { accept: "application/json" },
-    redirect: "error",
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  if (!response.ok) throw new Error(`${url} returned ${response.status}`);
-  return await response.json();
 }
 
 function readClaim(path) {
@@ -328,10 +412,11 @@ function isAlive(pid) {
 }
 
 function signalChild(child, signal) {
+  if (child.pid === undefined) return;
   // The primary signal targets the process so its own orderly shutdown runs; a
   // forced kill takes the whole group so managed bash processes cannot outlive
   // the server that owns them.
-  const targets = signal === "SIGKILL" && child.pid !== undefined ? [-child.pid, child.pid] : [child.pid];
+  const targets = signal === "SIGKILL" ? [-child.pid, child.pid] : [child.pid];
   for (const target of targets) {
     try {
       process.kill(target, signal);
@@ -366,8 +451,8 @@ function describeExit(code, signal) {
   return signal === null || signal === undefined ? `exit code ${String(code)}` : `signal ${String(signal)}`;
 }
 
-function describeChildExit(name, code, signal) {
-  return new Error(`${name} exited on its own (${describeExit(code, signal)}); the public route is gone`);
+function describeChildExit(name, consequence, code, signal) {
+  return new Error(`${name} exited on its own (${describeExit(code, signal)}); ${consequence}`);
 }
 
 function message(error) {
@@ -378,17 +463,20 @@ function delay(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
-function reportReady({ publicBase, mcpUrl, readyFile, claim, serverPid }) {
-  console.log("remote-managed-tunnel: the public route answered with this instance's own OAuth identity");
-  console.log(`remote-managed-tunnel:   MCP URL   ${mcpUrl}`);
-  console.log(`remote-managed-tunnel:   issuer    ${publicBase}`);
-  console.log(`remote-managed-tunnel:   server    pid ${String(serverPid)}, instance ${String(claim.serverInstanceId)}`);
-  console.log(`remote-managed-tunnel:   readiness ${readyFile}`);
-  console.log("remote-managed-tunnel: point the client at the MCP URL with OAuth. When the client opens the");
-  console.log("remote-managed-tunnel: consent page, enter the startup secret the server printed above (once).");
+function reportReady({ connectorUrl, tunnelId, healthBase, ready, readyFile, claim, serverPid, tunnelPid }) {
+  console.log("remote-managed-tunnel: ready: the server published its claim and tunnel-client's MCP probe reached it");
+  console.log(`remote-managed-tunnel:   connector ${connectorUrl}`);
+  console.log(`remote-managed-tunnel:   tunnel    ${tunnelId}`);
   console.log(
-    "remote-managed-tunnel: Ctrl+C retires the server before the tunnel; the URL and every credential expire with this run.",
+    `remote-managed-tunnel:   server    pid ${String(serverPid)}, instance ${String(claim.serverInstanceId)}, ${String(claim.endpoint)}`,
   );
+  console.log(`remote-managed-tunnel:   client    pid ${String(tunnelPid)}, health ${healthBase} (${ready})`);
+  console.log(`remote-managed-tunnel:   readiness ${readyFile}`);
+  console.log("remote-managed-tunnel: point the connector at that endpoint, or select the tunnel id in ChatGPT. This");
+  console.log("remote-managed-tunnel: server serves no discovery document and issues no challenge, so the connector");
+  console.log("remote-managed-tunnel: completes no authorization step. Nothing local proves an OpenAI-side caller");
+  console.log("remote-managed-tunnel: reached this shell: a healthy client proves the hop this host owns.");
+  console.log("remote-managed-tunnel: Ctrl+C retires the server before the tunnel; the tunnel id outlives the run.");
 }
 
 async function run(options) {
@@ -397,9 +485,15 @@ async function run(options) {
     console.error("remote-managed-tunnel: yarn workspace @goodfoot/remote-managed-shell run build");
     return 1;
   }
-  let cloudflared;
+  let tunnelClient;
+  let tunnelId;
+  let apiKeyReference;
+  let baseUrl;
   try {
-    cloudflared = resolveCloudflared(options.cloudflared);
+    tunnelClient = resolveTunnelClient(options.tunnelClient);
+    tunnelId = resolveTunnelId(options.tunnelId);
+    apiKeyReference = resolveApiKeyReference(options.apiKey);
+    baseUrl = resolveBaseUrl();
     await assertPortFree(options.port);
   } catch (error) {
     console.error(`remote-managed-tunnel: ${message(error)}`);
@@ -407,7 +501,10 @@ async function run(options) {
   }
 
   const readyFile =
-    options.readyFile ?? join(tmpdir(), "remote-managed-shell", `ready-public-${String(options.port)}.json`);
+    options.readyFile ?? join(tmpdir(), "remote-managed-shell", `ready-${String(options.port)}.json`);
+  const healthUrlFile = join(tmpdir(), "remote-managed-shell", `tunnel-health-${String(options.port)}.url`);
+  const serverEndpoint = `http://${LISTEN_HOST}:${String(options.port)}/mcp`;
+  const connectorUrl = `${baseUrl}/v1/mcp/${tunnelId}`;
   const state = { stopping: false, tunnel: undefined, server: undefined, serverPid: undefined };
 
   // One stop channel for both a signal from the operator and a child that dies
@@ -440,16 +537,24 @@ async function run(options) {
   const stopEverything = async () => {
     state.stopping = true;
     // Server first: its orderly shutdown terminates managed work and removes
-    // the readiness claim it owns.
+    // the readiness claim it owns. The tunnel cannot admit work into a listener
+    // that is already gone.
     if (state.server !== undefined) await stopChild(state.server, "SIGINT", SERVER_STOP_GRACE_MS);
     if (state.tunnel !== undefined) await stopChild(state.tunnel, "SIGINT", TUNNEL_STOP_GRACE_MS);
     removeStaleClaim(readyFile, state.serverPid);
+    try {
+      // tunnel-client removes this on its own orderly shutdown; a forced stop
+      // can leave it behind, and the next start overwrites it either way.
+      rmSync(healthUrlFile, { force: true });
+    } catch {
+      // Leaving the file is safe.
+    }
   };
   const conclude = async (outcome) => {
     await stopEverything();
     if (outcome.kind === "signal") {
       console.log(
-        `remote-managed-tunnel: received ${outcome.signal}; the server retired its claim and the tunnel is closed`,
+        `remote-managed-tunnel: received ${outcome.signal}; the server retired its claim and tunnel-client is closed`,
       );
       return 0;
     }
@@ -458,40 +563,65 @@ async function run(options) {
   };
 
   try {
-    console.log(`remote-managed-tunnel: ${cloudflared.version}`);
-    console.log(`remote-managed-tunnel: requesting an Instant Tunnel for http://${LISTEN_HOST}:${options.port}`);
-    const tunnel = spawnTunnel(cloudflared.command, options.port);
-    state.tunnel = tunnel.child;
-    tunnel.child.on("exit", (code, signal) =>
-      halt({ kind: "failure", error: describeChildExit("cloudflared", code, signal) }),
-    );
-
-    const publicBase = await step(tunnel.url);
-    const mcpUrl = `${publicBase}/mcp`;
-    console.log(`remote-managed-tunnel: tunnel established at ${publicBase}`);
-    console.log("remote-managed-tunnel: starting the server in public mode; its secret and authorization URL follow");
-
+    // The server goes first: tunnel-client's startup probe runs once, so a
+    // client that probed before this listener existed would never turn green.
     const server = spawn(
       process.execPath,
-      [
-        SERVER_ENTRY,
-        "--mode=public",
-        `--url=${publicBase}`,
-        `--port=${String(options.port)}`,
-        `--ready-file=${readyFile}`,
-        ...options.serverArgs,
-      ],
+      [SERVER_ENTRY, `--port=${String(options.port)}`, `--ready-file=${readyFile}`, ...options.serverArgs],
       { cwd: PACKAGE_ROOT, stdio: ["ignore", "inherit", "inherit"], detached: true },
     );
     state.server = server;
     state.serverPid = server.pid;
+    server.on("error", (error) => halt({ kind: "failure", error }));
     server.on("exit", (code, signal) =>
-      halt({ kind: "failure", error: describeChildExit("the server", code, signal) }),
+      halt({
+        kind: "failure",
+        error: describeChildExit(
+          "the server",
+          "the loopback listener the tunnel forwards to is gone",
+          code,
+          signal,
+        ),
+      }),
     );
 
-    const claim = await step(waitForClaim(readyFile, server.pid, publicBase));
-    await step(verifyPublicRoute(publicBase, mcpUrl));
-    reportReady({ publicBase, mcpUrl, readyFile, claim, serverPid: server.pid });
+    const claim = await step(waitForClaim(readyFile, server.pid, serverEndpoint));
+    console.log(
+      `remote-managed-tunnel: server ready at ${serverEndpoint} (instance ${String(claim.serverInstanceId)})`,
+    );
+    console.log(`remote-managed-tunnel: ${tunnelClient.version}`);
+    console.log(`remote-managed-tunnel: starting tunnel-client for ${tunnelId}`);
+
+    rmSync(healthUrlFile, { force: true });
+    const tunnel = spawnTunnelClient({
+      command: tunnelClient.command,
+      port: options.port,
+      tunnelId,
+      apiKeyReference,
+      baseUrl,
+      healthUrlFile,
+    });
+    state.tunnel = tunnel;
+    tunnel.on("error", (error) => halt({ kind: "failure", error }));
+    tunnel.on("exit", (code, signal) =>
+      halt({
+        kind: "failure",
+        error: describeChildExit("tunnel-client", "the tunnel is no longer being served", code, signal),
+      }),
+    );
+
+    const healthBase = await step(waitForHealthUrl(healthUrlFile));
+    const ready = await step(waitForReady(healthBase));
+    reportReady({
+      connectorUrl,
+      tunnelId,
+      healthBase,
+      ready,
+      readyFile,
+      claim,
+      serverPid: server.pid,
+      tunnelPid: tunnel.pid,
+    });
 
     return await conclude(await halted);
   } catch (error) {
