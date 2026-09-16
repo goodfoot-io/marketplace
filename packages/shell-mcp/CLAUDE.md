@@ -1,4 +1,4 @@
-# remote-managed-shell
+# shell-mcp
 
 Remote managed Bash MCP server over Streamable HTTP — a Yarn 4 workspace member
 at `/workspace`. It exposes exactly five tools through one

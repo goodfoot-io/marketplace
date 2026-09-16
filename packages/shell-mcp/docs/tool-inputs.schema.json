@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:remote-managed-shell:tool-inputs:v1",
+  "$id": "urn:shell-mcp:tool-inputs:v1",
   "title": "Remote managed Bash MCP tool input contracts",
   "description": "Input schema starting point; state, byte-budget, PTY availability, and identity semantics require runtime validation. Defaults describe semantics; JSON Schema itself does not insert them.",
   "$defs": {

@@ -17,7 +17,7 @@ describe("unauthenticated server over real HTTP", () => {
   let directory: string;
 
   beforeAll(async () => {
-    directory = await mkdtemp(join(tmpdir(), "remote-managed-shell-http-"));
+    directory = await mkdtemp(join(tmpdir(), "shell-mcp-http-"));
     server = await startServer({ port: 0, readyFile: join(directory, "ready.json") });
   });
 

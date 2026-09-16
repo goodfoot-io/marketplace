@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    name: 'remote-managed-shell',
+    name: 'shell-mcp',
     environment: 'node',
     reporters: 'verbose',
     // tests/process-manager.test.ts polls settlement (spawn, exit, stream

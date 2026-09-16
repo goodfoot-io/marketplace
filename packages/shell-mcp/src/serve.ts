@@ -60,7 +60,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
   const mcpHandler = createMcpHandler(() => createServer(manager), {
     legacy: "stateless",
     responseMode: "json",
-    onerror: (error) => console.error(`remote-managed-shell: MCP handler error: ${error.message}`),
+    onerror: (error) => console.error(`shell-mcp: MCP handler error: ${error.message}`),
   });
 
   let boundPortValue = 0;
@@ -87,13 +87,11 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
     },
   };
   const nodeHandler = toNodeHandler(fetchHandler, {
-    onerror: (error) => console.error(`remote-managed-shell: request error: ${error.message}`),
+    onerror: (error) => console.error(`shell-mcp: request error: ${error.message}`),
   });
   const httpServer = createHttpServer((request, response) => {
     void serveNodeRequest(request, response, nodeHandler).catch((error: unknown) => {
-      console.error(
-        `remote-managed-shell: unhandled request failure: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      console.error(`shell-mcp: unhandled request failure: ${error instanceof Error ? error.message : String(error)}`);
       if (response.headersSent) response.destroy();
       else sendJson(response, 500, { error: "internal_error" });
     });
@@ -104,7 +102,7 @@ export async function startServer(config: ServerConfig): Promise<RunningServer> 
     const port = boundPort(httpServer, config.port);
     boundPortValue = port;
     const endpoint = new URL(`http://${LISTEN_HOST}:${port}${MCP_PATH}`);
-    const readyFile = config.readyFile ?? join(tmpdir(), "remote-managed-shell", `ready-${port}.json`);
+    const readyFile = config.readyFile ?? join(tmpdir(), "shell-mcp", `ready-${port}.json`);
     await writeReadyFile(readyFile, {
       pid: process.pid,
       serverInstanceId: manager.instanceId,

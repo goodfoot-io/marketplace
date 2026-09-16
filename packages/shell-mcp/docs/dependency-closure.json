@@ -1,13 +1,13 @@
 {
-  "format": "remote-managed-shell-dependency-closure-v1",
+  "format": "shell-mcp-dependency-closure-v1",
   "package": {
-    "name": "@goodfoot/remote-managed-shell",
+    "name": "@goodfoot/shell-mcp",
     "version": "0.1.0",
     "package_manager": "yarn@4.12.0"
   },
   "provenance": {
     "source": "workspace Yarn lockfile",
-    "manifest": "packages/remote-managed-shell/package.json",
+    "manifest": "packages/shell-mcp/package.json",
     "lockfile": "yarn.lock",
     "registry": "https://registry.npmjs.org",
     "registry_verified": true,

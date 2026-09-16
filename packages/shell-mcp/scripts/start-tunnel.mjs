@@ -373,7 +373,7 @@ async function waitForReady(healthBase) {
       last = `readyz returned ${response.status}${body === "" ? "" : `: ${body}`}`;
     }
     if (Date.now() - reportedAt > 10_000) {
-      console.error(`remote-managed-tunnel: waiting for tunnel-client readiness: ${last}`);
+      console.error(`shell-mcp-tunnel: waiting for tunnel-client readiness: ${last}`);
       reportedAt = Date.now();
     }
     await delay(500);
@@ -412,7 +412,7 @@ async function waitForPoll(healthBase) {
       last = message(error);
     }
     if (Date.now() - reportedAt > 10_000) {
-      console.error(`remote-managed-tunnel: waiting for a successful control-plane poll: ${last}`);
+      console.error(`shell-mcp-tunnel: waiting for a successful control-plane poll: ${last}`);
       reportedAt = Date.now();
     }
     await delay(500);
@@ -533,31 +533,31 @@ function delay(ms) {
 }
 
 function reportReady({ connectorUrl, baseUrl, tunnelId, healthBase, ready, polledAt, readyFile, claim, serverPid, tunnelPid }) {
-  console.log("remote-managed-tunnel: ready: the server published its claim, tunnel-client's MCP probe reached it,");
-  console.log("remote-managed-tunnel: and the control plane has accepted a poll");
-  console.log(`remote-managed-tunnel:   tunnel    ${tunnelId}`);
-  console.log(`remote-managed-tunnel:   connector ${connectorUrl}`);
-  console.log("remote-managed-tunnel:             the endpoint the tunnel service targets underneath, not something to");
-  console.log("remote-managed-tunnel:             paste: attach the connector by selecting this tunnel or its id");
+  console.log("shell-mcp-tunnel: ready: the server published its claim, tunnel-client's MCP probe reached it,");
+  console.log("shell-mcp-tunnel: and the control plane has accepted a poll");
+  console.log(`shell-mcp-tunnel:   tunnel    ${tunnelId}`);
+  console.log(`shell-mcp-tunnel:   connector ${connectorUrl}`);
+  console.log("shell-mcp-tunnel:             the endpoint the tunnel service targets underneath, not something to");
+  console.log("shell-mcp-tunnel:             paste: attach the connector by selecting this tunnel or its id");
   console.log(
-    `remote-managed-tunnel:   server    pid ${String(serverPid)}, instance ${String(claim.serverInstanceId)}, ${String(claim.endpoint)}`,
+    `shell-mcp-tunnel:   server    pid ${String(serverPid)}, instance ${String(claim.serverInstanceId)}, ${String(claim.endpoint)}`,
   );
   console.log(
-    `remote-managed-tunnel:   client    pid ${String(tunnelPid)}, ${healthBase} (${ready}; poll accepted ${new Date(polledAt * 1000).toISOString()})`,
+    `shell-mcp-tunnel:   client    pid ${String(tunnelPid)}, ${healthBase} (${ready}; poll accepted ${new Date(polledAt * 1000).toISOString()})`,
   );
-  console.log(`remote-managed-tunnel:   control   ${baseUrl}`);
-  console.log(`remote-managed-tunnel:   readiness ${readyFile}`);
-  console.log("remote-managed-tunnel: This server serves no discovery document and issues no challenge, so the connector");
-  console.log("remote-managed-tunnel: completes no authorization step, and nothing local proves an OpenAI-side caller");
-  console.log("remote-managed-tunnel: reached this shell: a healthy client proves the two hops this host owns — the");
-  console.log("remote-managed-tunnel: probe to this server and the poll the control plane accepted.");
-  console.log("remote-managed-tunnel: Ctrl+C retires the server before the tunnel; the tunnel id outlives the run.");
+  console.log(`shell-mcp-tunnel:   control   ${baseUrl}`);
+  console.log(`shell-mcp-tunnel:   readiness ${readyFile}`);
+  console.log("shell-mcp-tunnel: This server serves no discovery document and issues no challenge, so the connector");
+  console.log("shell-mcp-tunnel: completes no authorization step, and nothing local proves an OpenAI-side caller");
+  console.log("shell-mcp-tunnel: reached this shell: a healthy client proves the two hops this host owns — the");
+  console.log("shell-mcp-tunnel: probe to this server and the poll the control plane accepted.");
+  console.log("shell-mcp-tunnel: Ctrl+C retires the server before the tunnel; the tunnel id outlives the run.");
 }
 
 async function run(options) {
   if (!existsSync(SERVER_ENTRY)) {
-    console.error(`remote-managed-tunnel: ${SERVER_ENTRY} is missing; build the server first:`);
-    console.error("remote-managed-tunnel: yarn workspace @goodfoot/remote-managed-shell run build");
+    console.error(`shell-mcp-tunnel: ${SERVER_ENTRY} is missing; build the server first:`);
+    console.error("shell-mcp-tunnel: yarn workspace @goodfoot/shell-mcp run build");
     return 1;
   }
   let tunnelClient;
@@ -571,13 +571,13 @@ async function run(options) {
     baseUrl = resolveBaseUrl();
     await assertPortFree(options.port);
   } catch (error) {
-    console.error(`remote-managed-tunnel: ${message(error)}`);
+    console.error(`shell-mcp-tunnel: ${message(error)}`);
     return 1;
   }
 
   const readyFile =
-    options.readyFile ?? join(tmpdir(), "remote-managed-shell", `ready-${String(options.port)}.json`);
-  const healthUrlFile = join(tmpdir(), "remote-managed-shell", `tunnel-health-${String(options.port)}.url`);
+    options.readyFile ?? join(tmpdir(), "shell-mcp", `ready-${String(options.port)}.json`);
+  const healthUrlFile = join(tmpdir(), "shell-mcp", `tunnel-health-${String(options.port)}.url`);
   const serverEndpoint = `http://${LISTEN_HOST}:${String(options.port)}/mcp`;
   const connectorUrl = `${baseUrl}/v1/mcp/${tunnelId}`;
   const state = { stopping: false, tunnel: undefined, server: undefined, serverPid: undefined };
@@ -629,11 +629,11 @@ async function run(options) {
     await stopEverything();
     if (outcome.kind === "signal") {
       console.log(
-        `remote-managed-tunnel: received ${outcome.signal}; the server retired its claim and tunnel-client is closed`,
+        `shell-mcp-tunnel: received ${outcome.signal}; the server retired its claim and tunnel-client is closed`,
       );
       return 0;
     }
-    console.error(`remote-managed-tunnel: ${message(outcome.error)}`);
+    console.error(`shell-mcp-tunnel: ${message(outcome.error)}`);
     return 1;
   };
 
@@ -662,10 +662,10 @@ async function run(options) {
 
     const claim = await step(waitForClaim(readyFile, server.pid, serverEndpoint));
     console.log(
-      `remote-managed-tunnel: server ready at ${serverEndpoint} (instance ${String(claim.serverInstanceId)})`,
+      `shell-mcp-tunnel: server ready at ${serverEndpoint} (instance ${String(claim.serverInstanceId)})`,
     );
-    console.log(`remote-managed-tunnel: ${tunnelClient.version}`);
-    console.log(`remote-managed-tunnel: starting tunnel-client for ${tunnelId}`);
+    console.log(`shell-mcp-tunnel: ${tunnelClient.version}`);
+    console.log(`shell-mcp-tunnel: starting tunnel-client for ${tunnelId}`);
 
     rmSync(healthUrlFile, { force: true });
     const tunnel = spawnTunnelClient({
@@ -720,7 +720,7 @@ async function main(argv) {
       return 0;
     }
     if (error instanceof UsageError) {
-      console.error(`remote-managed-tunnel: ${error.message}\n`);
+      console.error(`shell-mcp-tunnel: ${error.message}\n`);
       console.error(USAGE);
       return 2;
     }
@@ -734,7 +734,7 @@ await main(process.argv.slice(2)).then(
     process.exitCode = code;
   },
   (error) => {
-    console.error(`remote-managed-tunnel: failed: ${message(error)}`);
+    console.error(`shell-mcp-tunnel: failed: ${message(error)}`);
     process.exitCode = 1;
   },
 );

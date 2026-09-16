@@ -24,7 +24,7 @@ async function main(argv: readonly string[]): Promise<number> {
       return 0;
     }
     if (error instanceof ConfigError) {
-      console.error(`remote-managed-shell: ${error.message}\n`);
+      console.error(`shell-mcp: ${error.message}\n`);
       console.error(USAGE);
       return USAGE_EXIT_CODE;
     }
@@ -32,14 +32,12 @@ async function main(argv: readonly string[]): Promise<number> {
   }
 
   const running = await startServer(config);
-  console.log(`remote-managed-shell: listening on ${running.endpoint.href}`);
-  console.log(`remote-managed-shell: server instance ${running.serverInstanceId}`);
-  console.log(`remote-managed-shell: ready file ${running.readyFile}`);
-  console.log("remote-managed-shell: WARNING: this server authenticates nobody; any caller that reaches this endpoint");
-  console.log(
-    "remote-managed-shell: receives the full shell authority of this Unix account. Reaching it is the OpenAI tunnel's",
-  );
-  console.log("remote-managed-shell: job, together with the operator's organization membership.");
+  console.log(`shell-mcp: listening on ${running.endpoint.href}`);
+  console.log(`shell-mcp: server instance ${running.serverInstanceId}`);
+  console.log(`shell-mcp: ready file ${running.readyFile}`);
+  console.log("shell-mcp: WARNING: this server authenticates nobody; any caller that reaches this endpoint");
+  console.log("shell-mcp: receives the full shell authority of this Unix account. Reaching it is the OpenAI tunnel's");
+  console.log("shell-mcp: job, together with the operator's organization membership.");
 
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals): void => {
@@ -47,13 +45,13 @@ async function main(argv: readonly string[]): Promise<number> {
       return;
     }
     shuttingDown = true;
-    console.log(`remote-managed-shell: received ${signal}, shutting down`);
+    console.log(`shell-mcp: received ${signal}, shutting down`);
     running.close().then(
       () => {
         process.exit(0);
       },
       (error: unknown) => {
-        console.error(`remote-managed-shell: shutdown failed: ${String(error)}`);
+        console.error(`shell-mcp: shutdown failed: ${String(error)}`);
         process.exit(1);
       },
     );
@@ -70,7 +68,7 @@ await main(process.argv.slice(2)).then(
   },
   (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`remote-managed-shell: failed to start: ${message}`);
+    console.error(`shell-mcp: failed to start: ${message}`);
     process.exitCode = 1;
   },
 );

@@ -67,7 +67,7 @@ export class UsageRequested extends Error {
   override readonly name = "UsageRequested";
 }
 
-export const USAGE = `Usage: remote-managed-shell [options]
+export const USAGE = `Usage: shell-mcp [options]
 
   --port=<0-65535>        Loopback listen port (default ${DEFAULT_PORT}; 0 is ephemeral).
   --ready-file=<path>     Atomic readiness-file location.

@@ -184,7 +184,7 @@ export class ProcessManager {
         maxSegments: this.limits.segments,
         pendingBytes: this.limits.spoolQueueBytes,
         pendingEntries: this.limits.spoolQueueEntries,
-        root: options.spoolRoot ?? `${tmpdir()}/remote-managed-shell-transcripts-${this.instanceId}`,
+        root: options.spoolRoot ?? `${tmpdir()}/shell-mcp-transcripts-${this.instanceId}`,
       },
       (sessionId) => {
         const session = this.sessions.get(sessionId);

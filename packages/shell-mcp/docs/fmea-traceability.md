@@ -7,7 +7,7 @@ implementation has an explicit limit, or the check covered only a smaller
 part of the Appendix F scenario. `not run` means there is no execution
 evidence for that scenario.
 
-The current package baseline is `yarn workspace @goodfoot/remote-managed-shell
+The current package baseline is `yarn workspace @goodfoot/shell-mcp
 typecheck`, `build`, and `test`: typecheck and build passed; Vitest reported 29
 passed and two skipped opt-in tests (the ten-minute duration and one-hour soak).
 The baseline ran on Node.js v24.16.0, Yarn 4.12.0, Bash 5.2.37, Linux aarch64

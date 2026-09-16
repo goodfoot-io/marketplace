@@ -196,7 +196,7 @@ const packages = packageRecords.map((record) => {
 });
 
 const output = {
-  format: "remote-managed-shell-dependency-closure-v1",
+  format: "shell-mcp-dependency-closure-v1",
   package: {
     name: manifest.name,
     version: manifest.version,
@@ -204,7 +204,7 @@ const output = {
   },
   provenance: {
     source: "workspace Yarn lockfile",
-    manifest: "packages/remote-managed-shell/package.json",
+    manifest: "packages/shell-mcp/package.json",
     lockfile: "yarn.lock",
     registry: "https://registry.npmjs.org",
     registry_verified: registryErrors.length === 0,
@@ -296,7 +296,7 @@ async function readRegistryMetadata(ident, version) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const response = await fetch(url, {
-        headers: { accept: "application/json", "user-agent": "goodfoot-remote-managed-shell-dependency-export/1" },
+        headers: { accept: "application/json", "user-agent": "goodfoot-shell-mcp-dependency-export/1" },
       });
       if (!response.ok) throw new Error(`registry returned ${response.status} for ${ident}@${version}`);
       const metadata = await response.json();

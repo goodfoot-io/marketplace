@@ -3,7 +3,7 @@
 The package uses the repository's Yarn 4 lockfile at [`/workspace/yarn.lock`](../../../yarn.lock) as its dependency-resolution record. Run this from the package directory to export the package's direct dependencies and the transitive lockfile closure:
 
 ```bash
-node scripts/export-dependencies.mjs > /tmp/remote-managed-shell-dependencies.json
+node scripts/export-dependencies.mjs > /tmp/shell-mcp-dependencies.json
 ```
 
 For the checked-in delivery artifact, use the exporter’s explicit write option:

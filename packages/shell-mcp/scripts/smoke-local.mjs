@@ -19,7 +19,7 @@ const EXPECTED_TOOLS = ["exec_command", "read_process", "write_stdin", "terminat
 const READY_TIMEOUT_MS = 15_000;
 
 export async function startLocalProcess({ command = "built", port = 0, readyFile } = {}) {
-  const generatedReadyFile = readyFile ?? join(await mkdtemp(join(tmpdir(), "remote-managed-shell-smoke-")), "ready.json");
+  const generatedReadyFile = readyFile ?? join(await mkdtemp(join(tmpdir(), "shell-mcp-smoke-")), "ready.json");
   const args = [`--port=${port}`, `--ready-file=${generatedReadyFile}`];
   const child = command === "dev"
     ? spawn("yarn", ["run", "dev", ...args], { cwd: PACKAGE_ROOT, detached: true, stdio: ["ignore", "pipe", "pipe"] })
@@ -51,7 +51,7 @@ export async function stopLocalProcess(child) {
 }
 
 export async function runSdkSmoke(endpoint) {
-  const client = new Client({ name: "remote-managed-shell-smoke", version: "0.1.0" });
+  const client = new Client({ name: "shell-mcp-smoke", version: "0.1.0" });
   const transport = new StreamableHTTPClientTransport(new URL(endpoint));
   try {
     await client.connect(transport);

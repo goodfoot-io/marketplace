@@ -1,5 +1,5 @@
 {
-  "name": "@goodfoot/remote-managed-shell",
+  "name": "@goodfoot/shell-mcp",
   "version": "0.1.0",
   "private": true,
   "type": "module",

@@ -2585,9 +2585,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@goodfoot/remote-managed-shell@workspace:packages/remote-managed-shell":
+"@goodfoot/shell-mcp@workspace:packages/shell-mcp":
   version: 0.0.0-use.local
-  resolution: "@goodfoot/remote-managed-shell@workspace:packages/remote-managed-shell"
+  resolution: "@goodfoot/shell-mcp@workspace:packages/shell-mcp"
   dependencies:
     "@biomejs/biome": "npm:2.5.13"
     "@modelcontextprotocol/client": "npm:2.0.0"

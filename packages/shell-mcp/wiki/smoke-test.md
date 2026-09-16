@@ -8,8 +8,8 @@ Run the package checks from the package directory or use the equivalent scoped
 Yarn command from `/workspace`:
 
 ```bash
-yarn workspace @goodfoot/remote-managed-shell run build
-yarn workspace @goodfoot/remote-managed-shell run smoke:local
+yarn workspace @goodfoot/shell-mcp run build
+yarn workspace @goodfoot/shell-mcp run smoke:local
 ```
 
 `smoke:local` starts `build/dist/src/main.js` with `--port=0` and a unique
@@ -62,7 +62,7 @@ nodeLinker: node-modules
 cd /tmp/mcp-inspector && yarn install
 export MCP_INSPECTOR=/tmp/mcp-inspector/node_modules/@modelcontextprotocol/inspector/clients/launcher/build/index.js
 cd /workspace
-yarn workspace @goodfoot/remote-managed-shell run smoke:mcp-cli
+yarn workspace @goodfoot/shell-mcp run smoke:mcp-cli
 ```
 
 When `MCP_INSPECTOR` is missing or unreadable, `smoke:mcp-cli` reports
