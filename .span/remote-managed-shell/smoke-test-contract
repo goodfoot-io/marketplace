@@ -2,8 +2,8 @@ packages/remote-managed-shell/src/config.ts#L11-L18 rk64:7a67a0687e7686c8
 packages/remote-managed-shell/src/main.ts#L50-L64 rk64:eb62be51d2d0c581
 packages/remote-managed-shell/src/main.ts#L73-L81 rk64:f57dda7cdac239ab
 packages/remote-managed-shell/src/serve.ts#L20-L31 rk64:5a776eb6133e944a
-packages/remote-managed-shell/src/serve.ts#L109-L121 rk64:ec1228b2377f941f
-packages/remote-managed-shell/src/serve.ts#L185-L223 rk64:a8f723018b3414a6
+packages/remote-managed-shell/src/serve.ts#L109-L122 rk64:98041767b957167c
+packages/remote-managed-shell/src/serve.ts#L186-L224 rk64:5cd15c333084fe11
 packages/remote-managed-shell/src/server.ts#L16-L52 rk64:ac70fe616f2269f6
 packages/remote-managed-shell/wiki/smoke-test.md rk64:fcbcf02e675fb222
 
