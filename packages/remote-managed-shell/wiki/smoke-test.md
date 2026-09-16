@@ -110,9 +110,10 @@ as a passed tool call.
 
 ## Public endpoint check
 
-Public mode only advertises an operator-managed HTTPS route; this package does
-not launch or probe a tunnel. If an operator has a reachable route and a
-short-lived OAuth token, run:
+Public mode only advertises an operator-managed HTTPS route; the server neither
+launches nor probes a tunnel. `start:tunnel` (README: Instant Tunnel) does both
+for a quick `*.trycloudflare.com` route. If an operator has a reachable route
+and a short-lived OAuth token, run:
 
 ```bash
 REMOTE_MANAGED_SHELL_PUBLIC_URL=https://shell.example.net \

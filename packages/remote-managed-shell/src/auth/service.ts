@@ -430,7 +430,15 @@ export class AuthService {
         return this.oauthErrorResponse(OAuthErrorCode.InvalidClientMetadata, "Authorization request denied");
       if (isSpecialAddress(parsed.hostname) && !(this.mode === "local" && parsed.hostname === "127.0.0.1"))
         return this.oauthErrorResponse(OAuthErrorCode.InvalidClientMetadata, "Authorization request denied");
-      const addresses = await this.resolveHostname(parsed.hostname);
+      let addresses: readonly string[];
+      try {
+        addresses = await this.resolveHostname(parsed.hostname);
+      } catch {
+        // A resolver failure means the client identity could not be checked, so
+        // it is refused like any other unverifiable document rather than
+        // escaping as an opaque request error.
+        return this.oauthErrorResponse(OAuthErrorCode.InvalidClientMetadata, "Authorization request denied");
+      }
       if (
         addresses.length === 0 ||
         addresses.some((address) => isSpecialAddress(address) && !(this.mode === "local" && address === "127.0.0.1"))

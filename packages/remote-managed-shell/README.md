@@ -2,7 +2,7 @@
 
 `@goodfoot/remote-managed-shell` exposes one managed Bash service through five authenticated MCP tools: `exec_command`, `read_process`, `write_stdin`, `terminate_process`, and `list_processes`. Commands run as the Unix account that starts the server. This is direct shell access; only publish it to clients and machines you trust.
 
-The server always binds `127.0.0.1`. Local mode is useful for development. Public mode advertises an operator-owned HTTPS URL, but never creates or supervises a tunnel or proxy.
+The server always binds `127.0.0.1`. Local mode is useful for development. Public mode advertises an operator-owned HTTPS URL; the server never creates or supervises a tunnel or proxy — the companion `start:tunnel` script below puts one in front of it.
 
 ## Run
 
@@ -16,6 +16,17 @@ yarn workspace @goodfoot/remote-managed-shell run start --url=https://shell.exam
 ```
 
 The process prints a fresh startup secret and authorization URL once. The secret exists only in memory and terminal output. It is absent from the readiness file, health route, logs, environment, and tool results. Restarting creates a new server instance and invalidates the secret, authorization codes, and tokens.
+
+## Instant Tunnel
+
+`start:tunnel` publishes the loopback port with a Cloudflare Instant Tunnel — the account-less `cloudflared tunnel --url` quick tunnel — so a client can reach the server without a named tunnel, a Cloudflare login, or a DNS record:
+
+```bash
+yarn workspace @goodfoot/remote-managed-shell run start:tunnel
+yarn workspace @goodfoot/remote-managed-shell run start:tunnel --port=38147 -- --workdir=/srv
+```
+
+`cloudflared` must be on `PATH` or passed as `--cloudflared=<path>`. The script starts the tunnel first and the server second, because public mode bakes the advertised base URL into the issuer, the resource indicator, and every discovery document. It reports the `<url>/mcp` endpoint only after `/healthz`, the protected-resource metadata, and the MCP `401` challenge all answer with that URL, and it stops everything if either child exits on its own. A quick-tunnel hostname exists only for the life of the run: each restart mints a new one and invalidates the startup secret, codes, and tokens. Ctrl+C retires the server before the tunnel. Cloudflare rate-limits account-less tunnels per source address, so back-to-back runs can be refused with `429`; the script reports that and stops rather than retrying.
 
 ## Connect from ChatGPT
 

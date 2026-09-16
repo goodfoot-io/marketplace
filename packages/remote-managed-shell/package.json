@@ -16,6 +16,7 @@
     "dev": "tsx watch --clear-screen=false src/main.ts",
     "start": "node build/dist/src/main.js --mode=public",
     "start:local": "node build/dist/src/main.js --mode=local",
+    "start:tunnel": "yarn run build && node scripts/start-tunnel.mjs",
     "smoke:local": "yarn run build && node scripts/smoke-local.mjs",
     "smoke:mcp-cli": "node scripts/smoke-mcp-cli.mjs",
     "smoke:public": "node scripts/smoke-public.mjs",

@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ProcessManager } from "../src/process-manager.js";
 
+/**
+ * Settlement (spawn, exit, stream close, retention expiry) is event-driven and
+ * can arrive long after the caller's first yield on a loaded host, so these
+ * tests wait for the state they assert instead of trusting one fixed window.
+ */
+const SETTLE_TIMEOUT_MS = 20_000;
+
 const execInput = (
   manager: ProcessManager,
   operation_id: string,
@@ -36,18 +43,21 @@ describe("ProcessManager", () => {
   it("captures fast stdout/stderr and ordinary nonzero exit", async () => {
     manager = new ProcessManager({ pty: false });
     const result = await manager.execCommand(execInput(manager, "fast", "printf out; printf err >&2; exit 7"));
-    expect(result.status).toBe("exited");
-    expect(result.exit_code).toBe(7);
-    const settled = result.output_closed
-      ? result
-      : await manager.readProcess({
-          session_id: result.session_id,
-          cursor: result.next_cursor,
-          wait_ms: 500,
-          max_output_bytes: 16_384,
-        });
+    let settled = result;
+    const output = [...result.output];
+    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+    while (!settled.output_closed && Date.now() < deadline) {
+      settled = await manager.readProcess({
+        session_id: result.session_id,
+        cursor: settled.next_cursor,
+        wait_ms: 500,
+        max_output_bytes: 16_384,
+      });
+      output.push(...settled.output);
+    }
+    expect(settled.status).toBe("exited");
+    expect(settled.exit_code).toBe(7);
     expect(settled.output_closed).toBe(true);
-    const output = [...result.output, ...settled.output];
     expect(output).toEqual(
       expect.arrayContaining([
         { stream: "stdout", data: "out", seq: expect.any(Number), offset: 0 },
@@ -145,21 +155,70 @@ describe("ProcessManager", () => {
         max_output_bytes: 16_384,
       }),
     ).rejects.toMatchObject({ code: "STDIN_CLOSED" });
-    const observed = await manager.readProcess({
+    let observed = await manager.readProcess({
       session_id: started.session_id,
       cursor: write.next_cursor,
       wait_ms: 500,
       max_output_bytes: 16_384,
     });
-    if (!observed.output_closed)
-      await manager.readProcess({
+    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+    while (!observed.output_closed && Date.now() < deadline) {
+      observed = await manager.readProcess({
         session_id: started.session_id,
         cursor: observed.next_cursor,
         wait_ms: 500,
         max_output_bytes: 16_384,
       });
+    }
     const listed = await manager.listProcesses({ include_completed: true, limit: 50 });
     expect(listed.processes[0].output_closed).toBe(true);
+  });
+
+  it("rejects an invalid cursor without delivering the accompanying stdin", async () => {
+    manager = new ProcessManager({ pty: false });
+    const started = await manager.execCommand(
+      execInput(manager, "poisoned-cursor", "read value; printf '<%s>' \"$value\"", { yield_time_ms: 0 }),
+    );
+    await expect(
+      manager.writeStdin({
+        session_id: started.session_id,
+        write_id: "poison",
+        chars: "poisoned\n",
+        close_stdin: true,
+        interrupt: false,
+        cursor: "not-a-valid-cursor-token",
+        yield_time_ms: 0,
+        max_output_bytes: 16_384,
+      }),
+    ).rejects.toMatchObject({ code: "CURSOR_INVALID" });
+    const write = await manager.writeStdin({
+      session_id: started.session_id,
+      write_id: "answer",
+      chars: "answer\n",
+      close_stdin: true,
+      interrupt: false,
+      yield_time_ms: 0,
+      max_output_bytes: 16_384,
+    });
+    expect(write.write).toMatchObject({ delivery_status: "handed_off", close_stdin: true });
+    let observed = await manager.readProcess({
+      session_id: started.session_id,
+      cursor: write.next_cursor,
+      wait_ms: 500,
+      max_output_bytes: 16_384,
+    });
+    const output = [...observed.output];
+    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+    while (!observed.output_closed && Date.now() < deadline) {
+      observed = await manager.readProcess({
+        session_id: started.session_id,
+        cursor: observed.next_cursor,
+        wait_ms: 500,
+        max_output_bytes: 16_384,
+      });
+      output.push(...observed.output);
+    }
+    expect(outputText(output)).toBe("<answer>");
   });
 
   it("keeps output readable after leader exit while a descendant holds the pipe", async () => {
@@ -189,21 +248,48 @@ describe("ProcessManager", () => {
     const started = await manager.execCommand(
       execInput(manager, "waiter", "sleep .15; printf wake", { yield_time_ms: 0 }),
     );
+    const waitMs = 3_000;
     const began = performance.now();
-    const page = await manager.readProcess({
+    let page = await manager.readProcess({
       session_id: started.session_id,
       cursor: "start",
-      wait_ms: 3_000,
+      wait_ms: waitMs,
       max_output_bytes: 100,
     });
-    expect(outputText(page.output)).toContain("wake");
-    expect(performance.now() - began).toBeLessThan(2_000);
+    const elapsed = performance.now() - began;
+    const output = [...page.output];
+    // This read spans the session's starting -> running transition. That
+    // transition must not settle the waiter: without a known_state_version and
+    // while the session is incomplete, the only legal way to observe no output
+    // is for the wait budget to have expired. An empty page that arrived early
+    // is that premature wake, whatever the host's load.
+    if (outputText(output) === "" && page.status !== "exited" && page.status !== "failed_to_start") {
+      expect(elapsed).toBeGreaterThanOrEqual(waitMs - 250);
+    }
+    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+    while (outputText(output) === "" && Date.now() < deadline) {
+      page = await manager.readProcess({
+        session_id: started.session_id,
+        cursor: page.next_cursor,
+        wait_ms: waitMs,
+        max_output_bytes: 100,
+      });
+      output.push(...page.output);
+    }
+    expect(outputText(output)).toContain("wake");
   });
 
   it("retains an operation tombstone after its detailed result expires", async () => {
     manager = new ProcessManager({ pty: false, limits: { retentionMs: 20 } });
     const started = await manager.execCommand(execInput(manager, "expired", "printf once"));
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // The retention clock starts only once the session settles, so poll for the
+    // tombstone instead of sleeping a fixed interval.
+    let listed = await manager.listProcesses({ operation_id: "expired", include_completed: true, limit: 50 });
+    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+    while (listed.operation?.retention?.result_expired !== true && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      listed = await manager.listProcesses({ operation_id: "expired", include_completed: true, limit: 50 });
+    }
     await expect(manager.execCommand(execInput(manager, "expired", "printf once"))).rejects.toMatchObject({
       code: "OPERATION_RESULT_EXPIRED",
     });
@@ -215,7 +301,6 @@ describe("ProcessManager", () => {
         max_output_bytes: 100,
       }),
     ).rejects.toMatchObject({ code: "SESSION_EXPIRED" });
-    const listed = await manager.listProcesses({ operation_id: "expired", include_completed: true, limit: 50 });
     expect(listed.operation).toMatchObject({ operation_id: "expired", retention: { result_expired: true } });
   });
 

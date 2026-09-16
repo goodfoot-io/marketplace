@@ -383,6 +383,7 @@ export class ProcessManager {
       "INVALID_ARGUMENT",
       "Input payload exceeds the configured limit.",
     );
+    const cursorPosition = input.cursor ? this.decodeOutput(session, input.cursor) : undefined;
     const fingerprint = hash(
       JSON.stringify({ chars: input.chars, close_stdin: input.close_stdin, interrupt: input.interrupt }),
     );
@@ -392,15 +393,10 @@ export class ProcessManager {
         throw new DomainError("WRITE_ID_CONFLICT", "write_id is already bound to different input.", {
           write_id: input.write_id,
         });
-      const page = input.cursor
-        ? await this.observe(
-            session,
-            this.decodeOutput(session, input.cursor),
-            input.max_output_bytes,
-            input.yield_time_ms,
-            undefined,
-          )
-        : undefined;
+      const page =
+        cursorPosition !== undefined
+          ? await this.observe(session, cursorPosition, input.max_output_bytes, input.yield_time_ms, undefined)
+          : undefined;
       return { ...this.processResult(session, page, true), write: { ...previous.record, replayed: true } };
     }
     requireThat(this.writeCount < this.limits.writeIds, "CAPACITY_EXCEEDED", "The write identity registry is full.");
@@ -486,15 +482,10 @@ export class ProcessManager {
       this.signal(session);
     });
     await session.inputTail;
-    const page = input.cursor
-      ? await this.observe(
-          session,
-          this.decodeOutput(session, input.cursor),
-          input.max_output_bytes,
-          input.yield_time_ms,
-          undefined,
-        )
-      : undefined;
+    const page =
+      cursorPosition !== undefined
+        ? await this.observe(session, cursorPosition, input.max_output_bytes, input.yield_time_ms, undefined)
+        : undefined;
     return { ...this.processResult(session, page, false), write: { ...record } };
   }
 

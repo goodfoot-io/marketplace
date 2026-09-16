@@ -226,6 +226,40 @@ describe("AuthService", () => {
     expect((await response.json()).error).toBe("invalid_client_metadata");
   });
 
+  it("refuses a client identity whose hostname does not resolve", async () => {
+    for (const mode of ["local", "public"] as const) {
+      let fetches = 0;
+      const service = new AuthService({
+        mode,
+        baseUrl: mode === "local" ? "http://127.0.0.1:38147" : "https://shell.example.net",
+        resolve: async () => {
+          throw new Error("getaddrinfo ENOTFOUND client.example.net");
+        },
+        fetch: async () => {
+          fetches += 1;
+          return new Response("{}", { headers: { "content-type": "application/json" } });
+        },
+      });
+      const url = new URL(service.authorizationUrl);
+      url.search = new URLSearchParams({
+        client_id: mode === "local" ? clientId : "https://client.example.net/client.json",
+        redirect_uri: redirectUri,
+        response_type: "code",
+        code_challenge: "abc",
+        code_challenge_method: "S256",
+        resource: service.resource,
+      }).toString();
+      const response = await service.route(new Request(url));
+      expect(response?.status).toBe(400);
+      if (!response) throw new Error("authorization route did not handle the unresolvable client identity");
+      expect(await response.json()).toMatchObject({
+        error: "invalid_client_metadata",
+        iss: service.issuer,
+      });
+      expect(fetches).toBe(0);
+    }
+  });
+
   it("returns insufficient_scope for an otherwise valid token", async () => {
     const service = makeAuth();
     const records = (service as unknown as { accessTokens: Map<string, unknown> }).accessTokens;
