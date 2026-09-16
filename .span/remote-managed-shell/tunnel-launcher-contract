@@ -1,5 +1,5 @@
-packages/remote-managed-shell/README.md#L20-L29 rk64:56705d1ebdca8026
-packages/remote-managed-shell/scripts/start-tunnel.mjs rk64:e5f28eb86ef7e8cf
-packages/remote-managed-shell/wiki/smoke-test.md#L111-L127 rk64:12b46bb7f7f930bf
+packages/remote-managed-shell/README.md#L19-L28 rk64:7862bf8d5cc583d6
+packages/remote-managed-shell/scripts/start-tunnel.mjs rk64:3851298f74901209
+packages/remote-managed-shell/wiki/smoke-test.md#L101-L111 rk64:a34e708a1ff655fc
 
-scripts/start-tunnel.mjs is the sole implementation of the Instant Tunnel launcher; README.md's Instant Tunnel section and wiki/smoke-test.md's Public endpoint check section each restate its startup order, readiness verification against /healthz and the OAuth challenge, shutdown ordering, and rate-limit handling as prose, and nothing automated checks either doc against the script, so a behavior change here is re-verified by hand in both docs.
+scripts/start-tunnel.mjs is the sole implementation of the tunnel launcher; README.md's Secure MCP Tunnel section and wiki/smoke-test.md's Tunnel endpoint check section each restate its start order, the readiness it demands from the server and from tunnel-client, and its stop order as prose, and nothing automated compares either doc against the script, so a behavior change is re-verified by hand in both docs and any claim the script cannot support stays a not-run boundary.

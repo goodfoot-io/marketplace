@@ -1,4 +1,4 @@
-packages/remote-managed-shell/scripts/start-tunnel.mjs#L40-L41 rk64:6ad3c0778169d231
-packages/remote-managed-shell/src/config.ts#L4-L4 rk64:d1389370f379e177
+packages/remote-managed-shell/scripts/start-tunnel.mjs#L41-L42 rk64:6ad3c0778169d231
+packages/remote-managed-shell/src/config.ts#L3-L3 rk64:d1389370f379e177
 
 scripts/start-tunnel.mjs duplicates src/config.ts's DEFAULT_PORT literal because the launcher runs standalone before the server process exists and cannot import it; only a hand-written comment ties the two constants, so changing either alone silently desyncs the tunnel's default port from the server's.
