@@ -14,8 +14,6 @@ export const TOOL_NAMES = [
   "list_processes",
 ] as const;
 
-const securityMeta = { securitySchemes: [{ type: "oauth2", scopes: ["mcp"] }] };
-
 export function createServer(manager: ProcessManager): McpServer {
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
@@ -65,7 +63,6 @@ function register<Name extends ToolName>(
         idempotentHint: idempotent,
         openWorldHint: true,
       },
-      _meta: securityMeta,
     },
     async (input: unknown) => {
       manager.logInvocation(name, "started");

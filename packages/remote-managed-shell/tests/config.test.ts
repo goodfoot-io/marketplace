@@ -1,61 +1,67 @@
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ConfigError, DEFAULT_PORT, isLocalOrSpecialHostname, normalizePublicUrl, parseArgs } from "../src/config.js";
+import { ConfigError, DEFAULT_PORT, parseArgs, USAGE, UsageRequested } from "../src/config.js";
 
 describe("configuration", () => {
-  it("defaults to loopback-only local mode", () => {
-    expect(parseArgs([])).toMatchObject({ mode: "local", port: DEFAULT_PORT, bash: "/bin/bash", disablePty: false });
+  it("defaults to a loopback server with no external identity", () => {
+    expect(parseArgs([])).toMatchObject({ port: DEFAULT_PORT, bash: "/bin/bash", disablePty: false });
   });
 
-  it("requires a deliberate public URL", () => {
-    expect(parseArgs(["--mode=public", "--url=https://shell.example.net/"])).toMatchObject({
-      mode: "public",
-      publicUrl: "https://shell.example.net",
-    });
+  it("rejects the retired public-identity options", () => {
     expect(() => parseArgs(["--mode=public"])).toThrow(ConfigError);
+    expect(() => parseArgs(["--mode=local"])).toThrow(ConfigError);
     expect(() => parseArgs(["--url=https://shell.example.net"])).toThrow(ConfigError);
   });
 
-  it("rejects local and special-use public identities", () => {
-    for (const url of [
-      "https://localhost",
-      "https://app.localhost",
-      "https://127.10.20.30",
-      "https://[::1]",
-      "https://0.0.0.0",
-      "https://10.0.0.1",
-      "https://172.16.0.1",
-      "https://192.168.0.1",
-      "https://169.254.1.2",
-      "https://224.0.0.1",
-    ])
-      expect(() => normalizePublicUrl(url), url).toThrow(ConfigError);
+  it("accepts and resolves each documented option", () => {
+    const config = parseArgs([
+      "--port=0",
+      "--ready-file=./ready.json",
+      "--bash=/bin/sh",
+      "--workdir=./work",
+      "--spool-dir=./spool",
+      "--disable-pty",
+    ]);
+    expect(config).toMatchObject({
+      port: 0,
+      readyFile: resolve("./ready.json"),
+      bash: "/bin/sh",
+      workdir: resolve("./work"),
+      spoolRoot: resolve("./spool"),
+      disablePty: true,
+    });
   });
 
-  it("rejects ambiguous URLs and unsupported observation profiles", () => {
-    expect(() => normalizePublicUrl("http://shell.example.net")).toThrow(ConfigError);
-    expect(() => normalizePublicUrl("https://user@shell.example.net")).toThrow(ConfigError);
-    expect(() => normalizePublicUrl("https://shell.example.net/?x=1")).toThrow(ConfigError);
+  it("documents every flag it accepts", () => {
+    for (const flag of [
+      "--port",
+      "--ready-file",
+      "--bash",
+      "--workdir",
+      "--spool-dir",
+      "--max-wait-ms",
+      "--disable-pty",
+      "--help",
+    ])
+      expect(USAGE, flag).toContain(flag);
+  });
+
+  it("rejects unknown, repeated, malformed, and out-of-range options", () => {
     expect(() => parseArgs(["--max-wait-ms=60000"])).toThrow(ConfigError);
     expect(() => parseArgs(["--port=70000"])).toThrow(ConfigError);
+    expect(() => parseArgs(["--port=three"])).toThrow(ConfigError);
+    expect(() => parseArgs(["--ready-file="])).toThrow(ConfigError);
+    expect(() => parseArgs(["--bash="])).toThrow(ConfigError);
+    expect(() => parseArgs(["--port=1", "--port=2"])).toThrow(ConfigError);
+    expect(() => parseArgs(["positional"])).toThrow(ConfigError);
   });
 
-  it("recognizes loopback names and literals", () => {
-    expect(isLocalOrSpecialHostname("localhost")).toBe(true);
-    expect(isLocalOrSpecialHostname("127.99.1.2")).toBe(true);
-    expect(isLocalOrSpecialHostname("[::1]")).toBe(true);
-    expect(isLocalOrSpecialHostname("shell.example.net")).toBe(false);
+  it("carries a caller-supplied observation wait into the limits", () => {
+    expect(parseArgs(["--max-wait-ms=0"]).limits?.maxWaitMs).toBe(0);
+    expect(parseArgs([]).limits?.maxWaitMs).toBe(20_000);
   });
 
-  it("rejects mapped, 6to4, shared, and documentation special-use identities", () => {
-    for (const url of [
-      "https://[::ffff:127.0.0.1]",
-      "https://[::ffff:10.0.0.1]",
-      "https://[2002:7f00:1::1]",
-      "https://100.64.0.1",
-      "https://192.0.2.1",
-      "https://198.51.100.1",
-      "https://203.0.113.1",
-    ])
-      expect(() => normalizePublicUrl(url), url).toThrow(ConfigError);
+  it("treats --help as a request for usage rather than an error", () => {
+    expect(() => parseArgs(["--help"])).toThrow(UsageRequested);
   });
 });

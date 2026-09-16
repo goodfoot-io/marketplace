@@ -32,20 +32,14 @@ async function main(argv: readonly string[]): Promise<number> {
   }
 
   const running = await startServer(config);
-  console.log(`remote-managed-shell: listening on ${running.endpoint.href} (${running.mode} mode)`);
+  console.log(`remote-managed-shell: listening on ${running.endpoint.href}`);
   console.log(`remote-managed-shell: server instance ${running.serverInstanceId}`);
-  if (running.readyFile !== undefined) {
-    console.log(`remote-managed-shell: ready file ${running.readyFile}`);
-  }
-  if (config.publicUrl !== undefined) {
-    console.log(`remote-managed-shell: advertised public URL ${config.publicUrl}`);
-  }
+  console.log(`remote-managed-shell: ready file ${running.readyFile}`);
+  console.log("remote-managed-shell: WARNING: this server authenticates nobody; any caller that reaches this endpoint");
   console.log(
-    "remote-managed-shell: WARNING: authenticated clients receive the full shell authority of this Unix account.",
+    "remote-managed-shell: receives the full shell authority of this Unix account. Reaching it is the OpenAI tunnel's",
   );
-  console.log(`remote-managed-shell: authorize at ${running.authorizationUrl.href}`);
-  console.log(`remote-managed-shell: startup secret ${running.startupSecret}`);
-  console.log("remote-managed-shell: the startup secret is memory-only and all credentials expire on restart.");
+  console.log("remote-managed-shell: job, together with the operator's organization membership.");
 
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals): void => {

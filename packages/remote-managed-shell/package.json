@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "sideEffects": false,
-  "description": "OAuth-protected remote managed Bash MCP server over Streamable HTTP.",
+  "description": "Remote managed Bash MCP server over Streamable HTTP, reached through an OpenAI Secure MCP Tunnel.",
   "engines": {
     "node": ">=22"
   },
@@ -14,13 +14,10 @@
     "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests",
     "test": "vitest run",
     "dev": "tsx watch --clear-screen=false src/main.ts",
-    "start": "node build/dist/src/main.js --mode=public",
-    "start:local": "node build/dist/src/main.js --mode=local",
+    "start": "node build/dist/src/main.js",
     "start:tunnel": "yarn run build && node scripts/start-tunnel.mjs",
     "smoke:local": "yarn run build && node scripts/smoke-local.mjs",
     "smoke:mcp-cli": "node scripts/smoke-mcp-cli.mjs",
-    "smoke:public": "node scripts/smoke-public.mjs",
-    "test:public": "node scripts/smoke-public.mjs",
     "test:duration": "REMOTE_SHELL_DURATION=1 vitest run tests/duration.opt-in.test.ts",
     "test:soak": "REMOTE_SHELL_SOAK=1 vitest run tests/soak.opt-in.test.ts"
   },
