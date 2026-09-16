@@ -1,5 +1,5 @@
-packages/remote-managed-shell/CLAUDE.md rk64:f43cf1e1e09b173d
+packages/remote-managed-shell/CLAUDE.md rk64:79d64325f96268c1
 packages/remote-managed-shell/package.json#L16-L16 rk64:f55742cb0b8fe352
-packages/remote-managed-shell/src/serve.ts#L69-L75 rk64:791ad3e2130dc8f1
+packages/remote-managed-shell/src/serve.ts#L119-L119 rk64:69cdfa9b009cf8a4
 
 CLAUDE.md's 'Unusual configuration' bullets are the only record of this skeleton's deliberate deviations — mode-specific loopback guards and the watcher's restart-and-rewrite behavior — and neither a test nor a build asserts them, so the code must satisfy the claims or the claims must be revised; AGENTS.md is a symlink to this file.
