@@ -15,7 +15,7 @@
     "test": "vitest run",
     "dev": "tsx watch --clear-screen=false src/main.ts",
     "start": "node build/dist/src/main.js",
-    "start:tunnel": "yarn run build && node scripts/start-tunnel.mjs",
+    "start:openai": "yarn run build && node scripts/start-tunnel.mjs",
     "smoke:local": "yarn run build && node scripts/smoke-local.mjs",
     "smoke:mcp-cli": "node scripts/smoke-mcp-cli.mjs",
     "test:duration": "REMOTE_SHELL_DURATION=1 vitest run tests/duration.opt-in.test.ts",

@@ -41,7 +41,7 @@ The five auth modes the tunnel does offer all attach identity to the *connector*
 
 ### Client health and control-plane surface
 
-`start:tunnel` gates on the client's own surfaces, so those surfaces were read at the same commit. The client's readiness verdict is deliberately looser than a supervisor can accept:
+`start:openai` gates on the client's own surfaces, so those surfaces were read at the same commit. The client's readiness verdict is deliberately looser than a supervisor can accept:
 
 | Question | Finding |
 | --- | --- |

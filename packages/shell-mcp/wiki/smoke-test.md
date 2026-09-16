@@ -100,7 +100,7 @@ error. A transport failure must never be recorded as a passed tool call.
 
 ## Tunnel endpoint check
 
-Nothing in this package creates, probes, or reimplements a tunnel. `start:tunnel`
+Nothing in this package creates, probes, or reimplements a tunnel. `start:openai`
 (README: Secure MCP Tunnel) supervises the operator's `tunnel-client` alongside
 the server, and reports ready only after three gates: the server's readiness
 claim, `/readyz` on the client reading exactly `ready`, and a control-plane poll
