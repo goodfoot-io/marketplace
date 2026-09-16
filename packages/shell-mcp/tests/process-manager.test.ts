@@ -93,6 +93,28 @@ async function settle(
   return { settled, output };
 }
 
+/**
+ * Poll until the session reports its managed scope empty. Only the scope
+ * worker's own probe can report this, and it reports only once the group it
+ * watches holds nothing but itself — so this is also the check that the worker
+ * is still able to finish. A helper left behind inside the group (a runtime
+ * TypeScript loader starts one, and it inherits stderr) keeps it unreported
+ * forever, whatever the state of any compilation cache.
+ */
+async function scopeConfirmed(manager: ProcessManager, sessionId: string): Promise<ManagerResult> {
+  const expiry = Date.now() + SETTLE_TIMEOUT_MS;
+  let session: ManagerResult | undefined;
+  for (;;) {
+    const listed = await manager.listProcesses({ include_completed: true, limit: 50 });
+    const processes = (listed.processes as ManagerResult[] | undefined) ?? [];
+    session = processes.find((entry) => entry.session_id === sessionId) ?? session;
+    if (session && (session.cleanup as { status?: string }).status === "confirmed") return session;
+    if (Date.now() >= expiry)
+      throw new Error(`managed scope never reported empty within ${SETTLE_TIMEOUT_MS}ms: ${JSON.stringify(session)}`);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+}
+
 async function unsettledState(
   manager: ProcessManager,
   sessionId: string,
@@ -145,6 +167,19 @@ describe("ProcessManager", () => {
     );
     const listing = await manager.listProcesses({ include_completed: true, limit: 50 });
     expect(listing.capabilities).toMatchObject({ tty_supported: false, tty_status: "disabled" });
+  });
+
+  it("reports an empty managed scope once the command tree is gone", async () => {
+    manager = new ProcessManager({ pty: false });
+    const first = await manager.execCommand(execInput(manager, "scope", "printf done"));
+    const { settled } = await settle(manager, first.session_id, first);
+    expect(settled.output_closed).toBe(true);
+    const session = await scopeConfirmed(manager, first.session_id);
+    expect(session.cleanup).toMatchObject({
+      scope: "managed_process_group",
+      status: "confirmed",
+      detail: "Managed process group is empty.",
+    });
   });
 
   it("replays an accepted operation and rejects conflicting reuse", async () => {
@@ -302,6 +337,9 @@ describe("ProcessManager", () => {
       max_output_bytes: 100,
     });
     expect(outputText(page.output)).toContain("late");
+    // The descendant is what kept the group alive; once it is gone the worker
+    // must still be able to finish and say so.
+    await scopeConfirmed(manager, first.session_id);
   });
 
   it("keeps an output waiter registered across unrelated state changes", async () => {

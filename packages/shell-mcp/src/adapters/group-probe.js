@@ -1,23 +1,30 @@
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
-export interface Member {
-  pid: number;
-  state: string;
-  start: string;
-}
-/** Best-effort helper; it is only invoked by an isolated scope worker. */
-export function members(pgid: number): Member[] | null {
+
+/** @typedef {{ pid: number, state: string, start: string }} Member */
+
+/**
+ * Best-effort helper; it is only invoked by an isolated scope worker.
+ *
+ * Plain JavaScript on purpose: the worker is started by a bare `node`, so
+ * nothing it loads can spawn a helper that joins the group it is probing. See
+ * the note at the top of `scope-worker.js`.
+ *
+ * @param {number} pgid
+ * @returns {Member[] | null} group members, or null when the host cannot say
+ */
+export function members(pgid) {
   try {
     if (process.platform === "linux") {
       const entries = readdirSync("/proc");
       if (entries.length > 100_000) return null;
-      const found: Member[] = [];
+      /** @type {Member[]} */
+      const found = [];
       for (const id of entries) {
         if (!/^\d+$/u.test(id)) continue;
         try {
-          const fields = readFileSync(`/proc/${id}/stat`, "utf8")
-            .slice(readFileSync(`/proc/${id}/stat`, "utf8").lastIndexOf(")") + 2)
-            .split(" ");
+          const stat = readFileSync(`/proc/${id}/stat`, "utf8");
+          const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
           const state = fields[0];
           const start = fields[19];
           if (state && start && Number(fields[2]) === pgid && state !== "Z" && state !== "X")
@@ -45,13 +52,5 @@ export function members(pgid: number): Member[] | null {
     return null;
   } catch {
     return null;
-  }
-}
-export function groupExists(pgid: number): boolean {
-  try {
-    process.kill(-pgid, 0);
-    return true;
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === "EPERM";
   }
 }

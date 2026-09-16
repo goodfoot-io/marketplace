@@ -1,31 +1,44 @@
-import { type ChildProcess, spawn } from "node:child_process";
+/**
+ * One command's process-group anchor. It is started by a bare `node` from
+ * `adapter.ts` — deliberately not through a TypeScript loader.
+ *
+ * The command writes straight into the pipes the manager reads, so the worker's
+ * own stderr is the session's stderr until the handoff below. Anything else
+ * living in this process must therefore never spawn a helper that inherits
+ * stderr: a surviving helper holds the session's stderr pipe open, the manager
+ * never sees EOF, and the session can never settle. A loader such as `tsx`
+ * does exactly that — it starts an `esbuild` service with `stdio: [...,"inherit"]`
+ * on the first uncached transform — which is why this file (and its probe) are
+ * plain JavaScript, and why the group it probes must contain only the command.
+ */
+import { spawn } from "node:child_process";
 import { closeSync } from "node:fs";
-import { connect, type Socket } from "node:net";
+import { connect } from "node:net";
 import { members } from "./group-probe.js";
 
-interface Command {
-  bash: string;
-  cmd: string;
-  login: boolean;
-  cwd: string;
-  env?: NodeJS.ProcessEnv;
-}
-let socket: Socket | undefined;
-let child: ChildProcess | undefined;
+/** @typedef {{ bash: string, cmd: string, login: boolean, cwd: string, env?: NodeJS.ProcessEnv }} Command */
+
+/** @type {import("node:net").Socket | undefined} */
+let socket;
+/** @type {import("node:child_process").ChildProcess | undefined} */
+let child;
 let terminal = false;
 let started = false;
-let timer: NodeJS.Timeout | undefined;
-function send(value: unknown): void {
+/** @type {NodeJS.Timeout | undefined} */
+let timer;
+
+/** @param {unknown} value */
+function send(value) {
   if (socket) socket.write(`${JSON.stringify(value)}\n`);
   else if (process.connected) process.send?.(value);
 }
-function finish(): void {
+function finish() {
   clearInterval(timer);
   socket?.end();
   process.disconnect?.();
   process.exit(0);
 }
-function check(): void {
+function check() {
   if (!terminal) return;
   const living = members(process.pid);
   if (living && !living.some((member) => member.pid !== process.pid)) {
@@ -33,8 +46,9 @@ function check(): void {
     setTimeout(finish, 10).unref();
   }
 }
-function receive(value: unknown): void {
-  const message = value as { type?: string; command?: Command };
+/** @param {unknown} value */
+function receive(value) {
+  const message = /** @type {{ type?: string, command?: Command }} */ (value);
   if (message.type === "start" && message.command && !started) {
     started = true;
     const { bash, cmd, login, cwd, env: suppliedEnv } = message.command;
@@ -43,6 +57,8 @@ function receive(value: unknown): void {
     delete env.MANAGED_SCOPE_KEY;
     try {
       child = spawn(bash, [login ? "-lc" : "-c", cmd], { cwd, env, stdio: [0, 1, 2] });
+      // The command owns the manager's output pipes; this process must stop
+      // being a writer on them, or EOF would never mean "no writer left".
       for (const fd of [1, 2]) {
         try {
           closeSync(fd);
@@ -69,7 +85,7 @@ function receive(value: unknown): void {
   } else if (message.type === "kill_leader" && child && !terminal) child.kill("SIGKILL");
   else if (message.type === "check") check();
 }
-for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) process.on(signal, () => {});
+for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(signal, () => {});
 if (process.env.MANAGED_SCOPE_SOCKET) {
   socket = connect(process.env.MANAGED_SCOPE_SOCKET);
   socket.on("connect", () => send({ type: "hello", key: process.env.MANAGED_SCOPE_KEY }));

@@ -1,9 +1,10 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/**/*.ts", "tests/**/*.ts", "package.json"],
+  "include": ["src/**/*.ts", "src/**/*.js", "tests/**/*.ts", "package.json"],
   "exclude": ["node_modules", "dist", "build", "../../node_modules"],
   "compilerOptions": {
     "composite": true,
+    "checkJs": true,
     "incremental": true,
     "tsBuildInfoFile": "./build/.tsbuildinfo",
     "declarationDir": "./build/types",

@@ -1,5 +1,4 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { delay, mono } from "../util/time.js";
 
@@ -96,12 +95,14 @@ export class Scope {
       this.hooks.started();
       return;
     }
-    const compiledWorker = fileURLToPath(new URL("./scope-worker.js", import.meta.url));
-    const sourceWorker = fileURLToPath(new URL("./scope-worker.ts", import.meta.url));
-    const workerArguments = existsSync(compiledWorker)
-      ? [compiledWorker]
-      : ["--import", import.meta.resolve("tsx"), sourceWorker];
-    const child = spawn(process.execPath, workerArguments, { detached: true, stdio: ["pipe", "pipe", "pipe", "ipc"] });
+    // The worker is plain JavaScript next to this module, so the same file is
+    // spawned from the source tree, under `tsx watch`, and from the published
+    // `build/dist` copy. It must stay free of runtime transpilation: a loader
+    // spawns a compiler helper that inherits the worker's stderr — the very
+    // pipe the command writes into — and that helper then holds the session's
+    // stderr open forever. See the note at the top of `scope-worker.js`.
+    const worker = fileURLToPath(new URL("./scope-worker.js", import.meta.url));
+    const child = spawn(process.execPath, [worker], { detached: true, stdio: ["pipe", "pipe", "pipe", "ipc"] });
     this.anchored = true;
     this.child = child;
     this.pgid = child.pid;
