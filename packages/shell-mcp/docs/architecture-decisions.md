@@ -8,7 +8,7 @@ The service implements the specified five-tool API. A Codex-shaped two-tool API 
 
 One composition root owns one `ProcessManager`, MCP handler, HTTP listener, and logger. HTTP requests borrow the manager. Request cancellation and transport disposal cancel observation only. Shutdown closes start admission before cleaning active managed groups.
 
-The prepared top-level structure remains: `main.ts` owns CLI signals, `serve.ts` owns HTTP/readiness, `server.ts` registers tools, and `config.ts` validates startup. Focused subdirectories contain recovered adapters, logging, and utility code.
+The top-level structure is: `main.ts` owns CLI signals, `serve.ts` owns HTTP/readiness, `server.ts` registers tools, and `config.ts` validates startup. Focused subdirectories contain the adapters, logging, output, and utility code.
 
 ## Execution and recovery
 
@@ -16,17 +16,13 @@ An `operation_id` is synchronously reserved with a session handle before spawnin
 
 Output events keep collector order and their stream label. Opaque cursors bind server instance, session, event position, and partial-event byte offset. Reads are non-destructive and exact UTF-8 byte budgets may stop inside an event without advancing over undisclosed output. Leader exit, stream closure, unread output, and group cleanup are independent facts.
 
-The recovered process-group anchor design is retained because it can observe output held open by descendants after Bash exits and can distinguish a leader outcome from group disappearance. Cleanup is explicitly limited to the managed process group; `setsid`, service managers, and other job-control groups can escape it.
+The process-group anchor design is retained because it can observe output held open by descendants after Bash exits and can distinguish a leader outcome from group disappearance. Cleanup is explicitly limited to the managed process group; `setsid`, service managers, and other job-control groups can escape it.
 
 ## Boundary
 
 The package performs no authentication and validates no request identity. The server binds loopback and serves whoever reaches it; it advertises no public URL, serves no discovery document, and issues no challenge, because it has no external identity to advertise. Neither `Host` nor `Origin` is inspected. The tunnel and the operator's organization membership are the entire boundary, and both live outside this process: reaching the port is the OpenAI Secure MCP Tunnel's job, and this package is infrastructure rather than a gatekeeper.
 
 That is a deliberate choice for a sandboxed, single-user environment, and its consequence is accepted rather than mitigated. With no `Host` check, a web page the operator visits can reach the loopback port through DNS rebinding. Removing the guard also removes the one assumption nothing local could verify, so the tunnel hop can no longer break on a `Host` the design did not anticipate.
-
-## Recovered alternatives
-
-Attempt 2 won for contracts, recovery vocabulary, cursor primitives, and logger shape because it matches the final five-tool schema. Reconstructed attempt 1 won for Bash adapters and process-group ownership because it preserves separate leader and stream lifecycle hooks. Attempt 1's `INVALID_CURSOR` name and both attempts' incomplete URL checks were rejected. Logger accounting follows one attempt-2-style total backlog counter rather than mixing attempt 1's separate in-flight measure.
 
 ## Storage boundary
 

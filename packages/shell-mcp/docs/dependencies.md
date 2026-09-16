@@ -32,6 +32,6 @@ The direct manifest versions are:
 | development | `vite` | `^8.3.0` |
 | development | `vitest` | `5.0.1` |
 
-The exact resolved versions and Yarn checksums in the exported JSON are paired with registry metadata fetched for those exact versions. The exporter does not download or rely on the recovery archive’s supplied tarballs; no offline bundle claim is made. A checksum is retained exactly as Yarn stores it and is not relabeled as npm registry metadata.
+The exact resolved versions and Yarn checksums in the exported JSON are paired with registry metadata fetched for those exact versions. The exporter downloads no tarballs: the closure is assembled from the lockfile's resolutions and the registry's exact-version metadata, and makes no offline-bundle claim. A checksum is retained exactly as Yarn stores it and is not relabeled as npm registry metadata.
 
 The lockfile currently resolves the direct ranges to `typescript@7.0.2`, `@types/node@24.13.5`, `tsx@4.23.13`, `vite@8.3.0`, and `vitest@5.0.1`, and the exact runtime pins listed above. The generated artifact contains 353 resolved package records and 438 dependency edges from this package’s runtime, development, peer, optional, and conditional graph. Re-run the exporter after dependency changes so the closure can be reviewed against the updated lockfile and exact registry metadata.
