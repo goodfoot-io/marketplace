@@ -1,9 +1,9 @@
 # remote-managed-shell
 
 Remote managed Bash MCP server over Streamable HTTP — a Yarn 4 workspace member
-at `/workspace`. Today it is a skeleton: one `echo` tool on the v2 SDK, both
-startup modes, an atomic readiness file, and the dev/CLI lifecycle the
-five-tool surface is built on.
+at `/workspace`. It exposes exactly five OAuth-protected tools through one
+server-instance-scoped process manager: `exec_command`, `read_process`,
+`write_stdin`, `terminate_process`, and `list_processes`.
 
 **Run it and drive it with a third-party MCP client: [wiki/smoke-test.md](./wiki/smoke-test.md).**
 
@@ -18,8 +18,11 @@ five-tool surface is built on.
   publishing mechanism rewrites `Host`.
 - **Readiness is the file, not the log.** It is written atomically (temp file
   plus rename), so it is never half-read. A file left behind by a killed process
-  is a stale claim — check the `pid` in it; the next start overwrites it.
-- **Secrets never touch disk, a log, or a command line.** When the authorization
-  server lands, the startup secret, authorization codes, and tokens stay in
-  memory and in redacted evidence, and no test-only authentication path is added
-  to make a client work.
+  is a stale claim — check its `pid` and `serverInstanceId`; the next start
+  overwrites it, and an old instance never unlinks its replacement's claim.
+- **Secrets never touch disk, a log, or a command line.** The startup secret,
+  authorization codes, and tokens stay in memory and in redacted evidence.
+  There is no test-only authentication path.
+- **Observation does not own execution.** Request cancellation, transport
+  disposal, cursor reads, and yield expiry do not terminate accepted commands.
+  Reuse caller-chosen operation and write IDs when recovering a lost response.

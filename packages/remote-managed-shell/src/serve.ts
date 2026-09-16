@@ -1,156 +1,283 @@
-/**
- * HTTP composition for the MCP server: one route, one transport, both startup
- * modes.
- *
- * The server always listens on loopback. `public` mode additionally records the
- * operator-supplied URL it is reachable at, but publishing that URL is a
- * separate mechanism the operator runs — this process never creates, probes, or
- * supervises it (which is also why no tunnel client is a dependency here).
- */
-
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { localhostHostValidation, localhostOriginValidation, toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpHandler } from "@modelcontextprotocol/server";
-import { LISTEN_HOST, MCP_PATH, type ServerConfig, type ServerMode } from "./config.js";
+import { AuthService } from "./auth/index.js";
+import { advertisedBase, DEFAULT_LIMITS, LISTEN_HOST, MCP_PATH, type ServerConfig, type ServerMode } from "./config.js";
+import { IsolatedLogger } from "./logging/logger.js";
+import { ProcessManager } from "./process-manager.js";
 import { createServer } from "./server.js";
 
-/** Contents of the readiness file written once the listen port is bound. */
 export interface ReadyFile {
-  readonly pid: number;
-  readonly mode: ServerMode;
-  readonly host: string;
-  readonly port: number;
-  /** Absolute URL of the MCP route. */
-  readonly endpoint: string;
-  /** Operator-supplied public URL, in `public` mode only. */
-  readonly publicUrl?: string;
-  readonly startedAt: string;
+  pid: number;
+  serverInstanceId: string;
+  stage: "ready";
+  mode: ServerMode;
+  host: string;
+  port: number;
+  endpoint: string;
+  publicUrl: string | null;
+  publicEndpoint: string | null;
+  publicUrlStatus: "not_configured" | "configured_unverified";
+  issuer: string;
+  protectedResourceMetadata: string;
+  capabilities: { tools: number; oauth: "2.1"; transport: "streamable-http-json"; maxWaitMs: number };
+  startedAt: string;
 }
 
-/** A running server: what it bound, where it is, and how to stop it. */
 export interface RunningServer {
-  readonly mode: ServerMode;
-  readonly host: string;
-  /** The port actually bound, which differs from the requested one when it was `0`. */
-  readonly port: number;
-  /** Absolute URL of the MCP route. */
-  readonly endpoint: URL;
-  /** Path of the readiness file, when one is written. */
-  readonly readyFile?: string;
-  /** Stops accepting connections and releases the port. Idempotent. */
+  mode: ServerMode;
+  host: string;
+  port: number;
+  endpoint: URL;
+  readyFile: string;
+  serverInstanceId: string;
+  authorizationUrl: URL;
+  startupSecret: string;
   close(): Promise<void>;
 }
 
-/**
- * Starts the server for a validated configuration.
- *
- * Resolves once the port is bound and the readiness file (if one was
- * requested) is in place, so a caller that sees the resolved value or the
- * ready file can connect immediately.
- *
- * @param config - Configuration from {@link parseArgs}.
- * @returns The running server.
- */
 export async function startServer(config: ServerConfig): Promise<RunningServer> {
-  const handler = createMcpHandler(() => createServer(), {
-    onerror: (error) => {
-      console.error(`remote-managed-shell: handler error: ${error.message}`);
+  const limits = config.limits ?? DEFAULT_LIMITS;
+  const logger = new IsolatedLogger(limits.loggerBytes, limits.loggerRecords);
+  const manager = new ProcessManager({
+    mode: config.mode,
+    cwd: config.workdir ?? process.cwd(),
+    bash: config.bash ?? "/bin/bash",
+    spoolRoot: config.spoolRoot,
+    pty: !(config.disablePty ?? false),
+    logger,
+    limits: {
+      activeSessions: limits.activeSessions,
+      maxWaitMs: limits.maxWaitMs,
+      outputBytesPerSession: limits.memoryPerSession,
+      operationIds: limits.operationIds,
+      writeIdsPerSession: limits.writesPerSession,
+      inputPayloadBytes: limits.inputBytes,
+      termGraceMs: limits.termGraceMs,
+      cleanupObserveMs: limits.killGraceMs,
+      responseEvents: limits.outputEvents,
+      diskPerSession: limits.diskPerSession,
+      diskGlobal: limits.diskGlobal,
+      segmentBytes: limits.segmentBytes,
+      segmentEvents: limits.segmentEvents,
+      segments: limits.segments,
+      spoolQueueBytes: limits.spoolQueueBytes,
+      spoolQueueEntries: limits.spoolQueueEntries,
     },
   });
-  const nodeHandler = toNodeHandler(handler, {
-    onerror: (error) => {
-      console.error(`remote-managed-shell: request error: ${error.message}`);
-    },
+  const mcpHandler = createMcpHandler(() => createServer(manager), {
+    legacy: "stateless",
+    responseMode: "json",
+    onerror: (error) => console.error(`remote-managed-shell: MCP handler error: ${error.message}`),
   });
 
-  // Loopback-only mode rejects a Host or Origin naming anything else, so a
-  // browser on this host cannot be used to reach the server. Public mode leaves
-  // this to the authentication boundary built on top of this skeleton: the
-  // operator's publishing mechanism rewrites the Host header, so the loopback
-  // allowlist would reject every request that arrives through it.
-  const guards = config.mode === "local" ? [localhostHostValidation(), localhostOriginValidation()] : [];
-
-  const httpServer = createHttpServer((req, res) => {
-    void serveRequest(req, res).catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`remote-managed-shell: unhandled request failure: ${message}`);
-      if (res.headersSent) {
-        res.destroy();
-        return;
+  let auth: AuthService | undefined;
+  let boundPortValue = 0;
+  const fetchHandler = {
+    fetch: async (incoming: Request): Promise<Response> => {
+      const bounded = await boundedRequest(incoming, 524_288);
+      if (bounded instanceof Response) return bounded;
+      const request = bounded;
+      if (!auth) return Response.json({ error: "starting" }, { status: 503 });
+      const url = new URL(request.url);
+      if (url.pathname === "/healthz") {
+        return Response.json(
+          {
+            status: "ok",
+            mode: config.mode,
+            server_instance_id: manager.instanceId,
+            local_endpoint: `http://${LISTEN_HOST}:${boundPortValue}${MCP_PATH}`,
+            public_endpoint: config.publicUrl === undefined ? null : auth.mcpEndpoint,
+            public_url_status: config.publicUrl === undefined ? "not_configured" : "configured_unverified",
+          },
+          { headers: { "cache-control": "no-store" } },
+        );
       }
-      sendJson(res, 500, { error: "internal_error" });
+      const authResponse = await auth.route(request);
+      if (authResponse) {
+        await logAuthResponse(logger, "authorization", request, authResponse);
+        return authResponse;
+      }
+      if (url.pathname !== MCP_PATH)
+        return Response.json({ error: "not_found", message: `MCP is served at ${MCP_PATH}` }, { status: 404 });
+      const authenticated = await auth.authenticate(request);
+      if (authenticated instanceof Response) {
+        await logAuthResponse(logger, "resource", request, authenticated);
+        return authenticated;
+      }
+      logger.log("auth.resource", "auth", `accepted client=${authenticated.clientId ?? "unknown"}`);
+      return mcpHandler.fetch(request, { authInfo: authenticated });
+    },
+  };
+  const nodeHandler = toNodeHandler(fetchHandler, {
+    onerror: (error) => console.error(`remote-managed-shell: request error: ${error.message}`),
+  });
+  const guards = config.mode === "local" ? [localhostHostValidation(), localhostOriginValidation()] : [];
+  const httpServer = createHttpServer((request, response) => {
+    void serveNodeRequest(request, response, guards, nodeHandler).catch((error: unknown) => {
+      console.error(
+        `remote-managed-shell: unhandled request failure: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      if (response.headersSent) response.destroy();
+      else sendJson(response, 500, { error: "internal_error" });
     });
   });
 
-  async function serveRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    if (requestPath(req) !== MCP_PATH) {
-      sendJson(res, 404, { error: "not_found", message: `MCP is served at ${MCP_PATH}` });
-      return;
-    }
-    for (const guard of guards) {
-      // A guard that returns false has already answered the request.
-      if (!guard(req, res)) {
-        return;
-      }
-    }
-    await nodeHandler(req, res);
-  }
-
   try {
     await listen(httpServer, config.port);
+    const port = boundPort(httpServer, config.port);
+    boundPortValue = port;
+    const localBase = `http://${LISTEN_HOST}:${port}`;
+    auth = new AuthService({
+      mode: config.mode,
+      baseUrl: advertisedBase(config, port),
+      limits: {
+        clientCacheEntries: limits.authClients,
+        maxPendingAuthorization: limits.authPending,
+        maxCodes: limits.authCodes,
+        maxAccessTokens: limits.authAccessTokens,
+        maxRefreshTokens: limits.authRefreshTokens,
+        codeTtlMs: limits.authCodeTtlMs,
+        accessTokenTtlMs: limits.authAccessTtlMs,
+        refreshTokenTtlMs: limits.authRefreshTtlMs,
+        clientFetchTimeoutMs: limits.authFetchTimeoutMs,
+        clientDocumentBytes: limits.authDocumentBytes,
+      },
+    });
+    const endpoint = new URL(`${localBase}${MCP_PATH}`);
+    const readyFile = config.readyFile ?? join(tmpdir(), "remote-managed-shell", `ready-${port}.json`);
+    await writeReadyFile(readyFile, {
+      pid: process.pid,
+      serverInstanceId: manager.instanceId,
+      stage: "ready",
+      mode: config.mode,
+      host: LISTEN_HOST,
+      port,
+      endpoint: endpoint.href,
+      publicUrl: config.publicUrl ?? null,
+      publicEndpoint: config.publicUrl === undefined ? null : auth.mcpEndpoint,
+      publicUrlStatus: config.publicUrl === undefined ? "not_configured" : "configured_unverified",
+      issuer: auth.issuer,
+      protectedResourceMetadata: auth.protectedResourceMetadataUrl,
+      capabilities: { tools: 5, oauth: "2.1", transport: "streamable-http-json", maxWaitMs: limits.maxWaitMs },
+      startedAt: new Date().toISOString(),
+    });
+    let closePromise: Promise<void> | undefined;
+    return {
+      mode: config.mode,
+      host: LISTEN_HOST,
+      port,
+      endpoint,
+      readyFile,
+      serverInstanceId: manager.instanceId,
+      authorizationUrl: auth.authorizationUrl,
+      startupSecret: auth.startupSecret,
+      close: () =>
+        (closePromise ??= closeRunning(
+          httpServer,
+          mcpHandler,
+          manager,
+          auth as AuthService,
+          readyFile,
+          manager.instanceId,
+        )),
+    };
   } catch (error) {
-    await handler.close();
+    httpServer.closeAllConnections();
+    await manager.shutdown();
+    await mcpHandler.close();
+    await auth?.close();
     throw error;
   }
+}
 
-  const port = boundPort(httpServer, config.port);
-  const endpoint = new URL(`http://${LISTEN_HOST}:${port}${MCP_PATH}`);
-  const readyFile = config.readyFile ?? join(tmpdir(), "remote-managed-shell", `ready-${port}.json`);
+async function logAuthResponse(
+  logger: IsolatedLogger,
+  boundary: "authorization" | "resource",
+  request: Request,
+  response: Response,
+): Promise<void> {
+  let reason = response.ok ? "accepted" : `http_${response.status}`;
+  if (!response.ok && response.headers.get("content-type")?.includes("application/json")) {
+    const body = (await response
+      .clone()
+      .json()
+      .catch(() => undefined)) as { error?: unknown } | undefined;
+    if (typeof body?.error === "string") reason = body.error;
+  }
+  const url = new URL(request.url);
+  const client = request.method === "GET" ? url.searchParams.get("client_id") : null;
+  logger.log(
+    `auth.${boundary}`,
+    "auth",
+    `${request.method} ${url.pathname} status=${response.status} reason=${reason}${client ? ` client=${client}` : ""}`,
+  );
+}
 
-  await writeReadyFile(readyFile, {
-    pid: process.pid,
-    mode: config.mode,
-    host: LISTEN_HOST,
-    port,
-    endpoint: endpoint.href,
-    ...(config.publicUrl === undefined ? {} : { publicUrl: config.publicUrl }),
-    startedAt: new Date().toISOString(),
+async function boundedRequest(request: Request, maximum: number): Promise<Request | Response> {
+  if (request.method === "GET" || request.method === "HEAD" || request.body === null) return request;
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declared) && declared > maximum)
+    return Response.json({ error: "request_too_large" }, { status: 413 });
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (true) {
+    const item = await reader.read();
+    if (item.done) break;
+    size += item.value.byteLength;
+    if (size > maximum) {
+      await reader.cancel();
+      return Response.json({ error: "request_too_large" }, { status: 413 });
+    }
+    chunks.push(item.value);
+  }
+  const body = Buffer.allocUnsafe(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new Request(request.url, { method: request.method, headers: request.headers, body, signal: request.signal });
+}
+
+async function serveNodeRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  guards: Array<(request: IncomingMessage, response: ServerResponse) => boolean>,
+  handler: ReturnType<typeof toNodeHandler>,
+): Promise<void> {
+  for (const guard of guards) if (!guard(request, response)) return;
+  const length = Number(request.headers["content-length"] ?? 0);
+  if (Number.isFinite(length) && length > 524_288) {
+    sendJson(response, 413, { error: "request_too_large" });
+    return;
+  }
+  await handler(request, response);
+}
+
+async function closeRunning(
+  server: ReturnType<typeof createHttpServer>,
+  handler: ReturnType<typeof createMcpHandler>,
+  manager: ProcessManager,
+  auth: AuthService,
+  readyFile: string,
+  instanceId: string,
+): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+    server.closeAllConnections();
   });
-
-  let closed = false;
-  return {
-    mode: config.mode,
-    host: LISTEN_HOST,
-    port,
-    endpoint,
-    readyFile,
-    close: async (): Promise<void> => {
-      if (closed) {
-        return;
-      }
-      closed = true;
-      await new Promise<void>((resolve) => {
-        httpServer.close(() => {
-          resolve();
-        });
-        // close() waits for open connections; a client holding a keep-alive
-        // socket would otherwise delay shutdown until its own timeout.
-        httpServer.closeAllConnections();
-      });
-      await handler.close();
-      await removeReadyFileIfOwned(readyFile);
-    },
-  };
+  await Promise.allSettled([manager.shutdown(), handler.close(), auth.close()]);
+  await removeReadyFileIfOwned(readyFile, instanceId);
 }
 
 function listen(server: ReturnType<typeof createHttpServer>, port: number): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const onError = (error: Error): void => {
-      reject(error);
-    };
+  return new Promise((resolve, reject) => {
+    const onError = (error: Error): void => reject(error);
     server.once("error", onError);
     server.listen(port, LISTEN_HOST, () => {
       server.off("error", onError);
@@ -161,63 +288,31 @@ function listen(server: ReturnType<typeof createHttpServer>, port: number): Prom
 
 function boundPort(server: ReturnType<typeof createHttpServer>, requested: number): number {
   const address = server.address();
-  if (address !== null && typeof address === "object") {
-    return address.port;
-  }
-  return requested;
+  return address !== null && typeof address === "object" ? address.port : requested;
 }
 
-function requestPath(req: IncomingMessage): string {
-  // The base is a placeholder: only the path is read, and a malformed request
-  // line yields a path that matches no route.
-  return new URL(req.url ?? "/", `http://${LISTEN_HOST}`).pathname;
-}
-
-function sendJson(res: ServerResponse, status: number, body: unknown): void {
+function sendJson(response: ServerResponse, status: number, body: unknown): void {
   const payload = `${JSON.stringify(body)}\n`;
-  res.writeHead(status, {
+  response.writeHead(status, {
     "content-type": "application/json",
-    "content-length": Buffer.byteLength(payload),
+    "content-length": String(Buffer.byteLength(payload)),
   });
-  res.end(payload);
+  response.end(payload);
 }
 
-/**
- * Writes the readiness file atomically: the file appears only once it holds a
- * complete record, so a reader that sees it never reads a partial port.
- */
 async function writeReadyFile(path: string, contents: ReadyFile): Promise<void> {
-  const directory = dirname(path);
-  await mkdir(directory, { recursive: true });
-  const temporary = `${path}.${process.pid}.tmp`;
-  await writeFile(temporary, `${JSON.stringify(contents, null, 2)}\n`, "utf8");
+  await mkdir(dirname(path), { recursive: true });
+  const temporary = `${path}.${contents.serverInstanceId}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(contents, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
   await rename(temporary, path);
 }
 
-/**
- * Removes the readiness file only when it still names this process.
- *
- * `dev` runs under a watcher that restarts on every source change, and a
- * restart makes the old and new instance share one path. Deleting
- * unconditionally would let a shutting-down instance erase its replacement's
- * readiness claim — the one file a client waits on to learn the port. A file
- * that cannot be read or parsed is left alone: this process cannot prove it
- * owns it, and leaving a stale claim is recoverable where deleting a live one
- * is not.
- */
-async function removeReadyFileIfOwned(path: string): Promise<void> {
-  let contents: string;
+async function removeReadyFileIfOwned(path: string, instanceId: string): Promise<void> {
+  let parsed: ReadyFile;
   try {
-    contents = await readFile(path, "utf8");
+    parsed = JSON.parse(await readFile(path, "utf8")) as ReadyFile;
   } catch {
     return;
   }
-  try {
-    if ((JSON.parse(contents) as ReadyFile).pid !== process.pid) {
-      return;
-    }
-  } catch {
-    return;
-  }
-  await rm(path, { force: true });
+  if (parsed.serverInstanceId === instanceId) await rm(path, { force: true });
 }

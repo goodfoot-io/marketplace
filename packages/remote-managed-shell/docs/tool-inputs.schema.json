@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:remote-managed-shell:tool-inputs:v1",
+  "title": "Remote managed Bash MCP tool input contracts",
+  "description": "Input schema starting point; state, byte-budget, PTY availability, and identity semantics require runtime validation. Defaults describe semantics; JSON Schema itself does not insert them.",
+  "$defs": {
+    "exec_command": {
+      "type": "object",
+      "properties": {
+        "expected_server_instance_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "cmd": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536,
+          "description": "Exact Bash source; also enforce a 64 KiB UTF-8 bound at runtime"
+        },
+        "workdir": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "login": {
+          "type": "boolean",
+          "default": true
+        },
+        "tty": {
+          "type": "boolean",
+          "default": false
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "yield_time_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "description": "Capped at the advertised effective maximum; expiration never stops the process",
+          "default": 10000
+        },
+        "timeout_ms": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          ],
+          "default": null
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "minimum": 4,
+          "maximum": 65536,
+          "default": 16384,
+          "description": "UTF-8 bytes of returned output text; separate whole-response cap also applies"
+        }
+      },
+      "required": [
+        "expected_server_instance_id",
+        "operation_id",
+        "cmd"
+      ],
+      "additionalProperties": false
+    },
+    "read_process": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "start or an opaque instance/session-bound position; never an implicit consumer cursor"
+        },
+        "wait_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "description": "Capped at the advertised effective maximum; expiration never stops the process",
+          "default": 0
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "minimum": 4,
+          "maximum": 65536,
+          "default": 16384,
+          "description": "UTF-8 bytes of returned output text; separate whole-response cap also applies"
+        },
+        "known_state_version": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "session_id",
+        "cursor"
+      ],
+      "additionalProperties": false
+    },
+    "write_stdin": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "write_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "chars": {
+          "type": "string",
+          "maxLength": 65536,
+          "default": "",
+          "description": "Also enforce a 64 KiB UTF-8 payload bound before acceptance"
+        },
+        "close_stdin": {
+          "type": "boolean",
+          "default": false
+        },
+        "interrupt": {
+          "type": "boolean",
+          "default": false
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "start or an opaque instance/session-bound position; never an implicit consumer cursor"
+        },
+        "yield_time_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "description": "Capped at the advertised effective maximum; expiration never stops the process",
+          "default": 0
+        },
+        "max_output_bytes": {
+          "type": "integer",
+          "minimum": 4,
+          "maximum": 65536,
+          "default": 16384,
+          "description": "UTF-8 bytes of returned output text; separate whole-response cap also applies"
+        }
+      },
+      "required": [
+        "session_id",
+        "write_id"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "required": [
+                "chars"
+              ],
+              "properties": {
+                "chars": {
+                  "minLength": 1
+                }
+              }
+            },
+            {
+              "required": [
+                "close_stdin"
+              ],
+              "properties": {
+                "close_stdin": {
+                  "const": true
+                }
+              }
+            },
+            {
+              "required": [
+                "interrupt"
+              ],
+              "properties": {
+                "interrupt": {
+                  "const": true
+                }
+              }
+            }
+          ]
+        },
+        {
+          "if": {
+            "required": [
+              "interrupt"
+            ],
+            "properties": {
+              "interrupt": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "chars": {
+                "maxLength": 0
+              },
+              "close_stdin": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "yield_time_ms"
+            ],
+            "properties": {
+              "yield_time_ms": {
+                "minimum": 1
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "cursor"
+            ]
+          }
+        }
+      ]
+    },
+    "terminate_process": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "wait_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "description": "Capped at the advertised effective maximum; expiration never stops the process"
+        }
+      },
+      "required": [
+        "session_id"
+      ],
+      "additionalProperties": false
+    },
+    "list_processes": {
+      "type": "object",
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "include_completed": {
+          "type": "boolean",
+          "default": true
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 50
+        },
+        "page_token": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    }
+  }
+}

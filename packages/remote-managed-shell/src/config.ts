@@ -1,173 +1,267 @@
-/**
- * Command-line configuration for the server process.
- *
- * Both startup modes share one composition root (see `serve.ts`). The mode
- * chooses only where the server says it is reachable: `local` is confined to
- * loopback and makes no external connection, `public` advertises an
- * operator-supplied URL that this process never creates, probes, or supervises.
- * Routes, tools, and transport behavior are identical in both modes.
- */
+import { isIP } from "node:net";
+import { resolve } from "node:path";
 
-/** Default listen port. Fixed so local development and smoke tests are predictable. */
 export const DEFAULT_PORT = 38147;
-
-/** The loopback address the server actually listens on, in both modes. */
 export const LISTEN_HOST = "127.0.0.1";
-
-/** The single HTTP route serving MCP traffic. */
 export const MCP_PATH = "/mcp";
-
 export type ServerMode = "local" | "public";
 
-export interface ServerConfig {
-  readonly mode: ServerMode;
-  /** Port the server listens on; `0` asks the OS for an ephemeral port. */
-  readonly port: number;
-  /** Operator-supplied public URL; present only in `public` mode. */
-  readonly publicUrl?: string;
-  /** Path of the readiness file, when one is requested. */
-  readonly readyFile?: string;
+export interface Limits {
+  activeSessions: number;
+  maxWaitMs: number;
+  outputBytes: number;
+  outputEvents: number;
+  memoryPerSession: number;
+  operationIds: number;
+  writesPerSession: number;
+  inputBytes: number;
+  termGraceMs: number;
+  killGraceMs: number;
+  shutdownMs: number;
+  loggerBytes: number;
+  loggerRecords: number;
+  authClients: number;
+  authPending: number;
+  authCodes: number;
+  authAccessTokens: number;
+  authRefreshTokens: number;
+  authCodeTtlMs: number;
+  authAccessTtlMs: number;
+  authRefreshTtlMs: number;
+  authFetchTimeoutMs: number;
+  authDocumentBytes: number;
+  diskPerSession: number;
+  diskGlobal: number;
+  segmentBytes: number;
+  segmentEvents: number;
+  segments: number;
+  spoolQueueBytes: number;
+  spoolQueueEntries: number;
 }
 
-/** A usage error: the arguments cannot describe a runnable server. */
+export const DEFAULT_LIMITS: Limits = Object.freeze({
+  activeSessions: 32,
+  maxWaitMs: 20_000,
+  outputBytes: 16_384,
+  outputEvents: 128,
+  memoryPerSession: 1_048_576,
+  operationIds: 10_000,
+  writesPerSession: 10_000,
+  inputBytes: 65_536,
+  termGraceMs: 2_000,
+  killGraceMs: 1_500,
+  shutdownMs: 10_000,
+  loggerBytes: 8_388_608,
+  loggerRecords: 8_192,
+  authClients: 32,
+  authPending: 64,
+  authCodes: 32,
+  authAccessTokens: 64,
+  authRefreshTokens: 64,
+  authCodeTtlMs: 60_000,
+  authAccessTtlMs: 900_000,
+  authRefreshTtlMs: 86_400_000,
+  authFetchTimeoutMs: 3_000,
+  authDocumentBytes: 65_536,
+  diskPerSession: 268_435_456,
+  diskGlobal: 2_147_483_648,
+  segmentBytes: 1_048_576,
+  segmentEvents: 256,
+  segments: 1024,
+  spoolQueueBytes: 4_194_304,
+  spoolQueueEntries: 256,
+});
+
+export interface ServerConfig {
+  mode: ServerMode;
+  port: number;
+  publicUrl?: string;
+  readyFile?: string;
+  bash?: string;
+  workdir?: string;
+  spoolRoot?: string;
+  disablePty?: boolean;
+  limits?: Limits;
+}
+
 export class ConfigError extends Error {
   override readonly name = "ConfigError";
 }
-
-/** Signals that the caller asked for usage text rather than a server. */
 export class UsageRequested extends Error {
   override readonly name = "UsageRequested";
 }
 
 export const USAGE = `Usage: remote-managed-shell [--mode=local|public] [options]
 
-  --mode=local            Listen on loopback only (default). No external connection.
-  --mode=public           Advertise the operator-supplied URL given by --url.
-  --url=<https-url>       Public URL this server is reachable at. Required for
-                          public mode, rejected for local mode. Must be https and
-                          must not name a loopback host.
-  --port=<0-65535>        Listen port (default ${DEFAULT_PORT}; 0 picks a free port).
-  --ready-file=<path>     Write an atomic readiness file once the port is bound.
+  --mode=local            Loopback-only mode (default); --url is forbidden.
+  --mode=public           Advertise the operator-owned HTTPS URL from --url.
+  --url=<https-url>       Required in public mode; no query, fragment, credentials,
+                          loopback, or special-use IP address.
+  --port=<0-65535>        Loopback listen port (default ${DEFAULT_PORT}; 0 is ephemeral).
+  --ready-file=<path>     Atomic readiness-file location.
+  --bash=<path>           Bash executable (default /bin/bash).
+  --workdir=<path>        Default command working directory.
+  --max-wait-ms=<0-20000> Maximum observation wait for this validated profile.
+  --disable-pty           Refuse tty:true starts even when node-pty is installed.
   --help                  Print this message.`;
 
-/**
- * Parses command-line arguments into a validated configuration.
- *
- * Unknown arguments and malformed values are failures rather than warnings: a
- * server started with an argument it did not understand is not the server the
- * operator asked for.
- *
- * @param argv - Arguments after the script path, e.g. `process.argv.slice(2)`.
- * @returns The validated configuration.
- * @throws ConfigError when an argument is unknown or invalid.
- */
 export function parseArgs(argv: readonly string[]): ServerConfig {
-  let mode: ServerMode = "local";
-  let port = DEFAULT_PORT;
-  let publicUrl: string | undefined;
-  let readyFile: string | undefined;
-
-  for (const arg of argv) {
-    if (arg === "--help" || arg === "-h") {
-      throw new UsageRequested();
-    }
-    const [flag, value] = splitFlag(arg);
-    switch (flag) {
-      case "--mode":
-        if (value !== "local" && value !== "public") {
-          throw new ConfigError(`--mode must be "local" or "public", got ${String(value)}`);
-        }
-        mode = value;
-        break;
-      case "--port":
-        port = parsePort(value);
-        break;
-      case "--url":
-        publicUrl = parsePublicUrl(value);
-        break;
-      case "--ready-file":
-        if (value === undefined || value.length === 0) {
-          throw new ConfigError("--ready-file requires a path");
-        }
-        readyFile = value;
-        break;
-      default:
-        throw new ConfigError(`Unknown argument: ${arg}`);
-    }
+  const values = new Map<string, string>();
+  for (const argument of argv) {
+    if (argument === "--help" || argument === "-h") throw new UsageRequested();
+    const separator = argument.indexOf("=");
+    const key = separator === -1 ? argument : argument.slice(0, separator);
+    const value = separator === -1 ? "true" : argument.slice(separator + 1);
+    if (!key.startsWith("--")) throw new ConfigError(`Unknown argument: ${argument}`);
+    if (values.has(key)) throw new ConfigError(`Repeated option: ${key}`);
+    values.set(key, value);
   }
-
-  if (mode === "public" && publicUrl === undefined) {
-    throw new ConfigError("--mode=public requires --url=<https-url>");
-  }
-  if (mode === "local" && publicUrl !== undefined) {
-    throw new ConfigError("--url is only valid with --mode=public; local mode is loopback only");
-  }
-
-  const config: ServerConfig = {
+  const allowed = new Set([
+    "--mode",
+    "--url",
+    "--port",
+    "--ready-file",
+    "--bash",
+    "--workdir",
+    "--spool-dir",
+    "--max-wait-ms",
+    "--disable-pty",
+  ]);
+  for (const key of values.keys()) if (!allowed.has(key)) throw new ConfigError(`Unknown option: ${key}`);
+  const mode = values.get("--mode") ?? "local";
+  if (mode !== "local" && mode !== "public") throw new ConfigError(`--mode must be local or public, got ${mode}`);
+  const rawUrl = values.get("--url");
+  if (mode === "local" && rawUrl !== undefined) throw new ConfigError("--url is forbidden in local mode");
+  if (mode === "public" && rawUrl === undefined) throw new ConfigError("--mode=public requires --url");
+  const port = parseInteger(values.get("--port") ?? String(DEFAULT_PORT), "--port", 0, 65_535);
+  const maxWaitMs = parseInteger(
+    values.get("--max-wait-ms") ?? String(DEFAULT_LIMITS.maxWaitMs),
+    "--max-wait-ms",
+    0,
+    20_000,
+  );
+  const readyFile = values.get("--ready-file");
+  if (readyFile === "") throw new ConfigError("--ready-file requires a path");
+  const bash = values.get("--bash") ?? "/bin/bash";
+  if (bash.length === 0) throw new ConfigError("--bash requires a path");
+  const workdir = values.get("--workdir") ?? process.cwd();
+  if (workdir.length === 0) throw new ConfigError("--workdir requires a path");
+  const spoolDirectory = values.get("--spool-dir");
+  return {
     mode,
     port,
-    ...(publicUrl === undefined ? {} : { publicUrl }),
-    ...(readyFile === undefined ? {} : { readyFile }),
+    ...(rawUrl === undefined ? {} : { publicUrl: normalizePublicUrl(rawUrl) }),
+    ...(readyFile === undefined ? {} : { readyFile: resolve(readyFile) }),
+    bash,
+    workdir: resolve(workdir),
+    ...(spoolDirectory === undefined ? {} : { spoolRoot: resolve(spoolDirectory) }),
+    disablePty: values.has("--disable-pty"),
+    limits: { ...DEFAULT_LIMITS, maxWaitMs },
   };
-  return config;
 }
 
-function splitFlag(arg: string): [string, string | undefined] {
-  const separator = arg.indexOf("=");
-  if (separator === -1) {
-    return [arg, undefined];
-  }
-  return [arg.slice(0, separator), arg.slice(separator + 1)];
+function parseInteger(value: string, name: string, minimum: number, maximum: number): number {
+  if (!/^\d+$/u.test(value)) throw new ConfigError(`${name} must be an integer`);
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum)
+    throw new ConfigError(`${name} must be ${minimum}-${maximum}`);
+  return parsed;
 }
 
-function parsePort(value: string | undefined): number {
-  if (value === undefined || !/^\d+$/.test(value)) {
-    throw new ConfigError(`--port must be an integer, got ${String(value)}`);
-  }
-  const port = Number(value);
-  if (port > 65535) {
-    throw new ConfigError(`--port must be 0-65535, got ${value}`);
-  }
-  return port;
-}
-
-function parsePublicUrl(value: string | undefined): string {
-  if (value === undefined || value.length === 0) {
-    throw new ConfigError("--url requires a URL");
-  }
+export function normalizePublicUrl(input: string): string {
   let url: URL;
   try {
-    url = new URL(value);
+    url = new URL(input);
   } catch {
-    throw new ConfigError(`--url is not a valid absolute URL: ${value}`);
+    throw new ConfigError("--url must be an absolute HTTPS URL");
   }
-  if (url.protocol !== "https:") {
-    throw new ConfigError(`--url must use https, got ${url.protocol}`);
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+    throw new ConfigError("--url must be HTTPS without credentials, query, or fragment");
   }
-  if (isLoopbackHostname(url.hostname)) {
-    throw new ConfigError(`--url must not name a loopback host: ${url.hostname}`);
-  }
-  return url.href;
+  url.pathname = url.pathname.replace(/\/+$/u, "");
+  if (isLocalOrSpecialHostname(url.hostname))
+    throw new ConfigError(`--url must name a public host, got ${url.hostname}`);
+  return url.href.replace(/\/$/u, "");
 }
 
-/**
- * Whether a URL hostname names this machine.
- *
- * Covers the names and literals that reach the local host: `localhost` and its
- * subdomains, any `127.0.0.0/8` address, IPv6 `::1`, and the unspecified
- * addresses that bind every interface. Used to keep a public URL from claiming
- * to be the loopback-only local mode.
- *
- * @param hostname - URL hostname, optionally bracketed for IPv6.
- */
-export function isLoopbackHostname(hostname: string): boolean {
-  const bare = hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
-  const lower = bare.toLowerCase();
-  if (lower === "localhost" || lower.endsWith(".localhost")) {
+export function isLocalOrSpecialHostname(hostname: string): boolean {
+  const bare = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  if (bare === "localhost" || bare.endsWith(".localhost") || bare === "0.0.0.0" || bare === "::" || bare === "::1")
     return true;
+  const family = isIP(bare);
+  if (family === 4) {
+    const [a = 0, b = 0] = bare.split(".").map(Number);
+    const value =
+      ((a * 256 + b) * 256 + (bare.split(".")[2] ? Number(bare.split(".")[2]) : 0)) * 256 +
+      Number(bare.split(".")[3] ?? 0);
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && (b === 0 || b === 2 || b === 168)) ||
+      (value >= 0xc0586300 && value <= 0xc05863ff) ||
+      (a === 198 && b >= 18 && b <= 19) ||
+      (a === 198 && b === 51) ||
+      (a === 203 && b === 0) ||
+      a >= 224
+    );
   }
-  if (lower === "::1" || lower === "::" || lower === "0.0.0.0") {
-    return true;
+  if (family === 6) {
+    const value = ipv6ToBigInt(bare);
+    if (value === null) return false;
+    const firstByte = Number(value >> 120n);
+    if (
+      value === 0n ||
+      value === 1n ||
+      firstByte === 0xff ||
+      (firstByte & 0xfe) === 0xfc ||
+      (firstByte === 0xfe && (Number((value >> 112n) & 0xffn) & 0xc0) === 0x80)
+    )
+      return true;
+    // Documentation, benchmarking, protocol-assignment, and discard-only ranges.
+    if (
+      inIpv6Range(value, "20010db8000000000000000000000000", "20010db8ffffffffffffffffffffffff") ||
+      inIpv6Range(value, "20010002000000000000000000000000", "20010002ffffffffffffffffffffffff") ||
+      inIpv6Range(value, "00000000000001000000000000000000", "0000000000000100ffffffffffffffff")
+    )
+      return true;
+    const mapped = Number((value >> 32n) & 0xffffffffn) === 0xffff;
+    const compatible = value >> 32n === 0n;
+    const sixToFour = Number(value >> 112n) === 0x2002;
+    const embedded = Number((sixToFour ? value >> 80n : value) & 0xffffffffn);
+    return (
+      (mapped || compatible || sixToFour) &&
+      isLocalOrSpecialHostname(
+        `${embedded >>> 24}.${(embedded >>> 16) & 255}.${(embedded >>> 8) & 255}.${embedded & 255}`,
+      )
+    );
   }
-  return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(lower);
+  return false;
+}
+
+function ipv6ToBigInt(value: string): bigint | null {
+  const halves = value.split("::");
+  if (halves.length > 2) return null;
+  const left = halves[0] ? halves[0].split(":") : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  if (left.some((part) => !/^[0-9a-f]{1,4}$/u.test(part)) || right.some((part) => !/^[0-9a-f]{1,4}$/u.test(part)))
+    return null;
+  if (halves.length === 1 && left.length !== 8) return null;
+  if (halves.length === 2 && left.length + right.length >= 8) return null;
+  const parts = [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+  return parts.reduce((result, part) => (result << 16n) | BigInt(Number.parseInt(part, 16)), 0n);
+}
+
+function inIpv6Range(value: bigint, start: string, end: string): boolean {
+  return value >= BigInt(`0x${start}`) && value <= BigInt(`0x${end}`);
+}
+
+/** Backwards-compatible name retained for callers of the prepared skeleton. */
+export const isLoopbackHostname = isLocalOrSpecialHostname;
+
+export function advertisedBase(config: ServerConfig, boundPort: number): string {
+  return config.publicUrl ?? `http://${LISTEN_HOST}:${boundPort}`;
 }
