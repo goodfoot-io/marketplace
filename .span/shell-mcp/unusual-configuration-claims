@@ -1,11 +1,11 @@
-packages/remote-managed-shell/CLAUDE.md rk64:0737a01383dfa22f
-packages/remote-managed-shell/README.md#L5-L5 rk64:8e94d484aa62c87a
-packages/remote-managed-shell/package.json#L16-L16 rk64:f55742cb0b8fe352
-packages/remote-managed-shell/src/serve.ts#L92-L100 rk64:0b42c2d765e2e0c2
-packages/remote-managed-shell/tests/http.test.ts#L29-L54 rk64:6a4665eead6c63a4
-packages/remote-managed-shell/tests/http.test.ts#L56-L65 rk64:fc088e6aaf3886bb
-packages/remote-managed-shell/tests/http.test.ts#L67-L80 rk64:53aa9ce4df8ac9df
-packages/remote-managed-shell/tests/http.test.ts#L82-L92 rk64:b221fa6d3f421bc4
-packages/remote-managed-shell/tests/http.test.ts#L107-L107 rk64:e91e80be4e9e6748
+packages/shell-mcp/CLAUDE.md rk64:e6e953686d6c5516
+packages/shell-mcp/README.md#L5-L5 rk64:2c40160433166ba4
+packages/shell-mcp/package.json#L16-L16 rk64:f55742cb0b8fe352
+packages/shell-mcp/src/serve.ts#L92-L98 rk64:58f6d76ed6c52c94
+packages/shell-mcp/tests/http.test.ts#L29-L54 rk64:6a4665eead6c63a4
+packages/shell-mcp/tests/http.test.ts#L56-L65 rk64:fc088e6aaf3886bb
+packages/shell-mcp/tests/http.test.ts#L67-L80 rk64:53aa9ce4df8ac9df
+packages/shell-mcp/tests/http.test.ts#L82-L92 rk64:b221fa6d3f421bc4
+packages/shell-mcp/tests/http.test.ts#L107-L107 rk64:e91e80be4e9e6748
 
 CLAUDE.md's 'Unusual configuration' bullets and the README's boundary paragraph are the only records of this skeleton's deliberate deviations — that the service authenticates nobody on every path, that the watcher restarts and rewrites the readiness claim, and that observation never owns execution — and the unauthenticated-HTTP suite holds the first deviation alone, by asserting the absent discovery routes, the accepted unvalidated Host and Origin, the ignored bearer, the readiness record's missing external-identity fields, and the tools' absent security scheme. Nothing asserts the watcher or observation deviations, whose only other artifact is the manifest's watch-mode dev script, so those two survive by revision rather than by test; AGENTS.md is a symlink to this file.

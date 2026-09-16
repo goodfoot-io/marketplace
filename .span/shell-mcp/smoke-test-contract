@@ -1,0 +1,14 @@
+packages/shell-mcp/scripts/smoke-local.mjs#L53-L88 rk64:b2fa48f74fdddff8
+packages/shell-mcp/scripts/smoke-local.mjs#L136-L136 rk64:340b462d988e1f4f
+packages/shell-mcp/scripts/smoke-mcp-cli.mjs#L54-L103 rk64:fc85f28564b12da6
+packages/shell-mcp/src/config.ts#L3-L5 rk64:e2f1465bdf8a5a09
+packages/shell-mcp/src/contracts.ts rk64:d456e5801e7a10e9
+packages/shell-mcp/src/main.ts#L42-L56 rk64:b2f4630cfe25bb6d
+packages/shell-mcp/src/main.ts#L65-L73 rk64:03948079809a1bf8
+packages/shell-mcp/src/serve.ts#L12-L30 rk64:821175301766fb77
+packages/shell-mcp/src/serve.ts#L105-L115 rk64:1ed1f89817288491
+packages/shell-mcp/src/serve.ts#L237-L251 rk64:bdb03f64121d1c4f
+packages/shell-mcp/src/server.ts#L9-L91 rk64:74d7c2301ae8bdc4
+packages/shell-mcp/wiki/smoke-test.md rk64:3d694e8262ba8ab8
+
+The smoke procedure is this package's only third-party-client evidence — the Vitest suite talks to the server in-process — and its two scripts and the contract its documentation states (the readiness record's shape and default path, the loopback port and MCP route, the five tools' input schemas and annotation hints, and the credential-free Inspector gates) must all match the server, which nothing automated compares them against; the implementation is authoritative, so a transport, HTTP-composition, or tool-surface change is re-verified by re-running the procedure and updating its expected outputs.

@@ -1,5 +1,5 @@
-packages/remote-managed-shell/src/config.ts#L70-L80 rk64:6352c4df20b938f2
-packages/remote-managed-shell/src/config.ts#L93-L101 rk64:eb17b7202611ceea
-packages/remote-managed-shell/tests/config.test.ts#L35-L47 rk64:1f7233b864d122f0
+packages/shell-mcp/src/config.ts#L70-L80 rk64:d5a5e78bf328931b
+packages/shell-mcp/src/config.ts#L93-L101 rk64:eb17b7202611ceea
+packages/shell-mcp/tests/config.test.ts#L35-L47 rk64:1f7233b864d122f0
 
 parseArgs's allowed set is authoritative for which options the server accepts, and USAGE's flag list plus the configuration suite's eight-flag checklist restate it without being derived from it, so an option added to the parser alone is served but undocumented and an option removed from it alone stays advertised. --spool-dir was accepted and resolved while absent from USAGE, and the checklist's fixed list reads as complete coverage only because it happens to match the allowed set today; nothing catches either direction.

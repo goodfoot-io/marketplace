@@ -1,5 +1,5 @@
-packages/remote-managed-shell/README.md#L19-L28 rk64:0f3e091723431736
-packages/remote-managed-shell/scripts/start-tunnel.mjs rk64:67e797c7beb474fa
-packages/remote-managed-shell/wiki/smoke-test.md#L101-L116 rk64:6ccc7f4ac3287e4f
+packages/shell-mcp/README.md#L19-L28 rk64:845dabc0a742d83c
+packages/shell-mcp/scripts/start-tunnel.mjs rk64:f37c9188d1b1ef57
+packages/shell-mcp/wiki/smoke-test.md#L101-L116 rk64:959d4bb357ccfa29
 
 scripts/start-tunnel.mjs is the sole implementation of the tunnel launcher; README.md's Secure MCP Tunnel section and wiki/smoke-test.md's Tunnel endpoint check section each restate its start order, the three gates it demands before reporting ready — the server's readiness claim, an exact-ready body from tunnel-client's /readyz, and a control-plane poll the client's metrics record — and its stop order as prose, and nothing automated compares either doc against the script, so a behavior change is re-verified by hand in both docs and any claim the script cannot support stays a not-run boundary.
