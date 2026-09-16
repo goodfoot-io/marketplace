@@ -1,5 +1,9 @@
 # @goodfoot/shell-mcp npm package changelog
 
+## 1.0.2
+- Fixed commands that could stall after finishing: the worker anchoring a command's process group now runs as plain JavaScript instead of through a TypeScript loader, so a leftover build helper can no longer hold the session's output streams open and keep the session from settling
+- Improved session cleanup so a finished command's process group is reported empty as soon as its processes are gone, rather than only after the settle budget expires
+
 ## 1.0.1
 - Added a Bash-like console: command output now renders with working-directory prompts, unlabeled stdout/stderr, partial output shown as it arrives, and explicit failure markers (`[exit 1]`, signal, `[timed out]`) instead of log records
 - Added optional diagnostic logging via `SHELL_MCP_LOG`, writing append-only JSONL records to an owner-only file; command, stdin, and output bodies are never duplicated there
