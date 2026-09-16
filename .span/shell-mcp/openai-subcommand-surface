@@ -1,0 +1,7 @@
+packages/shell-mcp/scripts/start-tunnel.mjs#L74-L75 rk64:e10d1642bc700f6c
+packages/shell-mcp/src/config.ts#L71-L76 rk64:3b0271821cdca9c6
+packages/shell-mcp/src/main.ts#L22-L22 rk64:ec2cd4bd9ea2a1a3
+packages/shell-mcp/src/tunnel-launcher.ts rk64:ae30f2f94da756d4
+packages/shell-mcp/tests/tunnel-launcher.test.ts rk64:76194a7c0f935b90
+
+The CLI word `openai` is advertised by the server usage text and by the launcher usage, claimed by a dispatch that must decide before the parser sees the argument list, and executed by the launcher script that owns the tunnel lifecycle; nothing derives one from another, so a rename or a second subcommand leaves a usage text advertising a word that no longer routes, or a routed word that no usage text admits.
