@@ -1,4 +1,4 @@
-packages/shell-mcp/package.json#L3-L3 rk64:bb2e85dfc28febbc
-packages/shell-mcp/src/server.ts#L8-L8 rk64:31d54a00dd2eb506
+packages/shell-mcp/package.json#L3-L3 rk64:bb31ebdfc292cee5
+packages/shell-mcp/src/server.ts#L16-L16 rk64:489d2e55fe676de1
 
-The MCP initialize response advertises SERVER_VERSION, a hand-maintained literal that nothing compares against the package's own version; the two carry one release number, and a bump to either alone silently advertises a version the package is not.
+The MCP initialize response advertises the version the package manifest carries, imported at module load, so the advertised number cannot disagree with the manifest; the compiler emits a copy of that manifest beside the emitted module for the import to resolve against, and the published archive file selection must keep carrying that copy, which nothing verifies.

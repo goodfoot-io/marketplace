@@ -1,11 +1,19 @@
 /** MCP registration for the complete five-tool managed-shell surface. */
 import { McpServer, type StandardSchemaWithJSON } from "@modelcontextprotocol/server";
+import manifest from "../package.json" with { type: "json" };
 import { descriptions, inputs, outputSchema, type ToolName } from "./contracts.js";
 import { DomainError } from "./errors.js";
 import type { ProcessManager } from "./process-manager.js";
 
 export const SERVER_NAME = "shell-mcp";
-export const SERVER_VERSION = "1.0.0";
+/**
+ * The manifest is the one place the version lives: the initialize response
+ * cannot advertise a number the package is not, because there is no second
+ * copy to fall out of step. The compiler copies the imported manifest next to
+ * the emitted `src/`, so this resolves in the published archive as well as
+ * under vitest.
+ */
+export const SERVER_VERSION = manifest.version;
 export const TOOL_NAMES = [
   "exec_command",
   "read_process",
