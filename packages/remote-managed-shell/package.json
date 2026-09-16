@@ -1,0 +1,35 @@
+{
+  "name": "@goodfoot/remote-managed-shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "description": "Remote managed Bash MCP server over Streamable HTTP. Currently the project skeleton: a minimal MCP server exposing an echo tool, with the two startup modes, readiness handshake, and dev/CLI lifecycle the real tool surface is built on.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --build tsconfig.build.json",
+    "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests",
+    "test": "vitest run",
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "start": "node build/dist/src/main.js --mode=public",
+    "start:local": "node build/dist/src/main.js --mode=local"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/node": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "hono": "4.13.8",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.13",
+    "@modelcontextprotocol/client": "2.0.0",
+    "@types/node": "^24.13.5",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.0",
+    "vite": "^8.3.0",
+    "vitest": "5.0.1"
+  }
+}
