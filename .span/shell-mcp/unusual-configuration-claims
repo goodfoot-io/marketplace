@@ -1,6 +1,6 @@
 packages/shell-mcp/CLAUDE.md rk64:e6e953686d6c5516
-packages/shell-mcp/README.md#L5-L5 rk64:2c40160433166ba4
-packages/shell-mcp/package.json#L16-L16 rk64:f55742cb0b8fe352
+packages/shell-mcp/README.md#L5-L5 rk64:3be061efa7de8989
+packages/shell-mcp/package.json#L32-L32 rk64:f55742cb0b8fe352
 packages/shell-mcp/src/serve.ts#L92-L98 rk64:58f6d76ed6c52c94
 packages/shell-mcp/tests/http.test.ts#L29-L54 rk64:6a4665eead6c63a4
 packages/shell-mcp/tests/http.test.ts#L56-L65 rk64:fc088e6aaf3886bb

@@ -1,18 +1,23 @@
 {
   "name": "@goodfoot/shell-mcp",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "sideEffects": false,
   "description": "Remote managed Bash MCP server over Streamable HTTP, reached through an OpenAI Secure MCP Tunnel.",
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/shell-mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodfoot-io/marketplace.git",
+    "directory": "packages/shell-mcp"
+  },
   "engines": {
     "node": ">=22"
   },
-  "bin": {
-    "shell-mcp": "build/dist/src/main.js"
-  },
+  "bin": "build/dist/src/main.js",
   "files": [
     "build/dist/**",
-    "scripts/**"
+    "scripts/**",
+    "CHANGELOG.md"
   ],
   "publishConfig": {
     "access": "public"
@@ -30,7 +35,9 @@
     "smoke:local": "yarn run build && node scripts/smoke-local.mjs",
     "smoke:mcp-cli": "node scripts/smoke-mcp-cli.mjs",
     "test:duration": "REMOTE_SHELL_DURATION=1 vitest run tests/duration.opt-in.test.ts",
-    "test:soak": "REMOTE_SHELL_SOAK=1 vitest run tests/soak.opt-in.test.ts"
+    "test:soak": "REMOTE_SHELL_SOAK=1 vitest run tests/soak.opt-in.test.ts",
+    "release": "bash ../../scripts/release-package.sh shell-mcp",
+    "release:dry-run": "bash ../../scripts/release-package.sh shell-mcp --dry-run"
   },
   "dependencies": {
     "@modelcontextprotocol/node": "2.0.0",

@@ -5,7 +5,7 @@ import { DomainError } from "./errors.js";
 import type { ProcessManager } from "./process-manager.js";
 
 export const SERVER_NAME = "shell-mcp";
-export const SERVER_VERSION = "0.1.0";
+export const SERVER_VERSION = "1.0.0";
 export const TOOL_NAMES = [
   "exec_command",
   "read_process",
