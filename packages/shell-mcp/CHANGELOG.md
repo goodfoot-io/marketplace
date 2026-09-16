@@ -1,5 +1,9 @@
 # @goodfoot/shell-mcp npm package changelog
 
+## 1.0.3
+- Fixed the `openai` subcommand in installed copies of the package: every npm-installed package resolved the tunnel launcher to a path that ships in no archive and refused to run, so `npx @goodfoot/shell-mcp openai` now starts the tunnel as documented
+- Improved the missing-launcher error to name the directory that declares the package, so a genuinely incomplete installation points at the right place
+
 ## 1.0.2
 - Fixed commands that could stall after finishing: the worker anchoring a command's process group now runs as plain JavaScript instead of through a TypeScript loader, so a leftover build helper can no longer hold the session's output streams open and keep the session from settling
 - Improved session cleanup so a finished command's process group is reported empty as soon as its processes are gone, rather than only after the settle budget expires
