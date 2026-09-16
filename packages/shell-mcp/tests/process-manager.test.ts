@@ -1,12 +1,21 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { ProcessManager } from "../src/process-manager.js";
+import type { ReadInput } from "../src/contracts.js";
+import { type ManagerResult, ProcessManager } from "../src/process-manager.js";
 
 /**
  * Settlement (spawn, exit, stream close, retention expiry) is event-driven and
  * can arrive long after the caller's first yield on a loaded host, so these
  * tests wait for the state they assert instead of trusting one fixed window.
+ *
+ * The settle budget must stay strictly below Vitest's `testTimeout` (see
+ * vitest.config.ts). Equal budgets are why a stall used to report as a bare
+ * "Test timed out in 20000ms": the framework killed the test at the instant its
+ * own deadline expired, so the assertions that would have named the missing
+ * state never ran. Every read is also bounded on its own, because a call that
+ * never returns is never re-examined by the deadline below it.
  */
 const SETTLE_TIMEOUT_MS = 20_000;
+const READ_WATCHDOG_MS = 5_000;
 
 const execInput = (
   manager: ProcessManager,
@@ -34,6 +43,83 @@ function outputText(value: unknown): string {
     .join("");
 }
 
+/**
+ * A call that never returns must fail by name. Without this the pending promise
+ * is never re-examined, so the test's own deadline cannot fire and the run
+ * reports a bare framework timeout instead of the call that stalled.
+ */
+async function within<T>(label: string, call: Promise<T>, ms: number): Promise<T> {
+  let watchdog: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      call,
+      new Promise<never>((_resolve, reject) => {
+        watchdog = setTimeout(() => reject(new Error(`${label} did not return within ${ms}ms`)), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(watchdog);
+  }
+}
+
+function readWithin(manager: ProcessManager, input: ReadInput): Promise<ManagerResult> {
+  return within(`readProcess for ${input.session_id}`, manager.readProcess(input), READ_WATCHDOG_MS);
+}
+
+/**
+ * Poll until the session reports its output closed, and hand back everything
+ * observed. Expiry names the state that was on the wire — which of exit, stream
+ * close, or output was still missing is the whole diagnosis.
+ */
+async function settle(
+  manager: ProcessManager,
+  sessionId: string,
+  first: ManagerResult,
+): Promise<{ settled: ManagerResult; output: ManagerResult[] }> {
+  let settled = first;
+  const output: ManagerResult[] = [...(first.output as ManagerResult[])];
+  const expiry = Date.now() + SETTLE_TIMEOUT_MS;
+  while (!settled.output_closed) {
+    const remaining = expiry - Date.now();
+    if (remaining <= 0) throw new Error(await unsettledState(manager, sessionId, settled, output));
+    settled = await readWithin(manager, {
+      session_id: sessionId,
+      cursor: settled.next_cursor as string,
+      wait_ms: Math.min(500, remaining),
+      max_output_bytes: 16_384,
+    });
+    output.push(...(settled.output as ManagerResult[]));
+  }
+  return { settled, output };
+}
+
+async function unsettledState(
+  manager: ProcessManager,
+  sessionId: string,
+  settled: ManagerResult,
+  output: ManagerResult[],
+): Promise<string> {
+  let listed: ManagerResult | string;
+  try {
+    listed = await manager.listProcesses({ include_completed: true, limit: 50 });
+  } catch (error) {
+    listed = error instanceof Error ? error.message : String(error);
+  }
+  const processes = typeof listed === "string" ? [] : ((listed.processes as ManagerResult[] | undefined) ?? []);
+  const session = processes.find((entry) => entry.session_id === sessionId) ?? null;
+  return [
+    `output never closed within ${SETTLE_TIMEOUT_MS}ms: session ${sessionId}`,
+    `last observed: ${JSON.stringify({
+      status: settled.status,
+      exit_code: settled.exit_code,
+      output_closed: settled.output_closed,
+      spool: settled.spool,
+      output: outputText(output),
+    })}`,
+    `listing: ${JSON.stringify(session ?? listed)}`,
+  ].join("\n");
+}
+
 describe("ProcessManager", () => {
   let manager: ProcessManager;
   afterEach(async () => {
@@ -42,19 +128,12 @@ describe("ProcessManager", () => {
 
   it("captures fast stdout/stderr and ordinary nonzero exit", async () => {
     manager = new ProcessManager({ pty: false });
-    const result = await manager.execCommand(execInput(manager, "fast", "printf out; printf err >&2; exit 7"));
-    let settled = result;
-    const output = [...result.output];
-    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
-    while (!settled.output_closed && Date.now() < deadline) {
-      settled = await manager.readProcess({
-        session_id: result.session_id,
-        cursor: settled.next_cursor,
-        wait_ms: 500,
-        max_output_bytes: 16_384,
-      });
-      output.push(...settled.output);
-    }
+    const result = await within(
+      "execCommand for the fast command",
+      manager.execCommand(execInput(manager, "fast", "printf out; printf err >&2; exit 7")),
+      SETTLE_TIMEOUT_MS,
+    );
+    const { settled, output } = await settle(manager, result.session_id, result);
     expect(settled.status).toBe("exited");
     expect(settled.exit_code).toBe(7);
     expect(settled.output_closed).toBe(true);
@@ -106,7 +185,7 @@ describe("ProcessManager", () => {
     let output = outputText(first.output);
     let cursor = first.next_cursor;
     while (!first.observation_complete || first.has_more_output) {
-      const page = await manager.readProcess({
+      const page = await readWithin(manager, {
         session_id: first.session_id,
         cursor,
         wait_ms: 100,
@@ -155,21 +234,13 @@ describe("ProcessManager", () => {
         max_output_bytes: 16_384,
       }),
     ).rejects.toMatchObject({ code: "STDIN_CLOSED" });
-    let observed = await manager.readProcess({
+    const observed = await readWithin(manager, {
       session_id: started.session_id,
       cursor: write.next_cursor,
       wait_ms: 500,
       max_output_bytes: 16_384,
     });
-    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
-    while (!observed.output_closed && Date.now() < deadline) {
-      observed = await manager.readProcess({
-        session_id: started.session_id,
-        cursor: observed.next_cursor,
-        wait_ms: 500,
-        max_output_bytes: 16_384,
-      });
-    }
+    await settle(manager, started.session_id, observed);
     const listed = await manager.listProcesses({ include_completed: true, limit: 50 });
     expect(listed.processes[0].output_closed).toBe(true);
   });
@@ -201,23 +272,13 @@ describe("ProcessManager", () => {
       max_output_bytes: 16_384,
     });
     expect(write.write).toMatchObject({ delivery_status: "handed_off", close_stdin: true });
-    let observed = await manager.readProcess({
+    const observed = await readWithin(manager, {
       session_id: started.session_id,
       cursor: write.next_cursor,
       wait_ms: 500,
       max_output_bytes: 16_384,
     });
-    const output = [...observed.output];
-    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
-    while (!observed.output_closed && Date.now() < deadline) {
-      observed = await manager.readProcess({
-        session_id: started.session_id,
-        cursor: observed.next_cursor,
-        wait_ms: 500,
-        max_output_bytes: 16_384,
-      });
-      output.push(...observed.output);
-    }
+    const { output } = await settle(manager, started.session_id, observed);
     expect(outputText(output)).toBe("<answer>");
   });
 
@@ -234,7 +295,7 @@ describe("ProcessManager", () => {
       status = processes.find((process) => process.session_id === first.session_id)?.status ?? status;
     }
     expect(status).toBe("exited");
-    const page = await manager.readProcess({
+    const page = await readWithin(manager, {
       session_id: first.session_id,
       cursor: first.next_cursor,
       wait_ms: 1_000,
@@ -250,7 +311,7 @@ describe("ProcessManager", () => {
     );
     const waitMs = 3_000;
     const began = performance.now();
-    let page = await manager.readProcess({
+    let page = await readWithin(manager, {
       session_id: started.session_id,
       cursor: "start",
       wait_ms: waitMs,
@@ -268,7 +329,7 @@ describe("ProcessManager", () => {
     }
     const deadline = Date.now() + SETTLE_TIMEOUT_MS;
     while (outputText(output) === "" && Date.now() < deadline) {
-      page = await manager.readProcess({
+      page = await readWithin(manager, {
         session_id: started.session_id,
         cursor: page.next_cursor,
         wait_ms: waitMs,
