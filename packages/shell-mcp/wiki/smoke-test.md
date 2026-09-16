@@ -4,12 +4,12 @@ The smoke checks exercise the built server, its real loopback HTTP listener,
 and an MCP v2 client. They are deliberately outside Vitest: the server is a
 child process and all MCP traffic crosses HTTP.
 
-Run the package checks from the package directory or use the equivalent scoped
-Yarn command from `/workspace`:
+Run the package checks from the package directory, the one that holds the
+manifest these scripts belong to:
 
 ```bash
-yarn workspace @goodfoot/shell-mcp run build
-yarn workspace @goodfoot/shell-mcp run smoke:local
+yarn run build
+yarn run smoke:local
 ```
 
 `smoke:local` starts `build/dist/src/main.js` with `--port=0` and a unique
@@ -61,8 +61,8 @@ nodeLinker: node-modules
 ```bash
 cd /tmp/mcp-inspector && yarn install
 export MCP_INSPECTOR=/tmp/mcp-inspector/node_modules/@modelcontextprotocol/inspector/clients/launcher/build/index.js
-cd /workspace
-yarn workspace @goodfoot/shell-mcp run smoke:mcp-cli
+cd /path/to/shell-mcp
+yarn run smoke:mcp-cli
 ```
 
 When `MCP_INSPECTOR` is missing or unreadable, `smoke:mcp-cli` reports

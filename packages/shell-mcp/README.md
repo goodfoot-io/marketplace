@@ -18,8 +18,8 @@ npx @goodfoot/shell-mcp --help             # every option, including the openai 
 
 ```bash
 yarn install
-yarn workspace @goodfoot/shell-mcp run build
-yarn workspace @goodfoot/shell-mcp run start --port=38147
+yarn run build
+yarn run start --port=38147
 ```
 
 The process prints its loopback endpoint, its server instance, and the readiness file it owns; a machine-readable claim in that file, not a log line, is what tells a supervisor the server is up.
@@ -31,8 +31,8 @@ The process prints its loopback endpoint, its server instance, and the readiness
 ```bash
 npx @goodfoot/shell-mcp openai
 npx @goodfoot/shell-mcp openai --port=38147 -- --workdir=/srv
-yarn workspace @goodfoot/shell-mcp run start:openai
-yarn workspace @goodfoot/shell-mcp run start:openai --port=38147 -- --workdir=/srv
+yarn run start:openai
+yarn run start:openai --port=38147 -- --workdir=/srv
 ```
 
 `tunnel-client` is not bundled with the package: put it on `PATH` or name it with `--tunnel-client=<path>`. The operator creates the tunnel in the OpenAI Platform, then supplies its id and a runtime key — `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY`, or the explicit flags described by `openai --help`. The run reports ready only when three things hold: the server published its readiness claim, `tunnel-client`'s `/readyz` reads exactly `ready` — the client calls two further outcomes readiness-compatible when its startup MCP probe did not actually reach the server, and this launcher refuses those — and the client's metrics show a poll the control plane accepted, because control-plane connectivity is deliberately not part of the client's readiness, so a key the tunnel rejects otherwise looks healthy forever. Either child exiting on its own stops the run, and Ctrl+C retires the server before the tunnel. The connection is outbound-only: no public DNS record, no certificate, and no inbound port is needed.
@@ -55,15 +55,14 @@ Process lifetime is unlimited unless `timeout_ms` is set. Observation deadlines 
 ## Development and validation
 
 ```bash
-yarn workspace @goodfoot/shell-mcp run typecheck
-yarn workspace @goodfoot/shell-mcp run lint
-yarn workspace @goodfoot/shell-mcp run test
-yarn workspace @goodfoot/shell-mcp run smoke:local
+yarn run typecheck
+yarn run lint
+yarn run test
+yarn run smoke:local
 ```
 
 `dev` runs the same composition root under `tsx watch`. See [wiki/smoke-test.md](wiki/smoke-test.md) for the independent Inspector workflow. Long-duration, soak, tunnel-hop, hosted ChatGPT, PTY, and macOS checks are opt-in and must be reported as not run when their environment is unavailable.
 
 Packaging: `yarn pack` runs `prepack`, which wipes `build/` before rebuilding so the archive can never carry output that a deleted source file left behind, and writes the tarball the registry would receive. Verify it the way a consumer meets it — `npx <tarball> --help` for the server, `npx <tarball> openai --help` for the tunnel — then `yarn npm publish` (`publishConfig.access` is `public`, so the scoped package publishes openly).
 
-Design rationale, recovery provenance, and the validation ledger live in [docs/architecture-decisions.md](docs/architecture-decisions.md), [docs/recovery-provenance.md](docs/recovery-provenance.md), and [docs/validation.md](docs/validation.md).
-Primary-source revisions, FMEA coverage, and the registry-verified dependency closure are recorded in [docs/research.md](docs/research.md), [docs/fmea-traceability.md](docs/fmea-traceability.md), and [docs/dependencies.md](docs/dependencies.md).
+Design rationale and the validation ledger live in [docs/architecture-decisions.md](docs/architecture-decisions.md) and [docs/validation.md](docs/validation.md); the registry-verified dependency closure is recorded in [docs/dependencies.md](docs/dependencies.md).
