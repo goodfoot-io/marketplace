@@ -146,6 +146,12 @@ const ROWS: readonly RowSpec[] = [
     source: { from: "scalar", key: "hostIdentity" },
   },
   {
+    name: "it.hostAgentName",
+    inputs: "none",
+    description: "Name the platform host agent in prose.",
+    source: { from: "scalar", key: "hostAgentName" },
+  },
+  {
     name: "it.pluginRootVar",
     inputs: "none",
     description: "Render the plugin-root variable.",

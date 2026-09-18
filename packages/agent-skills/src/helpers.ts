@@ -98,6 +98,12 @@ export function createHelpers(platform: Platform, options: HelperFactoryOptions 
         );
       return name && identity ? `${identity} serving as ${name}` : identity;
     },
+    get hostAgentName() {
+      const agentName = value("hostAgentName", platform, definition.hostAgentName);
+      return platform === "opencode"
+        ? agentName.replace("OpenCode", options.opencodeProductName ?? "OpenCode")
+        : agentName;
+    },
     get pluginRootVar() {
       return value("pluginRootVar", platform, definition.pluginRootVar);
     },

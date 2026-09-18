@@ -1,5 +1,9 @@
 # agent-skills plugin changelog
 
+## 1.0.27
+
+Adds `it.hostAgentName` to the published helper reference: the name of the agent that reads a rendered file (Claude, Codex, OpenCode, Antigravity), for prose addressed to that reader. It stays separate from `it.hostIdentity`, the sentence a host injects into a sub-agent and empty on Claude Code, because instructions that say "write for whoever is reading this" need the name even where the host injects nothing — and on Claude Code the product (`Claude Code`) and its agent (`Claude`) are different words. The reference's `it.platformDir` rows now report unavailable for `skills`, `agents`, `hooks`, and `plugin`, matching the fail-closed logical-path defaults those rows predated.
+
 ## 1.0.26
 
 Fixes the compiler's `--platform-dir` defaults for `skills`, `agents`, `hooks`, and `plugin`: on Claude Code, Codex, and OpenCode they were hardcoded to the `goodfoot` plugin's own paths, so any other plugin that omitted an override would silently publish into `goodfoot`'s directories rather than failing. Antigravity's bare relative defaults were equally unusable, since every real plugin already overrides all five of its kinds. All of these now report unavailable when not explicitly configured, so an omitted override fails the build instead of resolving to the wrong plugin's tree. `conventions` keeps its genuine platform-wide default (`CLAUDE.md`/`AGENTS.md`) on Claude Code, Codex, and OpenCode, since that default is correct regardless of which plugin is building.

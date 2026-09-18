@@ -17,6 +17,15 @@ export interface PlatformDefinition {
   readonly worktree: PlatformFact<"tools" | "commands">;
   readonly conventionsFile: PlatformFact<string>;
   readonly hostIdentity: PlatformFact<string>;
+  /**
+   * The host agent's own name, for prose addressed to whoever is reading the
+   * rendered file. Distinct from `hostIdentity`, which is the sentence the host
+   * injects into a sub-agent and is empty on Claude Code: a template that says
+   * "write for the agent reading this" needs the name even where the host
+   * injects nothing, and on Claude Code the host product (`Claude Code`) and
+   * its agent (`Claude`) are not the same word.
+   */
+  readonly hostAgentName: PlatformFact<string>;
   readonly pluginRootVar: PlatformFact<string>;
   readonly logicalPaths: Readonly<Record<PlatformPathKind, PlatformFact<string>>>;
   readonly frontmatterKeys: PlatformFact<readonly string[]>;
@@ -56,6 +65,7 @@ export const PLATFORM_DEFINITIONS = {
     worktree: verified("tools"),
     conventionsFile: verified("CLAUDE.md"),
     hostIdentity: verified(""),
+    hostAgentName: verified("Claude"),
     pluginRootVar: verified("$" + "{CLAUDE_PLUGIN_ROOT}"),
     logicalPaths: logicalPaths("CLAUDE.md"),
     frontmatterKeys: verified(["name", "description", "allowed-tools", "argument-hint", "model"]),
@@ -71,6 +81,7 @@ export const PLATFORM_DEFINITIONS = {
     worktree: verified("commands"),
     conventionsFile: verified("AGENTS.md"),
     hostIdentity: verified("You are a Codex sub-agent"),
+    hostAgentName: verified("Codex"),
     pluginRootVar: verified("$" + "{PLUGIN_ROOT}"),
     logicalPaths: logicalPaths("AGENTS.md"),
     frontmatterKeys: verified(["name", "description"]),
@@ -86,6 +97,7 @@ export const PLATFORM_DEFINITIONS = {
     worktree: verified("commands"),
     conventionsFile: verified("AGENTS.md"),
     hostIdentity: verified("You are a sub-agent running in OpenCode"),
+    hostAgentName: verified("OpenCode"),
     pluginRootVar: unavailable(),
     logicalPaths: logicalPaths("AGENTS.md"),
     frontmatterKeys: verified(["name", "description"]),
@@ -109,6 +121,7 @@ export const PLATFORM_DEFINITIONS = {
     conventionsFile: verified("AGENTS.md"),
     // Official docs do not define a stable sentence injected by the host.
     hostIdentity: provisional("You are an Antigravity sub-agent"),
+    hostAgentName: provisional("Antigravity"),
     // Plugins have a root plugin.json, but no documented plugin-root variable.
     pluginRootVar: unavailable(),
     // No plugin-agnostic default exists for any of these five: every real

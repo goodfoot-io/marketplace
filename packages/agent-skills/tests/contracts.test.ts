@@ -22,6 +22,21 @@ describe("portable helper contract", () => {
       "| it.bash | command | Render a block command for execution and output reporting. | native (verified) | unavailable (unavailable)",
     );
     expect(markdown).toContain("unavailable (unavailable)");
+    expect(markdown).toContain(
+      "| it.hostAgentName | none | Name the platform host agent in prose. | " +
+        "Claude (verified) | Codex (verified) | OpenCode (verified) | Antigravity (provisional) |",
+    );
+  });
+
+  it("names the host agent in prose, independently of the injected identity sentence", () => {
+    expect(createHelpers("claude-code").hostAgentName).toBe("Claude");
+    expect(createHelpers("codex").hostAgentName).toBe("Codex");
+    expect(createHelpers("opencode").hostAgentName).toBe("OpenCode");
+    expect(createHelpers("antigravity").hostAgentName).toBe("Antigravity");
+    // Claude Code injects no sub-agent identity sentence, yet still has a name
+    // to address its own instructions to; the two facts answer different questions.
+    expect(createHelpers("claude-code").hostIdentity()).toBe("");
+    expect(createHelpers("opencode", { opencodeProductName: "Rebrand" }).hostAgentName).toBe("Rebrand");
   });
   it("renders platform-specific skill references", () => {
     expect(createHelpers("claude-code").skillRef("cards:markdown")).toBe("`cards:markdown`");

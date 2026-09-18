@@ -124,6 +124,7 @@ export interface PlatformHelpers {
   agentSlotVar(role: string): string;
   conventionsFile: string;
   hostIdentity(role?: string): string;
+  readonly hostAgentName: string;
   pluginRootVar: string;
   platformDir(kind: PlatformPathKind): string;
   frontmatter(value: Readonly<Record<string, unknown>>): string;

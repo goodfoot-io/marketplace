@@ -16,7 +16,7 @@ Reuse `CODEOWNERS`, package manifests, wiki frontmatter (`title`/`summary`/`alia
 
 ## 4. Govern the vocabulary
 
-Taxonomy authority — who creates a tag, renames a preferred term, maintains synonyms, approves deprecations — is the maintainer's; surface proposed renames and deprecations (with replacement and redirects) for approval rather than enforcing them. Claude's part: detect drift — audit for stale and deprecated terms (search, redirects, linting), flag missing required fields, and generate from authoritative systems with validation, provenance, and override rules.
+Taxonomy authority — who creates a tag, renames a preferred term, maintains synonyms, approves deprecations — is the maintainer's; surface proposed renames and deprecations (with replacement and redirects) for approval rather than enforcing them. Antigravity's part: detect drift — audit for stale and deprecated terms (search, redirects, linting), flag missing required fields, and generate from authoritative systems with validation, provenance, and override rules.
 
 ## 5. Decide retrieval exposure
 

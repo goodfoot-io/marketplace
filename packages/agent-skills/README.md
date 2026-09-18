@@ -171,7 +171,7 @@ A build whose publication committed but whose cleanup left residues still exits 
 
 ## Helper reference
 
-The generated reference model covers `it.platform`, `it.is`, `it.variant`, `it.skillRef`, `it.skillInvoke`, `it.agentRef`, `it.agentSlotVar`, `it.conventionsFile`, `it.hostIdentity`, `it.pluginRootVar`, `it.platformDir`, `it.frontmatter`, every `it.subagent.*` operation, and both `it.worktree.*` operations. Each row reports accepted inputs plus verified, provisional, or unavailable output for every platform. Render the full current table with `renderHelperReferenceMarkdown()`; this README and the companion plugin consume that same model rather than maintaining a second platform table.
+The generated reference model covers `it.platform`, `it.is`, `it.variant`, `it.skillRef`, `it.skillInvoke`, `it.agentRef`, `it.agentSlotVar`, `it.conventionsFile`, `it.hostIdentity`, `it.hostAgentName`, `it.pluginRootVar`, `it.platformDir`, `it.frontmatter`, every `it.subagent.*` operation, and both `it.worktree.*` operations. Each row reports accepted inputs plus verified, provisional, or unavailable output for every platform. Render the full current table with `renderHelperReferenceMarkdown()`; this README and the companion plugin consume that same model rather than maintaining a second platform table.
 
 ## API and development
 

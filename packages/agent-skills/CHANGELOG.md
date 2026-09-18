@@ -1,5 +1,13 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.27
+
+Adds `it.hostAgentName` and its `hostAgentName` platform fact: the name of the agent that reads a rendered file (Claude, Codex, OpenCode, Antigravity), for prose addressed to that reader. It stays separate from `hostIdentity`, the sentence a host injects into a sub-agent and empty on Claude Code, because instructions that say "write for whoever is reading this" need the name even where the host injects nothing — and on Claude Code the product (`Claude Code`) and its agent (`Claude`) are different words. goodfoot's instructions, skillify, and documentation skills, which named Claude as their reader in fifteen places, now name each platform's own agent; Claude Code's rendered trees are byte-identical to before.
+
+Regenerates the helper-reference table in its source template and in all four platform trees, which also brings the `it.platformDir` rows in line with the fail-closed logical-path defaults: with no plugin-agnostic default remaining for `skills`, `agents`, `hooks`, and `plugin`, those rows report unavailable instead of the `configured path` the table showed while the removed defaults still existed.
+
+Regenerates the package's declaration files, which had gone stale: `parseFrontConfig` has been exported from the source since it was added, but the published types did not carry it.
+
 ## 1.0.26
 
 Fixes the compiler's `--platform-dir` defaults for `skills`, `agents`, `hooks`, and `plugin`: on Claude Code, Codex, and OpenCode they were hardcoded to the `goodfoot` plugin's own paths, so any other plugin that omitted an override would silently publish into `goodfoot`'s directories rather than failing. Antigravity's bare relative defaults were equally unusable, since every real plugin already overrides all five of its kinds. All of these now report unavailable when not explicitly configured, so an omitted override fails the build instead of resolving to the wrong plugin's tree. `conventions` keeps its genuine platform-wide default (`CLAUDE.md`/`AGENTS.md`) on Claude Code, Codex, and OpenCode, since that default is correct regardless of which plugin is building.

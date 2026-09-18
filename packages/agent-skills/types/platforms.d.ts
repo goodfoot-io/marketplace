@@ -15,6 +15,15 @@ export interface PlatformDefinition {
     readonly worktree: PlatformFact<"tools" | "commands">;
     readonly conventionsFile: PlatformFact<string>;
     readonly hostIdentity: PlatformFact<string>;
+    /**
+     * The host agent's own name, for prose addressed to whoever is reading the
+     * rendered file. Distinct from `hostIdentity`, which is the sentence the host
+     * injects into a sub-agent and is empty on Claude Code: a template that says
+     * "write for the agent reading this" needs the name even where the host
+     * injects nothing, and on Claude Code the host product (`Claude Code`) and
+     * its agent (`Claude`) are not the same word.
+     */
+    readonly hostAgentName: PlatformFact<string>;
     readonly pluginRootVar: PlatformFact<string>;
     readonly logicalPaths: Readonly<Record<PlatformPathKind, PlatformFact<string>>>;
     readonly frontmatterKeys: PlatformFact<readonly string[]>;
@@ -31,6 +40,7 @@ export declare const PLATFORM_DEFINITIONS: {
         readonly worktree: PlatformFact<"tools">;
         readonly conventionsFile: PlatformFact<string>;
         readonly hostIdentity: PlatformFact<string>;
+        readonly hostAgentName: PlatformFact<string>;
         readonly pluginRootVar: PlatformFact<string>;
         readonly logicalPaths: Readonly<Record<PlatformPathKind, PlatformFact<string>>>;
         readonly frontmatterKeys: PlatformFact<string[]>;
@@ -46,6 +56,7 @@ export declare const PLATFORM_DEFINITIONS: {
         readonly worktree: PlatformFact<"commands">;
         readonly conventionsFile: PlatformFact<string>;
         readonly hostIdentity: PlatformFact<string>;
+        readonly hostAgentName: PlatformFact<string>;
         readonly pluginRootVar: PlatformFact<string>;
         readonly logicalPaths: Readonly<Record<PlatformPathKind, PlatformFact<string>>>;
         readonly frontmatterKeys: PlatformFact<string[]>;
@@ -61,6 +72,7 @@ export declare const PLATFORM_DEFINITIONS: {
         readonly worktree: PlatformFact<"commands">;
         readonly conventionsFile: PlatformFact<string>;
         readonly hostIdentity: PlatformFact<string>;
+        readonly hostAgentName: PlatformFact<string>;
         readonly pluginRootVar: PlatformFact<string>;
         readonly logicalPaths: Readonly<Record<PlatformPathKind, PlatformFact<string>>>;
         readonly frontmatterKeys: PlatformFact<string[]>;
@@ -76,6 +88,7 @@ export declare const PLATFORM_DEFINITIONS: {
         readonly worktree: PlatformFact<"commands" | "tools">;
         readonly conventionsFile: PlatformFact<string>;
         readonly hostIdentity: PlatformFact<string>;
+        readonly hostAgentName: PlatformFact<string>;
         readonly pluginRootVar: PlatformFact<string>;
         readonly logicalPaths: {
             readonly skills: PlatformFact<string>;

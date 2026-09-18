@@ -5,13 +5,13 @@ description: This skill should be used when the user asks to "skillify this", "t
 
 <instructions>
 
-Convert a task just completed in the current session into a reusable skill — either a new skill or an edit to an existing one. Every skill produced is written for Claude as its sole reader: capture only what a capable Claude could not already infer, generalized so the skill works in any repository.
+Convert a task just completed in the current session into a reusable skill — either a new skill or an edit to an existing one. Every skill produced is written for Codex as its sole reader: capture only what a capable Codex could not already infer, generalized so the skill works in any repository.
 
 ## 1. Confirm the Task Is Worth Capturing
 
 Identify the just-completed task from the conversation history. Decline rather than manufacture a low-value skill:
 - **One-off or non-repeatable work**: Say so and stop; suggest a note instead.
-- **Trivially inferable workflow**: A capable Claude would already do it correctly — stop.
+- **Trivially inferable workflow**: A capable Codex would already do it correctly — stop.
 - **Already covered by an existing skill**: Point to it and offer to edit it rather than create a duplicate.
 - **Knowledge, not procedure**: Prefer a memory or doc over a skill.
 - **The relevant work is not in context** (compacted, or from a prior session): Ask the user to re-run the task here or paste the key steps, then proceed.
@@ -26,7 +26,7 @@ Interview the user until the design is settled, walking the tree below in order;
 - **Name and triggers** — The skill's name and the literal phrases the user would say to invoke it.
 - **Location** — Project, personal, or plugin; see Step 3: Choose Name and Location.
 - **Generalization boundary** — Which details are incidental versus load-bearing, and which values to discover at runtime versus fix as stated assumptions.
-- **Inclusions** — The non-obvious insights to keep versus the steps Claude would already perform correctly.
+- **Inclusions** — The non-obvious insights to keep versus the steps Codex would already perform correctly.
 - **Resources** — Whether a single `SKILL.md` suffices or bundled files are warranted.
 
 ## 3. Choose Name and Location
@@ -49,9 +49,9 @@ Route by what occupies the target:
 Work from the conversation history, not a transcript file.
 
 - Capture the path that worked and the points where the user corrected you — those corrections are the non-obvious lessons. Drop the chronological trial and error.
-- **Omit** what a capable Claude with no memory of this session would already do correctly. **Keep** what it would not: non-obvious decision logic, ordering that matters, safety gates, and failure modes discovered during the work.
+- **Omit** what a capable Codex with no memory of this session would already do correctly. **Keep** what it would not: non-obvious decision logic, ordering that matters, safety gates, and failure modes discovered during the work.
 - Strip *incidental* specifics — branch names, paths, IDs — replacing them with runtime discovery. Keep *load-bearing* specifics — a required command, a non-obvious flag, an API shape — as stated assumptions; do not generalize these away, as they are often the skill's whole value.
-- Note how Claude will know each consequential step succeeded, and flag any irreversible action for a human checkpoint.
+- Note how Codex will know each consequential step succeeded, and flag any irreversible action for a human checkpoint.
 
 For example, a skill for pruning merged worktrees omits that `git worktree list` enumerates worktrees, and keeps that `git branch --merged` and `git rev-list main..HEAD` miss squash- and rebase-merges, so `git cherry` detects the patch-equivalence they miss.
 
@@ -87,7 +87,7 @@ Confirm before finishing:
 - Frontmatter carries `name` in kebab-case matching the directory, and a third-person `description` whose literal trigger phrases would surface this skill for the intended request without colliding with an existing skill.
 - The body is wrapped in `<instructions>`, uses numbered headers and imperative voice, and matches the conventions table.
 - No incidental detail is hardcoded; load-bearing specifics are kept as stated assumptions and incidental ones are discovered at runtime.
-- No instruction restates what Claude would already do, and each consequential step carries a success signal.
+- No instruction restates what Codex would already do, and each consequential step carries a success signal.
 - In edit mode, the existing skill was read first, nothing was appended beside an old instruction, and no stale or contradictory guidance remains.
 
 </instructions>
