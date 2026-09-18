@@ -1,0 +1,6 @@
+packages/agent-hooks/src/agents/antigravity/cli-support.ts#L201-L201 rk64:1f473388880a5f53
+packages/agent-hooks/src/agents/codex/cli-support.ts#L201-L201 rk64:1f473388880a5f53
+packages/agent-hooks/src/agents/opencode/cli-support.ts#L60-L60 rk64:1f473388880a5f53
+packages/agent-hooks/src/cli.ts#L992-L995 rk64:2de293390838fced
+
+Every agent compile path in the unified package preserves esbuild symlink identity, so module-boundary comments and sourcemaps are computed against the checkout-local symlink path rather than the dereferenced realpath, which varies with checkout nesting depth. The cross-agent duplication check scopes to the agent modules alone, so nothing else holds the Claude Code path in the shared CLI and the Codex, Antigravity, and OpenCode paths in their support modules to the same flag.

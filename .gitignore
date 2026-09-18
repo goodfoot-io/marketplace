@@ -152,6 +152,8 @@ dist/
 */build
 # Exception: git-mesh build directory should be tracked
 !.mesh/build/
+# Exception: the span namespace is not build output
+!.span/build/
 
 # Additional logs
 npm-debug.log*

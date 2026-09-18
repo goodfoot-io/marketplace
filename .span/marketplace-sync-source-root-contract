@@ -1,4 +1,4 @@
-.claude-plugin/marketplace.json rk64:b363f9453ba6a494
+.claude-plugin/marketplace.json rk64:d5036991e7b54cf6
 .githooks/pre-commit.marketplace-sync.sh#L15-L20 rk64:520faad9a7e81e04
 
-Each Claude marketplace source names a plugin root containing .claude-plugin/plugin.json, and the auto-sync hook relies on that path shape to find the authoritative version manifest; the layout check proves only that the source root exists, so it does not enforce this stronger contract.
+Each Claude marketplace source names a plugin root containing .claude-plugin/plugin.json, and the auto-sync hook relies on that path shape to find the authoritative version manifest; nothing enforces that a source resolves to a plugin root — the hook silently skips any entry whose derived plugin.json is absent, and the layout check that once asserted every source path exists was retired with packages/plugin-layout-checks.

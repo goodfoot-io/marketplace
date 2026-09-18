@@ -1,0 +1,4 @@
+packages/agent-hooks/package.json#L30-L53 rk64:5ffe65e96c8103db
+packages/agent-hooks/tsconfig.build.json#L4-L5 rk64:2319cc1bb1b14fad
+
+The build config rootDir and the package manifest exports and bin must agree on the emitted layout: a rootDir of src puts artifacts at dist/*.js rather than dist/src/*.js, which is exactly where the declared entry points resolve. Nothing else compares the two files, so a moved rootDir or a relocated emit path ships a package whose declared entries do not exist.

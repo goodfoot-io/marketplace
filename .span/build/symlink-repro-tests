@@ -1,0 +1,4 @@
+packages/agent-hooks/tests/cli-symlink-repro.test.ts rk64:784445c2e3757d90
+packages/agent-hooks/tests/codex/cli-symlink-repro.test.ts rk64:09d399e7de1f2b55
+
+The Claude Code and Codex reproduction suites are twins: each installs a physical copy of the package sources into a shared install and compiles the same hook from checkouts at different nesting depths, asserting byte-identical output and a checkout-anchored runtime import. Scenarios added to one twin must be mirrored in the other, because the two agent compile paths share the wrapper-generation logic these suites pin.
