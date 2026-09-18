@@ -17,7 +17,7 @@
   },
   "disableWorkflows": true,
   "disableArtifact": false,
-"enabledPlugins": {
+  "enabledPlugins": {
     "typescript-hooks@goodfoot": true,
     "typescript-claude-code-for-web-setup@goodfoot": false,
     "project@goodfoot": false,
