@@ -31,7 +31,8 @@
     "code-simplifier@claude-plugins-official": false,
     "plugin-dev@claude-plugins-official": true,
     "voice@goodfoot": true,
-    "git-span@git-span": true
+    "git-span@git-span": true,
+    "wiki@goodfoot-wiki": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {
