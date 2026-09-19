@@ -1,0 +1,11 @@
+plugins-claude/goodfoot/skills/parallel/SKILL.md rk64:1f96bacdebbc7e3f
+plugins-codex/goodfoot/skills/parallel/SKILL.md rk64:85fe00fd914a4b9b
+skills-src/goodfoot/ask-me/SKILL.md.eta rk64:5a07a70dbb8a4990
+skills-src/goodfoot/best-person/SKILL.md.eta rk64:b7a67da2afb324c3
+skills-src/goodfoot/parallel/SKILL.md.eta rk64:6dda641ae38b4e6e
+skills-src/goodfoot/prove-it/SKILL.md.eta rk64:508fbe56111da278
+skills-src/goodfoot/questions/SKILL.md.eta rk64:0a289a9a256d23bb
+skills-src/goodfoot/reproduce-then-resolve/SKILL.md.eta rk64:158472a289efc74e
+skills-src/goodfoot/structured-english/SKILL.md.eta rk64:73b5c436a275c0b7
+
+The five committed goodfoot skill trees — plugins-claude, plugins-codex, plugins-opencode, plugins-antigravity, and the repo-root skills/ — are rendered from the seven templates in skills-src/goodfoot by the hand-run build, and a template edit without a rebuild, or a rendered SKILL.md edited as if it were the source, leaves the shipped trees stale or disagreeing with each other; no test or CI workflow compares a committed tree against a fresh render, and the lint gate reads skills-src alone, so the anchored parallel pair stands for all five trees of all seven skills.
