@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/shell-mcp",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "type": "module",
   "sideEffects": false,
   "description": "Remote managed Bash MCP server over Streamable HTTP, reached through an OpenAI Secure MCP Tunnel.",
