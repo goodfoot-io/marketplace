@@ -22,7 +22,7 @@ export const recoveries: Record<string, string> = {
     "Install and validate the optional node-pty adapter, or deliberately choose tty:false before starting.",
   UNSUPPORTED_OPERATION: "Use a documented operation for this mode; PTY Ctrl-D is not pipe EOF.",
   CAPACITY_EXCEEDED:
-    "No new mutation was accepted. Preserve existing jobs; retry known identities or free capacity deliberately.",
+    "No new mutation was accepted. Preserve existing jobs; wait for active work or transcript retirement to free capacity.",
   SHUTTING_DOWN: "Admission is closed. Observe existing operations; do not blindly execute them in another instance.",
   OBSERVER_CANCELLED:
     "Only observation was cancelled. Recover accepted work by operation_id/session_id and retry the previous cursor.",

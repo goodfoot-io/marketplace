@@ -131,6 +131,8 @@ Restarting the server needs no re-link and no secret to transcribe. The tunnel i
 
 Call `list_processes` first to obtain `server_instance_id`. Choose an `operation_id` before `exec_command`; retry that same ID and execution arguments after a lost reply. Every accepted start returns a `session_id`, including immediate exits and failed spawns. Read output with the returned opaque cursor. Cursors are non-destructive, so a retry replays retained data. Deduplicate input with a caller-chosen `write_id` and never assume that a timed-out write was unapplied.
 
+Operation deduplication covers the 64 most recently retained operations, not the server's entire lifetime. When a new command reaches that bound, the oldest fully completed session whose managed process group is confirmed empty is evicted together with its transcript and write acknowledgements; failed starts with no process are also reclaimable. Active or unverified work is never evicted. After eviction, absence is not proof that a command never ran, and reusing its `operation_id` can start a new command. Retry uncertain starts promptly and never move an old operation onto a newly discovered identity merely because lookup no longer finds it.
+
 Process lifetime is unlimited unless `timeout_ms` is set. Observation deadlines only bound the request. `terminate_process` requests TERM and then bounded KILL cleanup of the managed process group; inspect its cleanup state because sending a signal is not proof that cleanup completed. Daemonized or re-sessioned descendants can escape that scope.
 
 ## Development and validation

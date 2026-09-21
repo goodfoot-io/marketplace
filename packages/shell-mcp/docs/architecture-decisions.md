@@ -12,7 +12,9 @@ The top-level structure is: `main.ts` owns CLI signals, `serve.ts` owns HTTP/rea
 
 ## Execution and recovery
 
-An `operation_id` is synchronously reserved with a session handle before spawning. Its fingerprint contains normalized execution-affecting arguments and excludes observation budgets. Replays recover the existing record; conflicts never spawn. Used identities remain tombstoned for the live instance after detailed results expire.
+An `operation_id` is synchronously reserved with a session handle before spawning. Its fingerprint contains normalized execution-affecting arguments and excludes observation budgets. Replays recover the existing record; conflicts never spawn. Detailed results can expire while their identities remain tombstoned, but identity retention is a bounded recent-operation guarantee rather than a live-instance guarantee.
+
+The manager retains at most 64 operation/session records. Admission under pressure removes the oldest fully completed, output-closed, unpinned session as one unit: operation identity, session, transcript, and write acknowledgements. An exited session is eligible only after its managed process group is confirmed empty; a failed start with no process is immediately reclaimable. Starting, running, output-open, queued-input, unconfirmed-cleanup, and actively observed sessions are ineligible; when no record is safe to remove, admission fails without disturbing existing work. Because an evicted ID may later name a new command, callers recover uncertain starts promptly and treat absence as unknown history rather than proof that no effect occurred.
 
 Output events keep collector order and their stream label. Opaque cursors bind server instance, session, event position, and partial-event byte offset. Reads are non-destructive and exact UTF-8 byte budgets may stop inside an event without advancing over undisclosed output. Leader exit, stream closure, unread output, and group cleanup are independent facts.
 

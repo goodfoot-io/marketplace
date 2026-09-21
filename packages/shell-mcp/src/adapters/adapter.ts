@@ -54,6 +54,8 @@ export class Scope {
   private leaderTerminal = false;
   private streamsClosed = 0;
   private empty = false;
+  private emptyProbe: NodeJS.Timeout | undefined;
+  private disposed = false;
   private anchored = false;
   private sendControl: (value: object) => void = () => {};
 
@@ -89,6 +91,7 @@ export class Scope {
       pty.onExit((event) => {
         this.leaderTerminal = true;
         this.hooks.outcome(event.exitCode, event.signal === undefined ? null : String(event.signal));
+        this.streamsClosed++;
         this.hooks.streamEnd("terminal");
         this.markEmptyIfGone();
       });
@@ -174,9 +177,16 @@ export class Scope {
   }
 
   abandonOutput(): void {
+    this.dispose();
     this.child?.stdout?.destroy();
     this.child?.stderr?.destroy();
     this.child?.stdin?.destroy();
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    clearInterval(this.emptyProbe);
+    this.emptyProbe = undefined;
   }
 
   private signal(signal: NodeJS.Signals): boolean {
@@ -201,8 +211,7 @@ export class Scope {
       this.hooks.failed(message.error ?? "Bash failed to start");
       this.markEmptyIfGone();
     } else if (message.type === "scope_empty") {
-      this.empty = true;
-      this.hooks.scopeEmpty();
+      this.confirmEmpty();
     }
   }
 
@@ -222,19 +231,24 @@ export class Scope {
   }
 
   private markEmptyIfGone(): void {
-    if (this.empty || !this.leaderTerminal) return;
+    if (this.disposed || this.empty || !this.leaderTerminal) return;
     if (this.streamsClosed < (this.pty ? 1 : 2)) return;
     if (!this.groupExists()) {
-      this.empty = true;
-      this.hooks.scopeEmpty();
+      this.confirmEmpty();
       return;
     }
-    setTimeout(() => {
-      if (!this.groupExists() && !this.empty) {
-        this.empty = true;
-        this.hooks.scopeEmpty();
-      }
-    }, 25).unref();
+    if (!this.pty || this.emptyProbe) return;
+    this.emptyProbe = setInterval(() => {
+      if (!this.disposed && !this.groupExists()) this.confirmEmpty();
+    }, 25);
+    this.emptyProbe.unref();
+  }
+
+  private confirmEmpty(): void {
+    if (this.disposed || this.empty) return;
+    this.empty = true;
+    this.dispose();
+    this.hooks.scopeEmpty();
   }
 
   private async cleanup(): Promise<"confirmed" | "unverified" | "failed"> {
@@ -261,8 +275,7 @@ export class Scope {
     const killEnd = mono() + this.killGraceMs;
     while (mono() < killEnd) {
       if (!this.groupExists()) {
-        this.empty = true;
-        this.hooks.scopeEmpty();
+        this.confirmEmpty();
         return "confirmed";
       }
       await delay(25);

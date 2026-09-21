@@ -15,7 +15,12 @@ describe("configuration", () => {
   });
 
   it("defaults to a loopback server with no external identity", () => {
-    expect(parseArgs([])).toMatchObject({ port: DEFAULT_PORT, bash: "/bin/bash", disablePty: false });
+    expect(parseArgs([])).toMatchObject({
+      port: DEFAULT_PORT,
+      bash: "/bin/bash",
+      disablePty: false,
+      limits: { operationIds: 64 },
+    });
   });
 
   it("rejects the retired public-identity options", () => {

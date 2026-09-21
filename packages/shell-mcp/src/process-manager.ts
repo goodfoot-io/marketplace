@@ -1,6 +1,7 @@
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { loadPty, Scope, type Stream } from "./adapters/adapter.js";
+import { OPERATION_ID_CAPACITY } from "./config.js";
 import { type ExecInput, inputs, type ListInput, type ReadInput, type WriteInput } from "./contracts.js";
 import { DomainError, requireThat } from "./errors.js";
 import type { ConsoleEvent } from "./logging/console-renderer.js";
@@ -40,7 +41,7 @@ const defaultLimits: ProcessManagerLimits = {
   maxWaitMs: 20_000,
   outputBytesPerSession: 1_048_576,
   outputBytesGlobal: 33_554_432,
-  operationIds: 10_000,
+  operationIds: OPERATION_ID_CAPACITY,
   writeIds: 100_000,
   writeIdsPerSession: 10_000,
   inputPayloadBytes: 65_536,
@@ -72,6 +73,11 @@ interface Event {
 interface WriteEntry {
   fingerprint: string;
   record: Record<string, unknown>;
+}
+interface OperationEntry {
+  sessionId: string;
+  fingerprint: string;
+  resultExpired: boolean;
 }
 interface Session {
   id: string;
@@ -123,6 +129,13 @@ interface Session {
   cleanupTask?: Promise<"confirmed" | "unverified" | "failed">;
   resultExpiresAt: number | null;
   resultExpired: boolean;
+  expiryPending: boolean;
+  transcriptState: "live" | "retiring" | "retired";
+  cachedSpool: { status: "healthy" | "degraded" | "closed"; reason: string | null };
+  pins: number;
+  removed: boolean;
+  timeoutCancel?: () => void;
+  resultExpiryCancel?: () => void;
   waiters: Set<() => void>;
   createdOrder: number;
   activeCounted: boolean;
@@ -152,7 +165,7 @@ export class ProcessManager {
   private readonly ptyRequested: boolean;
   private readonly cursor: CursorCodec;
   private readonly sessions = new Map<string, Session>();
-  private readonly operations = new Map<string, { sessionId: string; fingerprint: string; resultExpired: boolean }>();
+  private readonly operations = new Map<string, OperationEntry>();
   private readonly transcripts: TranscriptStore;
   private creationCounter = 0;
   private active = 0;
@@ -169,6 +182,12 @@ export class ProcessManager {
     this.instanceId = options.instanceId ?? randomId("srv");
     this.mode = options.mode ?? "local";
     this.limits = { ...defaultLimits, ...options.limits };
+    if (
+      !Number.isSafeInteger(this.limits.operationIds) ||
+      this.limits.operationIds < 1 ||
+      this.limits.operationIds > OPERATION_ID_CAPACITY
+    )
+      throw new RangeError(`operationIds must be a safe integer from 1 to ${OPERATION_ID_CAPACITY}.`);
     this.cwd = resolve(options.cwd ?? process.cwd());
     this.bash = options.bash ?? "/bin/bash";
     this.env = options.env ?? { ...process.env };
@@ -220,67 +239,29 @@ export class ProcessManager {
       JSON.stringify({ cmd: input.cmd, cwd, login: input.login, tty: input.tty, timeout_ms: input.timeout_ms ?? null }),
     );
     const previous = this.operations.get(input.operation_id);
-    if (previous) {
-      if (previous.fingerprint !== fingerprint)
-        throw new DomainError(
-          "OPERATION_ID_CONFLICT",
-          "operation_id is already bound to different execution arguments.",
-          { operation_id: input.operation_id },
-        );
-      if (previous.resultExpired)
-        throw new DomainError(
-          "OPERATION_RESULT_EXPIRED",
-          "The operation identity is retained but its result has expired.",
-          { operation_id: input.operation_id, session_id: previous.sessionId },
-        );
-      const session = this.sessions.get(previous.sessionId);
-      requireThat(session, "SESSION_EXPIRED", "The accepted operation record is no longer available.");
-      return this.processResult(
-        session,
-        await this.observe(session, 0, input.max_output_bytes, input.yield_time_ms, undefined),
-        true,
+    if (previous)
+      return this.replayOperation(
+        input.operation_id,
+        fingerprint,
+        previous,
+        input.max_output_bytes,
+        input.yield_time_ms,
       );
-    }
     requireThat(!this.shuttingDown, "SHUTTING_DOWN", "This server is shutting down.");
     requireThat(this.active < this.limits.activeSessions, "CAPACITY_EXCEEDED", "The active session limit is full.");
+    if (input.tty && !this.ptyLoaded) await this.loadPtyAdapter();
+    const raced = this.operations.get(input.operation_id);
+    if (raced)
+      return this.replayOperation(input.operation_id, fingerprint, raced, input.max_output_bytes, input.yield_time_ms);
+    requireThat(!this.shuttingDown, "SHUTTING_DOWN", "This server is shutting down.");
+    requireThat(this.active < this.limits.activeSessions, "CAPACITY_EXCEEDED", "The active session limit is full.");
+    if (input.tty) requireThat(this.pty, "PTY_UNAVAILABLE", "The optional PTY adapter is unavailable.");
+    this.evictForAdmission();
     requireThat(
       this.operations.size < this.limits.operationIds,
       "CAPACITY_EXCEEDED",
       "The operation identity registry is full.",
     );
-    if (input.tty && !this.ptyLoaded) {
-      await this.loadPtyAdapter();
-      const raced = this.operations.get(input.operation_id);
-      if (raced) {
-        if (raced.fingerprint !== fingerprint)
-          throw new DomainError(
-            "OPERATION_ID_CONFLICT",
-            "operation_id is already bound to different execution arguments.",
-            { operation_id: input.operation_id },
-          );
-        if (raced.resultExpired)
-          throw new DomainError(
-            "OPERATION_RESULT_EXPIRED",
-            "The operation identity is retained but its result has expired.",
-            { operation_id: input.operation_id, session_id: raced.sessionId },
-          );
-        const racedSession = this.sessions.get(raced.sessionId);
-        requireThat(racedSession, "SESSION_EXPIRED", "The accepted operation record is no longer available.");
-        return this.processResult(
-          racedSession,
-          await this.observe(racedSession, 0, input.max_output_bytes, input.yield_time_ms, undefined),
-          true,
-        );
-      }
-      requireThat(!this.shuttingDown, "SHUTTING_DOWN", "This server is shutting down.");
-      requireThat(this.active < this.limits.activeSessions, "CAPACITY_EXCEEDED", "The active session limit is full.");
-      requireThat(
-        this.operations.size < this.limits.operationIds,
-        "CAPACITY_EXCEEDED",
-        "The operation identity registry is full.",
-      );
-    }
-    if (input.tty) requireThat(this.pty, "PTY_UNAVAILABLE", "The optional PTY adapter is unavailable.");
     const session: Session = {
       id: randomId("sess"),
       operationId: input.operation_id,
@@ -327,10 +308,16 @@ export class ProcessManager {
       cleanupTask: undefined,
       resultExpiresAt: null,
       resultExpired: false,
+      expiryPending: false,
+      transcriptState: "live",
+      cachedSpool: { status: "healthy", reason: null },
+      pins: 1,
+      removed: false,
       waiters: new Set(),
       createdOrder: ++this.creationCounter,
       activeCounted: true,
     };
+    this.transcripts.create(session.id);
     this.sessions.set(session.id, session);
     this.operations.set(input.operation_id, { sessionId: session.id, fingerprint, resultExpired: false });
     this.active++;
@@ -347,229 +334,257 @@ export class ProcessManager {
       tty: session.tty,
       commandBytes: Buffer.byteLength(input.cmd, "utf8"),
     });
+    const sessionHooks = this.hooks(session);
     session.scope = new Scope(
       { bash: this.bash, cmd: input.cmd, login: input.login, cwd, env: this.env, tty: input.tty },
-      this.hooks(session),
+      sessionHooks,
       this.limits.termGraceMs,
       this.limits.cleanupObserveMs,
       this.pty ?? null,
     );
     try {
-      await session.scope.start();
-    } catch (error) {
-      this.hooks(session).failed(error instanceof Error ? error.message : String(error));
-    }
-    if (input.timeout_ms !== null) {
-      deadline(input.timeout_ms, () => {
-        if (session.status === "running" || session.status === "starting") {
-          session.stopReason = "timeout";
-          void this.terminateProcess({ session_id: session.id, wait_ms: this.limits.cleanupObserveMs });
+      try {
+        await session.scope.start();
+      } catch (error) {
+        sessionHooks.failed(error instanceof Error ? error.message : String(error));
+        if (!session.outputClosed) {
+          if (session.tty) sessionHooks.streamEnd("terminal");
+          else {
+            sessionHooks.streamEnd("stdout");
+            sessionHooks.streamEnd("stderr");
+          }
         }
-      });
+      }
+      if (
+        input.timeout_ms !== null &&
+        this.sessions.get(session.id) === session &&
+        (session.status === "running" || session.status === "starting")
+      ) {
+        session.timeoutCancel = deadline(input.timeout_ms, () => {
+          session.timeoutCancel = undefined;
+          if (
+            this.sessions.get(session.id) === session &&
+            (session.status === "running" || session.status === "starting")
+          ) {
+            session.stopReason = "timeout";
+            void this.terminateProcess({ session_id: session.id, wait_ms: this.limits.cleanupObserveMs });
+          }
+        });
+      }
+      const page = await this.observeInitial(session, input.max_output_bytes, input.yield_time_ms);
+      this.requireRetained(session);
+      return this.processResult(session, page, false);
+    } finally {
+      this.unpin(session);
     }
-    return this.processResult(
-      session,
-      await this.observeInitial(session, input.max_output_bytes, input.yield_time_ms),
-      false,
-    );
   }
 
   async readProcess(raw: ReadInput): Promise<ManagerResult> {
     const input = inputs.read_process.parse(raw);
-    const session = this.session(input.session_id);
-    requireThat(!session.resultExpired, "SESSION_EXPIRED", "The retained process result has expired.", {
-      session_id: session.id,
-      operation_id: session.operationId,
+    return this.withPinnedSession(input.session_id, async (session) => {
+      requireThat(!session.resultExpired, "SESSION_EXPIRED", "The retained process result has expired.", {
+        session_id: session.id,
+        operation_id: session.operationId,
+      });
+      const position = this.decodeOutput(session, input.cursor);
+      const page = await this.observe(
+        session,
+        position,
+        input.max_output_bytes,
+        input.wait_ms,
+        input.known_state_version,
+      );
+      this.requireRetained(session);
+      return this.processResult(session, page, false);
     });
-    const position = this.decodeOutput(session, input.cursor);
-    return this.processResult(
-      session,
-      await this.observe(session, position, input.max_output_bytes, input.wait_ms, input.known_state_version),
-      false,
-    );
   }
 
   async writeStdin(raw: WriteInput): Promise<ManagerResult> {
     const input = inputs.write_stdin.parse(raw);
-    const session = this.session(input.session_id);
-    const charsBytes = Buffer.byteLength(input.chars, "utf8");
-    requireThat(
-      charsBytes <= this.limits.inputPayloadBytes,
-      "INVALID_ARGUMENT",
-      "Input payload exceeds the configured limit.",
-    );
-    const cursorPosition = input.cursor ? this.decodeOutput(session, input.cursor) : undefined;
-    const fingerprint = hash(
-      JSON.stringify({ chars: input.chars, close_stdin: input.close_stdin, interrupt: input.interrupt }),
-    );
-    const previous = session.writes.get(input.write_id);
-    if (previous) {
-      if (previous.fingerprint !== fingerprint)
-        throw new DomainError("WRITE_ID_CONFLICT", "write_id is already bound to different input.", {
-          write_id: input.write_id,
+    return this.withPinnedSession(input.session_id, async (session) => {
+      const charsBytes = Buffer.byteLength(input.chars, "utf8");
+      requireThat(
+        charsBytes <= this.limits.inputPayloadBytes,
+        "INVALID_ARGUMENT",
+        "Input payload exceeds the configured limit.",
+      );
+      const cursorPosition = input.cursor ? this.decodeOutput(session, input.cursor) : undefined;
+      const fingerprint = hash(
+        JSON.stringify({ chars: input.chars, close_stdin: input.close_stdin, interrupt: input.interrupt }),
+      );
+      const previous = session.writes.get(input.write_id);
+      if (previous) {
+        if (previous.fingerprint !== fingerprint)
+          throw new DomainError("WRITE_ID_CONFLICT", "write_id is already bound to different input.", {
+            write_id: input.write_id,
+          });
+        const page =
+          cursorPosition !== undefined
+            ? await this.observe(session, cursorPosition, input.max_output_bytes, input.yield_time_ms, undefined)
+            : undefined;
+        return { ...this.processResult(session, page, true), write: { ...previous.record, replayed: true } };
+      }
+      requireThat(this.writeCount < this.limits.writeIds, "CAPACITY_EXCEEDED", "The write identity registry is full.");
+      requireThat(
+        session.writes.size < this.limits.writeIdsPerSession,
+        "CAPACITY_EXCEEDED",
+        "The session write identity registry is full.",
+      );
+      requireThat(
+        this.inputGlobal + charsBytes <= this.limits.inputGlobal,
+        "INPUT_QUEUE_FULL",
+        "The global input queue is full.",
+      );
+      requireThat(
+        session.queuedInputBytes + charsBytes <= this.limits.inputPerSession &&
+          session.queuedInputRecords < this.limits.inputQueueRecords,
+        "INPUT_QUEUE_FULL",
+        "The session input queue is full.",
+      );
+      if (!input.interrupt) {
+        requireThat(session.stdinOpen, "STDIN_CLOSED", "stdin is already closed.");
+        if (input.close_stdin)
+          requireThat(!session.tty, "UNSUPPORTED_OPERATION", "Pipe EOF is unsupported for PTY sessions.");
+      }
+      const record: Record<string, unknown> = {
+        write_id: input.write_id,
+        accepted: true,
+        reservation_order: ++session.inputOrder,
+        delivery_status: "queued",
+        bytes_accepted: charsBytes,
+        chars_bytes: charsBytes,
+        close_stdin: input.close_stdin,
+        interrupt: input.interrupt,
+        accepted_at: new Date().toISOString(),
+        settled_at: null,
+        detail: "Reserved for delivery.",
+        replayed: false,
+      };
+      session.writes.set(input.write_id, { fingerprint, record });
+      this.writeCount++;
+      session.queuedInputBytes += charsBytes;
+      session.queuedInputRecords++;
+      this.inputGlobal += charsBytes;
+      this.log("stdin.accepted", session, "", {
+        writeId: input.write_id,
+        bytes: charsBytes,
+        closeStdin: input.close_stdin,
+        interrupt: input.interrupt,
+      });
+      session.inputTail = session.inputTail.then(async () => {
+        this.display({ type: "input", session: session.id, text: input.chars, interrupt: input.interrupt });
+        try {
+          if (input.interrupt) {
+            const accepted = session.scope?.interrupt() ?? false;
+            record.delivery_status = accepted ? "handed_off" : "failed";
+            record.detail = accepted
+              ? "SIGINT/control byte handed to the managed scope."
+              : "The managed scope no longer accepted SIGINT.";
+          } else {
+            await new Promise<void>((resolveWrite, rejectWrite) =>
+              session.scope?.write(input.chars, input.close_stdin, (error) =>
+                error ? rejectWrite(error) : resolveWrite(),
+              ),
+            );
+            record.delivery_status = "handed_off";
+            record.detail = input.close_stdin
+              ? "Bytes handed off and stdin EOF queued."
+              : "Bytes handed off to child stdin.";
+            if (input.close_stdin) session.stdinOpen = false;
+          }
+        } catch (error) {
+          record.delivery_status = "indeterminate";
+          record.detail = error instanceof Error ? error.message.slice(0, 256) : "Input delivery outcome is unknown.";
+        }
+        record.settled_at = new Date().toISOString();
+        this.log("stdin.settled", session, String(record.detail), {
+          writeId: input.write_id,
+          deliveryStatus: String(record.delivery_status),
+          bytes: charsBytes,
         });
+        if (record.delivery_status !== "handed_off") {
+          this.display({
+            type: "notice",
+            session: session.id,
+            text: `shell-mcp: input delivery ${String(record.delivery_status)}: ${String(record.detail)}`,
+          });
+        }
+        session.queuedInputBytes -= charsBytes;
+        session.queuedInputRecords--;
+        this.inputGlobal -= charsBytes;
+        session.stateVersion++;
+        this.signal(session);
+      });
+      await session.inputTail;
       const page =
         cursorPosition !== undefined
           ? await this.observe(session, cursorPosition, input.max_output_bytes, input.yield_time_ms, undefined)
           : undefined;
-      return { ...this.processResult(session, page, true), write: { ...previous.record, replayed: true } };
-    }
-    requireThat(this.writeCount < this.limits.writeIds, "CAPACITY_EXCEEDED", "The write identity registry is full.");
-    requireThat(
-      session.writes.size < this.limits.writeIdsPerSession,
-      "CAPACITY_EXCEEDED",
-      "The session write identity registry is full.",
-    );
-    requireThat(
-      this.inputGlobal + charsBytes <= this.limits.inputGlobal,
-      "INPUT_QUEUE_FULL",
-      "The global input queue is full.",
-    );
-    requireThat(
-      session.queuedInputBytes + charsBytes <= this.limits.inputPerSession &&
-        session.queuedInputRecords < this.limits.inputQueueRecords,
-      "INPUT_QUEUE_FULL",
-      "The session input queue is full.",
-    );
-    if (!input.interrupt) {
-      requireThat(session.stdinOpen, "STDIN_CLOSED", "stdin is already closed.");
-      if (input.close_stdin)
-        requireThat(!session.tty, "UNSUPPORTED_OPERATION", "Pipe EOF is unsupported for PTY sessions.");
-    }
-    const record: Record<string, unknown> = {
-      write_id: input.write_id,
-      accepted: true,
-      reservation_order: ++session.inputOrder,
-      delivery_status: "queued",
-      bytes_accepted: charsBytes,
-      chars_bytes: charsBytes,
-      close_stdin: input.close_stdin,
-      interrupt: input.interrupt,
-      accepted_at: new Date().toISOString(),
-      settled_at: null,
-      detail: "Reserved for delivery.",
-      replayed: false,
-    };
-    session.writes.set(input.write_id, { fingerprint, record });
-    this.writeCount++;
-    session.queuedInputBytes += charsBytes;
-    session.queuedInputRecords++;
-    this.inputGlobal += charsBytes;
-    this.log("stdin.accepted", session, "", {
-      writeId: input.write_id,
-      bytes: charsBytes,
-      closeStdin: input.close_stdin,
-      interrupt: input.interrupt,
+      this.requireRetained(session);
+      return { ...this.processResult(session, page, false), write: { ...record } };
     });
-    session.inputTail = session.inputTail.then(async () => {
-      this.display({ type: "input", session: session.id, text: input.chars, interrupt: input.interrupt });
-      try {
-        if (input.interrupt) {
-          const accepted = session.scope?.interrupt() ?? false;
-          record.delivery_status = accepted ? "handed_off" : "failed";
-          record.detail = accepted
-            ? "SIGINT/control byte handed to the managed scope."
-            : "The managed scope no longer accepted SIGINT.";
-        } else {
-          await new Promise<void>((resolveWrite, rejectWrite) =>
-            session.scope?.write(input.chars, input.close_stdin, (error) =>
-              error ? rejectWrite(error) : resolveWrite(),
-            ),
-          );
-          record.delivery_status = "handed_off";
-          record.detail = input.close_stdin
-            ? "Bytes handed off and stdin EOF queued."
-            : "Bytes handed off to child stdin.";
-          if (input.close_stdin) session.stdinOpen = false;
-        }
-      } catch (error) {
-        record.delivery_status = "indeterminate";
-        record.detail = error instanceof Error ? error.message.slice(0, 256) : "Input delivery outcome is unknown.";
-      }
-      record.settled_at = new Date().toISOString();
-      this.log("stdin.settled", session, String(record.detail), {
-        writeId: input.write_id,
-        deliveryStatus: String(record.delivery_status),
-        bytes: charsBytes,
-      });
-      if (record.delivery_status !== "handed_off") {
-        this.display({
-          type: "notice",
-          session: session.id,
-          text: `shell-mcp: input delivery ${String(record.delivery_status)}: ${String(record.detail)}`,
-        });
-      }
-      session.queuedInputBytes -= charsBytes;
-      session.queuedInputRecords--;
-      this.inputGlobal -= charsBytes;
-      session.stateVersion++;
-      this.signal(session);
-    });
-    await session.inputTail;
-    const page =
-      cursorPosition !== undefined
-        ? await this.observe(session, cursorPosition, input.max_output_bytes, input.yield_time_ms, undefined)
-        : undefined;
-    return { ...this.processResult(session, page, false), write: { ...record } };
   }
 
   async terminateProcess(raw: { session_id: string; wait_ms?: number }): Promise<ManagerResult> {
-    const session = this.session(raw.session_id);
-    if (session.cleanup.status === "not_requested") {
-      session.stopReason = session.stopReason ?? "user";
-      session.cleanup = {
-        scope: "managed_process_group",
-        status: "in_progress",
-        detail: "Termination requested; cleanup is being observed.",
-      };
-      session.stateVersion++;
-      this.signal(session);
-      session.cleanupTask = (session.scope?.stop() ?? Promise.resolve("unverified" as const)).then((status) => {
-        session.cleanup.status = status;
-        session.cleanup.detail =
-          status === "confirmed"
-            ? "Managed process group is confirmed empty."
-            : "Managed scope cleanup remains unverified.";
+    return this.withPinnedSession(raw.session_id, async (session) => {
+      if (session.cleanup.status === "not_requested") {
+        session.stopReason = session.stopReason ?? "user";
+        session.cleanup = {
+          scope: "managed_process_group",
+          status: "in_progress",
+          detail: "Termination requested; cleanup is being observed.",
+        };
         session.stateVersion++;
         this.signal(session);
-        return status;
-      });
-    }
-    await this.waitForCondition(
-      session,
-      Math.min(raw.wait_ms ?? this.limits.maxWaitMs, this.limits.maxWaitMs),
-      () => session.cleanup.status !== "in_progress",
-    );
-    return this.processResult(session, undefined, false);
+        session.cleanupTask = (session.scope?.stop() ?? Promise.resolve("unverified" as const)).then((status) => {
+          session.cleanup.status = status;
+          session.cleanup.detail =
+            status === "confirmed"
+              ? "Managed process group is confirmed empty."
+              : "Managed scope cleanup remains unverified.";
+          session.stateVersion++;
+          this.signal(session);
+          return status;
+        });
+      }
+      await this.waitForCondition(
+        session,
+        Math.min(raw.wait_ms ?? this.limits.maxWaitMs, this.limits.maxWaitMs),
+        () => session.cleanup.status !== "in_progress",
+      );
+      this.requireRetained(session);
+      return this.processResult(session, undefined, false);
+    });
   }
 
   async listProcesses(raw: ListInput = {} as ListInput): Promise<ManagerResult> {
     const input = inputs.list_processes.parse(raw);
     await this.loadPtyAdapter();
     let ceiling = this.creationCounter;
-    let offset = 0;
+    let after = 0;
     if (input.page_token) {
       const decoded = this.cursor.decode(input.page_token, "list", "");
       requireThat(decoded, "CURSOR_INVALID", "The list page token is invalid.");
-      offset = decoded.position;
+      after = decoded.position;
       ceiling = decoded.ceiling;
     }
     let rows = [...this.sessions.values()].filter(
       (session) =>
+        session.createdOrder > after &&
         session.createdOrder <= ceiling &&
         (input.include_completed || session.status === "running" || session.status === "starting"),
     );
     if (input.operation_id) rows = rows.filter((session) => session.operationId === input.operation_id);
     rows.sort((a, b) => a.createdOrder - b.createdOrder);
-    const selected = rows.slice(offset, offset + input.limit);
+    const selected = rows.slice(0, input.limit);
     return {
       server_instance_id: this.instanceId,
       result_kind: "listing",
       mode: this.mode,
       processes: selected.map((session) => this.snapshot(session)),
       next_page_token:
-        offset + selected.length < rows.length
-          ? this.cursor.encode("list", "", offset + selected.length, ceiling)
+        selected.length < rows.length
+          ? this.cursor.encode("list", "", selected[selected.length - 1]?.createdOrder ?? after, ceiling)
           : null,
       operation: input.operation_id ? (selected[0] ? this.snapshot(selected[0]) : null) : null,
       capabilities: {
@@ -587,7 +602,7 @@ export class ProcessManager {
         retained_output_bytes: this.transcripts.retainedBytes(),
         logger: this.logger.health(),
       },
-      pagination: "Creation-ordered snapshot ceiling; new records appear only in a new traversal.",
+      pagination: "Creation-order keyset with a snapshot ceiling; new records appear only in a new traversal.",
     };
   }
 
@@ -613,7 +628,15 @@ export class ProcessManager {
 
   private async performShutdown(): Promise<void> {
     this.shuttingDown = true;
-    const sessions = [...this.sessions.values()].filter((session) => session.activeCounted || !session.outputClosed);
+    for (const session of this.sessions.values()) {
+      session.timeoutCancel?.();
+      session.timeoutCancel = undefined;
+      session.resultExpiryCancel?.();
+      session.resultExpiryCancel = undefined;
+    }
+    const sessions = [...this.sessions.values()].filter(
+      (session) => session.activeCounted || !session.outputClosed || session.cleanup.status !== "confirmed",
+    );
     for (const session of sessions) session.stopReason ??= "shutdown";
     await Promise.all(
       sessions.map((session) =>
@@ -625,6 +648,13 @@ export class ProcessManager {
         .map((session) => session.cleanupTask)
         .filter((task): task is Promise<"confirmed" | "unverified" | "failed"> => task !== undefined),
     );
+    for (const session of this.sessions.values()) {
+      session.timeoutCancel?.();
+      session.timeoutCancel = undefined;
+      session.resultExpiryCancel?.();
+      session.resultExpiryCancel = undefined;
+      session.scope?.dispose();
+    }
     await this.transcripts.close();
     await this.logger.close(this.limits.cleanupObserveMs);
   }
@@ -636,10 +666,146 @@ export class ProcessManager {
     this.ptyLoaded = true;
   }
 
-  private session(id: string): Session {
-    const value = this.sessions.get(id);
-    if (!value) throw new DomainError("SESSION_UNKNOWN", "Unknown session handle.", { session_id: id });
-    return value;
+  private async replayOperation(
+    operationId: string,
+    fingerprint: string,
+    operation: OperationEntry,
+    maxOutputBytes: number,
+    yieldTimeMs: number,
+  ): Promise<ManagerResult> {
+    if (operation.fingerprint !== fingerprint)
+      throw new DomainError(
+        "OPERATION_ID_CONFLICT",
+        "operation_id is already bound to different execution arguments.",
+        {
+          operation_id: operationId,
+        },
+      );
+    if (operation.resultExpired)
+      throw new DomainError(
+        "OPERATION_RESULT_EXPIRED",
+        "The operation identity is retained but its result has expired.",
+        {
+          operation_id: operationId,
+          session_id: operation.sessionId,
+        },
+      );
+    const session = this.pinSession(operation.sessionId, "SESSION_EXPIRED");
+    try {
+      const page = await this.observe(session, 0, maxOutputBytes, yieldTimeMs, undefined);
+      this.requireRetained(session);
+      return this.processResult(session, page, true);
+    } finally {
+      this.unpin(session);
+    }
+  }
+
+  private pinSession(id: string, missingCode = "SESSION_UNKNOWN"): Session {
+    const session = this.sessions.get(id);
+    if (!session || session.removed)
+      throw new DomainError(
+        missingCode,
+        missingCode === "SESSION_UNKNOWN"
+          ? "Unknown session handle."
+          : "The accepted operation record is no longer available.",
+        {
+          session_id: id,
+        },
+      );
+    session.pins++;
+    return session;
+  }
+
+  private async withPinnedSession<T>(id: string, action: (session: Session) => Promise<T>): Promise<T> {
+    const session = this.pinSession(id);
+    try {
+      return await action(session);
+    } finally {
+      this.unpin(session);
+    }
+  }
+
+  private unpin(session: Session): void {
+    session.pins = Math.max(0, session.pins - 1);
+    if (session.pins === 0 && session.expiryPending && !session.removed) this.retireTranscript(session);
+  }
+
+  private requireRetained(session: Session): void {
+    requireThat(
+      !session.removed && this.sessions.get(session.id) === session,
+      "SESSION_EXPIRED",
+      "The retained process result was evicted while it was being observed.",
+      { session_id: session.id, operation_id: session.operationId },
+    );
+  }
+
+  private evictForAdmission(): void {
+    if (this.operations.size < this.limits.operationIds) return;
+    const candidate = [...this.sessions.values()]
+      .filter(
+        (session) =>
+          !session.removed &&
+          session.outputClosed &&
+          session.status !== "running" &&
+          session.status !== "starting" &&
+          (session.status === "failed_to_start" || session.cleanup.status === "confirmed") &&
+          session.queuedInputRecords === 0 &&
+          session.pins === 0 &&
+          (session.transcriptState !== "live" || this.transcripts.canRetire(session.id)),
+      )
+      .sort((left, right) => left.createdOrder - right.createdOrder)[0];
+    if (candidate) this.evictSession(candidate);
+  }
+
+  private evictSession(session: Session): void {
+    const operation = this.operations.get(session.operationId);
+    if (!operation || operation.sessionId !== session.id) return;
+    if (session.transcriptState === "live" && !this.transcripts.canRetire(session.id)) return;
+    session.removed = true;
+    session.timeoutCancel?.();
+    session.timeoutCancel = undefined;
+    session.resultExpiryCancel?.();
+    session.resultExpiryCancel = undefined;
+    session.scope?.dispose();
+    this.signal(session);
+    this.operations.delete(session.operationId);
+    this.sessions.delete(session.id);
+    this.writeCount = Math.max(0, this.writeCount - session.writes.size);
+    session.writes.clear();
+    session.events.length = 0;
+    if (session.transcriptState === "live") this.retireTranscript(session);
+    session.waiters.clear();
+  }
+
+  private retireTranscript(session: Session): boolean {
+    if (session.transcriptState !== "live") return true;
+    if (session.pins > 0 || !this.transcripts.canRetire(session.id)) {
+      session.expiryPending = true;
+      return false;
+    }
+    this.syncTranscript(session);
+    const health = this.transcripts.health(session.id);
+    session.cachedSpool = { status: health.status, reason: health.reason };
+    session.earliestByte = session.nextOutputByte;
+    const retirement = this.transcripts.retire(session.id);
+    if (!retirement) {
+      session.expiryPending = true;
+      return false;
+    }
+    session.expiryPending = false;
+    session.transcriptState = "retiring";
+    void retirement.then(() => {
+      session.transcriptState = "retired";
+      this.retryPendingExpiries();
+    });
+    return true;
+  }
+
+  private retryPendingExpiries(): void {
+    for (const session of this.sessions.values()) {
+      if (!session.expiryPending || session.pins > 0) continue;
+      if (!this.retireTranscript(session)) break;
+    }
   }
   private hooks(session: Session) {
     return {
@@ -720,6 +886,8 @@ export class ProcessManager {
       },
       outcome: (code: number | null, signal: string | null) => {
         if (session.status === "exited" || session.status === "failed_to_start") return;
+        session.timeoutCancel?.();
+        session.timeoutCancel = undefined;
         session.status = "exited";
         session.exitCode = code;
         session.signal = signal;
@@ -736,6 +904,8 @@ export class ProcessManager {
       },
       failed: (message: string) => {
         if (session.status === "failed_to_start" || session.status === "exited") return;
+        session.timeoutCancel?.();
+        session.timeoutCancel = undefined;
         session.status = "failed_to_start";
         session.stdinOpen = false;
         session.spawnError = { code: "SPAWN_FAILED", message: message.slice(0, 256) };
@@ -887,6 +1057,12 @@ export class ProcessManager {
     budget: number,
   ): Promise<{ position: number; output: Record<string, unknown>[] }> {
     this.syncTranscript(session);
+    requireThat(
+      session.transcriptState === "live" && session.transcript.has(session.id),
+      "SESSION_EXPIRED",
+      "The retained process transcript has expired.",
+      { session_id: session.id, operation_id: session.operationId },
+    );
     try {
       return await session.transcript.page(session.id, position, budget, this.limits.responseEvents);
     } catch (error) {
@@ -939,7 +1115,13 @@ export class ProcessManager {
   }
   private snapshot(session: Session): Record<string, unknown> {
     this.syncTranscript(session);
-    const spool = session.transcript.health(session.id);
+    const liveSpool = session.transcriptState === "live" ? session.transcript.health(session.id) : undefined;
+    const spool = liveSpool ?? {
+      status: "closed" as const,
+      reason: session.cachedSpool.reason,
+      pendingBytes: 0,
+      diskBytes: 0,
+    };
     return {
       server_instance_id: this.instanceId,
       session_id: session.id,
@@ -967,7 +1149,7 @@ export class ProcessManager {
         target_ms: this.limits.retentionMs,
         result_expires_at: session.resultExpiresAt ? new Date(session.resultExpiresAt).toISOString() : null,
         result_expired: session.resultExpired,
-        policy: "Bounded segmented transcript with explicit quota loss.",
+        policy: `Bounded segmented transcript; operation identity is retained within the ${this.limits.operationIds}-entry recent-operation window.`,
       },
       spawn_error: session.spawnError,
       earliest_cursor: this.cursor.encode("output", session.id, session.earliestByte),
@@ -993,6 +1175,7 @@ export class ProcessManager {
     };
   }
   private syncTranscript(session: Session): void {
+    if (session.transcriptState !== "live") return;
     session.earliestByte = session.transcript.earliestByte(session.id);
     session.outputLossBytes = session.transcript.outputLoss(session.id);
     session.rawSpoolDroppedBytes = session.transcript.rawSpoolLoss(session.id);
@@ -1010,20 +1193,45 @@ export class ProcessManager {
     }
   }
   private expireSession(session: Session): void {
-    if (session.resultExpired) return;
+    if (session.removed || this.sessions.get(session.id) !== session) return;
+    if (session.resultExpired) {
+      if (session.expiryPending && session.pins === 0) this.retireTranscript(session);
+      return;
+    }
     session.resultExpired = true;
     const operation = this.operations.get(session.operationId);
-    if (operation) operation.resultExpired = true;
-    session.transcript.expire(session.id);
+    if (operation?.sessionId === session.id) operation.resultExpired = true;
     session.events.length = 0;
-    session.earliestByte = session.nextOutputByte;
     session.cmd = session.cmd.length > 256 ? `${session.cmd.slice(0, 256)}…` : session.cmd;
+    session.resultExpiryCancel?.();
+    session.resultExpiryCancel = undefined;
+    if (!this.retireTranscript(session)) session.expiryPending = true;
   }
   private armResultExpiry(session: Session): void {
-    if (session.resultExpiresAt !== null || session.status === "starting" || session.status === "running") return;
+    if (
+      this.shuttingDown ||
+      session.resultExpiresAt !== null ||
+      session.status === "starting" ||
+      session.status === "running"
+    )
+      return;
     session.resultExpiresAt = Date.now() + this.limits.retentionMs;
-    setTimeout(() => {
-      if (session.resultExpiresAt !== null && Date.now() >= session.resultExpiresAt) this.expireSession(session);
-    }, this.limits.retentionMs).unref();
+    const expire = () => {
+      session.resultExpiryCancel = undefined;
+      if (
+        this.shuttingDown ||
+        this.sessions.get(session.id) !== session ||
+        this.operations.get(session.operationId)?.sessionId !== session.id ||
+        session.resultExpiresAt === null
+      )
+        return;
+      const remaining = session.resultExpiresAt - Date.now();
+      if (remaining > 0) {
+        session.resultExpiryCancel = deadline(remaining, expire);
+        return;
+      }
+      this.expireSession(session);
+    };
+    session.resultExpiryCancel = deadline(this.limits.retentionMs, expire);
   }
 }

@@ -1,5 +1,10 @@
 # @goodfoot/shell-mcp npm package changelog
 
+## Unreleased
+- Bounded operation identity retention to 64 recent sessions, evicting the oldest fully completed session under admission pressure instead of permanently refusing new commands after a lifetime limit
+- Reclaimed evicted transcripts and write acknowledgements as one session unit, while protecting active work and in-flight observations
+- Made process-list pagination stable when earlier completed sessions are evicted
+
 ## 1.0.3
 - Fixed the `openai` subcommand in installed copies of the package: every npm-installed package resolved the tunnel launcher to a path that ships in no archive and refused to run, so `npx @goodfoot/shell-mcp openai` now starts the tunnel as documented
 - Improved the missing-launcher error to name the directory that declares the package, so a genuinely incomplete installation points at the right place

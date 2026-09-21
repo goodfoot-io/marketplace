@@ -112,4 +112,28 @@ describe("TranscriptStore", () => {
     expect(store.health("s")).toMatchObject({ status: "degraded", pendingBytes: 0 });
     expect((await store.page("s", 0, 100, 128)).output[0]).toMatchObject({ data: "still-readable" });
   });
+
+  it("retires a session without recreating it through metadata reads", async () => {
+    const root = await mkdtemp(join(tmpdir(), "remote-transcript-test-"));
+    const store = new TranscriptStore({
+      memoryPerSession: 4096,
+      memoryGlobal: 4096,
+      diskPerSession: 4096,
+      diskGlobal: 4096,
+      segmentBytes: 64,
+      segmentEvents: 8,
+      maxSegments: 64,
+      pendingBytes: 4096,
+      pendingEntries: 32,
+      root,
+    });
+    stores.push(store);
+    store.create("empty");
+    expect(store.has("empty")).toBe(true);
+    await store.retire("empty");
+    expect(store.has("empty")).toBe(false);
+    expect(store.health("empty")).toEqual({ status: "closed", reason: null, pendingBytes: 0, diskBytes: 0 });
+    expect(store.earliestByte("empty")).toBe(0);
+    expect(store.has("empty")).toBe(false);
+  });
 });

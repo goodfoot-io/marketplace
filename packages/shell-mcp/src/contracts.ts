@@ -71,7 +71,7 @@ export type ListInput = z.infer<typeof inputs.list_processes>;
 
 export const descriptions: Record<ToolName, string> = {
   exec_command:
-    "Start one fresh Bash context. Choose operation_id before calling; retry the same identity and execution arguments after a lost reply. Commands use a fresh cwd/environment and every accepted start has a handle, including fast exits and failed spawns.",
+    "Start one fresh Bash context. Choose operation_id before calling; promptly retry the same identity and execution arguments after a lost reply. Identity deduplication covers the bounded recent-operation window. Commands use a fresh cwd/environment and every accepted start has a handle, including fast exits and failed spawns.",
   read_process:
     "Read retained output without consuming it. Use the returned cursor after receiving a response; retry an earlier cursor after loss. Leader exit, closed output, and fully read output are separate facts.",
   write_stdin:

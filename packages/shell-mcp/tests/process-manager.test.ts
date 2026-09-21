@@ -193,6 +193,164 @@ describe("ProcessManager", () => {
     });
   });
 
+  it("evicts the oldest completed session at operation capacity", async () => {
+    manager = new ProcessManager({ pty: false, limits: { operationIds: 2 } });
+    const first = await manager.execCommand(execInput(manager, "bounded-1", "printf one"));
+    await settle(manager, first.session_id, first);
+    await scopeConfirmed(manager, first.session_id);
+    const second = await manager.execCommand(execInput(manager, "bounded-2", "printf two"));
+    await settle(manager, second.session_id, second);
+    await scopeConfirmed(manager, second.session_id);
+
+    const replay = await manager.execCommand(execInput(manager, "bounded-1", "printf one"));
+    expect(replay).toMatchObject({ session_id: first.session_id, replayed: true });
+
+    const third = await manager.execCommand(execInput(manager, "bounded-3", "printf three"));
+    await settle(manager, third.session_id, third);
+    const evicted = await manager.listProcesses({ operation_id: "bounded-1", include_completed: true, limit: 50 });
+    expect(evicted.operation).toBeNull();
+    await expect(
+      manager.readProcess({ session_id: first.session_id, cursor: "start", wait_ms: 0, max_output_bytes: 100 }),
+    ).rejects.toMatchObject({ code: "SESSION_UNKNOWN" });
+
+    const reused = await manager.execCommand(execInput(manager, "bounded-1", "printf reused"));
+    expect(reused.session_id).not.toBe(first.session_id);
+  });
+
+  it("never evicts active work to admit a new operation", async () => {
+    manager = new ProcessManager({ pty: false, limits: { operationIds: 1 } });
+    const active = await manager.execCommand(execInput(manager, "protected", "sleep 2", { yield_time_ms: 0 }));
+    await expect(manager.execCommand(execInput(manager, "blocked", "printf blocked"))).rejects.toMatchObject({
+      code: "CAPACITY_EXCEEDED",
+      message: "The operation identity registry is full.",
+    });
+    await manager.terminateProcess({ session_id: active.session_id, wait_ms: 2_000 });
+  });
+
+  it("retains an exited session until its managed process group is confirmed empty", async () => {
+    manager = new ProcessManager({ pty: false, limits: { operationIds: 1 } });
+    const descendant = await manager.execCommand(
+      execInput(manager, "descendant", "(sleep 2 >/dev/null 2>&1) &", { yield_time_ms: 500 }),
+    );
+    const { settled } = await settle(manager, descendant.session_id, descendant);
+    expect(settled).toMatchObject({ status: "exited", output_closed: true });
+    await expect(manager.execCommand(execInput(manager, "too-early", "printf unsafe"))).rejects.toMatchObject({
+      code: "CAPACITY_EXCEEDED",
+    });
+
+    await manager.terminateProcess({ session_id: descendant.session_id, wait_ms: 2_000 });
+    const admitted = await manager.execCommand(execInput(manager, "after-cleanup", "printf safe"));
+    expect(admitted.operation_id).toBe("after-cleanup");
+  });
+
+  it("terminates retained descendant groups during shutdown", async () => {
+    manager = new ProcessManager({ pty: false, limits: { operationIds: 1 } });
+    const descendant = await manager.execCommand(
+      execInput(manager, "shutdown-descendant", "(sleep 30 >/dev/null 2>&1) & printf %s $!", { yield_time_ms: 500 }),
+    );
+    const { settled, output } = await settle(manager, descendant.session_id, descendant);
+    expect(settled).toMatchObject({ status: "exited", output_closed: true });
+    const pid = Number(outputText(output));
+    expect(pid).toBeGreaterThan(1);
+
+    await manager.shutdown();
+
+    expect(() => process.kill(pid, 0)).toThrow();
+    const listing = await manager.listProcesses({ include_completed: true, limit: 50 });
+    expect(listing.processes[0].cleanup).toMatchObject({ status: "confirmed" });
+  });
+
+  it("does not arm result expiry after shutdown begins", async () => {
+    manager = new ProcessManager({ pty: false, limits: { retentionMs: 20 } });
+    await manager.execCommand(execInput(manager, "shutdown-expiry", "sleep 1", { yield_time_ms: 0 }));
+
+    await manager.shutdown();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const listing = await manager.listProcesses({
+      operation_id: "shutdown-expiry",
+      include_completed: true,
+      limit: 50,
+    });
+    expect(listing.operation.retention).toMatchObject({ result_expired: false, result_expires_at: null });
+  });
+
+  it("keeps list pagination stable when pressure removes an earlier row", async () => {
+    manager = new ProcessManager({ pty: false, limits: { operationIds: 3 } });
+    for (let index = 1; index <= 3; index++) {
+      const result = await manager.execCommand(execInput(manager, `page-${index}`, `printf ${index}`));
+      await settle(manager, result.session_id, result);
+      await scopeConfirmed(manager, result.session_id);
+    }
+    const firstPage = await manager.listProcesses({ include_completed: true, limit: 2 });
+    expect(firstPage.processes.map((process: ManagerResult) => process.operation_id)).toEqual(["page-1", "page-2"]);
+    expect(firstPage.next_page_token).not.toBeNull();
+
+    const fourth = await manager.execCommand(execInput(manager, "page-4", "printf 4"));
+    await settle(manager, fourth.session_id, fourth);
+    const secondPage = await manager.listProcesses({
+      include_completed: true,
+      limit: 2,
+      page_token: firstPage.next_page_token,
+    });
+    expect(secondPage.processes.map((process: ManagerResult) => process.operation_id)).toEqual(["page-3"]);
+  });
+
+  it("cancels an evicted session's expiry timer before its operation ID is reused", async () => {
+    manager = new ProcessManager({ pty: false, limits: { operationIds: 1, retentionMs: 150 } });
+    const first = await manager.execCommand(execInput(manager, "timer-reuse", "printf old"));
+    await settle(manager, first.session_id, first);
+    await scopeConfirmed(manager, first.session_id);
+    const middle = await manager.execCommand(execInput(manager, "timer-middle", "printf middle"));
+    await settle(manager, middle.session_id, middle);
+    await scopeConfirmed(manager, middle.session_id);
+    const reusedInput = execInput(manager, "timer-reuse", "sleep .35; printf new", { yield_time_ms: 0 });
+    const reused = await manager.execCommand(reusedInput);
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const replay = await manager.execCommand(reusedInput);
+    expect(replay).toMatchObject({ session_id: reused.session_id, replayed: true });
+  });
+
+  it("reclaims retained write identities with an evicted completed session", async () => {
+    manager = new ProcessManager({ pty: false, limits: { operationIds: 1, writeIds: 1 } });
+    const first = await manager.execCommand(
+      execInput(manager, "write-old", 'read value; printf %s "$value"', { yield_time_ms: 0 }),
+    );
+    const firstWrite = await manager.writeStdin({
+      session_id: first.session_id,
+      write_id: "old-write",
+      chars: "old\n",
+      close_stdin: true,
+      interrupt: false,
+      yield_time_ms: 0,
+      max_output_bytes: 100,
+    });
+    await settle(manager, first.session_id, firstWrite);
+    await scopeConfirmed(manager, first.session_id);
+
+    const second = await manager.execCommand(
+      execInput(manager, "write-new", 'read value; printf %s "$value"', { yield_time_ms: 0 }),
+    );
+    const secondWrite = await manager.writeStdin({
+      session_id: second.session_id,
+      write_id: "new-write",
+      chars: "new\n",
+      close_stdin: true,
+      interrupt: false,
+      yield_time_ms: 0,
+      max_output_bytes: 100,
+    });
+    expect(secondWrite.write).toMatchObject({ accepted: true, write_id: "new-write" });
+  });
+
+  it("validates direct operation-capacity overrides against the 64-entry maximum", async () => {
+    expect(() => new ProcessManager({ pty: false, limits: { operationIds: 0 } })).toThrow(/1 to 64/u);
+    expect(() => new ProcessManager({ pty: false, limits: { operationIds: 65 } })).toThrow(/1 to 64/u);
+    manager = new ProcessManager({ pty: false });
+    expect(manager.limits.operationIds).toBe(64);
+  });
+
   it("rejects tampered and cross-session cursors", async () => {
     manager = new ProcessManager({ pty: false });
     const first = await manager.execCommand(execInput(manager, "cursor-a", "printf a"));

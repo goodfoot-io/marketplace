@@ -77,6 +77,7 @@ interface SessionStore {
  */
 export class TranscriptStore {
   private readonly sessions = new Map<string, SessionStore>();
+  private readonly retirements = new Map<string, Promise<void>>();
   private readonly root: string;
   private readonly limits: TranscriptLimits;
   private globalMemory = 0;
@@ -97,6 +98,14 @@ export class TranscriptStore {
       .catch((error) => {
         this.rootFailure = error;
       });
+  }
+
+  create(sessionId: string): void {
+    this.state(sessionId);
+  }
+
+  has(sessionId: string): boolean {
+    return this.sessions.has(sessionId);
   }
 
   append(sessionId: string, event: TranscriptEvent): void {
@@ -137,16 +146,16 @@ export class TranscriptStore {
   }
 
   nextByte(sessionId: string): number {
-    return this.state(sessionId).nextOutputByte;
+    return this.sessions.get(sessionId)?.nextOutputByte ?? 0;
   }
   earliestByte(sessionId: string): number {
-    return this.state(sessionId).earliestByte;
+    return this.sessions.get(sessionId)?.earliestByte ?? 0;
   }
   outputLoss(sessionId: string): number {
-    return this.state(sessionId).outputLossBytes;
+    return this.sessions.get(sessionId)?.outputLossBytes ?? 0;
   }
   rawSpoolLoss(sessionId: string): number {
-    return this.state(sessionId).rawSpoolDroppedBytes;
+    return this.sessions.get(sessionId)?.rawSpoolDroppedBytes ?? 0;
   }
   retainedBytes(): number {
     let total = 0;
@@ -154,10 +163,13 @@ export class TranscriptStore {
     return total;
   }
   loss(sessionId: string): boolean {
-    return this.state(sessionId).lossRanges.length > 0;
+    return (this.sessions.get(sessionId)?.lossRanges.length ?? 0) > 0;
   }
   health(sessionId: string): TranscriptHealth {
-    return { ...this.state(sessionId).health, diskBytes: this.diskFor(this.state(sessionId)) };
+    const state = this.sessions.get(sessionId);
+    return state
+      ? { ...state.health, diskBytes: this.diskFor(state) }
+      : { status: "closed", reason: null, pendingBytes: 0, diskBytes: 0 };
   }
 
   async page(
@@ -166,7 +178,8 @@ export class TranscriptStore {
     budget: number,
     maxEvents: number,
   ): Promise<{ position: number; output: Array<Record<string, unknown>> }> {
-    const state = this.state(sessionId);
+    const state = this.sessions.get(sessionId);
+    if (!state) throw new Error(`Transcript store is unavailable for session ${sessionId}.`);
     if (position < state.earliestByte) {
       throw new TranscriptGapError(
         "CURSOR_EXPIRED",
@@ -215,9 +228,16 @@ export class TranscriptStore {
     return { position: current, output };
   }
 
-  expire(sessionId: string): void {
+  canRetire(sessionId: string): boolean {
+    return !this.sessions.has(sessionId) || this.retirements.has(sessionId) || this.retirements.size < 64;
+  }
+
+  retire(sessionId: string): Promise<void> | null {
+    const existing = this.retirements.get(sessionId);
+    if (existing) return existing;
     const state = this.sessions.get(sessionId);
-    if (!state) return;
+    if (!state) return Promise.resolve();
+    if (this.retirements.size >= 64) return null;
     for (const event of state.memory) this.globalMemory -= event.bytes.length;
     this.globalPending -= state.pendingBytes;
     this.globalDisk -= this.diskFor(state);
@@ -226,8 +246,13 @@ export class TranscriptStore {
     state.segments.length = 0;
     state.expired = true;
     state.earliestByte = state.nextOutputByte;
-    void rm(join(this.root, sessionId), { recursive: true, force: true });
     this.sessions.delete(sessionId);
+    const retirement = this.finishRetirement(sessionId, state).finally(() => {
+      this.retirements.delete(sessionId);
+      this.onChange?.(sessionId);
+    });
+    this.retirements.set(sessionId, retirement);
+    return retirement;
   }
 
   async close(): Promise<void> {
@@ -245,11 +270,22 @@ export class TranscriptStore {
         while (state.draining) await new Promise((resolveWait) => setTimeout(resolveWait, 0));
       }),
     );
+    while (this.retirements.size > 0) await Promise.all([...this.retirements.values()]);
     await rm(this.root, { recursive: true, force: true });
     this.sessions.clear();
     this.globalMemory = 0;
     this.globalDisk = 0;
     this.globalPending = 0;
+  }
+
+  private async finishRetirement(sessionId: string, state: SessionStore): Promise<void> {
+    while (state.draining) await new Promise((resolveWait) => setTimeout(resolveWait, 0));
+    try {
+      await rm(join(this.root, sessionId), { recursive: true, force: true });
+    } catch (error) {
+      state.health.status = "degraded";
+      state.health.reason = `transcript cleanup failed: ${error instanceof Error ? error.message.slice(0, 160) : String(error)}`;
+    }
   }
 
   private state(sessionId: string): SessionStore {

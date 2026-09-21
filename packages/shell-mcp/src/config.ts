@@ -4,6 +4,7 @@ import { resolveLogFile } from "./logging/logger.js";
 export const DEFAULT_PORT = 38147;
 export const LISTEN_HOST = "127.0.0.1";
 export const MCP_PATH = "/mcp";
+export const OPERATION_ID_CAPACITY = 64;
 
 export interface Limits {
   activeSessions: number;
@@ -34,7 +35,7 @@ export const DEFAULT_LIMITS: Limits = Object.freeze({
   outputBytes: 16_384,
   outputEvents: 128,
   memoryPerSession: 1_048_576,
-  operationIds: 10_000,
+  operationIds: OPERATION_ID_CAPACITY,
   writesPerSession: 10_000,
   inputBytes: 65_536,
   termGraceMs: 2_000,
