@@ -17,8 +17,14 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && apt-get install -
   ipset \
   iptables \
   musl \
-  cloudflared \
   && rm -rf /var/lib/apt/lists/*
+
+# cloudflared (not in Debian's repos) for the remote-managed-shell Instant Tunnel
+# launcher. dpkg arch (arm64/amd64) matches the release asset naming.
+RUN arch="$(dpkg --print-architecture)" \
+  && curl -fsSL -o /usr/local/bin/cloudflared \
+     "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${arch}" \
+  && chmod +x /usr/local/bin/cloudflared
 
 # Build and install FTA from source (root Rust; not kept on the image).
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
