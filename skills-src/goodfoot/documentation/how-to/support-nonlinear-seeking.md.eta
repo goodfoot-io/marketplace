@@ -20,7 +20,7 @@ Put exact grep terms in titles, aliases, and metadata (validated); for a wrong t
 
 ## 5. Wire cross-references
 
-Concept → tasks; task → prerequisite concepts and reference; reference → examples; troubleshooting → normal-operation docs; runbook → escalation; decision record → implementation; deprecated → replacement. Make each page help the reader continue; expose relationship context for retrieval; a mesh `why` carries a cross-file relationship one chunk cannot show.
+Concept → tasks; task → prerequisite concepts and reference; reference → examples; troubleshooting → normal-operation docs; runbook → escalation; decision record → implementation; deprecated → replacement. Make each page help the reader continue; expose relationship context for retrieval; a span `why` carries a cross-file relationship one chunk cannot show.
 
 ## 6. Apply progressive disclosure
 

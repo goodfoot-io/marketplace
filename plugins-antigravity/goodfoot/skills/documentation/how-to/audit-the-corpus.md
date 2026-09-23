@@ -8,7 +8,7 @@ Scope: establish the corpus's real state before changing anything — the first 
 git ls-files | wc -l                                                   # corpus size
 git ls-files '*.md' '**/*.md' '**/*.wiki.md'                           # doc inventory
 git ls-files '**/README.md' '**/AGENTS.md' 'CLAUDE.md' '**/CLAUDE.md'  # existing hubs
-git mesh ; git mesh stale                                              # couplings + drift
+git span list ; git span drift                                         # couplings + drift
 wiki list ; wiki check                                                 # pages + validity
 git log -1 --format=%cs -- <path>                                      # per-path staleness
 ```

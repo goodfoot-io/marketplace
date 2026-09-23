@@ -34,7 +34,7 @@ A problem you noticed — the diagnostic index ("you may be looking for…").
 |---|---|
 | A directory holds several docs and no overview | `how-to/build-hubs.md` — add a routing hub at the right threshold |
 | Two pages say the same thing; a fact is duplicated | `how-to/type-a-topic.md` — resolve to one source-of-truth owner |
-| A doc contradicts the code, or may have drifted | `how-to/validate.md` + `reference/tools/git-mesh.md` — anchor the claim, detect drift mechanically |
+| A doc contradicts the code, or may have drifted | `how-to/validate.md` + `reference/tools/git-span.md` — anchor the claim, detect drift mechanically |
 | A page nothing links to (orphan), or an empty/stub file | `how-to/add-paths.md` — link, redirect, populate, or retire it |
 | A doc, example, and source README cover the same topic but don't link to each other | `how-to/add-paths.md` — audit cross-layer links, make them bidirectional |
 | A reader or agent cannot find a page by grep | `how-to/support-nonlinear-seeking.md` + `how-to/set-vocabulary-and-metadata.md` — aliases, scope lines, retrieval |
@@ -52,7 +52,7 @@ A problem you noticed — the diagnostic index ("you may be looking for…").
 
 - **`explanation/`** — why each practice matters: the four design dimensions (`explanation/foundations.md`) and the eight principles (`explanation/principles/index.md`).
 - **`how-to/`** — the procedures, by loop stage and authoring task (`how-to/procedure.md` indexes them).
-- **`reference/`** — catalogs: topic types (`reference/topic-types.md`), page genres (`reference/page-genres.md`), metadata fields (`reference/metadata-fields.md`), validation signals (`reference/validation-signals.md`); tools: inventory (`reference/tools/inventory-grep.md`), history (`reference/tools/git-history.md`), git-mesh (`reference/tools/git-mesh.md`), wiki (`reference/tools/wiki.md`).
+- **`reference/`** — catalogs: topic types (`reference/topic-types.md`), page genres (`reference/page-genres.md`), metadata fields (`reference/metadata-fields.md`), validation signals (`reference/validation-signals.md`); tools: inventory (`reference/tools/inventory-grep.md`), history (`reference/tools/git-history.md`), git-span (`reference/tools/git-span.md`), wiki (`reference/tools/wiki.md`).
 
 ## 6. Understand the why
 
@@ -62,11 +62,11 @@ The eight principles, as a concept facet you consult for rationale: `explanation
 
 - **Inventory** — `reference/tools/inventory-grep.md`: size, hubs, orphans, duplicates.
 - **History** — `reference/tools/git-history.md`: decision history, co-change, staleness.
-- **git-mesh** — `reference/tools/git-mesh.md`: record an unenforced coupling, detect drift.
+- **git-span** — `reference/tools/git-span.md`: record an unenforced coupling, detect drift.
 - **wiki** — `reference/tools/wiki.md`: source-anchored pages with mechanical drift checks.
 
 ## 8. Validate the work
 
-Before handoff: `wiki check` and `git mesh stale` exit clean; every inter-doc link resolves; each hub passes a first-click scent check. Load `how-to/validate.md` then `how-to/govern.md`.
+Before handoff: `wiki check` and `git span drift` exit clean; every inter-doc link resolves; each hub passes a first-click scent check. Load `how-to/validate.md` then `how-to/govern.md`.
 
 </instructions>

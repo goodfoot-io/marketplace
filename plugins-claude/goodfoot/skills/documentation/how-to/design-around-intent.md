@@ -15,7 +15,7 @@ Scope: organize the corpus around what readers come to do — the translate stag
 - **Answer compliance/audit** → an evidence page naming source, owner, scope, version.
 - Give the most common intents the shortest paths.
 
-## 3. Route tasks by frequency, risk, and span
+## 3. Route tasks by frequency, risk, and scope
 
 - Top recurring tasks → short paths from hubs. Rare, high-stakes tasks → a reviewed runbook with approvals, rollback limits, evidence capture.
 - Multi-team tasks → show handoffs, ownership boundaries (`CODEOWNERS`), escalation. Prerequisites before steps. Irreversible steps → warnings, backup, rollback first.

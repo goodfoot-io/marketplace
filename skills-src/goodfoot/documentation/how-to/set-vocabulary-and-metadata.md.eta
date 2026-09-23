@@ -4,7 +4,7 @@ Scope: control the names and reuse the metadata the repo already carries. How-to
 
 ## 1. Set the vocabulary
 
-Use one naming convention (kebab-case; stable prefixes) for directories, files, packages, and mesh names. Set a preferred term per concept and use it in titles, headings, metadata, and links. Map synonyms to aliases; attach acronyms as scoped alternate labels; mark deprecated names with replacement and date; add validated informal names as aliases; use product/customer/code names as facets or aliases where the equivalence holds. Disambiguate overloaded terms with qualifiers and a glossary entry; record renames (`git log --follow`, `git mv`); lint terms that should never be used. A glossary entry carries preferred term, definition, synonyms, scope, and disambiguation.
+Use one naming convention (kebab-case; stable prefixes) for directories, files, packages, and span names. Set a preferred term per concept and use it in titles, headings, metadata, and links. Map synonyms to aliases; attach acronyms as scoped alternate labels; mark deprecated names with replacement and date; add validated informal names as aliases; use product/customer/code names as facets or aliases where the equivalence holds. Disambiguate overloaded terms with qualifiers and a glossary entry; record renames (`git log --follow`, `git mv`); lint terms that should never be used. A glossary entry carries preferred term, definition, synonyms, scope, and disambiguation.
 
 ## 2. Make entities first-class
 
@@ -12,7 +12,7 @@ Systems, components, services, data objects, actors/roles, workflows, states, ev
 
 ## 3. Choose metadata fields — reuse before inventing
 
-Reuse `CODEOWNERS`, package manifests, wiki frontmatter (`title`/`summary`/`aliases`/`tags`), mesh `why`, and commit dates first. Carry only fields that earn their place (see the catalog `../reference/metadata-fields.md`). The stable-identifier field is a SHA-pinned fragment link or mesh name (`../explanation/foundations.md` §2).
+Reuse `CODEOWNERS`, package manifests, wiki frontmatter (`title`/`summary`/`aliases`/`tags`), span `why`, and commit dates first. Carry only fields that earn their place (see the catalog `../reference/metadata-fields.md`). The stable-identifier field is a reviewed line-range fragment link or span name (`../explanation/foundations.md` §2).
 
 ## 4. Govern the vocabulary
 

@@ -6,7 +6,7 @@ Inconsistent names and free-form metadata destroy findability for readers and ac
 
 ## In a repo
 
-Names — directories, files, packages, mesh names — are the primary vocabulary; keep one convention (kebab-case; stable prefixes). The repo already stores metadata: `CODEOWNERS`, package manifests, wiki frontmatter (`title`/`summary`/`aliases`/`tags`), mesh `why` — reuse it before inventing a field. The concerns: **vocabulary** (preferred terms, synonyms, acronyms, deprecated and informal names), **entities** (domain objects as first-class names), **metadata fields**, **governance** (the maintainer sets taxonomy authority; Antigravity detects drift and surfaces it), and **retrieval** (which fields surface, which stay backstage).
+Names — directories, files, packages, span names — are the primary vocabulary; keep one convention (kebab-case; stable prefixes). The repo already stores metadata: `CODEOWNERS`, package manifests, wiki frontmatter (`title`/`summary`/`aliases`/`tags`), span `why` — reuse it before inventing a field. The concerns: **vocabulary** (preferred terms, synonyms, acronyms, deprecated and informal names), **entities** (domain objects as first-class names), **metadata fields**, **governance** (the maintainer sets taxonomy authority; Antigravity detects drift and surfaces it), and **retrieval** (which fields surface, which stay backstage).
 
 ## Apply / draws on
 

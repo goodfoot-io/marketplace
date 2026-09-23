@@ -3,9 +3,9 @@ packages/agent-skills/src/platforms.ts#L68-L68 rk64:a94afd4f88471a47
 packages/agent-skills/src/platforms.ts#L84-L84 rk64:ed19941bf71cf2cb
 packages/agent-skills/src/platforms.ts#L100-L100 rk64:1b46605e166b528a
 packages/agent-skills/src/platforms.ts#L124-L124 rk64:40dbb3a59feb9df1
-skills-src/goodfoot/documentation/explanation/principles/05-controlled-vocabulary-and-metadata.md.eta rk64:0d3cc9a9f9d2aec2
-skills-src/goodfoot/documentation/explanation/principles/08-validate-and-iterate.md.eta rk64:1e9c5401ef55fd70
-skills-src/goodfoot/documentation/how-to/set-vocabulary-and-metadata.md.eta rk64:70b63947423a32e1
+skills-src/goodfoot/documentation/explanation/principles/05-controlled-vocabulary-and-metadata.md.eta rk64:d2db299d4458d220
+skills-src/goodfoot/documentation/explanation/principles/08-validate-and-iterate.md.eta rk64:98a4fbd0ce49c5b8
+skills-src/goodfoot/documentation/how-to/set-vocabulary-and-metadata.md.eta rk64:08541ef0732df05b
 skills-src/goodfoot/instructions/SKILL.md.eta rk64:0ec17a7a3fc89a89
 skills-src/goodfoot/skillify/SKILL.md.eta rk64:03278346f6b76bed
 

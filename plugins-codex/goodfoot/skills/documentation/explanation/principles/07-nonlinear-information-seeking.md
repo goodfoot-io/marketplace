@@ -6,7 +6,7 @@ Readers move nonlinearly: they search, skim, collect partial answers, reformulat
 
 ## In a repo
 
-No one reads a repository linearly. Every file and directory must self-orient on arrival; `git blame` and `git log -L` berrypick a region's history; a mesh `why` supplies the cross-file relationship an agent cannot infer from one chunk (`../foundations.md` §3). The concerns: **journeys**, **berrypicking**, **recovery** from wrong turns, **search behavior** (grep and retrieval), **cross-reference**, and **progressive disclosure**.
+No one reads a repository linearly. Every file and directory must self-orient on arrival; `git blame` and `git log -L` berrypick a region's history; a span `why` supplies the cross-file relationship an agent cannot infer from one chunk (`../foundations.md` §3). The concerns: **journeys**, **berrypicking**, **recovery** from wrong turns, **search behavior** (grep and retrieval), **cross-reference**, and **progressive disclosure**.
 
 ## Apply / draws on
 

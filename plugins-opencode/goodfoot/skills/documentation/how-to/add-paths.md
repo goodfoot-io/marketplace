@@ -4,7 +4,7 @@ Scope: give every topic more than one path beyond the directory tree. How-to (au
 
 ## 1. List the facets readers use
 
-Product area, component, role, task, lifecycle stage, environment, customer type, failure mode, version, API surface, ownership, compliance domain, entity, business process, source system. Express each with hub links, wiki hub pages, `CODEOWNERS`, and meshes. Reuse controlled metadata as facet values; add only facets readers actually seek.
+Product area, component, role, task, lifecycle stage, environment, customer type, failure mode, version, API surface, ownership, compliance domain, entity, business process, source system. Express each with hub links, wiki hub pages, `CODEOWNERS`, and spans. Reuse controlled metadata as facet values; add only facets readers actually seek.
 
 ## 2. Choose the primary hierarchy
 
@@ -12,7 +12,7 @@ The directory tree is the default backbone; pick the one for main navigation by 
 
 ## 3. Cross-link by kind
 
-Inbound links from all likely contexts; outbound links placed by kind — prerequisites before, next steps after, related in a section, troubleshooting at failure points, reference near values, decision-history near rationale, "do not confuse with" in disambiguation notes. Add the bridge links authors assumed. Use durable targets — SHA-pinned fragment links or mesh names, not bare line numbers (`../explanation/foundations.md` §2); `git mesh tree <glob>` surfaces a coupling-based path. Match the corpus's native markup: typed cross-reference roles, see-also callouts, and a local table of contents in reStructuredText; tables and relative links in Markdown. Never a bare URL where the format offers a typed link, and do not mix one format's constructs into the other.
+Inbound links from all likely contexts; outbound links placed by kind — prerequisites before, next steps after, related in a section, troubleshooting at failure points, reference near values, decision-history near rationale, "do not confuse with" in disambiguation notes. Add the bridge links authors assumed. Use durable targets — reviewed line-range fragment links or span names, not bare line numbers (`../explanation/foundations.md` §2); `git span list <path>` shows couplings touching a path. Match the corpus's native markup: typed cross-reference roles, see-also callouts, and a local table of contents in reStructuredText; tables and relative links in Markdown. Never a bare URL where the format offers a typed link, and do not mix one format's constructs into the other.
 
 ## 4. Cover entry points per role
 
@@ -39,4 +39,4 @@ After authoring, sweep for resources that cover the same topic in different laye
 
 A topic documented in one layer with no path from the others is an orphan across layers even when it has inbound links within its own; `validate.md` re-checks this. To confirm a return path after adding a link X → Y, `git grep` Y's path for every file that references it and check each has a counterpart back-link — or a reason not to (Y is a leaf, external, or a utility file). One-way links strand whoever starts at the far end.
 
-Related: why multiple paths `../explanation/principles/04-multiple-paths.md`; facets reuse metadata `set-vocabulary-and-metadata.md`; durable targets `../explanation/foundations.md`; coupling paths `../reference/tools/git-mesh.md`.
+Related: why multiple paths `../explanation/principles/04-multiple-paths.md`; facets reuse metadata `set-vocabulary-and-metadata.md`; durable targets `../explanation/foundations.md`; coupling paths `../reference/tools/git-span.md`.

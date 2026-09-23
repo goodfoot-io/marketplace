@@ -1,6 +1,6 @@
 # Foundations
 
-Scope: the key distinctions and four design dimensions every other topic assumes, for a git repository organized as a documentation corpus with `grep` / `git` / `git-mesh` / `wiki`. Explanation mode — the why; load before authoring.
+Scope: the key distinctions and four design dimensions every other topic assumes, for a git repository organized as a documentation corpus with `grep` / `git` / `git-span` / `wiki`. Explanation mode — the why; load before authoring.
 
 ## 1. Layered source of truth
 
@@ -10,8 +10,8 @@ A repository has no single source-of-truth page. Route each fact to its owning l
 |---|---|---|
 | Code & config | Behavior; contracts the machine enforces | the file; jump-to-definition |
 | `README` / `AGENTS.md` / `CLAUDE.md` | Orientation, working norms, routing | the hub at that boundary |
-| Wiki page (`*.wiki.md`, `wiki/**`) | Cross-file synthesis anchored to source | `wiki check`, fragment links |
-| Mesh (`.mesh/<name>`) | One load-bearing, unenforced coupling | `git mesh show <name>` |
+| Wiki page (Markdown with `title` and `summary` frontmatter) | Cross-file synthesis anchored to source | `wiki "<query>"`, `wiki check` |
+| Span (`.span/<name>`) | One load-bearing, unenforced coupling | `git span show <name>` |
 | Commit / PR / `CHANGELOG` / ADR | Decision history | `git log`, `git blame` |
 
 - **A README or page restates what code owns**: cut it; link the code as source of truth and keep only synthesis the code cannot express.
@@ -20,17 +20,17 @@ A repository has no single source-of-truth page. Route each fact to its owning l
 
 ## 2. Repo-native stable identifier
 
-The durable reference target is a **SHA-pinned fragment link** (`path#Lstart-Lend` with a pinned SHA) or a **durable mesh name**. Never a bare line number; never a renamable title. There is no SEO "canonical URL" here — do not invent one.
+The durable reference target is a **reviewed fragment link** (`path#Lstart-Lend` on a page with `links-reviewed:`) or a **durable span name**. Never a bare line number; never a renamable title. There is no SEO "canonical URL" here — do not invent one.
 
-- **A durable reference uses a bare line number or a title**: re-anchor it as a SHA-pinned fragment link or a mesh name.
-- Pin SHAs with tooling (`wiki check --fix`), never by hand. Mechanism: `../reference/tools/git-mesh.md`, `../reference/tools/wiki.md`.
+- **A durable reference uses a bare line number or a title**: replace it with a reviewed fragment link or a span name.
+- Run `wiki check --fix` to relocate moved links, then review unresolved citations and bump `links-reviewed:`. Mechanism: `../reference/tools/git-span.md`, `../reference/tools/wiki.md`.
 
 ## 3. Agents are first-class readers
 
 Agents enter through `AGENTS.md`/`CLAUDE.md`, `grep`, and retrieval — usually with no navigation context, one chunk at a time.
 
 - Make every landing file self-orienting: a scope line up top, headings that survive extraction.
-- Put a cross-file relationship an agent cannot infer from one chunk into a mesh `why`, not tribal memory.
+- Put a cross-file relationship an agent cannot infer from one chunk into a span `why`, not tribal memory.
 - Put working norms and routing in root and module-level `AGENTS.md`/`CLAUDE.md`; route by both reader intent and task; carry the layered source-of-truth model (§1) and the repo type so an agent knows which layer owns what and what infra exists; reduce the file to norms, routing, and conventions, not code facts. It complements directory READMEs — those own navigation for both audiences — rather than duplicating them. Author it via `../how-to/build-hubs.md`.
 - The agent organizes docs and detects/records governance gaps; it does not own or execute the human governance process — the maintainer sets cadence, authority, and approvals. Docs are ownerless by default: provenance (`CODEOWNERS`, `git log --author`) is authorship and audience signal, not accountability, and an unowned doc is not a gap.
 

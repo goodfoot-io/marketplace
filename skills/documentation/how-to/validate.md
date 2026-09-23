@@ -4,7 +4,7 @@ Scope: check the structure with repo-native signals, treated as diagnostic. How-
 
 ## 1. Mechanical checks first
 
-`wiki check` and `git mesh stale` exit clean; every inter-doc link resolves. Every index or hub that enumerates files resolves against the filesystem — diff each enumerating page against `git ls-files <dir>`, add the entries it is missing, drop the ones pointing at deleted files. Cross-layer links are bidirectional — re-run the cross-layer sweep (`add-paths.md` §7); a topic reachable in one layer but not its peers is a cross-layer orphan. Anchor load-bearing claims as SHA-pinned fragment links and meshes so doc↔code drift is detectable at all. These checks read the working tree — run them without committing.
+`wiki check` and `git span drift` exit clean; every inter-doc link resolves. Every index or hub that enumerates files resolves against the filesystem — diff each enumerating page against `git ls-files <dir>`, add the entries it is missing, drop the ones pointing at deleted files. Cross-layer links are bidirectional — re-run the cross-layer sweep (`add-paths.md` §7); a topic reachable in one layer but not its peers is a cross-layer orphan. Anchor load-bearing claims as reviewed line-range fragment links and spans so doc↔code drift is detectable at all. These checks read the working tree — run them without committing.
 
 ### Verified counts
 
@@ -14,7 +14,7 @@ Two boundaries on this gate. It covers only anchored claims: an unanchored load-
 
 ## 2. Derive groupings (card-sort analog)
 
-A repo has no card-sort study; use how files cluster. Take candidate groupings from co-change clusters (`git mesh tree`, history mining) and `CODEOWNERS`; mine contributor language from commits, issues, and PRs for candidate labels and aliases; give role-specific groupings their own hubs or filters; clarify, split, rename, or cross-list hard-to-place topics; route ownership/security conflicts to alternate projections or backstage metadata.
+A repo has no card-sort study; use how files cluster. Take candidate groupings from co-change clusters (history mining, `git span list <path>`) and `CODEOWNERS`; mine contributor language from commits, issues, and PRs for candidate labels and aliases; give role-specific groupings their own hubs or filters; clarify, split, rename, or cross-list hard-to-place topics; route ownership/security conflicts to alternate projections or backstage metadata.
 
 ## 3. Test findability (tree-test + first-click analog)
 

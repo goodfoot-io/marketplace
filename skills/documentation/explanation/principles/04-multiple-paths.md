@@ -6,11 +6,11 @@ A corpus rarely has one natural hierarchy. Readers seek by many frames — role,
 
 ## In a repo
 
-The directory tree is one hierarchy; add projections with hub links, wiki hub pages, `CODEOWNERS` (a provenance/audience facet, not doc ownership), and meshes (`git mesh tree` is a coupling-based path). The concerns: **facets**, choosing the primary **hierarchy**, **cross-linking** with durable targets (not bare line numbers; see `../foundations.md` §2), **entry points** per role, **matrix views**, and repairing **orphans and dead-ends**.
+The directory tree is one hierarchy; add projections with hub links, wiki hub pages, `CODEOWNERS` (a provenance/audience facet, not doc ownership), and spans (`git span list <path>` shows couplings touching a path). The concerns: **facets**, choosing the primary **hierarchy**, **cross-linking** with durable targets (not bare line numbers; see `../foundations.md` §2), **entry points** per role, **matrix views**, and repairing **orphans and dead-ends**.
 
 ## Apply / draws on
 
 - Apply it: `../../how-to/add-paths.md`.
-- Coupling-based paths: `../../reference/tools/git-mesh.md`.
+- Coupling-based paths: `../../reference/tools/git-span.md`.
 
 Related: facets reuse controlled metadata `05-controlled-vocabulary-and-metadata.md`; paths surface on hubs `03-hubs-orientation-and-routing.md`; durable link targets `../foundations.md`.

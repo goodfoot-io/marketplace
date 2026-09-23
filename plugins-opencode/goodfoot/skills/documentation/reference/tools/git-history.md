@@ -13,13 +13,13 @@ git log -S'<string>'                # the commit where a string entered or left
 
 Decision history is owned by commits / PRs / `CHANGELOG` / ADRs — link to it; never fold it into current instructions.
 
-## Co-change coupling (mesh candidates)
+## Co-change coupling (span candidates)
 
 Files that repeatedly change together but are not linked by any type/test/import are implicit semantic dependencies. Surface them by history mining: **mine → shortlist → explain** (co-change, lagged co-change, defect propagation, churn correlation, reviewer overlap, and similar signals).
 
 - Distrust a pair whose commits share a single author (it may be one person's habit, not a contract).
 - Distrust a pair a type, test, schema, or import already enforces — that mechanism *is* the dependency.
-- A surviving load-bearing pair → record it as a mesh.
+- A surviving load-bearing pair → record it as a span.
 
 ## Staleness
 
@@ -36,4 +36,4 @@ git shortlog -sn -- <path>          # contributors to a path
 git log --author='<name>'           # one author's footprint
 ```
 
-Related: turn a surviving pair into a mesh `git-mesh.md`; route staleness into governance `../../how-to/govern.md`; map contributors to reader intent `../../how-to/design-around-intent.md`.
+Related: turn a surviving pair into a span `git-span.md`; route staleness into governance `../../how-to/govern.md`; map contributors to reader intent `../../how-to/design-around-intent.md`.
