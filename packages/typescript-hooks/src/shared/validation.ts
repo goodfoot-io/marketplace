@@ -1,0 +1,650 @@
+/** Shared TypeScript, ESLint, and swallowed-error validation for host adapters. */
+
+import { execFileSync, execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+
+import type { Logger } from "@goodfoot/agent-hooks";
+
+function isTsFile(filePath: string): boolean {
+  return /\.(?:ts|tsx|mts|cts)$/.test(filePath);
+}
+import "./node-require.js";
+import ts from "@typescript/typescript6";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface TypeScriptError {
+  type: "typescript";
+  file: string;
+  line: number;
+  column: number;
+  code: string;
+  message: string;
+  context: ContextLine[];
+  usageRef?: string;
+}
+
+interface ESLintError {
+  type: "eslint";
+  file: string;
+  line: number;
+  column: number;
+  severity: string;
+  message: string;
+  rule: string;
+  context: ContextLine[];
+}
+
+interface ContextLine {
+  line: number;
+  content: string;
+  current: boolean;
+}
+
+interface SignatureInfo {
+  signature: string;
+  type: string;
+}
+
+interface SwallowedError {
+  type: "swallowed";
+  file: string;
+  line: number;
+  column: number;
+  pattern: "empty-catch" | "comment-only-catch" | "empty-promise-catch" | "error-param-unused";
+  message: string;
+  context: ContextLine[];
+}
+
+type ParsedError = TypeScriptError | ESLintError | SwallowedError;
+
+// ============================================================================
+// File Utilities
+// ============================================================================
+
+function getFileLines(filePath: string): string[] {
+  try {
+    const content = fs.readFileSync(filePath, "utf8");
+    return content.split("\n");
+  } catch {
+    return [];
+  }
+}
+
+function getContextLines(lines: string[], lineNum: number, contextSize = 1): ContextLine[] {
+  const line = lineNum;
+  const start = Math.max(0, line - contextSize - 1);
+  const end = Math.min(lines.length, line + contextSize);
+
+  const context: ContextLine[] = [];
+  for (let i = start; i < end; i++) {
+    context.push({
+      line: i + 1,
+      content: lines[i],
+      current: i === line - 1,
+    });
+  }
+  return context;
+}
+
+function findPackageJson(filePath: string): string | null {
+  let dir = path.dirname(filePath);
+  while (dir !== "/") {
+    const packagePath = path.join(dir, "package.json");
+    if (fs.existsSync(packagePath)) {
+      return packagePath;
+    }
+    dir = path.dirname(dir);
+  }
+  return null;
+}
+
+function getPackageDirectory(filePath: string): string | null {
+  const packageJsonPath = findPackageJson(filePath);
+  return packageJsonPath ? path.dirname(packageJsonPath) : null;
+}
+
+// ============================================================================
+// TypeScript Error Parsing
+// ============================================================================
+
+function parseAllTypeScriptErrors(
+  output: string,
+  packageDir: string,
+): { errors: TypeScriptError[]; signatures: Map<string, SignatureInfo> } {
+  const errors: TypeScriptError[] = [];
+  const signatures = new Map<string, SignatureInfo>();
+
+  // Remove ANSI color codes from the output (ESC character + color codes)
+  const ansiPattern = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
+  const cleanOutput = output.replace(ansiPattern, "");
+  const lines = cleanOutput.split("\n");
+
+  for (const line of lines) {
+    // Match TypeScript error format for ANY file
+    const match = line.match(/^(.+?)(?:\(|:)(\d+)(?:,|:)(\d+)\)?\s*[-:]?\s*error\s+(TS\d+):\s*(.+)$/);
+    if (match) {
+      const [, filePath, lineNum, colNum, code, message] = match;
+
+      // Resolve to absolute path
+      const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(packageDir, filePath);
+
+      const fileLines = getFileLines(absolutePath);
+
+      errors.push({
+        type: "typescript",
+        file: absolutePath,
+        line: Number.parseInt(lineNum, 10),
+        column: Number.parseInt(colNum, 10),
+        code: code,
+        message: message.trim(),
+        context: getContextLines(fileLines, Number.parseInt(lineNum, 10)),
+      });
+    }
+  }
+
+  return { errors, signatures };
+}
+
+// ============================================================================
+// ESLint Error Parsing
+// ============================================================================
+
+function parseESLintErrors(output: string, filePath: string): ESLintError[] {
+  const errors: ESLintError[] = [];
+  const lines = output.split("\n");
+  const fileLines = getFileLines(filePath);
+
+  let inFileSection = false;
+  for (const line of lines) {
+    // Check if we're in the file section
+    if (line.trim() === filePath) {
+      inFileSection = true;
+      continue;
+    }
+
+    // Skip empty lines and summary lines
+    if (!line.trim() || line.includes("problem") || line.includes("warning")) {
+      inFileSection = false;
+      continue;
+    }
+
+    if (inFileSection) {
+      // Match ESLint error format: line:col  severity  message  rule
+      const match = line.match(/^\s*(\d+):(\d+)\s+(error|warning)\s+(.+?)\s\s+(.+)$/);
+      if (match) {
+        const [, lineNum, colNum, severity, message, rule] = match;
+        errors.push({
+          type: "eslint",
+          file: filePath,
+          line: Number.parseInt(lineNum, 10),
+          column: Number.parseInt(colNum, 10),
+          severity: severity,
+          message: message.trim(),
+          rule: rule.trim(),
+          context: getContextLines(fileLines, Number.parseInt(lineNum, 10)),
+        });
+      }
+    }
+  }
+  return errors;
+}
+
+// ============================================================================
+// Dependent File Discovery
+// ============================================================================
+
+function findDependentFiles(filePath: string, packageDir: string): string[] {
+  try {
+    const fileName = path.basename(filePath, path.extname(filePath));
+    const relativePath = path.relative(packageDir, filePath);
+
+    // Create patterns for different import styles
+    const patterns = [
+      `from.*${fileName}`,
+      `from.*${relativePath.replace(/\.[tj]sx?$/, "")}`,
+      `import.*from.*${fileName}`,
+      `require.*${fileName}`,
+    ];
+
+    const dependentFiles = new Set<string>();
+
+    for (const pattern of patterns) {
+      try {
+        const result = execFileSync(
+          "rg",
+          [
+            "-l",
+            "--type-add",
+            "tsx:*.tsx",
+            "--type-add",
+            "jsx:*.jsx",
+            "--type",
+            "ts",
+            "--type",
+            "tsx",
+            "--type",
+            "js",
+            "--type",
+            "jsx",
+            "--",
+            pattern,
+            packageDir,
+          ],
+          {
+            cwd: packageDir,
+            stdio: "pipe",
+            encoding: "utf8",
+            env: process.env,
+          },
+        );
+
+        const files = result
+          .split("\n")
+          .slice(0, 10)
+          .filter((f) => f.trim() && f !== filePath);
+        for (const f of files) {
+          dependentFiles.add(f);
+        }
+      } catch (_e) {
+        void _e;
+      }
+    }
+
+    return Array.from(dependentFiles).slice(0, 5); // Limit to 5 files for performance
+  } catch {
+    return [];
+  }
+}
+
+// ============================================================================
+// Swallowed Error Detection
+// ============================================================================
+
+function hasBlockCommentTrivia(block: ts.Block, sourceFile: ts.SourceFile): boolean {
+  const fullText = sourceFile.getFullText();
+  const leadingComments = ts.getLeadingCommentRanges(fullText, block.statements.pos);
+  if (leadingComments && leadingComments.length > 0) return true;
+  const blockText = fullText.slice(block.getStart(sourceFile), block.getEnd());
+  return /\/\/|\/\*/.test(blockText);
+}
+
+function hasBlockRethrow(block: ts.Block): boolean {
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+    if (ts.isThrowStatement(node)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(block);
+  return found;
+}
+
+function isIdentifierUsedInBlock(name: string, block: ts.Block): boolean {
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (found) return;
+    if (ts.isIdentifier(node) && node.text === name) {
+      if (!ts.isVariableDeclaration(node.parent) && !ts.isParameter(node.parent)) {
+        found = true;
+        return;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(block);
+  return found;
+}
+
+function detectSwallowedErrors(filePath: string): SwallowedError[] {
+  const content = fs.readFileSync(filePath, "utf-8");
+  const sourceFile = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const fileLines = getFileLines(filePath);
+  const findings: SwallowedError[] = [];
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isCatchClause(node)) {
+      const block = node.block;
+      const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      const line = pos.line + 1;
+      const column = pos.character + 1;
+
+      if (block.statements.length === 0) {
+        if (hasBlockCommentTrivia(block, sourceFile)) {
+          findings.push({
+            type: "swallowed",
+            file: filePath,
+            line,
+            column,
+            pattern: "comment-only-catch",
+            message: "Catch block contains only comments — error is silently discarded.",
+            context: getContextLines(fileLines, line),
+          });
+        } else {
+          findings.push({
+            type: "swallowed",
+            file: filePath,
+            line,
+            column,
+            pattern: "empty-catch",
+            message: "Empty catch block silently discards the error.",
+            context: getContextLines(fileLines, line),
+          });
+        }
+      } else if (node.variableDeclaration && ts.isIdentifier(node.variableDeclaration.name)) {
+        const paramName = node.variableDeclaration.name.text;
+        if (!paramName.startsWith("_") && !hasBlockRethrow(block) && !isIdentifierUsedInBlock(paramName, block)) {
+          findings.push({
+            type: "swallowed",
+            file: filePath,
+            line,
+            column,
+            pattern: "error-param-unused",
+            message: `Catch parameter '${paramName}' is declared but never used. Prefix with '_' if intentional.`,
+            context: getContextLines(fileLines, line),
+          });
+        }
+      }
+    }
+
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "catch" &&
+      node.arguments.length === 1
+    ) {
+      const handler = node.arguments[0];
+      if (
+        (ts.isArrowFunction(handler) || ts.isFunctionExpression(handler)) &&
+        ts.isBlock(handler.body) &&
+        handler.body.statements.length === 0 &&
+        !hasBlockCommentTrivia(handler.body, sourceFile)
+      ) {
+        const pos = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+        const line = pos.line + 1;
+        findings.push({
+          type: "swallowed",
+          file: filePath,
+          line,
+          column: pos.character + 1,
+          pattern: "empty-promise-catch",
+          message: "Empty .catch() handler silently discards promise rejections.",
+          context: getContextLines(fileLines, line),
+        });
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
+  return findings;
+}
+
+// ============================================================================
+// Validation Commands
+// ============================================================================
+
+function runProjectTypeCheck(packageDir: string): {
+  success: boolean;
+  errors: TypeScriptError[];
+  signatures: Map<string, SignatureInfo>;
+} {
+  try {
+    const tsconfigPath = path.join(packageDir, "tsconfig.json");
+    if (!fs.existsSync(tsconfigPath)) {
+      return { success: true, errors: [], signatures: new Map() };
+    }
+
+    const tscCommand =
+      "npx tsc --project tsconfig.json --noEmit --incremental --tsBuildInfoFile ./build/.tsbuildinfo-hook --pretty";
+
+    execSync(tscCommand, {
+      cwd: packageDir,
+      stdio: "pipe",
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        NODE_PATH: path.join(packageDir, "node_modules"),
+      },
+    });
+
+    return { success: true, errors: [], signatures: new Map() };
+  } catch (error) {
+    const errorOutput =
+      (error as { stdout?: string; stderr?: string }).stdout || (error as { stderr?: string }).stderr || "";
+    const { errors, signatures } = parseAllTypeScriptErrors(errorOutput, packageDir);
+    return { success: false, errors, signatures };
+  }
+}
+
+function runESLint(filePath: string, packageDir: string): { success: boolean; errors: ESLintError[] } {
+  const relativePath = path.relative(packageDir, filePath);
+
+  try {
+    execFileSync("yarn", ["eslint:files", relativePath, "--cache", "--cache-location", "./build/.eslintcache"], {
+      cwd: packageDir,
+      stdio: "pipe",
+      encoding: "utf8",
+    });
+
+    return { success: true, errors: [] };
+  } catch (lintError) {
+    let errorOutput = "";
+
+    const err = lintError as {
+      stdout?: string | Buffer;
+      stderr?: string | Buffer;
+      output?: (string | Buffer | null)[];
+    };
+    if (err.stdout) {
+      errorOutput = typeof err.stdout === "string" ? err.stdout : err.stdout.toString("utf8");
+    } else if (err.output && Array.isArray(err.output)) {
+      const out = err.output[1] || err.output[2];
+      errorOutput = out ? (typeof out === "string" ? out : out.toString("utf8")) : "";
+    } else if (err.stderr) {
+      errorOutput = typeof err.stderr === "string" ? err.stderr : err.stderr.toString("utf8");
+    }
+
+    const errors = parseESLintErrors(errorOutput, filePath);
+
+    return { success: false, errors };
+  }
+}
+
+// ============================================================================
+// Error Filtering
+// ============================================================================
+
+function filterDependentFileErrors(
+  allErrors: TypeScriptError[],
+  dependentFiles: string[],
+  _editedFile: string,
+): TypeScriptError[] {
+  const depFileSet = new Set(dependentFiles);
+
+  return allErrors.filter((error) => {
+    if (depFileSet.has(error.file)) {
+      // Only include errors likely caused by changes to the edited file
+      return (
+        error.code === "TS2305" || // Module has no exported member
+        error.code === "TS2339" || // Property does not exist
+        error.code === "TS2345" || // Argument type mismatch
+        error.code === "TS2322" || // Type assignment error
+        error.code === "TS2554" || // Expected arguments error
+        error.code === "TS2741" || // Missing properties
+        error.message.toLowerCase().includes("import") ||
+        error.message.toLowerCase().includes("export")
+      );
+    }
+    return false;
+  });
+}
+
+// ============================================================================
+// Output Formatting
+// ============================================================================
+
+function formatErrorsAsYAML(
+  directErrors: ParsedError[],
+  externalErrors: TypeScriptError[],
+  signatures: Map<string, SignatureInfo>,
+): string {
+  let yaml = "";
+
+  // Direct errors in the edited file
+  if (directErrors.length > 0) {
+    yaml += "errors:\n";
+
+    for (const error of directErrors) {
+      yaml += `  - type: ${error.type}\n`;
+      yaml += `    file: ${error.file}\n`;
+      yaml += `    line: ${error.line}\n`;
+      yaml += `    column: ${error.column}\n`;
+
+      if ("code" in error && error.code) {
+        yaml += `    code: ${error.code}\n`;
+      }
+      if ("severity" in error && error.severity) {
+        yaml += `    severity: ${error.severity}\n`;
+      }
+      if ("rule" in error && error.rule) {
+        yaml += `    rule: ${error.rule}\n`;
+      }
+      if ("pattern" in error && error.pattern) {
+        yaml += `    pattern: ${error.pattern}\n`;
+      }
+
+      yaml += `    message: "${error.message.replace(/"/g, '\\"')}"\n`;
+
+      if ("usageRef" in error && error.usageRef) {
+        yaml += `    usage_ref: ${error.usageRef}\n`;
+      }
+
+      yaml += "    context:\n";
+
+      for (const ctx of error.context) {
+        const marker = ctx.current ? ">" : " ";
+        yaml += `      ${marker} ${ctx.line}: "${ctx.content.replace(/"/g, '\\"')}"\n`;
+      }
+    }
+  }
+
+  // External errors in dependent files
+  if (externalErrors.length > 0) {
+    yaml += "\nexternal:\n";
+
+    // Group errors by file
+    const errorsByFile: Record<string, TypeScriptError[]> = {};
+    for (const error of externalErrors) {
+      if (!errorsByFile[error.file]) {
+        errorsByFile[error.file] = [];
+      }
+      errorsByFile[error.file].push(error);
+    }
+
+    for (const [file, fileErrors] of Object.entries(errorsByFile)) {
+      yaml += `  "${file}":\n`;
+
+      for (const error of fileErrors) {
+        yaml += `    - type: ${error.type}\n`;
+        yaml += `      line: ${error.line}\n`;
+        yaml += `      column: ${error.column}\n`;
+
+        if (error.code) {
+          yaml += `      code: ${error.code}\n`;
+        }
+
+        yaml += `      message: "${error.message.replace(/"/g, '\\"')}"\n`;
+
+        // Include minimal context for external errors
+        if (error.context && error.context.length > 0) {
+          const currentLine = error.context.find((c) => c.current);
+          if (currentLine) {
+            yaml += `      source: "${currentLine.content.replace(/"/g, '\\"')}"\n`;
+          }
+        }
+      }
+    }
+  }
+
+  // Add usage section if we have signatures
+  if (signatures && signatures.size > 0) {
+    yaml += "\nusage:\n";
+    for (const [key, info] of signatures) {
+      yaml += `  "${key}":\n`;
+      yaml += `    signature: "${info.signature.replace(/"/g, '\\"')}"\n`;
+      yaml += `    type: ${info.type}\n`;
+    }
+  }
+
+  return yaml;
+}
+
+// ============================================================================
+// Main Hook
+// ============================================================================
+
+export function checkTypeScriptFile(
+  filePath: string,
+  logger: Logger,
+  typeChecks = new Map<string, ReturnType<typeof runProjectTypeCheck>>(),
+): { systemMessage?: string; additionalContext: string } | null {
+  if (!isTsFile(filePath)) {
+    logger.debug("Skipping non-TypeScript file", { filePath });
+    return null;
+  }
+
+  if (!fs.existsSync(filePath)) {
+    logger.warn("File not found", { filePath });
+    return null;
+  }
+
+  logger.info("Checking TypeScript file", { filePath });
+
+  const packageDir = getPackageDirectory(filePath);
+  if (!packageDir) {
+    logger.warn("Could not find package.json for file", { filePath });
+    return { additionalContext: `Could not find package.json for file: ${filePath}` };
+  }
+
+  logger.debug("Package directory", { packageDir });
+
+  // Run TypeScript check ONCE for entire project
+  const typeCheckResult = typeChecks.get(packageDir) ?? runProjectTypeCheck(packageDir);
+  typeChecks.set(packageDir, typeCheckResult);
+
+  // Run ESLint and find dependent files
+  const eslintResult = runESLint(filePath, packageDir);
+  const dependentFiles = findDependentFiles(filePath, packageDir);
+  const swallowedErrors = detectSwallowedErrors(filePath);
+
+  // Filter errors for edited file
+  const directTsErrors = typeCheckResult.errors.filter((e) => e.file === filePath);
+  const directErrors: ParsedError[] = [...directTsErrors, ...eslintResult.errors, ...swallowedErrors];
+
+  // Filter errors for dependent files (no additional tsc runs needed!)
+  const externalErrors = filterDependentFileErrors(typeCheckResult.errors, dependentFiles, filePath);
+
+  if (directErrors.length > 0 || externalErrors.length > 0) {
+    const yamlOutput = formatErrorsAsYAML(directErrors, externalErrors, typeCheckResult.signatures);
+    const errorSummary = `Found ${directErrors.length} direct error(s)${externalErrors.length > 0 ? ` and ${externalErrors.length} error(s) in dependent files` : ""}`;
+    const systemMessage = `TypeScript check: ${errorSummary}. Review the error details and fix type issues before proceeding.`;
+
+    logger.info("Validation errors found", {
+      directCount: directErrors.length,
+      externalCount: externalErrors.length,
+    });
+
+    return { systemMessage, additionalContext: yamlOutput };
+  }
+
+  logger.debug("No validation errors");
+  return null;
+}

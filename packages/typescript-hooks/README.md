@@ -1,6 +1,6 @@
 # typescript-hooks
 
-TypeScript Claude Code hooks built with the `@goodfoot/claude-code-hooks` SDK. These hooks enforce TypeScript and ESLint quality standards through automated validation.
+TypeScript hooks for Claude Code and Codex built with the `@goodfoot/agent-hooks` SDK. Both plugins share bypass detection and TypeScript/ESLint validation checks. Claude Code checks Write/Edit/MultiEdit operations; Codex checks `apply_patch` operations; shell and other tools are outside that scope. Review the generated hook commands when granting hook trust. See the [Codex plugin](../../plugins-codex/typescript-hooks/README.md) for installation and supported patch formats.
 
 ## Hooks
 
@@ -12,7 +12,7 @@ Prevents the following patterns from being added to JS/TS files:
 - TypeScript `as any` type casting
 - Biome suppress comments (`biome-ignore`, `biome-ignore-all`, etc.)
 
-**When it runs:** Before Write/Edit/MultiEdit operations on JavaScript/TypeScript files
+**When it runs:** Before Claude Code Write/Edit/MultiEdit operations or Codex `apply_patch` operations on JavaScript/TypeScript files
 
 **Behavior:**
 - Only flags patterns being **added** (not existing patterns)
@@ -23,12 +23,12 @@ Prevents the following patterns from being added to JS/TS files:
 
 Validates TypeScript type checking and ESLint rules after file changes.
 
-**When it runs:** After Write/Edit/MultiEdit operations on TypeScript files
+**When it runs:** After Claude Code Write/Edit/MultiEdit operations or Codex `apply_patch` operations on TypeScript files
 
 **Features:**
 - Runs project-wide TypeScript type checking using `tsc --noEmit`, backed by TypeScript 7's native Go compiler for speed
 - Runs ESLint validation using `yarn eslint:files`
-- Checks up to 5 dependent files for type errors caused by changes
+- Checks up to 5 dependent files, filtering their diagnostics to missing exports/properties, argument and assignment mismatches, missing arguments, and missing required properties
 - Provides detailed error output in YAML format including:
   - Error location (file, line, column)
   - Error message and code
@@ -36,9 +36,11 @@ Validates TypeScript type checking and ESLint rules after file changes.
 
 ## TypeScript Tooling
 
+The edited project must provide its own `tsconfig.json`, local `tsc`, and `yarn eslint:files` script. Missing tools and unparsed command failures do not currently produce validation diagnostics.
+
 `tsc` (`typescript@^7`) runs as the native Go compiler for the project-wide type check the PostToolUse hook shells out to — this is the hot path run on every file edit, so its speed matters most.
 
-TypeScript 7's package no longer ships the JS compiler API (`ts.createSourceFile`, `ts.forEachChild`, etc.), so the swallowed-error AST scan in `src/typescript-check.ts` imports that API from `@typescript/typescript6` instead, Microsoft's compatibility shim re-exporting the old TypeScript 6 API. `typescript` and `@typescript/typescript6` are independent dependencies here — one for the CLI, one for the in-process API — not an alias of one to the other.
+TypeScript 7's package no longer ships the JS compiler API (`ts.createSourceFile`, `ts.forEachChild`, etc.), so the shared swallowed-error AST scan in `src/shared/validation.ts` imports that API from `@typescript/typescript6` instead, Microsoft's compatibility shim re-exporting the old TypeScript 6 API. `typescript` and `@typescript/typescript6` are independent dependencies here — one for the CLI, one for the in-process API — not an alias of one to the other.
 
 Yarn's builtin `compat/typescript` patch (meant for PnP) hard-errors against both the native compiler's package layout and the `@typescript/typescript6` shim, so the repo carries a local plugin (`.yarn/plugins/@yarnpkg/plugin-disable-typescript-compat.cjs`) that strips it — safe since the repo uses `nodeLinker: node-modules`, not PnP. See [yarnpkg/berry#7191](https://github.com/yarnpkg/berry/issues/7191).
 
@@ -58,7 +60,7 @@ yarn install
 yarn build
 ```
 
-This compiles the hooks to `../../plugins-claude/typescript-hooks/hooks/hooks.json`.
+This runs `build:claude` and `build:codex`, generating manifests at `../../plugins-claude/typescript-hooks/hooks/hooks.json` and `../../plugins-codex/typescript-hooks/hooks/hooks.json`. Claude bundles go in `hooks/bin/`; Codex bundles go directly in `hooks/`. Run either target separately with `yarn build:claude` or `yarn build:codex`.
 
 ### Run Tests
 
@@ -78,7 +80,9 @@ yarn typecheck
 packages/typescript-hooks/
 ├── src/
 │   ├── eslint-typescript-bypass.ts   # PreToolUse hook
-│   └── typescript-check.ts           # PostToolUse hook
+│   ├── typescript-check.ts           # Claude PostToolUse hook
+│   ├── codex/                        # Codex apply_patch adapters
+│   └── shared/                       # Checks shared by both agents
 ├── test/
 │   ├── eslint-typescript-bypass.test.ts
 │   └── typescript-check.test.ts
@@ -89,7 +93,7 @@ packages/typescript-hooks/
 
 ## Plugin Integration
 
-The compiled hooks are output to `plugins-claude/typescript-hooks/hooks/hooks.json`, which is auto-detected by Claude Code when the plugin is enabled.
+Claude Code loads `plugins-claude/typescript-hooks/hooks/hooks.json`, which uses bundles in `hooks/bin/`. Codex loads `plugins-codex/typescript-hooks/hooks/hooks.json`, which uses bundles directly in `hooks/`. See the [Claude plugin](../../plugins-claude/typescript-hooks/README.md) and [Codex plugin](../../plugins-codex/typescript-hooks/README.md) for installation.
 
 ## Configuration
 
@@ -100,10 +104,10 @@ The compiled hooks are output to `plugins-claude/typescript-hooks/hooks/hooks.js
 
 These can be adjusted in the hook source files.
 
-### Debug Mode
+### Hook Logs
 
-Set the `DEBUG` environment variable to enable debug logging:
+Set `AGENT_HOOKS_LOG_FILE` to write hook execution logs:
 
 ```bash
-DEBUG=1 claude
+AGENT_HOOKS_LOG_FILE=/tmp/typescript-hooks.log claude
 ```

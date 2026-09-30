@@ -3,10 +3,13 @@
   "version": "1.0.1",
   "type": "module",
   "scripts": {
-    "build": "agent-hooks --agent claude-code -i \"src/**/*.ts\" -o \"../../plugins-claude/typescript-hooks/hooks/hooks.json\"",
+    "build": "yarn build:claude && yarn build:codex",
     "test": "vitest run",
     "lint": "biome check --write --unsafe --max-diagnostics 500 .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:claude": "agent-hooks --agent claude-code -i \"src/*.ts\" -o \"../../plugins-claude/typescript-hooks/hooks/hooks.json\"",
+    "build:codex": "agent-hooks --agent codex -i \"src/codex/*.ts\" -o \"../../plugins-codex/typescript-hooks/hooks/hooks.json\" --plugin-root",
+    "test:artifacts": "yarn build:codex && node test/codex-artifacts.js"
   },
   "dependencies": {
     "@goodfoot/agent-hooks": "workspace:*",

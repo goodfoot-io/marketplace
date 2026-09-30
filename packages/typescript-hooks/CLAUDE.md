@@ -1,3 +1,3 @@
-Load the `claude-code-hooks:sdk` skill immediately if it is available.
+Load the `agent-hooks` skill when available.
 
-This package contains TypeScript Claude Code hooks. Run `yarn build` to compile hooks to `plugins-claude/typescript-hooks/hooks/`.
+Run `yarn build` for both plugins; `build:claude` and `build:codex` target `plugins-claude/typescript-hooks/hooks/` and `plugins-codex/typescript-hooks/hooks/` respectively.

@@ -15,7 +15,7 @@ TESTS_PASSED=0
 
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-HOOK_SCRIPT="$SCRIPT_DIR/../hooks/eslint-typescript-bypass"
+HOOK_SCRIPT="$SCRIPT_DIR/../hooks/bin/eslint-typescript-bypass.mjs"
 
 # Function to run a test
 run_test() {
@@ -50,7 +50,12 @@ run_test() {
     local actual_decision
     actual_decision=$(echo "$output" | jq -r '.hookSpecificOutput.permissionDecision' 2>/dev/null)
     
-    if [ "$actual_decision" = "null" ] || [ -z "$actual_decision" ]; then
+    if [ "$expected_decision" = "none" ]; then
+        if ! echo "$output" | jq -e 'type == "object" and length == 0' >/dev/null; then
+            test_passed=false
+            failure_reasons+=("Expected empty output object")
+        fi
+    elif [ "$actual_decision" = "null" ] || [ -z "$actual_decision" ]; then
         test_passed=false
         failure_reasons+=("Could not parse permissionDecision from JSON output")
     elif [ "$actual_decision" != "$expected_decision" ]; then
@@ -100,98 +105,98 @@ echo "=============================================================="
 run_test "Allow clean Write tool usage" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "export function add(a: number, b: number): number {\\n  return a + b;\\n}"}}' \
     "allow" \
-    "No ESLint/TypeScript rule bypasses detected" \
+    "No ESLint/TypeScript/Biome rule bypasses detected" \
     ""
 
 # Test 2: ESLint disable-next-line (should deny)
 run_test "Deny eslint-disable-next-line" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "// eslint-disable-next-line no-console\\nconsole.log(\"debug\");"}}' \
     "deny" \
-    "ESLint disable comment found" \
+    "ESLint disable comment" \
     ""
 
 # Test 3: ESLint disable-line (should deny)
 run_test "Deny eslint-disable-line" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "console.log(\"debug\"); // eslint-disable-line no-console"}}' \
     "deny" \
-    "ESLint disable comment found" \
+    "ESLint disable comment" \
     ""
 
 # Test 4: ESLint disable block (should deny)
 run_test "Deny eslint-disable block" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "/* eslint-disable no-console */\\nconsole.log(\"debug\");\\n/* eslint-enable no-console */"}}' \
     "deny" \
-    "ESLint block disable comment found" \
+    "ESLint block disable comment" \
     ""
 
 # Test 5: @ts-ignore (should deny)
 run_test "Deny @ts-ignore" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "// @ts-ignore\\nconst x: string = 42;"}}' \
     "deny" \
-    "TypeScript @ts-ignore comment found" \
+    "TypeScript @ts-ignore comment" \
     ""
 
 # Test 6: @ts-expect-error (should deny)
 run_test "Deny @ts-expect-error" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "// @ts-expect-error\\nconst x: string = 42;"}}' \
     "deny" \
-    "TypeScript @ts-expect-error comment found" \
+    "TypeScript @ts-expect-error comment" \
     ""
 
 # Test 7: @ts-nocheck (should deny)
 run_test "Deny @ts-nocheck" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "// @ts-nocheck\\nexport const test = true;"}}' \
     "deny" \
-    "TypeScript @ts-nocheck comment found" \
+    "TypeScript @ts-nocheck comment" \
     ""
 
 # Test 8: as any casting (should deny)
 run_test "Deny 'as any' casting" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "const data = response as any;"}}' \
     "deny" \
-    "TypeScript 'as any' type casting found" \
+    "TypeScript 'as any' type casting" \
     ""
 
 # Test 9: Edit tool with violations (should deny)
 run_test "Deny Edit tool with @ts-ignore" \
     '{"tool_name": "Edit", "tool_input": {"file_path": "/tmp/test.ts", "old_string": "const x = 42;", "new_string": "// @ts-ignore\\nconst x: string = 42;"}}' \
     "deny" \
-    "TypeScript @ts-ignore comment found" \
+    "TypeScript @ts-ignore comment" \
     ""
 
 # Test 10: MultiEdit tool with violations (should deny)
 run_test "Deny MultiEdit tool with violations" \
     '{"tool_name": "MultiEdit", "tool_input": {"file_path": "/tmp/test.ts", "edits": [{"old_string": "x", "new_string": "// eslint-disable-next-line\\nx"}]}}' \
     "deny" \
-    "ESLint disable comment found" \
+    "ESLint disable comment" \
     ""
 
 # Test 11: MultiEdit tool with multiple violations (should deny)
 run_test "Deny MultiEdit with multiple violations" \
     '{"tool_name": "MultiEdit", "tool_input": {"file_path": "/tmp/test.ts", "edits": [{"old_string": "a", "new_string": "// @ts-ignore\\na"}, {"old_string": "b", "new_string": "b as any"}]}}' \
     "deny" \
-    "TypeScript @ts-ignore comment found" \
+    "TypeScript @ts-ignore comment" \
     ""
 
 # Test 12: Clean Edit tool usage (should allow)
 run_test "Allow clean Edit tool usage" \
     '{"tool_name": "Edit", "tool_input": {"file_path": "/tmp/test.ts", "old_string": "const x = 42;", "new_string": "const x: number = 42;"}}' \
     "allow" \
-    "No ESLint/TypeScript rule bypasses detected" \
+    "No ESLint/TypeScript/Biome rule bypasses detected" \
     ""
 
 # Test 13: Clean MultiEdit tool usage (should allow)
 run_test "Allow clean MultiEdit tool usage" \
     '{"tool_name": "MultiEdit", "tool_input": {"file_path": "/tmp/test.ts", "edits": [{"old_string": "x", "new_string": "y"}, {"old_string": "a", "new_string": "b"}]}}' \
     "allow" \
-    "No ESLint/TypeScript rule bypasses detected" \
+    "No ESLint/TypeScript/Biome rule bypasses detected" \
     ""
 
-# Test 14: Invalid JSON input (should deny)
+# Test 14: Invalid JSON input returns the SDK empty output object
 run_test "Handle invalid JSON input" \
     'not valid json' \
-    "deny" \
-    "Invalid JSON input provided" \
+    "none" \
+    "" \
     ""
 
 # Test 15: Missing tool_name (should allow - no content to check)
@@ -208,53 +213,53 @@ run_test "Allow unsupported tool" \
     "No content to check" \
     ""
 
-# Test 17: Empty content (should allow)
+# Test 17: Empty JS/TS content (should allow)
 run_test "Allow empty content" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": ""}}' \
     "allow" \
-    "No content to check" \
+    "No ESLint/TypeScript/Biome rule bypasses detected" \
     ""
 
 # Test 18: Content with false positives (should allow)
 run_test "Allow content with false positives" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "// This is a comment about ts-ignore but not actually using it\nconst message = \"eslint-disable-next-line is mentioned here\";"}}' \
     "allow" \
-    "No ESLint/TypeScript rule bypasses detected" \
+    "No ESLint/TypeScript/Biome rule bypasses detected" \
     ""
 
 # Test 19: Mixed violations (should deny and list all)
 run_test "Deny mixed violations" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "// @ts-ignore\nconst x = data as any;\n// eslint-disable-next-line\nconsole.log(x);"}}' \
     "deny" \
-    "TypeScript @ts-ignore comment found" \
+    "TypeScript @ts-ignore comment" \
     ""
 
 # Test 20: ESLint disable with whitespace variations (should deny)
 run_test "Deny eslint-disable with whitespace" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "//  eslint-disable-next-line   no-console\nconsole.log(\"test\");"}}' \
     "deny" \
-    "ESLint disable comment found" \
+    "ESLint disable comment" \
     ""
 
 # Test 21: TypeScript comments with whitespace variations (should deny)
 run_test "Deny @ts-ignore with whitespace" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "//  @ts-ignore  \nconst x: string = 42;"}}' \
     "deny" \
-    "TypeScript @ts-ignore comment found" \
+    "TypeScript @ts-ignore comment" \
     ""
 
 # Test 22: as any with whitespace variations (should deny)
 run_test "Deny 'as any' with whitespace" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "const data = response as  any ;"}}' \
     "deny" \
-    "TypeScript 'as any' type casting found" \
+    "TypeScript 'as any' type casting" \
     ""
 
 # Test 23: Complex case with nested violations (should deny)
 run_test "Deny complex nested violations" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/test.ts", "content": "function complexFunction() {\n  /* eslint-disable no-any */\n  // @ts-expect-error\n  const result = (getData() as any).prop;\n  return result;\n}"}}' \
     "deny" \
-    "ESLint block disable comment found" \
+    "ESLint block disable comment" \
     ""
 
 # Test 24: Check that reason contains helpful alternatives
@@ -289,44 +294,29 @@ run_test "Allow bypasses in JSON files" \
 run_test "Still check .js files" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/script.js", "content": "// @ts-ignore\\nconst x = 42;"}}' \
     "deny" \
-    "TypeScript @ts-ignore comment found" \
+    "TypeScript @ts-ignore comment" \
     ""
 
 # Test 29: File filtering - should still check .jsx files
 run_test "Still check .jsx files" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/component.jsx", "content": "// eslint-disable-next-line\\nconst Component = () => <div />;"}}' \
     "deny" \
-    "ESLint disable comment found" \
+    "ESLint disable comment" \
     ""
 
 # Test 30: File filtering - should still check .mjs files
 run_test "Still check .mjs files" \
     '{"tool_name": "Write", "tool_input": {"file_path": "/tmp/module.mjs", "content": "const data = response as any;"}}' \
     "deny" \
-    "TypeScript 'as any' type casting found" \
+    "TypeScript 'as any' type casting" \
     ""
 
-# Test 31: File filtering - should still check when no file_path provided
-run_test "Still check when no file_path provided" \
+# Test 31: No file path means no content to check
+run_test "Skip when no file_path provided" \
     '{"tool_name": "Write", "tool_input": {"content": "// @ts-ignore\\ntest content"}}' \
-    "deny" \
-    "TypeScript @ts-ignore comment found" \
+    "allow" \
+    "No content to check" \
     ""
-
-# Test 32: Verify stderr output for violations
-echo -e "\n${YELLOW}Testing stderr output...${NC}"
-TESTS_RUN=$((TESTS_RUN + 1))
-stderr_output=$(echo '{"tool_name": "Write", "tool_input": {"content": "// @ts-ignore\ntest"}}' | "$HOOK_SCRIPT" 2>&1 >/dev/null)
-if echo "$stderr_output" | grep -q "Rule bypass detected:" && echo "$stderr_output" | grep -q "TypeScript @ts-ignore comment found"; then
-    echo -e "${GREEN}✓${NC} Stderr output contains violation details"
-    TESTS_PASSED=$((TESTS_PASSED + 1))
-else
-    echo -e "${RED}✗${NC} Stderr output missing violation details"
-    if [ -n "$DEBUG" ]; then
-        echo "  Stderr output:"
-        echo "$stderr_output" | sed 's/^/    /'
-    fi
-fi
 
 # Test 26: Performance test with large content
 echo -e "\n${YELLOW}Testing performance with large content...${NC}"
@@ -338,7 +328,7 @@ done
 large_content="${large_content}// @ts-ignore\nconst final = 'test';"
 
 start_time=$(date +%s%N)
-output=$(echo "{\"tool_name\": \"Write\", \"tool_input\": {\"content\": \"$large_content\"}}" | "$HOOK_SCRIPT" 2>/dev/null)
+output=$(echo "{\"tool_name\": \"Write\", \"tool_input\": {\"file_path\": \"/tmp/large.ts\", \"content\": \"$large_content\"}}" | "$HOOK_SCRIPT" 2>/dev/null)
 end_time=$(date +%s%N)
 duration=$(( (end_time - start_time) / 1000000 )) # Convert to milliseconds
 

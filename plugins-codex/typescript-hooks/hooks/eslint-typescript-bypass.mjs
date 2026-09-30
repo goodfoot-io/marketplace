@@ -1,11 +1,4 @@
 #!/usr/bin/env -S node --enable-source-maps
-import { createRequire as __createRequire } from "node:module";
-import { fileURLToPath as __fileURLToPath } from "node:url";
-import { dirname as __pathDirname } from "node:path";
-const require = __createRequire(import.meta.url);
-const __filename = __fileURLToPath(import.meta.url);
-const __dirname = __pathDirname(__filename);
-
 // node_modules/@goodfoot/agent-hooks/dist/core/logger.js
 import { closeSync, existsSync, mkdirSync, openSync, writeSync } from "node:fs";
 import { dirname } from "node:path";
@@ -384,89 +377,30 @@ var logger = new Logger({
   logEnvVar: process.env.AGENT_HOOKS_LOG_ENV_VAR ?? "AGENT_HOOKS_LOG_FILE"
 });
 
-// node_modules/@goodfoot/agent-hooks/dist/core/env.js
-import * as fs from "node:fs";
-var CLAUDE_ENV_VARS = {
-  /**
-   * Absolute path to the project root directory where Claude Code was started.
-   * Available in all hooks.
-   */
-  PROJECT_DIR: "CLAUDE_PROJECT_DIR",
-  /**
-   * Path to a file where SessionStart hooks can persist environment variables.
-   * Variables written to this file will be available in all subsequent bash commands.
-   * Only available in SessionStart hooks.
-   */
-  ENV_FILE: "CLAUDE_ENV_FILE",
-  /**
-   * Set to "true" when running in a remote (web) environment.
-   * Not set or empty when running in local CLI environment.
-   */
-  REMOTE: "CLAUDE_CODE_REMOTE"
-};
-function getEnvFilePath() {
-  return process.env[CLAUDE_ENV_VARS.ENV_FILE];
-}
-function persistEnvVar(name, value) {
-  const envFile = getEnvFilePath();
-  if (envFile === void 0) {
-    throw new Error("persistEnvVar can only be used in SessionStart hooks. CLAUDE_ENV_FILE environment variable is not set.");
-  }
-  const escapedValue = escapeShellValue(value);
-  const exportStatement = `export ${name}=${escapedValue}
-`;
-  fs.appendFileSync(envFile, exportStatement, "utf-8");
-}
-function persistEnvVars(vars) {
-  for (const [name, value] of Object.entries(vars)) {
-    persistEnvVar(name, value);
-  }
-}
-function escapeShellValue(value) {
-  const escaped = value.replace(/'/g, "'\\''");
-  return `'${escaped}'`;
-}
+// node_modules/@goodfoot/agent-hooks/dist/agents/codex/constants.js
+var EVENTS_WITH_TEXT_OUTPUT = /* @__PURE__ */ new Set(["SessionStart", "UserPromptSubmit", "SubagentStart"]);
 
-// node_modules/@goodfoot/agent-hooks/dist/agents/claude-code/events.js
+// node_modules/@goodfoot/agent-hooks/dist/agents/codex/events.js
 var HOOK_EVENT_NAMES = [
   "PreToolUse",
   "PostToolUse",
-  "PostToolUseFailure",
-  "PostToolBatch",
-  "Notification",
-  "UserPromptExpansion",
+  "PermissionRequest",
   "UserPromptSubmit",
   "SessionStart",
-  "SessionEnd",
-  "Stop",
-  "StopFailure",
   "SubagentStart",
+  "Stop",
   "SubagentStop",
   "PreCompact",
-  "PostCompact",
-  "PermissionRequest",
-  "PermissionDenied",
-  "Setup",
-  "TeammateIdle",
-  "TaskCreated",
-  "TaskCompleted",
-  "Elicitation",
-  "ElicitationResult",
-  "ConfigChange",
-  "InstructionsLoaded",
-  "WorktreeCreate",
-  "WorktreeRemove",
-  "CwdChanged",
-  "FileChanged",
-  "MessageDisplay"
+  "PostCompact"
 ];
 var EXCLUDED_FROM_ADVISORY = [
   "PreToolUse",
+  "PostToolUse",
   "PermissionRequest",
   "Stop",
   "SubagentStop",
-  "WorktreeCreate",
-  "WorktreeRemove"
+  "PreCompact",
+  "PostCompact"
 ];
 var ADVISORY_EVENTS = HOOK_EVENT_NAMES.filter((eventName) => !EXCLUDED_FROM_ADVISORY.includes(eventName));
 
@@ -495,118 +429,23 @@ function defineHook(eventName, config, handler, policyGate) {
   return hookFn;
 }
 
-// node_modules/@goodfoot/agent-hooks/dist/agents/claude-code/hooks.js
+// node_modules/@goodfoot/agent-hooks/dist/agents/codex/hooks.js
 var advisoryPolicyGate = (eventName, policy) => policy !== "continue" || ADVISORY_EVENTS.includes(eventName);
-function createSessionStartContext() {
-  return { logger, persistEnvVar, persistEnvVars };
-}
 function createHookFunction(hookEventName, config, handler) {
-  const isSessionStart = hookEventName === "SessionStart";
-  return defineHook(hookEventName, isSessionStart ? { ...config, createContext: createSessionStartContext } : config, handler, advisoryPolicyGate);
+  const coreConfig = {
+    matcher: "matcher" in config ? config.matcher : void 0,
+    timeout: config.timeout,
+    unexpectedError: config.unexpectedError,
+    onUnexpectedError: config.onUnexpectedError
+  };
+  const hookFn = defineHook(hookEventName, coreConfig, handler, advisoryPolicyGate);
+  const codexFn = hookFn;
+  codexFn.hookEventName = hookEventName;
+  codexFn.statusMessage = config.statusMessage;
+  return codexFn;
 }
 function preToolUseHook(config, handler) {
   return createHookFunction("PreToolUse", config, handler);
-}
-
-// node_modules/@goodfoot/agent-hooks/dist/agents/claude-code/outputs.js
-var EXIT_CODES = {
-  /** Handler completed successfully. Claude Code parses stdout as JSON. */
-  SUCCESS: 0,
-  /** Non-blocking error occurred (e.g., invalid input). stderr shown to user only. */
-  ERROR: 1,
-  /** Handler threw exception OR blocking action requested. stderr shown to Claude. */
-  BLOCK: 2
-};
-function createHookSpecificOutputBuilder(hookType) {
-  return (options = {}) => {
-    const { hookSpecificOutput, ...rest } = options;
-    const stdout = hookSpecificOutput !== void 0 ? { ...rest, hookSpecificOutput: { hookEventName: hookType, ...hookSpecificOutput } } : rest;
-    return { _type: hookType, stdout };
-  };
-}
-var preToolUseOutput = /* @__PURE__ */ createHookSpecificOutputBuilder("PreToolUse");
-
-// node_modules/@goodfoot/agent-hooks/dist/agents/claude-code/tool-helpers.js
-function isWriteTool(input) {
-  return input.tool_name === "Write";
-}
-function isEditTool(input) {
-  return input.tool_name === "Edit";
-}
-function isMultiEditTool(input) {
-  return input.tool_name === "MultiEdit";
-}
-function getFilePath(input) {
-  const toolInput = input.tool_input;
-  if (toolInput && typeof toolInput === "object" && "file_path" in toolInput) {
-    const filePath = toolInput.file_path;
-    return typeof filePath === "string" ? filePath : null;
-  }
-  return null;
-}
-function isJsTsFile(filePath) {
-  return /\.[cm]?[jt]sx?$/.test(filePath);
-}
-function checkContentForPattern(input, pattern) {
-  const globalPattern = pattern.global ? pattern : new RegExp(pattern.source, `${pattern.flags}g`);
-  if (isWriteTool(input)) {
-    const matches = [...input.tool_input.content.matchAll(globalPattern)].map((m) => m[0]);
-    const uniqueMatches = [...new Set(matches)];
-    return {
-      found: uniqueMatches.length > 0,
-      isAddition: uniqueMatches.length > 0,
-      // For Write, any match is an addition
-      matches: uniqueMatches
-    };
-  }
-  if (isEditTool(input)) {
-    const newMatches = [...input.tool_input.new_string.matchAll(globalPattern)].map((m) => m[0]);
-    const oldMatches = [...input.tool_input.old_string.matchAll(globalPattern)].map((m) => m[0]);
-    const uniqueNewMatches = [...new Set(newMatches)];
-    const uniqueOldMatches = new Set(oldMatches);
-    const additions = uniqueNewMatches.filter((m) => !uniqueOldMatches.has(m));
-    return {
-      found: uniqueNewMatches.length > 0,
-      isAddition: additions.length > 0,
-      matches: uniqueNewMatches
-    };
-  }
-  if (isMultiEditTool(input)) {
-    const details = [];
-    const allMatches = /* @__PURE__ */ new Set();
-    let anyFound = false;
-    let anyAddition = false;
-    for (let i = 0; i < input.tool_input.edits.length; i++) {
-      const edit = input.tool_input.edits[i];
-      const newMatches = [...edit.new_string.matchAll(globalPattern)].map((m) => m[0]);
-      const oldMatches = [...edit.old_string.matchAll(globalPattern)].map((m) => m[0]);
-      const uniqueNewMatches = [...new Set(newMatches)];
-      const uniqueOldMatches = new Set(oldMatches);
-      const additions = uniqueNewMatches.filter((m) => !uniqueOldMatches.has(m));
-      const found = uniqueNewMatches.length > 0;
-      const isAddition = additions.length > 0;
-      if (found)
-        anyFound = true;
-      if (isAddition)
-        anyAddition = true;
-      for (const m of uniqueNewMatches) {
-        allMatches.add(m);
-      }
-      details.push({
-        index: i,
-        found,
-        isAddition,
-        matches: uniqueNewMatches
-      });
-    }
-    return {
-      found: anyFound,
-      isAddition: anyAddition,
-      matches: [...allMatches],
-      details
-    };
-  }
-  return null;
 }
 
 // node_modules/@goodfoot/agent-hooks/dist/core/stdin.js
@@ -765,97 +604,152 @@ async function drive(transport, hookFn) {
   process.exit(finalized.exitCode);
 }
 
-// node_modules/@goodfoot/agent-hooks/dist/agents/claude-code/transport.js
-var BLOCK_SHAPE_BY_EVENT = {
-  PermissionRequest: (reason) => ({
-    hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "deny", message: reason } }
-  }),
-  PreToolUse: (reason) => ({
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: reason
-    }
-  })
+// node_modules/@goodfoot/agent-hooks/dist/agents/codex/outputs.js
+var EXIT_CODES = {
+  SUCCESS: 0,
+  ERROR: 1,
+  BLOCK: 2
 };
-function translateBlockToPayload(eventName, error) {
-  const reason = error.message;
-  const known = HOOK_EVENT_NAMES.includes(eventName) ? eventName : void 0;
-  const payload = known !== void 0 ? BLOCK_SHAPE_BY_EVENT[known]?.(reason) ?? { continue: false, stopReason: reason } : { continue: false, stopReason: reason };
-  if (error.fields !== void 0) {
-    Object.assign(payload, error.fields);
+var BlockError = class extends HookBlockError {
+  reason;
+  constructor(reason) {
+    super(reason);
+    this.name = "BlockError";
+    this.reason = reason;
   }
-  return payload;
+};
+function omitUndefined(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== void 0));
 }
-function convertToHookOutput(specificOutput) {
-  const { stdout, stderr, rawStdout } = specificOutput;
-  const result = { stdout };
-  if (stderr !== void 0) {
-    result.stderr = stderr;
-  }
-  if (rawStdout !== void 0) {
-    result.rawStdout = rawStdout;
-  }
-  return result;
+function buildOutput(type, stdout, stderr) {
+  return {
+    _type: type,
+    stdout: omitUndefined(stdout),
+    ...stderr !== void 0 ? { stderr } : {}
+  };
+}
+function preToolUseOutput(options = {}) {
+  const hasSpecific = options.additionalContext !== void 0 || options.permissionDecision !== void 0 || options.permissionDecisionReason !== void 0 || options.updatedInput !== void 0;
+  const hookSpecificOutput = hasSpecific ? omitUndefined({
+    hookEventName: "PreToolUse",
+    additionalContext: options.additionalContext,
+    permissionDecision: options.permissionDecision,
+    permissionDecisionReason: options.permissionDecisionReason,
+    updatedInput: options.updatedInput
+  }) : void 0;
+  return buildOutput("PreToolUse", {
+    continue: options.continue,
+    stopReason: options.stopReason,
+    suppressOutput: options.suppressOutput,
+    systemMessage: options.systemMessage,
+    decision: options.decision,
+    reason: options.reason,
+    hookSpecificOutput
+  });
+}
+function userPromptSubmitOutput(options = {}) {
+  const hookSpecificOutput = options.additionalContext !== void 0 ? {
+    hookEventName: "UserPromptSubmit",
+    additionalContext: options.additionalContext
+  } : void 0;
+  return buildOutput("UserPromptSubmit", {
+    continue: options.continue,
+    stopReason: options.stopReason,
+    suppressOutput: options.suppressOutput,
+    systemMessage: options.systemMessage,
+    decision: options.decision,
+    reason: options.reason,
+    hookSpecificOutput
+  });
+}
+function sessionStartOutput(options = {}) {
+  const hookSpecificOutput = options.additionalContext !== void 0 ? {
+    hookEventName: "SessionStart",
+    additionalContext: options.additionalContext
+  } : void 0;
+  return buildOutput("SessionStart", {
+    continue: options.continue,
+    stopReason: options.stopReason,
+    suppressOutput: options.suppressOutput,
+    systemMessage: options.systemMessage,
+    hookSpecificOutput
+  });
+}
+function subagentStartOutput(options = {}) {
+  const hookSpecificOutput = options.additionalContext !== void 0 ? {
+    hookEventName: "SubagentStart",
+    additionalContext: options.additionalContext
+  } : void 0;
+  return buildOutput("SubagentStart", {
+    continue: options.continue,
+    stopReason: options.stopReason,
+    suppressOutput: options.suppressOutput,
+    systemMessage: options.systemMessage,
+    hookSpecificOutput
+  });
+}
+
+// node_modules/@goodfoot/agent-hooks/dist/agents/codex/transport.js
+function convertToHookOutput(output) {
+  return output.stderr !== void 0 ? { stdout: output.stdout, stderr: output.stderr } : { stdout: output.stdout };
 }
 function formatErrorText(error) {
   return error instanceof Error ? `${error.stack ?? error.message}
 ` : `${String(error)}
 `;
 }
-function detectRawStdout(output) {
-  if (output._type === "WorktreeCreate" || output._type === "WorktreeRemove") {
-    return output.rawStdout;
+function normalizeStringOutput(hookEventName, result) {
+  if (!EVENTS_WITH_TEXT_OUTPUT.has(hookEventName)) {
+    throw new Error(`${hookEventName} hooks cannot return plain text`);
   }
-  return void 0;
+  if (hookEventName === "SessionStart") {
+    return sessionStartOutput({ additionalContext: result });
+  }
+  if (hookEventName === "SubagentStart") {
+    return subagentStartOutput({ additionalContext: result });
+  }
+  return userPromptSubmitOutput({ additionalContext: result });
 }
-function createClaudeCodeTransport(eventName, policy, onUnexpectedError) {
+function createCodexTransport() {
   return {
     finalize(outcome) {
       switch (outcome.kind) {
-        case "response": {
-          const converted = outcome.output === null || outcome.output === void 0 ? void 0 : convertToHookOutput(outcome.output);
-          if (converted?.stderr !== void 0) {
-            return { stderr: converted.stderr, exitCode: EXIT_CODES.BLOCK };
-          }
-          let serializedText;
-          try {
-            serializedText = converted?.rawStdout !== void 0 ? converted.rawStdout : JSON.stringify(converted?.stdout ?? {});
-          } catch (error) {
-            logger.logError(error, "Failed to serialize hook output");
-            if (policy !== "continue") {
-              return { stderr: formatErrorText(error), exitCode: EXIT_CODES.ERROR };
-            }
-            onUnexpectedError?.(error, "serialize");
-            serializedText = "{}";
-          }
-          return { stdout: serializedText, exitCode: EXIT_CODES.SUCCESS };
+        case "response":
+        case "rawStdout": {
+          const stdoutJson = outcome.kind === "response" && outcome.output !== null && outcome.output !== void 0 ? JSON.stringify(convertToHookOutput(outcome.output).stdout) : "{}";
+          return { stdout: stdoutJson, exitCode: EXIT_CODES.SUCCESS };
         }
-        case "rawStdout":
-          return { stdout: outcome.stdout, exitCode: EXIT_CODES.SUCCESS };
         case "block": {
-          return {
-            stdout: JSON.stringify(translateBlockToPayload(eventName, outcome.error)),
-            exitCode: EXIT_CODES.SUCCESS
-          };
+          const reason = outcome.error instanceof BlockError ? outcome.error.reason : outcome.error.message;
+          return { stderr: `${reason}
+`, exitCode: EXIT_CODES.BLOCK };
         }
         case "handlerError": {
-          if (outcome.phase === "read" || outcome.phase === "parse") {
-            logger.error(`Invalid JSON input: ${outcome.error instanceof Error ? outcome.error.message : String(outcome.error)}`);
-            return { stdout: "{}", exitCode: EXIT_CODES.SUCCESS };
-          }
-          logger.error(`Hook handler error: ${outcome.error instanceof Error ? outcome.error.message : String(outcome.error)}`);
-          return { stderr: formatErrorText(outcome.error), exitCode: EXIT_CODES.BLOCK };
+          return { stderr: formatErrorText(outcome.error), exitCode: EXIT_CODES.ERROR };
         }
       }
-    },
-    rawStdout: detectRawStdout
+    }
   };
 }
 async function execute(hookFn) {
-  const policy = hookFn.unexpectedError ?? "error";
-  const transport = createClaudeCodeTransport(hookFn.eventName, policy, hookFn.onUnexpectedError);
-  await drive(transport, hookFn);
+  const eventName = hookFn.hookEventName;
+  const composed = (input, context) => {
+    const result = hookFn(input, context);
+    const normalize = (value) => {
+      if (typeof value === "string") {
+        return normalizeStringOutput(eventName, value);
+      }
+      return value;
+    };
+    return result instanceof Promise ? result.then(normalize) : normalize(result);
+  };
+  composed.eventName = hookFn.eventName ?? eventName;
+  composed.matcher = hookFn.matcher;
+  composed.timeout = hookFn.timeout;
+  composed.unexpectedError = hookFn.unexpectedError;
+  composed.onUnexpectedError = hookFn.onUnexpectedError;
+  composed.createContext = hookFn.createContext;
+  await drive(createCodexTransport(), composed);
 }
 
 // packages/typescript-hooks/src/shared/bypass.ts
@@ -923,51 +817,94 @@ var GUIDANCE_MESSAGE = `Instead of bypassing rules, please:
 - Refactor the code to be type-safe
 - Use more specific types instead of '${ANY}'
 - Configure ESLint/TypeScript/Biome rules in project configuration files if needed`;
+function findBypassViolations(oldContent, newContent) {
+  return BYPASS_PATTERNS.filter(({ pattern }) => {
+    const remaining = /* @__PURE__ */ new Map();
+    for (const match of oldContent.matchAll(pattern)) {
+      remaining.set(match[0], (remaining.get(match[0]) ?? 0) + 1);
+    }
+    for (const match of newContent.matchAll(pattern)) {
+      const count = remaining.get(match[0]) ?? 0;
+      if (!count) return true;
+      remaining.set(match[0], count - 1);
+    }
+    return false;
+  }).map(({ description }) => description);
+}
 
-// packages/typescript-hooks/src/eslint-typescript-bypass.ts
-var eslint_typescript_bypass_default = preToolUseHook({ matcher: "Write|Edit|MultiEdit", timeout: 1e4 }, (input, { logger: logger2 }) => {
-  const filePath = getFilePath(input);
-  if (!filePath || !isJsTsFile(filePath)) {
-    logger2.debug("Skipping non-JS/TS file", { filePath });
-    return preToolUseOutput({
-      hookSpecificOutput: {
-        permissionDecision: "allow",
-        permissionDecisionReason: "No content to check"
-      }
-    });
+// packages/typescript-hooks/src/shared/codex-patch.ts
+import path from "node:path";
+function parseCodexPatch(toolInput, cwd) {
+  if (typeof toolInput !== "object" || toolInput === null || !("command" in toolInput) || typeof toolInput.command !== "string") {
+    throw new Error("Expected apply_patch tool_input.command to contain patch text");
   }
-  logger2.debug("Checking file for bypass patterns", { filePath });
+  const lines = toolInput.command.trim().split(/\r?\n/);
+  if (lines.shift() !== "*** Begin Patch" || lines.pop() !== "*** End Patch") {
+    throw new Error("Invalid apply_patch envelope");
+  }
+  const edits = [];
+  let edit;
+  let mode;
+  let oldLines = [];
+  let newLines = [];
+  const flush = () => {
+    if (edit && (oldLines.length || newLines.length)) {
+      edit.chunks.push({ oldContent: oldLines.join("\n"), newContent: newLines.join("\n") });
+    }
+    oldLines = [];
+    newLines = [];
+  };
+  for (const line of lines) {
+    const header = /^\*\*\* (Add|Update|Delete) File: (.+)$/.exec(line);
+    if (header) {
+      flush();
+      mode = header[1] === "Add" ? "add" : header[1] === "Delete" ? "delete" : "update";
+      edit = { filePath: path.resolve(cwd, header[2]), deleted: mode === "delete", chunks: [] };
+      edits.push(edit);
+    } else if (line.startsWith("*** Move to: ") && edit && mode === "update") {
+      edit.filePath = path.resolve(cwd, line.slice("*** Move to: ".length));
+    } else if ((line === "@@" || line.startsWith("@@ ") || line === "*** End of File") && mode === "update") {
+      flush();
+    } else if (edit && mode === "add" && line.startsWith("+")) {
+      newLines.push(line.slice(1));
+    } else if (edit && mode === "update" && line.startsWith("+")) {
+      newLines.push(line.slice(1));
+    } else if (edit && mode === "update" && line.startsWith("-")) {
+      oldLines.push(line.slice(1));
+    } else if (edit && mode === "update" && (line.startsWith(" ") || line === "")) {
+      const content = line.slice(1);
+      oldLines.push(content);
+      newLines.push(content);
+    } else {
+      throw new Error(`Unrecognized apply_patch line: ${line}`);
+    }
+  }
+  flush();
+  return edits;
+}
+
+// packages/typescript-hooks/src/codex/eslint-typescript-bypass.ts
+var eslint_typescript_bypass_default = preToolUseHook({ matcher: "^apply_patch$", timeout: 1e4 }, (input, { logger: logger2 }) => {
   const violations = [];
-  for (const { pattern, description } of BYPASS_PATTERNS) {
-    const result = checkContentForPattern(input, pattern);
-    if (result?.isAddition) {
-      violations.push(description);
-      logger2.warn("Bypass pattern being added", { pattern: description, matches: result.matches });
-    }
-  }
-  if (violations.length === 0) {
-    logger2.debug("No violations found");
-    return preToolUseOutput({
-      hookSpecificOutput: {
-        permissionDecision: "allow",
-        permissionDecisionReason: "No ESLint/TypeScript/Biome rule bypasses detected"
+  for (const edit of parseCodexPatch(input.tool_input, input.cwd)) {
+    if (edit.deleted || !/\.(?:[cm]?[jt]s|[jt]sx)$/.test(edit.filePath)) continue;
+    for (const chunk of edit.chunks) {
+      for (const violation of findBypassViolations(chunk.oldContent, chunk.newContent)) {
+        violations.push(`${edit.filePath}: ${violation}`);
       }
-    });
-  }
-  const violationList = violations.map((v) => `- ${v}`).join("\n");
-  const reason = `The following ESLint/TypeScript/Biome rule bypasses are not allowed:
-${violationList}
-
-${GUIDANCE_MESSAGE}`;
-  logger2.info("Denying operation due to bypass patterns", { violations });
-  return preToolUseOutput({
-    systemMessage: "ESLint/TypeScript/Biome bypass prevention: Fix the underlying issue instead of using bypass comments or type casts.",
-    hookSpecificOutput: {
-      permissionDecision: "deny",
-      permissionDecisionReason: reason
     }
+  }
+  if (!violations.length) return preToolUseOutput({});
+  logger2.warn("Denying patch containing rule bypasses", { violations });
+  return preToolUseOutput({
+    systemMessage: "ESLint/TypeScript/Biome bypass prevention: Fix the underlying issue.",
+    permissionDecision: "deny",
+    permissionDecisionReason: `The following rule bypasses are not allowed:
+${violations.map((v) => `- ${v}`).join("\n")}
+
+${GUIDANCE_MESSAGE}`
   });
 });
 
-// packages/typescript-hooks/src/eslint-typescript-bypass-entry.ts
+// packages/typescript-hooks/src/codex/eslint-typescript-bypass-entry.ts
 execute(eslint_typescript_bypass_default);

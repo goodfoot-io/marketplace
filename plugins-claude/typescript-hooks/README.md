@@ -71,25 +71,27 @@ This plugin provides two hooks that run automatically during Write/Edit/MultiEdi
 - PreToolUse (bypass prevention): 10 seconds
 - PostToolUse (TypeScript/ESLint): 60 seconds
 
-### Debug Mode
+### Hook Logs
 
-Set the `DEBUG` environment variable to see detailed execution logs:
+Set `AGENT_HOOKS_LOG_FILE` to write hook execution logs:
 
 ```bash
-DEBUG=1 claude
+AGENT_HOOKS_LOG_FILE=/tmp/typescript-hooks.log claude
 ```
 
 ## Development
 
 ### Project Structure
 
-The hooks are implemented in TypeScript using the `@goodfoot/claude-code-hooks` SDK:
+The hooks are implemented in TypeScript using the `@goodfoot/agent-hooks` SDK. Shared checks also power the [Codex plugin](../../plugins-codex/typescript-hooks/README.md):
 
 ```
 packages/typescript-hooks/           # Source package
 ├── src/
 │   ├── eslint-typescript-bypass.ts  # PreToolUse hook
-│   └── typescript-check.ts          # PostToolUse hook
+│   ├── typescript-check.ts          # PostToolUse hook
+│   ├── codex/                       # Codex adapters
+│   └── shared/                      # Checks shared by both agents
 ├── test/
 │   └── *.test.ts                    # Unit tests
 └── package.json
@@ -99,7 +101,7 @@ plugins-claude/typescript-hooks/     # Plugin directory
 │   └── plugin.json                  # Plugin manifest
 ├── hooks/
 │   ├── hooks.json                   # Generated hook configuration
-│   └── build/                       # Compiled hooks (.mjs files)
+│   └── bin/                         # Compiled hooks (.mjs files)
 └── README.md
 ```
 
@@ -113,7 +115,7 @@ yarn install
 yarn build
 ```
 
-This compiles the hooks and outputs to `plugins-claude/typescript-hooks/hooks/hooks.json`.
+This builds both Claude Code and Codex plugins, generating `plugins-claude/typescript-hooks/hooks/hooks.json` and `plugins-codex/typescript-hooks/hooks/hooks.json`. Claude bundles go in `hooks/bin/`; Codex bundles go directly in `hooks/`. Use `yarn build:claude` or `yarn build:codex` to build one plugin.
 
 ### Running Tests
 
@@ -147,7 +149,7 @@ The hooks require:
 
 1. Verify plugin is enabled in `.claude/settings.json`
 2. Ensure hooks are built: `cd packages/typescript-hooks && yarn build`
-3. Enable DEBUG mode to see execution logs
+3. Set `AGENT_HOOKS_LOG_FILE` to capture execution logs
 
 ### False Positives
 
@@ -164,4 +166,4 @@ MIT
 ## Resources
 
 - [Claude Code Hooks Documentation](https://code.claude.com/docs/en/hooks)
-- [@goodfoot/claude-code-hooks SDK](https://www.npmjs.com/package/@goodfoot/claude-code-hooks)
+- [Agent Hooks SDK](../../packages/agent-hooks/README.md)
