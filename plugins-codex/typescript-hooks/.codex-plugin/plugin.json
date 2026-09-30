@@ -1,6 +1,6 @@
 {
   "name": "typescript-hooks",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "description": "TypeScript and ESLint validation and rule bypass prevention for Codex apply_patch operations",
   "author": { "name": "Goodfoot", "email": "contact@goodfoot.io" },
   "hooks": "./hooks/hooks.json"
