@@ -1,5 +1,10 @@
 # jsdoczoom npm package changelog
 
+## 2.0.0
+
+- **Breaking:** Require Node.js 22.22.2 or Node.js 24.15.0 and newer to support the latest ESLint and JSDoc tooling.
+- Updated dependencies, retaining TypeScript 6.0.3 for compatibility with the TypeScript compiler API and ESLint parser.
+
 ## 1.2.6
 - Fixed a bug where the CLI could hang indefinitely when run with piped/idle stdin
 
