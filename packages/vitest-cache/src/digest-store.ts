@@ -117,6 +117,55 @@ function statEntry(relative: string, stat: fs.BigIntStats): StatEntry {
   };
 }
 
+/**
+ * Hash regular-file bytes with one bounded allocation and verify the observation.
+ * Large reads verify the open descriptor before and after streaming as well as
+ * the final pathname; these observations do not provide an atomic filesystem snapshot.
+ *
+ * @param filename - Resolved physical file path.
+ * @param observed - Metadata used by the digest inventory and mode prefix.
+ * @param hash - Hash accumulator preserving the caller's byte framing.
+ * @param counters - Actual stat and byte-read counters.
+ * @throws For read failures, replacement or mutation during hashing.
+ */
+function hashFile(filename: string, observed: fs.BigIntStats, hash: Hash, counters: Counters) {
+  const verify = (stat: fs.BigIntStats) => {
+    counters.filesStatted++;
+    if (
+      !stat.isFile() ||
+      stat.dev !== observed.dev ||
+      stat.ino !== observed.ino ||
+      stat.size !== observed.size ||
+      stat.mode !== observed.mode ||
+      stat.mtimeNs !== observed.mtimeNs ||
+      stat.ctimeNs !== observed.ctimeNs
+    )
+      throw new Error(`digest input changed while hashing: ${filename}`);
+  };
+  const descriptor = fs.openSync(filename, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+  try {
+    const large = observed.size >= 1_048_576n;
+    if (large) verify(fs.fstatSync(descriptor, { bigint: true }));
+    // 1 MiB amortizes synchronous read calls for native binaries without
+    // allocating proportional to file size. Small files need only their size.
+    const buffer = Buffer.allocUnsafe(Number(observed.size < 1_048_576n ? observed.size + 1n : 1_048_576n) || 1);
+    let total = 0n;
+    while (true) {
+      const count = fs.readSync(descriptor, buffer, 0, buffer.length, null);
+      if (count === 0) break;
+      counters.bytesRead += count;
+      total += BigInt(count);
+      hash.update(buffer.subarray(0, count));
+      if (total > observed.size) throw new Error(`digest input changed while hashing: ${filename}`);
+    }
+    if (large) verify(fs.fstatSync(descriptor, { bigint: true }));
+    verify(fs.lstatSync(filename, { bigint: true }));
+    if (total !== observed.size) throw new Error(`digest input changed while hashing: ${filename}`);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
 function nowNs() {
   return BigInt(Date.now()) * 1_000_000n;
 }
@@ -206,9 +255,7 @@ function walkTree(
         hash.update('file\0');
         hash.update(String(stat.mode & 0o777n));
         hash.update('\0');
-        const bytes = fs.readFileSync(absolute);
-        counters.bytesRead += bytes.length;
-        hash.update(bytes);
+        hashFile(absolute, stat, hash, counters);
       }
     } else if (stat.isDirectory()) {
       if (hash) {
@@ -229,9 +276,7 @@ function walkTree(
           hash.update('file\0');
           hash.update(String(targetStat.mode & 0o777n));
           hash.update('\0');
-          const bytes = fs.readFileSync(target);
-          counters.bytesRead += bytes.length;
-          hash.update(bytes);
+          hashFile(target, targetStat, hash, counters);
         }
       } else if (targetStat.isDirectory()) {
         if (hash) {
@@ -372,12 +417,10 @@ export class DigestStore {
       this.fileMemo.set(key, record.digest);
       return record.digest;
     }
-    const bytes = fs.readFileSync(finalPath);
-    this.stats.bytesRead += bytes.length;
     const hash = createHash('sha256');
     hash.update(String(finalStat.mode & 0o777n));
     hash.update('\0');
-    hash.update(bytes);
+    hashFile(finalPath, finalStat, hash, this.stats);
     const value = hash.digest('hex');
     this.stats.computed++;
     this.writeRecord(id, { schema: schemaVersion, path: key, signature, digest: value, recordedAtNs: String(nowNs()) });

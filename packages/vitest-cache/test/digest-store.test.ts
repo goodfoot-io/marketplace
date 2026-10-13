@@ -182,8 +182,8 @@ test('a cold tree hashes bytes and inventories members in one traversal', () => 
 
   const store = new DigestStore(folder);
   const value = store.treeDigest(tree);
-  // Four member/target stats plus the root stat retained for later phases.
-  expect(store.stats).toEqual({ computed: 1, reused: 0, bytesRead: 10, filesStatted: 5, directoriesRead: 2 });
+  // Four inventory stats, two small-file verification stats and the pre-walk root stat.
+  expect(store.stats).toEqual({ computed: 1, reused: 0, bytesRead: 10, filesStatted: 7, directoriesRead: 2 });
   expect(store.treeSnapshots.get(tree)?.members.map((member) => member.relative)).toEqual([
     'bin',
     'bin/tool',
@@ -191,7 +191,7 @@ test('a cold tree hashes bytes and inventories members in one traversal', () => 
     'linked\0target'
   ]);
   expect(store.treeDigest(tree)).toBe(value);
-  expect(store.stats.filesStatted).toBe(5);
+  expect(store.stats.filesStatted).toBe(7);
 
   // A recent persisted record still forces a fresh content read in a new phase.
   const next = new DigestStore(folder);
