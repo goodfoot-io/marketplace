@@ -7,9 +7,9 @@ import fs from 'node:fs';
 import { builtinModules, createRequire } from 'node:module';
 import path from 'node:path';
 import type { Node } from 'estree';
-import { parseAst, transformWithEsbuild } from 'vite';
+import { parseAst, transformWithOxc } from 'vite';
 import type { HostImportAlias } from './contract.ts';
-import { errorMessage } from './errors.ts';
+import { errnoCode, errorMessage } from './errors.ts';
 
 type HostResolution = { type: 'skip' } | { type: 'external'; path: string } | { type: 'files'; paths: string[] };
 type Classified = { external: true; real: string } | { external: false; real: string; relative: string };
@@ -190,8 +190,8 @@ function urlEdges(tree: unknown) {
 async function parseModule(absolute: string, ext: string) {
   const code = fs.readFileSync(absolute, 'utf8');
   if (ext === '.js' || ext === '.mjs' || ext === '.cjs') return parseAst(code);
-  const loader = ext === '.tsx' ? 'tsx' : ext === '.jsx' ? 'jsx' : 'ts';
-  const transformed = await transformWithEsbuild(code, absolute, { loader, format: 'esm', target: 'esnext' });
+  const lang = ext === '.tsx' ? 'tsx' : ext === '.jsx' ? 'jsx' : 'ts';
+  const transformed = await transformWithOxc(code, absolute, { lang, target: 'esnext' });
   return parseAst(transformed.code);
 }
 
@@ -583,7 +583,10 @@ function resolveTsconfigExtends(configDir: string, specifier: string) {
   for (const attempt of [specifier, `${specifier}/tsconfig.json`, `${specifier}.json`]) {
     try {
       return req.resolve(attempt);
-    } catch {}
+    } catch (error) {
+      const code = errnoCode(error);
+      if (code !== 'MODULE_NOT_FOUND' && code !== 'ERR_PACKAGE_PATH_NOT_EXPORTED') throw error;
+    }
   }
   return undefined;
 }

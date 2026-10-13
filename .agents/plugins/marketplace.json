@@ -1,6 +1,6 @@
 {
   "name": "goodfoot",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "interface": {
     "displayName": "Goodfoot Plugins"
   },
@@ -94,6 +94,18 @@
       "source": {
         "source": "local",
         "path": "./plugins-codex/typescript-hooks"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "vitest-cache",
+      "source": {
+        "source": "local",
+        "path": "./plugins-codex/vitest-cache"
       },
       "policy": {
         "installation": "AVAILABLE",

@@ -12,6 +12,7 @@
     "./plugins-opencode/claude-code-skill-reader",
     "./plugins-opencode/gmail",
     "./plugins-opencode/jsdoczoom",
-    "./plugins-opencode/linear"
+    "./plugins-opencode/linear",
+    "./plugins-opencode/vitest-cache"
   ]
 }

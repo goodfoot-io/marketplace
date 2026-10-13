@@ -1,0 +1,36 @@
+{
+  "name": "vitest-cache",
+  "version": "1.0.1",
+  "description": "Configure and troubleshoot Vitest result caching with @goodfoot/vitest-cache",
+  "author": {
+    "name": "Goodfoot",
+    "email": "contact@goodfoot.io",
+    "url": "https://github.com/goodfoot-io"
+  },
+  "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-codex/vitest-cache",
+  "repository": "https://github.com/goodfoot-io/marketplace",
+  "license": "MIT",
+  "keywords": [
+    "vitest",
+    "testing",
+    "cache",
+    "skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Vitest Cache",
+    "shortDescription": "Configure Vitest result caching and input contracts",
+    "longDescription": "Guidance for @goodfoot/vitest-cache integration, cache input declarations, invalidation checks, and test diagnostic ownership.",
+    "developerName": "Goodfoot",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/goodfoot-io/marketplace/tree/main/plugins-codex/vitest-cache",
+    "defaultPrompt": [
+      "Use the vitest-cache skill to configure or troubleshoot Vitest result caching."
+    ],
+    "brandColor": "#1F6FEB"
+  }
+}
