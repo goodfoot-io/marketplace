@@ -13,7 +13,7 @@ import type { DigestStore } from './digest-store.ts';
 const builtins = new Set(builtinModules.map((name) => name.replace(/^node:/, '')));
 
 type LockDependency = { name: string; peer: boolean };
-type LockEntry = { source: string; dependencies: LockDependency[] };
+type LockEntry = { source: string; description?: string; dependencies: LockDependency[] };
 type Installation = {
   locations: Map<string, string>;
   physicalLocations: Map<string, string>;
@@ -21,6 +21,23 @@ type Installation = {
 };
 type Edge = [name: string, kind: string, target: string | null];
 type PackageNode = { locator: string; lock: string; content: string; edges: Edge[]; dependsOn: string[] };
+
+// Cache only pure descriptions. Every phase still reads exact current contents,
+// resolves physical locations and dependency edges, and validates package trees.
+const metadataCacheLimit = 16;
+const manifestCacheLimit = 4096;
+const stateDescriptions = new Map<string, { source: string; value: Map<string, string> }>();
+const lockDescriptions = new Map<string, { source: string; value: Map<string, LockEntry> }>();
+const manifestDescriptions = new Map<string, { source: string; value: Map<string, string> }>();
+
+function remember<T>(cache: Map<string, T>, key: string, value: T, limit = metadataCacheLimit) {
+  cache.delete(key);
+  cache.set(key, value);
+  if (cache.size > limit) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+}
 
 function digest(value: string) {
   return createHash('sha256').update(value).digest('hex');
@@ -62,6 +79,8 @@ function captured(match: RegExpExecArray, index: number, context: string): strin
 function installedState(root: string): Map<string, string> {
   const file = path.join(root, 'node_modules/.yarn-state.yml');
   const source = fs.readFileSync(file, 'utf8');
+  const cached = stateDescriptions.get(root);
+  if (cached?.source === source) return cached.value;
   const locations = new Map<string, string>();
   let locator: string | undefined;
   let inLocations = false;
@@ -91,11 +110,14 @@ function installedState(root: string): Map<string, string> {
     locations.set(absolute, locator);
   }
   if (!locations.size) throw new Error('empty Yarn installed package state');
+  remember(stateDescriptions, root, { source, value: locations });
   return locations;
 }
 
 function lockEntries(root: string): Map<string, LockEntry> {
   const source = fs.readFileSync(path.join(root, 'yarn.lock'), 'utf8');
+  const cached = lockDescriptions.get(root);
+  if (cached?.source === source) return cached.value;
   const entries = new Map<string, LockEntry>();
   const blocks = source.split(/(?=^\S.*:\s*$)/m);
   for (const block of blocks) {
@@ -121,6 +143,7 @@ function lockEntries(root: string): Map<string, LockEntry> {
     entries.set(locator, { source: block.trimEnd(), dependencies });
   }
   if (!entries.size) throw new Error('empty Yarn lockfile');
+  remember(lockDescriptions, root, { source, value: entries });
   return entries;
 }
 
@@ -131,6 +154,21 @@ function lockEntries(root: string): Map<string, LockEntry> {
 function lockDigest(source: string) {
   const withoutHeader = source.split('\n').slice(1).join('\n');
   return digest(withoutHeader);
+}
+
+function manifestDeclarations(directory: string): Map<string, string> {
+  const source = fs.readFileSync(path.join(directory, 'package.json'), 'utf8');
+  const cached = manifestDescriptions.get(directory);
+  if (cached?.source === source) return new Map(cached.value);
+  const manifest = JSON.parse(source);
+  const declarations = new Map<string, string>();
+  for (const name of Object.keys(manifest.dependencies ?? {})) declarations.set(name, 'required');
+  for (const name of Object.keys(manifest.optionalDependencies ?? {})) declarations.set(name, 'optional');
+  for (const name of Object.keys(manifest.peerDependencies ?? {})) {
+    declarations.set(name, manifest.peerDependenciesMeta?.[name]?.optional ? 'optional-peer' : 'peer');
+  }
+  remember(manifestDescriptions, directory, { source, value: declarations }, manifestCacheLimit);
+  return new Map(declarations);
 }
 
 function packageRoot(
@@ -254,13 +292,7 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
     const underlying = canonicalLocator(locator);
     const lock = entries.get(locator) ?? entries.get(underlying);
     if (!lock) throw new Error(`installed package missing exact Yarn lock entry: ${directory}`);
-    const manifest = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
-    const declarations = new Map<string, string>();
-    for (const name of Object.keys(manifest.dependencies ?? {})) declarations.set(name, 'required');
-    for (const name of Object.keys(manifest.optionalDependencies ?? {})) declarations.set(name, 'optional');
-    for (const name of Object.keys(manifest.peerDependencies ?? {})) {
-      declarations.set(name, manifest.peerDependenciesMeta?.[name]?.optional ? 'optional-peer' : 'peer');
-    }
+    const declarations = manifestDeclarations(directory);
     // Yarn packageExtensions and virtual peer contexts are represented in the
     // lock entry, even when the published manifest omits the added dependency.
     for (const dependency of lock.dependencies) {
@@ -281,9 +313,10 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
       edges.push([name, kind, targetLocator === undefined ? null : canonicalLocator(targetLocator)]);
       if (target) dependsOn.push(target);
     }
+    lock.description ??= lockDigest(lock.source);
     record = {
       locator: underlying,
-      lock: lockDigest(lock.source),
+      lock: lock.description,
       content: store.treeDigest(directory),
       edges,
       dependsOn
