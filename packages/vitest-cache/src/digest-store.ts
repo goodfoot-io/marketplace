@@ -351,22 +351,24 @@ export class DigestStore {
     const directory = fs.realpathSync(directoryPath);
     const memoized = this.treeMemo.get(directory);
     if (memoized !== undefined) return memoized;
-    const counters = { filesStatted: 0, bytesRead: 0 };
-    const snapshot = skip ? null : this.treeSnapshots.get(directory);
-    let members = verifyTreeSnapshot(directory, snapshot, counters);
-    if (!members) {
-      members = [];
-      walkTree(directory, '', { skip, hash: null, members, counters });
-    }
-    this.stats.filesStatted += counters.filesStatted;
-    const signature = digest(JSON.stringify(members));
     const id = recordId('tree', directory);
     const record = this.readRecord(id);
-    if (reusable(record, members, signature)) {
-      this.stats.reused++;
-      this.treeMemo.set(directory, record.digest);
-      if (!skip && members !== snapshot?.members) this.rememberTree(directory, members);
-      return record.digest;
+    if (record) {
+      const counters = { filesStatted: 0, bytesRead: 0 };
+      const snapshot = skip ? null : this.treeSnapshots.get(directory);
+      let members = verifyTreeSnapshot(directory, snapshot, counters);
+      if (!members) {
+        members = [];
+        walkTree(directory, '', { skip, hash: null, members, counters });
+      }
+      this.stats.filesStatted += counters.filesStatted;
+      const signature = digest(JSON.stringify(members));
+      if (reusable(record, members, signature)) {
+        this.stats.reused++;
+        this.treeMemo.set(directory, record.digest);
+        if (!skip && members !== snapshot?.members) this.rememberTree(directory, members);
+        return record.digest;
+      }
     }
     const hash = createHash('sha256');
     hash.update('vitest-tree-digest-v2\0');

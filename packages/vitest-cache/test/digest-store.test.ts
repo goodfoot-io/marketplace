@@ -3,7 +3,16 @@
  *
  * @summary Verify digest store cache behavior with isolated temporary fixtures.
  */
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'vitest';
@@ -153,4 +162,37 @@ test('an unchanged tree is served from a persistent store', () => {
   } finally {
     rmSync(folder, { force: true, recursive: true });
   }
+});
+
+test('a cold tree hashes bytes and inventories members in one traversal', () => {
+  const folder = path.join(root, 'records');
+  const tree = path.join(root, 'package');
+  mkdirSync(tree);
+  mkdirSync(path.join(tree, 'bin'));
+  writeFileSync(path.join(tree, 'bin', 'tool'), 'tool', { mode: 0o755 });
+  const target = path.join(root, 'target');
+  writeFileSync(target, 'linked');
+  symlinkSync(target, path.join(tree, 'linked'));
+  mkdirSync(path.join(tree, 'node_modules'));
+  writeFileSync(path.join(tree, 'node_modules', 'ignored'), 'ignored');
+  writeFileSync(path.join(tree, 'ignored.tsbuildinfo'), 'ignored');
+
+  const store = new DigestStore(folder);
+  const value = store.treeDigest(tree);
+  // Four member/target stats plus the root stat retained for later phases.
+  expect(store.stats).toEqual({ computed: 1, reused: 0, bytesRead: 10, filesStatted: 5 });
+  expect(store.treeSnapshots.get(tree)?.members.map((member) => member.relative)).toEqual([
+    'bin',
+    'bin/tool',
+    'linked',
+    'linked\0target'
+  ]);
+  expect(store.treeDigest(tree)).toBe(value);
+  expect(store.stats.filesStatted).toBe(5);
+
+  // A recent persisted record still forces a fresh content read in a new phase.
+  const next = new DigestStore(folder);
+  expect(next.treeDigest(tree)).toBe(value);
+  expect(next.stats.computed).toBe(1);
+  expect(next.stats.bytesRead).toBe(10);
 });
