@@ -8,12 +8,23 @@
   },
   "linter": {
     "enabled": true,
-    "rules": { "recommended": true }
+    "rules": {
+      "recommended": true
+    }
   },
   "assist": {
-    "actions": { "source": { "organizeImports": "on" } }
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "files": {
-    "includes": ["src/**/*.ts", "tests/**/*.ts", "e2e/**/*.ts"]
+    "includes": [
+      "src/**/*.ts",
+      "tests/**/*.ts",
+      "e2e/**/*.ts",
+      "vitest.config.ts"
+    ]
   }
 }

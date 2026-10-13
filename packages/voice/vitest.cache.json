@@ -1,0 +1,40 @@
+{
+  "files": {
+    "packages/voice/tests/conversation-server.test.ts": [
+      "packages/voice/src/ui/**",
+      "packages/voice/src/ui-dist/index.html",
+      "packages/voice/vite.config.ts"
+    ],
+    "packages/voice/tests/injected-stage.test.ts": [
+      "packages/voice/src/ui/**",
+      "packages/voice/src/ui-dist/index.html",
+      "packages/voice/vite.config.ts"
+    ],
+    "packages/voice/tests/mcp-port-busy.test.ts": [
+      "packages/voice/src/ui/**",
+      "packages/voice/src/ui-dist/index.html",
+      "packages/voice/vite.config.ts"
+    ],
+    "packages/voice/tests/mcp-user-transcript-coalescing.test.ts": [
+      "packages/voice/src/ui/**",
+      "packages/voice/src/ui-dist/index.html",
+      "packages/voice/vite.config.ts"
+    ],
+    "packages/voice/tests/reset-no-token-mic-recovery.test.ts": [],
+    "packages/voice/tests/transcript-ordering-injection.test.ts": [
+      "packages/voice/src/ui/**",
+      "packages/voice/src/ui-dist/index.html",
+      "packages/voice/vite.config.ts"
+    ],
+    "packages/voice/tests/transcript-ordering.test.ts": [
+      "packages/voice/src/ui/**",
+      "packages/voice/src/ui-dist/index.html",
+      "packages/voice/vite.config.ts"
+    ],
+    "packages/voice/tests/voice-reset-mic-rebuild.test.ts": [],
+    "packages/voice/tests/voice-session-runner-reset-silent-skip.test.ts": []
+  },
+  "opaqueImports": [
+    "packages/voice/src/ui-dist/index.html"
+  ]
+}

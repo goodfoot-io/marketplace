@@ -1,0 +1,7 @@
+{
+  "files": {
+    "packages/typescript-hooks/test/codex.test.ts": [],
+    "packages/typescript-hooks/test/eslint-typescript-bypass.test.ts": [],
+    "packages/typescript-hooks/test/typescript-check.test.ts": []
+  }
+}

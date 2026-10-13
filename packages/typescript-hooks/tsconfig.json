@@ -9,15 +9,16 @@
     "declaration": true,
     "declarationMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "types": ["node"]
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "vitest.config.ts"
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "test"
+    "dist"
   ]
 }

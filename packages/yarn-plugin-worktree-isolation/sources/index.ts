@@ -60,7 +60,8 @@ export function isExternalSymlink(filePath: string, projectRoot: string): boolea
     }
     const target = fs.realpathSync(filePath);
     const resolvedProjectRoot = fs.realpathSync(projectRoot);
-    return !target.startsWith(resolvedProjectRoot);
+    const relativeTarget = path.relative(resolvedProjectRoot, target);
+    return relativeTarget === '..' || relativeTarget.startsWith(`..${path.sep}`) || path.isAbsolute(relativeTarget);
   } catch {
     return false;
   }

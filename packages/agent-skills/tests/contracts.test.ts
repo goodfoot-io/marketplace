@@ -1,7 +1,7 @@
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   build,
   createHelpers,
@@ -11,6 +11,15 @@ import {
   renderTemplate,
 } from "../src/index.js";
 import { PLATFORM_DEFINITIONS } from "../src/platforms.js";
+
+const ownedDirectories = new Set<string>();
+
+afterEach(async () => {
+  for (const path of ownedDirectories) {
+    await rm(path, { recursive: true, force: true });
+    ownedDirectories.delete(path);
+  }
+});
 
 describe("portable helper contract", () => {
   it("derives a stable helper reference from the platform table", () => {
@@ -144,6 +153,7 @@ describe("render, build, and lint", () => {
 
   it("writes repeated targets from one deterministic manifest and removes stale files", async () => {
     const parent = await mkdtemp(join(tmpdir(), "agent-skills-"));
+    ownedDirectories.add(parent);
     const root = join(parent, "src");
     await import("node:fs/promises").then(({ mkdir }) => mkdir(root));
     await writeFile(join(root, "SKILL.md.eta"), "# <%= it.platform %>\n");
@@ -164,6 +174,7 @@ describe("render, build, and lint", () => {
 
   it("aggregates deterministic lint diagnostics", async () => {
     const parent = await mkdtemp(join(tmpdir(), "agent-skills-lint-"));
+    ownedDirectories.add(parent);
     const root = join(parent, "src");
     await import("node:fs/promises").then(({ mkdir }) => mkdir(root));
     await writeFile(

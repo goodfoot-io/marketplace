@@ -142,6 +142,10 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Build workspace cache dependency
+        if: steps.extract.outputs.package != 'vitest-cache'
+        run: yarn workspace @goodfoot/vitest-cache build
+
       - name: Build package
         working-directory: packages/${{ steps.extract.outputs.package }}
         run: yarn build
@@ -194,6 +198,11 @@ jobs:
             echo "Build validation failed. Please fix the issues before publishing."
             exit 1
           fi
+
+      - name: Validate installed Vitest cache tarball
+        if: steps.extract.outputs.package == 'vitest-cache'
+        working-directory: packages/vitest-cache
+        run: yarn test:package
 
       - name: Publish to NPM
         id: publish

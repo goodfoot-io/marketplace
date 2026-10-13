@@ -12,7 +12,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LogEvent } from "../src/core/logger.js";
 import { LOG_LEVELS, Logger } from "../src/core/logger.js";
 
@@ -158,7 +158,7 @@ describe("Logger", () => {
       expect(errorEvents).toHaveLength(0);
     });
 
-    it("handler exceptions are silently ignored", () => {
+    it("reports handler exceptions while continuing delivery", () => {
       const events: LogEvent[] = [];
 
       // First handler throws
@@ -169,11 +169,14 @@ describe("Logger", () => {
       // Second handler should still receive events
       logger.on("info", (event) => events.push(event));
 
-      // Should not throw
-      expect(() => logger.info("Test")).not.toThrow();
-
-      // Second handler should have received the event
-      expect(events).toHaveLength(1);
+      const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+      try {
+        expect(() => logger.info("Test")).not.toThrow();
+        expect(stderr.mock.calls).toEqual([["[agent-hooks] Log handler error: Error: Handler error\n"]]);
+        expect(events).toHaveLength(1);
+      } finally {
+        stderr.mockRestore();
+      }
     });
   });
 

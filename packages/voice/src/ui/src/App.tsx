@@ -26,9 +26,7 @@ function cssPath(el: Element): string {
     const tag = current.tagName.toLowerCase();
     const parent: Element | null = current.parentElement;
     if (parent) {
-      const sameTag = Array.from(parent.children).filter(
-        (child) => child.tagName.toLowerCase() === tag,
-      );
+      const sameTag = Array.from(parent.children).filter((child) => child.tagName.toLowerCase() === tag);
       const index = sameTag.indexOf(current) + 1;
       segments.unshift(`${tag}:nth-of-type(${index})`);
     } else {
@@ -104,7 +102,7 @@ export function App(): React.JSX.Element {
     detachStageClickRef.current?.();
     detachStageClickRef.current = null;
     const doc = iframe.contentDocument;
-    const win = iframe.contentWindow;
+    const win = doc?.defaultView;
     if (!doc || !win) return;
     const onClick = (event: MouseEvent): void => {
       const target = event.composedPath()[0];
@@ -163,6 +161,7 @@ export function App(): React.JSX.Element {
       {injectedVersion != null && (
         <iframe
           className="injected-stage"
+          title="Injected HTML stage"
           src={`/__injected?v=${injectedVersion}`}
           onLoad={(e) => attachStageClick(e.currentTarget)}
         />

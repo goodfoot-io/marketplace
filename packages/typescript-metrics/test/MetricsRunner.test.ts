@@ -101,9 +101,27 @@ describe("MetricsRunner", () => {
       rootDir: "/nonexistent/path",
     });
 
-    // Should not throw, but should log warnings
-    const result = await runner.run();
-    expect(result).toBeDefined();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const result = await runner.run();
+      expect(result).toBeDefined();
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(warn).toHaveBeenNthCalledWith(
+        1,
+        "Warning: Failed to calculate coupling metrics:",
+        expect.objectContaining({ message: "Could not find tsconfig.json in /nonexistent/path" }),
+      );
+      expect(warn).toHaveBeenNthCalledWith(
+        2,
+        "Warning: Failed to calculate monorepo metrics:",
+        expect.objectContaining({
+          message: "No package.json could be found upwards from directory /nonexistent/path",
+          directory: "/nonexistent/path",
+        }),
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("should log warning and continue for malformed TypeScript files", { timeout: 30000 }, async () => {
@@ -122,9 +140,22 @@ describe("MetricsRunner", () => {
       files: [path.join(fixtureRoot, "nonexistent.ts")],
     });
 
-    // Should handle gracefully with warnings
-    const result = await runner.run();
-    expect(result).toBeDefined();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const result = await runner.run();
+      expect(result).toBeDefined();
+      expect(warn).toHaveBeenCalledTimes(2);
+      const missingFile = path.join(fixtureRoot, "nonexistent.ts");
+      for (const [index, category] of ["complexity", "duplication"].entries()) {
+        expect(warn).toHaveBeenNthCalledWith(
+          index + 1,
+          `Warning: Failed to calculate ${category} metrics:`,
+          expect.objectContaining({ code: "ENOENT", path: missingFile }),
+        );
+      }
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("should include path in permission-denied error", { timeout: 30000 }, async () => {

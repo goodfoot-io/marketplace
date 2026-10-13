@@ -27,6 +27,8 @@ describe("isolated logger", () => {
   it("keeps IPC responsive with a bounded backlog behind blocked stdout", async () => {
     const child = fork(new URL("./fixtures/logger-blocked.mjs", import.meta.url), [], {
       execArgv: ["--import", "tsx"],
+      env: { ...process.env, SHELL_TEST_LOG: undefined },
+      timeout: 5_000,
       stdio: ["ignore", "pipe", "pipe", "ipc"],
     });
     children.push(child);

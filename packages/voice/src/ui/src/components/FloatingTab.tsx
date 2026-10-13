@@ -27,9 +27,7 @@ export function FloatingTab(): React.JSX.Element {
   const autoplayAllowed = useStore((s) => s.audio.autoplayAllowed);
   const moreActionsOpen = useStore((s) => s.ui.moreActionsOpen);
   const waitingForContext = useStore((s) => s.ui.waitingForContext);
-  const hasTranscript = useStore(
-    (s) => (s.conversation.conversation?.transcript.length ?? 0) > 0,
-  );
+  const hasTranscript = useStore((s) => (s.conversation.conversation?.transcript.length ?? 0) > 0);
 
   let tabState: TabState;
   if (!xaiOpen && !sessionInFlight) {
@@ -56,10 +54,7 @@ export function FloatingTab(): React.JSX.Element {
         title={autoplayBlocked && playPaused ? "Click to enable audio." : undefined}
         onClick={() => dispatch({ type: "ui/click/primary" })}
       >
-        <span
-          className={`codicon codicon-${playPaused ? "play" : "debug-pause"}`}
-          aria-hidden="true"
-        />
+        <span className={`codicon codicon-${playPaused ? "play" : "debug-pause"}`} aria-hidden="true" />
       </button>
 
       {tabState === "active" || tabState === "paused" ? (

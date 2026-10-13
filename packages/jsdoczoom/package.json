@@ -52,9 +52,10 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.15",
+		"@goodfoot/vitest-cache": "workspace:*",
 		"@types/debug": "^4.1.13",
 		"@types/node": "^26.6.4",
-		"vite": "^8.3.3",
-		"vitest": "5.0.3"
+		"vite": "8.3.4",
+		"vitest": "patch:vitest@npm%3A5.0.4#~/.yarn/patches/vitest-npm-5.0.4-2ab4bceca5.patch"
 	}
 }

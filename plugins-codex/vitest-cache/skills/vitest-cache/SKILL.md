@@ -7,13 +7,11 @@ description: "Configure and troubleshoot @goodfoot/vitest-cache: cache Vitest
 
 # Vitest result caching
 
-Use `@goodfoot/vitest-cache` to reuse passing test-file results. Inspect the package's Vitest config, scripts, setup and non-import reads before enabling reuse.
-
 ## Integrate
 
-- Check the runtime prerequisites: a Git checkout, Yarn's `node-modules` linker and root `node_modules/.yarn-state.yml`, and POSIX `flock`. The package loads TypeScript source; use Node 24 or a supported TypeScript loader. Keep Vitest 5 and Vite 8 compatible with the installed package.
-- Add `@goodfoot/vitest-cache` as a dev dependency of the consuming package. Use `workspace:*` when it is a local workspace; otherwise use a released version. Ensure Vitest and Vite are installed: the cache package currently declares them as dev dependencies.
-- Wrap the existing config with `withTestOutput`; preserve its pools, projects, setup, isolation, plugins, selectors and reporters. The wrapper handles inline projects and configuration factories; do not wrap them a second time.
+1. Inspect config, scripts, setup, executed APIs and transitive initialization. Read [Cache contracts](references/cache-contracts.md); preserve pools, projects, setup, isolation, plugins, selectors and reporters.
+2. Require a Git checkout, Yarn `node-modules` with root `node_modules/.yarn-state.yml`, POSIX `flock`, Node 24+, and Vitest/Vite peers matching the cache manifest.
+3. Install the cache devDependency (`workspace:*` locally). Build this workspace package before consumer checks; published exports are compiled ESM. Resolve toolchain peer warnings and rebuild affected artifacts. Wrap config once; projects/factories are handled automatically.
 
 ```ts
 import { defineConfig } from 'vitest/config';
@@ -25,30 +23,31 @@ export default withTestOutput(
 );
 ```
 
-Keep large input declarations in `vitest.cache.json`. All input globs and test-file keys are relative to the Git repository root, not the package. An unlisted file needs `fallback`; use `fallback: []` only after reviewing its non-import reads. `{}` leaves unlisted tests uncached.
+Keep declarations in `vitest.cache.json`; paths are Git-root-relative. For partial adoption list reviewed `files` and omit `fallback`. Use `fallback: []` only after auditing every unlisted file. Use `{ uncached: 'reason' }` directly for uncontrolled suites; verify full execution. `loadCacheContract` accepts cached objects only.
 
-Read [Cache contracts](references/cache-contracts.md) before declaring external reads, dynamic imports, generated code, host aliases, Cloudflare inputs or non-isolated shared state. Use `{ uncached: 'specific reason' }` directly for suites whose live inputs cannot be modeled. `loadCacheContract` accepts cached object contracts only.
+Set the package workdir per exec or use `yarn workspace <name>`; cwd does not persist. Typecheck tests/config/UI; preserve build roots. Require successful edits/installs before continuing. Fix types without casts; review unsafe lint fixes for behavior loss. Verify generated outputs are ignored from package cwd; use `yarn exec <tool>` to bypass script aliases.
 
-## Verify reuse
+## Verify
 
-Run the consuming package's actual test command with the same file/name selection and significant environment:
+Read [Output policy](references/output-policy.md) before the first full run: own deliberate warnings/errors with exact scoped assertions. Bound synchronous subprocesses themselves before adjusting test budgets. Run scoped checks and actual tests with stable selection, environment (including `TMPDIR`) and installation:
 
-1. Run once to produce passing records, then again to confirm a cache hit.
-2. Change one real declared input and confirm the affected file executes. Restore it and confirm unrelated file keys remain stable.
-3. Verify an assertion failure or teardown error prevents reuse of the rejected result.
+1. Require a clean cold with executed reporter counts, then positive warm reuse; list metadata can undercount.
+2. Mutate a real declared input (otherwise an imported source). Confirm consumer execution; require reuse only for eligible nonconsumers, otherwise report N/A. Restore source and rebuilt artifacts; do not invent fixtures.
+3. Require failing assertions to execute and return nonzero twice; restore and rebuild.
 
-Use `GOODFOOT_VITEST_FORCE=1` to execute selected tests and publish eligible passing results. Use `DISABLE_TEST_CACHE=true` to execute without reading or publishing results. `GOODFOOT_TEST_VERBOSE=1` exposes logs and disables result reuse/publication and native capture; accepted values are unset, empty, `0`, and `1`.
+An all-hit run can print `No test files found, exiting with code 0`; require positive reuse counts. Report executed plus reused coverage.
 
-Treat a cache hit as reuse evidence, not evidence that an edited test executed. Force execution when checking a test change. Keep watch, coverage, snapshot updates, inspector, browser/UI, typecheck and custom-reporter runs outside result-cache expectations.
+`GOODFOOT_VITEST_FORCE=1` executes and may publish; `DISABLE_TEST_CACHE=true` neither reuses nor publishes. `GOODFOOT_TEST_VERBOSE=1` exposes logs and disables reuse/publication/native capture; only unset, empty, `0`, `1` are accepted. Exclude watch, coverage, snapshot updates, inspector, browser/UI, typecheck and custom reporters from reuse expectations.
 
-## Diagnose misses
+## Diagnose
 
-- `new`: no previous pass; `unrecorded`: matching components lack a reusable record; `forced`: execution was requested.
-- `invocation`, `execution`, `inputs`, `packages`, `executables`: inspect the named component. Compare config/CLI/environment, selection/pool/isolation, module and declared inputs, installed closures, or executable bytes respectively.
-- `uncacheable`: fix the reported missing declaration or unresolved import. Do not mask the warning with empty dynamic-import domains, broad globs or a renamed cache directory.
-- Global setup can call `setupNeeded(project, predicate?)` from `@goodfoot/vitest-cache/plan`. Unknown plans require setup; skip only when no pending file needs it.
-- Optional dispatch order uses `loadTestSequence(new URL('./vitest.sequence.json', import.meta.url))` as `withTestOutput`'s third argument. Declare existing repository-relative test paths, heaviest first; this changes scheduling, not eligibility or keys.
+- `new`, `unrecorded`, `forced`: absent pass, revoked record, requested execution.
+- `invocation`, `execution`, `inputs`, `packages`, `executables`: compare config/CLI/environment, selection/pool/isolation/resolved worker env, graphs/declarations, installed closures, executable bytes.
+- Intentional unlisted files execute uncached. Repair unresolved imports, missing inputs or package-location ambiguity; never mask them with empty import domains, broad globs or renamed cache directories.
+- Suspect cold timing after contention: use fresh `TMPDIR` result/digest caches, require `new` misses, then repeat warm with identical env. Preserve the shared module cache; FORCE is not a cold digest reset.
+- Global setup uses `setupNeeded(project, predicate?)` from `@goodfoot/vitest-cache/plan`; unknown plans require setup.
+- Optional third argument `loadTestSequence(new URL('./vitest.sequence.json', import.meta.url))` declares repository-relative paths, heaviest first; scheduling only.
 
-Preserve the shared module-cache directory keyed by installation state. If a worktree sees different install metadata, fix its installation or keep it off that shared cache; do not split the directory by checkout or process.
+Preserve the shared module-cache directory keyed by installation state. Fix disagreeing install metadata; never split it by checkout or process.
 
-Read [Output policy](references/output-policy.md) for unclaimed stderr, native Worker diagnostics, teardown failures or `goodfoot-vitest` integration.
+Consult [Output policy](references/output-policy.md) for teardown failures or Worker capture.

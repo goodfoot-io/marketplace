@@ -4,7 +4,8 @@
  * @summary Compose explicit cache, output and worker-teardown policy into Vitest configuration.
  */
 
-import type { ViteUserConfig, ViteUserConfigFn, ViteUserConfigFnPromise } from 'vitest/config';
+import './provided-context.js';
+import type { ConfigEnv } from 'vite';
 import type { CacheContract, UncachedContract } from './contract.ts';
 
 export type { CacheContract, UncachedContract };
@@ -18,11 +19,11 @@ export type { CacheContract, UncachedContract };
  * @returns Configuration object with output/cache/teardown policy.
  * @throws For invalid contract/order, stale sequence or invalid host setup.
  */
-export type TestOutputObjectPolicy = (
-  configuration: ViteUserConfig,
+export type TestOutputObjectPolicy = <Configuration extends object>(
+  configuration: Configuration,
   contract: CacheContract | UncachedContract,
   sequence?: unknown
-) => ViteUserConfig;
+) => PolicyConfiguration<Configuration>;
 /**
  * Await a synchronous or asynchronous configuration factory before applying the policy.
  *
@@ -32,13 +33,22 @@ export type TestOutputObjectPolicy = (
  * @returns Awaited factory producing the policy-bearing configuration object.
  * @throws For invalid contract/order, stale sequence or invalid host setup.
  */
-export type TestOutputFactoryPolicy = (
-  configuration: ViteUserConfigFn,
+export type TestOutputFactoryPolicy = <Configuration extends object>(
+  configuration: (environment: ConfigEnv) => Configuration | Promise<Configuration>,
   contract: CacheContract | UncachedContract,
   sequence?: unknown
-) => ViteUserConfigFnPromise;
+) => (environment: ConfigEnv) => Promise<PolicyConfiguration<Configuration>>;
 /** Object inputs produce objects; factory inputs produce awaited factories. */
-export type TestOutputPolicy = TestOutputObjectPolicy & TestOutputFactoryPolicy;
+export type TestOutputPolicy = TestOutputFactoryPolicy & TestOutputObjectPolicy;
+/** Fields added by the policy without importing nominal consumer plugin types. */
+export type PolicyFields = {
+  test: { provide: Record<string, unknown>; silent: boolean | 'passed-only' };
+};
+/** Retain consumer config types while replacing fields changed by the policy. */
+export type PolicyConfiguration<Configuration extends object> = Omit<Configuration, 'test'> & {
+  test: Omit<Configuration extends { test?: infer Test } ? NonNullable<Test> : object, 'provide' | 'silent'> &
+    PolicyFields['test'];
+};
 /** Canonical runtime policy provider for both configuration entry forms. */
 export declare const withTestOutput: TestOutputPolicy;
 /**

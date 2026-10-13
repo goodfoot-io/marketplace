@@ -138,18 +138,18 @@ function diagnosticPlugin() {
 /**
  * Apply output policy to an already evaluated configuration object.
  * @overload
- * @param {Parameters<import('./test-output-policy.d.mts').TestOutputObjectPolicy>[0]} configuration - Original Vitest configuration object.
+ * @param {import('vitest/config').ViteUserConfig} configuration - Original Vitest configuration object.
  * @param {Parameters<import('./test-output-policy.d.mts').TestOutputObjectPolicy>[1]} contract - Explicit cache inputs or sole uncached reason.
  * @param {Parameters<import('./test-output-policy.d.mts').TestOutputObjectPolicy>[2]} [sequence] - Declared suite order validated before use.
- * @returns {ReturnType<import('./test-output-policy.d.mts').TestOutputObjectPolicy>} Policy-bearing configuration object.
+ * @returns {import('vitest/config').ViteUserConfig} Policy-bearing configuration object.
  */
 /**
  * Await the original configuration factory before applying output policy.
  * @overload
- * @param {Parameters<import('./test-output-policy.d.mts').TestOutputFactoryPolicy>[0]} configuration - Synchronous or asynchronous original factory.
+ * @param {import('vitest/config').ViteUserConfigFn} configuration - Synchronous or asynchronous original factory.
  * @param {Parameters<import('./test-output-policy.d.mts').TestOutputFactoryPolicy>[1]} contract - Explicit cache inputs or sole uncached reason.
  * @param {Parameters<import('./test-output-policy.d.mts').TestOutputFactoryPolicy>[2]} [sequence] - Declared suite order validated before use.
- * @returns {ReturnType<import('./test-output-policy.d.mts').TestOutputFactoryPolicy>} Awaited factory returning the policy-bearing object.
+ * @returns {import('vitest/config').ViteUserConfigFnPromise} Awaited factory returning the policy-bearing object.
  */
 /**
  * Apply output defaults without changing runner, selection, or isolation. `contract` is required: a cache contract naming inputs read outside the import graph, or `{ uncached: reason }` for suites whose results depend on live or measured state. `sequence`, when given, is a suite's declared execution order (`loadTestSequence`); it only reorders dispatch among the suite's own files and never changes which files run or their results.
@@ -172,16 +172,17 @@ function applyTestOutput(configuration, contract, sequence) {
   const verbose = testVerbose();
   /**
    * @param {import('vitest/config').ViteUserConfig} project - Original resolved root or inline project configuration.
+   * @param {boolean} [ownPlugins] - Whether this configuration needs its own policy plugins.
    * @returns {import('vitest/config').ViteUserConfig} Configuration with the existing output/cache hooks.
    */
-  const attach = (project) => {
+  const attach = (project, ownPlugins = true) => {
     const plugins = project.plugins;
     const test = project.test;
     const originalReporters = test?.reporters ?? ['default'];
     const reporters = Array.isArray(originalReporters) ? originalReporters : [originalReporters];
     return {
       ...project,
-      plugins: [...(plugins ?? []), diagnosticPlugin(), workerTeardownPlugin()],
+      plugins: [...(plugins ?? []), ...(ownPlugins ? [diagnosticPlugin(), workerTeardownPlugin()] : [])],
       test: {
         ...test,
         // Vitest's disk cache returns host file paths to the module runner.
@@ -210,18 +211,23 @@ function applyTestOutput(configuration, contract, sequence) {
   if (configured.test === undefined) throw new Error('Output policy did not attach the test configuration');
   configured.test.silent = verbose ? false : 'passed-only';
   if (configured.test.projects) {
+    /**
+     * @param {import('vitest/config').TestProjectInlineConfiguration} project - Resolved inline project.
+     * @returns {import('vitest/config').ViteUserConfig} Policy configuration preserving declaring-config inheritance.
+     */
+    const attachInline = (project) => attach(project, project.extends === false || typeof project.extends === 'string');
     configured.test.projects = configured.test.projects.map((project) => {
       // Vitest awaits actual promised inline configurations. Attach only after
       // resolution so their test selection and plugins are retained.
-      if (nodeTypes.isPromise(project)) return project.then(attach);
-      return typeof project === 'object' && project !== null ? attach(project) : project;
+      if (nodeTypes.isPromise(project)) return project.then(attachInline);
+      return typeof project === 'object' && project !== null ? attachInline(project) : project;
     });
   }
   return configured;
 }
 
 /**
- * Publish the concrete policy provider under its canonical overload contract.
- * @type {import('./test-output-policy.d.mts').TestOutputPolicy}
+ * Publish the checked runtime implementation.
+ * Runtime checking uses this installation’s Vitest types; the public declaration preserves the caller’s configuration across Yarn peer contexts.
  */
 export const withTestOutput = applyTestOutput;

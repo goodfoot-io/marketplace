@@ -41,7 +41,8 @@ interface RunResult {
 
 async function runExecuteWithStdin<TInput extends HookInput, TOutput>(
   hookFn: HookFunction<TInput, TOutput, HookEventName>,
-  stdinContent: string | "error",
+  stdinContent: string | Error,
+  expectedStderr: string | { parseErrorMessage: string } = "",
 ): Promise<RunResult> {
   const fakeStdin = new FakeStdin();
   Object.defineProperty(process, "stdin", { value: fakeStdin, configurable: true });
@@ -60,30 +61,48 @@ async function runExecuteWithStdin<TInput extends HookInput, TOutput>(
     throw new ProcessExitSignal(typeof code === "number" ? code : undefined);
   });
 
-  const runPromise = execute(hookFn).catch((error) => {
-    if (error instanceof ProcessExitSignal) {
-      return error;
-    }
-    throw error;
-  });
+  const logErrorSpy = vi.spyOn(logger, "logError");
+  try {
+    const runPromise = execute(hookFn).catch((error) => {
+      if (error instanceof ProcessExitSignal) {
+        return error;
+      }
+      throw error;
+    });
 
-  queueMicrotask(() => {
-    if (stdinContent === "error") {
-      fakeStdin.emit("error", new Error("stdin read failed"));
+    queueMicrotask(() => {
+      if (stdinContent instanceof Error) {
+        fakeStdin.emit("error", stdinContent);
+      } else {
+        fakeStdin.emit("data", stdinContent);
+        fakeStdin.emit("end");
+      }
+    });
+
+    const result = await runPromise;
+    const exitCode = result instanceof ProcessExitSignal ? result.code : undefined;
+
+    let expectedPayload: string;
+    if (typeof expectedStderr === "string") {
+      expectedPayload = expectedStderr;
     } else {
-      fakeStdin.emit("data", stdinContent);
-      fakeStdin.emit("end");
+      expect(logErrorSpy).toHaveBeenCalledTimes(1);
+      const [parseError, message] = logErrorSpy.mock.calls[0] ?? [];
+      expect(message).toBe("Failed to parse stdin JSON");
+      if (!(parseError instanceof SyntaxError)) {
+        throw new Error("Expected the original stdin SyntaxError");
+      }
+      expect(parseError.message).toBe(expectedStderr.parseErrorMessage);
+      expectedPayload = `${parseError.stack}\n`;
     }
-  });
-
-  const result = await runPromise;
-  const exitCode = result instanceof ProcessExitSignal ? result.code : undefined;
-
-  stdoutSpy.mockRestore();
-  stderrSpy.mockRestore();
-  exitSpy.mockRestore();
-
-  return { exitCode, stdout, stderr };
+    expect(stderrSpy.mock.calls).toEqual(expectedPayload === "" ? [] : [[expectedPayload]]);
+    return { exitCode, stdout, stderr };
+  } finally {
+    stdoutSpy.mockRestore();
+    stderrSpy.mockRestore();
+    exitSpy.mockRestore();
+    logErrorSpy.mockRestore();
+  }
 }
 
 describe("execute", () => {
@@ -109,32 +128,36 @@ describe("execute", () => {
       const hook = userPromptSubmitHook({}, () => {
         throw new BlockError("nope");
       });
-      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()));
+      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()), "nope\n");
       expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
       expect(result.stderr).toBe("nope\n");
       expect(result.stdout).toBe("");
     });
 
     it("writes a stack trace and exits non-zero when the handler throws", async () => {
+      const error = new Error("handler exploded");
       const hook = userPromptSubmitHook({}, () => {
-        throw new Error("handler exploded");
+        throw error;
       });
-      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()));
+      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()), `${error.stack}\n`);
       expect(result.exitCode).toBe(EXIT_CODES.ERROR);
-      expect(result.stderr).toContain("handler exploded");
+      expect(result.stderr).toBe(`${error.stack}\n`);
       expect(result.stdout).toBe("");
     });
 
     it("exits non-zero on malformed stdin JSON", async () => {
       const hook = userPromptSubmitHook({}, () => undefined);
-      const result = await runExecuteWithStdin(hook, "{not json");
+      const result = await runExecuteWithStdin(hook, "{not json", {
+        parseErrorMessage: "Expected property name or '}' in JSON at position 1 (line 1 column 2)",
+      });
       expect(result.exitCode).toBe(EXIT_CODES.ERROR);
       expect(result.stdout).toBe("");
     });
 
     it("exits non-zero when stdin itself errors", async () => {
       const hook = userPromptSubmitHook({}, () => undefined);
-      const result = await runExecuteWithStdin(hook, "error");
+      const error = new Error("stdin read failed");
+      const result = await runExecuteWithStdin(hook, error, `${error.stack}\n`);
       expect(result.exitCode).toBe(EXIT_CODES.ERROR);
       expect(result.stdout).toBe("");
     });
@@ -165,7 +188,7 @@ describe("execute", () => {
     it("emits {} and exits 0 when stdin itself errors", async () => {
       const onUnexpectedError = vi.fn();
       const hook = userPromptSubmitHook({ unexpectedError: "continue", onUnexpectedError }, () => undefined);
-      const result = await runExecuteWithStdin(hook, "error");
+      const result = await runExecuteWithStdin(hook, new Error("stdin read failed"));
       expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
       expect(result.stdout).toBe("{}");
       expect(onUnexpectedError).toHaveBeenCalledWith(expect.any(Error), "read");
@@ -176,7 +199,7 @@ describe("execute", () => {
       const hook = userPromptSubmitHook({ unexpectedError: "continue", onUnexpectedError }, () => {
         throw new BlockError("blocked on purpose");
       });
-      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()));
+      const result = await runExecuteWithStdin(hook, JSON.stringify(baseInput()), "blocked on purpose\n");
       expect(result.exitCode).toBe(EXIT_CODES.BLOCK);
       expect(result.stderr).toBe("blocked on purpose\n");
       expect(onUnexpectedError).not.toHaveBeenCalled();
@@ -198,28 +221,32 @@ describe("execute", () => {
         throw new Error("EPIPE");
       });
 
-      const runPromise = execute(hook).catch((error) => {
-        if (error instanceof ProcessExitSignal) {
-          return error;
-        }
-        throw error;
-      });
-      queueMicrotask(() => {
-        fakeStdin.emit("data", JSON.stringify(baseInput()));
-        fakeStdin.emit("end");
-      });
-      const result = await runPromise;
+      try {
+        const runPromise = execute(hook).catch((error) => {
+          if (error instanceof ProcessExitSignal) {
+            return error;
+          }
+          throw error;
+        });
+        queueMicrotask(() => {
+          fakeStdin.emit("data", JSON.stringify(baseInput()));
+          fakeStdin.emit("end");
+        });
+        const result = await runPromise;
 
-      expect(result).toBeInstanceOf(ProcessExitSignal);
-      expect((result as ProcessExitSignal).code).toBe(EXIT_CODES.SUCCESS);
-      // Never retries with a fallback payload once a write was attempted, so
-      // stdout can never end up with concatenated/invalid JSON.
-      expect(writeAttempts).toBe(1);
-      expect(onUnexpectedError).toHaveBeenCalledWith(expect.any(Error), "write");
+        expect(result).toBeInstanceOf(ProcessExitSignal);
+        expect((result as ProcessExitSignal).code).toBe(EXIT_CODES.SUCCESS);
+        // Never retries with a fallback payload once a write was attempted, so
+        // stdout can never end up with concatenated/invalid JSON.
+        expect(writeAttempts).toBe(1);
+        expect(onUnexpectedError).toHaveBeenCalledWith(expect.any(Error), "write");
 
-      stdoutSpy.mockRestore();
-      stderrSpy.mockRestore();
-      exitSpy.mockRestore();
+        expect(stderrSpy).not.toHaveBeenCalled();
+      } finally {
+        stdoutSpy.mockRestore();
+        stderrSpy.mockRestore();
+        exitSpy.mockRestore();
+      }
     });
 
     it("does not let a failing diagnostic sink escape or block cleanup", async () => {

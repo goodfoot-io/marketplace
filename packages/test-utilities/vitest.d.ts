@@ -3,12 +3,14 @@
 import type { TestAPI } from 'vitest';
 import 'vitest';
 
-declare module '@vitest/expect' {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  interface Assertion<T = any> {
-    toEmit<U>(eventName: string, expected?: U, timeoutInterval?: number): Promise<void>;
-    toEqualSorted(expected: unknown): void;
-    tsStringIsEqual(expected: string): void;
+declare module 'vitest' {
+  interface ProvidedContext {
+    testPostgres: { port: number } | null;
+  }
+  interface Matchers<R, T> {
+    toEmit<U = T>(eventName: string, expected?: U, timeoutInterval?: number): Promise<void>;
+    toEqualSorted(expected: unknown): R;
+    tsStringIsEqual(expected: string): R;
   }
   interface AsymmetricMatchersContaining {
     toEmit<T>(eventName: string, expected?: T, timeoutInterval?: number): Promise<void>;

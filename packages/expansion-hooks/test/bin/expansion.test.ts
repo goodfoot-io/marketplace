@@ -77,10 +77,14 @@ describe("run", () => {
       throw new Error("process.exit called");
     });
     const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    expect(() => run({ action: "view", key: "missing-term" })).toThrow("process.exit called");
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    stderrSpy.mockRestore();
-    exitSpy.mockRestore();
+    try {
+      expect(() => run({ action: "view", key: "missing-term" })).toThrow("process.exit called");
+      expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
+      expect(stderrSpy).toHaveBeenCalledExactlyOnceWith('*Expansion "missing-term" does not exist*\n');
+    } finally {
+      stderrSpy.mockRestore();
+      exitSpy.mockRestore();
+    }
   });
 
   it("key fact1 fact2 stores facts", () => {
@@ -101,10 +105,14 @@ describe("run", () => {
       throw new Error("process.exit called");
     });
     const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    expect(() => run({ action: "remove", key: "missing-term" })).toThrow("process.exit called");
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    stderrSpy.mockRestore();
-    exitSpy.mockRestore();
+    try {
+      expect(() => run({ action: "remove", key: "missing-term" })).toThrow("process.exit called");
+      expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
+      expect(stderrSpy).toHaveBeenCalledExactlyOnceWith('*Expansion "missing-term" does not exist*\n');
+    } finally {
+      stderrSpy.mockRestore();
+      exitSpy.mockRestore();
+    }
   });
 
   it("no args prints usage to stderr", () => {
@@ -112,10 +120,19 @@ describe("run", () => {
       throw new Error("process.exit called");
     });
     const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    expect(() => run({ action: "usage" })).toThrow("process.exit called");
-    expect(exitSpy).toHaveBeenCalledWith(0);
-    expect(stderrSpy).toHaveBeenCalled();
-    stderrSpy.mockRestore();
-    exitSpy.mockRestore();
+    try {
+      expect(() => run({ action: "usage" })).toThrow("process.exit called");
+      expect(exitSpy).toHaveBeenCalledExactlyOnceWith(0);
+      expect(stderrSpy).toHaveBeenCalledExactlyOnceWith(
+        "Usage:\n" +
+          "  expansion --list\n" +
+          "  expansion <key>\n" +
+          "  expansion <key> <fact1> [fact2 ...]\n" +
+          "  expansion <key> -d\n",
+      );
+    } finally {
+      stderrSpy.mockRestore();
+      exitSpy.mockRestore();
+    }
   });
 });

@@ -1,0 +1,21 @@
+{
+	"files": {
+		"packages/jsdoczoom/test/barrel.test.ts": [
+			"packages/jsdoczoom/test/fixtures/barrel-*/**"
+		],
+		"packages/jsdoczoom/test/cache.test.ts": [],
+		"packages/jsdoczoom/test/errors.test.ts": [],
+		"packages/jsdoczoom/test/eslint-engine.test.ts": [],
+		"packages/jsdoczoom/test/eslint-plugin.test.ts": [],
+		"packages/jsdoczoom/test/jsdoc-imports-description.test.ts": [],
+		"packages/jsdoczoom/test/jsdoc-parser-shebang.test.ts": [],
+		"packages/jsdoczoom/test/jsdoc-parser-tsx.test.ts": [],
+		"packages/jsdoczoom/test/jsdoc-parser.test.ts": [
+			"packages/jsdoczoom/test/fixtures/leaf-files/**"
+		],
+		"packages/jsdoczoom/test/selector.test.ts": [],
+		"packages/jsdoczoom/test/type-declarations-noemit.test.ts": [
+			"packages/jsdoczoom/test/fixtures/tsconfig-noemit/**"
+		]
+	}
+}

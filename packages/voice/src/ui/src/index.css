@@ -46,7 +46,7 @@ select {
 
 button:focus-visible,
 select:focus-visible,
-.tool-call:focus-visible {
+.tool-row:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -499,6 +499,16 @@ select {
   justify-content: center;
 }
 
+/* Covers the dimmed area beneath the dialog; inside clicks stay in the dialog. */
+.modal-dismiss {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .modal {
   position: relative;
   z-index: var(--z-modal, 200);
@@ -722,6 +732,14 @@ select {
 }
 
 .tool-row {
+  width: 100%;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;

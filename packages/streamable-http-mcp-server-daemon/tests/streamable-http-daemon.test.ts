@@ -1,35 +1,45 @@
-import type { TextContent } from '@modelcontextprotocol/sdk/types.js';
 import { spawn, type ChildProcess } from 'child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
 import path from 'path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 describe('StreamableHttpDaemon', () => {
   const serverPath = path.join(process.cwd(), 'build/dist/src/example-http-server.js');
-  // The default daemon port (47127) is a machine-global resource — concurrent
-  // sessions running this suite in parallel worktrees on the same host would
-  // race each other's daemons on it, and whichever session's main daemon
-  // happened to be alive would turn the other session's "started a new
-  // server" assertions into flaky failures. Derive a per-session port from
-  // this worker's PID instead and hand it to the spawned servers via
-  // MCP_DAEMON_PORT (see example-http-server.ts).
-  const daemonPort = 47127 + (process.pid % 1000);
-  const serverUrl = `http://127.0.0.1:${daemonPort}/mcp`;
+  let daemonDir: string;
+  let daemonPort: number;
+  let serverUrl: string;
   let serverProcesses: ChildProcess[] = [];
+  let clients: Client[] = [];
 
-  beforeAll(() => {
-    process.env.MCP_DAEMON_PORT = String(daemonPort);
+  beforeEach(async () => {
+    daemonDir = await mkdtemp(path.join(tmpdir(), 'mcp-daemon-test-'));
+    const reservation = createServer();
+    await new Promise<void>((resolve, reject) => {
+      reservation.once('error', reject);
+      reservation.listen(0, '127.0.0.1', resolve);
+    });
+    try {
+      const address = reservation.address();
+      if (address === null || typeof address === 'string') {
+        throw new Error('Expected an owned TCP port');
+      }
+      daemonPort = address.port;
+      serverUrl = `http://127.0.0.1:${daemonPort}/mcp`;
+    } finally {
+      await new Promise<void>((resolve, reject) => reservation.close((error) => (error ? reject(error) : resolve())));
+    }
   });
 
-  afterAll(() => {
-    delete process.env.MCP_DAEMON_PORT;
-  });
-
-  const startServerProcess = async (): Promise<{ process: ChildProcess; output: string[] }> => {
+  const startServerProcess = async (childTimeout = 9000): Promise<{ process: ChildProcess; output: string[] }> => {
     const output: string[] = [];
     const serverProcess = spawn('node', [serverPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, DEBUG: 'true' }
+      timeout: childTimeout,
+      killSignal: 'SIGKILL',
+      env: { ...process.env, DEBUG: 'true', MCP_DAEMON_DIR: daemonDir, MCP_DAEMON_PORT: String(daemonPort) }
     });
     serverProcesses.push(serverProcess);
 
@@ -67,30 +77,38 @@ describe('StreamableHttpDaemon', () => {
   const createClient = async (): Promise<Client> => {
     const transport = new StreamableHTTPClientTransport(new URL(serverUrl));
     const client = new Client({ name: 'test-client', version: '1.0.0' }, { capabilities: {} });
+    clients.push(client);
     await client.connect(transport);
     return client;
   };
 
   afterEach(async () => {
-    for (const proc of serverProcesses) {
-      if (proc.pid) {
-        // Graceful shutdown first, then force-kill if it stalls. A lingering
-        // daemon would occupy the shared test port and corrupt the next test
-        // ("should reuse existing server when port is already in use" would
-        // connect to the zombie instead of starting a fresh main). Note that
-        // `proc.killed` cannot gate the SIGKILL — it flips on the first kill()
-        // call — so wait for the exit event (or timeout) instead.
-        const exited = new Promise<void>((resolve) => proc.once('exit', () => resolve()));
-        proc.kill('SIGTERM');
-        await Promise.race([exited, new Promise((resolve) => global.setTimeout(resolve, 500))]);
-        if (proc.exitCode === null && proc.signalCode === null) {
-          proc.kill('SIGKILL');
+    try {
+      for (const client of clients) {
+        await client.close();
+      }
+    } finally {
+      for (const proc of serverProcesses) {
+        if (proc.pid && proc.exitCode === null && proc.signalCode === null) {
+          // Graceful shutdown first, then force-kill if it stalls. A lingering
+          // daemon would occupy the owned test port and corrupt the next test
+          // ("should reuse existing server when port is already in use" would
+          // connect to the zombie instead of starting a fresh main). Note that
+          // `proc.killed` cannot gate the SIGKILL — it flips on the first kill()
+          // call — so wait for the exit event (or timeout) instead.
+          const exited = new Promise<void>((resolve) => proc.once('exit', () => resolve()));
+          proc.kill('SIGTERM');
           await Promise.race([exited, new Promise((resolve) => global.setTimeout(resolve, 500))]);
+          if (proc.exitCode === null && proc.signalCode === null) {
+            proc.kill('SIGKILL');
+            await Promise.race([exited, new Promise((resolve) => global.setTimeout(resolve, 500))]);
+          }
         }
       }
+      serverProcesses = [];
+      clients = [];
+      await rm(daemonDir, { recursive: true, force: true });
     }
-    serverProcesses = [];
-    await new Promise((resolve) => global.setTimeout(resolve, 1000));
   });
 
   describe('single server instance', () => {
@@ -101,16 +119,16 @@ describe('StreamableHttpDaemon', () => {
       expect(tools.tools).toHaveLength(2);
       expect(tools.tools[0]).toMatchObject({
         name: 'greet',
-        description: expect.stringContaining('greeting') as unknown
+        description: 'Returns a greeting message'
       });
       const result = await client.callTool({ name: 'greet', arguments: { name: 'Alice' } });
       expect(result.content).toHaveLength(1);
-      const content = (result.content as TextContent[])[0];
-      expect(content).toMatchObject({
-        type: 'text',
-        text: expect.stringContaining('Hello, Alice') as unknown
-      });
-      await client.close();
+      expect(result.content).toEqual([
+        expect.objectContaining({
+          type: 'text',
+          text: 'Hello, Alice! Welcome to the example MCP server.'
+        })
+      ]);
     }, 10000);
 
     it('should handle add tool correctly', async () => {
@@ -118,18 +136,16 @@ describe('StreamableHttpDaemon', () => {
       const client = await createClient();
       const result = await client.callTool({ name: 'add', arguments: { a: 5, b: 3 } });
       expect(result.content).toHaveLength(1);
-      const content = (result.content as TextContent[])[0];
-      expect(content).toMatchObject({ type: 'text', text: '5 + 3 = 8' });
-      await client.close();
+      expect(result.content).toEqual([{ type: 'text', text: '5 + 3 = 8' }]);
     }, 10000);
   });
 
   describe('daemon behavior with multiple processes', () => {
     it('should reuse existing server when port is already in use', async () => {
-      const { output: output1 } = await startServerProcess();
+      const { output: output1 } = await startServerProcess(15000);
       await new Promise((resolve) => global.setTimeout(resolve, 1000));
 
-      const { output: output2 } = await startServerProcess();
+      const { output: output2 } = await startServerProcess(15000);
       await new Promise((resolve) => global.setTimeout(resolve, 1000));
 
       const stdout1 = output1.join('');
@@ -142,19 +158,19 @@ describe('StreamableHttpDaemon', () => {
       const client2 = await createClient();
       const result1 = await client1.callTool({ name: 'greet', arguments: { name: 'Client1' } });
       const result2 = await client2.callTool({ name: 'greet', arguments: { name: 'Client2' } });
-      const content1 = (result1.content as TextContent[])[0];
-      const content2 = (result2.content as TextContent[])[0];
-      expect(content1).toMatchObject({ type: 'text', text: expect.stringContaining('Client1') as unknown });
-      expect(content2).toMatchObject({ type: 'text', text: expect.stringContaining('Client2') as unknown });
-      await client1.close();
-      await client2.close();
+      expect(result1.content).toEqual([
+        expect.objectContaining({ type: 'text', text: 'Hello, Client1! Welcome to the example MCP server.' })
+      ]);
+      expect(result2.content).toEqual([
+        expect.objectContaining({ type: 'text', text: 'Hello, Client2! Welcome to the example MCP server.' })
+      ]);
     }, 20000);
 
     it('should keep server alive while any client process is running', async () => {
       // Start two processes - first becomes main, second connects to it
-      const { output: output1 } = await startServerProcess();
+      const { output: output1 } = await startServerProcess(15000);
       await new Promise((resolve) => global.setTimeout(resolve, 1000));
-      const { output: output2 } = await startServerProcess();
+      const { output: output2 } = await startServerProcess(15000);
       await new Promise((resolve) => global.setTimeout(resolve, 1000));
 
       // Verify setup
@@ -173,9 +189,7 @@ describe('StreamableHttpDaemon', () => {
 
       // Server should still be running (main process still alive)
       const result = await client.callTool({ name: 'add', arguments: { a: 10, b: 20 } });
-      const content = (result.content as TextContent[])[0];
-      expect(content).toMatchObject({ type: 'text', text: '10 + 20 = 30' });
-      await client.close();
+      expect(result.content).toEqual([{ type: 'text', text: '10 + 20 = 30' }]);
     }, 20000);
   });
 
@@ -184,14 +198,12 @@ describe('StreamableHttpDaemon', () => {
       await startServerProcess();
       const client = await createClient();
       await expect(client.callTool({ name: 'unknown-tool', arguments: {} })).rejects.toThrow('Unknown tool');
-      await client.close();
     }, 10000);
 
     it('should validate tool parameters', async () => {
       await startServerProcess();
       const client = await createClient();
       await expect(client.callTool({ name: 'greet', arguments: {} })).rejects.toThrow('name is required');
-      await client.close();
     }, 10000);
   });
 });

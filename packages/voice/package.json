@@ -24,9 +24,9 @@
   "scripts": {
     "bundle": "node esbuild.config.mjs",
     "demo": "tsx example/server.ts",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsgo --noEmit && tsgo --noEmit -p src/ui/tsconfig.json",
     "build": "vite build && tsc --build tsconfig.build.json && node esbuild.config.mjs",
-    "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests ./example",
+    "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests ./example ./vitest.config.ts ./vite.config.ts",
     "test": "vitest run",
     "release": "bash ../../scripts/release-package.sh voice",
     "release:dry-run": "bash ../../scripts/release-package.sh voice --dry-run"
@@ -49,22 +49,23 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.1",
+    "@goodfoot/vitest-cache": "workspace:*",
     "@types/node": "^25",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/ws": "^8.18.1",
     "@typescript/native-preview": "^7.0.0-beta.20260501.1",
-    "@vitejs/plugin-react": "^4.0.0",
-    "esbuild": "^0.24.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "esbuild": "^0.28.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^9.0.0",
     "remark-gfm": "^4.0.0",
     "tsx": "^4.20.6",
     "typescript": "^6.0.3",
-    "vite": "^6.0.0",
-    "vite-plugin-singlefile": "^2.0.0",
-    "vitest": "^4.1.5",
+    "vite": "8.3.4",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "patch:vitest@npm%3A5.0.4#~/.yarn/patches/vitest-npm-5.0.4-2ab4bceca5.patch",
     "zustand": "^5.0.0"
   }
 }

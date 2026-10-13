@@ -1,12 +1,14 @@
 import { EventEmitter } from "node:events";
 import { existsSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:net";
-import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * The MCP server coalesces streaming user-speech transcripts so each spoken
@@ -64,8 +66,21 @@ beforeAll(async () => {
   });
 });
 
+let resourceDir: string;
+beforeEach(async () => {
+  resourceDir = await mkdtemp(join(tmpdir(), "voice-mcp-test-"));
+  const settingsPath = join(resourceDir, "settings.json");
+  await writeFile(settingsPath, "{}\n", "utf8");
+  vi.stubEnv("VOICE_SERVER_SETTINGS_PATH", settingsPath);
+});
+
 afterEach(async () => {
-  await Promise.allSettled(cleanups.splice(0).map((fn) => fn()));
+  try {
+    await Promise.allSettled(cleanups.splice(0).map((fn) => fn()));
+  } finally {
+    vi.unstubAllEnvs();
+    await rm(resourceDir, { recursive: true, force: true });
+  }
 });
 
 /** A minimal controller stub: a real EventEmitter plus the lifecycle methods the server awaits. */
@@ -105,7 +120,7 @@ runIfSourceExists("MCP server — user-transcript coalescing", () => {
         enabled: true,
         apiKey: "test-api-key",
         keySource: "env",
-        secretsPath: "/tmp/voice-coalesce-secrets.json",
+        secretsPath: join(resourceDir, "secrets.json"),
         port,
         logPath: undefined,
         watchTypes: ["transcript.item"],
@@ -179,7 +194,7 @@ runIfSourceExists("MCP server — user-transcript coalescing", () => {
         enabled: true,
         apiKey: "test-api-key",
         keySource: "env",
-        secretsPath: "/tmp/voice-coalesce-quiet-secrets.json",
+        secretsPath: join(resourceDir, "secrets.json"),
         port,
         logPath: undefined,
         watchTypes: ["transcript.item"],

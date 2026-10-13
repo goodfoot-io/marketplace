@@ -20,6 +20,12 @@
     }
   },
   "files": {
-    "includes": ["src/**/*.ts", "tests/**/*.ts", "example/**/*.ts", "*.ts"]
+    "includes": [
+      "src/**/*.{ts,tsx}",
+      "tests/**/*.ts",
+      "example/**/*.ts",
+      "*.ts",
+      "!src/ui-dist/**"
+    ]
   }
 }

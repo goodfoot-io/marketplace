@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { npath } from '@yarnpkg/fslib';
 import {
   isExternalSymlink,
   isGitWorktree,
@@ -81,6 +82,17 @@ describe('yarn-plugin-worktree-isolation', () => {
         fs.rmSync(externalDir, { recursive: true, force: true });
       }
     });
+
+    it('returns true for a sibling target sharing the project root prefix', () => {
+      const projectRoot = path.join(tempDir, 'project');
+      const siblingRoot = path.join(tempDir, 'project-other');
+      fs.mkdirSync(projectRoot);
+      fs.mkdirSync(siblingRoot);
+      const symlinkPath = path.join(projectRoot, 'external-link');
+      fs.symlinkSync(siblingRoot, symlinkPath);
+
+      expect(isExternalSymlink(symlinkPath, projectRoot)).toBe(true);
+    });
   });
 
   describe('removeSymlink', () => {
@@ -122,8 +134,7 @@ describe('yarn-plugin-worktree-isolation', () => {
       try {
         expect(removeSymlink(symlinkPath, true)).toBe(true);
         expect(fs.existsSync(symlinkPath)).toBe(false);
-        expect(logMessages.some((msg) => msg.includes('[worktree-isolation]'))).toBe(true);
-        expect(logMessages.some((msg) => msg.includes('Removed symlink'))).toBe(true);
+        expect(logMessages).toEqual([`[worktree-isolation] Removed symlink: ${symlinkPath} -> ${targetDir}`]);
       } finally {
         console.log = originalLog;
       }
@@ -208,8 +219,7 @@ describe('yarn-plugin-worktree-isolation', () => {
 
       try {
         expect(createInternalSymlink(symlinkPath, rootNodeModules, true)).toBe(true);
-        expect(logMessages.some((msg) => msg.includes('[worktree-isolation]'))).toBe(true);
-        expect(logMessages.some((msg) => msg.includes('Created symlink'))).toBe(true);
+        expect(logMessages).toEqual([`[worktree-isolation] Created symlink: ${symlinkPath} -> ../../node_modules`]);
       } finally {
         console.log = originalLog;
       }
@@ -229,7 +239,7 @@ describe('yarn-plugin-worktree-isolation', () => {
 
     it('returns root + workspace node_modules paths', () => {
       const workspaceDir = path.join(tempDir, 'packages', 'my-package');
-      const result = findWorkspaceNodeModules(tempDir, [{ cwd: workspaceDir as never }]);
+      const result = findWorkspaceNodeModules(tempDir, [{ cwd: npath.toPortablePath(workspaceDir) }]);
       expect(result).toEqual([path.join(tempDir, 'node_modules'), path.join(workspaceDir, 'node_modules')]);
     });
 
@@ -239,9 +249,9 @@ describe('yarn-plugin-worktree-isolation', () => {
       const workspace3 = path.join(tempDir, 'apps', 'web');
 
       const result = findWorkspaceNodeModules(tempDir, [
-        { cwd: workspace1 as never },
-        { cwd: workspace2 as never },
-        { cwd: workspace3 as never }
+        { cwd: npath.toPortablePath(workspace1) },
+        { cwd: npath.toPortablePath(workspace2) },
+        { cwd: npath.toPortablePath(workspace3) }
       ]);
 
       expect(result).toEqual([

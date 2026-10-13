@@ -4,8 +4,9 @@
  * Provides utilities to build hook fixtures using the CLI before tests run.
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
+import { createRequire } from "node:module";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -45,6 +46,7 @@ export function getHooksJsonPath(pluginDir: string): string {
  * Path to the CLI script.
  */
 const CLI_PATH = path.join(__dirname, "..", "..", "src", "cli.ts");
+const TSX_CLI_PATH = createRequire(import.meta.url).resolve("tsx/cli");
 
 /**
  * Generates a unique suffix for output directories.
@@ -105,11 +107,16 @@ export function buildSingleHook(fixtureFile: string): string {
 
   // Build the hook - CLI outputs to buildDir, hooks.json to hooksDir
   const tempHooksJsonPath = path.join(hooksDir, "hooks.json");
-  execSync(`npx tsx ${CLI_PATH} --agent claude-code -i "${hookPath}" -o "${tempHooksJsonPath}"`, {
-    cwd: path.dirname(CLI_PATH),
-    encoding: "utf-8",
-    stdio: "pipe",
-  });
+  execFileSync(
+    process.execPath,
+    [TSX_CLI_PATH, CLI_PATH, "--agent", "claude-code", "-i", hookPath, "-o", tempHooksJsonPath],
+    {
+      cwd: path.dirname(CLI_PATH),
+      encoding: "utf-8",
+      stdio: "pipe",
+      timeout: 45000,
+    },
+  );
 
   // Move .mjs files from hooksDir to binDir
   const mjsFiles = fs.readdirSync(hooksDir).filter((f) => f.endsWith(".mjs"));
@@ -151,11 +158,16 @@ export function buildAllHooks(): string {
   }
 
   // Build hooks using tsx to run the CLI
-  execSync(`npx tsx ${CLI_PATH} --agent claude-code -i "${FIXTURES_DIR}/*.ts" -o "${HOOKS_JSON_PATH}"`, {
-    cwd: path.dirname(CLI_PATH),
-    encoding: "utf-8",
-    stdio: "pipe",
-  });
+  execFileSync(
+    process.execPath,
+    [TSX_CLI_PATH, CLI_PATH, "--agent", "claude-code", "-i", path.join(FIXTURES_DIR, "*.ts"), "-o", HOOKS_JSON_PATH],
+    {
+      cwd: path.dirname(CLI_PATH),
+      encoding: "utf-8",
+      stdio: "pipe",
+      timeout: 45000,
+    },
+  );
 
   return DIST_DIR;
 }
@@ -223,11 +235,16 @@ export function buildMultipleHooks(fixtureFiles: string[], pluginName = "multi-h
   const tempHooksJsonPath = path.join(hooksDir, "hooks.json");
   const basenames = fixtureFiles.map((f) => path.basename(f, ".ts"));
   const inputGlob = path.join(FIXTURES_DIR, `{${basenames.join(",")}}.ts`);
-  execSync(`npx tsx ${CLI_PATH} --agent claude-code -i "${inputGlob}" -o "${tempHooksJsonPath}"`, {
-    cwd: path.dirname(CLI_PATH),
-    encoding: "utf-8",
-    stdio: "pipe",
-  });
+  execFileSync(
+    process.execPath,
+    [TSX_CLI_PATH, CLI_PATH, "--agent", "claude-code", "-i", inputGlob, "-o", tempHooksJsonPath],
+    {
+      cwd: path.dirname(CLI_PATH),
+      encoding: "utf-8",
+      stdio: "pipe",
+      timeout: 45000,
+    },
+  );
 
   // Move .mjs files from hooksDir to binDir
   const mjsFiles = fs.readdirSync(hooksDir).filter((f) => f.endsWith(".mjs"));

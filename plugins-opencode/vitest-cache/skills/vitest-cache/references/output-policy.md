@@ -2,7 +2,11 @@
 
 `withTestOutput` installs the result sequencer, cache reporter, diagnostic reporter and custom-pool teardown guard. Quiet mode uses Vitest's `silent: 'passed-only'`; preserve the original reporters and structured diagnostic assertions.
 
+Audit deliberate warning/error cases before the full run. Scoped console or `process.stderr.write` spies require exact payload/count assertions and restoration in `finally`. Specify expected payloads independently per case, defaulting to empty; never compare captured calls against captured text. For runtime-created errors validate type/message/phase before owning the original stack. Assert live effects with owned state and actual invocation evidence; model prose is not execution evidence.
+
 Unclaimed stderr fails the run and blocks a reusable pass. An existing `onConsoleLog` filter is honored; do not add a blanket filter to make warnings disappear. Failed/import/setup/unhandled errors retain bounded console evidence. Teardown timeouts or rejected worker stops veto publication even when assertions passed.
+
+During Vitest upgrades, check public `Matchers`, `provide`/`inject` transport and canonical `task.fullTestName` cleanup keys. Assert empty cleanup state between tests and after the last. Inspect imported exit hooks: a bounded real child must preserve requested failure status and empty stderr. When awaited teardown owns cleanup, remove only inappropriate library hooks; preserve signals.
 
 ## Native Worker capture
 

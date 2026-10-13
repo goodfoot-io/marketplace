@@ -1,38 +1,29 @@
-import type { RunnerTask } from 'vitest';
+import { inject } from 'vitest';
 import './vitest-teardown.js';
 import './vitest-matchers.js';
+
+const database = inject('testPostgres');
+if (database) {
+  process.env.PGHOST = '127.0.0.1';
+  process.env.PGPORT = String(database.port);
+  process.env.PGUSER = 'postgres';
+  delete process.env.PGUSERNAME;
+  process.env.PGPASSWORD = 'postgres';
+  process.env.PGDATABASE = 'postgres';
+  process.env.PGCONNECT_TIMEOUT = '2';
+}
 
 declare global {
   function startTeardownQueue(name?: string): Promise<void>;
 }
 
-/**
- * Build full test name from task hierarchy
- * Constructs test names like "Test Suite parent test name"
- */
-function buildFullTestName(task: RunnerTask): string | undefined {
-  const parts: string[] = [];
-  let current: RunnerTask | undefined = task;
+// Use the same Vitest name that teardownQueue reads from expect.getState().
+afterEach(async ({ task }) => {
+  const testName = task.fullTestName;
+  if (!testName) throw new Error('Vitest did not provide a test name for teardown');
+  await globalThis.startTeardownQueue(testName);
+});
 
-  while (current) {
-    if ((current.name && current.type !== 'suite') || (current.type === 'suite' && current.name)) {
-      parts.unshift(current.name);
-    }
-    current = current.suite;
-  }
-
-  return parts.length > 0 ? parts.join(' ') : undefined;
-}
-
-/**
- * Setup afterEach hook to trigger teardown queue for each test
- * Uses Vitest task context API to get test name and invoke teardown
- */
-afterEach(async (context) => {
-  if (context && 'task' in context && context.task?.type === 'test') {
-    const testName = buildFullTestName(context.task as RunnerTask);
-    if (testName && globalThis.startTeardownQueue) {
-      await globalThis.startTeardownQueue(testName);
-    }
-  }
+afterAll(async () => {
+  await globalThis.startTeardownQueue();
 });

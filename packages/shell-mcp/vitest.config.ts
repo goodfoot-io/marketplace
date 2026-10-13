@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
+import { loadCacheContract, withTestOutput } from '@goodfoot/vitest-cache/policy';
 
-export default defineConfig({
+export default withTestOutput(defineConfig({
   test: {
     name: 'shell-mcp',
     environment: 'node',
@@ -21,4 +22,4 @@ export default defineConfig({
     // collected and run a second time.
     exclude: ['**/node_modules/**', '**/dist/**', '**/build/**']
   }
-});
+}), loadCacheContract(new URL('./vitest.cache.json', import.meta.url)));

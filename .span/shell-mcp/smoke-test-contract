@@ -2,7 +2,7 @@ packages/shell-mcp/scripts/smoke-local.mjs#L53-L88 rk64:b2fa48f74fdddff8
 packages/shell-mcp/scripts/smoke-local.mjs#L136-L136 rk64:340b462d988e1f4f
 packages/shell-mcp/scripts/smoke-mcp-cli.mjs#L54-L103 rk64:fc85f28564b12da6
 packages/shell-mcp/src/config.ts#L4-L6 rk64:e2f1465bdf8a5a09
-packages/shell-mcp/src/contracts.ts rk64:d456e5801e7a10e9
+packages/shell-mcp/src/contracts.ts rk64:f6383a05b2e0a34a
 packages/shell-mcp/src/main.ts#L52-L66 rk64:e28afef5342f9d79
 packages/shell-mcp/src/main.ts#L75-L83 rk64:03948079809a1bf8
 packages/shell-mcp/src/serve.ts#L14-L33 rk64:127ffb40adde4e76

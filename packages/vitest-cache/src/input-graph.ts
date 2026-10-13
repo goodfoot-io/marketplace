@@ -4,7 +4,7 @@
  * @summary Walk the transformed Vite input graph with phase-scoped observations.
  */
 import fs from 'node:fs';
-import { createRequire } from 'node:module';
+import { createRequire, isBuiltin } from 'node:module';
 import path from 'node:path';
 import { parseAst } from 'vite';
 import type { TestProject } from 'vitest/node';
@@ -105,7 +105,7 @@ async function resolveImport(
   // The pool synthesizes cloudflare:test with a fresh UUID for every Vitest
   // invocation. Its code comes from the versioned pool package; the caller
   // must hash the installed pool package and any Worker entrypoint/config read by it.
-  if (imported.startsWith('node:') || cloudflareRuntimeModule(imported)) return null;
+  if (isBuiltin(imported) || cloudflareRuntimeModule(imported)) return null;
   // Vite represents files outside the project root as /@fs/<absolute path>.
   // Compare the physical path before asking Vite to resolve generated outputs.
   if (imported.startsWith('/@fs/')) {

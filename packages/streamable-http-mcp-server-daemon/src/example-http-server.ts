@@ -75,6 +75,7 @@ async function startServer() {
   const daemon = new StreamableHttpDaemon({
     port: daemonPort,
     host: '127.0.0.1',
+    ...(process.env.MCP_DAEMON_DIR ? { daemonDir: process.env.MCP_DAEMON_DIR } : {}),
     debug: process.env.DEBUG === 'true'
   });
   const result = await daemon.start(app);

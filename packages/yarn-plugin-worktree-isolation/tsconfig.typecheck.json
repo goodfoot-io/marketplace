@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["sources/**/*.ts", "tests/**/*.ts", "vitest.d.ts", "vitest.config.ts"],
+  "compilerOptions": {
+    "tsBuildInfoFile": "./build/.typecheck.tsbuildinfo"
+  }
+}

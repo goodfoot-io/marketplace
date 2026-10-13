@@ -1,0 +1,8 @@
+{
+	"files": {
+		"packages/claude-code-skill-reader/test/discovery.test.ts": [],
+		"packages/claude-code-skill-reader/test/errors.test.ts": [],
+		"packages/claude-code-skill-reader/test/frontmatter.test.ts": [],
+		"packages/claude-code-skill-reader/test/marketplace.test.ts": []
+	}
+}

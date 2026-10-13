@@ -8,7 +8,9 @@
  */
 
 import * as fs from "node:fs";
+import * as path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { LogEvent } from "../../src/core/logger.js";
 import { buildSingleHook, cleanOutputDir, getHooksJsonPath } from "./setup.js";
 import { CLAUDE_AVAILABLE, readHooksJson, runClaude } from "./test-utils.js";
 
@@ -25,16 +27,31 @@ describe("E2E: PreToolUse Hooks", () => {
     });
 
     it.skipIf(!CLAUDE_AVAILABLE)("denies Bash commands when hook is active", () => {
+      const markerPath = path.join(pluginDir, "bash-execution-marker.txt");
+      const logPath = path.join(pluginDir, "denial-events.jsonl");
+      const command = `printf 'HOOKTEST123' > '${markerPath.replace(/'/g, "'\\''")}'`;
       const result = runClaude({
-        prompt: "Run this exact bash command: echo HOOKTEST123 - do not explain, just run it",
+        prompt: `Run this exact bash command:\n${command}\nIf blocked, report the hook's exact reason.`,
         pluginDir,
         tools: ["Bash"],
+        env: { AGENT_HOOKS_LOG_FILE: logPath },
       });
 
-      // When the hook denies the command, the Bash tool doesn't execute,
-      // so we should NOT see the echo output in stdout
-      const combinedOutput = result.stdout + result.stderr;
-      expect(combinedOutput).not.toContain("HOOKTEST123");
+      expect(result.exitCode, result.stderr).toBe(0);
+      expect(result.stdout + result.stderr).toContain("Bash commands are blocked by test hook");
+      expect(fs.existsSync(markerPath)).toBe(false);
+      const events: LogEvent[] = fs
+        .readFileSync(logPath, "utf-8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          level: "info",
+          message: "Denying Bash command",
+          context: { command },
+        }),
+      );
     });
 
     it("generates valid hooks.json with PreToolUse event and Bash matcher", () => {

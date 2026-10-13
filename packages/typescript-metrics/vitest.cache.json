@@ -1,0 +1,27 @@
+{
+  "files": {
+    "packages/typescript-metrics/test/ChurnHotspotAnalyzer.test.ts": [
+      "packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-a/src/complex.ts",
+      "packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-a/src/else-test.ts",
+      "packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-a/src/catch-test.ts"
+    ],
+    "packages/typescript-metrics/test/ComplexityAnalyzer.test.ts": [
+      "packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-a/src/complex.ts",
+      "packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-a/src/else-test.ts",
+      "packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-a/src/catch-test.ts",
+      "packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-a/src/logical-ops.ts"
+    ],
+    "packages/typescript-metrics/test/DuplicationDetector.test.ts": [
+      "packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-b/src/duplicate.ts",
+      "packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-c/src/copy-of-duplicate.ts",
+      "packages/typescript-metrics/a.ts"
+    ],
+    "packages/typescript-metrics/test/EncapsulationAnalyzer.test.ts": [
+      "packages/typescript-metrics/test/fixtures/monorepo-fixture/packages/pkg-a/src/encapsulation-test.ts"
+    ],
+    "packages/typescript-metrics/test/MonorepoAnalyzer.test.ts": [
+      "packages/typescript-metrics/test/fixtures/monorepo-fixture/**"
+    ],
+    "packages/typescript-metrics/test/ReportGenerator.test.ts": []
+  }
+}

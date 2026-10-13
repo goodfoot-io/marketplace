@@ -547,6 +547,10 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
     file: relative,
     pool: specification.pool,
     isolate: project.config.isolate,
+    // Match Vitest's worker serialization without reopening framework env files.
+    env: Object.entries({ ...project.vite.config.env, ...project.config.env }).sort(([left], [right]) =>
+      left < right ? -1 : left > right ? 1 : 0
+    ),
     // A positional file filter yields `[]`; only listed lines narrow the run.
     lines: specification.testLines?.length ? specification.testLines : null,
     name: pattern ? [pattern.source ?? String(pattern), pattern.flags ?? ''] : null,
@@ -564,7 +568,8 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
       .packages()
       .closure(
         [...externals, ...host.externalPaths, ...setup.externalPaths, ...test.externalPaths],
-        [...toolchain].sort()
+        [...toolchain].sort(),
+        project.config.root
       ),
     executables: executables.length ? phase.fingerprint.executablesDigest(executables) : null
   };

@@ -21,11 +21,7 @@ export function MicPicker(): React.JSX.Element {
       <div className="error-block">
         <div className="error-title">Microphone error</div>
         <div>Microphone access denied — allow access in browser settings.</div>
-        <button
-          className="retry"
-          type="button"
-          onClick={() => dispatch({ type: "ui/click/primary" })}
-        >
+        <button className="retry" type="button" onClick={() => dispatch({ type: "ui/click/primary" })}>
           Retry
         </button>
       </div>

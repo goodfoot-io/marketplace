@@ -73,6 +73,17 @@ test('a module first reached as a ?raw leaf still has its module imports walked'
   expect(files).toEqual(['app/consumer.ts', 'app/deep.ts', 'app/entry.test.ts', 'app/helper.ts']);
 });
 
+test('bare, subpath and prefixed Node builtins are runtime inputs rather than unresolved files', async () => {
+  const { graph } = await fixture({
+    'app/entry.test.ts':
+      "import path from 'path';\nimport * as fs from 'fs/promises';\nimport * as http from 'node:http';\nexport const value = [path.sep, fs.readFile, http.createServer];\n"
+  });
+
+  const result = await graph('app/entry.test.ts');
+  expect(result.files).toEqual(['app/entry.test.ts']);
+  expect(result.externalPaths).toEqual([]);
+});
+
 test('a non-asset, non-data import Vite cannot transform makes the graph, and so reuse, fail', async () => {
   const { graph } = await fixture({
     'app/entry.test.ts': "import config from '../config/wrangler.toml';\nexport const value = config;\n",

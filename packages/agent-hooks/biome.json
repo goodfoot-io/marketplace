@@ -20,6 +20,13 @@
     }
   },
   "files": {
-    "includes": ["src/**/*.ts", "tests/**/*.ts", "e2e/**/*.ts", "scripts/**/*.ts", "scripts/**/*.mjs"]
+    "includes": [
+      "src/**/*.ts",
+      "tests/**/*.ts",
+      "e2e/**/*.ts",
+      "scripts/**/*.ts",
+      "scripts/**/*.mjs",
+      "vitest.config.ts"
+    ]
   }
 }

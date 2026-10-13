@@ -32,7 +32,7 @@ for (const file of [...modules].sort()) {
     if (
       !ts.isImportDeclaration(statement) ||
       !ts.isStringLiteral(statement.moduleSpecifier) ||
-      !/^node:(?:fs(?:\/promises)?|child_process)$/.test(statement.moduleSpecifier.text)
+      !/^(?:node:)?(?:fs(?:\/promises)?|child_process)$/.test(statement.moduleSpecifier.text)
     )
       continue;
     const clause = statement.importClause;

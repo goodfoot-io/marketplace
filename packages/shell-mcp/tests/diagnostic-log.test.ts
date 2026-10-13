@@ -80,7 +80,7 @@ describe("optional diagnostic file", () => {
     const link = join(root, "symlink");
     symlinkSync(target, link);
     const fifo = join(root, "fifo");
-    execFileSync("mkfifo", [fifo]);
+    execFileSync("mkfifo", [fifo], { timeout: 5_000 });
     for (const path of [join(root, "missing", "log"), root, link, fifo]) {
       expect(() => new IsolatedLogger(65_536, 64, { logFile: path })).toThrow("Cannot open SHELL_MCP_LOG");
     }
@@ -92,6 +92,7 @@ describe("optional diagnostic file", () => {
     const child = fork(new URL("./fixtures/logger-blocked.mjs", import.meta.url), [], {
       execArgv: ["--import", import.meta.resolve("tsx")],
       env: { ...process.env, SHELL_TEST_LOG: path },
+      timeout: 10_000,
       stdio: ["ignore", "pipe", "pipe", "ipc"],
     });
     children.push(child);

@@ -10,7 +10,7 @@
     "prettier:files": "prettier --write --log-level warn",
     "eslint": "eslint --cache --fix ./sources ./tests",
     "eslint:files": "eslint --cache --fix",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "lint": "bash -c 'if [ $# -eq 0 ]; then yarn typecheck && yarn eslint && yarn prettier; else yarn typecheck && yarn eslint:files \"$@\" && yarn prettier:files \"$@\"; fi' --",
     "build": "builder build plugin",
     "test": "vitest run",
@@ -39,12 +39,16 @@
     "main": "./bundles/@yarnpkg/plugin-worktree-isolation.js"
   },
   "devDependencies": {
-    "@types/node": "^24",
+    "@goodfoot/vitest-cache": "workspace:*",
+    "@types/node": "^26.6.5",
     "@yarnpkg/builder": "^4.1.4",
     "@yarnpkg/core": "^4.5.0",
+    "@yarnpkg/fslib": "^3.1.5",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.1",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
-    "vitest": "4.0.13"
+    "vite": "8.3.4",
+    "vitest": "patch:vitest@npm%3A5.0.4#~/.yarn/patches/vitest-npm-5.0.4-2ab4bceca5.patch"
   }
 }

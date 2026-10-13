@@ -157,6 +157,7 @@ describe("real CLI and JSONL file", () => {
         cwd,
         execArgv: ["--import", import.meta.resolve("tsx")],
         env: { ...process.env, SHELL_MCP_LOG: "diagnostics.jsonl", NO_COLOR: "1" },
+        timeout: 30_000,
         stdio: ["ignore", "pipe", "pipe", "ipc"],
       },
     );

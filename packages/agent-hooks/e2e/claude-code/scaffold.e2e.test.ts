@@ -6,13 +6,12 @@
  * hook templates, and test files.
  */
 
-import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { readHooksMeta, runTsxCli } from "./test-utils.js";
+import { preparePackageSnapshot, prepareYarnProject, readHooksMeta, runTsxCli, runYarnProject } from "./test-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,11 +29,7 @@ const PACKAGE_ROOT = path.join(__dirname, "..", "..");
 /**
  * Output directory for scaffold test results.
  */
-// Base the scratch output on the user's home directory: npm installs inside
-// generated projects pull down typescript/vitest/biome (~100 MB unpacked per
-// run), which exceeds small container overlay filesystems — os.tmpdir() may
-// sit on one. Artifacts here are throwaway either way.
-const SCAFFOLD_TEST_OUTPUT = path.join(os.homedir(), ".agent-hooks-scaffold-e2e");
+const SCAFFOLD_TEST_OUTPUT = fs.mkdtempSync(path.join(os.tmpdir(), "agent-hooks-scaffold-e2e-"));
 
 /**
  * Runs the CLI with scaffold arguments.
@@ -74,15 +69,16 @@ function getTestDir(testName: string): string {
 
 /**
  * Modifies a scaffolded project's package.json to use local file: protocol.
- * This allows npm install to use the local package instead of fetching from npm.
+ * This allows Yarn to install the local package instead of fetching it from the registry.
  * @param testDir - Path to the scaffolded project directory
  */
 function useLocalPackage(testDir: string): void {
   const packageJsonPath = path.join(testDir, "package.json");
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8")) as Record<string, unknown>;
   const deps = packageJson.dependencies as Record<string, string>;
-  deps["@goodfoot/agent-hooks"] = `file:${PACKAGE_ROOT}`;
+  deps["@goodfoot/agent-hooks"] = `file:${preparePackageSnapshot(PACKAGE_ROOT, SCAFFOLD_TEST_OUTPUT)}`;
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+  prepareYarnProject(testDir);
 }
 
 describe("E2E: Scaffold Command", () => {
@@ -337,30 +333,14 @@ describe("E2E: Scaffold Command", () => {
       // Modify package.json to use local package for testing
       useLocalPackage(testDir);
 
-      // Run npm install in scaffolded project (as recommended by scaffold command)
-      // shell: true so Windows resolves `npm` -> `npm.cmd` (Node refuses to
-      // spawn .cmd without a shell); the command is a fixed literal with no
-      // args array, so there is no shell quoting hazard (DEP0190).
-      const installResult = spawnSync("npm install", {
-        cwd: testDir,
-        encoding: "utf-8",
-        stdio: "pipe",
-        timeout: 120000,
-        shell: true,
-      });
+      const installResult = runYarnProject(testDir, ["install"], 90000);
 
-      expect(installResult.status).toBe(0);
+      expect(installResult.status, `${installResult.stdout}\n${installResult.stderr}`).toBe(0);
+      expect(installResult.stdout).not.toMatch(/YN0002|YN0060|YN0086/);
+      expect(installResult.stderr).toBe("");
+      const buildResult = runYarnProject(testDir, ["run", "build"], 20000);
 
-      // Run npm run build in scaffolded project
-      const buildResult = spawnSync("npm run build", {
-        cwd: testDir,
-        encoding: "utf-8",
-        stdio: "pipe",
-        timeout: 120000,
-        shell: true,
-      });
-
-      expect(buildResult.status).toBe(0);
+      expect(buildResult.status, `${buildResult.stdout}\n${buildResult.stderr}`).toBe(0);
 
       // Verify hooks.json is created
       const hooksJsonPath = path.join(testDir, "dist", "hooks.json");
@@ -394,30 +374,14 @@ describe("E2E: Scaffold Command", () => {
       // Modify package.json to use local package for testing
       useLocalPackage(testDir);
 
-      // Run npm install (as recommended by scaffold command)
-      // shell: true so Windows resolves `npm` -> `npm.cmd` (Node refuses to
-      // spawn .cmd without a shell); the command is a fixed literal with no
-      // args array, so there is no shell quoting hazard (DEP0190).
-      const installResult = spawnSync("npm install", {
-        cwd: testDir,
-        encoding: "utf-8",
-        stdio: "pipe",
-        timeout: 120000,
-        shell: true,
-      });
+      const installResult = runYarnProject(testDir, ["install"], 90000);
 
-      expect(installResult.status).toBe(0);
+      expect(installResult.status, `${installResult.stdout}\n${installResult.stderr}`).toBe(0);
+      expect(installResult.stdout).not.toMatch(/YN0002|YN0060|YN0086/);
+      expect(installResult.stderr).toBe("");
+      const testResult = runYarnProject(testDir, ["run", "test"], 20000);
 
-      // Run npm test
-      const testResult = spawnSync("npm test", {
-        cwd: testDir,
-        encoding: "utf-8",
-        stdio: "pipe",
-        timeout: 60000,
-        shell: true,
-      });
-
-      expect(testResult.status).toBe(0);
+      expect(testResult.status, `${testResult.stdout}\n${testResult.stderr}`).toBe(0);
       expect(testResult.stdout).toContain("passed");
     }, 180000); // 3 minute timeout for install + test
   });

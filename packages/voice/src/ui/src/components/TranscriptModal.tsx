@@ -34,7 +34,7 @@ export function TranscriptModal(): React.JSX.Element | null {
   // and whenever transcript content changes (streaming deltas or new items)
   // so live content stays followed while the modal is open.
   useEffect(() => {
-    if (open && atBottom && bodyRef.current !== null) {
+    if (open && atBottom && bodyRef.current !== null && (transcript !== undefined || streamDrafts.size > 0)) {
       bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
     }
   }, [open, atBottom, transcript, streamDrafts]);
@@ -72,10 +72,13 @@ export function TranscriptModal(): React.JSX.Element | null {
   };
 
   return (
-    <div
-      className="modal-backdrop"
-      onClick={() => dispatch({ type: "ui/click/modal-backdrop" })}
-    >
+    <div className="modal-backdrop">
+      <button
+        type="button"
+        className="modal-dismiss"
+        aria-label="Close conversation"
+        onClick={() => dispatch({ type: "ui/click/modal-backdrop" })}
+      />
       <div
         className="modal"
         role="dialog"
@@ -83,7 +86,6 @@ export function TranscriptModal(): React.JSX.Element | null {
         aria-label="Conversation"
         tabIndex={-1}
         ref={dialogRef}
-        onClick={(e) => e.stopPropagation()}
         onKeyDown={onTrapKeyDown}
       >
         <div

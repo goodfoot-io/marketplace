@@ -1,12 +1,25 @@
+import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { promisify } from "node:util";
+import { afterEach, describe, expect, it } from "vitest";
 import { build, createHelpers, lint, renderTemplate } from "../src/index.js";
 import type { BuildFileSystem, BuildOptions, Platform } from "../src/types.js";
 
+const exec = promisify(execFile);
+const ownedDirectories = new Set<string>();
+
+afterEach(async () => {
+  for (const path of ownedDirectories) {
+    await fs.rm(path, { recursive: true, force: true });
+    ownedDirectories.delete(path);
+  }
+});
+
 async function fixture(): Promise<{ parent: string; root: string; targets: readonly [string, string] }> {
   const parent = await fs.mkdtemp(join(tmpdir(), "agent-skills-evaluator-"));
+  ownedDirectories.add(parent);
   const root = join(parent, "src");
   await fs.mkdir(join(root, "one"), { recursive: true });
   await fs.writeFile(join(root, "one", "SKILL.md.eta"), "# <%= it.platform %>\n");
@@ -198,7 +211,40 @@ describe("coordinated target transaction", () => {
   it("atomically reclaims a lock whose local owner is proven dead", async () => {
     const { root, targets } = await fixture();
     const lock = `${targets[0]}.agent-skills.lock`;
-    await writeLock(lock, owner({ pid: 2_000_000_000, processStart: "dead" }));
+    // execFile resolves after this owned child exits successfully. On Linux,
+    // its start identity also distinguishes a later process reusing the PID.
+    const { stdout, stderr } = await exec(
+      "node",
+      [
+        "--input-type=module",
+        "-e",
+        `import { readFile } from "node:fs/promises";
+let processStart = null;
+if (process.platform === "linux") {
+  const stat = await readFile("/proc/self/stat", "utf8");
+  processStart = stat.slice(stat.lastIndexOf(")") + 2).trim().split(/\\s+/)[19];
+}
+process.stdout.write(JSON.stringify({ pid: process.pid, processStart }));`,
+      ],
+      { timeout: 2000, env: { ...process.env, NODE_OPTIONS: undefined } },
+    );
+    expect(stderr).toBe("");
+    const identity: unknown = JSON.parse(stdout);
+    if (
+      typeof identity !== "object" ||
+      identity === null ||
+      !("pid" in identity) ||
+      typeof identity.pid !== "number" ||
+      !Number.isSafeInteger(identity.pid) ||
+      !("processStart" in identity) ||
+      !(typeof identity.processStart === "string" || identity.processStart === null)
+    ) {
+      throw new Error("Owned child returned an invalid process identity");
+    }
+    expect(identity.pid).toBeGreaterThan(0);
+    expect(identity.pid).not.toBe(process.pid);
+    if (process.platform === "linux") expect(identity.processStart).toMatch(/^\d+$/);
+    await writeLock(lock, owner({ pid: identity.pid, processStart: identity.processStart }));
     const result = await build({
       root,
       patterns: ["one/SKILL.md.eta"],
@@ -211,7 +257,7 @@ describe("coordinated target transaction", () => {
 
   it.each([
     ["live", owner()],
-    ["foreign", owner({ host: "foreign.example", pid: 2_000_000_000, startedAt: "1970-01-01T00:00:00.000Z" })],
+    ["foreign", owner({ host: `${hostname()}.foreign`, startedAt: "1970-01-01T00:00:00.000Z" })],
     ["malformed", "not-json"],
   ])("fails safe for %s lock ownership", async (_name, metadata) => {
     const { root, targets } = await fixture();
@@ -227,7 +273,7 @@ describe("coordinated target transaction", () => {
   it("releases its partial sorted lock set without deleting the foreign lock", async () => {
     const { root, targets } = await fixture();
     const foreign = `${targets[1]}.agent-skills.lock`;
-    await writeLock(foreign, owner({ host: "foreign.example" }));
+    await writeLock(foreign, owner({ host: `${hostname()}.foreign` }));
     await expect(
       build({
         root,

@@ -23,9 +23,7 @@ import { getWakeWordController, type WakeWordIntent } from "../runners/wakeWordR
  */
 export function WakeWordListener(): React.JSX.Element | null {
   const controller = getWakeWordController();
-  const [intent, setIntent] = useState<WakeWordIntent>(
-    () => controller?.getIntent() ?? { active: false, phrase: "" },
-  );
+  const [intent, setIntent] = useState<WakeWordIntent>(() => controller?.getIntent() ?? { active: false, phrase: "" });
 
   useEffect(() => {
     if (!controller) return;

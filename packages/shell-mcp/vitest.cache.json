@@ -1,0 +1,36 @@
+{
+  "files": {
+    "packages/shell-mcp/tests/config.test.ts": [],
+    "packages/shell-mcp/tests/console-renderer.test.ts": [],
+    "packages/shell-mcp/tests/transcript-store.test.ts": [],
+    "packages/shell-mcp/tests/logger.test.ts": [
+      "packages/shell-mcp/src/logging/helper.js"
+    ],
+    "packages/shell-mcp/tests/diagnostic-log.test.ts": [
+      "packages/shell-mcp/src/logging/helper.js"
+    ]
+  },
+  "roots": {
+    "files": {
+      "packages/shell-mcp/tests/logger.test.ts": [
+        "packages/shell-mcp/tests/fixtures/logger-blocked.mjs",
+        "packages/shell-mcp/src/logging/helper.ts"
+      ],
+      "packages/shell-mcp/tests/diagnostic-log.test.ts": [
+        "packages/shell-mcp/tests/fixtures/logger-blocked.mjs",
+        "packages/shell-mcp/src/logging/helper.ts"
+      ]
+    }
+  },
+  "toolchain": {
+    "files": {
+      "packages/shell-mcp/tests/logger.test.ts": ["tsx"],
+      "packages/shell-mcp/tests/diagnostic-log.test.ts": ["tsx"]
+    }
+  },
+  "executables": {
+    "files": {
+      "packages/shell-mcp/tests/diagnostic-log.test.ts": ["mkfifo"]
+    }
+  }
+}

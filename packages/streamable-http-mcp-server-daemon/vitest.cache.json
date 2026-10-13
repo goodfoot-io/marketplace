@@ -1,0 +1,20 @@
+{
+  "files": {
+    "packages/streamable-http-mcp-server-daemon/tests/streamable-http-daemon.test.ts": [
+      "packages/streamable-http-mcp-server-daemon/src/example-http-server.ts",
+      "packages/streamable-http-mcp-server-daemon/src/streamable-http-daemon.ts"
+    ]
+  },
+  "roots": {
+    "files": {
+      "packages/streamable-http-mcp-server-daemon/tests/streamable-http-daemon.test.ts": [
+        "packages/streamable-http-mcp-server-daemon/build/dist/src/example-http-server.js"
+      ]
+    }
+  },
+  "executables": {
+    "files": {
+      "packages/streamable-http-mcp-server-daemon/tests/streamable-http-daemon.test.ts": ["node"]
+    }
+  }
+}

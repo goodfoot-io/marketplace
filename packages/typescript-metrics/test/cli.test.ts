@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -8,10 +8,11 @@ const cliPath = path.join(__dirname, "../src/metrics.ts");
 // Helper to run CLI command
 function runCli(args: string, cwd?: string): { stdout: string; stderr: string; exitCode: number } {
   try {
-    const stdout = execSync(`node --import tsx ${cliPath} ${args}`, {
+    const stdout = execFileSync(process.execPath, ["--import", "tsx", cliPath, ...args.split(" ").filter(Boolean)], {
       cwd: cwd || fixtureRoot,
       encoding: "utf-8",
       stdio: "pipe",
+      timeout: 55000,
     });
     return { stdout, stderr: "", exitCode: 0 };
   } catch (error: unknown) {
@@ -24,6 +25,8 @@ function runCli(args: string, cwd?: string): { stdout: string; stderr: string; e
   }
 }
 
+// These commands compile the fixture project in a real subprocess; measured
+// runs on a shared host exceed 30s. Keep enough time for that work to finish.
 describe("CLI", () => {
   it("should print help with -h or --help", () => {
     const result1 = runCli("-h");
@@ -47,7 +50,7 @@ describe("CLI", () => {
     expect(result2.exitCode).toBe(0);
   });
 
-  it("should output markdown report by default", { timeout: 30000 }, () => {
+  it("should output markdown report by default", { timeout: 60000 }, () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
     const result = runCli("", pkgADir);
     expect(result.exitCode).toBe(0);
@@ -57,7 +60,7 @@ describe("CLI", () => {
     expect(() => JSON.parse(result.stdout)).toThrow();
   });
 
-  it("should output valid JSON with --json flag", { timeout: 30000 }, () => {
+  it("should output valid JSON with --json flag", { timeout: 60000 }, () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
     const result = runCli("--json", pkgADir);
     expect(result.exitCode).toBe(0);
@@ -71,7 +74,7 @@ describe("CLI", () => {
     expect(parsed).toHaveProperty("metrics");
   });
 
-  it("should parse --metrics flag correctly", () => {
+  it("should parse --metrics flag correctly", { timeout: 60000 }, () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
     const result = runCli("--json --metrics coupling,cycles", pkgADir);
     expect(result.exitCode).toBe(0);
@@ -83,7 +86,7 @@ describe("CLI", () => {
     expect(parsed.metrics).not.toHaveProperty("duplication");
   });
 
-  it("should parse --skip-path-metrics flag", { timeout: 30000 }, () => {
+  it("should parse --skip-path-metrics flag", { timeout: 60000 }, () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
     const result = runCli("--json --skip-path-metrics", pkgADir);
     expect(result.exitCode).toBe(0);
@@ -92,7 +95,7 @@ describe("CLI", () => {
     expect(parsed.options.skipPathMetrics).toBe(true);
   });
 
-  it("should parse --layers flag", { timeout: 30000 }, () => {
+  it("should parse --layers flag", { timeout: 60000 }, () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
     const result = runCli("--json --layers shared,data,domain,feature,ui,app", pkgADir);
     expect(result.exitCode).toBe(0);
@@ -101,7 +104,7 @@ describe("CLI", () => {
     expect(parsed.options.layers).toEqual(["shared", "data", "domain", "feature", "ui", "app"]);
   });
 
-  it("should parse --min-tokens flag", { timeout: 30000 }, () => {
+  it("should parse --min-tokens flag", { timeout: 60000 }, () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
     const result = runCli("--json --min-tokens 100", pkgADir);
     expect(result.exitCode).toBe(0);
@@ -110,7 +113,7 @@ describe("CLI", () => {
     expect(parsed.options.minTokens).toBe(100);
   });
 
-  it("should parse --top-k flag", { timeout: 30000 }, () => {
+  it("should parse --top-k flag", { timeout: 60000 }, () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
     const result = runCli("--json --top-k 5", pkgADir);
     expect(result.exitCode).toBe(0);
@@ -119,7 +122,7 @@ describe("CLI", () => {
     expect(parsed.options.topK).toBe(5);
   });
 
-  it("should use default targets when run in package directory", { timeout: 30000 }, () => {
+  it("should use default targets when run in package directory", { timeout: 60000 }, () => {
     const pkgADir = path.join(fixtureRoot, "packages/pkg-a");
     const result = runCli("--json", pkgADir);
     expect(result.exitCode).toBe(0);

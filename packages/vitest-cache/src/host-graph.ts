@@ -274,7 +274,11 @@ function collectConditionTargets(value: unknown, sink: string[]) {
   } else if (Array.isArray(value)) {
     for (const item of value) collectConditionTargets(item, sink);
   } else if (value && typeof value === 'object') {
-    for (const conditionValue of Object.values(value)) collectConditionTargets(conditionValue, sink);
+    for (const [condition, conditionValue] of Object.entries(value)) {
+      // TypeScript's declaration conditions never select host runtime code.
+      if (condition === 'types' || condition.startsWith('types@')) continue;
+      collectConditionTargets(conditionValue, sink);
+    }
   }
 }
 
@@ -289,11 +293,11 @@ function matchSubpathPattern(pattern: string, subpath: string) {
 }
 
 /**
- * Every string target reachable for `subpath`, across all condition branches and `*` patterns.
+ * Every runtime target reachable for `subpath`, across condition branches and `*` patterns.
  *
  * @param map - Unknown package imports/exports map.
  * @param subpath - Exact requested package subpath.
- * @returns Every string target reachable across condition and wildcard branches.
+ * @returns Every runtime target reachable across condition and wildcard branches.
  */
 function resolveExportsTargets(map: unknown, subpath: string) {
   const sink: string[] = [];

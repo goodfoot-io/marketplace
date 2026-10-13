@@ -41,6 +41,9 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
     it("allows TypeScript file without bypass patterns", async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Write",
         tool_input: {
@@ -51,12 +54,15 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("allow");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "allow" } } });
     });
 
     it(`denies file with ${ESLINT}-${DISABLE} comment`, async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Write",
         tool_input: {
@@ -67,12 +73,15 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("deny");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "deny" } } });
     });
 
     it(`denies file with @${TS}-${IGNORE} comment`, async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Write",
         tool_input: {
@@ -83,12 +92,15 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("deny");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "deny" } } });
     });
 
     it(`denies file with @${TS}-${NOCHECK} comment`, async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Write",
         tool_input: {
@@ -99,12 +111,15 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("deny");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "deny" } } });
     });
 
     it(`denies file with '${AS} ${ANY}' cast`, async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Write",
         tool_input: {
@@ -115,12 +130,15 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("deny");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "deny" } } });
     });
 
     it(`denies file with ${BIOME}-${IGNORE} comment`, async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Write",
         tool_input: {
@@ -131,7 +149,7 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("deny");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "deny" } } });
     });
   });
 
@@ -139,6 +157,9 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
     it("allows edit that does not add bypass patterns", async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Edit",
         tool_input: {
@@ -150,12 +171,15 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("allow");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "allow" } } });
     });
 
     it("allows edit that removes a bypass pattern", async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Edit",
         tool_input: {
@@ -167,12 +191,15 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("allow");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "allow" } } });
     });
 
     it("denies edit that adds a bypass pattern", async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Edit",
         tool_input: {
@@ -184,12 +211,15 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("deny");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "deny" } } });
     });
 
     it("allows edit that keeps existing bypass pattern", async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Edit",
         tool_input: {
@@ -201,7 +231,7 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("allow");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "allow" } } });
     });
   });
 
@@ -209,6 +239,9 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
     it("allows bypass patterns in markdown files", async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Write",
         tool_input: {
@@ -219,12 +252,15 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("allow");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "allow" } } });
     });
 
     it("allows bypass patterns in JSON files", async () => {
       const mockInput: PreToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: "/test/transcript.jsonl",
+        cwd: "/test",
         hook_event_name: "PreToolUse",
         tool_name: "Write",
         tool_input: {
@@ -235,7 +271,7 @@ describe("ESLint/TypeScript/Biome Bypass Prevention Hook", () => {
 
       const result = await hook(mockInput, { logger });
 
-      expect(result.stdout.hookSpecificOutput?.permissionDecision).toBe("allow");
+      expect(result).toMatchObject({ stdout: { hookSpecificOutput: { permissionDecision: "allow" } } });
     });
   });
 });

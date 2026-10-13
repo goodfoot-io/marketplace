@@ -2,7 +2,7 @@
  * Shared utilities for E2E tests.
  */
 
-import { execSync, type SpawnSyncReturns, spawnSync } from "node:child_process";
+import { execFileSync, type SpawnSyncReturns, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import * as path from "node:path";
@@ -40,6 +40,7 @@ export function runTsxCli(
   return spawnSync(process.execPath, [tsxCliPath, cliPath, ...args], {
     encoding: "utf-8",
     stdio: "pipe",
+    timeout: 45000,
     ...options,
   });
 }
@@ -143,7 +144,7 @@ export function isClaudeBinaryAvailable(): boolean {
     return false;
   }
   try {
-    execSync("which claude", { stdio: "ignore" });
+    execFileSync("which", ["claude"], { stdio: "ignore", timeout: 5000 });
     return true;
   } catch {
     return false;
@@ -163,12 +164,14 @@ export interface RunClaudeOptions {
   pluginDir?: string;
   timeout?: number;
   tools?: string[];
+  env?: NodeJS.ProcessEnv;
 }
 
 /**
  * Result from running the Claude CLI.
  */
 export interface RunClaudeResult {
+  exitCode: number;
   stdout: string;
   stderr: string;
 }
@@ -188,7 +191,7 @@ export interface RunClaudeResult {
  * ```
  */
 export function runClaude(options: RunClaudeOptions): RunClaudeResult {
-  const { prompt, pluginDir, timeout = 60000, tools } = options;
+  const { prompt, pluginDir, timeout = 60000, tools, env } = options;
 
   // Build args: flags first, then prompt, then --plugin-dir and --tools
   // The prompt must come BEFORE --tools and --plugin-dir due to CLI arg parsing
@@ -205,24 +208,68 @@ export function runClaude(options: RunClaudeOptions): RunClaudeResult {
     args.push("--tools", tools.join(","));
   }
 
-  const cmd = `claude ${args.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" ")}`;
-  try {
-    const stdout = execSync(cmd, {
-      encoding: "utf-8",
-      timeout,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    return { stdout, stderr: "" };
-  } catch (error: unknown) {
-    if (error && typeof error === "object" && "stdout" in error && "stderr" in error) {
-      const execError = error as { stdout: Buffer | string | null; stderr: Buffer | string | null };
-      const stdout = execError.stdout;
-      const stderr = execError.stderr;
-      return {
-        stdout: typeof stdout === "string" ? stdout : (stdout?.toString() ?? ""),
-        stderr: typeof stderr === "string" ? stderr : (stderr?.toString() ?? ""),
-      };
-    }
-    throw error;
+  const result = spawnSync("claude", args, {
+    encoding: "utf-8",
+    timeout,
+    stdio: "pipe",
+    env: { ...process.env, ...env },
+  });
+  if (result.error) {
+    throw result.error;
   }
+  return { exitCode: result.status ?? 1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+}
+
+/**
+ * Gives a generated consumer project its own Yarn installation boundary.
+ * @param testDir - Owned generated project directory
+ */
+export function prepareYarnProject(testDir: string): void {
+  const workspaceManifest: { packageManager: string } = JSON.parse(
+    fs.readFileSync(new URL("../../../../package.json", import.meta.url), "utf-8"),
+  );
+  const manifestPath = path.join(testDir, "package.json");
+  const manifest: Record<string, unknown> = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+  manifest.packageManager = workspaceManifest.packageManager;
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  fs.writeFileSync(path.join(testDir, "yarn.lock"), "");
+  fs.writeFileSync(path.join(testDir, ".yarnrc.yml"), "nodeLinker: node-modules\nenableImmutableInstalls: false\n");
+}
+
+/**
+ * Runs the current Yarn executable directly with an argument array.
+ * @param testDir - Owned generated project directory
+ * @param args - Yarn command arguments
+ * @param timeout - Child process limit below the enclosing test budget
+ * @returns Captured command result for assertions
+ */
+export function runYarnProject(testDir: string, args: string[], timeout: number): SpawnSyncReturns<string> {
+  const yarnEntrypoint = process.env.npm_execpath;
+  if (!yarnEntrypoint) {
+    throw new Error("Scaffold integration tests must be launched with Yarn");
+  }
+  return spawnSync(yarnEntrypoint, args, {
+    cwd: testDir,
+    encoding: "utf-8",
+    stdio: "pipe",
+    timeout,
+    env: { ...process.env, YARN_ENABLE_IMMUTABLE_INSTALLS: "false", YARN_NODE_LINKER: "node-modules" },
+  });
+}
+
+/**
+ * Copies actual built publication files into an owned immutable install input.
+ * @param packageRoot - Library package with a successful source build
+ * @param ownedParent - Test-owned directory cleaned by its suite
+ * @returns Stable package directory for a real file-protocol installation
+ */
+export function preparePackageSnapshot(packageRoot: string, ownedParent: string): string {
+  const snapshot = fs.mkdtempSync(path.join(ownedParent, "agent-hooks-package-"));
+  const manifestPath = path.join(packageRoot, "package.json");
+  const manifest: { files: string[] } = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+  fs.copyFileSync(manifestPath, path.join(snapshot, "package.json"));
+  for (const file of manifest.files) {
+    fs.cpSync(path.join(packageRoot, file), path.join(snapshot, file), { recursive: true });
+  }
+  return snapshot;
 }

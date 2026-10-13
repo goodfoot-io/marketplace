@@ -12,7 +12,7 @@ Declare inputs read outside static imports: fixtures, config/data files, directo
 }
 ```
 
-Only use this empty fallback when every unlisted test has no additional non-import inputs. For live services or uncontrolled inputs, pass `{ uncached: 'reason' }` instead of declaring reuse.
+For partial adoption, list reviewed `files` and omit `fallback`; unlisted diagnostics are expected. Empty fallback requires auditing every unlisted test. Trace actual calls/defaults, including persisted caches and ancestor config. Keep outside-repository reads uncached; never mock for eligibility. Repair fixed-path isolation with unique owned resources/cleanup. Test-created state derived from keyed code is not pre-existing input. Distinguish executed initializers/calls from unused definitions. Vite config disabling does not stop startup workspace/package discovery or default module-cache state outside owned fixtures. Conditional ambient reads require uncached execution whenever their selectors enable them.
 
 | Field | Declare |
 | --- | --- |
@@ -32,7 +32,11 @@ Only use this empty fallback when every unlisted test has no additional non-impo
 
 `roots`, `hostRoots`, `wrangler`, `toolchain` and `executables` each use a scoped object: `{ all?: string[], projects?: Record<string, string[]>, files?: Record<string, string[]> }`. Do not supply bare arrays for these fields.
 
-Static test/setup graphs, the configuration's host graph, local manifest/tsconfig chains and reached installed package closures are automatic inputs. Declare only the additional reads the graph cannot see. Avoid package-wide globs that unnecessarily invalidate unrelated tests.
+Static test/setup/host graphs, local manifest/tsconfig chains and reached installed closures are automatic inputs. Node builtins are runtime inputs; toolchains resolve from the project root, including nested installations. The worker key hashes Vite-resolved environment values overridden by `test.env`. Inspect loader/serialization code; never open `.env` files or dump secrets. Declare additional reads only; avoid package-wide globs.
+
+Default/true inline projects inherit root policy plugins; false/string-base projects receive their own. Preserve inheritance; fix wrapper duplication rather than adding consumer workarounds. Vitest 5 reporters belong at the root, outside `defineProject`. Keep `setupNeeded` gates in test plumbing; emitted public helpers need runtime dependencies. Native startup may read ambient locale/user/system-library state despite owned resources.
+
+Audit executed APIs, not module names: string parsing/rendering differs from compiler programs/file loaders. Trace template includes/layouts/callbacks. Config/module resolution can scan ambient types and ancestors beyond fixtures, including above an owned subprocess cwd. Declare actual resolved inputs or leave those consumers uncached. Missing paths are inputs too: preserve declarations whose absence is observed. `unmatchedInputs` requests review; an intentional absent path is valid and its creation must invalidate reuse.
 
 For audits in this repository, run from its root:
 
@@ -42,6 +46,12 @@ node packages/vitest-cache/scripts/audit-unlisted.ts <package>/vitest.config.ts 
 node packages/vitest-cache/scripts/read-sites.ts <package>/vitest.config.ts --all
 ```
 
-These utilities require a concrete object-form config with a cached contract; function configs, promised projects and explicit uncached suites are unsupported. Review reported IO call paths and unresolved edges manually. A syntactic read can be unused or target temporary files; the audit does not certify safe reuse.
+Audits require concrete object-form cached configs; factories, promised projects and explicit uncached suites are unsupported. Read-site reports recognize bare/node: fs and subprocess default/namespace/renamed bindings but remain syntactic; inspect transitive/subprocess calls and mocks. Inventory `fallback: null` means omitted; `[]` means explicitly empty. Explicit uncached runs may omit summaries/reasons; verify their contract and repeated full execution, including conditional branches.
 
-Keep declarations near their config and update them with any new filesystem read, generated entry point or dynamic import. Confirm invalidation by changing the actual input and running the affected test.
+Audits omit subprocess closures: declare fixtures/helpers in scoped `roots`, loaders in `toolchain`, absent selectors in `files`. Isolate unintended child destinations; hashing paths does not capture their state. Keep unresolved optional imports uncached; never silence them with empty domains. Real IO can be cacheable when directories, loopback services and probed PIDs belong to test-created resources; preserve lifecycle coverage.
+
+Control incidental loader inputs with explicit config/cache/binary selection and declared roots. Preloads can initialize before CLI flags; control only unintended child preloads, preserving host policy. Own loader IPC/temp directories through child completion, then cleanup after assertions. Declare the executable actually invoked; PATH names do not cover different absolute binaries. For dead-process tests, spawn a real owned child, capture identity and confirm exit before reclamation. Generate foreign hosts distinct from hostname(). For generated Yarn consumers, set the intended version, owned lock boundary and linker. Inspect launcher form; install built publication files from a stable owned snapshot to avoid concurrent cleanup races. Uncontrolled network/install inputs remain uncached.
+
+Preserve asset-transform plugins. For opaque generated imports, declare artifact bytes and actual build inputs; review runtime plugin handling when the TypeScript audit cannot resolve an asset.
+
+Update declarations with new reads, generated entrypoints or dynamic imports.

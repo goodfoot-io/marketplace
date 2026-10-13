@@ -1,0 +1,14 @@
+{
+  "files": {
+    "packages/agent-hooks/tests/outputs.test.ts": [],
+    "packages/agent-hooks/tests/codex/outputs.test.ts": [],
+    "packages/agent-hooks/tests/types/outputs.test.ts": [],
+    "packages/agent-hooks/tests/export-surface.test.ts": [
+      "packages/agent-hooks/src/index.ts",
+      "packages/agent-hooks/package.json"
+    ],
+    "packages/agent-hooks/tests/codex/schema-coverage.test.ts": [
+      "packages/agent-hooks/src/agents/codex/schema/generated/*.schema.json"
+    ]
+  }
+}

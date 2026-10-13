@@ -30,6 +30,7 @@ function runTsx(cliArgs: string[], options: { cwd: string }): SpawnSyncReturns<s
   return spawnSync(process.execPath, [tsxCliPath, ...cliArgs], {
     encoding: "utf-8" as const,
     stdio: "pipe" as const,
+    timeout: 45000,
     ...options,
   });
 }
@@ -76,7 +77,7 @@ describe("codex-hooks e2e", () => {
     const compiledFiles = fs.readdirSync(path.join(projectDir, ".codex")).filter((entry) => entry.endsWith(".mjs"));
     expect(compiledFiles.length).toBe(1);
 
-    const run = spawnSync("node", [path.join(projectDir, ".codex", compiledFiles[0])], {
+    const run = spawnSync(process.execPath, [path.join(projectDir, ".codex", compiledFiles[0])], {
       input: JSON.stringify({
         cwd: projectDir,
         hook_event_name: "SessionStart",
@@ -87,6 +88,7 @@ describe("codex-hooks e2e", () => {
         transcript_path: null,
       }),
       encoding: "utf-8",
+      timeout: 45000,
     });
 
     expect(run.status).toBe(0);
@@ -122,7 +124,7 @@ describe("codex-hooks e2e", () => {
     const compiledFile = fs.readdirSync(projectDir).find((entry) => entry.endsWith(".mjs"));
     expect(compiledFile).toBeDefined();
 
-    const run = spawnSync("node", [path.join(projectDir, compiledFile ?? "")], {
+    const run = spawnSync(process.execPath, [path.join(projectDir, compiledFile ?? "")], {
       input: JSON.stringify({
         cwd: projectDir,
         hook_event_name: "Stop",
@@ -135,6 +137,7 @@ describe("codex-hooks e2e", () => {
         turn_id: "turn-1",
       }),
       encoding: "utf-8",
+      timeout: 45000,
     });
 
     expect(run.status).toBe(2);
@@ -165,7 +168,7 @@ describe("codex-hooks e2e", () => {
     const compiledFile = fs.readdirSync(projectDir).find((entry) => entry.endsWith(".mjs"));
     expect(compiledFile).toBeDefined();
 
-    const run = spawnSync("node", [path.join(projectDir, compiledFile ?? "")], {
+    const run = spawnSync(process.execPath, [path.join(projectDir, compiledFile ?? "")], {
       input: JSON.stringify({
         cwd: projectDir,
         hook_event_name: "UserPromptSubmit",
@@ -177,6 +180,7 @@ describe("codex-hooks e2e", () => {
         turn_id: "turn-1",
       }),
       encoding: "utf-8",
+      timeout: 45000,
     });
 
     expect(run.status).toBe(0);
@@ -204,9 +208,10 @@ describe("codex-hooks e2e", () => {
     const compiledFile = fs.readdirSync(projectDir).find((entry) => entry.endsWith(".mjs"));
     expect(compiledFile).toBeDefined();
 
-    const run = spawnSync("node", [path.join(projectDir, compiledFile ?? "")], {
+    const run = spawnSync(process.execPath, [path.join(projectDir, compiledFile ?? "")], {
       input: "not valid json",
       encoding: "utf-8",
+      timeout: 45000,
     });
 
     expect(run.status).toBe(0);
@@ -248,7 +253,7 @@ describe("codex-hooks e2e", () => {
     const bundle = fs.readFileSync(path.join(projectDir, ".codex", compiledFiles[0] ?? ""), "utf-8");
     expect(bundle).not.toContain("sourceMappingURL");
 
-    const run = spawnSync("node", [path.join(projectDir, ".codex", compiledFiles[0] ?? "")], {
+    const run = spawnSync(process.execPath, [path.join(projectDir, ".codex", compiledFiles[0] ?? "")], {
       input: JSON.stringify({
         cwd: projectDir,
         hook_event_name: "SessionStart",
@@ -259,6 +264,7 @@ describe("codex-hooks e2e", () => {
         transcript_path: null,
       }),
       encoding: "utf-8",
+      timeout: 45000,
     });
 
     expect(run.status).toBe(0);

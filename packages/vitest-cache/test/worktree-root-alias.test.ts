@@ -61,7 +61,7 @@ test('cache planning accepts a repository root alias and rejects a genuinely ext
   const repository = path.join(temporary, 'repository');
   const alias = path.join(temporary, 'alias');
   mkdirSync(repository);
-  execFileSync('git', ['init', '--quiet', '--initial-branch=main'], { cwd: repository });
+  execFileSync('git', ['init', '--quiet', '--initial-branch=main'], { cwd: repository, timeout: 2000 });
   writeFileSync(path.join(repository, 'package.json'), '{"name":"root-alias-fixture"}');
   writeFileSync(path.join(repository, 'vitest.config.mjs'), 'export default {};\n');
   writeFileSync(path.join(repository, 'example.test.mjs'), 'export {};\n');

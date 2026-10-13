@@ -186,7 +186,7 @@ describe("compileHook install-topology reproducibility", () => {
     const result = spawnSync(
       process.execPath,
       [TSX_CLI_PATH, cliPath, "--agent", "codex", "-i", hookPath, "-o", hooksJsonPath, "--stable-names", "--sourcemap"],
-      { cwd: checkoutDir, encoding: "utf-8" },
+      { cwd: checkoutDir, encoding: "utf-8", timeout: 45000 },
     );
     if (result.status !== 0) {
       throw new Error(`CLI compile failed (exit ${String(result.status)}):\n${result.stdout}\n${result.stderr}`);

@@ -1,0 +1,7 @@
+{
+  "files": {
+    "packages/expansion-hooks/test/expansion-store.test.ts": [],
+    "packages/expansion-hooks/test/bin/expansion.test.ts": [],
+    "packages/expansion-hooks/test/user-prompt-submit.test.ts": []
+  }
+}

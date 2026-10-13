@@ -1,10 +1,19 @@
 import * as fs from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { formatResidueWarnings, parseArgs, run, validateArgs } from "../src/cli.js";
 import { build } from "../src/index.js";
 import type { BuildFileSystem } from "../src/types.js";
+
+const ownedDirectories = new Set<string>();
+
+afterEach(async () => {
+  for (const path of ownedDirectories) {
+    await fs.rm(path, { recursive: true, force: true });
+    ownedDirectories.delete(path);
+  }
+});
 
 describe("CLI contract", () => {
   it("parses repeated targets, platforms, and positional patterns", () => {
@@ -24,6 +33,7 @@ describe("CLI contract", () => {
 
   it("warns deterministically for API cleanup residues while retaining exit zero", async () => {
     const parent = await fs.mkdtemp(join(tmpdir(), "agent-skills-cli-residue-"));
+    ownedDirectories.add(parent);
     const root = join(parent, "src");
     const out = join(parent, "out");
     await fs.mkdir(root);

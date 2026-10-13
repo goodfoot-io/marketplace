@@ -8,7 +8,25 @@
     "outDir": "dist",
     "incremental": false,
     "rewriteRelativeImportExtensions": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "allowJs": true,
+    "checkJs": true
   },
-  "include": ["src/**/*.ts", "src/**/*.mts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.mts",
+    "src/**/*.mjs"
+  ],
+  "files": [
+    "src/test-output-capture.mjs",
+    "src/test-output-native.mjs",
+    "src/test-output-policy.mjs",
+    "src/test-output-reporter.mjs",
+    "src/test-output-workerd.mjs",
+    "src/test-verbose.mjs",
+    "src/test-worker-teardown.mjs",
+    "src/vitest-entry.mjs"
+  ]
 }

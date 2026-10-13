@@ -196,6 +196,7 @@ describe("compileHook install-topology reproducibility", () => {
       {
         cwd: checkoutDir,
         encoding: "utf-8",
+        timeout: 45000,
       },
     );
     if (result.status !== 0) {

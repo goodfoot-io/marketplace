@@ -60,6 +60,39 @@ test('configuration provides the package context keys from its environment switc
   expect(verbose.test?.silent).toBe(false);
 });
 
+test('inline projects retain inheritance and install each policy plugin once', { timeout: 20000 }, async () => {
+  const root = mkdtempSync(fileURLToPath(new URL('../.inline-projects-', import.meta.url)));
+  cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+  symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), path.join(root, 'node_modules'), 'dir');
+  writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'inline-project-fixture', type: 'module' }));
+  writeFileSync(
+    path.join(root, 'vitest.config.ts'),
+    `import { withTestOutput } from '@goodfoot/vitest-cache/policy';
+export default withTestOutput({
+  plugins: [{ name: 'original-root-plugin' }],
+  test: { projects: [
+    { plugins: [{ name: 'original-inline-plugin' }], test: { name: 'inherited' } },
+    { extends: false, test: { name: 'independent' } },
+    Promise.resolve({ test: { name: 'promised' } })
+  ] }
+}, { uncached: 'inline project policy regression' });\n`
+  );
+  const ctx = await createVitest('test', { root, config: path.join(root, 'vitest.config.ts'), watch: false });
+  cleanups.push(() => ctx.close());
+  expect(ctx.projects.map((project) => project.name).sort()).toEqual(['independent', 'inherited', 'promised']);
+  for (const project of ctx.projects) {
+    const plugins = project.vite.config.plugins.map((plugin) => plugin.name);
+    for (const policy of ['goodfoot-test-output', 'goodfoot-worker-teardown']) {
+      expect(
+        plugins.filter((name) => name === policy),
+        project.name
+      ).toHaveLength(1);
+    }
+    expect(plugins.includes('original-root-plugin'), project.name).toBe(project.name !== 'independent');
+    expect(plugins.includes('original-inline-plugin'), project.name).toBe(project.name === 'inherited');
+  }
+});
+
 test('real Vitest metadata, native frames and capture reconcile using package identifiers', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'vitest-cache-identity-'));
   cleanups.push(() => rmSync(root, { recursive: true, force: true }));

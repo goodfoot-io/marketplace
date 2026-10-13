@@ -53,22 +53,12 @@ function ToolCallView({ tool }: { tool: ToolCall }): React.JSX.Element {
         ? tool.error
         : null;
   return (
-    <article
-      className="tool-call"
-      tabIndex={0}
-      onClick={toggle}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          toggle();
-        }
-      }}
-    >
-      <div className="tool-row">
+    <article className="tool-call">
+      <button type="button" className="tool-row" aria-expanded={expanded} onClick={toggle}>
         <span className="toggle">{expanded ? "▾" : "▸"}</span>
         <span>Tool: {tool.toolName}(...)</span>
         <span className={`badge ${tool.status}`}>{tool.status}</span>
-      </div>
+      </button>
       {expanded ? (
         <div className="tool-call-body">
           <div className="section-label">ARGUMENTS</div>
@@ -99,7 +89,7 @@ export function TranscriptContent(): React.JSX.Element {
 
   const readyToStart = (
     <div className="empty-state">
-      <svg className="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <svg aria-hidden="true" className="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M12 2v20M5 8v8M19 8v8" />
       </svg>
       <div>Ready to start</div>
@@ -119,9 +109,7 @@ export function TranscriptContent(): React.JSX.Element {
   }
 
   const snapshot: ConversationSnapshot = conversation;
-  const byTranscript = new Map<string, TranscriptItemType>(
-    snapshot.transcript.map((item) => [item.id, item]),
-  );
+  const byTranscript = new Map<string, TranscriptItemType>(snapshot.transcript.map((item) => [item.id, item]));
   const byTool = new Map<string, ToolCall>(snapshot.toolCalls.map((t) => [t.id, t]));
 
   const nodes: React.JSX.Element[] = [];
@@ -173,11 +161,7 @@ export function TranscriptContent(): React.JSX.Element {
   // ordering by arrival would otherwise render the assistant's reply ABOVE the
   // user's own utterance. The placeholder anchors the user turn in its correct
   // chronological slot.
-  if (
-    pendingUserItemId !== null &&
-    !pendingHasNode &&
-    !byTranscript.has(pendingUserItemId)
-  ) {
+  if (pendingUserItemId !== null && !pendingHasNode && !byTranscript.has(pendingUserItemId)) {
     nodes.push(
       <TranscriptItemView
         key={`pending-${pendingUserItemId}`}

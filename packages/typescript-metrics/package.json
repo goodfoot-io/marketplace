@@ -20,13 +20,15 @@
   },
   "dependencies": {
     "@manypkg/get-packages": "^2.2.2",
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.28.2",
     "glob": "^11.0.0",
     "typescript": "^5.9.3"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.11",
+    "@goodfoot/vitest-cache": "workspace:*",
     "@types/node": "^24",
-    "vitest": "^4.0.16"
+    "vite": "8.3.4",
+    "vitest": "patch:vitest@npm%3A5.0.4#~/.yarn/patches/vitest-npm-5.0.4-2ab4bceca5.patch"
   }
 }

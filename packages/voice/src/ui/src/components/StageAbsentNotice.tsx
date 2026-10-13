@@ -12,21 +12,17 @@ import { dispatch } from "../store/index.js";
  */
 export function StageAbsentNotice({ path }: { path: string }): React.JSX.Element {
   return (
-    <div className="stage-absent" role="status" aria-live="polite">
+    <output className="stage-absent" aria-live="polite">
       <div className="stage-absent-card">
         <p className="stage-absent-message">HTML file no longer present</p>
         <pre className="stage-absent-path">{path}</pre>
         <p className="stage-absent-hint">
           Waiting for the file to reappear — it will render again automatically if re-written.
         </p>
-        <button
-          type="button"
-          className="stage-absent-clear"
-          onClick={() => dispatch({ type: "ui/click/clear-html" })}
-        >
+        <button type="button" className="stage-absent-clear" onClick={() => dispatch({ type: "ui/click/clear-html" })}>
           Clear HTML
         </button>
       </div>
-    </div>
+    </output>
   );
 }

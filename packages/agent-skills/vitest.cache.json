@@ -1,0 +1,24 @@
+{
+  "files": {
+    "packages/agent-skills/tests/contracts.test.ts": [],
+    "packages/agent-skills/tests/cli.test.ts": [],
+    "packages/agent-skills/tests/evaluator-regressions.test.ts": [],
+    "packages/agent-skills/e2e/cli.e2e.test.ts": []
+  },
+  "roots": {
+    "files": {
+      "packages/agent-skills/e2e/cli.e2e.test.ts": ["packages/agent-skills/src/cli.ts"]
+    }
+  },
+  "toolchain": {
+    "files": {
+      "packages/agent-skills/e2e/cli.e2e.test.ts": ["tsx"]
+    }
+  },
+  "executables": {
+    "files": {
+      "packages/agent-skills/e2e/cli.e2e.test.ts": ["node"],
+      "packages/agent-skills/tests/evaluator-regressions.test.ts": ["node"]
+    }
+  }
+}

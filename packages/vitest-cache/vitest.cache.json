@@ -1,0 +1,18 @@
+{
+  "files": {
+    "packages/vitest-cache/test/contract-all-field-reaches-key.test.ts": [],
+    "packages/vitest-cache/test/contract-host-import-aliases.test.ts": [],
+    "packages/vitest-cache/test/digest-store.test.ts": [],
+    "packages/vitest-cache/test/fallback-inputs.test.ts": [],
+    "packages/vitest-cache/test/host-graph-contract-data-loaders.test.ts": [],
+    "packages/vitest-cache/test/host-graph-import-aliases.test.ts": [],
+    "packages/vitest-cache/test/host-graph-type-exports.test.ts": [],
+    "packages/vitest-cache/test/ignored-install-input.test.ts": [],
+    "packages/vitest-cache/test/key-change.test.ts": [],
+    "packages/vitest-cache/test/nonimport-source-read.test.ts": [],
+    "packages/vitest-cache/test/package-toolchain-resolution.test.ts": [],
+    "packages/vitest-cache/test/sequence.test.ts": [],
+    "packages/vitest-cache/test/workspace-peer-contexts.test.ts": [],
+    "packages/vitest-cache/test/worktree-path.test.ts": []
+  }
+}

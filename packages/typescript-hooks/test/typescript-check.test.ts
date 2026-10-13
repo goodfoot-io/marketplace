@@ -5,14 +5,23 @@
  * Full integration tests require a real TypeScript project.
  */
 
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { Logger, type PostToolUseInput } from "@goodfoot/agent-hooks/claude-code";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import hook from "../src/typescript-check.js";
 
 // Logger is silent by default (no stdout/stderr output)
 const logger = new Logger();
 
 describe("TypeScript/ESLint Validation Hook", () => {
+  let fixture: string;
+  beforeEach(() => {
+    fixture = fs.mkdtempSync(path.join(os.tmpdir(), "typescript-hooks-claude-test-"));
+  });
+  afterEach(() => fs.rmSync(fixture, { recursive: true, force: true }));
+
   it("exports a valid hook function", () => {
     expect(hook).toBeDefined();
     expect(typeof hook).toBe("function");
@@ -34,13 +43,16 @@ describe("TypeScript/ESLint Validation Hook", () => {
     it("skips non-TypeScript files", async () => {
       const mockInput: PostToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: path.join(fixture, "transcript.jsonl"),
+        cwd: fixture,
         hook_event_name: "PostToolUse",
         tool_name: "Write",
         tool_input: {
-          file_path: "/test/file.js",
+          file_path: path.join(fixture, "file.js"),
           content: 'const foo = "bar";',
         },
-        tool_result: "File written successfully",
+        tool_response: "File written successfully",
       };
 
       const result = await hook(mockInput, { logger });
@@ -51,13 +63,16 @@ describe("TypeScript/ESLint Validation Hook", () => {
     it("skips markdown files", async () => {
       const mockInput: PostToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: path.join(fixture, "transcript.jsonl"),
+        cwd: fixture,
         hook_event_name: "PostToolUse",
         tool_name: "Write",
         tool_input: {
-          file_path: "/test/file.md",
+          file_path: path.join(fixture, "file.md"),
           content: "# Hello",
         },
-        tool_result: "File written successfully",
+        tool_response: "File written successfully",
       };
 
       const result = await hook(mockInput, { logger });
@@ -68,13 +83,16 @@ describe("TypeScript/ESLint Validation Hook", () => {
     it("skips JSON files", async () => {
       const mockInput: PostToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: path.join(fixture, "transcript.jsonl"),
+        cwd: fixture,
         hook_event_name: "PostToolUse",
         tool_name: "Write",
         tool_input: {
-          file_path: "/test/file.json",
+          file_path: path.join(fixture, "file.json"),
           content: "{}",
         },
-        tool_result: "File written successfully",
+        tool_response: "File written successfully",
       };
 
       const result = await hook(mockInput, { logger });
@@ -87,12 +105,15 @@ describe("TypeScript/ESLint Validation Hook", () => {
     it("handles missing file path gracefully", async () => {
       const mockInput: PostToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: path.join(fixture, "transcript.jsonl"),
+        cwd: fixture,
         hook_event_name: "PostToolUse",
         tool_name: "Write",
         tool_input: {
           content: 'const foo = "bar";',
         },
-        tool_result: "File written successfully",
+        tool_response: "File written successfully",
       };
 
       const result = await hook(mockInput, { logger });
@@ -103,13 +124,16 @@ describe("TypeScript/ESLint Validation Hook", () => {
     it("handles non-existent files gracefully", async () => {
       const mockInput: PostToolUseInput = {
         session_id: "test",
+        tool_use_id: "call",
+        transcript_path: path.join(fixture, "transcript.jsonl"),
+        cwd: fixture,
         hook_event_name: "PostToolUse",
         tool_name: "Write",
         tool_input: {
-          file_path: "/non/existent/path/file.ts",
+          file_path: path.join(fixture, "missing", "file.ts"),
           content: 'const foo = "bar";',
         },
-        tool_result: "File written successfully",
+        tool_response: "File written successfully",
       };
 
       const result = await hook(mockInput, { logger });
@@ -125,13 +149,16 @@ describe("TypeScript/ESLint Validation Hook", () => {
       it(`recognizes ${ext} as TypeScript`, async () => {
         const mockInput: PostToolUseInput = {
           session_id: "test",
+          tool_use_id: "call",
+          transcript_path: path.join(fixture, "transcript.jsonl"),
+          cwd: fixture,
           hook_event_name: "PostToolUse",
           tool_name: "Write",
           tool_input: {
-            file_path: `/test/file${ext}`,
+            file_path: path.join(fixture, `file${ext}`),
             content: 'const foo = "bar";',
           },
-          tool_result: "File written successfully",
+          tool_response: "File written successfully",
         };
 
         // The hook should attempt to process this file

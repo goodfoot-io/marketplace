@@ -12,22 +12,18 @@
  * import specifier entirely).
  */
 
-import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { runTsxCli } from "../claude-code/test-utils.js";
+import { preparePackageSnapshot, prepareYarnProject, runTsxCli, runYarnProject } from "../claude-code/test-utils.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_PATH = path.join(__dirname, "..", "..", "src", "cli.ts");
 const PACKAGE_ROOT = path.join(__dirname, "..", "..");
 
-// See e2e/claude-code/scaffold.e2e.test.ts for why this lives under the
-// home directory rather than os.tmpdir(): npm installs here pull down
-// typescript/vitest/biome per run, which can exceed a small tmpfs overlay.
-const SCAFFOLD_TEST_OUTPUT = path.join(os.homedir(), ".agent-hooks-codex-scaffold-e2e");
+const SCAFFOLD_TEST_OUTPUT = fs.mkdtempSync(path.join(os.tmpdir(), "agent-hooks-codex-scaffold-e2e-"));
 
 function runScaffoldCli(args: string[]): { exitCode: number; stdout: string; stderr: string } {
   const result = runTsxCli(CLI_PATH, args, { cwd: path.dirname(CLI_PATH) });
@@ -38,8 +34,9 @@ function useLocalPackage(testDir: string): void {
   const packageJsonPath = path.join(testDir, "package.json");
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8")) as Record<string, unknown>;
   const deps = packageJson.dependencies as Record<string, string>;
-  deps["@goodfoot/agent-hooks"] = `file:${PACKAGE_ROOT}`;
+  deps["@goodfoot/agent-hooks"] = `file:${preparePackageSnapshot(PACKAGE_ROOT, SCAFFOLD_TEST_OUTPUT)}`;
   fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+  prepareYarnProject(testDir);
 }
 
 function cleanScaffoldTestOutput(): void {
@@ -87,50 +84,22 @@ describe("E2E: codex scaffold command", () => {
 
     useLocalPackage(testDir);
 
-    const installResult = spawnSync("npm install", {
-      cwd: testDir,
-      encoding: "utf-8",
-      stdio: "pipe",
-      timeout: 120000,
-      shell: true,
-    });
-    expect(installResult.status).toBe(0);
+    const installResult = runYarnProject(testDir, ["install"], 90000);
+    expect(installResult.status, `${installResult.stdout}\n${installResult.stderr}`).toBe(0);
+    expect(installResult.stdout).not.toMatch(/YN0002|YN0060|YN0086/);
+    expect(installResult.stderr).toBe("");
 
-    const buildResult = spawnSync("npm run build", {
-      cwd: testDir,
-      encoding: "utf-8",
-      stdio: "pipe",
-      timeout: 60000,
-      shell: true,
-    });
-    expect(buildResult.status).toBe(0);
+    const buildResult = runYarnProject(testDir, ["run", "build"], 20000);
+    expect(buildResult.status, `${buildResult.stdout}\n${buildResult.stderr}`).toBe(0);
     expect(fs.existsSync(path.join(testDir, "dist", "hooks.json"))).toBe(true);
 
-    const typecheckResult = spawnSync("npm run typecheck", {
-      cwd: testDir,
-      encoding: "utf-8",
-      stdio: "pipe",
-      timeout: 60000,
-      shell: true,
-    });
-    expect(typecheckResult.status).toBe(0);
+    const typecheckResult = runYarnProject(testDir, ["run", "typecheck"], 20000);
+    expect(typecheckResult.status, `${typecheckResult.stdout}\n${typecheckResult.stderr}`).toBe(0);
 
-    const lintResult = spawnSync("npm run lint", {
-      cwd: testDir,
-      encoding: "utf-8",
-      stdio: "pipe",
-      timeout: 60000,
-      shell: true,
-    });
-    expect(lintResult.status).toBe(0);
+    const lintResult = runYarnProject(testDir, ["run", "lint"], 20000);
+    expect(lintResult.status, `${lintResult.stdout}\n${lintResult.stderr}`).toBe(0);
 
-    const testResult = spawnSync("npm test", {
-      cwd: testDir,
-      encoding: "utf-8",
-      stdio: "pipe",
-      timeout: 60000,
-      shell: true,
-    });
-    expect(testResult.status).toBe(0);
+    const testResult = runYarnProject(testDir, ["run", "test"], 20000);
+    expect(testResult.status, `${testResult.stdout}\n${testResult.stderr}`).toBe(0);
   }, 240000);
 });

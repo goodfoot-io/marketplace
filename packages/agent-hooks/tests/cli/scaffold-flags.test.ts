@@ -31,6 +31,7 @@ function runCli(args: string[], cwd?: string): SpawnSyncReturns<string> {
   return spawnSync(process.execPath, [tsxCliPath, CLI_PATH, ...args], {
     encoding: "utf-8",
     stdio: "pipe",
+    timeout: 45000,
     ...(cwd === undefined ? {} : { cwd }),
   });
 }

@@ -32,19 +32,14 @@ export function InstructionsModal(): React.JSX.Element | null {
   }
 
   return (
-    <div
-      className="modal-backdrop"
-      onClick={() => dispatch({ type: "ui/click/modal-backdrop" })}
-    >
-      <div
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Instructions"
-        tabIndex={-1}
-        ref={dialogRef}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="modal-backdrop">
+      <button
+        type="button"
+        className="modal-dismiss"
+        aria-label="Close instructions"
+        onClick={() => dispatch({ type: "ui/click/modal-backdrop" })}
+      />
+      <div className="modal" role="dialog" aria-modal="true" aria-label="Instructions" tabIndex={-1} ref={dialogRef}>
         <div className="modal-body instructions-body">
           {instructions === undefined ? (
             <p className="loading-state">Loading instructions…</p>

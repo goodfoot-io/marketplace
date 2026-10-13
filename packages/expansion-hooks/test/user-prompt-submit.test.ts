@@ -2,6 +2,7 @@
  * Tests for the UserPromptSubmit hook that injects expansion context into prompts.
  */
 
+import { randomUUID } from "node:crypto";
 import { existsSync, rmSync, writeFileSync } from "node:fs";
 import {
   Logger,
@@ -21,6 +22,8 @@ vi.mock("../src/expansion-store.js", () => ({
 
 import { readStore } from "../src/expansion-store.js";
 
+let testSessionId: string;
+
 const logger = new Logger();
 
 const mockContext = {
@@ -37,7 +40,7 @@ function createMockInput(prompt = "test prompt"): UserPromptSubmitInput {
   return {
     hook_event_name: "UserPromptSubmit",
     prompt,
-    session_id: "test-session-123",
+    session_id: testSessionId,
     transcript_path: "/tmp/test-transcript.jsonl",
     cwd: "/workspace",
   };
@@ -51,18 +54,13 @@ function cleanupSeenFile(sessionId: string): void {
 }
 
 describe("UserPromptSubmit Hook", () => {
-  const testSessionId = "test-session-123";
-  const altSessionId = "alt-session-456";
-
   beforeEach(() => {
     vi.clearAllMocks();
-    cleanupSeenFile(testSessionId);
-    cleanupSeenFile(altSessionId);
+    testSessionId = `expansion-hook-test-${randomUUID()}`;
   });
 
   afterEach(() => {
     cleanupSeenFile(testSessionId);
-    cleanupSeenFile(altSessionId);
   });
 
   it("exports a valid hook function", () => {
@@ -170,7 +168,11 @@ describe("getSeenFilePath", () => {
 });
 
 describe("loadSeen", () => {
-  const sessionId = "load-seen-test-session";
+  let sessionId: string;
+
+  beforeEach(() => {
+    sessionId = `load-seen-test-${randomUUID()}`;
+  });
 
   afterEach(() => cleanupSeenFile(sessionId));
 
@@ -193,7 +195,11 @@ describe("loadSeen", () => {
 });
 
 describe("saveSeen", () => {
-  const sessionId = "save-seen-test-session";
+  let sessionId: string;
+
+  beforeEach(() => {
+    sessionId = `save-seen-test-${randomUUID()}`;
+  });
 
   afterEach(() => cleanupSeenFile(sessionId));
 

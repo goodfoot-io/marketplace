@@ -76,7 +76,11 @@ function compilerOptions(project: string): ts.CompilerOptions {
 export async function inventory(configPath: string) {
   const absolute = fs.realpathSync(configPath);
   const project = path.dirname(absolute);
-  const root = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: project, encoding: 'utf8' }).trim();
+  const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: project,
+    encoding: 'utf8',
+    timeout: 2000
+  }).trim();
   const config: InventoryConfig = (await import(pathToFileURL(absolute).href)).default;
   const selected = new Set<string>();
   for (const entry of config.test?.projects ?? [config]) {
@@ -103,7 +107,16 @@ export async function inventory(configPath: string) {
   const stale = Object.keys(listed)
     .filter((file) => !selected.has(file))
     .sort();
-  return { root, project, config: absolute, fallback: inputs.fallback ?? [], tests, unlisted, stale, unmatchedInputs };
+  return {
+    root,
+    project,
+    config: absolute,
+    fallback: inputs.fallback ?? null,
+    tests,
+    unlisted,
+    stale,
+    unmatchedInputs
+  };
 }
 
 /**

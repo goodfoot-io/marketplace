@@ -56,19 +56,10 @@ export function SettingsPanel(): React.JSX.Element | null {
               <div className="setting-confirm">
                 <div className="setting-confirm-text">{item.confirmation.text}</div>
                 <div className="setting-confirm-actions">
-                  <button
-                    className="setting-confirm-btn danger"
-                    type="button"
-                    disabled={inFlight}
-                    onClick={invoke}
-                  >
+                  <button className="setting-confirm-btn danger" type="button" disabled={inFlight} onClick={invoke}>
                     {item.confirmation.confirmLabel ?? "Confirm"}
                   </button>
-                  <button
-                    className="setting-confirm-btn"
-                    type="button"
-                    onClick={() => setConfirmingId(null)}
-                  >
+                  <button className="setting-confirm-btn" type="button" onClick={() => setConfirmingId(null)}>
                     {item.confirmation.cancelLabel ?? "Cancel"}
                   </button>
                 </div>

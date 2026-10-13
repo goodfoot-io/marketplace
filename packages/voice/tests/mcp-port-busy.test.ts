@@ -1,11 +1,13 @@
 import { existsSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:net";
-import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * The voice server uses one fixed port shared across spawned instances. When
@@ -50,8 +52,21 @@ beforeAll(async () => {
   });
 });
 
+let resourceDir: string;
+beforeEach(async () => {
+  resourceDir = await mkdtemp(join(tmpdir(), "voice-mcp-test-"));
+  const settingsPath = join(resourceDir, "settings.json");
+  await writeFile(settingsPath, "{}\n", "utf8");
+  vi.stubEnv("VOICE_SERVER_SETTINGS_PATH", settingsPath);
+});
+
 afterEach(async () => {
-  await Promise.allSettled(cleanups.splice(0).map((fn) => fn()));
+  try {
+    await Promise.allSettled(cleanups.splice(0).map((fn) => fn()));
+  } finally {
+    vi.unstubAllEnvs();
+    await rm(resourceDir, { recursive: true, force: true });
+  }
 });
 
 runIfSourceExists("MCP server — port already in use", () => {
@@ -71,7 +86,7 @@ runIfSourceExists("MCP server — port already in use", () => {
         enabled: true,
         apiKey: "test-api-key",
         keySource: "env",
-        secretsPath: "/tmp/voice-port-busy-secrets.json",
+        secretsPath: join(resourceDir, "secrets.json"),
         port,
         logPath: undefined,
         watchTypes: [],
@@ -81,9 +96,17 @@ runIfSourceExists("MCP server — port already in use", () => {
     cleanups.push(() => server.stop());
 
     const client = new Client({ name: "test-client", version: "1.0.0" }, { capabilities: {} });
-    const startPromise = server.start();
-    await client.connect(clientTransport);
-    await startPromise;
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    try {
+      const startPromise = server.start();
+      await client.connect(clientTransport);
+      await startPromise;
+      expect(stderr).toHaveBeenCalledExactlyOnceWith(
+        `[voice-mcp] port ${port} already in use — another voice server is running; this instance is inactive.\n`,
+      );
+    } finally {
+      stderr.mockRestore();
+    }
 
     // No tools advertised: the inert server declares no `tools` capability, so
     // tools/list is not even a supported method.
@@ -105,7 +128,7 @@ runIfSourceExists("MCP server — port already in use", () => {
         enabled: true,
         apiKey: "test-api-key",
         keySource: "env",
-        secretsPath: "/tmp/voice-port-free-secrets.json",
+        secretsPath: join(resourceDir, "secrets.json"),
         port,
         logPath: undefined,
         watchTypes: [],
@@ -146,7 +169,7 @@ runIfSourceExists("MCP server — port already in use", () => {
         enabled: true,
         apiKey: "test-api-key",
         keySource: "env",
-        secretsPath: "/tmp/voice-port-race-secrets.json",
+        secretsPath: join(resourceDir, "secrets.json"),
         port,
         logPath: undefined,
         watchTypes: [],

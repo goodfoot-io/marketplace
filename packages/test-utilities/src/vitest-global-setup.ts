@@ -1,8 +1,16 @@
+import type { TestProject } from 'vitest/node';
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
+import exitHook from 'async-exit-hook';
 import EmbeddedPostgres from 'embedded-postgres';
+
+// Vitest awaits our teardown. The library's natural-exit hooks force code 0
+// or invoke async shutdown without its callback; preserve its signal handlers.
+for (const event of ['beforeExit', 'exit']) {
+  if (exitHook.hookedEvents().includes(event)) exitHook.unhookEvent(event);
+}
 
 async function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -26,7 +34,7 @@ async function getFreePort(): Promise<number> {
   });
 }
 
-export default async function setup() {
+export default async function setup(project: TestProject) {
   const port = await getFreePort();
   const databaseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vitest-pg-'));
   const pg = new EmbeddedPostgres({
@@ -35,6 +43,7 @@ export default async function setup() {
     user: 'postgres',
     password: 'postgres',
     persistent: false,
+    postgresFlags: ['-h', '127.0.0.1', '-k', databaseDir, '-c', 'statement_timeout=10000'],
     onLog: () => {}
   });
 
@@ -42,17 +51,18 @@ export default async function setup() {
     await pg.initialise();
     await pg.start();
   } catch (error) {
+    // Startup rejection follows child exit; stop() would wait for a second exit.
     fs.rmSync(databaseDir, { recursive: true, force: true });
     throw error;
   }
 
-  process.env.PGHOST = '127.0.0.1';
-  process.env.PGPORT = String(port);
-  process.env.PGUSER = 'postgres';
-  process.env.PGPASSWORD = 'postgres';
-  process.env.PGDATABASE = 'postgres';
+  project.provide('testPostgres', { port });
 
   return async () => {
-    await pg.stop();
+    try {
+      await pg.stop();
+    } finally {
+      fs.rmSync(databaseDir, { recursive: true, force: true });
+    }
   };
 }

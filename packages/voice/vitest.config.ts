@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { loadCacheContract, withTestOutput } from "@goodfoot/vitest-cache/policy";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 
@@ -21,10 +22,13 @@ function htmlAsText(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [htmlAsText()],
-  test: {
-    globals: false,
-    include: ["tests/**/*.test.ts"],
-  },
-});
+export default withTestOutput(
+  defineConfig({
+    plugins: [htmlAsText()],
+    test: {
+      globals: false,
+      include: ["tests/**/*.test.ts"],
+    },
+  }),
+  loadCacheContract(new URL("./vitest.cache.json", import.meta.url)),
+);

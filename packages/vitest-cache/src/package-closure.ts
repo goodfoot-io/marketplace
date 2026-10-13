@@ -198,6 +198,18 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
       const physicalLocations = new Map<string, string>();
       for (const directory of locations.keys()) {
         const physical = fs.realpathSync(directory);
+        // Workspace sources are local graph inputs, not installed package bytes.
+        // Multiple virtual peer contexts legitimately symlink the same source tree.
+        // Never choose one context by physical path; logical locations still retain
+        // their exact peer edges when explicitly reached by dependency resolution.
+        const locator = locations.get(directory);
+        if (
+          locator &&
+          canonicalLocator(locator).includes('@workspace:') &&
+          within(root, physical) &&
+          !path.relative(root, physical).split(path.sep).includes('node_modules')
+        )
+          continue;
         const prior = physicalLocations.get(physical);
         if (prior && locations.get(prior) !== locations.get(directory)) {
           throw new Error(`ambiguous shared Yarn package location: ${directory}`);
@@ -285,15 +297,16 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
    *
    * @param resolvedPaths - Resolved imported installed member paths.
    * @param toolchainSpecifiers - Additional installed runner/toolchain specifiers.
+   * @param toolchainRoot - Consuming project's directory for Node package resolution.
    * @returns Canonical complete closure digest after bounded per-directory yields; completed results are phase-reused.
    * @throws For invalid toolchain input, missing required dependency or invalid installation/content evidence.
    */
-  async function closure(resolvedPaths: string[], toolchainSpecifiers: string[] = ['vitest', 'vite']) {
+  async function closure(resolvedPaths: string[], toolchainSpecifiers: string[], toolchainRoot: string) {
     if (!Array.isArray(toolchainSpecifiers)) throw new Error('toolchainSpecifiers must be an array');
     const { locations } = state();
     const starts = new Set(packageRoots(resolvedPaths));
     for (const name of toolchainSpecifiers) {
-      const directory = resolveInstalledPackage(root, name, locations);
+      const directory = resolveInstalledPackage(toolchainRoot, name, locations);
       if (!directory) throw new Error(`missing test toolchain package: ${name}`);
       starts.add(directory);
     }
