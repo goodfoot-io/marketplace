@@ -143,8 +143,8 @@ function git(root: string, ...args: string[]) {
 }
 
 function repository(root: string) {
-  const top = fs.realpathSync(git(root, 'rev-parse', '--show-toplevel'));
-  const common = fs.realpathSync(path.resolve(root, git(root, 'rev-parse', '--git-common-dir')));
+  const top = fs.realpathSync.native(git(root, 'rev-parse', '--show-toplevel'));
+  const common = fs.realpathSync.native(path.resolve(root, git(root, 'rev-parse', '--git-common-dir')));
   return { top, common };
 }
 
@@ -152,7 +152,7 @@ function relativeInput(top: string, filename: string, allowRoot: boolean = false
   const absolute = path.isAbsolute(filename) ? filename : path.resolve(top, filename);
   // Vitest may retain a symlink spelling of the worktree root. Compare the
   // physical paths so aliases share identities and external targets fail closed.
-  const relative = path.relative(top, fs.realpathSync(absolute));
+  const relative = path.relative(top, fs.realpathSync.native(absolute));
   if (
     (!relative && !allowRoot) ||
     relative === '..' ||
@@ -514,7 +514,7 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
     ...(ctx.vite?.config?.configFileDependencies ?? []),
     ...(project.vite.config.configFileDependencies ?? [])
   ]) {
-    const real = fs.realpathSync(file);
+    const real = fs.realpathSync.native(file);
     if (real.split(path.sep).includes('node_modules')) externals.push(real);
     else hostRoots.push(real);
   }

@@ -342,7 +342,7 @@ function resolveBareSpecifier(importer: string, specifier: string): HostResoluti
   const { name, subpath } = packageNameAndSubpath(specifier);
   const packageDir = findPackageDirectory(importer, name);
   if (!packageDir) throw new Error(`unresolved host import ${specifier} from ${importer}`);
-  const real = fs.realpathSync(packageDir);
+  const real = fs.realpathSync.native(packageDir);
   if (real.split(path.sep).includes('node_modules')) return { type: 'external', path: real };
   const manifestPath = path.join(real, 'package.json');
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
@@ -395,7 +395,7 @@ function resolveHostImport(
 }
 
 function classify(root: string, absolute: string): Classified {
-  const real = fs.realpathSync(absolute);
+  const real = fs.realpathSync.native(absolute);
   if (real.split(path.sep).includes('node_modules')) return { external: true, real };
   const relative = path.relative(root, real);
   if (relative === '' || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
@@ -406,7 +406,7 @@ function classify(root: string, absolute: string): Classified {
 
 function withinRepo(root: string, absolute: string) {
   try {
-    const real = fs.realpathSync(absolute);
+    const real = fs.realpathSync.native(absolute);
     if (real.split(path.sep).includes('node_modules')) return false;
     const relative = path.relative(root, real);
     return relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
@@ -430,7 +430,7 @@ function aliasTable(root: string, importAliases: HostImportAlias[]) {
     const toAbsolute = path.isAbsolute(to) ? to : path.resolve(root, to);
     let importerReal: string;
     try {
-      importerReal = fs.realpathSync(importerAbsolute);
+      importerReal = fs.realpathSync.native(importerAbsolute);
     } catch {
       throw new Error(`hostImportAliases importer does not exist: ${importerAbsolute}`);
     }
@@ -463,7 +463,7 @@ export async function collectHostGraph(
     importAliases = []
   }: { dynamicImports?: Record<string, string[]>; importAliases?: HostImportAlias[] } = {}
 ) {
-  const root = fs.realpathSync(repositoryRoot);
+  const root = fs.realpathSync.native(repositoryRoot);
   const aliases = aliasTable(root, importAliases);
   const files = new Set<string>();
   const externalPaths = new Set<string>();
@@ -615,7 +615,7 @@ function tsconfigChain(configPath: string, cache: Map<string, string[]>, visitin
     if (typeof specifier !== 'string') continue;
     const target = resolveTsconfigExtends(configDir, specifier);
     if (!target) continue;
-    const real = fs.realpathSync(target);
+    const real = fs.realpathSync.native(target);
     if (real.split(path.sep).includes('node_modules')) continue;
     result.push(...tsconfigChain(real, cache, visiting));
   }
@@ -631,7 +631,7 @@ function tsconfigChain(configPath: string, cache: Map<string, string[]>, visitin
  */
 export function createResolutionCache(repositoryRoot: string): ResolutionCache {
   return {
-    root: fs.realpathSync(repositoryRoot),
+    root: fs.realpathSync.native(repositoryRoot),
     packageJsonCache: new Map(),
     tsconfigCache: new Map(),
     chainCache: new Map()

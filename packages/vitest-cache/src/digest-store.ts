@@ -102,7 +102,7 @@ function verifyTreeSnapshot(
     const relative = isTarget ? member.relative.slice(0, -7) : member.relative;
     let filename = path.join(directory, relative);
     try {
-      if (isTarget) filename = fs.realpathSync(filename);
+      if (isTarget) filename = fs.realpathSync.native(filename);
       const stat = fs.lstatSync(filename, { bigint: true, throwIfNoEntry: false });
       counters.filesStatted++;
       if (!stat || JSON.stringify(statEntry(member.relative, stat)) !== JSON.stringify(member)) return null;
@@ -163,7 +163,7 @@ function walkTree(
       }
       walkTree(absolute, member, options);
     } else if (stat.isSymbolicLink()) {
-      const target = fs.realpathSync(absolute);
+      const target = fs.realpathSync.native(absolute);
       const targetStat = fs.lstatSync(target, { bigint: true });
       counters.filesStatted++;
       members.push(statEntry(`${member}\u0000target`, targetStat));
@@ -311,7 +311,7 @@ export class DigestStore {
     let finalPath = key;
     let finalStat = lstat;
     if (lstat.isSymbolicLink()) {
-      finalPath = fs.realpathSync(key);
+      finalPath = fs.realpathSync.native(key);
       finalStat = fs.lstatSync(finalPath, { bigint: true });
       this.stats.filesStatted++;
       members.push(statEntry('.\u0000target', finalStat));
@@ -348,7 +348,7 @@ export class DigestStore {
    * @throws For unsupported members, unsafe persistent folder or filesystem failure; invalid/unsafe individual records are cache misses.
    */
   treeDigest(directoryPath: string, { skip }: { skip?: Skip } = {}) {
-    const directory = fs.realpathSync(directoryPath);
+    const directory = fs.realpathSync.native(directoryPath);
     const memoized = this.treeMemo.get(directory);
     if (memoized !== undefined) return memoized;
     const id = recordId('tree', directory);

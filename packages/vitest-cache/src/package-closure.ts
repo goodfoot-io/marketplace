@@ -139,7 +139,7 @@ function packageRoot(
   locations: Map<string, string>,
   physicalLocations: Map<string, string>
 ): string {
-  const absolute = fs.realpathSync(filename);
+  const absolute = fs.realpathSync.native(filename);
   let directory = fs.statSync(absolute).isDirectory() ? absolute : path.dirname(absolute);
   while (directory !== path.dirname(directory)) {
     if (locations.has(directory)) return directory;
@@ -155,7 +155,7 @@ function packageRoot(
   for (let index = 0; index < parts.length; index++) {
     if (parts[index] !== 'node_modules') continue;
     const candidate = path.join(root, ...parts.slice(index));
-    if (!fs.existsSync(candidate) || fs.realpathSync(candidate) !== absolute) continue;
+    if (!fs.existsSync(candidate) || fs.realpathSync.native(candidate) !== absolute) continue;
     let parent = fs.statSync(candidate).isDirectory() ? candidate : path.dirname(candidate);
     while (within(root, parent)) {
       if (locations.has(parent)) return parent;
@@ -186,7 +186,7 @@ function resolveInstalledPackage(from: string, name: string, locations: Map<stri
  */
 export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
   if (!store) throw new Error('createPackagePhase requires a digest store');
-  const root = fs.realpathSync(repositoryRoot);
+  const root = fs.realpathSync.native(repositoryRoot);
   let installation: Installation | undefined;
   const nodes = new Map<string, PackageNode>();
   const roots = new Map<string, string>();
@@ -197,7 +197,7 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
       const locations = installedState(root);
       const physicalLocations = new Map<string, string>();
       for (const directory of locations.keys()) {
-        const physical = fs.realpathSync(directory);
+        const physical = fs.realpathSync.native(directory);
         // Workspace sources are local graph inputs, not installed package bytes.
         // Multiple virtual peer contexts legitimately symlink the same source tree.
         // Never choose one context by physical path; logical locations still retain

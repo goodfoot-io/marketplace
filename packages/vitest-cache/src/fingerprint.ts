@@ -49,7 +49,7 @@ function expandPhysicalDirectory(
       results.add(childPrefix);
       let real: string;
       try {
-        real = fs.realpathSync(childPhysical);
+        real = fs.realpathSync.native(childPhysical);
       } catch (error: unknown) {
         const code: string | undefined = errnoCode(error);
         if (code === 'ENOENT' || code === 'ENOTDIR') continue; // dangling symlink: recorded as its own entry only
@@ -85,12 +85,12 @@ function expandGlob(root: string, declaration: string) {
     const lstat = fs.lstatSync(absolute, { throwIfNoEntry: false });
     if (!lstat) continue; // race: glob matched, entry gone since
     if (lstat.isDirectory()) {
-      expandPhysicalDirectory(absolute, relative, results, new Set([fs.realpathSync(absolute)]));
+      expandPhysicalDirectory(absolute, relative, results, new Set([fs.realpathSync.native(absolute)]));
     } else if (lstat.isSymbolicLink()) {
       results.add(relative);
       let real: string;
       try {
-        real = fs.realpathSync(absolute);
+        real = fs.realpathSync.native(absolute);
       } catch (error: unknown) {
         const code: string | undefined = errnoCode(error);
         if (code === 'ENOENT' || code === 'ENOTDIR') continue;
@@ -159,7 +159,7 @@ export class FingerprintPhase {
    */
   constructor(repositoryRoot: string, { store }: { store: DigestStore }) {
     if (!store) throw new Error('FingerprintPhase requires a digest store');
-    this.root = fs.realpathSync(repositoryRoot);
+    this.root = fs.realpathSync.native(repositoryRoot);
     this.store = store;
   }
 
@@ -219,7 +219,7 @@ export class FingerprintPhase {
       const link = fs.readlinkSync(absolute);
       let real: string;
       try {
-        real = fs.realpathSync(absolute);
+        real = fs.realpathSync.native(absolute);
       } catch (error: unknown) {
         const code: string | undefined = errnoCode(error);
         if (code === 'ENOENT' || code === 'ENOTDIR') return `link\0${link}\0missing`;
@@ -280,8 +280,8 @@ export class FingerprintPhase {
     const file = resolveExecutable(name);
     if (!file) throw new Error(`missing test executable: ${name}`);
     const parts = [name, this.store.fileDigest(file)];
-    if (['cargo', 'rustc', 'rustfmt'].includes(name) && path.basename(fs.realpathSync(file)) === 'rustup') {
-      const selected = execFileSync(fs.realpathSync(file), ['which', name], { encoding: 'utf8' }).trim();
+    if (['cargo', 'rustc', 'rustfmt'].includes(name) && path.basename(fs.realpathSync.native(file)) === 'rustup') {
+      const selected = execFileSync(fs.realpathSync.native(file), ['which', name], { encoding: 'utf8' }).trim();
       parts.push(this.store.fileDigest(selected));
     }
     const value = digest(parts.join('\0'));

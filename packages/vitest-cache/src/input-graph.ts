@@ -61,7 +61,7 @@ export function createWalkCache(): WalkCache {
 function classifyLocalFile(root: string, pathname: string, cache: Map<string, LocalClassification>) {
   let result = cache.get(pathname);
   if (result) return result;
-  const file = fs.realpathSync(pathname);
+  const file = fs.realpathSync.native(pathname);
   if (file.split(path.sep).includes('node_modules')) {
     result = { external: file, relative: null, outside: false };
   } else {
@@ -188,7 +188,7 @@ export async function collectInputGraph(
     cache?: WalkCache;
   } = {}
 ): Promise<InputGraph> {
-  const root = fs.realpathSync(repositoryRoot);
+  const root = fs.realpathSync.native(repositoryRoot);
   const opaqueImports = new Set<string>();
   for (const relative of options.opaqueImports ?? []) {
     if (path.isAbsolute(relative) || relative.split(/[\\/]/).includes('..')) {
