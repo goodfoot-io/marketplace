@@ -1,0 +1,46 @@
+{
+  "name": "@goodfoot/vitest-cache",
+  "description": "Content-hash result caching for this repository's Vitest suites",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./plan": "./src/plan.ts",
+    "./policy": {
+      "types": "./src/test-output-policy.d.mts",
+      "default": "./src/test-output-policy.mjs"
+    },
+    "./native": {
+      "types": "./src/test-output-native.d.mts",
+      "default": "./src/test-output-native.mjs"
+    },
+    "./verbose": {
+      "types": "./src/test-verbose.d.mts",
+      "default": "./src/test-verbose.mjs"
+    }
+  },
+  "bin": {
+    "goodfoot-vitest": "./src/vitest-entry.mjs"
+  },
+  "scripts": {
+    "lint": "biome check --error-on-warnings ./src ./test ./scripts ./vitest.config.ts && jsdoczoom -l '{src,test,scripts}/**/*.{ts,tsx}'",
+    "lint:fix": "biome check --write --unsafe ./src ./test ./scripts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.implementation.json",
+    "build": "tsc -p tsconfig.build.json",
+    "release": "bash ../../scripts/release-package.sh vitest-cache",
+    "release:dry-run": "bash ../../scripts/release-package.sh vitest-cache --dry-run"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/estree": "1.0.9",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^26.6.5",
+    "@typescript/typescript6": "^6.0.2",
+    "esbuild": "^0.28.2",
+    "jsdoczoom": "2.0.0",
+    "typescript": "^7.0.2",
+    "vite": "8.3.4",
+    "vitest": "patch:vitest@npm%3A5.0.4#~/.yarn/patches/vitest-npm-5.0.4-2ab4bceca5.patch"
+  }
+}

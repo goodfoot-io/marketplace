@@ -1,0 +1,19 @@
+diff --git a/dist/config.d.ts b/dist/config.d.ts
+index 19dc276c818aef5cf84391ba1f3a242d67b74e07..7a244fa546bcfd358d39e92e7a7fa45629d461a8 100644
+--- a/dist/config.d.ts
++++ b/dist/config.d.ts
+@@ -1,4 +1,4 @@
+-import { HookHandler, UserConfig, ConfigEnv } from 'vite';
++import { Rolldown, UserConfig, ConfigEnv } from 'vite';
+ export { ConfigEnv, Plugin, UserConfig as ViteUserConfig, mergeConfig } from 'vite';
+ import { F as FieldsWithDefaultValues, U as UserWorkspaceConfig, a as UserProjectConfigFn, b as UserProjectConfigExport } from './chunks/plugin.d.C8mmycim.js';
+ import { InlineConfig, ResolvedConfig, VitestPluginContext, CoverageOptions } from './node.js';
+@@ -38,7 +38,7 @@ declare module "vite" {
+ 		test: VitestResolvedConfig;
+ 	}
+ 	interface Plugin<A = any> {
+-		configureVitest?: HookHandler<(context: VitestPluginContext) => void>;
++		configureVitest?: Rolldown.ObjectHook<(context: VitestPluginContext) => void>;
+ 	}
+ }
+ 
