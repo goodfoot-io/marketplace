@@ -3,12 +3,15 @@
  *
  * @summary Verify digest store cache behavior with isolated temporary fixtures.
  */
+
+import { execFileSync } from 'node:child_process';
 import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync
@@ -127,7 +130,7 @@ test('a record written in the v1 schema is rejected and rehashed', () => {
     const [recordName] = readdirSync(folder);
     const recordPath = path.join(folder, recordName);
     const v1Record = JSON.parse(readFileSync(recordPath, 'utf8'));
-    expect(v1Record.schema).toBe(2);
+    expect(v1Record.schema).toBe(3);
     writeFileSync(recordPath, JSON.stringify({ ...v1Record, schema: 1 }));
 
     const second = new DigestStore(folder);
@@ -137,7 +140,7 @@ test('a record written in the v1 schema is rejected and rehashed', () => {
     expect(second.stats.reused).toBe(0);
 
     const rewritten = JSON.parse(readFileSync(recordPath, 'utf8'));
-    expect(rewritten.schema).toBe(2);
+    expect(rewritten.schema).toBe(3);
   } finally {
     rmSync(folder, { force: true, recursive: true });
   }
@@ -180,7 +183,7 @@ test('a cold tree hashes bytes and inventories members in one traversal', () => 
   const store = new DigestStore(folder);
   const value = store.treeDigest(tree);
   // Four member/target stats plus the root stat retained for later phases.
-  expect(store.stats).toEqual({ computed: 1, reused: 0, bytesRead: 10, filesStatted: 5 });
+  expect(store.stats).toEqual({ computed: 1, reused: 0, bytesRead: 10, filesStatted: 5, directoriesRead: 2 });
   expect(store.treeSnapshots.get(tree)?.members.map((member) => member.relative)).toEqual([
     'bin',
     'bin/tool',
@@ -195,4 +198,118 @@ test('a cold tree hashes bytes and inventories members in one traversal', () => 
   expect(next.treeDigest(tree)).toBe(value);
   expect(next.stats.computed).toBe(1);
   expect(next.stats.bytesRead).toBe(10);
+});
+
+test('fresh processes reuse persistent inventories and freshly detect tree mutations', () => {
+  const tree = path.join(root, 'package');
+  const folder = path.join(root, 'records');
+  const external = path.join(root, 'external');
+  mkdirSync(tree);
+  mkdirSync(path.join(tree, 'nested'));
+  mkdirSync(external);
+  writeFileSync(path.join(tree, 'nested', 'file'), 'initial');
+  writeFileSync(path.join(external, 'linked'), 'target');
+  symlinkSync(external, path.join(tree, 'link'));
+  sleepPastRacyWindow();
+  const source = new URL('../src/digest-store.ts', import.meta.url).href;
+  function observe() {
+    const output = execFileSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `
+      import { DigestStore } from ${JSON.stringify(source)};
+      const store = new DigestStore(process.argv[1]);
+      const value = store.treeDigest(process.argv[2]);
+      console.log(JSON.stringify({value, ...store.stats}));
+    `,
+        folder,
+        tree
+      ],
+      { encoding: 'utf8' }
+    );
+    const observation: unknown = JSON.parse(output);
+    return observation;
+  }
+  const cold = observe();
+  expect(cold).toMatchObject({ computed: 1, directoriesRead: 3 });
+  const warm = observe();
+  expect(warm).toMatchObject({ computed: 0, reused: 1, bytesRead: 0, directoriesRead: 0 });
+  const mutations = [
+    () => writeFileSync(path.join(tree, 'added'), 'root addition'),
+    () => writeFileSync(path.join(tree, 'nested', 'added'), 'nested addition'),
+    () => rmSync(path.join(tree, 'nested', 'added')),
+    () => rmSync(path.join(tree, 'added')),
+    () => chmodSync(path.join(tree, 'nested'), 0o700),
+    () => writeFileSync(path.join(tree, 'nested', 'file'), 'changed'),
+    () => chmodSync(path.join(tree, 'nested', 'file'), 0o755),
+    () => writeFileSync(path.join(external, 'added'), 'linked addition'),
+    () => writeFileSync(path.join(external, 'linked'), 'new target'),
+    () => {
+      rmSync(path.join(tree, 'link'));
+      symlinkSync(path.join(tree, 'nested'), path.join(tree, 'link'));
+    },
+    () => {
+      rmSync(path.join(tree, 'nested', 'file'));
+      writeFileSync(path.join(tree, 'nested', 'file'), 'replacement');
+    },
+    () => {
+      renameSync(tree, path.join(root, 'old-package'));
+      mkdirSync(tree);
+      writeFileSync(path.join(tree, 'replacement'), 'root replacement');
+    }
+  ];
+  for (const mutate of mutations) {
+    mutate();
+    sleepPastRacyWindow();
+    expect(observe()).toMatchObject({ computed: 1, value: new DigestStore(null).treeDigest(tree) });
+    expect(observe()).toMatchObject({ computed: 0, directoriesRead: 0 });
+  }
+}, 60_000);
+
+test('malformed inventory fields safely miss and filtered inventories do not persist', () => {
+  const tree = path.join(root, 'package');
+  const folder = path.join(root, 'records');
+  mkdirSync(tree);
+  writeFileSync(path.join(tree, 'included'), 'included');
+  writeFileSync(path.join(tree, 'excluded'), 'excluded');
+  sleepPastRacyWindow();
+  const before = new DigestStore(folder).treeDigest(tree);
+  const [filename] = readdirSync(folder);
+  const recordPath = path.join(folder, filename);
+  const original = readFileSync(recordPath, 'utf8');
+  for (const relative of ['../escape', '/outside', 'nested/../../escape', 'bad\\name', 'bad\0field']) {
+    const record = JSON.parse(original);
+    record.inventory.members[0].relative = relative;
+    writeFileSync(recordPath, JSON.stringify(record));
+    const store = new DigestStore(folder);
+    expect(store.treeDigest(tree)).toBe(before);
+    expect(store.stats.computed).toBe(1);
+  }
+  for (const malformed of [
+    null,
+    [],
+    { schema: 3 },
+    { ...JSON.parse(original), recordedAtNs: 'invalid' },
+    { ...JSON.parse(original), inventory: null },
+    {
+      ...JSON.parse(original),
+      inventory: {
+        ...JSON.parse(original).inventory,
+        root: { ...JSON.parse(original).inventory.root, type: { toString: null } }
+      }
+    },
+    { ...JSON.parse(original), inventory: { ...JSON.parse(original).inventory, recordedAtNs: 'invalid' } }
+  ]) {
+    writeFileSync(recordPath, JSON.stringify(malformed));
+    const fresh = new DigestStore(folder);
+    expect(fresh.treeDigest(tree)).toBe(before);
+    expect(fresh.stats.computed).toBe(1);
+  }
+  const store = new DigestStore(folder);
+  const filtered = store.treeDigest(tree, { skip: (name) => name === 'excluded' });
+  expect(filtered).not.toBe(before);
+  expect(store.treeDigest(tree)).toBe(before);
+  expect(new DigestStore(folder).treeDigest(tree)).toBe(before);
 });

@@ -21,7 +21,7 @@ import path from 'node:path';
 import { errnoCode } from './errors.ts';
 import { currentUid } from './publication.ts';
 
-const schemaVersion = 2;
+const schemaVersion = 3;
 const racyWindowNs = 2_000_000_000n;
 
 /** Canonical observed physical metadata strings used for stat signature/racy-window verification; not a filesystem immutability lock. */
@@ -36,11 +36,65 @@ export type StatEntry = {
   mode: string;
 };
 /** One persisted path record; `digest` is a local cache key (SHA-256 lowercase hex of the file content), outside the owner payload digest rules. */
-type DigestRecord = { schema: number; path: string; signature: string; digest: string; recordedAtNs: string };
+type DigestRecord = {
+  schema: number;
+  path: string;
+  signature: string;
+  digest: string;
+  recordedAtNs: string;
+  inventory?: TreeSnapshot;
+};
 /** Previously observed directory/member metadata and record time requiring fresh verification before reuse. */
 export type TreeSnapshot = { root: StatEntry; members: StatEntry[]; recordedAtNs: string };
-type Counters = { filesStatted: number; bytesRead: number };
+type Counters = { filesStatted: number; bytesRead: number; directoriesRead: number };
 type Skip = (name: string) => boolean;
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isTimestamp(value: unknown): value is string {
+  return typeof value === 'string' && /^-?\d+$/.test(value);
+}
+
+function isStatEntry(value: unknown): value is StatEntry {
+  if (!isObject(value) || typeof value.relative !== 'string') return false;
+  const relative = value.relative.endsWith('\0target') ? value.relative.slice(0, -7) : value.relative;
+  if (relative !== '.' && relative.split('/').some((part) => !part || part === '.' || part === '..')) return false;
+  if (relative.includes('\\') || relative.includes('\0') || path.isAbsolute(relative)) return false;
+  return (
+    typeof value.type === 'string' &&
+    ['file', 'directory', 'symlink'].includes(value.type) &&
+    [value.dev, value.ino, value.size, value.mtimeNs, value.ctimeNs, value.mode].every(isTimestamp)
+  );
+}
+
+function isTreeSnapshot(value: unknown): value is TreeSnapshot {
+  return (
+    isObject(value) &&
+    isStatEntry(value.root) &&
+    value.root.relative === '.' &&
+    value.root.type === 'directory' &&
+    Array.isArray(value.members) &&
+    value.members.every(isStatEntry) &&
+    value.members.every((member) => member.relative !== '.') &&
+    isTimestamp(value.recordedAtNs)
+  );
+}
+
+function isDigestRecord(value: unknown): value is DigestRecord {
+  return (
+    isObject(value) &&
+    value.schema === schemaVersion &&
+    typeof value.path === 'string' &&
+    typeof value.signature === 'string' &&
+    /^[a-f0-9]{64}$/.test(value.signature) &&
+    typeof value.digest === 'string' &&
+    /^[a-f0-9]{64}$/.test(value.digest) &&
+    isTimestamp(value.recordedAtNs) &&
+    (value.inventory === undefined || isTreeSnapshot(value.inventory))
+  );
+}
 
 function digest(value: string) {
   return createHash('sha256').update(value).digest('hex');
@@ -132,6 +186,7 @@ function walkTree(
   options: { skip: Skip | undefined; hash: Hash | null; members: StatEntry[]; counters: Counters }
 ) {
   const { skip, hash, members, counters } = options;
+  counters.directoriesRead++;
   const entries = fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
   if (entries.length === 0) return;
   for (const entry of entries) {
@@ -202,7 +257,7 @@ export class DigestStore {
   readonly fileMemo = new Map<string, string>();
   readonly treeMemo = new Map<string, string>();
   readonly treeSnapshots: Map<string, TreeSnapshot>;
-  readonly stats = { reused: 0, computed: 0, bytesRead: 0, filesStatted: 0 };
+  readonly stats = { reused: 0, computed: 0, bytesRead: 0, filesStatted: 0, directoriesRead: 0 };
 
   /**
    * Create phase-scoped digest observations with optional persistent records.
@@ -258,16 +313,8 @@ export class DigestStore {
     }
     if (!stat.isFile() || stat.uid !== currentUid() || (stat.mode & 0o022) !== 0) return null;
     try {
-      const record = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (
-        record.schema !== schemaVersion ||
-        typeof record.path !== 'string' ||
-        typeof record.signature !== 'string' ||
-        typeof record.digest !== 'string' ||
-        typeof record.recordedAtNs !== 'string'
-      )
-        return null;
-      return record;
+      const record: unknown = JSON.parse(fs.readFileSync(file, 'utf8'));
+      return isDigestRecord(record) ? record : null;
     } catch (error) {
       if (error instanceof SyntaxError) return null;
       throw error;
@@ -339,7 +386,7 @@ export class DigestStore {
   }
 
   /**
-   * Compute or stat-validate canonical installed tree content, preserving effective symlink bytes. The phase memo is keyed only by real directory: keep the skip predicate consistent for each directory within one DigestStore phase; a differently filtered repeated call reuses the original selection.
+   * Compute or stat-validate canonical installed tree content, preserving effective symlink bytes. Filtered trees bypass persistent inventories and phase memoization.
    *
    * @param directoryPath - Installed package directory.
    * @param root0 - Optional member exclusion predicate.
@@ -349,46 +396,57 @@ export class DigestStore {
    */
   treeDigest(directoryPath: string, { skip }: { skip?: Skip } = {}) {
     const directory = fs.realpathSync.native(directoryPath);
-    const memoized = this.treeMemo.get(directory);
+    const memoized = skip ? undefined : this.treeMemo.get(directory);
     if (memoized !== undefined) return memoized;
     const id = recordId('tree', directory);
-    const record = this.readRecord(id);
+    const candidate = skip ? null : this.readRecord(id);
+    const record = candidate?.path === directory ? candidate : null;
     if (record) {
-      const counters = { filesStatted: 0, bytesRead: 0 };
-      const snapshot = skip ? null : this.treeSnapshots.get(directory);
+      const counters = { filesStatted: 0, bytesRead: 0, directoriesRead: 0 };
+      const snapshot = this.treeSnapshots.get(directory) ?? record.inventory;
       let members = verifyTreeSnapshot(directory, snapshot, counters);
+      let observedRoot: StatEntry | undefined;
       if (!members) {
+        observedRoot = statEntry('.', fs.lstatSync(directory, { bigint: true }));
+        counters.filesStatted++;
         members = [];
         walkTree(directory, '', { skip, hash: null, members, counters });
       }
       this.stats.filesStatted += counters.filesStatted;
+      this.stats.directoriesRead += counters.directoriesRead;
       const signature = digest(JSON.stringify(members));
       if (reusable(record, members, signature)) {
         this.stats.reused++;
         this.treeMemo.set(directory, record.digest);
-        if (!skip && members !== snapshot?.members) this.rememberTree(directory, members);
+        if (!skip && members !== snapshot?.members) this.rememberTree(directory, members, observedRoot);
         return record.digest;
       }
     }
     const hash = createHash('sha256');
     hash.update('vitest-tree-digest-v2\0');
     const freshMembers: StatEntry[] = [];
-    const freshCounters = { filesStatted: 0, bytesRead: 0 };
+    const freshCounters = { filesStatted: 0, bytesRead: 0, directoriesRead: 0 };
+    const freshRoot = statEntry('.', fs.lstatSync(directory, { bigint: true }));
+    freshCounters.filesStatted++;
     walkTree(directory, '', { skip, hash, members: freshMembers, counters: freshCounters });
     this.stats.filesStatted += freshCounters.filesStatted;
+    this.stats.directoriesRead += freshCounters.directoriesRead;
     this.stats.bytesRead += freshCounters.bytesRead;
     const value = hash.digest('hex');
     this.stats.computed++;
     const freshSignature = digest(JSON.stringify(freshMembers));
-    this.writeRecord(id, {
-      schema: schemaVersion,
-      path: directory,
-      signature: freshSignature,
-      digest: value,
-      recordedAtNs: String(nowNs())
-    });
-    this.treeMemo.set(directory, value);
-    if (!skip) this.rememberTree(directory, freshMembers);
+    if (!skip) {
+      const inventory = this.rememberTree(directory, freshMembers, freshRoot);
+      this.writeRecord(id, {
+        schema: schemaVersion,
+        path: directory,
+        signature: freshSignature,
+        digest: value,
+        recordedAtNs: String(nowNs()),
+        inventory
+      });
+    }
+    if (!skip) this.treeMemo.set(directory, value);
     return value;
   }
 
@@ -397,11 +455,15 @@ export class DigestStore {
    *
    * @param directory - Physical package directory.
    * @param members - Observed canonical member metadata.
+   * @param observedRoot - Root observed before enumerating its members, when available.
+   * @returns Snapshot retained for later phases or persistent storage.
    * @throws For directory stat failure.
    */
-  rememberTree(directory: string, members: StatEntry[]) {
-    const root = statEntry('.', fs.lstatSync(directory, { bigint: true }));
-    this.stats.filesStatted++;
-    this.treeSnapshots.set(directory, { root, members, recordedAtNs: String(nowNs()) });
+  rememberTree(directory: string, members: StatEntry[], observedRoot?: StatEntry) {
+    const root = observedRoot ?? statEntry('.', fs.lstatSync(directory, { bigint: true }));
+    if (!observedRoot) this.stats.filesStatted++;
+    const snapshot = { root, members, recordedAtNs: String(nowNs()) };
+    this.treeSnapshots.set(directory, snapshot);
+    return snapshot;
   }
 }
