@@ -19,10 +19,18 @@ import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { errnoCode } from './errors.ts';
-import { batchedMap, filesystemMetadata, physicalPath, withFilesystemStream } from './filesystem-batch.ts';
+import {
+  batchedMap,
+  filesystemMetadata,
+  lstatMetadata,
+  physicalPath,
+  readDirectoryMetadata,
+  withFilesystemStream
+} from './filesystem-batch.ts';
 import { currentUid } from './publication.ts';
 
 const schemaVersion = 3;
+const statEntryFields = ['relative', 'type', 'dev', 'ino', 'size', 'mtimeNs', 'ctimeNs', 'mode'];
 const racyWindowNs = 2_000_000_000n;
 
 /** Canonical observed physical metadata strings used for stat signature/racy-window verification; not a filesystem immutability lock. */
@@ -68,6 +76,9 @@ function isTimestamp(value: unknown): value is string {
 
 function isStatEntry(value: unknown): value is StatEntry {
   if (!isObject(value) || typeof value.relative !== 'string') return false;
+  const fields = Object.keys(value);
+  if (fields.length !== statEntryFields.length || !fields.every((field, index) => field === statEntryFields[index]))
+    return false;
   const relative = value.relative.endsWith('\0target') ? value.relative.slice(0, -7) : value.relative;
   if (relative !== '.' && relative.split('/').some((part) => !part || part === '.' || part === '..')) return false;
   if (relative.includes('\\') || relative.includes('\0') || path.isAbsolute(relative)) return false;
@@ -257,7 +268,7 @@ async function hashFileAsyncReserved(filename: string, observed: fs.BigIntStats,
       if (total > observed.size) throw new Error(`digest input changed while hashing: ${filename}`);
     }
     if (large) verify(await filesystemMetadata(() => descriptor.stat({ bigint: true })));
-    verify(await filesystemMetadata(() => fs.promises.lstat(filename, { bigint: true })));
+    verify(await lstatMetadata(filename));
     if (total !== observed.size) throw new Error(`digest input changed while hashing: ${filename}`);
   } finally {
     await descriptor.close();
@@ -302,9 +313,18 @@ async function verifyTreeSnapshot(
     let filename = path.join(directory, relative);
     try {
       if (isTarget) filename = await physicalPath(filename);
-      const stat = await filesystemMetadata(() => fs.promises.lstat(filename, { bigint: true }));
+      const stat = await lstatMetadata(filename);
       counters.filesStatted++;
-      return JSON.stringify(statEntry(member.relative, stat)) === JSON.stringify(member);
+      return (
+        (stat.isSymbolicLink() ? 'symlink' : stat.isDirectory() ? 'directory' : stat.isFile() ? 'file' : 'other') ===
+          member.type &&
+        stat.dev.toString() === member.dev &&
+        stat.ino.toString() === member.ino &&
+        stat.size.toString() === member.size &&
+        stat.mode.toString() === member.mode &&
+        stat.mtimeNs.toString() === member.mtimeNs &&
+        stat.ctimeNs.toString() === member.ctimeNs
+      );
     } catch (error) {
       if (errnoCode(error) === 'ENOENT' || errnoCode(error) === 'ENOTDIR') return false;
       throw error;
@@ -332,15 +352,13 @@ async function walkTree(
 ) {
   const { skip, hash, members, counters } = options;
   counters.directoriesRead++;
-  const entries = (await filesystemMetadata(() => fs.promises.readdir(directory, { withFileTypes: true }))).sort(
-    (a, b) => a.name.localeCompare(b.name)
-  );
+  const entries = (await readDirectoryMetadata(directory)).sort((a, b) => a.name.localeCompare(b.name));
   const included = entries.filter(
     (entry) => entry.name !== 'node_modules' && !entry.name.endsWith('.tsbuildinfo') && !skip?.(entry.name)
   );
   const observations = await batchedMap(included, async (entry) => {
     const absolute = path.join(directory, entry.name);
-    const stat = await filesystemMetadata(() => fs.promises.lstat(absolute, { bigint: true }));
+    const stat = await lstatMetadata(absolute);
     counters.filesStatted++;
     return { entry, stat };
   });
@@ -368,7 +386,7 @@ async function walkTree(
       await walkTree(absolute, member, options);
     } else if (stat.isSymbolicLink()) {
       const target = await physicalPath(absolute);
-      const targetStat = await filesystemMetadata(() => fs.promises.lstat(target, { bigint: true }));
+      const targetStat = await lstatMetadata(target);
       counters.filesStatted++;
       members.push(statEntry(`${member}\u0000target`, targetStat));
       // create-worktree links installed members back to the source checkout.
@@ -567,7 +585,7 @@ export class DigestStore {
       let members = await verifyTreeSnapshot(directory, snapshot, counters);
       let observedRoot: StatEntry | undefined;
       if (!members) {
-        observedRoot = statEntry('.', await filesystemMetadata(() => fs.promises.lstat(directory, { bigint: true })));
+        observedRoot = statEntry('.', await lstatMetadata(directory));
         counters.filesStatted++;
         members = [];
         await walkTree(directory, '', { skip, hash: null, members, counters });
@@ -586,7 +604,7 @@ export class DigestStore {
     hash.update('vitest-tree-digest-v2\0');
     const freshMembers: StatEntry[] = [];
     const freshCounters = { filesStatted: 0, bytesRead: 0, directoriesRead: 0 };
-    const freshRoot = statEntry('.', await filesystemMetadata(() => fs.promises.lstat(directory, { bigint: true })));
+    const freshRoot = statEntry('.', await lstatMetadata(directory));
     freshCounters.filesStatted++;
     await walkTree(directory, '', { skip, hash, members: freshMembers, counters: freshCounters });
     this.stats.filesStatted += freshCounters.filesStatted;

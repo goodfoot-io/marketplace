@@ -51,6 +51,15 @@ test('concurrent batches share a bound, preserve order and drain reads before re
     expect(active).toBe(0);
     expect(completed).toBe(filesystemBatchSize);
     expect(await batchedMap(filenames.slice(0, 2), observe)).toEqual(['0', '1']);
+    completed = 0;
+    await expect(
+      batchedMap(filenames, (filename) => {
+        if (filename === filenames[16]) throw new Error('synchronous observer failure');
+        return observe(filename);
+      })
+    ).rejects.toThrow('synchronous observer failure');
+    expect(active).toBe(0);
+    expect(completed).toBe(filesystemBatchSize - 1);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

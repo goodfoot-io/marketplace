@@ -300,7 +300,21 @@ test('malformed inventory fields safely miss and filtered inventories do not per
         root: { ...JSON.parse(original).inventory.root, type: { toString: null } }
       }
     },
-    { ...JSON.parse(original), inventory: { ...JSON.parse(original).inventory, recordedAtNs: 'invalid' } }
+    { ...JSON.parse(original), inventory: { ...JSON.parse(original).inventory, recordedAtNs: 'invalid' } },
+    {
+      ...JSON.parse(original),
+      inventory: {
+        ...JSON.parse(original).inventory,
+        members: [{ ...JSON.parse(original).inventory.members[0], extra: true }]
+      }
+    },
+    {
+      ...JSON.parse(original),
+      inventory: {
+        ...JSON.parse(original).inventory,
+        members: [Object.fromEntries(Object.entries(JSON.parse(original).inventory.members[0]).reverse())]
+      }
+    }
   ]) {
     writeFileSync(recordPath, JSON.stringify(malformed));
     const fresh = new DigestStore(folder);

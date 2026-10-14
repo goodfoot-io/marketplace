@@ -177,3 +177,24 @@ test.each(
   expect(result.pending).toBe(0);
   expect(result.records).toBe(0);
 });
+
+test('real cold installed-tree streaming continues event-loop heartbeats while hashing bytes', async () => {
+  const tree = fixture();
+  const size = 128 * 1024 * 1024;
+  largeFile(path.join(tree, 'binary'), size);
+  const expected = zeros(createHash('sha256').update('vitest-tree-digest-v2\0binary\0file\0' + '420\0'), size)
+    .update('\0')
+    .digest('hex');
+  let pulses = 0;
+  const heartbeat = setInterval(() => {
+    pulses++;
+  }, 1);
+  const store = new DigestStore(null);
+  try {
+    expect(await store.treeDigest(tree)).toBe(expected);
+  } finally {
+    clearInterval(heartbeat);
+  }
+  expect(pulses).toBeGreaterThan(2);
+  expect(store.stats.bytesRead).toBe(size);
+});
