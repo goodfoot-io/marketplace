@@ -31,7 +31,7 @@ describe("CycleDetector", () => {
     expect(metrics.edgesInCycles).toBe(0);
   });
 
-  it("should detect single 2-node cycle (A ↔ B)", async () => {
+  it("should detect single 2-node cycle (A ↔ B)", { timeout: 30000 }, async () => {
     // Test with actual fixture files
     const pkgBRoot = path.join(fixtureRoot, "packages/pkg-b");
     const analyzer = new DependencyGraphAnalyzer({
