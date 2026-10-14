@@ -4,7 +4,7 @@
  * @summary Plan content-cache reuse and publish passing records only after teardown acceptance.
  */
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { hash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -135,7 +135,7 @@ const ENVIRONMENT_PACKAGES: Record<string, string | undefined> = {
   'edge-runtime': '@edge-runtime/vm'
 };
 function digest(value: string) {
-  return createHash('sha256').update(value).digest('hex');
+  return hash('sha256', value, 'hex');
 }
 
 function git(root: string, ...args: string[]) {

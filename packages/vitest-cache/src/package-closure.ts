@@ -3,7 +3,7 @@
  *
  * @summary Fingerprint installed package bytes and resolved dependency closure per phase.
  */
-import { createHash } from 'node:crypto';
+import { createHash, hash } from 'node:crypto';
 import fs from 'node:fs';
 import { builtinModules, createRequire } from 'node:module';
 import path from 'node:path';
@@ -41,7 +41,7 @@ function remember<T>(cache: Map<string, T>, key: string, value: T, limit = metad
 }
 
 function digest(value: string) {
-  return createHash('sha256').update(value).digest('hex');
+  return hash('sha256', value, 'hex');
 }
 
 function canonicalLocator(locator: string) {

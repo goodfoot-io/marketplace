@@ -3,7 +3,7 @@
  *
  * @summary Validate deferred native diagnostics against exact passed-test claims.
  */
-import { createHash } from 'node:crypto';
+import { hash } from 'node:crypto';
 import { once } from 'node:events';
 import { appendFileSync, closeSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -107,7 +107,7 @@ function diagnosticVerdict(value) {
  * @throws For temporary artifact creation failure.
  */
 export function createTestOutputCapture(cwd) {
-  const worktree = createHash('sha256').update(cwd).digest('hex').slice(0, 12);
+  const worktree = hash('sha256', cwd, 'hex').slice(0, 12);
   const directory = mkdtempSync(join(tmpdir(), `goodfoot-test-output-${worktree}-`));
   const artifact = join(directory, 'expected-native.log');
   const resultPath = join(directory, 'test-verdicts.jsonl');

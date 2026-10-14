@@ -3,7 +3,7 @@
  *
  * @summary Stage and atomically publish owned positive passing-test records.
  */
-import { createHash, randomUUID } from 'node:crypto';
+import { hash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { errnoCode } from './errors.ts';
@@ -31,7 +31,7 @@ type ResultRecord = {
 };
 
 function digest(value: string) {
-  return createHash('sha256').update(value).digest('hex');
+  return hash('sha256', value, 'hex');
 }
 
 /**

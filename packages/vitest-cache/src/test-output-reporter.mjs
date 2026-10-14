@@ -3,7 +3,7 @@
  *
  * @summary Fail unclaimed diagnostics and retain bounded failed-run console evidence.
  */
-import { createHash } from 'node:crypto';
+import { hash } from 'node:crypto';
 import { appendFileSync, closeSync, mkdtempSync, openSync, rmSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -161,7 +161,7 @@ export default class TestOutputReporter {
     // Do not dump an entire large suite into the terminal. Retain every captured
     // console record on disk and show a bounded tail alongside Vitest's errors.
     const root = this.vitest.config.root;
-    const worktree = createHash('sha256').update(root).digest('hex').slice(0, 12);
+    const worktree = hash('sha256', root, 'hex').slice(0, 12);
     const directory = mkdtempSync(join(tmpdir(), `goodfoot-test-output-${worktree}-`));
     const artifact = join(directory, 'unhandled-console.log');
     const fd = openSync(artifact, 'wx', 0o600);

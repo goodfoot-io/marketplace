@@ -4,7 +4,7 @@
  * @summary Serialize same-worktree package tests with owned POSIX advisory locks.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { hash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { errnoCode } from './errors.ts';
@@ -75,7 +75,7 @@ function lockFile(root: string, id: string) {
   const stat = fs.lstatSync(directory);
   if (!stat.isDirectory() || stat.uid !== currentUid() || stat.mode & 0o022)
     throw new Error('unsafe task lock directory');
-  return path.join(directory, createHash('sha256').update(id).digest('hex'));
+  return path.join(directory, hash('sha256', id, 'hex'));
 }
 
 function flock(fd: number, ...args: string[]) {

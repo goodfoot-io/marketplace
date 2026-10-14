@@ -4,7 +4,7 @@
  * @summary Compose explicit cache, output and worker-teardown policy into Vitest configuration.
  */
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { hash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,7 +34,7 @@ const installState = readFileSync(join(repositoryRoot, 'node_modules', '.yarn-st
 // by that state, and a run whose nearest install state differs (for example a
 // checkout that resolves this package from another checkout) does not use the
 // shared cache, so it can never delete a directory other runs are writing.
-const installHash = createHash('sha256').update(installState).digest('hex').slice(0, 16);
+const installHash = hash('sha256', installState, 'hex').slice(0, 16);
 /**
  * Find the install state Vitest's lockfile check reads for a working directory.
  * @param {string} directory - Vitest working directory.

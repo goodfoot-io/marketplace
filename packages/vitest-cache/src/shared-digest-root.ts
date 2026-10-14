@@ -3,13 +3,13 @@
  *
  * @summary Locate persistent repository-shared stat-validated digest storage.
  */
-import { createHash } from 'node:crypto';
+import { hash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { ownedDirectory } from './publication.ts';
 
 function digest(value: string) {
-  return createHash('sha256').update(value).digest('hex');
+  return hash('sha256', value, 'hex');
 }
 
 /**

@@ -4,7 +4,7 @@
  * @summary Compute phase-scoped content keys from declared leaves, executables and package closure.
  */
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, hash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,7 +13,7 @@ import { errnoCode } from './errors.ts';
 import { createPackagePhase } from './package-closure.ts';
 
 function digest(value: string) {
-  return createHash('sha256').update(value).digest('hex');
+  return hash('sha256', value, 'hex');
 }
 
 /**

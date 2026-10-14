@@ -15,7 +15,7 @@
  */
 
 import type { Hash } from 'node:crypto';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, hash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { errnoCode } from './errors.ts';
@@ -163,7 +163,7 @@ function parseRecord(filename: string, source: Buffer): DigestRecord | null {
 }
 
 function digest(value: string) {
-  return createHash('sha256').update(value).digest('hex');
+  return hash('sha256', value, 'hex');
 }
 
 function recordId(kind: string, subjectPath: string) {
