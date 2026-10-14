@@ -26,7 +26,7 @@
     }
   },
   "bin": {
-    "goodfoot-vitest": "./dist/vitest-entry.mjs"
+    "goodfoot-vitest": "dist/vitest-entry.mjs"
   },
   "scripts": {
     "lint": "biome check --error-on-warnings ./src ./test ./scripts ./vitest.config.ts && jsdoczoom -l '{src,test,scripts}/**/*.{ts,tsx}'",
