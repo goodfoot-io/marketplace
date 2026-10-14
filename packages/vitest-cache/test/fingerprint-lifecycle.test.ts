@@ -8,6 +8,7 @@ import { lstat, open } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setImmediate } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
 import { afterEach, expect, test } from 'vitest';
 import { filesystemBudget, filesystemMetadata, withFilesystemStream } from '../src/filesystem-batch.ts';
 import { FingerprintPool } from '../src/fingerprint-pool.ts';
@@ -37,7 +38,7 @@ function installed(root: string, size: number) {
   );
   writeFileSync(path.join(root, 'yarn.lock'), '"tool@npm:1.0.0":\n  resolution: "tool@npm:1.0.0"\n');
 }
-function child(source: string, args: string[] = []): Promise<string> {
+function child(source: string, args: string[] = [], expectedCode = 0): Promise<string> {
   const entry = path.join(fixture(), 'child.mjs');
   writeFileSync(entry, source);
   return new Promise((resolve, reject) => {
@@ -62,7 +63,7 @@ function child(source: string, args: string[] = []): Promise<string> {
     });
     process0.on('close', (code) => {
       clearTimeout(timeout);
-      if (code === 0 && !errors) resolve(output);
+      if (code === expectedCode && !errors) resolve(output);
       else reject(new Error(`fingerprint child failed (${code}): ${errors}`));
     });
   });
@@ -333,4 +334,167 @@ test('pooled large-file hashing keeps the main event loop responsive and shifts 
   expect(measurement.worker.totalCpu).toBeGreaterThan(measurement.worker.mainCpu);
   expect(measurement.baseline.maximumGap).toBeGreaterThan(0);
   expect(measurement.worker.maximumGap).toBeGreaterThan(0);
+});
+
+test('serialized reporter runs retain healthy workers while reobserving inputs, environment and executables', {
+  timeout: 20000
+}, async () => {
+  const root = mkdtempSync(fileURLToPath(new URL('../.retained-runtime-', import.meta.url)));
+  roots.push(root);
+  const repository = fileURLToPath(new URL('../../../', import.meta.url));
+  const relative = path.relative(repository, root).split(path.sep).join('/');
+  for (const [name, bytes] of [
+    ['first', 'first'],
+    ['other', 'other']
+  ]) {
+    mkdirSync(path.join(root, name));
+    writeFileSync(path.join(root, name, 'vc-tool'), bytes, { mode: 0o755 });
+  }
+  writeFileSync(path.join(root, 'input'), 'first');
+  writeFileSync(path.join(root, 'package.json'), '{"name":"retained-runtime-fixture","type":"module"}');
+  writeFileSync(path.join(root, 'example.test.ts'), "import { test } from 'vitest'; test('example', () => {});\n");
+  writeFileSync(
+    path.join(root, 'vitest.config.mjs'),
+    `import { withTestOutput } from '../dist/test-output-policy.mjs';
+    export default withTestOutput({test:{include:['example.test.ts']}}, {fallback:[],all:[${JSON.stringify(`${relative}/input`)}],executables:{all:['vc-tool']}});`
+  );
+  const controller = new URL('../dist/index.js', import.meta.url).href;
+  const runtime = new URL('../dist/fingerprint-runtime.js', import.meta.url).href;
+  const consumer = new URL('../node_modules/vitest/dist/node.js', import.meta.url).href;
+  const output = await child(`
+    import { createVitest } from ${JSON.stringify(consumer)};
+    import { ContentCacheReporter, ContentCacheSequencer } from ${JSON.stringify(controller)};
+    import { FingerprintRuntime } from ${JSON.stringify(runtime)};
+    import fs from 'node:fs/promises';
+    import path from 'node:path';
+    const root=${JSON.stringify(root)};
+    const savedPath=process.env.PATH;
+    process.env.PATH=path.join(root,'first')+path.delimiter+savedPath;
+    delete process.env.DISABLE_TEST_CACHE;
+    const observed=[];
+    const original=FingerprintRuntime.prototype.local;
+    FingerprintRuntime.prototype.local=async function(...args) {
+      const value=await original.apply(this,args);
+      observed.push({runtime:this,...value});
+      return value;
+    };
+    const ctx=await createVitest('test',{root,config:path.join(root,'vitest.config.mjs'),watch:false});
+    const reporter=new ContentCacheReporter(); ctx.config.reporters=[reporter]; reporter.onInit(ctx);
+    const sequencer=new ContentCacheSequencer(ctx);
+    const specifications=await ctx.globTestSpecifications();
+    if(specifications.length!==1) throw new Error('fixture selection changed');
+    const run=async()=>{await reporter.onTestRunStart(specifications);await sequencer.sort(specifications);return observed.at(-1);};
+    try {
+      const first=await run();
+      await fs.writeFile(path.join(root,'input'),'equal');
+      const input=await run();
+      ctx.projects[0].config.env={...ctx.projects[0].config.env,VC_SELECTED:'changed'};
+      process.env.PATH=path.join(root,'other')+path.delimiter+savedPath;
+      const environment=await run();
+      if(first.runtime!==input.runtime || first.runtime!==environment.runtime) throw new Error('healthy workers were replaced');
+      if(first.inputDigest===input.inputDigest) throw new Error('retained input observations were stale');
+      if(input.execution===environment.execution || input.executables===environment.executables) throw new Error('retained environment or executable observations were stale');
+      const savedRoot=ctx.config.root;
+      const missingRoot=path.join(root,'absent-repository');
+      const savedWarn=console.warn; let missingWarnings=0;
+      console.warn=(...args)=>{
+        if(args.length===1 && args[0]==='vitest cache: spawn git ENOENT; running without the cache') missingWarnings++;
+        else savedWarn(...args);
+      };
+      try {ctx.config.root=missingRoot;await reporter.onTestRunStart(specifications);}
+      finally {ctx.config.root=savedRoot;console.warn=savedWarn;}
+      if(first.runtime.reusable || missingWarnings!==1) throw new Error('failed repository discovery retained workers');
+      const recovered=await run();
+      if(recovered.runtime===first.runtime) throw new Error('failed runtime was reused');
+      process.env.DISABLE_TEST_CACHE='true'; await reporter.onTestRunStart(specifications);
+      if(recovered.runtime.reusable) throw new Error('no-cache transition retained workers');
+      delete process.env.DISABLE_TEST_CACHE;
+      const restored=await run();
+      if(restored.runtime===recovered.runtime) throw new Error('retired runtime was reused');
+      await ctx.close();
+      if(restored.runtime.reusable) throw new Error('context close retained workers');
+      console.log('retained and revalidated');
+    } finally {
+      FingerprintRuntime.prototype.local=original;
+      process.env.PATH=savedPath;
+      await ctx.close();
+    }
+  `);
+  expect(output).toBe('vitest cache: not used (DISABLE_TEST_CACHE=true)\nretained and revalidated\n');
+});
+
+test('final global teardown failure vetoes the positive stage from a later real runner invocation', {
+  timeout: 20000
+}, async () => {
+  const root = mkdtempSync(fileURLToPath(new URL('../.retained-teardown-', import.meta.url)));
+  roots.push(root);
+  writeFileSync(path.join(root, 'package.json'), '{"name":"retained-teardown-fixture","type":"module"}');
+  writeFileSync(
+    path.join(root, 'example.test.ts'),
+    "import { test, expect } from 'vitest'; test('real passing body', () => expect(1).toBe(1));\n"
+  );
+  writeFileSync(
+    path.join(root, 'setup.mjs'),
+    "export default () => async () => { throw new Error('owned final teardown failure'); };\n"
+  );
+  writeFileSync(
+    path.join(root, 'vitest.config.mjs'),
+    "import { withTestOutput } from '../dist/test-output-policy.mjs'; export default withTestOutput({test:{include:['example.test.ts'],globalSetup:['./setup.mjs']}},{fallback:[]});\n"
+  );
+  const controller = new URL('../dist/index.js', import.meta.url).href;
+  const runtime = new URL('../dist/fingerprint-runtime.js', import.meta.url).href;
+  const consumer = new URL('../node_modules/vitest/dist/node.js', import.meta.url).href;
+  const output = await child(
+    `
+    import { createVitest } from ${JSON.stringify(consumer)};
+    import { ContentCacheReporter, ContentCacheSequencer } from ${JSON.stringify(controller)};
+    import { FingerprintRuntime } from ${JSON.stringify(runtime)};
+    import fs from 'node:fs/promises';
+    import path from 'node:path';
+    const root=${JSON.stringify(root)};
+    const acknowledgement=path.join(root,'acknowledgement.json');
+    process.env.GOODFOOT_VITEST_FORCE='1';
+    process.env.GOODFOOT_VITEST_CACHE_ACK=acknowledgement;
+    delete process.env.DISABLE_TEST_CACHE;
+    const keys=[];
+    const original=FingerprintRuntime.prototype.jsonOne;
+    FingerprintRuntime.prototype.jsonOne=async function(value) {
+      const digest=await original.call(this,value);
+      if(Array.isArray(value) && value.length===5) keys.push(digest);
+      return digest;
+    };
+    const ctx=await createVitest('test',{root,config:path.join(root,'vitest.config.mjs'),watch:false});
+    const reporter=new ContentCacheReporter();
+    ctx.config.reporters=[reporter]; ctx.reporters=[reporter];
+    ctx.config.sequence.sequencer=ContentCacheSequencer;
+    for(const project of ctx.projects) project.config.sequence.sequencer=ContentCacheSequencer;
+    let closeErrors=0, vetoes=0;
+    const originalError=ctx.logger.error.bind(ctx.logger);
+    ctx.logger.error=(...args)=>{
+      if(args.length===2 && args[0]==='error during close' && args[1] instanceof Error && args[1].message==='owned final teardown failure') {closeErrors++;return;}
+      originalError(...args);
+    };
+    const originalWarn=console.warn;
+    console.warn=(...args)=>{
+      if(args.length===1 && args[0]==='vitest cache: results not recorded because global teardown failed') {vetoes++;return;}
+      originalWarn(...args);
+    };
+    try {
+      await ctx.start(); await ctx.start();
+      if(keys.length!==6 || new Set(keys).size!==1) throw new Error('later run did not revalidate a stable positive result');
+      await ctx.close();
+      let published=false;
+      try {await fs.stat(acknowledgement);published=true;} catch(error) {if(error.code!=='ENOENT')throw error;}
+      if(published || closeErrors!==1 || vetoes!==2) throw new Error('later positive stage escaped final teardown veto');
+      console.log('later stage vetoed');
+    } finally {
+      console.warn=originalWarn;
+      FingerprintRuntime.prototype.jsonOne=original;
+      await ctx.close();
+    }
+  `,
+    [],
+    1
+  );
+  expect(output.trim().split('\n').pop()).toBe('later stage vetoed');
 });

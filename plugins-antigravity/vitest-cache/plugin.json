@@ -1,5 +1,5 @@
 {
   "name": "vitest-cache",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Configure and troubleshoot Vitest result caching with @goodfoot/vitest-cache"
 }

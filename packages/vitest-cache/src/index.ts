@@ -326,11 +326,17 @@ function normalizedOptions(top: string) {
   );
 }
 
-async function createSession(ctx: Vitest, policy: Policy): Promise<Session> {
+async function createSession(ctx: Vitest, policy: Policy, retained: FingerprintRuntime | null): Promise<Session> {
   const { top, common } = await repository(ctx.config.root);
   const folder = await sharedCacheFolder(common);
   const rootConfig = ctx.vite?.config?.configFile ?? ctx.config.config;
-  const fingerprint = new FingerprintRuntime(top, path.join(folder, 'digests'));
+  const digestFolder = path.join(folder, 'digests');
+  if (retained && (!retained.reusable || retained.root !== top || retained.folder !== digestFolder)) {
+    await retained.retire();
+    retained = null;
+  }
+  const fingerprint = retained ?? new FingerprintRuntime(top, digestFolder);
+  fingerprint.resetStatistics();
   let invocation: string;
   try {
     invocation = await fingerprint.jsonOne({
@@ -689,6 +695,7 @@ export class ContentCacheSequencer extends BaseSequencer {
 export class ContentCacheReporter implements Reporter {
   ctx: Vitest | undefined = undefined;
   lock: Awaited<ReturnType<typeof acquireTestLock>> | undefined = undefined;
+  #runtime: FingerprintRuntime | null = null;
 
   /**
    * The Vitest instance from `onInit`; every other hook runs after it.
@@ -729,22 +736,29 @@ export class ContentCacheReporter implements Reporter {
   async onTestRunStart(specifications: readonly TestSpecification[]) {
     const ctx = this.vitest;
     publishPlan(null);
-    const previous = sessions.get(ctx);
-    if (previous) await previous.fingerprint.dispose();
     sessions.delete(ctx);
     if (!ctx.config.watch && !this.lock) this.lock = await acquireTestLock(ctx.config.root);
-    if (!specifications.length) return;
+    if (!specifications.length) {
+      await this.#retireRuntime();
+      return;
+    }
     const uncached = uncachedReason([...specifications]);
-    if (uncached) return;
+    if (uncached) {
+      await this.#retireRuntime();
+      return;
+    }
     const policy = eligibility(ctx);
     if (!policy.publish) {
+      await this.#retireRuntime();
       console.log(`vitest cache: not used (${policy.reason})`);
       return;
     }
     let session: Session;
     try {
-      session = await createSession(ctx, policy);
+      session = await createSession(ctx, policy, this.#runtime);
+      this.#runtime = session.fingerprint;
     } catch (error) {
+      await this.#retireRuntime();
       console.warn(`vitest cache: ${errorMessage(error)}; running without the cache`);
       return;
     }
@@ -895,18 +909,27 @@ export class ContentCacheReporter implements Reporter {
         try {
           return await teardown.apply(this, args);
         } catch (error) {
-          session.veto ??= 'global teardown failed';
+          const current = sessions.get(ctx);
+          if (current) current.veto ??= 'global teardown failed';
           throw error;
         }
       };
     }
   }
 
+  async #retireRuntime() {
+    const runtime = this.#runtime;
+    this.#runtime = null;
+    await runtime?.retire();
+  }
+
   async #close() {
     try {
       const session = sessions.get(this.vitest);
+      const runtime = this.#runtime ?? session?.fingerprint;
+      this.#runtime = null;
+      await runtime?.dispose();
       if (!session) return;
-      await session.fingerprint.dispose();
       if (!session.stage?.length) return;
       const workerVeto = await this.#workerTeardownVeto();
       if (workerVeto) session.veto ??= workerVeto;

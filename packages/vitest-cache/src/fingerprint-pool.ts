@@ -18,7 +18,7 @@ type Pending = {
 };
 type Lane = { worker: Worker; owner: number; queue: Pending[]; active: Pending | null; drained: (() => void) | null };
 
-/** A session-owned two-worker controller; idle workers never keep a CLI alive. */
+/** A context-owned two-worker controller; idle workers never keep a CLI alive. */
 export class FingerprintPool {
   private readonly lanes = new Map<Role, Lane>();
   private serial = 0;
@@ -163,6 +163,14 @@ export class FingerprintPool {
    */
   invalidate(error: Error): void {
     this.poison(error);
+  }
+
+  /**
+   * Whether this controller can accept a new phase in the same runner context.
+   * @returns True only while open and free from fatal failures.
+   */
+  get reusable(): boolean {
+    return !this.closed && this.failure === null;
   }
 
   /**

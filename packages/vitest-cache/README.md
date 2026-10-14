@@ -186,18 +186,32 @@ existing digest records cold.
 
 ## Fingerprinting resources
 
-Each cache session lazily starts two queued workers: one for local inputs,
+Each Vitest context lazily starts two queued workers: one for local inputs,
 executables and key descriptions, and one for installed package closures. Small
 in-memory hashes and warm stat-validated reuse also run there. Each worker admits
 one active command and at most 32 waiting commands. Only paths and canonical
 metadata cross the worker boundary; file bytes stay in the worker that reads them.
 
-Runtime filesystem calls are asynchronous, including graph discovery, records,
-locks, configuration loading and diagnostic artifacts. Fingerprint observations
+Healthy serialized runs in the same context retain workers when the physical
+repository and digest directory match. Every run creates a fresh session and
+phases, resets diagnostics and reobserves inputs. Completed tree snapshots and
+pure parsing caches can persist; selections, publication stages and filesystem
+observations from a phase cannot. Incompatible, empty, uncached or disabled runs,
+discovery failures and fatal worker failures retire the runtime. Final close drains
+active work and stops workers before publication. Separate CLI invocations still
+pay worker startup.
+
+Explicit runtime filesystem APIs are asynchronous, including graph discovery,
+records, locks, configuration loading and diagnostic artifacts. Node's module
+loader and package-resolution internals can still perform synchronous filesystem
+calls. Fingerprint observations
 share a process-wide limit of 32 metadata operations and four content descriptors
 across the host and workers; streamed hash buffers are at most 1 MiB each. The
-native metadata checker performs its OS calls on libuv workers. Build, audit and
-test utilities can still use synchronous filesystem APIs.
+native metadata checker performs its OS calls on libuv workers. Metadata and
+content each have a FIFO waiter queue per thread with separate wake notifications.
+The [libuv pool](https://docs.libuv.org/en/v1.x/threadpool.html) is shared by
+filesystem and native work across all JavaScript workers and defaults to four
+threads. Build, audit and test utilities can still use synchronous filesystem APIs.
 
 Each phase reobserves filesystem state before reuse; completed tree snapshots
 carry no permission to skip those checks. Workers share the current environment,
@@ -211,8 +225,18 @@ When profiling, measure main-thread CPU with `process.threadCpuUsage()` and tota
 process CPU with `process.cpuUsage()`; record timer gaps and whether worker
 startup is included. For internal backend measurements, collect
 `FingerprintRuntime.stats` after phase release. Confirm warm reuse still performs
-fresh metadata checks with zero computed content digests and zero bytes read;
-reduced main-thread CPU alone does not prove less total work.
+fresh metadata checks with zero computed content digests and zero backend content
+bytes read. Graph discovery and digest-record descriptions have separate reads;
+zero backend bytes does not mean zero filesystem reads.
+
+For unclear timings, alternate matched runs and record system CPU pressure,
+thread scheduling waits and `UV_THREADPOOL_SIZE`. Separate worker startup, RPC
+admission, semaphore waits, native libuv queue time, metadata service elapsed/CPU
+time and callback delay. Compare detailed probes with probes disabled; overlapping
+spans are not additive elapsed time. Include both tight warm loops and delayed
+runs: [VirtioFS metadata policies](https://virtio-fs.gitlab.io/virtiofsd/doc/virtiofsd/passthrough/enum.CachePolicy.html)
+can expire cached metadata, and guest pressure measurements do not expose host
+daemon scheduling. Reduced main-thread CPU alone does not prove less total work.
 
 ## Keys
 

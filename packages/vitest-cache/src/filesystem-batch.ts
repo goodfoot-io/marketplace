@@ -9,8 +9,8 @@ export const filesystemBatchSize = 32;
 /** Maximum concurrent content descriptors; streamed hashes use at-most-1-MiB buffers. */
 export const filesystemStreamLimit = 4;
 const notificationSlot = filesystemBatchSize + filesystemStreamLimit;
-/** Atomic ownership slots: thirty-two metadata, four streams and one wake generation. */
-export const filesystemBudget = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * (notificationSlot + 1));
+/** Atomic ownership slots: thirty-two metadata, four streams and separate metadata/stream wake generations. */
+export const filesystemBudget = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * (notificationSlot + 2));
 let permits = new Int32Array(filesystemBudget);
 let owner = 1;
 const owners = new Set<number>();
@@ -48,25 +48,60 @@ export function joinFilesystemBudget(buffer: SharedArrayBuffer, identifier: numb
   owner = identifier;
 }
 
-async function reserve(first: number, limit: number): Promise<number> {
-  for (;;) {
-    const generation = Atomics.load(permits, notificationSlot);
-    for (let slot = first; slot < first + limit; slot++) {
-      if (Atomics.compareExchange(permits, slot, 0, owner) === 0) return slot;
+type PermitKind = 0 | 1;
+type Reservation = { resolve: (slot: number) => void; reject: (error: unknown) => void };
+const waiting: [Reservation[], Reservation[]] = [[], []];
+const pumping: [boolean, boolean] = [false, false];
+
+function claim(kind: PermitKind): number | null {
+  const first = kind === 0 ? 0 : filesystemBatchSize;
+  const limit = kind === 0 ? filesystemBatchSize : filesystemStreamLimit;
+  for (let slot = first; slot < first + limit; slot++) {
+    if (Atomics.compareExchange(permits, slot, 0, owner) === 0) return slot;
+  }
+  return null;
+}
+
+async function pump(kind: PermitKind): Promise<void> {
+  if (pumping[kind]) return;
+  pumping[kind] = true;
+  const queue = waiting[kind];
+  const notification = notificationSlot + kind;
+  try {
+    while (queue.length) {
+      const generation = Atomics.load(permits, notification);
+      for (let slot = claim(kind); slot !== null; slot = queue.length ? claim(kind) : null) {
+        const reservation = queue.shift();
+        if (!reservation) throw new Error('missing filesystem reservation');
+        reservation.resolve(slot);
+      }
+      if (queue.length) await Atomics.waitAsync(permits, notification, generation).value;
     }
-    await Atomics.waitAsync(permits, notificationSlot, generation).value;
+  } catch (error) {
+    for (const reservation of queue.splice(0)) reservation.reject(error);
+  } finally {
+    pumping[kind] = false;
   }
 }
 
-function wake(): void {
-  Atomics.add(permits, notificationSlot, 1);
-  Atomics.notify(permits, notificationSlot);
+function reserve(kind: PermitKind): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    waiting[kind].push({ resolve, reject });
+    void pump(kind);
+  });
+}
+
+function wake(kind: PermitKind): void {
+  const notification = notificationSlot + kind;
+  Atomics.add(permits, notification, 1);
+  // Only one waiter per thread/resource, rather than one per leaf observation.
+  Atomics.notify(permits, notification);
 }
 
 function release(slot: number): void {
   if (Atomics.compareExchange(permits, slot, owner, 0) !== owner)
     throw new Error('filesystem permit ownership changed');
-  wake();
+  wake(slot < filesystemBatchSize ? 0 : 1);
 }
 
 /**
@@ -79,11 +114,12 @@ export function recoverFilesystemBudget(identifier: number): void {
     throw new Error('invalid filesystem worker owner');
   for (let slot = 0; slot < notificationSlot; slot++) Atomics.compareExchange(permits, slot, identifier, 0);
   owners.delete(identifier);
-  wake();
+  wake(0);
+  wake(1);
 }
 
 async function observeBounded<T, U>(input: T, observe: (input: T) => Promise<U>): Promise<U> {
-  const slot = await reserve(0, filesystemBatchSize);
+  const slot = await reserve(0);
   try {
     return await observe(input);
   } finally {
@@ -191,7 +227,7 @@ export function readDirectoryMetadata(directory: string): Promise<fs.Dirent<stri
  * @throws Operation errors after its descriptor cleanup finishes.
  */
 export async function withFilesystemStream<T>(operation: () => Promise<T>): Promise<T> {
-  const slot = await reserve(filesystemBatchSize, filesystemStreamLimit);
+  const slot = await reserve(1);
   try {
     return await operation();
   } finally {

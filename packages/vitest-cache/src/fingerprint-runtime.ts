@@ -10,7 +10,7 @@ import {
   fingerprintStatisticNames
 } from './fingerprint-protocol.ts';
 
-/** Session-owned asynchronous fingerprint backend and its bounded reused worker resources. */
+/** Context-owned asynchronous fingerprint backend and its bounded reused worker resources. */
 export class FingerprintRuntime {
   private readonly pool = new FingerprintPool();
   private serial = 0;
@@ -179,6 +179,27 @@ export class FingerprintRuntime {
     }
     for (const name of fingerprintStatisticNames) this.observations[name] += statistics[name];
     return statistics.filesRead;
+  }
+
+  /**
+   * Whether a serialized runner invocation can retain these workers.
+   * @returns Whether the pool is open and healthy.
+   */
+  get reusable(): boolean {
+    return this.pool.reusable;
+  }
+
+  /** Clear diagnostic totals for a fresh serialized run; phase observations remain separately released. */
+  resetStatistics(): void {
+    for (const name of fingerprintStatisticNames) this.observations[name] = 0;
+  }
+
+  /**
+   * Discard a superseded runtime without attempting positive publication.
+   * @returns Complete drain and resource cleanup, including after fatal failure.
+   */
+  retire(): Promise<void> {
+    return this.pool.dispose();
   }
 
   /**

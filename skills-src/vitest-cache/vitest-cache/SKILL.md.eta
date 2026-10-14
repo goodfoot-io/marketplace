@@ -38,10 +38,8 @@ An all-hit run can print `No test files found, exiting with code 0`; require pos
 - `new`, `unrecorded`, `forced`: absent pass, revoked record, requested execution.
 - `invocation`, `execution`, `inputs`, `packages`, `executables`: compare config/CLI/environment, selection/pool/isolation/resolved worker env, graphs/declarations, installed closures, executable bytes.
 - Intentional unlisted files execute uncached. Repair unresolved imports, missing inputs or package-location ambiguity; never mask them with empty import domains, broad globs or renamed cache directories.
-- Profile with fresh `TMPDIR`, `new` misses and identical warm env. Separate main-thread CPU, total CPU, timer gaps and worker startup; collect backend stats after phase release. Preserve module cache; FORCE does not reset digests.
+- Profile cold with fresh `TMPDIR` and `new` misses; preserve warm env. Alternate matched runs; compare main/worker/total CPU, timer gaps, startup, queue/service time and CPU pressure. Collect stats after phase release; backend zero bytes excludes graph/record reads. FORCE leaves digests warm.
 - Global setup uses `setupNeeded(project, predicate?)` from `@goodfoot/vitest-cache/plan`; unknown plans require setup.
 - Optional third argument `loadTestSequence(new URL('./vitest.sequence.json', import.meta.url))` declares repository-relative paths, heaviest first; scheduling only.
 
 Preserve the shared module-cache directory keyed by installation state. Fix disagreeing install metadata; never split it by checkout or process.
-
-Consult [Output policy](references/output-policy.md) for teardown failures or Worker capture.
