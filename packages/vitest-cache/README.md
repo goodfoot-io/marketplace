@@ -8,6 +8,12 @@ sequencer and reporter. Run `yarn test` in this package;
 
 Use a Git checkout, Yarn's `node-modules` linker with root
 `node_modules/.yarn-state.yml`, POSIX `flock`, and Node 24 or newer.
+Linux and macOS installations require a C11 compiler (`cc`, or the executable
+selected by `CC`) and enabled package install scripts. The install script builds
+the required Node-API metadata checker locally using bundled, licensed Node
+headers; Python, make and downloaded Node headers are unnecessary. Install fails
+if compilation fails; fresh installations with scripts disabled leave the checker
+unavailable and cache imports fail. macOS requires the Xcode command line tools.
 Vitest and Vite are required peers; supported ranges are in
 [package.json](./package.json). Install the published package with:
 

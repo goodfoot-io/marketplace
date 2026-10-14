@@ -58,8 +58,16 @@ try {
   run('yarn', ['pack', '--out', archive], packageRoot);
   const members = run('tar', ['-tzf', archive]).trim().split('\n');
   assert(members.includes('package/dist/vitest-entry.mjs'));
+  assert(members.includes('package/native/metadata.c'));
+  assert(members.includes('package/native/node-api/LICENSE'));
+  assert(members.includes('package/scripts/install-native.mjs'));
+  assert(members.every((name) => !name.endsWith('.node')));
   assert(
-    members.every((name) => /^package\/(?:dist\/|package\.json$|README\.md$|OUTPUT\.md$)/.test(name)),
+    members.every((name) =>
+      /^package\/(?:dist\/|native\/(?:(?:metadata\.c|timestamp\.h)$|node-api\/(?:node_api(?:_types)?\.h$|js_native_api(?:_types)?\.h$|LICENSE$))|scripts\/install-native\.mjs$|package\.json$|README\.md$|OUTPUT\.md$)/.test(
+        name
+      )
+    ),
     members.join('\n')
   );
   assert(members.every((name) => !/\.ts$/.test(name) || name.endsWith('.d.ts')));
@@ -180,6 +188,17 @@ test('real declared input', () => {
   assert.match(run('yarn', ['exec', 'vitest', 'run']), /1 file\(s\) executed \(miss: packages 1\)/);
   writeFileSync(provider, providerSource);
   assert.match(run('yarn', ['exec', 'vitest', 'run']), /1 passing test\(s\) reused; 0 file\(s\) executed/);
+  for (const asset of ['build/Release/metadata.node', 'native/metadata.c']) {
+    const filename = path.join(consumer, 'node_modules/@goodfoot/vitest-cache', asset);
+    const contents = readFileSync(filename);
+    writeFileSync(
+      filename,
+      Buffer.concat([contents, Buffer.from('\n/* Owned native-provider invalidation probe. */\n')])
+    );
+    assert.match(run('yarn', ['exec', 'vitest', 'run']), /1 file\(s\) executed \(miss: packages 1\)/);
+    writeFileSync(filename, contents);
+    assert.match(run('yarn', ['exec', 'vitest', 'run']), /1 passing test\(s\) reused; 0 file\(s\) executed/);
+  }
   run('yarn', ['exec', 'goodfoot-vitest', 'run']);
   assert.match(run('yarn', ['exec', 'goodfoot-vitest', 'run']), /1 passing test\(s\) reused; 0 file\(s\) executed/);
   console.log(

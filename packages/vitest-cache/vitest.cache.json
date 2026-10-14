@@ -11,6 +11,7 @@
     "packages/vitest-cache/test/host-graph-type-exports.test.ts": [],
     "packages/vitest-cache/test/ignored-install-input.test.ts": [],
     "packages/vitest-cache/test/key-change.test.ts": [],
+    "packages/vitest-cache/test/native-metadata.test.ts": [],
     "packages/vitest-cache/test/nonimport-source-read.test.ts": [],
     "packages/vitest-cache/test/package-toolchain-resolution.test.ts": [],
     "packages/vitest-cache/test/sequence.test.ts": [],

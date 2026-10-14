@@ -37,7 +37,9 @@
     "release": "bash ../../scripts/release-package.sh vitest-cache",
     "release:dry-run": "bash ../../scripts/release-package.sh vitest-cache --dry-run",
     "prepack": "yarn build",
-    "test:package": "node scripts/test-package.ts"
+    "test:package": "node scripts/test-package.ts",
+    "install": "node scripts/install-native.mjs",
+    "test:native-provider": "node scripts/test-native-provider.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
@@ -54,7 +56,9 @@
   "files": [
     "dist",
     "/README.md",
-    "OUTPUT.md"
+    "OUTPUT.md",
+    "scripts/install-native.mjs",
+    "native"
   ],
   "engines": {
     "node": ">=24.0.0"

@@ -27,6 +27,7 @@ import {
   readDirectoryMetadata,
   withFilesystemStream
 } from './filesystem-batch.ts';
+import { verifyNativeMetadata } from './native-metadata.ts';
 import { currentUid } from './publication.ts';
 
 const schemaVersion = 3;
@@ -305,32 +306,17 @@ async function verifyTreeSnapshot(
 ): Promise<StatEntry[] | null> {
   if (!snapshot) return null;
   const threshold = BigInt(snapshot.recordedAtNs) - racyWindowNs;
-  const observations = await batchedMap([snapshot.root, ...snapshot.members], async (member) => {
-    if (member.type === 'directory' && (BigInt(member.mtimeNs) > threshold || BigInt(member.ctimeNs) > threshold))
-      return false;
-    const isTarget = member.relative.endsWith('\0target');
-    const relative = isTarget ? member.relative.slice(0, -7) : member.relative;
-    let filename = path.join(directory, relative);
-    try {
-      if (isTarget) filename = await physicalPath(filename);
-      const stat = await lstatMetadata(filename);
-      counters.filesStatted++;
-      return (
-        (stat.isSymbolicLink() ? 'symlink' : stat.isDirectory() ? 'directory' : stat.isFile() ? 'file' : 'other') ===
-          member.type &&
-        stat.dev.toString() === member.dev &&
-        stat.ino.toString() === member.ino &&
-        stat.size.toString() === member.size &&
-        stat.mode.toString() === member.mode &&
-        stat.mtimeNs.toString() === member.mtimeNs &&
-        stat.ctimeNs.toString() === member.ctimeNs
-      );
-    } catch (error) {
-      if (errnoCode(error) === 'ENOENT' || errnoCode(error) === 'ENOTDIR') return false;
-      throw error;
-    }
-  });
-  return observations.every(Boolean) ? snapshot.members : null;
+  const members = [snapshot.root, ...snapshot.members];
+  if (
+    members.some(
+      (member) =>
+        member.type === 'directory' && (BigInt(member.mtimeNs) > threshold || BigInt(member.ctimeNs) > threshold)
+    )
+  )
+    return null;
+  const observed = await verifyNativeMetadata(directory, members);
+  counters.filesStatted += observed.checked;
+  return observed.matches ? snapshot.members : null;
 }
 
 /**

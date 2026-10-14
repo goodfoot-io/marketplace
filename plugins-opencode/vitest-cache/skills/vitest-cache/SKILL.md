@@ -10,7 +10,7 @@ description: "Configure and troubleshoot @goodfoot/vitest-cache: cache Vitest
 ## Integrate
 
 1. Inspect config, scripts, setup, executed APIs and transitive initialization. Read [Cache contracts](references/cache-contracts.md); preserve pools, projects, setup, isolation, plugins, selectors and reporters.
-2. Require a Git checkout, Yarn `node-modules` with root `node_modules/.yarn-state.yml`, POSIX `flock`, Node 24+, and Vitest/Vite peers matching the cache manifest.
+2. Require Git, Linux/macOS, `flock`, a C11 compiler, enabled install scripts, Node 24+, manifest-compatible Vitest/Vite peers, and Yarn `node-modules` with root `node_modules/.yarn-state.yml`.
 3. Install the cache devDependency (`workspace:*` locally). Build this workspace package before consumer checks; published exports are compiled ESM. Resolve toolchain peer warnings and rebuild affected artifacts. Wrap config once; projects/factories are handled automatically.
 
 ```ts

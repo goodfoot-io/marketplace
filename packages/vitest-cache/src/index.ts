@@ -490,6 +490,9 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
     throw new Error(`${relative} is not in the cache contract and the suite declares no fallback`);
   const declared = [
     `${relativeInput(top, SOURCE_DIRECTORY)}/**`,
+    `${relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'native'))}/**`,
+    relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'scripts', 'install-native.mjs')),
+    relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'build', 'Release', 'metadata.node')),
     ...(contract.all ?? []),
     ...(contract.projects?.[project.name] ?? []),
     ...fileInputs

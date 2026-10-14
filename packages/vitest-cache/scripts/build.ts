@@ -3,6 +3,7 @@
  *
  * @summary Emit JavaScript and declarations without requiring consumer TypeScript loaders.
  */
+import './install-native.mjs';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
