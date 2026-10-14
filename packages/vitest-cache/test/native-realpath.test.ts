@@ -33,11 +33,13 @@ test('physical and chained alias roots fingerprint the same effective file and d
   const chained = path.join(temporary, 'chained');
   symlinkSync(root, alias, 'dir');
   symlinkSync(alias, chained, 'dir');
-  const physical = fingerprintFiles(root, [], ['inputs', 'file-link', 'directory-link']);
-  expect(fingerprintFiles(chained, [], ['inputs', 'file-link', 'directory-link'])).toBe(physical);
+  const physical = await fingerprintFiles(root, [], ['inputs', 'file-link', 'directory-link']);
+  expect(await fingerprintFiles(chained, [], ['inputs', 'file-link', 'directory-link'])).toBe(physical);
   expect(realpathSync.native(chained)).toBe(realpathSync(chained));
   const store = new DigestStore(null);
-  expect(store.fileDigest(path.join(root, 'file-link'))).toBe(store.fileDigest(path.join(root, 'inputs/source.ts')));
+  expect(await store.fileDigest(path.join(root, 'file-link'))).toBe(
+    await store.fileDigest(path.join(root, 'inputs/source.ts'))
+  );
   expect(await store.treeDigest(path.join(root, 'directory-link'))).toBe(
     await store.treeDigest(path.join(root, 'inputs'))
   );
@@ -58,8 +60,10 @@ test('linked Git worktrees preserve equal fingerprints through root aliases', as
   execFileSync('git', ['worktree', 'add', '--quiet', '--detach', worktree], { cwd: root });
   const alias = path.join(temporary, 'worktree-alias');
   symlinkSync(worktree, alias, 'dir');
-  expect(fingerprintFiles(alias, ['input.ts'])).toBe(fingerprintFiles(root, ['input.ts']));
-  expect(new FingerprintPhase(alias, { store: new DigestStore(null) }).root).toBe(realpathSync(worktree));
+  expect(await fingerprintFiles(alias, ['input.ts'])).toBe(await fingerprintFiles(root, ['input.ts']));
+  expect(await new FingerprintPhase(alias, { store: new DigestStore(null) }).graphDigest(['input.ts'], [])).toBe(
+    await new FingerprintPhase(worktree, { store: new DigestStore(null) }).graphDigest(['input.ts'], [])
+  );
 });
 
 test('missing and non-directory link targets retain markers while loops fail closed', async () => {
@@ -69,16 +73,16 @@ test('missing and non-directory link targets retain markers while loops fail clo
   symlinkSync('loop', path.join(root, 'loop'));
   symlinkSync('.', path.join(root, 'directory-cycle'), 'dir');
   const phase = new FingerprintPhase(root, { store: new DigestStore(null) });
-  expect(phase.fileDigest('absent')).toBe('missing');
-  expect(phase.fileDigest('dangling')).toBe('link\0absent\0missing');
-  expect(phase.fileDigest('not-directory')).toBe('link\0file/child\0missing');
-  expect(phase.expand(['dangling', 'not-directory'])).toEqual(['dangling', 'not-directory']);
-  expect(() => phase.fileDigest('loop')).toThrow(expect.objectContaining({ code: 'ELOOP' }));
-  expect(() => phase.expand(['loop'])).toThrow(expect.objectContaining({ code: 'ELOOP' }));
-  expect(() => phase.expand(['directory-cycle'])).toThrow('declared test input symlink cycle');
-  expect(() => new FingerprintPhase(path.join(root, 'absent'), { store: new DigestStore(null) })).toThrow(
-    expect.objectContaining({ code: 'ENOENT' })
-  );
+  expect(await phase.fileDigest('absent')).toBe('missing');
+  expect(await phase.fileDigest('dangling')).toBe('link\0absent\0missing');
+  expect(await phase.fileDigest('not-directory')).toBe('link\0file/child\0missing');
+  expect(await phase.expand(['dangling', 'not-directory'])).toEqual(['dangling', 'not-directory']);
+  await expect(phase.fileDigest('loop')).rejects.toThrow(expect.objectContaining({ code: 'ELOOP' }));
+  await expect(phase.expand(['loop'])).rejects.toThrow(expect.objectContaining({ code: 'ELOOP' }));
+  await expect(phase.expand(['directory-cycle'])).rejects.toThrow('declared test input symlink cycle');
+  await expect(
+    new FingerprintPhase(path.join(root, 'absent'), { store: new DigestStore(null) }).expand(['file'])
+  ).rejects.toThrow(expect.objectContaining({ code: 'ENOENT' }));
   await expect(new DigestStore(null).treeDigest(path.join(root, 'absent'))).rejects.toThrow(
     expect.objectContaining({ code: 'ENOENT' })
   );

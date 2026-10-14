@@ -19,11 +19,11 @@ beforeEach(() => {
 
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-test('a missing config package leaves the nearest config as an input', () => {
-  expect(resolutionInputsForFile(createResolutionCache(root), 'source.ts')).toEqual(['tsconfig.json']);
+test('a missing config package leaves the nearest config as an input', async () => {
+  expect(await resolutionInputsForFile(createResolutionCache(root), 'source.ts')).toEqual(['tsconfig.json']);
 });
 
-test('an export-blocked package root can resolve its exported tsconfig subpath', () => {
+test('an export-blocked package root can resolve its exported tsconfig subpath', async () => {
   const configPackage = path.join(root, 'config-package');
   mkdirSync(configPackage);
   mkdirSync(path.join(root, 'node_modules'));
@@ -33,15 +33,17 @@ test('an export-blocked package root can resolve its exported tsconfig subpath',
   );
   writeFileSync(path.join(configPackage, 'tsconfig.json'), '{}\n');
   symlinkSync(configPackage, path.join(root, 'node_modules', 'config-package'), 'dir');
-  expect(resolutionInputsForFile(createResolutionCache(root), 'source.ts')).toEqual([
+  expect(await resolutionInputsForFile(createResolutionCache(root), 'source.ts')).toEqual([
     'config-package/tsconfig.json',
     'tsconfig.json'
   ]);
 });
 
-test('a malformed config package manifest propagates instead of becoming a missing input', () => {
+test('a malformed config package manifest propagates instead of becoming a missing input', async () => {
   const configPackage = path.join(root, 'node_modules', 'config-package');
   mkdirSync(configPackage, { recursive: true });
   writeFileSync(path.join(configPackage, 'package.json'), '{invalid');
-  expect(() => resolutionInputsForFile(createResolutionCache(root), 'source.ts')).toThrow(/Invalid package config/);
+  await expect(resolutionInputsForFile(createResolutionCache(root), 'source.ts')).rejects.toThrow(
+    /Invalid package config/
+  );
 });

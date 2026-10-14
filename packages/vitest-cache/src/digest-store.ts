@@ -27,6 +27,7 @@ import {
   readDirectoryMetadata,
   withFilesystemStream
 } from './filesystem-batch.ts';
+import { readContent } from './filesystem-content.ts';
 import { verifyNativeMetadata } from './native-metadata.ts';
 import { currentUid } from './publication.ts';
 
@@ -181,55 +182,6 @@ function statEntry(relative: string, stat: fs.BigIntStats): StatEntry {
     ctimeNs: stat.ctimeNs.toString(),
     mode: stat.mode.toString()
   };
-}
-
-/**
- * Hash regular-file bytes with one bounded allocation and verify the observation.
- * Large reads verify the open descriptor before and after streaming as well as
- * the final pathname; these observations do not provide an atomic filesystem snapshot.
- *
- * @param filename - Resolved physical file path.
- * @param observed - Metadata used by the digest inventory and mode prefix.
- * @param hash - Hash accumulator preserving the caller's byte framing.
- * @param counters - Actual stat and byte-read counters.
- * @throws For read failures, replacement or mutation during hashing.
- */
-function hashFile(filename: string, observed: fs.BigIntStats, hash: Hash, counters: Counters) {
-  const verify = (stat: fs.BigIntStats) => {
-    counters.filesStatted++;
-    if (
-      !stat.isFile() ||
-      stat.dev !== observed.dev ||
-      stat.ino !== observed.ino ||
-      stat.size !== observed.size ||
-      stat.mode !== observed.mode ||
-      stat.mtimeNs !== observed.mtimeNs ||
-      stat.ctimeNs !== observed.ctimeNs
-    )
-      throw new Error(`digest input changed while hashing: ${filename}`);
-  };
-  const descriptor = fs.openSync(filename, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
-  try {
-    const large = observed.size >= 1_048_576n;
-    if (large) verify(fs.fstatSync(descriptor, { bigint: true }));
-    // 1 MiB amortizes synchronous read calls for native binaries without
-    // allocating proportional to file size. Small files need only their size.
-    const buffer = Buffer.allocUnsafe(Number(observed.size < 1_048_576n ? observed.size + 1n : 1_048_576n) || 1);
-    let total = 0n;
-    while (true) {
-      const count = fs.readSync(descriptor, buffer, 0, buffer.length, null);
-      if (count === 0) break;
-      counters.bytesRead += count;
-      total += BigInt(count);
-      hash.update(buffer.subarray(0, count));
-      if (total > observed.size) throw new Error(`digest input changed while hashing: ${filename}`);
-    }
-    if (large) verify(fs.fstatSync(descriptor, { bigint: true }));
-    verify(fs.lstatSync(filename, { bigint: true }));
-    if (total !== observed.size) throw new Error(`digest input changed while hashing: ${filename}`);
-  } finally {
-    fs.closeSync(descriptor);
-  }
 }
 
 async function hashFileAsync(filename: string, observed: fs.BigIntStats, hash: Hash, counters: Counters) {
@@ -407,6 +359,7 @@ export class DigestStore {
   readonly memory: Map<string, DigestRecord> | null;
   readonly fileMemo = new Map<string, string>();
   readonly treeMemo = new Map<string, string>();
+  readonly pendingFiles = new Map<string, Promise<string>>();
   readonly pendingTrees = new Map<string, Promise<string>>();
   readonly treeSnapshots: Map<string, TreeSnapshot>;
   readonly stats = { reused: 0, computed: 0, bytesRead: 0, filesStatted: 0, directoriesRead: 0 };
@@ -432,15 +385,15 @@ export class DigestStore {
    * @returns Owned persistent record folder after write-mode checks.
    * @throws For memory-only store, unsafe ownership/mode or filesystem failure.
    */
-  readyFolder() {
+  async readyFolder() {
     const folder = this.folder;
     if (folder === null) throw new Error('digest store has no persistent folder');
     if (this.folderReady) return folder;
-    fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
-    const stat = fs.lstatSync(folder);
+    await filesystemMetadata(() => fs.promises.mkdir(folder, { recursive: true, mode: 0o700 }));
+    const stat = await lstatMetadata(folder);
     if (!stat.isDirectory()) throw new Error(`digest store path is not a directory: ${folder}`);
-    if (stat.uid !== currentUid()) throw new Error(`digest store folder not owned by current user: ${folder}`);
-    if ((stat.mode & 0o022) !== 0) throw new Error(`digest store folder is group- or other-writable: ${folder}`);
+    if (stat.uid !== BigInt(currentUid())) throw new Error(`digest store folder not owned by current user: ${folder}`);
+    if ((stat.mode & 0o022n) !== 0n) throw new Error(`digest store folder is group- or other-writable: ${folder}`);
     this.folderReady = true;
     return folder;
   }
@@ -452,19 +405,19 @@ export class DigestStore {
    * @returns Validated record or null for absence/unsafe shape or mode.
    * @throws For other filesystem or parsing-related non-SyntaxError failures.
    */
-  readRecord(id: string): DigestRecord | null {
+  async readRecord(id: string): Promise<DigestRecord | null> {
     if (this.memory) return this.memory.get(id) ?? null;
-    const folder = this.readyFolder();
+    const folder = await this.readyFolder();
     const file = path.resolve(folder, `${id}.json`);
-    let stat: fs.Stats;
+    let stat: fs.BigIntStats;
     try {
-      stat = fs.lstatSync(file);
+      stat = await lstatMetadata(file);
     } catch (error) {
       if (errnoCode(error) === 'ENOENT') return null;
       throw error;
     }
-    if (!stat.isFile() || stat.uid !== currentUid() || (stat.mode & 0o022) !== 0) return null;
-    return parseRecord(file, fs.readFileSync(file));
+    if (!stat.isFile() || stat.uid !== BigInt(currentUid()) || (stat.mode & 0o022n) !== 0n) return null;
+    return parseRecord(file, await readContent(file));
   }
 
   /**
@@ -474,16 +427,22 @@ export class DigestStore {
    * @param record - Exact stat signature/content digest and record time.
    * @throws For persistent folder validation or write/rename failure.
    */
-  writeRecord(id: string, record: DigestRecord) {
+  async writeRecord(id: string, record: DigestRecord) {
     if (this.memory) {
       this.memory.set(id, record);
       return;
     }
-    const folder = this.readyFolder();
+    const folder = await this.readyFolder();
     const file = path.join(folder, `${id}.json`);
     const temporary = path.join(folder, `.${randomUUID()}.tmp`);
-    fs.writeFileSync(temporary, JSON.stringify(record), { flag: 'wx', mode: 0o600 });
-    fs.renameSync(temporary, file);
+    try {
+      await withFilesystemStream(() =>
+        fs.promises.writeFile(temporary, JSON.stringify(record), { flag: 'wx', mode: 0o600 })
+      );
+      await filesystemMetadata(() => fs.promises.rename(temporary, file));
+    } finally {
+      await filesystemMetadata(() => fs.promises.rm(temporary, { force: true }));
+    }
   }
 
   /**
@@ -493,26 +452,38 @@ export class DigestStore {
    * @returns SHA-256 digest of mode and file bytes after symlink resolution.
    * @throws For unsupported nonfile input or filesystem failure.
    */
-  fileDigest(absolutePath: string) {
+  async fileDigest(absolutePath: string): Promise<string> {
     const key = path.resolve(absolutePath);
+    const pending = this.pendingFiles.get(key);
+    if (pending) return pending;
+    const operation = this.computeFileDigest(key);
+    this.pendingFiles.set(key, operation);
+    try {
+      return await operation;
+    } finally {
+      this.pendingFiles.delete(key);
+    }
+  }
+
+  private async computeFileDigest(key: string): Promise<string> {
     const memoized = this.fileMemo.get(key);
     if (memoized !== undefined) return memoized;
     const members: StatEntry[] = [];
-    const lstat = fs.lstatSync(key, { bigint: true });
+    const lstat = await lstatMetadata(key);
     this.stats.filesStatted++;
     members.push(statEntry('.', lstat));
     let finalPath = key;
     let finalStat = lstat;
     if (lstat.isSymbolicLink()) {
-      finalPath = fs.realpathSync.native(key);
-      finalStat = fs.lstatSync(finalPath, { bigint: true });
+      finalPath = await physicalPath(key);
+      finalStat = await lstatMetadata(finalPath);
       this.stats.filesStatted++;
       members.push(statEntry('.\u0000target', finalStat));
     }
-    if (!finalStat.isFile()) throw new Error(`unsupported digest input: ${absolutePath}`);
+    if (!finalStat.isFile()) throw new Error(`unsupported digest input: ${key}`);
     const signature = digest(JSON.stringify(members));
     const id = recordId('file', key);
-    const record = this.readRecord(id);
+    const record = await this.readRecord(id);
     if (reusable(record, members, signature)) {
       this.stats.reused++;
       this.fileMemo.set(key, record.digest);
@@ -521,10 +492,16 @@ export class DigestStore {
     const hash = createHash('sha256');
     hash.update(String(finalStat.mode & 0o777n));
     hash.update('\0');
-    hashFile(finalPath, finalStat, hash, this.stats);
+    await hashFileAsync(finalPath, finalStat, hash, this.stats);
     const value = hash.digest('hex');
     this.stats.computed++;
-    this.writeRecord(id, { schema: schemaVersion, path: key, signature, digest: value, recordedAtNs: String(nowNs()) });
+    await this.writeRecord(id, {
+      schema: schemaVersion,
+      path: key,
+      signature,
+      digest: value,
+      recordedAtNs: String(nowNs())
+    });
     this.fileMemo.set(key, value);
     return value;
   }
@@ -563,7 +540,7 @@ export class DigestStore {
     const memoized = skip ? undefined : this.treeMemo.get(directory);
     if (memoized !== undefined) return memoized;
     const id = recordId('tree', directory);
-    const candidate = skip ? null : this.readRecord(id);
+    const candidate = skip ? null : await this.readRecord(id);
     const record = candidate?.path === directory ? candidate : null;
     if (record) {
       const counters = { filesStatted: 0, bytesRead: 0, directoriesRead: 0 };
@@ -582,7 +559,7 @@ export class DigestStore {
       if (reusable(record, members, signature)) {
         this.stats.reused++;
         this.treeMemo.set(directory, record.digest);
-        if (!skip && members !== snapshot?.members) this.rememberTree(directory, members, observedRoot);
+        if (!skip && members !== snapshot?.members) await this.rememberTree(directory, members, observedRoot);
         return record.digest;
       }
     }
@@ -600,8 +577,8 @@ export class DigestStore {
     this.stats.computed++;
     const freshSignature = digest(JSON.stringify(freshMembers));
     if (!skip) {
-      const inventory = this.rememberTree(directory, freshMembers, freshRoot);
-      this.writeRecord(id, {
+      const inventory = await this.rememberTree(directory, freshMembers, freshRoot);
+      await this.writeRecord(id, {
         schema: schemaVersion,
         path: directory,
         signature: freshSignature,
@@ -623,8 +600,8 @@ export class DigestStore {
    * @returns Snapshot retained for later phases or persistent storage.
    * @throws For directory stat failure.
    */
-  rememberTree(directory: string, members: StatEntry[], observedRoot?: StatEntry) {
-    const root = observedRoot ?? statEntry('.', fs.lstatSync(directory, { bigint: true }));
+  async rememberTree(directory: string, members: StatEntry[], observedRoot?: StatEntry) {
+    const root = observedRoot ?? statEntry('.', await lstatMetadata(directory));
     if (!observedRoot) this.stats.filesStatted++;
     const snapshot = { root, members, recordedAtNs: String(nowNs()) };
     this.treeSnapshots.set(directory, snapshot);

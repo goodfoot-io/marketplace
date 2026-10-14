@@ -5,7 +5,7 @@
  */
 import { hash } from 'node:crypto';
 import { once } from 'node:events';
-import { appendFileSync, closeSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeSync } from 'node:fs';
+import { appendFile, mkdtemp, open, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { errnoCode, errorMessage } from './errors.ts';
@@ -35,7 +35,7 @@ const TRACE_START = '    at ';
  */
 /**
  * Child output capture with its private verdict path and final reconciliation boundary.
- * @typedef {{resultPath: string, accepted: () => boolean, pump: (source: AsyncIterable<unknown>, destination: import('node:stream').Writable) => Promise<void>, finish: (status: number) => number}} TestOutputCapture
+ * @typedef {{resultPath: string, accepted: () => boolean, pump: (source: AsyncIterable<unknown>, destination: import('node:stream').Writable) => Promise<void>, finish: (status: number) => Promise<number>}} TestOutputCapture
  */
 
 /**
@@ -103,15 +103,15 @@ function diagnosticVerdict(value) {
  * Explicitly framed test-fixture records and workerd runtime records are deferred; every other byte passes through. A workerd record is accepted only when passed tests declared exactly that many of its (shape, message).
  *
  * @param {string} cwd - Current package/worktree directory used for diagnostic artifact naming.
- * @returns {TestOutputCapture} Capture with private verdict path, backpressured pumps, final reconciliation and accepted-state accessor.
+ * @returns {Promise<TestOutputCapture>} Capture with private verdict path, backpressured pumps, final reconciliation and accepted-state accessor.
  * @throws For temporary artifact creation failure.
  */
-export function createTestOutputCapture(cwd) {
+export async function createTestOutputCapture(cwd) {
   const worktree = hash('sha256', cwd, 'hex').slice(0, 12);
-  const directory = mkdtempSync(join(tmpdir(), `goodfoot-test-output-${worktree}-`));
+  const directory = await mkdtemp(join(tmpdir(), `goodfoot-test-output-${worktree}-`));
   const artifact = join(directory, 'expected-native.log');
   const resultPath = join(directory, 'test-verdicts.jsonl');
-  const fd = openSync(artifact, 'wx', 0o600);
+  const fd = await open(artifact, 'wx', 0o600);
   /** @type {NativeDiagnosticClaim[]} */
   const records = [];
   /** @type {{shape: import('./test-output-workerd.mjs').WorkerdShape, message: string}[]} */
@@ -121,11 +121,15 @@ export function createTestOutputCapture(cwd) {
   let bytes = 0;
   /** @type {Error | undefined} */
   let failure;
+  let writes = Promise.resolve();
   /** @param {string} text - Exact diagnostic evidence appended to the private artifact. */
-  const save = (text) => {
+  const save = async (text) => {
     const buffer = Buffer.from(text);
-    let offset = 0;
-    while (offset < buffer.length) offset += writeSync(fd, buffer, offset);
+    writes = writes.then(async () => {
+      let offset = 0;
+      while (offset < buffer.length) offset += (await fd.write(buffer, offset)).bytesWritten;
+    });
+    await writes;
     bytes += buffer.length;
     tail = Buffer.concat([tail, buffer.subarray(-8192)]).subarray(-8192);
   };
@@ -139,10 +143,10 @@ export function createTestOutputCapture(cwd) {
   };
   /**
    * @param {Buffer} line - Complete framed diagnostic line including its terminator.
-   * @returns {boolean} Whether the original fixture frame was recognized and retained.
+   * @returns {Promise<boolean>} Whether the original fixture frame was recognized and retained.
    * @throws For an artifact write failure or exceeded record bound.
    */
-  const capture = (line) => {
+  const capture = async (line) => {
     const text = line.toString('utf8');
     const match = /^(\d+):([A-Za-z0-9+/]+={0,2})\r?\n$/.exec(text.slice(PREFIX.length));
     if (!match) return false;
@@ -172,7 +176,7 @@ export function createTestOutputCapture(cwd) {
       return false;
     if (records.length + workerdRecords.length >= 4096)
       throw new Error('Expected-native record count exceeds the 4096-record run bound');
-    save(`uncaught exception; source = Uncaught (in promise); stack = ${value.stack}\n`);
+    await save(`uncaught exception; source = Uncaught (in promise); stack = ${value.stack}\n`);
     records.push({ token: value.token, message: value.message });
     return true;
   };
@@ -230,7 +234,7 @@ export function createTestOutputCapture(cwd) {
         const text = buffer.toString('utf8').replace(/\r?\n$/, '');
         if (owedTrace) {
           if (isWorkerdTraceLine(text)) {
-            save(`${text}\n`);
+            await save(`${text}\n`);
             owedTrace.lines++;
             return;
           }
@@ -238,7 +242,7 @@ export function createTestOutputCapture(cwd) {
         }
         if (owedStack) {
           if (isWorkerdStackLine(text)) {
-            save(`${text}\n`);
+            await save(`${text}\n`);
             owedStack = undefined;
             return;
           }
@@ -247,7 +251,7 @@ export function createTestOutputCapture(cwd) {
         if (text.startsWith(PREFIX)) {
           let captured = false;
           try {
-            captured = capture(buffer);
+            captured = await capture(buffer);
           } catch (error) {
             failure = error instanceof Error ? error : new Error(errorMessage(error));
           }
@@ -275,7 +279,7 @@ export function createTestOutputCapture(cwd) {
         if (records.length + workerdRecords.length >= 4096)
           throw new Error('Expected-native record count exceeds the 4096-record run bound');
         workerdRecords.push({ shape: record.shape, message: record.message });
-        save(`${text}\n`);
+        await save(`${text}\n`);
         if (record.stack) owedStack = record;
         if (record.trace) owedTrace = { shape: record.shape, lines: 0 };
       };
@@ -329,17 +333,21 @@ export function createTestOutputCapture(cwd) {
      * Reconcile deferred records with exact passed-test verdicts, retaining diagnostic evidence on failure.
      *
      * @param {number} status - Original child exit status.
-     * @returns {number} Original nonzero status or failure status 1, otherwise zero after reconciliation.
+     * @returns {Promise<number>} Original nonzero status or failure status 1, otherwise zero after reconciliation.
      */
-    finish(status) {
+    async finish(status) {
       try {
-        closeSync(fd);
+        try {
+          await writes;
+        } finally {
+          await fd.close();
+        }
         /** @type {DiagnosticVerdict[]} */
         let verdicts = [];
         try {
-          if (statSync(resultPath).size > 1_048_576)
+          if ((await stat(resultPath)).size > 1_048_576)
             throw new Error('Native diagnostic verdicts exceed the 1048576-byte run bound');
-          verdicts = readFileSync(resultPath, 'utf8')
+          verdicts = (await readFile(resultPath, 'utf8'))
             .trim()
             .split('\n')
             .filter(Boolean)
@@ -415,9 +423,9 @@ export function createTestOutputCapture(cwd) {
             `\n[test-output] Native diagnostics${bytes > tail.length ? ' (truncated to the last 8192 bytes)' : ''}. Complete artifact: ${artifact}\n${tail.toString('utf8')}\n`
           );
         }
-        if (!deferred && !failure) rmSync(directory, { recursive: true, force: true });
+        if (!deferred && !failure) await rm(directory, { recursive: true, force: true });
         else
-          appendFileSync(join(directory, 'owner.txt'), `Worktree/package: ${cwd}\nChild exit: ${status}\n`, {
+          await appendFile(join(directory, 'owner.txt'), `Worktree/package: ${cwd}\nChild exit: ${status}\n`, {
             mode: 0o600
           });
         return status || (failure ? 1 : 0);

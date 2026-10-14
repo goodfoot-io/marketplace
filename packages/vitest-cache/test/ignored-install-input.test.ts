@@ -9,7 +9,7 @@ import path from 'node:path';
 import { expect, test } from 'vitest';
 import { fingerprintFiles } from '../src/fingerprint.ts';
 
-test('a declared source glob ignores installed residue but hashes source changes', () => {
+test('a declared source glob ignores installed residue but hashes source changes', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'vitest-cache-declared-input-'));
   try {
     const source = path.join(root, 'public', 'guide.md');
@@ -17,14 +17,14 @@ test('a declared source glob ignores installed residue but hashes source changes
     writeFileSync(source, 'first\n');
     const bin = path.join(root, 'public', 'packages', 'cli', 'node_modules', '.bin');
     mkdirSync(path.dirname(path.dirname(bin)), { recursive: true });
-    const before = fingerprintFiles(root, [], ['public/**']);
+    const before = await fingerprintFiles(root, [], ['public/**']);
 
     mkdirSync(bin, { recursive: true });
     symlinkSync('../../src/bin.ts', path.join(bin, 'ao'));
-    expect(fingerprintFiles(root, [], ['public/**'])).toBe(before);
+    expect(await fingerprintFiles(root, [], ['public/**'])).toBe(before);
 
     writeFileSync(source, 'second\n');
-    expect(fingerprintFiles(root, [], ['public/**'])).not.toBe(before);
+    expect(await fingerprintFiles(root, [], ['public/**'])).not.toBe(before);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

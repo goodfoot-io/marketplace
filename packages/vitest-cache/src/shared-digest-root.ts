@@ -19,6 +19,6 @@ function digest(value: string) {
  * @returns Owned shared cache folder keyed by that exact directory.
  * @throws For missing POSIX UID, unsafe folder or filesystem failure.
  */
-export function sharedCacheFolder(commonGitDirectory: string) {
+export async function sharedCacheFolder(commonGitDirectory: string) {
   return ownedDirectory(path.join(os.tmpdir(), 'goodfoot-vitest-cache', digest(commonGitDirectory)));
 }

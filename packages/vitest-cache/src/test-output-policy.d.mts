@@ -16,14 +16,14 @@ export type { CacheContract, UncachedContract };
  * @param configuration - Original Vitest configuration object.
  * @param contract - Explicit cached inputs or sole uncached reason.
  * @param sequence - Optional unknown declared suite order, validated before use.
- * @returns Configuration object with output/cache/teardown policy.
+ * @returns Promised configuration object with output/cache/teardown policy.
  * @throws For invalid contract/order, stale sequence or invalid host setup.
  */
 export type TestOutputObjectPolicy = <Configuration extends object>(
   configuration: Configuration,
-  contract: CacheContract | UncachedContract,
+  contract: CacheContract | UncachedContract | Promise<CacheContract | UncachedContract>,
   sequence?: unknown
-) => PolicyConfiguration<Configuration>;
+) => Promise<PolicyConfiguration<Configuration>>;
 /**
  * Await a synchronous or asynchronous configuration factory before applying the policy.
  *
@@ -35,10 +35,10 @@ export type TestOutputObjectPolicy = <Configuration extends object>(
  */
 export type TestOutputFactoryPolicy = <Configuration extends object>(
   configuration: (environment: ConfigEnv) => Configuration | Promise<Configuration>,
-  contract: CacheContract | UncachedContract,
+  contract: CacheContract | UncachedContract | Promise<CacheContract | UncachedContract>,
   sequence?: unknown
 ) => (environment: ConfigEnv) => Promise<PolicyConfiguration<Configuration>>;
-/** Object inputs produce objects; factory inputs produce awaited factories. */
+/** Object inputs produce promised objects; factory inputs produce awaited factories. */
 export type TestOutputPolicy = TestOutputFactoryPolicy & TestOutputObjectPolicy;
 /** Fields added by the policy without importing nominal consumer plugin types. */
 export type PolicyFields = {
@@ -52,13 +52,13 @@ export type PolicyConfiguration<Configuration extends object> = Omit<Configurati
 /** Canonical runtime policy provider for both configuration entry forms. */
 export declare const withTestOutput: TestOutputPolicy;
 /**
- * Read and validate a JSON cache contract immediately; withTestOutput later validates composition.
+ * Asynchronously read and validate a JSON cache contract; withTestOutput later validates composition.
  *
  * @param url - JSON contract file URL.
  * @returns Validated object-form cached contract; explicitly uncached JSON refuses.
  * @throws For read/JSON/shape failures or uncached declaration.
  */
-export type CacheContractLoader = (url: URL) => CacheContract;
+export type CacheContractLoader = (url: URL) => Promise<CacheContract>;
 /** Runtime contract-file loader checked against its canonical callable. */
 export declare const loadCacheContract: CacheContractLoader;
 /**
@@ -68,6 +68,6 @@ export declare const loadCacheContract: CacheContractLoader;
  * @returns Parsed unknown JSON; withTestOutput later validates order shape and path existence.
  * @throws For file read or JSON parsing errors.
  */
-export type TestSequenceLoader = (url: URL) => unknown;
+export type TestSequenceLoader = (url: URL) => Promise<unknown>;
 /** Runtime sequence-file loader checked against its canonical callable. */
 export declare const loadTestSequence: TestSequenceLoader;

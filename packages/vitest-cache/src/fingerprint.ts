@@ -3,14 +3,25 @@
  *
  * @summary Compute phase-scoped content keys from declared leaves, executables and package closure.
  */
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { createHash, hash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { DigestStore } from './digest-store.ts';
 import { errnoCode } from './errors.ts';
+import {
+  batchedMap,
+  filesystemMetadata,
+  lstatMetadata,
+  physicalPath,
+  readDirectoryMetadata
+} from './filesystem-batch.ts';
+import { readContent } from './filesystem-content.ts';
 import { createPackagePhase } from './package-closure.ts';
+
+const executeFile = promisify(execFile);
 
 function digest(value: string) {
   return hash('sha256', value, 'hex');
@@ -25,7 +36,7 @@ function digest(value: string) {
  * @param ancestorsReal - Ancestor realpaths used to reject recursive directory symlinks.
  * @throws For cycles, unsupported member types or filesystem errors.
  */
-function expandPhysicalDirectory(
+async function expandPhysicalDirectory(
   physicalDirectory: string,
   prefix: string,
   results: Set<string>,
@@ -33,9 +44,7 @@ function expandPhysicalDirectory(
 ) {
   // Installed residue is not an input, so a folder holding only node_modules
   // is recorded as empty.
-  const entries = fs
-    .readdirSync(physicalDirectory, { withFileTypes: true })
-    .filter((entry) => entry.name !== 'node_modules');
+  const entries = (await readDirectoryMetadata(physicalDirectory)).filter((entry) => entry.name !== 'node_modules');
   if (entries.length === 0) {
     results.add(`${prefix}/`);
     return;
@@ -44,20 +53,20 @@ function expandPhysicalDirectory(
     const childPrefix = `${prefix}/${entry.name}`;
     const childPhysical = path.join(physicalDirectory, entry.name);
     if (entry.isDirectory()) {
-      expandPhysicalDirectory(childPhysical, childPrefix, results, ancestorsReal);
+      await expandPhysicalDirectory(childPhysical, childPrefix, results, ancestorsReal);
     } else if (entry.isSymbolicLink()) {
       results.add(childPrefix);
       let real: string;
       try {
-        real = fs.realpathSync.native(childPhysical);
+        real = await physicalPath(childPhysical);
       } catch (error: unknown) {
         const code: string | undefined = errnoCode(error);
         if (code === 'ENOENT' || code === 'ENOTDIR') continue; // dangling symlink: recorded as its own entry only
         throw error;
       }
-      let stat: fs.Stats;
+      let stat: fs.BigIntStats;
       try {
-        stat = fs.statSync(real);
+        stat = await lstatMetadata(real);
       } catch (error: unknown) {
         const code: string | undefined = errnoCode(error);
         if (code === 'ENOENT' || code === 'ENOTDIR') continue;
@@ -65,7 +74,7 @@ function expandPhysicalDirectory(
       }
       if (stat.isDirectory()) {
         if (ancestorsReal.has(real)) throw new Error(`declared test input symlink cycle: ${childPrefix}`);
-        expandPhysicalDirectory(real, childPrefix, results, new Set([...ancestorsReal, real]));
+        await expandPhysicalDirectory(real, childPrefix, results, new Set([...ancestorsReal, real]));
       }
     } else if (entry.isFile()) {
       results.add(childPrefix);
@@ -75,36 +84,41 @@ function expandPhysicalDirectory(
   }
 }
 
-function expandGlob(root: string, declaration: string) {
-  const matches = fs.globSync(declaration, { cwd: root, withFileTypes: false });
+async function expandGlob(root: string, declaration: string) {
+  const matches = fs.promises.glob(declaration, { cwd: root, withFileTypes: false });
   const results = new Set<string>();
-  for (const match of matches) {
+  for await (const match of matches) {
     const relative = match.split(path.sep).join('/');
     if (relative.split('/').includes('node_modules')) continue;
     const absolute = path.join(root, match);
-    const lstat = fs.lstatSync(absolute, { throwIfNoEntry: false });
-    if (!lstat) continue; // race: glob matched, entry gone since
+    let lstat: fs.BigIntStats;
+    try {
+      lstat = await lstatMetadata(absolute);
+    } catch (error) {
+      if (errnoCode(error) === 'ENOENT' || errnoCode(error) === 'ENOTDIR') continue;
+      throw error;
+    }
     if (lstat.isDirectory()) {
-      expandPhysicalDirectory(absolute, relative, results, new Set([fs.realpathSync.native(absolute)]));
+      await expandPhysicalDirectory(absolute, relative, results, new Set([await physicalPath(absolute)]));
     } else if (lstat.isSymbolicLink()) {
       results.add(relative);
       let real: string;
       try {
-        real = fs.realpathSync.native(absolute);
+        real = await physicalPath(absolute);
       } catch (error: unknown) {
         const code: string | undefined = errnoCode(error);
         if (code === 'ENOENT' || code === 'ENOTDIR') continue;
         throw error;
       }
-      let stat: fs.Stats;
+      let stat: fs.BigIntStats;
       try {
-        stat = fs.statSync(real);
+        stat = await lstatMetadata(real);
       } catch (error: unknown) {
         const code: string | undefined = errnoCode(error);
         if (code === 'ENOENT' || code === 'ENOTDIR') continue;
         throw error;
       }
-      if (stat.isDirectory()) expandPhysicalDirectory(real, relative, results, new Set([real]));
+      if (stat.isDirectory()) await expandPhysicalDirectory(real, relative, results, new Set([real]));
     } else if (lstat.isFile()) {
       results.add(relative);
     } else {
@@ -114,18 +128,18 @@ function expandGlob(root: string, declaration: string) {
   return [...results].sort();
 }
 
-function resolveExecutable(name: string) {
-  return (process.env.PATH ?? '')
-    .split(path.delimiter)
-    .map((directory) => path.resolve(directory || '.', name))
-    .find((candidate) => {
-      try {
-        fs.accessSync(candidate, fs.constants.X_OK);
-        return fs.statSync(candidate).isFile();
-      } catch {
-        return false;
-      }
-    });
+async function resolveExecutable(name: string) {
+  for (const directory of (process.env.PATH ?? '').split(path.delimiter)) {
+    const candidate = path.resolve(directory || '.', name);
+    try {
+      await filesystemMetadata(() => fs.promises.access(candidate, fs.constants.X_OK));
+      const real = await physicalPath(candidate);
+      if ((await lstatMetadata(real)).isFile()) return candidate;
+    } catch {
+      // Continue the same PATH search after inaccessible or non-file candidates.
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -143,7 +157,11 @@ function resolveExecutable(name: string) {
 export class FingerprintPhase {
   readonly root: string;
   readonly store: DigestStore;
+  private rootObservation: Promise<string> | null = null;
+  readonly pendingGlobs = new Map<string, Promise<string[]>>();
   readonly globMemo = new Map<string, string[]>();
+  readonly pendingFiles = new Map<string, Promise<string>>();
+  readonly pendingExecutables = new Map<string, Promise<string>>();
   readonly fileDigestMemo = new Map<string, string>();
   readonly executableMemo = new Map<string, string>();
   packagePhase: ReturnType<typeof createPackagePhase> | null = null;
@@ -155,12 +173,40 @@ export class FingerprintPhase {
    * @param repositoryRoot - Physical repository root for safe relative input expansion.
    * @param root0 - Required phase-local content store.
    * @param root0.store - Stat-validated digest store whose observations share this phase.
-   * @throws When no store is supplied or root realpath fails.
+   * @throws When no store is supplied.
    */
   constructor(repositoryRoot: string, { store }: { store: DigestStore }) {
     if (!store) throw new Error('FingerprintPhase requires a digest store');
-    this.root = fs.realpathSync.native(repositoryRoot);
+    this.root = path.resolve(repositoryRoot);
     this.store = store;
+  }
+
+  private async physicalRoot(): Promise<string> {
+    this.rootObservation ??= physicalPath(this.root);
+    const observation = this.rootObservation;
+    try {
+      return await observation;
+    } catch (error) {
+      if (this.rootObservation === observation) this.rootObservation = null;
+      throw error;
+    }
+  }
+
+  private async leaves(declaration: string): Promise<string[]> {
+    const completed = this.globMemo.get(declaration);
+    if (completed) return completed;
+    const pending = this.pendingGlobs.get(declaration);
+    if (pending) return pending;
+    this.counters.globs++;
+    const operation = this.physicalRoot().then((root) => expandGlob(root, declaration));
+    this.pendingGlobs.set(declaration, operation);
+    try {
+      const value = await operation;
+      this.globMemo.set(declaration, value);
+      return value;
+    } finally {
+      this.pendingGlobs.delete(declaration);
+    }
   }
 
   /**
@@ -170,19 +216,13 @@ export class FingerprintPhase {
    * @returns Sorted unique effective leaves including empty directory/link markers.
    * @throws For absolute/parent traversal declarations, cycles, unsupported members or unexpected filesystem failures.
    */
-  expand(declarations: string[]) {
+  async expand(declarations: string[]) {
     const results = new Set<string>();
     for (const declaration of declarations) {
       if (path.isAbsolute(declaration) || declaration.split(/[\\/]/).includes('..')) {
         throw new Error(`unsafe declared test input: ${declaration}`);
       }
-      let leaves = this.globMemo.get(declaration);
-      if (!leaves) {
-        this.counters.globs++;
-        leaves = expandGlob(this.root, declaration);
-        this.globMemo.set(declaration, leaves);
-      }
-      for (const leaf of leaves) results.add(leaf);
+      for (const leaf of await this.leaves(declaration)) results.add(leaf);
     }
     return [...results].sort();
   }
@@ -194,13 +234,21 @@ export class FingerprintPhase {
    * @returns Effective content/link digest or explicit missing/directory marker.
    * @throws For unsupported input or filesystem failure.
    */
-  fileDigest(relative: string) {
+  async fileDigest(relative: string): Promise<string> {
     const memoized = this.fileDigestMemo.get(relative);
     if (memoized !== undefined) return memoized;
+    const pending = this.pendingFiles.get(relative);
+    if (pending) return pending;
     this.counters.filesRead++;
-    const value = this.computeFileDigest(relative);
-    this.fileDigestMemo.set(relative, value);
-    return value;
+    const operation = this.computeFileDigest(relative);
+    this.pendingFiles.set(relative, operation);
+    try {
+      const value = await operation;
+      this.fileDigestMemo.set(relative, value);
+      return value;
+    } finally {
+      this.pendingFiles.delete(relative);
+    }
   }
 
   /**
@@ -210,27 +258,37 @@ export class FingerprintPhase {
    * @returns Effective digest or explicit missing/directory/link marker.
    * @throws For unsupported member or filesystem failure.
    */
-  computeFileDigest(relative: string): string {
+  async computeFileDigest(relative: string): Promise<string> {
     if (relative.endsWith('/')) return 'directory';
-    const absolute = path.join(this.root, relative);
-    const lstat = fs.lstatSync(absolute, { throwIfNoEntry: false });
-    if (!lstat) return 'missing';
+    const absolute = path.join(await this.physicalRoot(), relative);
+    let lstat: fs.BigIntStats;
+    try {
+      lstat = await lstatMetadata(absolute);
+    } catch (error) {
+      if (errnoCode(error) === 'ENOENT' || errnoCode(error) === 'ENOTDIR') return 'missing';
+      throw error;
+    }
     if (lstat.isSymbolicLink()) {
-      const link = fs.readlinkSync(absolute);
+      const link = await filesystemMetadata(() => fs.promises.readlink(absolute));
       let real: string;
       try {
-        real = fs.realpathSync.native(absolute);
+        real = await physicalPath(absolute);
       } catch (error: unknown) {
         const code: string | undefined = errnoCode(error);
         if (code === 'ENOENT' || code === 'ENOTDIR') return `link\0${link}\0missing`;
         throw error;
       }
-      const stat = fs.statSync(real, { throwIfNoEntry: false });
-      if (!stat) return `link\0${link}\0missing`;
+      let stat: fs.BigIntStats;
+      try {
+        stat = await lstatMetadata(real);
+      } catch (error) {
+        if (errnoCode(error) === 'ENOENT' || errnoCode(error) === 'ENOTDIR') return `link\0${link}\0missing`;
+        throw error;
+      }
       // A directory target's members are already covered as their own leaf
       // entries under the link path by expand(); record only the link text.
       if (stat.isDirectory()) return `link\0${link}\0directory`;
-      return `link\0${link}\0${this.store.fileDigest(real)}`;
+      return `link\0${link}\0${await this.store.fileDigest(real)}`;
     }
     if (lstat.isFile()) return this.store.fileDigest(absolute);
     throw new Error(`unsupported test input: ${relative}`);
@@ -244,15 +302,15 @@ export class FingerprintPhase {
    * @returns Sorted path/digest map including missing/directory markers.
    * @throws For unsafe paths, unsupported members or fingerprint failures.
    */
-  inputDigests(files: string[], declarations: string[] = []): Map<string, string> {
-    const declared = this.expand(declarations);
+  async inputDigests(files: string[], declarations: string[] = []): Promise<Map<string, string>> {
+    const declared = await this.expand(declarations);
     // Values stay `string`: each is a local cache key outside the owner payload digest rules, so none is a `CanonicalSha256Digest`. The forms are the file content hash (SHA-256 lowercase hex), the markers `missing` and `directory`, and the symlink tokens `link\0<target>\0missing`, `link\0<target>\0directory` and `link\0<target>\0<hex>`, which are hash-preimage text, not digests.
-    const digests = new Map<string, string>();
-    for (const file of [...new Set([...files, ...declared])].sort()) {
+    const leaves = [...new Set([...files, ...declared])].sort();
+    const entries = await batchedMap(leaves, async (file): Promise<[string, string]> => {
       if (path.isAbsolute(file) || file.split(/[\\/]/).includes('..')) throw new Error(`unsafe test input: ${file}`);
-      digests.set(file, this.fileDigest(file));
-    }
-    return digests;
+      return [file, await this.fileDigest(file)];
+    });
+    return new Map(entries);
   }
 
   /**
@@ -262,8 +320,8 @@ export class FingerprintPhase {
    * @param declarations - Declared input glob text.
    * @returns Canonical input digest covering declaration text and effective leaf membership/content.
    */
-  graphDigest(files: string[], declarations: string[] = []) {
-    return inputsDigest(this.inputDigests(files, declarations), declarations);
+  async graphDigest(files: string[], declarations: string[] = []) {
+    return inputsDigest(await this.inputDigests(files, declarations), declarations);
   }
 
   /**
@@ -273,19 +331,34 @@ export class FingerprintPhase {
    * @returns Phase-memoized exact executable digest.
    * @throws For missing executable or read/rustup resolution failure.
    */
-  executableDigest(name: string) {
+  async executableDigest(name: string): Promise<string> {
     const memoized = this.executableMemo.get(name);
     if (memoized !== undefined) return memoized;
+    const pending = this.pendingExecutables.get(name);
+    if (pending) return pending;
     this.counters.executables++;
-    const file = resolveExecutable(name);
+    const operation = this.computeExecutableDigest(name);
+    this.pendingExecutables.set(name, operation);
+    try {
+      const value = await operation;
+      this.executableMemo.set(name, value);
+      return value;
+    } finally {
+      this.pendingExecutables.delete(name);
+    }
+  }
+
+  private async computeExecutableDigest(name: string): Promise<string> {
+    const file = await resolveExecutable(name);
     if (!file) throw new Error(`missing test executable: ${name}`);
-    const parts = [name, this.store.fileDigest(file)];
-    if (['cargo', 'rustc', 'rustfmt'].includes(name) && path.basename(fs.realpathSync.native(file)) === 'rustup') {
-      const selected = execFileSync(fs.realpathSync.native(file), ['which', name], { encoding: 'utf8' }).trim();
-      parts.push(this.store.fileDigest(selected));
+    const parts = [name, await this.store.fileDigest(file)];
+    if (['cargo', 'rustc', 'rustfmt'].includes(name) && path.basename(await physicalPath(file)) === 'rustup') {
+      const selected = (
+        await executeFile(await physicalPath(file), ['which', name], { encoding: 'utf8' })
+      ).stdout.trim();
+      parts.push(await this.store.fileDigest(selected));
     }
     const value = digest(parts.join('\0'));
-    this.executableMemo.set(name, value);
     return value;
   }
 
@@ -296,11 +369,11 @@ export class FingerprintPhase {
    * @returns Canonical executable/config digest.
    * @throws For missing executables or filesystem/command failure.
    */
-  executablesDigest(names: string[]) {
+  async executablesDigest(names: string[]) {
     const rust = names.some((name) => ['cargo', 'rustc', 'rustfmt', 'worker-build'].includes(name));
     const hash = createHash('sha256');
     for (const name of [...new Set(names)].sort()) {
-      hash.update(this.executableDigest(name));
+      hash.update(await this.executableDigest(name));
       hash.update('\0');
     }
     if (rust) {
@@ -311,7 +384,12 @@ export class FingerprintPhase {
           const file = path.join(directory, filename);
           hash.update(filename);
           hash.update('\0');
-          hash.update(fs.existsSync(file) ? fs.readFileSync(file) : 'missing');
+          try {
+            hash.update(await readContent(file));
+          } catch (error) {
+            if (errnoCode(error) !== 'ENOENT' && errnoCode(error) !== 'ENOTDIR') throw error;
+            hash.update('missing');
+          }
           hash.update('\0');
         }
       }
@@ -377,7 +455,7 @@ export function inputsDigest(digests: Map<string, string>, declarations: string[
  * @param declarations - Additional declared input globs.
  * @returns Fresh memory-only canonical input digest.
  */
-export function fingerprintFiles(repositoryRoot: string, files: string[], declarations: string[] = []) {
-  const phase = new FingerprintPhase(repositoryRoot, { store: new DigestStore(null) });
+export async function fingerprintFiles(repositoryRoot: string, files: string[], declarations: string[] = []) {
+  const phase = new FingerprintPhase(await physicalPath(repositoryRoot), { store: new DigestStore(null) });
   return phase.graphDigest(files, declarations);
 }

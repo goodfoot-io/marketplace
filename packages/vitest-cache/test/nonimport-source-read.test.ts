@@ -9,7 +9,7 @@ import path from 'node:path';
 import { expect, test } from 'vitest';
 import { fingerprintFiles } from '../src/fingerprint.ts';
 
-test('a source-scanning test invalidates when an unimported source file is added', () => {
+test('a source-scanning test invalidates when an unimported source file is added', async () => {
   const scannedTest = 'packages/app/test/source-scan.test.ts';
   const addedSource = 'packages/app/src/__cache_probe.ts';
   // A test that scans source text declares the scanned tree as a non-import input.
@@ -20,13 +20,13 @@ test('a source-scanning test invalidates when an unimported source file is added
     const testPath = path.join(root, scannedTest);
     mkdirSync(path.dirname(testPath), { recursive: true });
     writeFileSync(testPath, 'export const value = 1;\n');
-    const before = fingerprintFiles(root, [scannedTest], inputs);
+    const before = await fingerprintFiles(root, [scannedTest], inputs);
 
     const sourcePath = path.join(root, addedSource);
     mkdirSync(path.dirname(sourcePath), { recursive: true });
     writeFileSync(sourcePath, "export const cacheProbe = 'UPDATE repos SET org_id = ? WHERE id = ?';\n");
 
-    expect(fingerprintFiles(root, [scannedTest], inputs)).not.toBe(before);
+    expect(await fingerprintFiles(root, [scannedTest], inputs)).not.toBe(before);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

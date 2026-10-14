@@ -1,6 +1,6 @@
 {
   "name": "goodfoot",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "interface": {
     "displayName": "Goodfoot Plugins"
   },

@@ -5,7 +5,7 @@
  * @summary Run Vitest with output capture and commit staged cache records after acceptance.
  */
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { constants as osConstants, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -27,10 +27,10 @@ const cli = resolve(dirname(require.resolve('vitest/package.json')), 'vitest.mjs
 if (process.argv[2] !== 'run' || testVerbose()) {
   await import(pathToFileURL(cli).href);
 } else {
-  const capture = createTestOutputCapture(process.cwd());
+  const capture = await createTestOutputCapture(process.cwd());
   // The child stages cache results here; they become reusable only after the
   // capture check below accepts the run's native diagnostics.
-  const stageDirectory = mkdtempSync(join(tmpdir(), 'goodfoot-vitest-stage-'));
+  const stageDirectory = await mkdtemp(join(tmpdir(), 'goodfoot-vitest-stage-'));
   const stage = join(stageDirectory, 'stage.json');
   const child = spawn(process.execPath, [...process.execArgv, cli, ...process.argv.slice(2)], {
     env: { ...process.env, GOODFOOT_TEST_OUTPUT_RESULT: capture.resultPath, GOODFOOT_VITEST_CACHE_ACK: stage },
@@ -64,10 +64,10 @@ if (process.argv[2] !== 'run' || testVerbose()) {
     const outcome = await exited;
     await drains;
     if (drainError) throw drainError;
-    process.exitCode = capture.finish(outcome);
+    process.exitCode = await capture.finish(outcome);
     if (capture.accepted()) {
       try {
-        commitStage(stage);
+        await commitStage(stage);
       } catch (error) {
         process.stderr.write(`vitest cache: results not recorded: ${errorMessage(error)}\n`);
       }
@@ -75,9 +75,9 @@ if (process.argv[2] !== 'run' || testVerbose()) {
   } catch (error) {
     child.kill('SIGTERM');
     process.stderr.write(`[test-output] Vitest capture failed: ${errorMessage(error)}\n`);
-    process.exitCode = capture.finish(1);
+    process.exitCode = await capture.finish(1);
   } finally {
-    rmSync(stageDirectory, { recursive: true, force: true });
+    await rm(stageDirectory, { recursive: true, force: true });
     process.off('SIGINT', onInterrupt);
     process.off('SIGTERM', onTerminate);
     process.off('SIGHUP', onHangup);

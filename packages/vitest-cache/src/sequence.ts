@@ -3,8 +3,9 @@
  *
  * @summary Validate fallback suite dispatch order without changing test selection.
  */
-import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import path from 'node:path';
+import { errnoCode } from './errors.ts';
 
 /**
  * A suite's declared execution order: repository-relative test file paths,
@@ -51,9 +52,17 @@ export function validateSequence(declaration: unknown): string[] {
  * @returns Original declaration after every path exists.
  * @throws When a declared path is missing.
  */
-export function verifySequence(declaration: string[], root: string) {
+export async function verifySequence(declaration: string[], root: string) {
   for (const entry of declaration) {
-    if (!fs.existsSync(path.join(root, entry)))
+    if (
+      !(await fsp.access(path.join(root, entry)).then(
+        () => true,
+        (error: unknown) => {
+          if (errnoCode(error) === 'ENOENT') return false;
+          throw error;
+        }
+      ))
+    )
       throw new Error(`test sequence declares a file that no longer exists: ${entry}`);
   }
   return declaration;

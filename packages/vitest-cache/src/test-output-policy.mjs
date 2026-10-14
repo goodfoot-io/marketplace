@@ -3,12 +3,16 @@
  *
  * @summary Compose explicit cache, output and worker-teardown policy into Vitest configuration.
  */
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { hash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
+import { mkdir, readFile, realpath } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { types as nodeTypes } from 'node:util';
+import { types as nodeTypes, promisify } from 'node:util';
+import { errnoCode } from './errors.ts';
+
+const exec = promisify(execFile);
+
 import {
   ContentCacheReporter,
   ContentCacheSequencer,
@@ -21,36 +25,36 @@ import { testVerbose } from './test-verbose.mjs';
 import { workerTeardownPlugin } from './test-worker-teardown.mjs';
 
 const reporterPath = fileURLToPath(new URL('./test-output-reporter.mjs', import.meta.url));
-// The checkout (main worktree or linked worktree) that contains this package.
-const repositoryRoot = realpathSync(
-  execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: dirname(reporterPath), encoding: 'utf8' }).trim()
-);
-// The install state this checkout's packages resolve against.
-const installState = readFileSync(join(repositoryRoot, 'node_modules', '.yarn-state.yml'));
-// Vitest keys its module cache metadata by the nearest install state above
-// the Vitest working directory, and deletes the whole cache directory when
-// that disagrees with the directory's metadata. Every run that shares a
-// directory must therefore see the same install state: the directory is keyed
-// by that state, and a run whose nearest install state differs (for example a
-// checkout that resolves this package from another checkout) does not use the
-// shared cache, so it can never delete a directory other runs are writing.
-const installHash = hash('sha256', installState, 'hex').slice(0, 16);
 /**
- * Find the install state Vitest's lockfile check reads for a working directory.
- * @param {string} directory - Vitest working directory.
- * @returns {Buffer | undefined} Nearest `node_modules/.yarn-state.yml` content, or undefined when none exists.
+ * Observe install-state agreement before selecting a shared module cache directory.
+ * @returns {Promise<{repositoryRoot: string, moduleCachePath: string, moduleCacheShared: boolean}>} Fresh checkout and install-state observations.
  */
-function nearestInstallState(directory) {
-  for (let current = directory; ; current = dirname(current)) {
-    const candidate = join(current, 'node_modules', '.yarn-state.yml');
-    if (existsSync(candidate)) return readFileSync(candidate);
-    if (dirname(current) === current) return undefined;
+async function moduleCache() {
+  const repositoryRoot = await realpath(
+    (
+      await exec('git', ['rev-parse', '--show-toplevel'], {
+        cwd: dirname(reporterPath),
+        encoding: 'utf8'
+      })
+    ).stdout.trim()
+  );
+  const installState = await readFile(join(repositoryRoot, 'node_modules', '.yarn-state.yml'));
+  const installHash = hash('sha256', installState, 'hex').slice(0, 16);
+  let workingInstallState;
+  for (let current = process.cwd(); ; current = dirname(current)) {
+    try {
+      workingInstallState = await readFile(join(current, 'node_modules', '.yarn-state.yml'));
+      break;
+    } catch (error) {
+      if (errnoCode(error) !== 'ENOENT') throw error;
+    }
+    if (dirname(current) === current) break;
   }
+  const moduleCacheShared = workingInstallState?.equals(installState) === true;
+  const moduleCachePath = join(repositoryRoot, 'node_modules', '.experimental-vitest-cache', installHash);
+  await mkdir(moduleCachePath, { recursive: true });
+  return { repositoryRoot, moduleCachePath, moduleCacheShared };
 }
-const workingInstallState = nearestInstallState(process.cwd());
-const moduleCacheShared = workingInstallState?.equals(installState) === true;
-const moduleCachePath = join(repositoryRoot, 'node_modules', '.experimental-vitest-cache', installHash);
-mkdirSync(moduleCachePath, { recursive: true });
 
 /**
  * Read a JSON cache contract. Keeping large per-file tables out of the runner configuration's module graph means editing one file's declaration changes only that file's selected inputs, not every file's configuration digest.
@@ -60,9 +64,9 @@ mkdirSync(moduleCachePath, { recursive: true });
  * @throws For read/JSON/shape failures or uncached declaration.
  * @type {import('./test-output-policy.d.mts').CacheContractLoader}
  */
-export const loadCacheContract = function loadCacheContract(url) {
+export const loadCacheContract = async function loadCacheContract(url) {
   // Callers read fields before withTestOutput runs, so validate here to make the declared CacheContract true.
-  const contract = validateContract(JSON.parse(readFileSync(url, 'utf8')));
+  const contract = validateContract(JSON.parse(await readFile(url, 'utf8')));
   if ('uncached' in contract) throw new Error(`${url.href} must declare a cache contract, not { uncached }`);
   return contract;
 };
@@ -75,9 +79,9 @@ export const loadCacheContract = function loadCacheContract(url) {
  * @throws For file read or JSON parsing errors.
  * @type {import('./test-output-policy.d.mts').TestSequenceLoader}
  */
-export const loadTestSequence = function loadTestSequence(url) {
+export const loadTestSequence = async function loadTestSequence(url) {
   /** @type {unknown} */
-  const sequence = JSON.parse(readFileSync(url, 'utf8'));
+  const sequence = JSON.parse(await readFile(url, 'utf8'));
   return sequence;
 };
 
@@ -141,7 +145,7 @@ function diagnosticPlugin() {
  * @param {import('vitest/config').ViteUserConfig} configuration - Original Vitest configuration object.
  * @param {Parameters<import('./test-output-policy.d.mts').TestOutputObjectPolicy>[1]} contract - Explicit cache inputs or sole uncached reason.
  * @param {Parameters<import('./test-output-policy.d.mts').TestOutputObjectPolicy>[2]} [sequence] - Declared suite order validated before use.
- * @returns {import('vitest/config').ViteUserConfig} Policy-bearing configuration object.
+ * @returns {Promise<import('vitest/config').ViteUserConfig>} Awaited policy-bearing configuration object.
  */
 /**
  * Await the original configuration factory before applying output policy.
@@ -155,18 +159,33 @@ function diagnosticPlugin() {
  * Apply output defaults without changing runner, selection, or isolation. `contract` is required: a cache contract naming inputs read outside the import graph, or `{ uncached: reason }` for suites whose results depend on live or measured state. `sequence`, when given, is a suite's declared execution order (`loadTestSequence`); it only reorders dispatch among the suite's own files and never changes which files run or their results.
  *
  * @param {import('vitest/config').ViteUserConfig | import('vitest/config').ViteUserConfigFn} configuration - Object or original configuration factory.
- * @param {import('./contract.ts').CacheContract | import('./contract.ts').UncachedContract} contract - Explicit cached inputs or sole uncached reason.
+ * @param {import('./contract.ts').CacheContract | import('./contract.ts').UncachedContract | Promise<import('./contract.ts').CacheContract | import('./contract.ts').UncachedContract>} contract - Explicit cached inputs or sole uncached reason.
  * @param {unknown} [sequence] - Optional unknown declared suite order, validated before use.
- * @returns {import('vitest/config').ViteUserConfig | import('vitest/config').ViteUserConfigFnPromise} Policy-bearing object or awaited factory.
+ * @returns {Promise<import('vitest/config').ViteUserConfig> | import('vitest/config').ViteUserConfigFnPromise} Policy-bearing object or awaited factory.
  * @throws For invalid contract/order, stale sequence or invalid host setup.
  */
 function applyTestOutput(configuration, contract, sequence) {
-  validateContract(contract);
-  const declaredSequence =
-    sequence === undefined ? undefined : verifySequence(validateSequence(sequence), repositoryRoot);
   if (typeof configuration === 'function') {
     return async (environment) => withTestOutput(await configuration(environment), contract, sequence);
   }
+  return applyObject(configuration, contract, sequence);
+}
+
+/**
+ * Await disk-backed policy inputs before attaching their validated values.
+ * @param {import('vitest/config').ViteUserConfig} configuration - Original configuration object.
+ * @param {import('./contract.ts').CacheContract | import('./contract.ts').UncachedContract | Promise<import('./contract.ts').CacheContract | import('./contract.ts').UncachedContract>} candidate - Explicit policy or loader promise.
+ * @param {unknown} sequence - Optional declaration or loader promise.
+ * @returns {Promise<import('vitest/config').ViteUserConfig>} Accepted policy-bearing configuration.
+ */
+async function applyObject(configuration, candidate, sequence) {
+  const contract = validateContract(await candidate);
+  const { repositoryRoot, moduleCachePath, moduleCacheShared } = await moduleCache();
+  const selectedSequence = await sequence;
+  const declaredSequence =
+    selectedSequence === undefined
+      ? undefined
+      : await verifySequence(validateSequence(selectedSequence), repositoryRoot);
   // Cached suites run with the environment their result key models.
   if (!('uncached' in contract)) stripSessionEnvironment(process.env);
   const verbose = testVerbose();

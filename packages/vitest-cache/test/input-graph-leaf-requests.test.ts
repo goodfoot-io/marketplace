@@ -53,9 +53,9 @@ test('a ?raw TOML import outside the Vite root is a content-hashed input, and ed
   const { files } = await graph('app/entry.test.ts');
   expect(files).toEqual(['app/entry.test.ts', 'config/wrangler.toml']);
 
-  const before = fingerprintFiles(root, files);
+  const before = await fingerprintFiles(root, files);
   writeFileSync(path.join(root, 'config/wrangler.toml'), 'account-id = "second"\n');
-  expect(fingerprintFiles(root, files)).not.toBe(before);
+  expect(await fingerprintFiles(root, files)).not.toBe(before);
 });
 
 test('a module first reached as a ?raw leaf still has its module imports walked', async () => {

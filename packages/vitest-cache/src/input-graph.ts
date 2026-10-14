@@ -3,12 +3,13 @@
  *
  * @summary Walk the transformed Vite input graph with phase-scoped observations.
  */
-import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import { createRequire, isBuiltin } from 'node:module';
 import path from 'node:path';
 import { parseAst } from 'vite';
 import type { TestProject } from 'vitest/node';
 import { errorMessage } from './errors.ts';
+import { filesystemMetadata, physicalPath } from './filesystem-batch.ts';
 import { moduleEdges } from './host-graph.ts';
 
 /** The Vite server Vitest runs on. */
@@ -50,7 +51,7 @@ export function createWalkCache(): WalkCache {
 }
 
 /**
- * realpathSync + repo-relative/external classification of `pathname`, memoized per phase.
+ * Asynchronous realpath + repo-relative/external classification of `pathname`, memoized per phase.
  *
  * @param root - Physical repository root.
  * @param pathname - Path to observe.
@@ -58,10 +59,10 @@ export function createWalkCache(): WalkCache {
  * @returns Installed external path, repository-relative file or outside-repository classification.
  * @throws On realpath failure.
  */
-function classifyLocalFile(root: string, pathname: string, cache: Map<string, LocalClassification>) {
+async function classifyLocalFile(root: string, pathname: string, cache: Map<string, LocalClassification>) {
   let result = cache.get(pathname);
   if (result) return result;
-  const file = fs.realpathSync.native(pathname);
+  const file = await physicalPath(pathname);
   if (file.split(path.sep).includes('node_modules')) {
     result = { external: file, relative: null, outside: false };
   } else {
@@ -73,13 +74,18 @@ function classifyLocalFile(root: string, pathname: string, cache: Map<string, Lo
   return result;
 }
 
-function localFile(root: string, id: unknown, externalPaths: Set<string>, cache: Map<string, LocalClassification>) {
+async function localFile(
+  root: string,
+  id: unknown,
+  externalPaths: Set<string>,
+  cache: Map<string, LocalClassification>
+) {
   if (typeof id !== 'string' || id.startsWith('\0') || id.startsWith('virtual:') || id.startsWith('/@id/')) {
     throw new Error(`untracked virtual test dependency: ${String(id)}`);
   }
   const pathname = id.replace(/[?#].*$/, '');
   if (!path.isAbsolute(pathname)) throw new Error(`unresolved test dependency: ${id}`);
-  const result = classifyLocalFile(root, pathname, cache);
+  const result = await classifyLocalFile(root, pathname, cache);
   if (result.external) {
     externalPaths.add(result.external);
     return null;
@@ -143,8 +149,8 @@ function leafRequest(id: string, relative: string) {
   return /[?&](?:raw|url|inline)(?:[&=]|$)/.test(id) || /\.(?:sql|json|md|txt|wasm|css|html|svg)$/.test(relative);
 }
 
-function statSignature(file: string) {
-  const stat = fs.lstatSync(file, { bigint: true });
+async function statSignature(file: string) {
+  const stat = await filesystemMetadata(() => fsp.lstat(file, { bigint: true }));
   return `${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`;
 }
 
@@ -156,10 +162,10 @@ function statSignature(file: string) {
  * @returns Observed inode/size/mtime/ctime signature.
  * @throws On filesystem stat failure.
  */
-function cachedStatSignature(file: string, cache: Map<string, string>) {
+async function cachedStatSignature(file: string, cache: Map<string, string>) {
   let signature = cache.get(file);
   if (signature === undefined) {
-    signature = statSignature(file);
+    signature = await statSignature(file);
     cache.set(file, signature);
   }
   return signature;
@@ -188,7 +194,7 @@ export async function collectInputGraph(
     cache?: WalkCache;
   } = {}
 ): Promise<InputGraph> {
-  const root = fs.realpathSync.native(repositoryRoot);
+  const root = await physicalPath(repositoryRoot);
   const opaqueImports = new Set<string>();
   for (const relative of options.opaqueImports ?? []) {
     if (path.isAbsolute(relative) || relative.split(/[\\/]/).includes('..')) {
@@ -224,7 +230,7 @@ export async function collectInputGraph(
   const externalPaths = new Set<string>();
   const declared = new Set<string>();
   for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
-    const relative = localFile(root, id, externalPaths, cache.classify);
+    const relative = await localFile(root, id, externalPaths, cache.classify);
     if (relative === null) continue;
     files.add(relative);
     if (leafRequest(id, relative) || walked.has(relative)) continue;
@@ -232,7 +238,7 @@ export async function collectInputGraph(
     const absolute = path.join(root, relative);
     // A changed file signature makes a cached transform stale even under the
     // same edgeKey history; invalidate it in the environment before re-reading.
-    const signature = cachedStatSignature(absolute, cache.signature);
+    const signature = await cachedStatSignature(absolute, cache.signature);
     if (signatures.get(absolute) !== signature) {
       signatures.set(absolute, signature);
       const modules = environment.moduleGraph.getModulesByFile?.(absolute);

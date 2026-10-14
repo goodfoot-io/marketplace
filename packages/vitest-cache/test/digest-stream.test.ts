@@ -56,8 +56,8 @@ test('large files, effective links and sorted trees preserve exact SHA framing a
   symlinkSync(file, path.join(tree, 'z-link'));
   const expectedFile = createHash('sha256').update('420\0').update(bytes).digest('hex');
   const store = new DigestStore(null);
-  expect(store.fileDigest(file)).toBe(expectedFile);
-  expect(store.fileDigest(path.join(tree, 'z-link'))).toBe(expectedFile);
+  expect(await store.fileDigest(file)).toBe(expectedFile);
+  expect(await store.fileDigest(path.join(tree, 'z-link'))).toBe(expectedFile);
   const expectedTree = createHash('sha256').update('vitest-tree-digest-v2\0');
   expectedTree
     .update('a-binary\0file\0' + '420\0')
@@ -71,7 +71,7 @@ test('large files, effective links and sorted trees preserve exact SHA framing a
   expect(store.stats.bytesRead).toBe(size * 4);
   chmodSync(file, 0o755);
   const changed = new DigestStore(null);
-  expect(changed.fileDigest(file)).toBe(createHash('sha256').update('493\0').update(bytes).digest('hex'));
+  expect(await changed.fileDigest(file)).toBe(createHash('sha256').update('493\0').update(bytes).digest('hex'));
   expect(await changed.treeDigest(tree)).not.toBe(await store.treeDigest(tree));
 });
 
@@ -91,7 +91,7 @@ test('a 256 MiB binary uses bounded real read memory in an isolated process', as
     const before = process.memoryUsage().arrayBuffers;
     const rssBefore = process.resourceUsage().maxRSS;
     const store = new DigestStore(null);
-    const digest = store.fileDigest(${JSON.stringify(file)});
+    const digest = await store.fileDigest(${JSON.stringify(file)});
     console.log(JSON.stringify({digest, bytes: store.stats.bytesRead, allocated: process.memoryUsage().arrayBuffers - before, peakRssKiB: process.resourceUsage().maxRSS - rssBefore}));
   `
     ],
@@ -159,7 +159,7 @@ test.each(
     Atomics.store(state, 1, 1); Atomics.notify(state, 1);
     const store = new DigestStore(null);
     let failed = false;
-    try { ${tree ? `await store.treeDigest(${JSON.stringify(directory)})` : `store.fileDigest(${JSON.stringify(file)})`}; } catch (error) { failed = /changed while hashing/.test(error.message); }
+    try { ${tree ? `await store.treeDigest(${JSON.stringify(directory)})` : `await store.fileDigest(${JSON.stringify(file)})`}; } catch (error) { failed = /changed while hashing/.test(error.message); }
     Atomics.store(state, 1, 2);
     if (Atomics.wait(state, 2, 0, 10000) === 'timed-out') throw new Error('mutation worker did not stop');
     const after = fs.readdirSync('/proc/self/fd').length;

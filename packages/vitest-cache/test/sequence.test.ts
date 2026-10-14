@@ -32,13 +32,13 @@ test('validateSequence accepts a well-formed declaration and returns it unchange
   expect(validateSequence(declaration)).toBe(declaration);
 });
 
-test('verifySequence fails loudly when a declared file no longer exists', () => {
+test('verifySequence fails loudly when a declared file no longer exists', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'vitest-cache-sequence-'));
   try {
     mkdirSync(path.join(root, 'test-do'), { recursive: true });
     writeFileSync(path.join(root, 'test-do', 'present.test.ts'), 'export {};\n');
-    expect(() => verifySequence(['test-do/present.test.ts'], root)).not.toThrow();
-    expect(() => verifySequence(['test-do/present.test.ts', 'test-do/missing.test.ts'], root)).toThrow(
+    await expect(verifySequence(['test-do/present.test.ts'], root)).resolves.toEqual(['test-do/present.test.ts']);
+    await expect(verifySequence(['test-do/present.test.ts', 'test-do/missing.test.ts'], root)).rejects.toThrow(
       /no longer exists: test-do\/missing\.test\.ts/
     );
   } finally {

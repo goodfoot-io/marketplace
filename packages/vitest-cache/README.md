@@ -13,7 +13,8 @@ selected by `CC`) and enabled package install scripts. The install script builds
 the required Node-API metadata checker locally using bundled, licensed Node
 headers; Python, make and downloaded Node headers are unnecessary. Install fails
 if compilation fails; fresh installations with scripts disabled leave the checker
-unavailable and cache imports fail. macOS requires the Xcode command line tools.
+unavailable; fingerprint worker startup fails and the run proceeds without cache
+reuse or publication. macOS requires the Xcode command line tools.
 Vitest and Vite are required peers; supported ranges are in
 [package.json](./package.json). Install the published package with:
 
@@ -38,6 +39,12 @@ import { loadCacheContract, withTestOutput } from '@goodfoot/vitest-cache/policy
 
 export default withTestOutput(defineConfig({ test: {} }), loadCacheContract(new URL('./vitest.cache.json', import.meta.url)));
 ```
+
+Object configurations return a promise that Vitest awaits; configuration factories
+remain factories returning promises. `loadCacheContract` and `loadTestSequence`
+read asynchronously. Pass their promises directly to `withTestOutput`, as above,
+or await a loader before inspecting its fields. Await `withTestOutput` before
+reading the resulting configuration yourself.
 
 | Entry point | Contents |
 | --- | --- |
@@ -176,6 +183,36 @@ a fresh isolated `TMPDIR` for result/digest caches and require `miss: new` count
 Run warm with that same environment and installation; report wall and fingerprint
 times. Preserve the shared module cache. FORCE executes tests but does not make
 existing digest records cold.
+
+## Fingerprinting resources
+
+Each cache session lazily starts two queued workers: one for local inputs,
+executables and key descriptions, and one for installed package closures. Small
+in-memory hashes and warm stat-validated reuse also run there. Each worker admits
+one active command and at most 32 waiting commands. Only paths and canonical
+metadata cross the worker boundary; file bytes stay in the worker that reads them.
+
+Runtime filesystem calls are asynchronous, including graph discovery, records,
+locks, configuration loading and diagnostic artifacts. Fingerprint observations
+share a process-wide limit of 32 metadata operations and four content descriptors
+across the host and workers; streamed hash buffers are at most 1 MiB each. The
+native metadata checker performs its OS calls on libuv workers. Build, audit and
+test utilities can still use synchronous filesystem APIs.
+
+Each phase reobserves filesystem state before reuse; completed tree snapshots
+carry no permission to skip those checks. Workers share the current environment,
+so executable selection can change during setup. Idle workers do not keep the CLI
+alive. Closing drains active work and stops the workers before positive records
+are published; worker or protocol failure blocks publication. Worker startup and
+message handling add overhead, so offloading improves main-thread availability
+without guaranteeing lower total CPU or elapsed time.
+
+When profiling, measure main-thread CPU with `process.threadCpuUsage()` and total
+process CPU with `process.cpuUsage()`; record timer gaps and whether worker
+startup is included. For internal backend measurements, collect
+`FingerprintRuntime.stats` after phase release. Confirm warm reuse still performs
+fresh metadata checks with zero computed content digests and zero bytes read;
+reduced main-thread CPU alone does not prove less total work.
 
 ## Keys
 
@@ -354,7 +391,9 @@ JavaScript roots prevent adjacent declaration files from hiding implementation
 bodies. The build cleans `dist`, emits checked TypeScript and JavaScript,
 retains public declarations/context augmentation, and rewrites declaration
 module specifiers to emitted extensions. `prepack` rebuilds; the tarball contains
-only `dist`, package metadata and the README/output guide.
+only `dist`, package metadata, the README/output guide, native sources and bundled
+Node headers/license, and the native install script. No compiled native binary is
+shipped; installation builds it for the consumer.
 
 Compilation uses TypeScript 7. Build/audit scripts and the isolated consumer
 use Microsoft's `@typescript/typescript6` compiler API/compatibility package.

@@ -3,7 +3,7 @@
  *
  * @summary Resolve explicit test diagnostic verbosity from the environment.
  */
-import { existsSync, realpathSync } from 'node:fs';
+import { realpath } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { errorMessage } from './errors.ts';
 
@@ -22,15 +22,14 @@ export const testVerbose = function testVerbose(environment = process.env) {
   throw new Error('GOODFOOT_TEST_VERBOSE must be unset, 0, or 1');
 };
 
-if (
-  process.argv[1] &&
-  existsSync(process.argv[1]) &&
-  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
-) {
-  try {
-    testVerbose();
-  } catch (error) {
-    console.error(errorMessage(error));
-    process.exitCode = 1;
-  }
+if (process.argv[1]) {
+  Promise.all([realpath(process.argv[1]), realpath(fileURLToPath(import.meta.url))])
+    .then(([entry, own]) => {
+      if (entry === own) testVerbose();
+    })
+    .catch((error) => {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') return;
+      console.error(errorMessage(error));
+      process.exitCode = 1;
+    });
 }

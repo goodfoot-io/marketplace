@@ -4,12 +4,13 @@
  * @summary Fingerprint installed package bytes and resolved dependency closure per phase.
  */
 import { createHash, hash } from 'node:crypto';
-import fs from 'node:fs';
 import { builtinModules, createRequire } from 'node:module';
 import path from 'node:path';
 import { setImmediate } from 'node:timers/promises';
 import type { DigestStore } from './digest-store.ts';
-import { batchedMap, physicalPath } from './filesystem-batch.ts';
+import { errnoCode } from './errors.ts';
+import { batchedMap, lstatMetadata, physicalPath } from './filesystem-batch.ts';
+import { readText } from './filesystem-content.ts';
 
 const builtins = new Set(builtinModules.map((name) => name.replace(/^node:/, '')));
 
@@ -77,9 +78,9 @@ function captured(match: RegExpExecArray, index: number, context: string): strin
   return value;
 }
 
-function installedState(root: string): Map<string, string> {
+async function installedState(root: string): Promise<Map<string, string>> {
   const file = path.join(root, 'node_modules/.yarn-state.yml');
-  const source = fs.readFileSync(file, 'utf8');
+  const source = await readText(file);
   const cached = stateDescriptions.get(root);
   if (cached?.source === source) return cached.value;
   const locations = new Map<string, string>();
@@ -115,8 +116,8 @@ function installedState(root: string): Map<string, string> {
   return locations;
 }
 
-function lockEntries(root: string): Map<string, LockEntry> {
-  const source = fs.readFileSync(path.join(root, 'yarn.lock'), 'utf8');
+async function lockEntries(root: string): Promise<Map<string, LockEntry>> {
+  const source = await readText(path.join(root, 'yarn.lock'));
   const cached = lockDescriptions.get(root);
   if (cached?.source === source) return cached.value;
   const entries = new Map<string, LockEntry>();
@@ -157,8 +158,8 @@ function lockDigest(source: string) {
   return digest(withoutHeader);
 }
 
-function manifestDeclarations(directory: string): Map<string, string> {
-  const source = fs.readFileSync(path.join(directory, 'package.json'), 'utf8');
+async function manifestDeclarations(directory: string): Promise<Map<string, string>> {
+  const source = await readText(path.join(directory, 'package.json'));
   const cached = manifestDescriptions.get(directory);
   if (cached?.source === source) return new Map(cached.value);
   const manifest = JSON.parse(source);
@@ -172,14 +173,14 @@ function manifestDeclarations(directory: string): Map<string, string> {
   return new Map(declarations);
 }
 
-function packageRoot(
+async function packageRoot(
   root: string,
   filename: string,
   locations: Map<string, string>,
   physicalLocations: Map<string, string>
-): string {
-  const absolute = fs.realpathSync.native(filename);
-  let directory = fs.statSync(absolute).isDirectory() ? absolute : path.dirname(absolute);
+): Promise<string> {
+  const absolute = await physicalPath(filename);
+  let directory = (await lstatMetadata(absolute)).isDirectory() ? absolute : path.dirname(absolute);
   while (directory !== path.dirname(directory)) {
     if (locations.has(directory)) return directory;
     const logical = physicalLocations.get(directory);
@@ -194,8 +195,15 @@ function packageRoot(
   for (let index = 0; index < parts.length; index++) {
     if (parts[index] !== 'node_modules') continue;
     const candidate = path.join(root, ...parts.slice(index));
-    if (!fs.existsSync(candidate) || fs.realpathSync.native(candidate) !== absolute) continue;
-    let parent = fs.statSync(candidate).isDirectory() ? candidate : path.dirname(candidate);
+    let physical: string;
+    try {
+      physical = await physicalPath(candidate);
+    } catch (error) {
+      if (errnoCode(error) === 'ENOENT' || errnoCode(error) === 'ENOTDIR') continue;
+      throw error;
+    }
+    if (physical !== absolute) continue;
+    let parent = (await lstatMetadata(physical)).isDirectory() ? candidate : path.dirname(candidate);
     while (within(root, parent)) {
       if (locations.has(parent)) return parent;
       if (parent === root) break;
@@ -225,7 +233,7 @@ function resolveInstalledPackage(from: string, name: string, locations: Map<stri
  */
 export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
   if (!store) throw new Error('createPackagePhase requires a digest store');
-  const root = fs.realpathSync.native(repositoryRoot);
+  let root = path.resolve(repositoryRoot);
   let installation: Installation | undefined;
   const nodes = new Map<string, PackageNode>();
   const roots = new Map<string, string>();
@@ -235,7 +243,8 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
 
   async function initializeState() {
     if (!installation) {
-      const locations = installedState(root);
+      root = await physicalPath(root);
+      const locations = await installedState(root);
       const physicalLocations = new Map<string, string>();
       const directories = [...locations.keys()];
       const physicalPaths = await batchedMap(directories, physicalPath);
@@ -260,7 +269,7 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
         }
         physicalLocations.set(physical, directory);
       }
-      installation = { locations, physicalLocations, entries: lockEntries(root) };
+      installation = { locations, physicalLocations, entries: await lockEntries(root) };
     }
     return installation;
   }
@@ -280,7 +289,7 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
     let value = roots.get(filename);
     if (!value) {
       const { locations, physicalLocations } = await state();
-      value = packageRoot(root, filename, locations, physicalLocations);
+      value = await packageRoot(root, filename, locations, physicalLocations);
       roots.set(filename, value);
     }
     return value;
@@ -309,7 +318,7 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
     const underlying = canonicalLocator(locator);
     const lock = entries.get(locator) ?? entries.get(underlying);
     if (!lock) throw new Error(`installed package missing exact Yarn lock entry: ${directory}`);
-    const declarations = manifestDeclarations(directory);
+    const declarations = await manifestDeclarations(directory);
     // Yarn packageExtensions and virtual peer contexts are represented in the
     // lock entry, even when the published manifest omits the added dependency.
     for (const dependency of lock.dependencies) {

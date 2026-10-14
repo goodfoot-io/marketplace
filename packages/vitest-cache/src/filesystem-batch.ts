@@ -6,19 +6,88 @@ import fs from 'node:fs';
 
 /** Maximum number of outstanding metadata operations in one batch. */
 export const filesystemBatchSize = 32;
-let activeObservations = 0;
-const waitingObservations: (() => void)[] = [];
+/** Maximum concurrent content descriptors; streamed hashes use at-most-1-MiB buffers. */
+export const filesystemStreamLimit = 4;
+const notificationSlot = filesystemBatchSize + filesystemStreamLimit;
+/** Atomic ownership slots: thirty-two metadata, four streams and one wake generation. */
+export const filesystemBudget = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * (notificationSlot + 1));
+let permits = new Int32Array(filesystemBudget);
+let owner = 1;
+const owners = new Set<number>();
+
+/**
+ * Allocate distinct ownership across concurrent controller instances.
+ * @returns Reserved worker ownership identifier.
+ * @throws When the process already has sixty-four live fingerprint workers.
+ */
+export function allocateFilesystemOwner(): number {
+  for (let identifier = 2; identifier <= 65; identifier++) {
+    if (!owners.has(identifier)) {
+      owners.add(identifier);
+      return identifier;
+    }
+  }
+  throw new Error('too many live fingerprint workers');
+}
+
+/**
+ * Join the host's metadata and streaming budget before observing filesystem inputs.
+ * @param buffer - Shared atomic ownership slots owned by the host module.
+ * @param identifier - Distinct worker ownership identifier.
+ * @throws For an invalid shared buffer or ownership identifier.
+ */
+export function joinFilesystemBudget(buffer: SharedArrayBuffer, identifier: number): void {
+  if (
+    buffer.byteLength !== filesystemBudget.byteLength ||
+    !Number.isInteger(identifier) ||
+    identifier < 2 ||
+    identifier > 65
+  )
+    throw new Error('invalid filesystem worker budget');
+  permits = new Int32Array(buffer);
+  owner = identifier;
+}
+
+async function reserve(first: number, limit: number): Promise<number> {
+  for (;;) {
+    const generation = Atomics.load(permits, notificationSlot);
+    for (let slot = first; slot < first + limit; slot++) {
+      if (Atomics.compareExchange(permits, slot, 0, owner) === 0) return slot;
+    }
+    await Atomics.waitAsync(permits, notificationSlot, generation).value;
+  }
+}
+
+function wake(): void {
+  Atomics.add(permits, notificationSlot, 1);
+  Atomics.notify(permits, notificationSlot);
+}
+
+function release(slot: number): void {
+  if (Atomics.compareExchange(permits, slot, owner, 0) !== owner)
+    throw new Error('filesystem permit ownership changed');
+  wake();
+}
+
+/**
+ * Recover atomic ownership only after a worker has fully stopped, including native operations.
+ * @param identifier - Terminated worker ownership identifier.
+ * @throws For an invalid ownership identifier.
+ */
+export function recoverFilesystemBudget(identifier: number): void {
+  if (!Number.isInteger(identifier) || identifier < 2 || identifier > 65)
+    throw new Error('invalid filesystem worker owner');
+  for (let slot = 0; slot < notificationSlot; slot++) Atomics.compareExchange(permits, slot, identifier, 0);
+  owners.delete(identifier);
+  wake();
+}
 
 async function observeBounded<T, U>(input: T, observe: (input: T) => Promise<U>): Promise<U> {
-  if (activeObservations >= filesystemBatchSize)
-    await new Promise<void>((resolve) => waitingObservations.push(resolve));
-  else activeObservations++;
+  const slot = await reserve(0, filesystemBatchSize);
   try {
     return await observe(input);
   } finally {
-    const next = waitingObservations.shift();
-    if (next) next();
-    else activeObservations--;
+    release(slot);
   }
 }
 
@@ -115,11 +184,6 @@ export function readDirectoryMetadata(directory: string): Promise<fs.Dirent<stri
   );
 }
 
-/** Maximum concurrent streaming descriptors and their at-most-1-MiB buffers. */
-export const filesystemStreamLimit = 4;
-let activeStreams = 0;
-const waitingStreams: (() => void)[] = [];
-
 /**
  * Reserve a shared descriptor/buffer slot through operation cleanup.
  * @param operation - Open, stream and finally close one descriptor.
@@ -127,13 +191,10 @@ const waitingStreams: (() => void)[] = [];
  * @throws Operation errors after its descriptor cleanup finishes.
  */
 export async function withFilesystemStream<T>(operation: () => Promise<T>): Promise<T> {
-  if (activeStreams >= filesystemStreamLimit) await new Promise<void>((resolve) => waitingStreams.push(resolve));
-  else activeStreams++;
+  const slot = await reserve(filesystemBatchSize, filesystemStreamLimit);
   try {
     return await operation();
   } finally {
-    const next = waitingStreams.shift();
-    if (next) next();
-    else activeStreams--;
+    release(slot);
   }
 }

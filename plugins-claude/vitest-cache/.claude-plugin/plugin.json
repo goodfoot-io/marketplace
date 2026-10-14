@@ -1,6 +1,6 @@
 {
   "name": "vitest-cache",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Configure and troubleshoot Vitest result caching with @goodfoot/vitest-cache",
   "author": {
     "name": "Goodfoot",

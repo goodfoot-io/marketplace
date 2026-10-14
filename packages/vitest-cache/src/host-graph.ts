@@ -3,13 +3,15 @@
  *
  * @summary Discover host module and resolution inputs without executing test modules.
  */
-import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import { builtinModules, createRequire } from 'node:module';
 import path from 'node:path';
 import type { Node } from 'estree';
 import { parseAst, transformWithOxc } from 'vite';
 import type { HostImportAlias } from './contract.ts';
 import { errnoCode, errorMessage } from './errors.ts';
+import { filesystemMetadata, physicalPath } from './filesystem-batch.ts';
+import { readText } from './filesystem-content.ts';
 
 type HostResolution = { type: 'skip' } | { type: 'external'; path: string } | { type: 'files'; paths: string[] };
 type Classified = { external: true; real: string } | { external: false; real: string; relative: string };
@@ -30,17 +32,17 @@ const TS_SIBLINGS: Record<string, string[] | undefined> = {
   '.cjs': ['.cts']
 };
 
-function isExistingFile(candidate: string) {
+async function isExistingFile(candidate: string) {
   try {
-    return fs.statSync(candidate).isFile();
+    return (await filesystemMetadata(() => fsp.stat(candidate))).isFile();
   } catch {
     return false;
   }
 }
 
-function isExistingDirectory(candidate: string) {
+async function isExistingDirectory(candidate: string) {
   try {
-    return fs.statSync(candidate).isDirectory();
+    return (await filesystemMetadata(() => fsp.stat(candidate))).isDirectory();
   } catch {
     return false;
   }
@@ -188,30 +190,30 @@ function urlEdges(tree: unknown) {
 }
 
 async function parseModule(absolute: string, ext: string) {
-  const code = fs.readFileSync(absolute, 'utf8');
+  const code = await readText(absolute);
   if (ext === '.js' || ext === '.mjs' || ext === '.cjs') return parseAst(code);
   const lang = ext === '.tsx' ? 'tsx' : ext === '.jsx' ? 'jsx' : 'ts';
   const transformed = await transformWithOxc(code, absolute, { lang, target: 'esnext' });
   return parseAst(transformed.code);
 }
 
-function resolveExtensionless(base: string) {
+async function resolveExtensionless(base: string) {
   for (const ext of RESOLVE_EXTENSIONS) {
     const candidate = `${base}${ext}`;
-    if (isExistingFile(candidate)) return candidate;
+    if (await isExistingFile(candidate)) return candidate;
   }
   return undefined;
 }
 
-function resolveDirectory(base: string) {
-  const indexed = resolveExtensionless(path.join(base, 'index'));
+async function resolveDirectory(base: string) {
+  const indexed = await resolveExtensionless(path.join(base, 'index'));
   if (indexed) return indexed;
   const manifestPath = path.join(base, 'package.json');
-  if (isExistingFile(manifestPath)) {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  if (await isExistingFile(manifestPath)) {
+    const manifest = JSON.parse(await readText(manifestPath));
     if (typeof manifest.main === 'string') {
       const target = path.resolve(base, manifest.main);
-      const resolved = isExistingFile(target) ? target : resolveExtensionless(target);
+      const resolved = (await isExistingFile(target)) ? target : await resolveExtensionless(target);
       if (resolved) return resolved;
     }
   }
@@ -224,19 +226,19 @@ function resolveDirectory(base: string) {
  * @param base - Physical path candidate.
  * @returns Existing file/extensionless/directory-main target or undefined.
  */
-function resolveHostPath(base: string): string | undefined {
-  if (isExistingFile(base)) return base;
-  if (isExistingDirectory(base)) return resolveDirectory(base);
+async function resolveHostPath(base: string): Promise<string | undefined> {
+  if (await isExistingFile(base)) return base;
+  if (await isExistingDirectory(base)) return await resolveDirectory(base);
   const ext = path.extname(base);
   const siblings = TS_SIBLINGS[ext];
   if (siblings) {
     const stem = base.slice(0, -ext.length);
     for (const siblingExt of siblings) {
       const candidate = `${stem}${siblingExt}`;
-      if (isExistingFile(candidate)) return candidate;
+      if (await isExistingFile(candidate)) return candidate;
     }
   }
-  return resolveExtensionless(base);
+  return await resolveExtensionless(base);
 }
 
 function packageNameAndSubpath(specifier: string) {
@@ -247,11 +249,11 @@ function packageNameAndSubpath(specifier: string) {
   return { name, subpath: rest.length ? `./${rest.join('/')}` : '.' };
 }
 
-function findPackageDirectory(importer: string, name: string) {
+async function findPackageDirectory(importer: string, name: string) {
   const candidates = createRequire(importer).resolve.paths(name) ?? [];
   for (const dir of candidates) {
     const candidate = path.join(dir, name);
-    if (isExistingFile(path.join(candidate, 'package.json'))) return candidate;
+    if (await isExistingFile(path.join(candidate, 'package.json'))) return candidate;
   }
   return undefined;
 }
@@ -317,20 +319,24 @@ function resolveExportsTargets(map: unknown, subpath: string) {
   return sink;
 }
 
-function resolveNoExportsSubpath(packageDir: string, manifest: Record<string, unknown>, subpath: string): string[] {
+async function resolveNoExportsSubpath(
+  packageDir: string,
+  manifest: Record<string, unknown>,
+  subpath: string
+): Promise<string[]> {
   if (subpath !== '.') {
-    const target = resolveHostPath(path.resolve(packageDir, subpath));
+    const target = await resolveHostPath(path.resolve(packageDir, subpath));
     return target ? [target] : [];
   }
   if (typeof manifest.module === 'string') {
-    const target = resolveHostPath(path.resolve(packageDir, manifest.module));
+    const target = await resolveHostPath(path.resolve(packageDir, manifest.module));
     if (target) return [target];
   }
   if (typeof manifest.main === 'string') {
-    const target = resolveHostPath(path.resolve(packageDir, manifest.main));
+    const target = await resolveHostPath(path.resolve(packageDir, manifest.main));
     if (target) return [target];
   }
-  const indexed = resolveExtensionless(path.join(packageDir, 'index'));
+  const indexed = await resolveExtensionless(path.join(packageDir, 'index'));
   return indexed ? [indexed] : [];
 }
 
@@ -338,64 +344,65 @@ function isSkippableSpecifier(specifier: string) {
   return specifier.startsWith('node:') || specifier.startsWith('cloudflare:') || builtins.has(specifier);
 }
 
-function resolveBareSpecifier(importer: string, specifier: string): HostResolution {
+async function resolveBareSpecifier(importer: string, specifier: string): Promise<HostResolution> {
   const { name, subpath } = packageNameAndSubpath(specifier);
-  const packageDir = findPackageDirectory(importer, name);
+  const packageDir = await findPackageDirectory(importer, name);
   if (!packageDir) throw new Error(`unresolved host import ${specifier} from ${importer}`);
-  const real = fs.realpathSync.native(packageDir);
+  const real = await physicalPath(packageDir);
   if (real.split(path.sep).includes('node_modules')) return { type: 'external', path: real };
   const manifestPath = path.join(real, 'package.json');
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  const targets = manifest.exports
-    ? resolveExportsTargets(manifest.exports, subpath)
-        .map((target) => path.resolve(real, target))
-        .filter((target) => isExistingFile(target))
-    : resolveNoExportsSubpath(real, manifest, subpath);
+  const manifest = JSON.parse(await readText(manifestPath));
+  const candidates = manifest.exports
+    ? resolveExportsTargets(manifest.exports, subpath).map((target) => path.resolve(real, target))
+    : await resolveNoExportsSubpath(real, manifest, subpath);
+  const targets: string[] = [];
+  for (const target of candidates) if (await isExistingFile(target)) targets.push(target);
   if (!targets.length) throw new Error(`unresolved host import ${specifier} from ${importer}`);
   return { type: 'files', paths: [manifestPath, ...targets] };
 }
 
-function resolveImportsSpecifier(
+async function resolveImportsSpecifier(
   root: string,
   importer: string,
   specifier: string,
   packageJsonCache: Map<string, string | null>
-): HostResolution {
-  const manifestPath = nearestFile(root, path.dirname(importer), 'package.json', packageJsonCache);
+): Promise<HostResolution> {
+  const manifestPath = await nearestFile(root, path.dirname(importer), 'package.json', packageJsonCache);
   if (!manifestPath) throw new Error(`unresolved host import ${specifier} from ${importer}`);
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  const manifest = JSON.parse(await readText(manifestPath));
   const importsField = manifest.imports;
   if (!importsField || typeof importsField !== 'object') {
     throw new Error(`unresolved host import ${specifier} from ${importer}`);
   }
   const packageDir = path.dirname(manifestPath);
-  const targets = resolveExportsTargets(importsField, specifier)
+  const candidates = resolveExportsTargets(importsField, specifier)
     .filter((target) => target.startsWith('.'))
-    .map((target) => path.resolve(packageDir, target))
-    .filter((target) => isExistingFile(target));
+    .map((target) => path.resolve(packageDir, target));
+  const targets: string[] = [];
+  for (const target of candidates) if (await isExistingFile(target)) targets.push(target);
   if (!targets.length) throw new Error(`unresolved host import ${specifier} from ${importer}`);
   return { type: 'files', paths: [manifestPath, ...targets] };
 }
 
-function resolveHostImport(
+async function resolveHostImport(
   root: string,
   importer: string,
   specifier: string,
   packageJsonCache: Map<string, string | null>
-): HostResolution {
+): Promise<HostResolution> {
   if (isSkippableSpecifier(specifier)) return { type: 'skip' };
-  if (specifier.startsWith('#')) return resolveImportsSpecifier(root, importer, specifier, packageJsonCache);
+  if (specifier.startsWith('#')) return await resolveImportsSpecifier(root, importer, specifier, packageJsonCache);
   if (specifier.startsWith('.') || specifier.startsWith('/')) {
     const base = specifier.startsWith('.') ? path.resolve(path.dirname(importer), specifier) : specifier;
-    const resolved = resolveHostPath(base);
+    const resolved = await resolveHostPath(base);
     if (!resolved) throw new Error(`unresolved host import ${specifier} from ${importer}`);
     return { type: 'files', paths: [resolved] };
   }
-  return resolveBareSpecifier(importer, specifier);
+  return await resolveBareSpecifier(importer, specifier);
 }
 
-function classify(root: string, absolute: string): Classified {
-  const real = fs.realpathSync.native(absolute);
+async function classify(root: string, absolute: string): Promise<Classified> {
+  const real = await physicalPath(absolute);
   if (real.split(path.sep).includes('node_modules')) return { external: true, real };
   const relative = path.relative(root, real);
   if (relative === '' || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
@@ -404,9 +411,9 @@ function classify(root: string, absolute: string): Classified {
   return { external: false, real, relative: relative.split(path.sep).join('/') };
 }
 
-function withinRepo(root: string, absolute: string) {
+async function withinRepo(root: string, absolute: string) {
   try {
-    const real = fs.realpathSync.native(absolute);
+    const real = await physicalPath(absolute);
     if (real.split(path.sep).includes('node_modules')) return false;
     const relative = path.relative(root, real);
     return relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
@@ -423,14 +430,14 @@ function withinRepo(root: string, absolute: string) {
  * @returns Physical-importer redirect table.
  * @throws When an importer cannot be resolved physically.
  */
-function aliasTable(root: string, importAliases: HostImportAlias[]) {
+async function aliasTable(root: string, importAliases: HostImportAlias[]) {
   const table = new Map<string, Map<string, string>>();
   for (const { importer, from, to } of importAliases) {
     const importerAbsolute = path.isAbsolute(importer) ? importer : path.resolve(root, importer);
     const toAbsolute = path.isAbsolute(to) ? to : path.resolve(root, to);
     let importerReal: string;
     try {
-      importerReal = fs.realpathSync.native(importerAbsolute);
+      importerReal = await physicalPath(importerAbsolute);
     } catch {
       throw new Error(`hostImportAliases importer does not exist: ${importerAbsolute}`);
     }
@@ -463,8 +470,8 @@ export async function collectHostGraph(
     importAliases = []
   }: { dynamicImports?: Record<string, string[]>; importAliases?: HostImportAlias[] } = {}
 ) {
-  const root = fs.realpathSync.native(repositoryRoot);
-  const aliases = aliasTable(root, importAliases);
+  const root = await physicalPath(repositoryRoot);
+  const aliases = await aliasTable(root, importAliases);
   const files = new Set<string>();
   const externalPaths = new Set<string>();
   const declared = new Set<string>();
@@ -473,7 +480,7 @@ export async function collectHostGraph(
   const pending = roots.map((entry) => (path.isAbsolute(entry) ? entry : path.resolve(root, entry)));
 
   for (let absolute = pending.pop(); absolute !== undefined; absolute = pending.pop()) {
-    const classified = classify(root, absolute);
+    const classified = await classify(root, absolute);
     if (classified.external) {
       externalPaths.add(classified.real);
       continue;
@@ -503,12 +510,12 @@ export async function collectHostGraph(
     for (const specifier of imports) {
       const aliased = aliases.get(classified.real)?.get(specifier);
       if (aliased !== undefined) {
-        if (!isExistingFile(aliased))
+        if (!(await isExistingFile(aliased)))
           throw new Error(`unresolved host import alias ${specifier} from ${classified.relative} -> ${aliased}`);
         pending.push(aliased);
         continue;
       }
-      const result = resolveHostImport(root, classified.real, specifier, packageJsonCache);
+      const result = await resolveHostImport(root, classified.real, specifier, packageJsonCache);
       if (result.type === 'skip') continue;
       if (result.type === 'external') {
         externalPaths.add(result.path);
@@ -518,7 +525,7 @@ export async function collectHostGraph(
     }
     for (const literal of urlEdges(tree)) {
       const candidate = path.resolve(path.dirname(classified.real), literal);
-      if (!isExistingFile(candidate) || !withinRepo(root, candidate)) continue;
+      if (!(await isExistingFile(candidate)) || !(await withinRepo(root, candidate))) continue;
       pending.push(candidate);
     }
   }
@@ -535,12 +542,12 @@ export async function collectHostGraph(
  * @param cache - Phase-scoped directory lookup observations.
  * @returns Nearest file through root, or null when absent.
  */
-function nearestFile(
+async function nearestFile(
   root: string,
   startDir: string,
   filename: string,
   cache: Map<string, string | null>
-): string | null {
+): Promise<string | null> {
   const visitedDirs: string[] = [];
   let dir = startDir;
   for (;;) {
@@ -550,7 +557,7 @@ function nearestFile(
       return cached;
     }
     const candidate = path.join(dir, filename);
-    if (isExistingFile(candidate)) {
+    if (await isExistingFile(candidate)) {
       for (const visitedDir of visitedDirs) cache.set(visitedDir, candidate);
       cache.set(dir, candidate);
       return candidate;
@@ -576,12 +583,12 @@ function parseJsonc(text: string): unknown {
   return JSON.parse(withoutTrailingCommas);
 }
 
-function resolveTsconfigExtends(configDir: string, specifier: string) {
+async function resolveTsconfigExtends(configDir: string, specifier: string) {
   if (specifier.startsWith('.') || specifier.startsWith('/')) {
     let candidate = path.resolve(configDir, specifier);
-    if (!isExistingFile(candidate)) candidate = `${candidate}.json`;
-    if (isExistingDirectory(candidate)) candidate = path.join(candidate, 'tsconfig.json');
-    return isExistingFile(candidate) ? candidate : undefined;
+    if (!(await isExistingFile(candidate))) candidate = `${candidate}.json`;
+    if (await isExistingDirectory(candidate)) candidate = path.join(candidate, 'tsconfig.json');
+    return (await isExistingFile(candidate)) ? candidate : undefined;
   }
   const req = createRequire(path.join(configDir, 'tsconfig.json'));
   for (const attempt of [specifier, `${specifier}/tsconfig.json`, `${specifier}.json`]) {
@@ -595,7 +602,11 @@ function resolveTsconfigExtends(configDir: string, specifier: string) {
   return undefined;
 }
 
-function tsconfigChain(configPath: string, cache: Map<string, string[]>, visiting: Set<string>): string[] {
+async function tsconfigChain(
+  configPath: string,
+  cache: Map<string, string[]>,
+  visiting: Set<string>
+): Promise<string[]> {
   const cached = cache.get(configPath);
   if (cached) return cached;
   if (visiting.has(configPath)) return [configPath];
@@ -603,7 +614,7 @@ function tsconfigChain(configPath: string, cache: Map<string, string[]>, visitin
   const result = [configPath];
   let parsed: unknown;
   try {
-    parsed = parseJsonc(fs.readFileSync(configPath, 'utf8'));
+    parsed = parseJsonc(await readText(configPath));
   } catch {
     cache.set(configPath, result);
     return result;
@@ -613,11 +624,11 @@ function tsconfigChain(configPath: string, cache: Map<string, string[]>, visitin
   const configDir = path.dirname(configPath);
   for (const specifier of specifiers) {
     if (typeof specifier !== 'string') continue;
-    const target = resolveTsconfigExtends(configDir, specifier);
+    const target = await resolveTsconfigExtends(configDir, specifier);
     if (!target) continue;
-    const real = fs.realpathSync.native(target);
+    const real = await physicalPath(target);
     if (real.split(path.sep).includes('node_modules')) continue;
-    result.push(...tsconfigChain(real, cache, visiting));
+    result.push(...(await tsconfigChain(real, cache, visiting)));
   }
   cache.set(configPath, result);
   return result;
@@ -631,25 +642,25 @@ function tsconfigChain(configPath: string, cache: Map<string, string[]>, visitin
  */
 export function createResolutionCache(repositoryRoot: string): ResolutionCache {
   return {
-    root: fs.realpathSync.native(repositoryRoot),
+    root: repositoryRoot,
     packageJsonCache: new Map(),
     tsconfigCache: new Map(),
     chainCache: new Map()
   };
 }
 
-function resolutionEntriesForFile(cache: ResolutionCache, file: string) {
+async function resolutionEntriesForFile(cache: ResolutionCache, file: string) {
   const { root } = cache;
   const absolute = path.resolve(root, file);
   const dir = path.dirname(absolute);
   const results = new Set<string>();
-  const manifestPath = nearestFile(root, dir, 'package.json', cache.packageJsonCache);
+  const manifestPath = await nearestFile(root, dir, 'package.json', cache.packageJsonCache);
   if (manifestPath) results.add(toRepoRelative(root, manifestPath));
   const ext = path.extname(file);
   if (ext === '.ts' || ext === '.tsx' || ext === '.mts' || ext === '.cts') {
-    const tsconfigPath = nearestFile(root, dir, 'tsconfig.json', cache.tsconfigCache);
+    const tsconfigPath = await nearestFile(root, dir, 'tsconfig.json', cache.tsconfigCache);
     if (tsconfigPath) {
-      for (const entry of tsconfigChain(tsconfigPath, cache.chainCache, new Set())) {
+      for (const entry of await tsconfigChain(tsconfigPath, cache.chainCache, new Set())) {
         results.add(toRepoRelative(root, entry));
       }
     }
@@ -664,6 +675,6 @@ function resolutionEntriesForFile(cache: ResolutionCache, file: string) {
  * @param file - Repository-relative source path.
  * @returns Sorted nearest manifest and local TypeScript extends-chain inputs.
  */
-export function resolutionInputsForFile(cache: ResolutionCache, file: string) {
-  return [...resolutionEntriesForFile(cache, file)].sort();
+export async function resolutionInputsForFile(cache: ResolutionCache, file: string) {
+  return [...(await resolutionEntriesForFile(cache, file))].sort();
 }

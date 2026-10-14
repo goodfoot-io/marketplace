@@ -10,7 +10,7 @@ import { expect, test } from 'vitest';
 import { type CacheContract, validateContract } from '../src/contract.ts';
 import { fingerprintFiles } from '../src/fingerprint.ts';
 
-test('a declared input edit invalidates only the files that declare it', () => {
+test('a declared input edit invalidates only the files that declare it', async () => {
   const pure = 'packages/app/test/price.test.ts';
   const sqlite = 'packages/app/test/price.sqlite.test.ts';
   const audited = 'packages/app/test/validation.test.ts';
@@ -36,15 +36,15 @@ test('a declared input edit invalidates only the files that declare it', () => {
     put(sqlite, 'export const value = 3;\n');
     put(audited, 'export const value = 2;\n');
     put(migration, '-- original migration\n');
-    const pureBefore = fingerprintFiles(root, [pure], pureInputs);
-    const sqliteBefore = fingerprintFiles(root, [sqlite], sqliteInputs);
-    const auditedBefore = fingerprintFiles(root, [audited], auditedInputs);
+    const pureBefore = await fingerprintFiles(root, [pure], pureInputs);
+    const sqliteBefore = await fingerprintFiles(root, [sqlite], sqliteInputs);
+    const auditedBefore = await fingerprintFiles(root, [audited], auditedInputs);
 
     put(migration, '-- original migration\n-- unrelated edit\n');
 
-    expect(fingerprintFiles(root, [audited], auditedInputs)).toBe(auditedBefore);
-    expect(fingerprintFiles(root, [sqlite], sqliteInputs)).not.toBe(sqliteBefore);
-    expect(fingerprintFiles(root, [pure], pureInputs)).toBe(pureBefore);
+    expect(await fingerprintFiles(root, [audited], auditedInputs)).toBe(auditedBefore);
+    expect(await fingerprintFiles(root, [sqlite], sqliteInputs)).not.toBe(sqliteBefore);
+    expect(await fingerprintFiles(root, [pure], pureInputs)).toBe(pureBefore);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

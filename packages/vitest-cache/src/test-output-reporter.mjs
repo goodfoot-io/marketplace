@@ -4,7 +4,7 @@
  * @summary Fail unclaimed diagnostics and retain bounded failed-run console evidence.
  */
 import { hash } from 'node:crypto';
-import { appendFileSync, closeSync, mkdtempSync, openSync, rmSync, writeSync } from 'node:fs';
+import { appendFile, mkdtemp, open, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { experimental_getRunnerTask } from 'vitest/node';
@@ -105,7 +105,7 @@ export default class TestOutputReporter {
    * @param {Parameters<NonNullable<import('vitest/node').Reporter['onTestCaseResult']>>[0]} testCase - Completed original test case.
    * @throws For verdict artifact append failure.
    */
-  onTestCaseResult(testCase) {
+  async onTestCaseResult(testCase) {
     const metadata = testCase.meta();
     const expected = nativeDiagnosticClaims(
       'goodfootExpectedNative' in metadata ? metadata.goodfootExpectedNative : undefined
@@ -114,7 +114,7 @@ export default class TestOutputReporter {
       'goodfootExpectedWorkerd' in metadata ? metadata.goodfootExpectedWorkerd : undefined
     );
     if ((expected.length || expectedWorkerd.length) && process.env.GOODFOOT_TEST_OUTPUT_RESULT) {
-      appendFileSync(
+      await appendFile(
         process.env.GOODFOOT_TEST_OUTPUT_RESULT,
         `${JSON.stringify({
           owner: testCase.fullName,
@@ -134,7 +134,7 @@ export default class TestOutputReporter {
    * @param {Parameters<NonNullable<import('vitest/node').Reporter['onTestRunEnd']>>[1]} errors - Unhandled run errors.
    * @param {Parameters<NonNullable<import('vitest/node').Reporter['onTestRunEnd']>>[2]} reason - Run completion/interruption reason.
    */
-  onTestRunEnd(modules, errors, reason) {
+  async onTestRunEnd(modules, errors, reason) {
     const pattern = this.vitest.getGlobalTestNamePattern();
     if (pattern) {
       let completed = this.cachedPassingTests();
@@ -162,41 +162,41 @@ export default class TestOutputReporter {
     // console record on disk and show a bounded tail alongside Vitest's errors.
     const root = this.vitest.config.root;
     const worktree = hash('sha256', root, 'hex').slice(0, 12);
-    const directory = mkdtempSync(join(tmpdir(), `goodfoot-test-output-${worktree}-`));
+    const directory = await mkdtemp(join(tmpdir(), `goodfoot-test-output-${worktree}-`));
     const artifact = join(directory, 'unhandled-console.log');
-    const fd = openSync(artifact, 'wx', 0o600);
+    const fd = await open(artifact, 'wx', 0o600);
     let bytes = 0;
     let records = 0;
     /** @type {Buffer} */
     let tail = Buffer.alloc(0);
     /** @param {string} text - Exact original console evidence appended to the private failed-run artifact. */
-    const save = (text) => {
+    const save = async (text) => {
       const buffer = Buffer.from(text);
       let offset = 0;
-      while (offset < buffer.length) offset += writeSync(fd, buffer, offset);
+      while (offset < buffer.length) offset += (await fd.write(buffer, offset)).bytesWritten;
       bytes += buffer.length;
       tail = Buffer.concat([tail, buffer.subarray(-8192)]).subarray(-8192);
     };
     /** @param {import('vitest/node').RunnerTask} task - Original task whose retained console records are visited. */
-    const visit = (task) => {
+    const visit = async (task) => {
       // Vitest already replays failed-task logs. A passing task can own
       // afterAll output, or precede an unhandled rejection that fails the run.
       if (task.result?.state !== 'fail') {
         for (const log of task.logs ?? []) {
           records++;
-          save(`${log.type} | ${task.name}\n${log.content}\n`);
+          await save(`${log.type} | ${task.name}\n${log.content}\n`);
         }
       }
-      if ('tasks' in task) for (const child of task.tasks) visit(child);
+      if ('tasks' in task) for (const child of task.tasks) await visit(child);
     };
     try {
-      save(`Worktree/package: ${root}\n`);
-      for (const module of affected) visit(experimental_getRunnerTask(module));
+      await save(`Worktree/package: ${root}\n`);
+      for (const module of affected) await visit(experimental_getRunnerTask(module));
     } finally {
-      closeSync(fd);
+      await fd.close();
     }
     if (!records) {
-      rmSync(directory, { recursive: true, force: true });
+      await rm(directory, { recursive: true, force: true });
       return;
     }
     this.vitest.logger.errorStream.write(

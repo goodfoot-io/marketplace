@@ -42,11 +42,11 @@ test('cache controls do not split keys and capture paths normalize to enabled', 
   ]);
 });
 
-test('configuration provides the package context keys from its environment switches', () => {
+test('configuration provides the package context keys from its environment switches', async () => {
   vi.stubEnv('GOODFOOT_TEST_VERBOSE', '0');
   vi.stubEnv('GOODFOOT_TEST_OUTPUT_RESULT', '/tmp/capture.jsonl');
   const contract = { uncached: 'identity checks' };
-  const configuration = withTestOutput({ test: {} }, contract);
+  const configuration = await withTestOutput({ test: {} }, contract);
   expect(configuration.test?.provide).toEqual({
     goodfootTestVerbose: false,
     goodfootNativeCapture: true,
@@ -54,7 +54,7 @@ test('configuration provides the package context keys from its environment switc
   });
   expect(configuration.test?.silent).toBe('passed-only');
   vi.stubEnv('GOODFOOT_TEST_VERBOSE', '1');
-  const verbose = withTestOutput({ test: {} }, contract);
+  const verbose = await withTestOutput({ test: {} }, contract);
   expect(verbose.test?.provide?.goodfootTestVerbose).toBe(true);
   expect(verbose.test?.provide?.goodfootNativeCapture).toBe(false);
   expect(verbose.test?.silent).toBe(false);
@@ -108,7 +108,7 @@ test('claims diagnostics', ({ task }) => {
   task.meta.goodfootExpectedWorkerd = [{ shape: 'promise-rejection', message: '${workerdMessage}', count: 1 }];
 });\n`
   );
-  const capture = createTestOutputCapture(root);
+  const capture = await createTestOutputCapture(root);
   cleanups.push(() => rmSync(path.dirname(capture.resultPath), { recursive: true, force: true }));
   vi.stubEnv('GOODFOOT_TEST_OUTPUT_RESULT', capture.resultPath);
   const reporter = new TestOutputReporter({ cachedPassingTests: () => 0 });
@@ -140,7 +140,7 @@ test('claims diagnostics', ({ task }) => {
     }
   });
   await capture.pump(Readable.from([bytes.subarray(0, 17), bytes.subarray(17)]), destination);
-  expect(capture.finish(0)).toBe(0);
+  expect(await capture.finish(0)).toBe(0);
   expect(capture.accepted()).toBe(true);
   expect(Buffer.concat(forwarded).length).toBe(0);
 });

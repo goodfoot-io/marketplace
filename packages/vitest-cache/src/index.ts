@@ -3,19 +3,18 @@
  *
  * @summary Plan content-cache reuse and publish passing records only after teardown acceptance.
  */
-import { execFileSync } from 'node:child_process';
-import { hash } from 'node:crypto';
-import fs from 'node:fs';
+import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import type { Reporter, TestModule, TestProject, TestRunEndReason, TestSpecification, Vitest } from 'vitest/node';
 import { BaseSequencer, parseCLI, version as vitestVersion } from 'vitest/node';
 import type { CacheContract, HostImportAlias, Scoped } from './contract.ts';
-import type { TreeSnapshot } from './digest-store.ts';
-import { DigestStore } from './digest-store.ts';
 import { keyedEnvironment, nodeLoaderPolicy } from './environment.ts';
 import { errnoCode, errorMessage } from './errors.ts';
-import { FingerprintPhase, inputsDigest } from './fingerprint.ts';
+import { lstatMetadata, physicalPath } from './filesystem-batch.ts';
+import { readText } from './filesystem-content.ts';
+import { FingerprintRuntime } from './fingerprint-runtime.ts';
 import {
   collectHostGraph,
   createResolutionCache,
@@ -52,7 +51,7 @@ export type Session = {
   folder: string;
   /** Directory of the digest store, under the run folder; it holds digest records and is not itself a digest. */
   digestFolder: string;
-  treeSnapshots: Map<string, TreeSnapshot>;
+  fingerprint: FingerprintRuntime;
   invocation: string;
   policy: Policy;
   selection: Map<string, string[]>;
@@ -134,25 +133,24 @@ const ENVIRONMENT_PACKAGES: Record<string, string | undefined> = {
   'happy-dom': 'happy-dom',
   'edge-runtime': '@edge-runtime/vm'
 };
-function digest(value: string) {
-  return hash('sha256', value, 'hex');
+
+const executeFile = promisify(execFile);
+
+async function git(root: string, ...args: string[]) {
+  return (await executeFile('git', args, { cwd: root, encoding: 'utf8' })).stdout.trim();
 }
 
-function git(root: string, ...args: string[]) {
-  return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
-}
-
-function repository(root: string) {
-  const top = fs.realpathSync.native(git(root, 'rev-parse', '--show-toplevel'));
-  const common = fs.realpathSync.native(path.resolve(root, git(root, 'rev-parse', '--git-common-dir')));
+async function repository(root: string) {
+  const top = await physicalPath(await git(root, 'rev-parse', '--show-toplevel'));
+  const common = await physicalPath(path.resolve(root, await git(root, 'rev-parse', '--git-common-dir')));
   return { top, common };
 }
 
-function relativeInput(top: string, filename: string, allowRoot: boolean = false) {
+async function relativeInput(top: string, filename: string, allowRoot: boolean = false) {
   const absolute = path.isAbsolute(filename) ? filename : path.resolve(top, filename);
   // Vitest may retain a symlink spelling of the worktree root. Compare the
   // physical paths so aliases share identities and external targets fail closed.
-  const relative = path.relative(top, fs.realpathSync.native(absolute));
+  const relative = path.relative(top, await physicalPath(absolute));
   if (
     (!relative && !allowRoot) ||
     relative === '..' ||
@@ -192,24 +190,27 @@ function projectSequence(project: TestProject) {
  * @param specifications - Original selected test specifications.
  * @returns Copy ordered by group/project/isolation, actual recorded results, declared fallback then file size.
  */
-function orderSpecifications(ctx: Vitest, top: string | null, specifications: TestSpecification[]) {
+async function orderSpecifications(ctx: Vitest, top: string | null, specifications: TestSpecification[]) {
   const cache = ctx.cache;
   const results = new Map(
     specifications.map((specification) => [specification, cache.getTestSpecificationResult(specification)])
   );
   const sizes = new Map<string, number | undefined>();
-  const sizeOf = (moduleId: string) => {
+  const relatives = new Map<string, string>();
+  for (const specification of specifications) {
+    const moduleId = specification.moduleId;
+    if (top && projectSequence(specification.project)) relatives.set(moduleId, await relativeInput(top, moduleId));
     if (!sizes.has(moduleId)) {
       try {
-        sizes.set(moduleId, fs.statSync(moduleId).size);
+        sizes.set(moduleId, Number((await lstatMetadata(await physicalPath(moduleId))).size));
       } catch (error) {
         const code = errnoCode(error);
         if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error;
         sizes.set(moduleId, undefined);
       }
     }
-    return sizes.get(moduleId);
-  };
+  }
+  const sizeOf = (moduleId: string) => sizes.get(moduleId);
   const ranks = new Map<TestProject, Map<string, number> | null>();
   const rankFor = (project: TestProject) => {
     let rank = ranks.get(project);
@@ -234,7 +235,12 @@ function orderSpecifications(ctx: Vitest, top: string | null, specifications: Te
     }
     const rank = rankFor(a.project);
     if (rank && !top) throw new Error('a declared test sequence needs the repository root');
-    if (rank && top) return compareByDeclaredRank(rank, relativeInput(top, a.moduleId), relativeInput(top, b.moduleId));
+    if (rank && top) {
+      const first = relatives.get(a.moduleId);
+      const second = relatives.get(b.moduleId);
+      if (first === undefined || second === undefined) throw new Error('missing physical sequence input');
+      return compareByDeclaredRank(rank, first, second);
+    }
     const sizeA = sizeOf(a.moduleId);
     const sizeB = sizeOf(b.moduleId);
     if (sizeA === undefined || sizeB === undefined)
@@ -320,29 +326,34 @@ function normalizedOptions(top: string) {
   );
 }
 
-function createSession(ctx: Vitest, policy: Policy): Session {
-  const { top, common } = repository(ctx.config.root);
-  const folder = sharedCacheFolder(common);
+async function createSession(ctx: Vitest, policy: Policy): Promise<Session> {
+  const { top, common } = await repository(ctx.config.root);
+  const folder = await sharedCacheFolder(common);
   const rootConfig = ctx.vite?.config?.configFile ?? ctx.config.config;
-  const invocation = digest(
-    JSON.stringify({
+  const fingerprint = new FingerprintRuntime(top, path.join(folder, 'digests'));
+  let invocation: string;
+  try {
+    invocation = await fingerprint.jsonOne({
       node: process.version,
       vitest: vitestVersion,
       platform: process.platform,
       arch: process.arch,
       execArgv: process.execArgv.map((arg) => arg.replaceAll(top, '<repo>')),
       options: normalizedOptions(top),
-      config: typeof rootConfig === 'string' ? relativeInput(top, rootConfig) : null,
-      root: relativeInput(top, ctx.config.root, true),
+      config: typeof rootConfig === 'string' ? await relativeInput(top, rootConfig) : null,
+      root: await relativeInput(top, ctx.config.root, true),
       env: keyedEnvironment(process.env, top)
-    })
-  );
+    });
+  } catch (error) {
+    await fingerprint.dispose();
+    throw error;
+  }
   return {
     ctx,
     top,
     folder,
     digestFolder: path.join(folder, 'digests'),
-    treeSnapshots: new Map(),
+    fingerprint,
     invocation,
     policy,
     selection: new Map(),
@@ -364,7 +375,7 @@ function createSession(ctx: Vitest, policy: Policy): Session {
 /** One fingerprinting pass. Fresh phases reobserve graph/stat inputs; DigestStore may reuse stat-validated byte digests, so not every file is physically reread. */
 class Phase {
   readonly session: Session;
-  readonly fingerprint: FingerprintPhase;
+  readonly fingerprint: number;
   readonly hostGraphs = new Map<string, Promise<InputGraph>>();
   readonly setupGraphs = new Map<TestProject, Promise<InputGraph>>();
   readonly resolution = new Map<string, string[]>();
@@ -372,16 +383,14 @@ class Phase {
   // and nearest-file lookups reuse their specific memo entries. Separate host,
   // input and digest operations may still stat the same physical path.
   readonly walkCache = createWalkCache();
-  readonly resolutionCache: ResolutionCache;
+  readonly resolutionCache: Promise<ResolutionCache>;
   readonly started = performance.now();
 
   constructor(session: Session) {
     this.session = session;
-    // A fresh store per phase: its stat memo must not carry across phases.
-    this.fingerprint = new FingerprintPhase(session.top, {
-      store: new DigestStore(session.digestFolder, { treeSnapshots: session.treeSnapshots })
-    });
-    this.resolutionCache = createResolutionCache(session.top);
+    // Worker phase maps reobserve filesystem inputs; only completed tree metadata persists.
+    this.fingerprint = session.fingerprint.phase();
+    this.resolutionCache = Promise.resolve(createResolutionCache(session.top));
   }
 
   hostGraph(roots: string[], dynamicImports: Record<string, string[]>, importAliases: HostImportAlias[]) {
@@ -407,12 +416,12 @@ class Phase {
     return graph;
   }
 
-  resolutionInputs(files: string[]) {
+  async resolutionInputs(files: string[]) {
     const inputs = new Set<string>();
     for (const file of files) {
       let entries = this.resolution.get(file);
       if (!entries) {
-        entries = resolutionInputsForFile(this.resolutionCache, file);
+        entries = await resolutionInputsForFile(await this.resolutionCache, file);
         this.resolution.set(file, entries);
       }
       for (const entry of entries) inputs.add(entry);
@@ -420,9 +429,14 @@ class Phase {
     return [...inputs];
   }
 
-  finish() {
-    this.session.fingerprintMs += performance.now() - this.started;
-    this.session.filesRead += this.fingerprint.stats.filesRead;
+  async finish() {
+    try {
+      this.session.filesRead += await this.session.fingerprint.release(this.fingerprint);
+    } catch (error) {
+      this.session.veto ??= `fingerprint worker cleanup failed: ${errorMessage(error)}`;
+    } finally {
+      this.session.fingerprintMs += performance.now() - this.started;
+    }
   }
 }
 
@@ -433,9 +447,9 @@ function isCloudflare(specification: TestSpecification) {
   );
 }
 
-function environmentPackages(project: TestProject, moduleId: string) {
+async function environmentPackages(project: TestProject, moduleId: string) {
   const names = new Set([project.config.environment]);
-  const source = fs.readFileSync(moduleId, 'utf8');
+  const source = await readText(moduleId);
   for (const match of source.matchAll(/@vitest-environment\s+([\w-]+)/g)) {
     const environment = match[1];
     if (environment !== undefined) names.add(environment);
@@ -454,20 +468,20 @@ function globalSetups(ctx: Vitest, project: TestProject) {
  * @param specifications - Exact selected test specifications.
  * @returns Sorted nonisolated co-selection map unless declared setup hygiene applies.
  */
-function selectionFor(session: Session, specifications: TestSpecification[]) {
+async function selectionFor(session: Session, specifications: TestSpecification[]) {
   const selection = new Map<string, string[]>();
   for (const specification of specifications) {
     const project = specification.project;
     if (project.config.isolate !== false) continue;
     const hygiene = contractOf(project).sharedStateHygiene?.[project.name];
-    const setups = (project.config.setupFiles ?? []).map((file) => relativeInput(session.top, file));
+    const setups = await Promise.all((project.config.setupFiles ?? []).map((file) => relativeInput(session.top, file)));
     if (hygiene && setups.includes(hygiene)) continue;
     let files = selection.get(project.name);
     if (!files) {
       files = [];
       selection.set(project.name, files);
     }
-    files.push(relativeInput(session.top, specification.moduleId));
+    files.push(await relativeInput(session.top, specification.moduleId));
   }
   for (const files of selection.values()) files.sort();
   return selection;
@@ -477,7 +491,7 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
   const session = phase.session;
   const { ctx, top } = session;
   const project = specification.project;
-  const relative = relativeInput(top, specification.moduleId);
+  const relative = await relativeInput(top, specification.moduleId);
   const contract = contractOf(project);
   const pick = (scope: Scoped | undefined) => [
     ...(scope?.all ?? []),
@@ -489,10 +503,10 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
   if (!Array.isArray(fileInputs))
     throw new Error(`${relative} is not in the cache contract and the suite declares no fallback`);
   const declared = [
-    `${relativeInput(top, SOURCE_DIRECTORY)}/**`,
-    `${relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'native'))}/**`,
-    relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'scripts', 'install-native.mjs')),
-    relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'build', 'Release', 'metadata.node')),
+    `${await relativeInput(top, SOURCE_DIRECTORY)}/**`,
+    `${await relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'native'))}/**`,
+    await relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'scripts', 'install-native.mjs')),
+    await relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'build', 'Release', 'metadata.node')),
     ...(contract.all ?? []),
     ...(contract.projects?.[project.name] ?? []),
     ...fileInputs
@@ -517,12 +531,12 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
     ...(ctx.vite?.config?.configFileDependencies ?? []),
     ...(project.vite.config.configFileDependencies ?? [])
   ]) {
-    const real = fs.realpathSync.native(file);
+    const real = await physicalPath(file);
     if (real.split(path.sep).includes('node_modules')) externals.push(real);
     else hostRoots.push(real);
   }
   const host = await phase.hostGraph(
-    hostRoots.map((file) => relativeInput(top, file)),
+    await Promise.all(hostRoots.map((file) => relativeInput(top, file))),
     dynamicImports,
     contract.hostImportAliases ?? []
   );
@@ -537,16 +551,16 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
     roots: [specification.moduleId, ...pick(contract.roots).map((file) => path.join(top, file))]
   });
   const files = [...new Set([...host.files, ...setup.files, ...test.files])].sort();
-  declared.push(...host.declared, ...setup.declared, ...test.declared, ...phase.resolutionInputs(files));
+  declared.push(...host.declared, ...setup.declared, ...test.declared, ...(await phase.resolutionInputs(files)));
 
   const toolchain = new Set(['vitest', 'vite', ...session.policy.toolchain, ...pick(contract.toolchain)]);
   if (isCloudflare(specification)) toolchain.add('@cloudflare/vitest-plugin');
-  for (const name of environmentPackages(project, specification.moduleId)) toolchain.add(name);
+  for (const name of await environmentPackages(project, specification.moduleId)) toolchain.add(name);
   const executables = pick(contract.executables);
   const pattern = specification.testNamePattern ?? project.config.testNamePattern;
   const execution = {
     project: project.name,
-    root: relativeInput(top, project.config.root, true),
+    root: await relativeInput(top, project.config.root, true),
     file: relative,
     pool: specification.pool,
     isolate: project.config.isolate,
@@ -562,31 +576,35 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
     selection: session.selection.get(project.name) ?? null
   };
   const declarations = [...new Set(declared)].sort();
-  const inputs = phase.fingerprint.inputDigests(files, declarations);
+  const [local, packages] = await Promise.all([
+    session.fingerprint.local(phase.fingerprint, files, declarations, executables, execution),
+    session.fingerprint.closure(
+      phase.fingerprint,
+      [...externals, ...host.externalPaths, ...setup.externalPaths, ...test.externalPaths],
+      [...toolchain].sort(),
+      project.config.root
+    )
+  ]);
+  const inputs = local.inputs;
   const components: Components = {
     invocation: session.invocation,
-    execution: digest(JSON.stringify(execution)),
-    inputs: inputsDigest(inputs, declarations),
-    packages: await phase.fingerprint
-      .packages()
-      .closure(
-        [...externals, ...host.externalPaths, ...setup.externalPaths, ...test.externalPaths],
-        [...toolchain].sort(),
-        project.config.root
-      ),
-    executables: executables.length ? phase.fingerprint.executablesDigest(executables) : null
+    execution: local.execution,
+    inputs: local.inputDigest,
+    packages,
+    executables: local.executables
   };
+  const key = await session.fingerprint.jsonOne(COMPONENTS.map((name) => components[name]));
   return {
-    key: digest(JSON.stringify(COMPONENTS.map((name) => components[name]))),
+    key,
     identity: identityOf(project.name, relative),
     components,
     inputs
   };
 }
 
-function missReason(session: Session, entry: KeyEntry) {
+async function missReason(session: Session, entry: KeyEntry) {
   if (!session.policy.reuse) return session.policy.reason;
-  const previous = readIndex(session.folder, entry.identity);
+  const previous = await readIndex(session.folder, entry.identity);
   if (!previous) return 'new';
   const changed = COMPONENTS.filter((name) => previous[name] !== entry.components[name]);
   return changed.length ? changed.join('+') : 'unrecorded';
@@ -611,17 +629,20 @@ export class ContentCacheSequencer extends BaseSequencer {
     // here, and only when a project declares a sequence.
     let top = session?.top ?? null;
     if (!top && specifications.some((specification) => projectSequence(specification.project)))
-      top = repository(this.ctx.config.root).top;
-    const sorted = orderSpecifications(this.ctx, top, specifications);
+      top = (await repository(this.ctx.config.root)).top;
+    const sorted = await orderSpecifications(this.ctx, top, specifications);
     if (!session) return sorted;
     // Global setup has run. Re-fingerprint so a hit reflects the state tests
     // would observe; the pre-setup decision only chose which setups to run.
     const phase = new Phase(session);
-    session.selection = selectionFor(session, sorted);
+    session.selection = await selectionFor(session, sorted);
     const pending: TestSpecification[] = [];
     try {
       for (const specification of sorted) {
-        const identity = identityOf(specification.project.name, relativeInput(session.top, specification.moduleId));
+        const identity = identityOf(
+          specification.project.name,
+          await relativeInput(session.top, specification.moduleId)
+        );
         let entry: KeyEntry;
         try {
           entry = await keyFor(phase, specification);
@@ -632,7 +653,7 @@ export class ContentCacheSequencer extends BaseSequencer {
           pending.push(specification);
           continue;
         }
-        const record = session.policy.reuse ? readRecord(session.folder, entry.key) : null;
+        const record = session.policy.reuse ? await readRecord(session.folder, entry.key) : null;
         if (record) {
           session.cached++;
           session.cachedTests += record.tests;
@@ -642,15 +663,15 @@ export class ContentCacheSequencer extends BaseSequencer {
         if (planned?.hit) {
           const project = specification.project.name;
           console.warn(
-            `vitest cache: ${relativeInput(session.top, specification.moduleId)} changed after the setup decision${session.plannedProjects.has(project) ? '' : `; project ${project || '<root>'} skipped its global setup`}`
+            `vitest cache: ${await relativeInput(session.top, specification.moduleId)} changed after the setup decision${session.plannedProjects.has(project) ? '' : `; project ${project || '<root>'} skipped its global setup`}`
           );
         }
-        if (!session.misses.has(identity)) session.misses.set(identity, missReason(session, entry));
+        if (!session.misses.has(identity)) session.misses.set(identity, await missReason(session, entry));
         session.executed.set(identity, { specification, entry });
         pending.push(specification);
       }
     } finally {
-      phase.finish();
+      await phase.finish();
     }
     if (pending.length === 0 && session.cached > 0) {
       // Vitest's own no-test-files message follows immediately after this
@@ -667,7 +688,7 @@ export class ContentCacheSequencer extends BaseSequencer {
 /** Plan and stage per-file content results; publish only after original output/global/pool teardown acceptance. */
 export class ContentCacheReporter implements Reporter {
   ctx: Vitest | undefined = undefined;
-  lock: ReturnType<typeof acquireTestLock> | undefined = undefined;
+  lock: Awaited<ReturnType<typeof acquireTestLock>> | undefined = undefined;
 
   /**
    * The Vitest instance from `onInit`; every other hook runs after it.
@@ -708,8 +729,10 @@ export class ContentCacheReporter implements Reporter {
   async onTestRunStart(specifications: readonly TestSpecification[]) {
     const ctx = this.vitest;
     publishPlan(null);
+    const previous = sessions.get(ctx);
+    if (previous) await previous.fingerprint.dispose();
     sessions.delete(ctx);
-    if (!ctx.config.watch && !this.lock) this.lock = acquireTestLock(ctx.config.root);
+    if (!ctx.config.watch && !this.lock) this.lock = await acquireTestLock(ctx.config.root);
     if (!specifications.length) return;
     const uncached = uncachedReason([...specifications]);
     if (uncached) return;
@@ -720,7 +743,7 @@ export class ContentCacheReporter implements Reporter {
     }
     let session: Session;
     try {
-      session = createSession(ctx, policy);
+      session = await createSession(ctx, policy);
     } catch (error) {
       console.warn(`vitest cache: ${errorMessage(error)}; running without the cache`);
       return;
@@ -728,7 +751,7 @@ export class ContentCacheReporter implements Reporter {
     sessions.set(ctx, session);
     // Decide which projects need global setup before Vitest runs it.
     const selected = await shardOf(ctx, [...specifications]);
-    session.selection = selectionFor(session, selected);
+    session.selection = await selectionFor(session, selected);
     const plan: Plan = { all: [], projects: new Map() };
     const phase = new Phase(session);
     try {
@@ -739,12 +762,12 @@ export class ContentCacheReporter implements Reporter {
           projectFiles = [];
           plan.projects.set(project, projectFiles);
         }
-        const identity = identityOf(project, relativeInput(session.top, specification.moduleId));
+        const identity = identityOf(project, await relativeInput(session.top, specification.moduleId));
         let hit = false;
         try {
           const entry = await keyFor(phase, specification);
-          hit = Boolean(policy.reuse && readRecord(session.folder, entry.key));
-          if (!hit) session.misses.set(identity, missReason(session, entry));
+          hit = Boolean(policy.reuse && (await readRecord(session.folder, entry.key)));
+          if (!hit) session.misses.set(identity, await missReason(session, entry));
         } catch {
           // The sequencer phase reports the reason when it keys this file again.
           session.misses.set(identity, 'uncacheable');
@@ -756,7 +779,7 @@ export class ContentCacheReporter implements Reporter {
         }
       }
     } finally {
-      phase.finish();
+      await phase.finish();
     }
     session.plannedProjects = new Set([...plan.projects].filter(([, files]) => files.length).map(([name]) => name));
     publishPlan(plan);
@@ -778,7 +801,7 @@ export class ContentCacheReporter implements Reporter {
     const phase = new Phase(session);
     try {
       for (const module of modules) {
-        const identity = identityOf(module.project.name, relativeInput(session.top, module.moduleId));
+        const identity = identityOf(module.project.name, await relativeInput(session.top, module.moduleId));
         const executed = session.executed.get(identity);
         if (!executed) {
           // An uncacheable file was already reported at sort time.
@@ -790,7 +813,7 @@ export class ContentCacheReporter implements Reporter {
         if (!module.ok()) {
           // A failure supersedes any earlier pass for the same key, including one a forced run bypassed.
           console.warn(`vitest cache: failed; ${describe(identity)} record revoked`);
-          revokeRecord(session.folder, executed.entry.key);
+          await revokeRecord(session.folder, executed.entry.key);
           continue;
         }
         const tests = [...module.children.allTests('passed')].length;
@@ -817,7 +840,7 @@ export class ContentCacheReporter implements Reporter {
     } catch (error) {
       session.veto = `publication check failed: ${errorMessage(error)}`;
     } finally {
-      phase.finish();
+      await phase.finish();
     }
     session.stage = stage;
     this.#guardTeardown(session);
@@ -882,7 +905,9 @@ export class ContentCacheReporter implements Reporter {
   async #close() {
     try {
       const session = sessions.get(this.vitest);
-      if (!session?.stage?.length) return;
+      if (!session) return;
+      await session.fingerprint.dispose();
+      if (!session.stage?.length) return;
       const workerVeto = await this.#workerTeardownVeto();
       if (workerVeto) session.veto ??= workerVeto;
       if (session.veto) {
@@ -890,12 +915,12 @@ export class ContentCacheReporter implements Reporter {
         return;
       }
       const acknowledgement = process.env[ACK_VARIABLE];
-      if (acknowledgement) writeStage(acknowledgement, session.folder, session.stage);
-      else commitRecords(session.folder, session.stage);
+      if (acknowledgement) await writeStage(acknowledgement, session.folder, session.stage);
+      else await commitRecords(session.folder, session.stage);
     } catch (error) {
       console.warn(`vitest cache: results not recorded: ${errorMessage(error)}`);
     } finally {
-      this.lock?.release();
+      await this.lock?.release();
       this.lock = undefined;
     }
   }

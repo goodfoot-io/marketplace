@@ -1,11 +1,11 @@
-<%~ it.frontmatter({ name: "vitest-cache", description: "Configure and troubleshoot @goodfoot/vitest-cache: cache Vitest results, declare non-import inputs, verify invalidation, and capture test diagnostics. Use for Vitest caching and this package's output policy." }) %>
+<%~ it.frontmatter({ name: "vitest-cache", description: "Configure and troubleshoot @goodfoot/vitest-cache: input contracts, reuse/invalidation and test diagnostics. Use for Vitest result caching and output policy." }) %>
 # Vitest result caching
 
 ## Integrate
 
 1. Inspect config, scripts, setup, executed APIs and transitive initialization. Read [Cache contracts](references/cache-contracts.md); preserve pools, projects, setup, isolation, plugins, selectors and reporters.
 2. Require Git, Linux/macOS, `flock`, a C11 compiler, enabled install scripts, Node 24+, manifest-compatible Vitest/Vite peers, and Yarn `node-modules` with root `node_modules/.yarn-state.yml`.
-3. Install the cache devDependency (`workspace:*` locally). Build this workspace package before consumer checks; published exports are compiled ESM. Resolve toolchain peer warnings and rebuild affected artifacts. Wrap config once; projects/factories are handled automatically.
+3. Install the devDependency (`workspace:*` locally). Build before workspace checks; published exports are ESM. Resolve peer warnings; rebuild affected artifacts. Wrap config once, preserving projects/factories.
 
 ```ts
 import { defineConfig } from 'vitest/config';
@@ -17,9 +17,9 @@ export default withTestOutput(
 );
 ```
 
-Keep declarations in `vitest.cache.json`; paths are Git-root-relative. For partial adoption list reviewed `files` and omit `fallback`. Use `fallback: []` only after auditing every unlisted file. Use `{ uncached: 'reason' }` directly for uncontrolled suites; verify full execution. `loadCacheContract` accepts cached objects only.
+Keep declarations in `vitest.cache.json`; paths are Git-root-relative. For partial adoption list reviewed `files` and omit `fallback`. Use `fallback: []` only after auditing every unlisted file. Use `{ uncached: 'reason' }` directly for uncontrolled suites; verify full execution. `loadCacheContract` loads cached objects asynchronously. Object configs return promises; await loaders/configs before reading fields.
 
-Set the package workdir per exec or use `yarn workspace <name>`; cwd does not persist. Typecheck tests/config/UI; preserve build roots. Require successful edits/installs before continuing. Fix types without casts; review unsafe lint fixes for behavior loss. Verify generated outputs are ignored from package cwd; use `yarn exec <tool>` to bypass script aliases.
+Set workdir per exec or use `yarn workspace <name>`. Typecheck tests/config/UI; preserve build roots. Require edits/installs to succeed. Fix types without casts; review unsafe lint fixes. Check generated ignores from package cwd; `yarn exec <tool>` bypasses script aliases.
 
 ## Verify
 
@@ -38,7 +38,7 @@ An all-hit run can print `No test files found, exiting with code 0`; require pos
 - `new`, `unrecorded`, `forced`: absent pass, revoked record, requested execution.
 - `invocation`, `execution`, `inputs`, `packages`, `executables`: compare config/CLI/environment, selection/pool/isolation/resolved worker env, graphs/declarations, installed closures, executable bytes.
 - Intentional unlisted files execute uncached. Repair unresolved imports, missing inputs or package-location ambiguity; never mask them with empty import domains, broad globs or renamed cache directories.
-- Suspect cold timing after contention: use fresh `TMPDIR` result/digest caches, require `new` misses, then repeat warm with identical env. Preserve the shared module cache; FORCE is not a cold digest reset.
+- Profile with fresh `TMPDIR`, `new` misses and identical warm env. Separate main-thread CPU, total CPU, timer gaps and worker startup; collect backend stats after phase release. Preserve module cache; FORCE does not reset digests.
 - Global setup uses `setupNeeded(project, predicate?)` from `@goodfoot/vitest-cache/plan`; unknown plans require setup.
 - Optional third argument `loadTestSequence(new URL('./vitest.sequence.json', import.meta.url))` declares repository-relative paths, heaviest first; scheduling only.
 

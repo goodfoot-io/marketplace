@@ -1,0 +1,7 @@
+# Package guides and generated agent skills use their own document formats.
+/packages/vitest-cache/README.md
+/packages/vitest-cache/OUTPUT.md
+/plugins-antigravity/vitest-cache/skills/vitest-cache/**/*.md
+/plugins-claude/vitest-cache/skills/vitest-cache/**/*.md
+/plugins-codex/vitest-cache/skills/vitest-cache/**/*.md
+/plugins-opencode/vitest-cache/skills/vitest-cache/**/*.md
