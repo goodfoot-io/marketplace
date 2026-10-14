@@ -44,7 +44,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-test('large files, effective links and sorted trees preserve exact SHA framing and byte counters', () => {
+test('large files, effective links and sorted trees preserve exact SHA framing and byte counters', async () => {
   const root = fixture();
   const tree = path.join(root, 'tree');
   mkdirSync(tree);
@@ -67,15 +67,15 @@ test('large files, effective links and sorted trees preserve exact SHA framing a
     .update('z-link\0file\0' + '420\0')
     .update(bytes)
     .update('\0');
-  expect(store.treeDigest(tree)).toBe(expectedTree.digest('hex'));
+  expect(await store.treeDigest(tree)).toBe(expectedTree.digest('hex'));
   expect(store.stats.bytesRead).toBe(size * 4);
   chmodSync(file, 0o755);
   const changed = new DigestStore(null);
   expect(changed.fileDigest(file)).toBe(createHash('sha256').update('493\0').update(bytes).digest('hex'));
-  expect(changed.treeDigest(tree)).not.toBe(store.treeDigest(tree));
+  expect(await changed.treeDigest(tree)).not.toBe(await store.treeDigest(tree));
 });
 
-test('a 256 MiB binary uses bounded real read memory in an isolated process', () => {
+test('a 256 MiB binary uses bounded real read memory in an isolated process', async () => {
   const root = fixture();
   const file = path.join(root, 'binary');
   const size = 256 * 1024 * 1024;
@@ -104,19 +104,25 @@ test('a 256 MiB binary uses bounded real read memory in an isolated process', ()
   expect(result.peakRssKiB).toBeLessThan(32 * 1024);
 });
 
-test.each(['mode', 'content', 'replacement'])(
-  'real concurrent %s mutation fails closed and releases every descriptor without recording a digest',
-  (mutation) => {
-    const root = fixture();
-    const file = path.join(root, 'binary');
-    largeFile(file, 256 * 1024 * 1024);
-    const source = new URL('../src/digest-store.ts', import.meta.url).href;
-    const output = execFileSync(
-      process.execPath,
-      [
-        '--input-type=module',
-        '-e',
-        `
+test.each(
+  ['mode', 'content', 'replacement'].flatMap((mutation) => [
+    { mutation, tree: false },
+    { mutation, tree: true }
+  ])
+)('real concurrent $mutation mutation (tree=$tree) fails closed and releases descriptors', ({ mutation, tree }) => {
+  const root = fixture();
+  const file = path.join(root, 'binary');
+  largeFile(file, 256 * 1024 * 1024);
+  const directory = path.join(root, 'tree');
+  mkdirSync(directory);
+  symlinkSync(file, path.join(directory, 'binary'));
+  const source = new URL('../src/digest-store.ts', import.meta.url).href;
+  const output = execFileSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `
     import fs from 'node:fs';
     import { Worker } from 'node:worker_threads';
     import { DigestStore } from ${JSON.stringify(source)};
@@ -153,21 +159,21 @@ test.each(['mode', 'content', 'replacement'])(
     Atomics.store(state, 1, 1); Atomics.notify(state, 1);
     const store = new DigestStore(null);
     let failed = false;
-    try { store.fileDigest(${JSON.stringify(file)}); } catch (error) { failed = /changed while hashing/.test(error.message); }
+    try { ${tree ? `await store.treeDigest(${JSON.stringify(directory)})` : `store.fileDigest(${JSON.stringify(file)})`}; } catch (error) { failed = /changed while hashing/.test(error.message); }
     Atomics.store(state, 1, 2);
     if (Atomics.wait(state, 2, 0, 10000) === 'timed-out') throw new Error('mutation worker did not stop');
     const after = fs.readdirSync('/proc/self/fd').length;
     await worker.terminate();
-    console.log(JSON.stringify({failed, before, after, memo: store.fileMemo.size, records: store.memory.size}));
+    console.log(JSON.stringify({failed, before, after, memo: store.fileMemo.size + store.treeMemo.size, pending: store.pendingTrees.size, records: store.memory.size}));
   `
-      ],
-      { encoding: 'utf8', timeout: 30000, killSignal: 'SIGKILL' }
-    );
-    const result: { failed: boolean; before: number; after: number; memo: number; records: number } =
-      JSON.parse(output);
-    expect(result.failed).toBe(true);
-    expect(result.after).toBe(result.before);
-    expect(result.memo).toBe(0);
-    expect(result.records).toBe(0);
-  }
-);
+    ],
+    { encoding: 'utf8', timeout: 30000, killSignal: 'SIGKILL' }
+  );
+  const result: { failed: boolean; before: number; after: number; memo: number; records: number; pending: number } =
+    JSON.parse(output);
+  expect(result.failed).toBe(true);
+  expect(result.after).toBe(result.before);
+  expect(result.memo).toBe(0);
+  expect(result.pending).toBe(0);
+  expect(result.records).toBe(0);
+});

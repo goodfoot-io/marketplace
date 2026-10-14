@@ -3,6 +3,7 @@
  *
  * @summary Verify nested Yarn toolchain resolution and content invalidation.
  */
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -50,6 +51,52 @@ test('nested workspace tools resolve independently and only their consumers inva
     const changed = phase();
     expect(await changed.closure([], ['vite'], first)).not.toBe(firstKey);
     expect(await changed.closure([], ['vite'], second)).toBe(secondKey);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('fresh packageRoots resolves more than one full batch without nested initialization deadlock', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'vitest-cache-root-batches-'));
+  try {
+    const directory = path.join(root, 'node_modules/tool');
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(path.join(directory, 'package.json'), JSON.stringify({ name: 'tool', version: '1.0.0' }));
+    writeFileSync(path.join(directory, 'index.js'), 'export {};');
+    const locations = ['node_modules/tool'];
+    for (let index = 1; index < 64; index++) {
+      const relative = `node_modules/tool-${index}`;
+      mkdirSync(path.join(root, relative));
+      locations.push(relative);
+    }
+    writeFileSync(
+      path.join(root, 'node_modules/.yarn-state.yml'),
+      locations.map((relative, index) => `"tool-${index}@npm:1.0.0":\n  locations:\n    - "${relative}"\n`).join('\n')
+    );
+    writeFileSync(
+      path.join(root, 'yarn.lock'),
+      '"tool@npm:1.0.0":\n  version: 1.0.0\n  resolution: "tool@npm:1.0.0"\n'
+    );
+    const source = new URL('../src/package-closure.ts', import.meta.url).href;
+    const digestSource = new URL('../src/digest-store.ts', import.meta.url).href;
+    const output = execFileSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `
+      import { createPackagePhase } from ${JSON.stringify(source)};
+      import { DigestStore } from ${JSON.stringify(digestSource)};
+      const timeout = setTimeout(() => { throw new Error('packageRoots initialization deadlocked'); }, 2000);
+      try {
+        const phase = createPackagePhase(${JSON.stringify(root)}, new DigestStore(null));
+        console.log(JSON.stringify(await phase.packageRoots(Array(40).fill(${JSON.stringify(path.join(directory, 'index.js'))}))));
+      } finally { clearTimeout(timeout); }
+    `
+      ],
+      { encoding: 'utf8', timeout: 5000 }
+    );
+    expect(JSON.parse(output)).toEqual([directory]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

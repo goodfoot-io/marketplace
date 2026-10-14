@@ -14,17 +14,17 @@ import { FingerprintPhase, fingerprintFiles } from '../src/fingerprint.ts';
 let temporary: string;
 let root: string;
 
-beforeEach(() => {
+beforeEach(async () => {
   temporary = mkdtempSync(path.join(tmpdir(), 'vitest-cache-native-realpath-'));
   root = path.join(temporary, 'repository');
   mkdirSync(root);
 });
 
-afterEach(() => {
+afterEach(async () => {
   rmSync(temporary, { recursive: true, force: true });
 });
 
-test('physical and chained alias roots fingerprint the same effective file and directory links', () => {
+test('physical and chained alias roots fingerprint the same effective file and directory links', async () => {
   mkdirSync(path.join(root, 'inputs'));
   writeFileSync(path.join(root, 'inputs', 'source.ts'), 'export const value = 1;\n');
   symlinkSync('inputs/source.ts', path.join(root, 'file-link'));
@@ -38,10 +38,12 @@ test('physical and chained alias roots fingerprint the same effective file and d
   expect(realpathSync.native(chained)).toBe(realpathSync(chained));
   const store = new DigestStore(null);
   expect(store.fileDigest(path.join(root, 'file-link'))).toBe(store.fileDigest(path.join(root, 'inputs/source.ts')));
-  expect(store.treeDigest(path.join(root, 'directory-link'))).toBe(store.treeDigest(path.join(root, 'inputs')));
+  expect(await store.treeDigest(path.join(root, 'directory-link'))).toBe(
+    await store.treeDigest(path.join(root, 'inputs'))
+  );
 });
 
-test('linked Git worktrees preserve equal fingerprints through root aliases', () => {
+test('linked Git worktrees preserve equal fingerprints through root aliases', async () => {
   writeFileSync(path.join(root, 'input.ts'), 'export const value = 1;\n');
   execFileSync('git', ['init', '--quiet', '--initial-branch=main'], { cwd: root });
   execFileSync('git', ['add', 'input.ts'], { cwd: root });
@@ -60,7 +62,7 @@ test('linked Git worktrees preserve equal fingerprints through root aliases', ()
   expect(new FingerprintPhase(alias, { store: new DigestStore(null) }).root).toBe(realpathSync(worktree));
 });
 
-test('missing and non-directory link targets retain markers while loops fail closed', () => {
+test('missing and non-directory link targets retain markers while loops fail closed', async () => {
   writeFileSync(path.join(root, 'file'), 'bytes');
   symlinkSync('absent', path.join(root, 'dangling'));
   symlinkSync('file/child', path.join(root, 'not-directory'));
@@ -77,7 +79,7 @@ test('missing and non-directory link targets retain markers while loops fail clo
   expect(() => new FingerprintPhase(path.join(root, 'absent'), { store: new DigestStore(null) })).toThrow(
     expect.objectContaining({ code: 'ENOENT' })
   );
-  expect(() => new DigestStore(null).treeDigest(path.join(root, 'absent'))).toThrow(
+  await expect(new DigestStore(null).treeDigest(path.join(root, 'absent'))).rejects.toThrow(
     expect.objectContaining({ code: 'ENOENT' })
   );
 });

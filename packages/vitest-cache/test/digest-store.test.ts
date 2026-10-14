@@ -40,7 +40,7 @@ afterEach(() => {
   rmSync(root, { force: true, recursive: true });
 });
 
-test('a chmod-only change on a file changes fileDigest and is not trusted', () => {
+test('a chmod-only change on a file changes fileDigest and is not trusted', async () => {
   const folder = mkdtempSync(path.join(tmpdir(), 'digest-store-file-mode-'));
   try {
     const file = path.join(root, 'tool');
@@ -64,7 +64,7 @@ test('a chmod-only change on a file changes fileDigest and is not trusted', () =
   }
 });
 
-test('a chmod-only change on a file inside a tree changes treeDigest and is not trusted', () => {
+test('a chmod-only change on a file inside a tree changes treeDigest and is not trusted', async () => {
   const folder = mkdtempSync(path.join(tmpdir(), 'digest-store-tree-mode-'));
   try {
     const file = path.join(root, 'tool');
@@ -72,14 +72,14 @@ test('a chmod-only change on a file inside a tree changes treeDigest and is not 
     sleepPastRacyWindow();
 
     const first = new DigestStore(folder);
-    const before = first.treeDigest(root);
+    const before = await first.treeDigest(root);
     expect(first.stats.computed).toBe(1);
     expect(first.stats.reused).toBe(0);
 
     chmodSync(file, 0o755);
 
     const second = new DigestStore(folder);
-    const after = second.treeDigest(root);
+    const after = await second.treeDigest(root);
     expect(after).not.toBe(before);
     expect(second.stats.computed).toBe(1);
     expect(second.stats.reused).toBe(0);
@@ -88,7 +88,7 @@ test('a chmod-only change on a file inside a tree changes treeDigest and is not 
   }
 });
 
-test('a chmod-only change on a subdirectory changes treeDigest and is not trusted', () => {
+test('a chmod-only change on a subdirectory changes treeDigest and is not trusted', async () => {
   const folder = mkdtempSync(path.join(tmpdir(), 'digest-store-subdir-mode-'));
   try {
     const sub = path.join(root, 'bin');
@@ -97,14 +97,14 @@ test('a chmod-only change on a subdirectory changes treeDigest and is not truste
     sleepPastRacyWindow();
 
     const first = new DigestStore(folder);
-    const before = first.treeDigest(root);
+    const before = await first.treeDigest(root);
     expect(first.stats.computed).toBe(1);
     expect(first.stats.reused).toBe(0);
 
     chmodSync(sub, 0o700);
 
     const second = new DigestStore(folder);
-    const after = second.treeDigest(root);
+    const after = await second.treeDigest(root);
     expect(after).not.toBe(before);
     expect(second.stats.computed).toBe(1);
     expect(second.stats.reused).toBe(0);
@@ -113,7 +113,7 @@ test('a chmod-only change on a subdirectory changes treeDigest and is not truste
   }
 });
 
-test('a record written in the v1 schema is rejected and rehashed', () => {
+test('a record written in the v1 schema is rejected and rehashed', async () => {
   const folder = mkdtempSync(path.join(tmpdir(), 'digest-store-schema-'));
   try {
     const file = path.join(root, 'tool');
@@ -121,7 +121,7 @@ test('a record written in the v1 schema is rejected and rehashed', () => {
     sleepPastRacyWindow();
 
     const first = new DigestStore(folder);
-    const originalDigest = first.treeDigest(root);
+    const originalDigest = await first.treeDigest(root);
     expect(first.stats.computed).toBe(1);
 
     // Simulate a record a pre-mode-hashing (schema 1) store left on disk: same
@@ -134,7 +134,7 @@ test('a record written in the v1 schema is rejected and rehashed', () => {
     writeFileSync(recordPath, JSON.stringify({ ...v1Record, schema: 1 }));
 
     const second = new DigestStore(folder);
-    const after = second.treeDigest(root);
+    const after = await second.treeDigest(root);
     expect(after).toBe(originalDigest);
     expect(second.stats.computed).toBe(1);
     expect(second.stats.reused).toBe(0);
@@ -146,7 +146,7 @@ test('a record written in the v1 schema is rejected and rehashed', () => {
   }
 });
 
-test('an unchanged tree is served from a persistent store', () => {
+test('an unchanged tree is served from a persistent store', async () => {
   const folder = mkdtempSync(path.join(tmpdir(), 'digest-store-folder-'));
   try {
     const file = path.join(root, 'tool');
@@ -154,11 +154,11 @@ test('an unchanged tree is served from a persistent store', () => {
     sleepPastRacyWindow();
 
     const first = new DigestStore(folder);
-    const before = first.treeDigest(root);
+    const before = await first.treeDigest(root);
     expect(first.stats.computed).toBe(1);
 
     const second = new DigestStore(folder);
-    const after = second.treeDigest(root);
+    const after = await second.treeDigest(root);
     expect(after).toBe(before);
     expect(second.stats.reused).toBe(1);
     expect(second.stats.computed).toBe(0);
@@ -167,7 +167,7 @@ test('an unchanged tree is served from a persistent store', () => {
   }
 });
 
-test('a cold tree hashes bytes and inventories members in one traversal', () => {
+test('a cold tree hashes bytes and inventories members in one traversal', async () => {
   const folder = path.join(root, 'records');
   const tree = path.join(root, 'package');
   mkdirSync(tree);
@@ -181,7 +181,7 @@ test('a cold tree hashes bytes and inventories members in one traversal', () => 
   writeFileSync(path.join(tree, 'ignored.tsbuildinfo'), 'ignored');
 
   const store = new DigestStore(folder);
-  const value = store.treeDigest(tree);
+  const value = await store.treeDigest(tree);
   // Four inventory stats, two small-file verification stats and the pre-walk root stat.
   expect(store.stats).toEqual({ computed: 1, reused: 0, bytesRead: 10, filesStatted: 7, directoriesRead: 2 });
   expect(store.treeSnapshots.get(tree)?.members.map((member) => member.relative)).toEqual([
@@ -190,17 +190,17 @@ test('a cold tree hashes bytes and inventories members in one traversal', () => 
     'linked',
     'linked\0target'
   ]);
-  expect(store.treeDigest(tree)).toBe(value);
+  expect(await store.treeDigest(tree)).toBe(value);
   expect(store.stats.filesStatted).toBe(7);
 
   // A recent persisted record still forces a fresh content read in a new phase.
   const next = new DigestStore(folder);
-  expect(next.treeDigest(tree)).toBe(value);
+  expect(await next.treeDigest(tree)).toBe(value);
   expect(next.stats.computed).toBe(1);
   expect(next.stats.bytesRead).toBe(10);
 });
 
-test('fresh processes reuse persistent inventories and freshly detect tree mutations', () => {
+test('fresh processes reuse persistent inventories and freshly detect tree mutations', async () => {
   const tree = path.join(root, 'package');
   const folder = path.join(root, 'records');
   const external = path.join(root, 'external');
@@ -221,7 +221,7 @@ test('fresh processes reuse persistent inventories and freshly detect tree mutat
         `
       import { DigestStore } from ${JSON.stringify(source)};
       const store = new DigestStore(process.argv[1]);
-      const value = store.treeDigest(process.argv[2]);
+      const value = await store.treeDigest(process.argv[2]);
       console.log(JSON.stringify({value, ...store.stats}));
     `,
         folder,
@@ -263,19 +263,19 @@ test('fresh processes reuse persistent inventories and freshly detect tree mutat
   for (const mutate of mutations) {
     mutate();
     sleepPastRacyWindow();
-    expect(observe()).toMatchObject({ computed: 1, value: new DigestStore(null).treeDigest(tree) });
+    expect(observe()).toMatchObject({ computed: 1, value: await new DigestStore(null).treeDigest(tree) });
     expect(observe()).toMatchObject({ computed: 0, directoriesRead: 0 });
   }
 }, 60_000);
 
-test('malformed inventory fields safely miss and filtered inventories do not persist', () => {
+test('malformed inventory fields safely miss and filtered inventories do not persist', async () => {
   const tree = path.join(root, 'package');
   const folder = path.join(root, 'records');
   mkdirSync(tree);
   writeFileSync(path.join(tree, 'included'), 'included');
   writeFileSync(path.join(tree, 'excluded'), 'excluded');
   sleepPastRacyWindow();
-  const before = new DigestStore(folder).treeDigest(tree);
+  const before = await new DigestStore(folder).treeDigest(tree);
   const [filename] = readdirSync(folder);
   const recordPath = path.join(folder, filename);
   const original = readFileSync(recordPath, 'utf8');
@@ -284,7 +284,7 @@ test('malformed inventory fields safely miss and filtered inventories do not per
     record.inventory.members[0].relative = relative;
     writeFileSync(recordPath, JSON.stringify(record));
     const store = new DigestStore(folder);
-    expect(store.treeDigest(tree)).toBe(before);
+    expect(await store.treeDigest(tree)).toBe(before);
     expect(store.stats.computed).toBe(1);
   }
   for (const malformed of [
@@ -304,22 +304,22 @@ test('malformed inventory fields safely miss and filtered inventories do not per
   ]) {
     writeFileSync(recordPath, JSON.stringify(malformed));
     const fresh = new DigestStore(folder);
-    expect(fresh.treeDigest(tree)).toBe(before);
+    expect(await fresh.treeDigest(tree)).toBe(before);
     expect(fresh.stats.computed).toBe(1);
   }
   const store = new DigestStore(folder);
-  const filtered = store.treeDigest(tree, { skip: (name) => name === 'excluded' });
+  const filtered = await store.treeDigest(tree, { skip: (name) => name === 'excluded' });
   expect(filtered).not.toBe(before);
-  expect(store.treeDigest(tree)).toBe(before);
-  expect(new DigestStore(folder).treeDigest(tree)).toBe(before);
+  expect(await store.treeDigest(tree)).toBe(before);
+  expect(await new DigestStore(folder).treeDigest(tree)).toBe(before);
 });
 
-test('parsed record reuse still observes changed bytes, replacements and unsafe modes', () => {
+test('parsed record reuse still observes changed bytes, replacements and unsafe modes', async () => {
   const tree = path.join(root, 'package');
   const folder = path.join(root, 'records');
   mkdirSync(tree);
   writeFileSync(path.join(tree, 'file'), 'content');
-  new DigestStore(folder).treeDigest(tree);
+  await new DigestStore(folder).treeDigest(tree);
   const [filename] = readdirSync(folder);
   const id = filename.slice(0, -5);
   const recordPath = path.join(folder, filename);
@@ -367,7 +367,7 @@ test('parsed record reuse still observes changed bytes, replacements and unsafe 
   expect(new DigestStore(otherFolder).readRecord(id)).not.toBe(replacement);
 });
 
-test('parsed descriptions evict older entries and do not retain oversized sources', () => {
+test('parsed descriptions evict older entries and do not retain oversized sources', async () => {
   const folder = path.join(root, 'records');
   mkdirSync(folder, { mode: 0o700 });
   const source = JSON.stringify({

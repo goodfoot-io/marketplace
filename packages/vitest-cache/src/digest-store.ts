@@ -19,6 +19,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { errnoCode } from './errors.ts';
+import { batchedMap, filesystemMetadata, physicalPath, withFilesystemStream } from './filesystem-batch.ts';
 import { currentUid } from './publication.ts';
 
 const schemaVersion = 3;
@@ -219,6 +220,50 @@ function hashFile(filename: string, observed: fs.BigIntStats, hash: Hash, counte
   }
 }
 
+async function hashFileAsync(filename: string, observed: fs.BigIntStats, hash: Hash, counters: Counters) {
+  await withFilesystemStream(async () => {
+    await hashFileAsyncReserved(filename, observed, hash, counters);
+  });
+}
+
+async function hashFileAsyncReserved(filename: string, observed: fs.BigIntStats, hash: Hash, counters: Counters) {
+  const verify = (stat: fs.BigIntStats) => {
+    counters.filesStatted++;
+    if (
+      !stat.isFile() ||
+      stat.dev !== observed.dev ||
+      stat.ino !== observed.ino ||
+      stat.size !== observed.size ||
+      stat.mode !== observed.mode ||
+      stat.mtimeNs !== observed.mtimeNs ||
+      stat.ctimeNs !== observed.ctimeNs
+    )
+      throw new Error(`digest input changed while hashing: ${filename}`);
+  };
+  const descriptor = await fs.promises.open(filename, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+  try {
+    const large = observed.size >= 1_048_576n;
+    if (large) verify(await filesystemMetadata(() => descriptor.stat({ bigint: true })));
+    // 1 MiB amortizes read calls for native binaries without
+    // allocating proportional to file size. Small files need only their size.
+    const buffer = Buffer.allocUnsafe(Number(observed.size < 1_048_576n ? observed.size + 1n : 1_048_576n) || 1);
+    let total = 0n;
+    while (true) {
+      const { bytesRead: count } = await descriptor.read(buffer, 0, buffer.length, null);
+      if (count === 0) break;
+      counters.bytesRead += count;
+      total += BigInt(count);
+      hash.update(buffer.subarray(0, count));
+      if (total > observed.size) throw new Error(`digest input changed while hashing: ${filename}`);
+    }
+    if (large) verify(await filesystemMetadata(() => descriptor.stat({ bigint: true })));
+    verify(await filesystemMetadata(() => fs.promises.lstat(filename, { bigint: true })));
+    if (total !== observed.size) throw new Error(`digest input changed while hashing: ${filename}`);
+  } finally {
+    await descriptor.close();
+  }
+}
+
 function nowNs() {
   return BigInt(Date.now()) * 1_000_000n;
 }
@@ -242,32 +287,30 @@ function reusable(record: DigestRecord | null, members: StatEntry[], signature: 
  * @returns Verified earlier member metadata or null when unavailable, recent or changed.
  * @throws For filesystem failures other than absent/not-directory members.
  */
-function verifyTreeSnapshot(
+async function verifyTreeSnapshot(
   directory: string,
   snapshot: TreeSnapshot | null | undefined,
   counters: Counters
-): StatEntry[] | null {
+): Promise<StatEntry[] | null> {
   if (!snapshot) return null;
   const threshold = BigInt(snapshot.recordedAtNs) - racyWindowNs;
-  for (const member of [snapshot.root, ...snapshot.members]) {
-    // A directory's timestamps establish that its member list has not changed.
-    // Recent directory timestamps cannot establish that under a coarse clock.
+  const observations = await batchedMap([snapshot.root, ...snapshot.members], async (member) => {
     if (member.type === 'directory' && (BigInt(member.mtimeNs) > threshold || BigInt(member.ctimeNs) > threshold))
-      return null;
+      return false;
     const isTarget = member.relative.endsWith('\0target');
     const relative = isTarget ? member.relative.slice(0, -7) : member.relative;
     let filename = path.join(directory, relative);
     try {
-      if (isTarget) filename = fs.realpathSync.native(filename);
-      const stat = fs.lstatSync(filename, { bigint: true, throwIfNoEntry: false });
+      if (isTarget) filename = await physicalPath(filename);
+      const stat = await filesystemMetadata(() => fs.promises.lstat(filename, { bigint: true }));
       counters.filesStatted++;
-      if (!stat || JSON.stringify(statEntry(member.relative, stat)) !== JSON.stringify(member)) return null;
+      return JSON.stringify(statEntry(member.relative, stat)) === JSON.stringify(member);
     } catch (error) {
-      if (errnoCode(error) === 'ENOENT' || errnoCode(error) === 'ENOTDIR') return null;
+      if (errnoCode(error) === 'ENOENT' || errnoCode(error) === 'ENOTDIR') return false;
       throw error;
     }
-  }
-  return snapshot.members;
+  });
+  return observations.every(Boolean) ? snapshot.members : null;
 }
 
 /**
@@ -282,22 +325,28 @@ function verifyTreeSnapshot(
  * @param options.counters - Mutable actual stat/byte-read counters.
  * @throws For unsupported members, failed reads or unsupported link targets.
  */
-function walkTree(
+async function walkTree(
   directory: string,
   relative: string,
   options: { skip: Skip | undefined; hash: Hash | null; members: StatEntry[]; counters: Counters }
 ) {
   const { skip, hash, members, counters } = options;
   counters.directoriesRead++;
-  const entries = fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
-  if (entries.length === 0) return;
-  for (const entry of entries) {
-    if (entry.name === 'node_modules' || entry.name.endsWith('.tsbuildinfo')) continue;
-    if (skip?.(entry.name)) continue;
+  const entries = (await filesystemMetadata(() => fs.promises.readdir(directory, { withFileTypes: true }))).sort(
+    (a, b) => a.name.localeCompare(b.name)
+  );
+  const included = entries.filter(
+    (entry) => entry.name !== 'node_modules' && !entry.name.endsWith('.tsbuildinfo') && !skip?.(entry.name)
+  );
+  const observations = await batchedMap(included, async (entry) => {
+    const absolute = path.join(directory, entry.name);
+    const stat = await filesystemMetadata(() => fs.promises.lstat(absolute, { bigint: true }));
+    counters.filesStatted++;
+    return { entry, stat };
+  });
+  for (const { entry, stat } of observations) {
     const member = relative ? `${relative}/${entry.name}` : entry.name;
     const absolute = path.join(directory, entry.name);
-    const stat = fs.lstatSync(absolute, { bigint: true });
-    counters.filesStatted++;
     members.push(statEntry(member, stat));
     if (hash) {
       hash.update(member);
@@ -308,7 +357,7 @@ function walkTree(
         hash.update('file\0');
         hash.update(String(stat.mode & 0o777n));
         hash.update('\0');
-        hashFile(absolute, stat, hash, counters);
+        await hashFileAsync(absolute, stat, hash, counters);
       }
     } else if (stat.isDirectory()) {
       if (hash) {
@@ -316,10 +365,10 @@ function walkTree(
         hash.update(String(stat.mode & 0o777n));
         hash.update('\0');
       }
-      walkTree(absolute, member, options);
+      await walkTree(absolute, member, options);
     } else if (stat.isSymbolicLink()) {
-      const target = fs.realpathSync.native(absolute);
-      const targetStat = fs.lstatSync(target, { bigint: true });
+      const target = await physicalPath(absolute);
+      const targetStat = await filesystemMetadata(() => fs.promises.lstat(target, { bigint: true }));
       counters.filesStatted++;
       members.push(statEntry(`${member}\u0000target`, targetStat));
       // create-worktree links installed members back to the source checkout.
@@ -329,7 +378,7 @@ function walkTree(
           hash.update('file\0');
           hash.update(String(targetStat.mode & 0o777n));
           hash.update('\0');
-          hashFile(target, targetStat, hash, counters);
+          await hashFileAsync(target, targetStat, hash, counters);
         }
       } else if (targetStat.isDirectory()) {
         if (hash) {
@@ -337,7 +386,7 @@ function walkTree(
           hash.update(String(targetStat.mode & 0o777n));
           hash.update('\0');
         }
-        walkTree(target, member, options);
+        await walkTree(target, member, options);
       } else throw new Error(`unsupported installed package link: ${absolute}`);
     } else throw new Error(`unsupported installed package member: ${absolute}`);
     if (hash) hash.update('\0');
@@ -354,6 +403,7 @@ export class DigestStore {
   readonly memory: Map<string, DigestRecord> | null;
   readonly fileMemo = new Map<string, string>();
   readonly treeMemo = new Map<string, string>();
+  readonly pendingTrees = new Map<string, Promise<string>>();
   readonly treeSnapshots: Map<string, TreeSnapshot>;
   readonly stats = { reused: 0, computed: 0, bytesRead: 0, filesStatted: 0, directoriesRead: 0 };
 
@@ -484,8 +534,28 @@ export class DigestStore {
    * @returns Canonical SHA-256 tree digest, phase-memoized by real directory.
    * @throws For unsupported members, unsafe persistent folder or filesystem failure; invalid/unsafe individual records are cache misses.
    */
-  treeDigest(directoryPath: string, { skip }: { skip?: Skip } = {}) {
-    const directory = fs.realpathSync.native(directoryPath);
+  async treeDigest(directoryPath: string, { skip }: { skip?: Skip } = {}) {
+    const directory = await physicalPath(directoryPath);
+    if (skip) return this.computeTreeDigest(directory, skip);
+    const pending = this.pendingTrees.get(directory);
+    if (pending) return pending;
+    const operation = this.computeTreeDigest(directory);
+    this.pendingTrees.set(directory, operation);
+    try {
+      return await operation;
+    } finally {
+      this.pendingTrees.delete(directory);
+    }
+  }
+
+  /**
+   * Observe and hash one physical tree after in-flight operation coalescing.
+   * @param directory - Physical package directory.
+   * @param skip - Optional member exclusion predicate.
+   * @returns Verified effective tree digest.
+   * @throws For filesystem observation or content hashing failures.
+   */
+  private async computeTreeDigest(directory: string, skip?: Skip) {
     const memoized = skip ? undefined : this.treeMemo.get(directory);
     if (memoized !== undefined) return memoized;
     const id = recordId('tree', directory);
@@ -494,13 +564,13 @@ export class DigestStore {
     if (record) {
       const counters = { filesStatted: 0, bytesRead: 0, directoriesRead: 0 };
       const snapshot = this.treeSnapshots.get(directory) ?? record.inventory;
-      let members = verifyTreeSnapshot(directory, snapshot, counters);
+      let members = await verifyTreeSnapshot(directory, snapshot, counters);
       let observedRoot: StatEntry | undefined;
       if (!members) {
-        observedRoot = statEntry('.', fs.lstatSync(directory, { bigint: true }));
+        observedRoot = statEntry('.', await filesystemMetadata(() => fs.promises.lstat(directory, { bigint: true })));
         counters.filesStatted++;
         members = [];
-        walkTree(directory, '', { skip, hash: null, members, counters });
+        await walkTree(directory, '', { skip, hash: null, members, counters });
       }
       this.stats.filesStatted += counters.filesStatted;
       this.stats.directoriesRead += counters.directoriesRead;
@@ -516,9 +586,9 @@ export class DigestStore {
     hash.update('vitest-tree-digest-v2\0');
     const freshMembers: StatEntry[] = [];
     const freshCounters = { filesStatted: 0, bytesRead: 0, directoriesRead: 0 };
-    const freshRoot = statEntry('.', fs.lstatSync(directory, { bigint: true }));
+    const freshRoot = statEntry('.', await filesystemMetadata(() => fs.promises.lstat(directory, { bigint: true })));
     freshCounters.filesStatted++;
-    walkTree(directory, '', { skip, hash, members: freshMembers, counters: freshCounters });
+    await walkTree(directory, '', { skip, hash, members: freshMembers, counters: freshCounters });
     this.stats.filesStatted += freshCounters.filesStatted;
     this.stats.directoriesRead += freshCounters.directoriesRead;
     this.stats.bytesRead += freshCounters.bytesRead;

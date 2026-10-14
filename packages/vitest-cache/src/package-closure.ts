@@ -9,6 +9,7 @@ import { builtinModules, createRequire } from 'node:module';
 import path from 'node:path';
 import { setImmediate } from 'node:timers/promises';
 import type { DigestStore } from './digest-store.ts';
+import { batchedMap, physicalPath } from './filesystem-batch.ts';
 
 const builtins = new Set(builtinModules.map((name) => name.replace(/^node:/, '')));
 
@@ -230,12 +231,17 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
   const roots = new Map<string, string>();
   const closures = new Map<string, string>();
 
-  function state() {
+  let initializing: Promise<Installation> | undefined;
+
+  async function initializeState() {
     if (!installation) {
       const locations = installedState(root);
       const physicalLocations = new Map<string, string>();
-      for (const directory of locations.keys()) {
-        const physical = fs.realpathSync.native(directory);
+      const directories = [...locations.keys()];
+      const physicalPaths = await batchedMap(directories, physicalPath);
+      for (const [index, directory] of directories.entries()) {
+        const physical = physicalPaths[index];
+        if (physical === undefined) throw new Error(`missing physical Yarn package location: ${directory}`);
         // Workspace sources are local graph inputs, not installed package bytes.
         // Multiple virtual peer contexts legitimately symlink the same source tree.
         // Never choose one context by physical path; logical locations still retain
@@ -259,10 +265,21 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
     return installation;
   }
 
-  function resolvedRoot(filename: string) {
+  async function state() {
+    if (installation) return installation;
+    initializing ??= initializeState();
+    const operation = initializing;
+    try {
+      return await operation;
+    } finally {
+      if (initializing === operation) initializing = undefined;
+    }
+  }
+
+  async function resolvedRoot(filename: string) {
     let value = roots.get(filename);
     if (!value) {
-      const { locations, physicalLocations } = state();
+      const { locations, physicalLocations } = await state();
       value = packageRoot(root, filename, locations, physicalLocations);
       roots.set(filename, value);
     }
@@ -276,14 +293,14 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
    * @returns Sorted unique logical installation roots.
    * @throws For unmapped/unsafe/ambiguous installation metadata.
    */
-  function packageRoots(resolvedPaths: string[]) {
-    return [...new Set(resolvedPaths.map((filename) => resolvedRoot(filename)))].sort();
+  async function packageRoots(resolvedPaths: string[]) {
+    return [...new Set(await batchedMap(resolvedPaths, resolvedRoot))].sort();
   }
 
-  function node(directory: string): PackageNode {
+  async function node(directory: string): Promise<PackageNode> {
     let record = nodes.get(directory);
     if (record) return record;
-    const { locations, entries } = state();
+    const { locations, entries } = await state();
     const locator = locations.get(directory);
     // Yarn's node-modules state names virtual peer instances, while yarn.lock
     // records their underlying package resolution once. Virtual IDs vary by
@@ -317,7 +334,7 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
     record = {
       locator: underlying,
       lock: lock.description,
-      content: store.treeDigest(directory),
+      content: await store.treeDigest(directory),
       edges,
       dependsOn
     };
@@ -336,8 +353,8 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
    */
   async function closure(resolvedPaths: string[], toolchainSpecifiers: string[], toolchainRoot: string) {
     if (!Array.isArray(toolchainSpecifiers)) throw new Error('toolchainSpecifiers must be an array');
-    const { locations } = state();
-    const starts = new Set(packageRoots(resolvedPaths));
+    const { locations } = await state();
+    const starts = new Set(await packageRoots(resolvedPaths));
     for (const name of toolchainSpecifiers) {
       const directory = resolveInstalledPackage(toolchainRoot, name, locations);
       if (!directory) throw new Error(`missing test toolchain package: ${name}`);
@@ -355,7 +372,7 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
       // Fresh installed-package hashes can block worker stop acknowledgements.
       // Let their IPC callbacks run between package directories.
       await setImmediate();
-      const record = node(directory);
+      const record = await node(directory);
       items.push(
         JSON.stringify({ locator: record.locator, lock: record.lock, content: record.content, edges: record.edges })
       );
