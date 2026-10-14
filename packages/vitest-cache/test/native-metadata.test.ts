@@ -179,3 +179,19 @@ test('permission-denied observations reject after draining and recover after acc
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('verifies members spanning many native batches and reports a change in any batch', async () => {
+  const root = fs.mkdtempSync(path.join(tmpdir(), 'native-batches-'));
+  try {
+    const names = Array.from({ length: 100 }, (_, index) => `file-${index}`);
+    for (const name of names) fs.writeFileSync(path.join(root, name), name);
+    const baseline = [observe(root, '.'), ...names.map((name) => observe(root, name))];
+    expect(await verifyNativeMetadata(root, baseline)).toEqual({ matches: true, checked: 101 });
+    fs.writeFileSync(path.join(root, 'file-70'), 'changed-contents');
+    expect(await verifyNativeMetadata(root, baseline)).toEqual({ matches: false, checked: 101 });
+    fs.unlinkSync(path.join(root, 'file-95'));
+    expect(await verifyNativeMetadata(root, baseline)).toEqual({ matches: false, checked: 100 });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

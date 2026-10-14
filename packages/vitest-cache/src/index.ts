@@ -4,6 +4,7 @@
  * @summary Plan content-cache reuse and publish passing records only after teardown acceptance.
  */
 import { execFile } from 'node:child_process';
+import { hash as sha256 } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -43,7 +44,12 @@ export type Policy =
   | { reuse: true; publish: true; reason: null; toolchain: string[] }
   | { reuse: false; publish: boolean; reason: string; toolchain: string[] };
 /** Explicit dynamic/opaque graph declarations and current phase observation maps. */
-export type GraphOptions = { dynamicImports: Record<string, string[]>; opaqueImports: string[]; cache: WalkCache };
+export type GraphOptions = {
+  dynamicImports: Record<string, string[]>;
+  opaqueImports: string[];
+  cache: WalkCache;
+  persist: { folder: string; environmentKey: string };
+};
 /** Original configured Vitest run cache journal for planned/executed identities, staged positive records, diagnostic counters and teardown veto. */
 export type Session = {
   ctx: Vitest;
@@ -384,6 +390,7 @@ class Phase {
   readonly fingerprint: number;
   readonly hostGraphs = new Map<string, Promise<InputGraph>>();
   readonly setupGraphs = new Map<TestProject, Promise<InputGraph>>();
+  readonly edgeKeys = new Map<TestProject, Promise<string>>();
   readonly resolution = new Map<string, string[]>();
   // Fresh phase observations shared by keyed files: classification, signature
   // and nearest-file lookups reuse their specific memo entries. Separate host,
@@ -420,6 +427,56 @@ class Phase {
       this.setupGraphs.set(project, graph);
     }
     return graph;
+  }
+
+  /**
+   * Identify everything outside a module's bytes that shapes its transformed imports: the invocation,
+   * Vite environment shape, plugin identities and the config files that configure them.
+   *
+   * @param project - Project whose Vite environment transforms the modules.
+   * @returns Digest naming that transform environment.
+   */
+  async edgeEnvironmentKey(project: TestProject): Promise<string> {
+    let key = this.edgeKeys.get(project);
+    if (!key) {
+      key = (async () => {
+        const config = project.vite.config;
+        const files = [config.configFile, ...(config.configFileDependencies ?? [])].filter(
+          (file): file is string => typeof file === 'string'
+        );
+        const signatureOf = async (file: string, optional: boolean) => {
+          try {
+            const stat = await lstatMetadata(await physicalPath(file));
+            return `${file}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`;
+          } catch (error) {
+            if (optional && (errnoCode(error) === 'ENOENT' || errnoCode(error) === 'ENOTDIR')) return `${file}:absent`;
+            throw error;
+          }
+        };
+        // Plugins are installed packages whose behavior no config file records; any lockfile or
+        // installation change therefore starts the specifier records cold.
+        const signatures = await Promise.all([
+          ...files.map((file) => signatureOf(file, false)),
+          signatureOf(path.join(this.session.top, 'yarn.lock'), true),
+          signatureOf(path.join(this.session.top, 'node_modules', '.yarn-state.yml'), true)
+        ]);
+        return sha256(
+          'sha256',
+          JSON.stringify([
+            this.session.invocation,
+            project.name,
+            vitestVersion,
+            config.plugins.map((plugin) => plugin.name),
+            config.resolve?.alias,
+            config.define,
+            signatures
+          ]),
+          'hex'
+        );
+      })();
+      this.edgeKeys.set(project, key);
+    }
+    return key;
   }
 
   async resolutionInputs(files: string[]) {
@@ -554,7 +611,8 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
   const graphOptions: GraphOptions = {
     dynamicImports,
     opaqueImports: contract.opaqueImports ?? [],
-    cache: phase.walkCache
+    cache: phase.walkCache,
+    persist: { folder: path.join(session.folder, 'edges'), environmentKey: await phase.edgeEnvironmentKey(project) }
   };
   const setup = await phase.setupGraph(specification, graphOptions);
   const test = await collectInputGraph(specification, top, {

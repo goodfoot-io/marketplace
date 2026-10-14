@@ -57,7 +57,7 @@ export async function verifyNativeMetadata(
   members: readonly StatEntry[]
 ): Promise<MetadataVerification> {
   let matches = true;
-  let checked = 0;
+  const prepared: { paths: string[]; targets: Buffer; baseline: Buffer; length: number }[] = [];
   for (let offset = 0; offset < members.length; offset += filesystemBatchSize) {
     const batch = members.slice(offset, offset + filesystemBatchSize);
     const paths: string[] = [];
@@ -76,11 +76,22 @@ export async function verifyNativeMetadata(
         const timestamp = field === 'mtimeNs' || field === 'ctimeNs';
         const minimum = timestamp ? signedMinimum : 0n;
         const maximum = timestamp || field === 'size' ? signedMaximum : unsignedMaximum;
-        if (value < minimum || value > maximum) return { matches: false, checked };
+        if (value < minimum || value > maximum) return { matches: false, checked: 0 };
         baseline.writeBigUInt64LE(BigInt.asUintN(64, value), index * 48 + fieldIndex * 8);
       }
     }
-    const observed: unknown = await filesystemMetadata(() => check(paths, targets, baseline));
+    prepared.push({ paths, targets, baseline, length: batch.length });
+  }
+  // Batches are independent observations: issue them together so the shared permit budget, not
+  // one-at-a-time round trips, bounds concurrency, and drain every started batch before failing.
+  const settled = await Promise.allSettled(
+    prepared.map((batch) => filesystemMetadata(() => check(batch.paths, batch.targets, batch.baseline)))
+  );
+  let checked = 0;
+  for (const [index, result] of settled.entries()) {
+    if (result.status === 'rejected') throw result.reason;
+    const observed: unknown = result.value;
+    const length = prepared[index]?.length ?? 0;
     if (
       typeof observed !== 'object' ||
       observed === null ||
@@ -90,7 +101,7 @@ export async function verifyNativeMetadata(
       typeof observed.checked !== 'number' ||
       !Number.isInteger(observed.checked) ||
       observed.checked < 0 ||
-      observed.checked > batch.length
+      observed.checked > length
     )
       throw new Error('Invalid native metadata result');
     matches &&= observed.matches;
