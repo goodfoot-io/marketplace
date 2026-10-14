@@ -31,7 +31,7 @@ import { readContent } from './filesystem-content.ts';
 import { verifyNativeMetadata } from './native-metadata.ts';
 import { currentUid } from './publication.ts';
 
-const schemaVersion = 4;
+const schemaVersion = 5;
 const statEntryFields = ['relative', 'type', 'dev', 'ino', 'size', 'mtimeNs', 'ctimeNs', 'mode'];
 const racyWindowNs = 2_000_000_000n;
 
@@ -313,6 +313,8 @@ async function walkTree(
         hash.update('file\0');
         hash.update(String(stat.mode & 0o777n));
         hash.update('\0');
+        hash.update(String(stat.size));
+        hash.update('\0');
         await hashFileAsync(absolute, stat, hash, counters);
       }
     } else if (stat.isDirectory()) {
@@ -333,6 +335,8 @@ async function walkTree(
         if (hash) {
           hash.update('file\0');
           hash.update(String(targetStat.mode & 0o777n));
+          hash.update('\0');
+          hash.update(String(targetStat.size));
           hash.update('\0');
           await hashFileAsync(target, targetStat, hash, counters);
         }
@@ -569,7 +573,7 @@ export class DigestStore {
       }
     }
     const hash = createHash('sha256');
-    hash.update('vitest-tree-digest-v3\0');
+    hash.update('vitest-tree-digest-v4\0');
     const freshMembers: StatEntry[] = [];
     const freshCounters = { filesStatted: 0, bytesRead: 0, directoriesRead: 0 };
     const freshRoot = statEntry('.', await lstatMetadata(directory));

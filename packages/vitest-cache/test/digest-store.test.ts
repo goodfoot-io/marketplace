@@ -113,7 +113,7 @@ test('a chmod-only change on a subdirectory changes treeDigest and is not truste
   }
 });
 
-test.each([1, 3])('a record written in schema %i is rejected and rehashed', async (legacySchema) => {
+test.each([1, 3, 4])('a record written in schema %i is rejected and rehashed', async (legacySchema) => {
   const folder = mkdtempSync(path.join(tmpdir(), 'digest-store-schema-'));
   try {
     const file = path.join(root, 'tool');
@@ -125,11 +125,11 @@ test.each([1, 3])('a record written in schema %i is rejected and rehashed', asyn
     expect(first.stats.computed).toBe(1);
 
     // Keep the current metadata signature so schema rejection, rather than a
-    // metadata mismatch, forces old child-only/root-omitting records to rehash.
+    // metadata mismatch, rejects legacy permission or file-boundary encodings.
     const [recordName] = readdirSync(folder);
     const recordPath = path.join(folder, recordName);
     const legacyRecord = JSON.parse(readFileSync(recordPath, 'utf8'));
-    expect(legacyRecord.schema).toBe(4);
+    expect(legacyRecord.schema).toBe(5);
     writeFileSync(recordPath, JSON.stringify({ ...legacyRecord, schema: legacySchema }));
 
     const second = new DigestStore(folder);
@@ -139,7 +139,7 @@ test.each([1, 3])('a record written in schema %i is rejected and rehashed', asyn
     expect(second.stats.reused).toBe(0);
 
     const rewritten = JSON.parse(readFileSync(recordPath, 'utf8'));
-    expect(rewritten.schema).toBe(4);
+    expect(rewritten.schema).toBe(5);
   } finally {
     rmSync(folder, { force: true, recursive: true });
   }
@@ -289,7 +289,7 @@ test('malformed inventory fields safely miss and filtered inventories do not per
   for (const malformed of [
     null,
     [],
-    { schema: 4 },
+    { schema: 5 },
     { ...JSON.parse(original), recordedAtNs: 'invalid' },
     { ...JSON.parse(original), inventory: null },
     {
@@ -384,7 +384,7 @@ test('parsed descriptions evict older entries and do not retain oversized source
   const folder = path.join(root, 'records');
   mkdirSync(folder, { mode: 0o700 });
   const source = JSON.stringify({
-    schema: 4,
+    schema: 5,
     path: root,
     signature: 'a'.repeat(64),
     digest: 'b'.repeat(64),

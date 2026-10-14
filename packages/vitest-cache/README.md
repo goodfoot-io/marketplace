@@ -353,7 +353,8 @@ requests share phase-local memoized results; file and tree requests have distinc
 memoization keys. Installed package and executable digests can reuse disk records
 when metadata (device, inode, size, mode, mtime, ctime) matches for the file or for
 the tree root and every member, and none changed within two seconds of the recorded digest. Tree
-content hashes include root and child permission bits. Changed metadata or recent
+content hashes include root and child permission bits and frame each file body
+with its byte length, so file contents cannot imitate member boundaries. Changed metadata or recent
 timestamps require hashing the bytes again; older persistent record schemas are
 rejected and rehashed. This does not guarantee one physical read or stat per path
 across every kind of request.

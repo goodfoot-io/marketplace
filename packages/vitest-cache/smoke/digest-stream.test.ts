@@ -131,7 +131,9 @@ test('real cold installed-tree streaming continues event-loop heartbeats while h
   const size = 128 * 1024 * 1024;
   largeFile(path.join(tree, 'binary'), size);
   const expected = zeros(
-    createHash('sha256').update('vitest-tree-digest-v3\0.\0directory\0' + '448\0binary\0file\0' + '420\0'),
+    createHash('sha256')
+      .update('vitest-tree-digest-v4\0.\0directory\0' + '448\0binary\0file\0' + '420\0')
+      .update(`${size}\0`),
     size
   )
     .update('\0')

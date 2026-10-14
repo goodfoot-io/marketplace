@@ -17,6 +17,7 @@
     "packages/vitest-cache/test/package-toolchain-resolution.test.ts": [],
     "packages/vitest-cache/test/sequence.test.ts": [],
     "packages/vitest-cache/test/tree-root-mode.test.ts": [],
+    "packages/vitest-cache/test/tree-framing.test.ts": [],
     "packages/vitest-cache/test/workspace-peer-contexts.test.ts": [],
     "packages/vitest-cache/test/worktree-path.test.ts": []
   }

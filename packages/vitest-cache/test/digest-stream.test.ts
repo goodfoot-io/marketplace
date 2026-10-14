@@ -34,13 +34,15 @@ test('large files, effective links and sorted trees preserve exact SHA framing a
   const store = new DigestStore(null);
   expect(await store.fileDigest(file)).toBe(expectedFile);
   expect(await store.fileDigest(path.join(tree, 'z-link'))).toBe(expectedFile);
-  const expectedTree = createHash('sha256').update('vitest-tree-digest-v3\0.\0directory\0' + '493\0');
+  const expectedTree = createHash('sha256').update('vitest-tree-digest-v4\0.\0directory\0' + '493\0');
   expectedTree
     .update('a-binary\0file\0' + '420\0')
+    .update(`${size}\0`)
     .update(bytes)
     .update('\0');
   expectedTree
     .update('z-link\0file\0' + '420\0')
+    .update(`${size}\0`)
     .update(bytes)
     .update('\0');
   expect(await store.treeDigest(tree)).toBe(expectedTree.digest('hex'));
