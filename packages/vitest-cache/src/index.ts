@@ -508,15 +508,21 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
     contract.files && Object.hasOwn(contract.files, relative) ? contract.files[relative] : contract.fallback;
   if (!Array.isArray(fileInputs))
     throw new Error(`${relative} is not in the cache contract and the suite declares no fallback`);
-  const declared = [
-    `${await relativeInput(top, SOURCE_DIRECTORY)}/**`,
-    `${await relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'native'))}/**`,
-    await relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'scripts', 'install-native.mjs')),
-    await relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'build', 'Release', 'metadata.node')),
-    ...(contract.all ?? []),
-    ...(contract.projects?.[project.name] ?? []),
-    ...fileInputs
-  ];
+  const source = await physicalPath(SOURCE_DIRECTORY);
+  const externals: string[] = [];
+  const declared = [...(contract.all ?? []), ...(contract.projects?.[project.name] ?? []), ...fileInputs];
+  if (source.split(path.sep).includes('node_modules')) {
+    // Installed provider bytes, including the native addon and install inputs,
+    // belong to the package closure even when shared outside this worktree.
+    externals.push(source);
+  } else {
+    declared.push(
+      `${await relativeInput(top, SOURCE_DIRECTORY)}/**`,
+      `${await relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'native'))}/**`,
+      await relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'scripts', 'install-native.mjs')),
+      await relativeInput(top, path.join(SOURCE_DIRECTORY, '..', 'build', 'Release', 'metadata.node'))
+    );
+  }
   const wrangler = pick(contract.wrangler);
   if (isCloudflare(specification) && !wrangler.length)
     throw new Error(`Cloudflare project ${project.name || '<root>'} declares no wrangler configuration`);
@@ -528,8 +534,7 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
 
   // Host-side modules: runner configuration, its build-time dependencies,
   // global setup, and auxiliary bundles.
-  const externals: string[] = [];
-  const hostRoots = [...BASELINE_HOST_ROOTS, ...globalSetups(ctx, project), ...pick(contract.hostRoots)];
+  const hostRoots = [...globalSetups(ctx, project), ...pick(contract.hostRoots)];
   for (const file of [ctx.vite?.config?.configFile ?? ctx.config.config, project.vite.config.configFile]) {
     if (typeof file === 'string') hostRoots.push(file);
   }
@@ -542,7 +547,7 @@ async function keyFor(phase: Phase, specification: TestSpecification): Promise<K
     else hostRoots.push(real);
   }
   const host = await phase.hostGraph(
-    await Promise.all(hostRoots.map((file) => relativeInput(top, file))),
+    [...BASELINE_HOST_ROOTS, ...(await Promise.all(hostRoots.map((file) => relativeInput(top, file))))],
     dynamicImports,
     contract.hostImportAliases ?? []
   );
