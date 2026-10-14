@@ -48,6 +48,14 @@ type DigestRecord = {
 export type TreeSnapshot = { root: StatEntry; members: StatEntry[]; recordedAtNs: string };
 type Counters = { filesStatted: number; bytesRead: number; directoriesRead: number };
 type Skip = (name: string) => boolean;
+type ParsedRecord = { source: Buffer; record: DigestRecord | null };
+
+// Pure descriptions only: callers still check record ownership and read its
+// current bytes before consulting this bounded, process-local parsing cache.
+const parsedRecords = new Map<string, ParsedRecord>();
+const maximumParsedSourceBytes = 8 * 1024 * 1024;
+const maximumParsedRecords = 512;
+let parsedSourceBytes = 0;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -94,6 +102,51 @@ function isDigestRecord(value: unknown): value is DigestRecord {
     isTimestamp(value.recordedAtNs) &&
     (value.inventory === undefined || isTreeSnapshot(value.inventory))
   );
+}
+
+function freezeRecord(record: DigestRecord) {
+  const pending: unknown[] = [record];
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (typeof value !== 'object' || value === null) continue;
+    Object.freeze(value);
+    for (const nested of Object.values(value)) pending.push(nested);
+  }
+  return record;
+}
+
+function forgetParsedRecord(filename: string) {
+  const previous = parsedRecords.get(filename);
+  if (previous) {
+    parsedSourceBytes -= previous.source.length;
+    parsedRecords.delete(filename);
+  }
+}
+
+function parseRecord(filename: string, source: Buffer): DigestRecord | null {
+  const previous = parsedRecords.get(filename);
+  if (previous?.source.equals(source)) {
+    parsedRecords.delete(filename);
+    parsedRecords.set(filename, previous);
+    return previous.record;
+  }
+  forgetParsedRecord(filename);
+  let record: DigestRecord | null = null;
+  try {
+    const value: unknown = JSON.parse(source.toString('utf8'));
+    if (isDigestRecord(value)) record = freezeRecord(value);
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+  }
+  if (source.length > maximumParsedSourceBytes) return record;
+  while (parsedRecords.size >= maximumParsedRecords || parsedSourceBytes + source.length > maximumParsedSourceBytes) {
+    const oldest = parsedRecords.keys().next().value;
+    if (oldest === undefined) break;
+    forgetParsedRecord(oldest);
+  }
+  parsedRecords.set(filename, { source, record });
+  parsedSourceBytes += source.length;
+  return record;
 }
 
 function digest(value: string) {
@@ -348,7 +401,7 @@ export class DigestStore {
   readRecord(id: string): DigestRecord | null {
     if (this.memory) return this.memory.get(id) ?? null;
     const folder = this.readyFolder();
-    const file = path.join(folder, `${id}.json`);
+    const file = path.resolve(folder, `${id}.json`);
     let stat: fs.Stats;
     try {
       stat = fs.lstatSync(file);
@@ -357,13 +410,7 @@ export class DigestStore {
       throw error;
     }
     if (!stat.isFile() || stat.uid !== currentUid() || (stat.mode & 0o022) !== 0) return null;
-    try {
-      const record: unknown = JSON.parse(fs.readFileSync(file, 'utf8'));
-      return isDigestRecord(record) ? record : null;
-    } catch (error) {
-      if (error instanceof SyntaxError) return null;
-      throw error;
-    }
+    return parseRecord(file, fs.readFileSync(file));
   }
 
   /**

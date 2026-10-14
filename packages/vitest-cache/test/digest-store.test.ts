@@ -313,3 +313,95 @@ test('malformed inventory fields safely miss and filtered inventories do not per
   expect(store.treeDigest(tree)).toBe(before);
   expect(new DigestStore(folder).treeDigest(tree)).toBe(before);
 });
+
+test('parsed record reuse still observes changed bytes, replacements and unsafe modes', () => {
+  const tree = path.join(root, 'package');
+  const folder = path.join(root, 'records');
+  mkdirSync(tree);
+  writeFileSync(path.join(tree, 'file'), 'content');
+  new DigestStore(folder).treeDigest(tree);
+  const [filename] = readdirSync(folder);
+  const id = filename.slice(0, -5);
+  const recordPath = path.join(folder, filename);
+  const original = readFileSync(recordPath);
+  const first = new DigestStore(folder).readRecord(id);
+  expect(first).not.toBeNull();
+  expect(new DigestStore(folder).readRecord(id)).toBe(first);
+  expect(() => {
+    if (first) first.digest = '0'.repeat(64);
+  }).toThrow(TypeError);
+  expect(() => {
+    if (first?.inventory) first.inventory.members[0].relative = '../escape';
+  }).toThrow(TypeError);
+  expect(() => {
+    if (first?.inventory) first.inventory.members.push(first.inventory.root);
+  }).toThrow(TypeError);
+  expect(new DigestStore(folder).readRecord(id)).toBe(first);
+
+  writeFileSync(recordPath, 'not JSON');
+  expect(new DigestStore(folder).readRecord(id)).toBeNull();
+  expect(new DigestStore(folder).readRecord(id)).toBeNull();
+  writeFileSync(recordPath, JSON.stringify({ ...first, digest: '1'.repeat(64) }));
+  const changed = new DigestStore(folder).readRecord(id);
+  expect(changed?.digest).toBe('1'.repeat(64));
+  expect(changed).not.toBe(first);
+  expect(new DigestStore(folder).readRecord(id)).toBe(changed);
+
+  chmodSync(recordPath, 0o666);
+  expect(new DigestStore(folder).readRecord(id)).toBeNull();
+  chmodSync(recordPath, 0o600);
+  expect(new DigestStore(folder).readRecord(id)).toBe(changed);
+  rmSync(recordPath);
+  symlinkSync(path.join(tree, 'file'), recordPath);
+  expect(new DigestStore(folder).readRecord(id)).toBeNull();
+  rmSync(recordPath);
+  writeFileSync(recordPath, original, { mode: 0o600 });
+  const replacement = new DigestStore(folder).readRecord(id);
+  expect(replacement).toEqual(first);
+  expect(replacement).not.toBe(changed);
+
+  const otherFolder = path.join(root, 'other-records');
+  mkdirSync(otherFolder, { mode: 0o700 });
+  writeFileSync(path.join(otherFolder, filename), original, { mode: 0o600 });
+  expect(new DigestStore(otherFolder).readRecord(id)).toEqual(replacement);
+  expect(new DigestStore(otherFolder).readRecord(id)).not.toBe(replacement);
+});
+
+test('parsed descriptions evict older entries and do not retain oversized sources', () => {
+  const folder = path.join(root, 'records');
+  mkdirSync(folder, { mode: 0o700 });
+  const source = JSON.stringify({
+    schema: 3,
+    path: root,
+    signature: 'a'.repeat(64),
+    digest: 'b'.repeat(64),
+    recordedAtNs: '0'
+  });
+  writeFileSync(path.join(folder, 'oldest.json'), source, { mode: 0o600 });
+  const store = new DigestStore(folder);
+  const first = store.readRecord('oldest');
+  expect(first).not.toBeNull();
+  for (let index = 0; index < 512; index++) {
+    const id = `record-${index}`;
+    writeFileSync(path.join(folder, `${id}.json`), source, { mode: 0o600 });
+    expect(store.readRecord(id)).not.toBeNull();
+  }
+  expect(store.readRecord('oldest')).toEqual(first);
+  expect(store.readRecord('oldest')).not.toBe(first);
+  const substantial = `${source}${' '.repeat(3 * 1024 * 1024)}`;
+  writeFileSync(path.join(folder, 'aggregate-a.json'), substantial, { mode: 0o600 });
+  const aggregate = store.readRecord('aggregate-a');
+  expect(aggregate).not.toBeNull();
+  for (const id of ['aggregate-b', 'aggregate-c']) {
+    writeFileSync(path.join(folder, `${id}.json`), substantial, { mode: 0o600 });
+    expect(store.readRecord(id)).not.toBeNull();
+  }
+  expect(store.readRecord('aggregate-a')).toEqual(aggregate);
+  expect(store.readRecord('aggregate-a')).not.toBe(aggregate);
+  const oversized = `${source}${' '.repeat(8 * 1024 * 1024)}`;
+  writeFileSync(path.join(folder, 'large.json'), oversized, { mode: 0o600 });
+  const large = store.readRecord('large');
+  expect(large).not.toBeNull();
+  expect(store.readRecord('large')).toEqual(large);
+  expect(store.readRecord('large')).not.toBe(large);
+});
