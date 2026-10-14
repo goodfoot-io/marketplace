@@ -31,7 +31,7 @@ import { readContent } from './filesystem-content.ts';
 import { verifyNativeMetadata } from './native-metadata.ts';
 import { currentUid } from './publication.ts';
 
-const schemaVersion = 3;
+const schemaVersion = 4;
 const statEntryFields = ['relative', 'type', 'dev', 'ino', 'size', 'mtimeNs', 'ctimeNs', 'mode'];
 const racyWindowNs = 2_000_000_000n;
 
@@ -248,14 +248,14 @@ function reusable(record: DigestRecord | null, members: StatEntry[], signature: 
  * @param directory - Physical installed package directory.
  * @param snapshot - Earlier directory/member metadata snapshot, when available.
  * @param counters - Mutable stat/read counters.
- * @returns Verified earlier member metadata or null when unavailable, recent or changed.
+ * @returns Verified earlier root and member metadata or null when unavailable, recent or changed.
  * @throws For filesystem failures other than absent/not-directory members.
  */
 async function verifyTreeSnapshot(
   directory: string,
   snapshot: TreeSnapshot | null | undefined,
   counters: Counters
-): Promise<StatEntry[] | null> {
+): Promise<TreeSnapshot | null> {
   if (!snapshot) return null;
   const threshold = BigInt(snapshot.recordedAtNs) - racyWindowNs;
   const members = [snapshot.root, ...snapshot.members];
@@ -268,7 +268,7 @@ async function verifyTreeSnapshot(
     return null;
   const observed = await verifyNativeMetadata(directory, members);
   counters.filesStatted += observed.checked;
-  return observed.matches ? snapshot.members : null;
+  return observed.matches ? snapshot : null;
 }
 
 /**
@@ -545,9 +545,13 @@ export class DigestStore {
     if (record) {
       const counters = { filesStatted: 0, bytesRead: 0, directoriesRead: 0 };
       const snapshot = this.treeSnapshots.get(directory) ?? record.inventory;
-      let members = await verifyTreeSnapshot(directory, snapshot, counters);
-      let observedRoot: StatEntry | undefined;
-      if (!members) {
+      const verified = await verifyTreeSnapshot(directory, snapshot, counters);
+      let members: StatEntry[];
+      let observedRoot: StatEntry;
+      if (verified) {
+        members = verified.members;
+        observedRoot = verified.root;
+      } else {
         observedRoot = statEntry('.', await lstatMetadata(directory));
         counters.filesStatted++;
         members = [];
@@ -555,8 +559,9 @@ export class DigestStore {
       }
       this.stats.filesStatted += counters.filesStatted;
       this.stats.directoriesRead += counters.directoriesRead;
-      const signature = digest(JSON.stringify(members));
-      if (reusable(record, members, signature)) {
+      const observed = [observedRoot, ...members];
+      const signature = digest(JSON.stringify(observed));
+      if (reusable(record, observed, signature)) {
         this.stats.reused++;
         this.treeMemo.set(directory, record.digest);
         if (!skip && members !== snapshot?.members) await this.rememberTree(directory, members, observedRoot);
@@ -564,18 +569,19 @@ export class DigestStore {
       }
     }
     const hash = createHash('sha256');
-    hash.update('vitest-tree-digest-v2\0');
+    hash.update('vitest-tree-digest-v3\0');
     const freshMembers: StatEntry[] = [];
     const freshCounters = { filesStatted: 0, bytesRead: 0, directoriesRead: 0 };
     const freshRoot = statEntry('.', await lstatMetadata(directory));
     freshCounters.filesStatted++;
+    hash.update(`.\0directory\0${BigInt(freshRoot.mode) & 511n}\0`);
     await walkTree(directory, '', { skip, hash, members: freshMembers, counters: freshCounters });
     this.stats.filesStatted += freshCounters.filesStatted;
     this.stats.directoriesRead += freshCounters.directoriesRead;
     this.stats.bytesRead += freshCounters.bytesRead;
     const value = hash.digest('hex');
     this.stats.computed++;
-    const freshSignature = digest(JSON.stringify(freshMembers));
+    const freshSignature = digest(JSON.stringify([freshRoot, ...freshMembers]));
     if (!skip) {
       const inventory = await this.rememberTree(directory, freshMembers, freshRoot);
       await this.writeRecord(id, {

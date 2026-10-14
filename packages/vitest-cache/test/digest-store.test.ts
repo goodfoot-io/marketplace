@@ -113,7 +113,7 @@ test('a chmod-only change on a subdirectory changes treeDigest and is not truste
   }
 });
 
-test('a record written in the v1 schema is rejected and rehashed', async () => {
+test.each([1, 3])('a record written in schema %i is rejected and rehashed', async (legacySchema) => {
   const folder = mkdtempSync(path.join(tmpdir(), 'digest-store-schema-'));
   try {
     const file = path.join(root, 'tool');
@@ -124,14 +124,13 @@ test('a record written in the v1 schema is rejected and rehashed', async () => {
     const originalDigest = await first.treeDigest(root);
     expect(first.stats.computed).toBe(1);
 
-    // Simulate a record a pre-mode-hashing (schema 1) store left on disk: same
-    // stat signature, so a stat-only check would call it trustworthy, but its
-    // digest predates mode coverage and must not be served as-is.
+    // Keep the current metadata signature so schema rejection, rather than a
+    // metadata mismatch, forces old child-only/root-omitting records to rehash.
     const [recordName] = readdirSync(folder);
     const recordPath = path.join(folder, recordName);
-    const v1Record = JSON.parse(readFileSync(recordPath, 'utf8'));
-    expect(v1Record.schema).toBe(3);
-    writeFileSync(recordPath, JSON.stringify({ ...v1Record, schema: 1 }));
+    const legacyRecord = JSON.parse(readFileSync(recordPath, 'utf8'));
+    expect(legacyRecord.schema).toBe(4);
+    writeFileSync(recordPath, JSON.stringify({ ...legacyRecord, schema: legacySchema }));
 
     const second = new DigestStore(folder);
     const after = await second.treeDigest(root);
@@ -140,7 +139,7 @@ test('a record written in the v1 schema is rejected and rehashed', async () => {
     expect(second.stats.reused).toBe(0);
 
     const rewritten = JSON.parse(readFileSync(recordPath, 'utf8'));
-    expect(rewritten.schema).toBe(3);
+    expect(rewritten.schema).toBe(4);
   } finally {
     rmSync(folder, { force: true, recursive: true });
   }
@@ -290,7 +289,7 @@ test('malformed inventory fields safely miss and filtered inventories do not per
   for (const malformed of [
     null,
     [],
-    { schema: 3 },
+    { schema: 4 },
     { ...JSON.parse(original), recordedAtNs: 'invalid' },
     { ...JSON.parse(original), inventory: null },
     {
@@ -385,7 +384,7 @@ test('parsed descriptions evict older entries and do not retain oversized source
   const folder = path.join(root, 'records');
   mkdirSync(folder, { mode: 0o700 });
   const source = JSON.stringify({
-    schema: 3,
+    schema: 4,
     path: root,
     signature: 'a'.repeat(64),
     digest: 'b'.repeat(64),
@@ -418,4 +417,19 @@ test('parsed descriptions evict older entries and do not retain oversized source
   expect(large).not.toBeNull();
   expect(await store.readRecord('large')).toEqual(large);
   expect(await store.readRecord('large')).not.toBe(large);
+});
+
+test('equivalent roots at different paths and inodes share content digests only with the same root mode', async () => {
+  const first = path.join(root, 'first');
+  const second = path.join(root, 'second');
+  for (const tree of [first, second]) {
+    mkdirSync(tree);
+    chmodSync(tree, 0o755);
+    writeFileSync(path.join(tree, 'ü-tool'), 'identical bytes', { mode: 0o644 });
+    symlinkSync('ü-tool', path.join(tree, 'link'));
+  }
+  const before = await new DigestStore(null).treeDigest(first);
+  expect(await new DigestStore(null).treeDigest(second)).toBe(before);
+  chmodSync(second, 0o700);
+  expect(await new DigestStore(null).treeDigest(second)).not.toBe(before);
 });

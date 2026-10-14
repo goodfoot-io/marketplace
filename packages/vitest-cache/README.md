@@ -351,10 +351,12 @@ Symlink target resolution treats only `ENOENT` and `ENOTDIR` as dangling or miss
 Each phase revalidates input graph and filesystem observations. Repeated digest
 requests share phase-local memoized results; file and tree requests have distinct
 memoization keys. Installed package and executable digests can reuse disk records
-when every member's metadata (device, inode, size, mode, mtime, ctime) matches and
-no member changed within two seconds of the recorded digest. Changed metadata or
-recent timestamps require hashing the bytes again. This does not guarantee one
-physical read or stat per path across every kind of request.
+when metadata (device, inode, size, mode, mtime, ctime) matches for the file or for
+the tree root and every member, and none changed within two seconds of the recorded digest. Tree
+content hashes include root and child permission bits. Changed metadata or recent
+timestamps require hashing the bytes again; older persistent record schemas are
+rejected and rehashed. This does not guarantee one physical read or stat per path
+across every kind of request.
 
 ## Publication
 

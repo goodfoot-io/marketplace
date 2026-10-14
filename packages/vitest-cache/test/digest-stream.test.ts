@@ -48,6 +48,7 @@ test('large files, effective links and sorted trees preserve exact SHA framing a
   const root = fixture();
   const tree = path.join(root, 'tree');
   mkdirSync(tree);
+  chmodSync(tree, 0o755);
   const size = 17 * 1024 * 1024 + 39;
   const file = path.join(tree, 'a-binary');
   const bytes = Buffer.allocUnsafe(size);
@@ -58,7 +59,7 @@ test('large files, effective links and sorted trees preserve exact SHA framing a
   const store = new DigestStore(null);
   expect(await store.fileDigest(file)).toBe(expectedFile);
   expect(await store.fileDigest(path.join(tree, 'z-link'))).toBe(expectedFile);
-  const expectedTree = createHash('sha256').update('vitest-tree-digest-v2\0');
+  const expectedTree = createHash('sha256').update('vitest-tree-digest-v3\0.\0directory\0' + '493\0');
   expectedTree
     .update('a-binary\0file\0' + '420\0')
     .update(bytes)
@@ -180,9 +181,13 @@ test.each(
 
 test('real cold installed-tree streaming continues event-loop heartbeats while hashing bytes', async () => {
   const tree = fixture();
+  chmodSync(tree, 0o700);
   const size = 128 * 1024 * 1024;
   largeFile(path.join(tree, 'binary'), size);
-  const expected = zeros(createHash('sha256').update('vitest-tree-digest-v2\0binary\0file\0' + '420\0'), size)
+  const expected = zeros(
+    createHash('sha256').update('vitest-tree-digest-v3\0.\0directory\0' + '448\0binary\0file\0' + '420\0'),
+    size
+  )
     .update('\0')
     .digest('hex');
   let pulses = 0;
