@@ -29,8 +29,8 @@
     "goodfoot-vitest": "dist/vitest-entry.mjs"
   },
   "scripts": {
-    "lint": "biome check --error-on-warnings ./src ./test ./scripts ./vitest.config.ts && jsdoczoom -l '{src,test,scripts}/**/*.{ts,tsx}'",
-    "lint:fix": "biome check --write --unsafe ./src ./test ./scripts",
+    "lint": "biome check --error-on-warnings ./src ./test ./smoke ./scripts ./vitest.config.ts ./vitest.smoke.config.ts && jsdoczoom -l '{src,test,smoke,scripts}/**/*.{ts,tsx}'",
+    "lint:fix": "biome check --write --unsafe ./src ./test ./smoke ./scripts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.implementation.json",
     "build": "node scripts/build.ts",
@@ -39,7 +39,8 @@
     "prepack": "yarn build",
     "test:package": "node scripts/test-package.ts",
     "install": "node scripts/install-native.mjs",
-    "test:native-provider": "node scripts/test-native-provider.ts"
+    "test:native-provider": "node scripts/test-native-provider.ts",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

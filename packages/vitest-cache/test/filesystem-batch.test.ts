@@ -103,50 +103,77 @@ test('metadata and stream queues drain independently in FIFO order using real IO
   const streamRelease: (() => void)[] = [];
   const metadataAcquired: number[] = [];
   const streamsAcquired: number[] = [];
+  let closing = false;
+  let markAcquired = () => {};
+  let failAcquired = (_error: unknown) => {};
+  const acquired = new Promise<void>((resolve, reject) => {
+    markAcquired = resolve;
+    failAcquired = reject;
+  });
+  const observeAcquired = () => {
+    if (metadataRelease.length === filesystemBatchSize && streamRelease.length === filesystemStreamLimit)
+      markAcquired();
+  };
+  const acquisitionFailed = (error: unknown): never => {
+    failAcquired(error);
+    throw error;
+  };
   const heldMetadata = Array.from({ length: filesystemBatchSize }, () =>
     filesystemMetadata(async () => {
       await lstat(filename);
-      await new Promise<void>((resolve) => metadataRelease.push(resolve));
-    })
+      await new Promise<void>((resolve) => {
+        if (closing) {
+          resolve();
+          return;
+        }
+        metadataRelease.push(resolve);
+        observeAcquired();
+      });
+    }).catch(acquisitionFailed)
   );
   const heldStreams = Array.from({ length: filesystemStreamLimit }, () =>
     withFilesystemStream(async () => {
       const handle = await open(filename, 'r');
       try {
         await handle.read(Buffer.alloc(1), 0, 1, 0);
-        await new Promise<void>((resolve) => streamRelease.push(resolve));
+        await new Promise<void>((resolve) => {
+          if (closing) {
+            resolve();
+            return;
+          }
+          streamRelease.push(resolve);
+          observeAcquired();
+        });
       } finally {
         await handle.close();
       }
-    })
+    }).catch(acquisitionFailed)
   );
-  // A real timer bounds fixture acquisition without controlling filesystem observations.
-  const deadline = Date.now() + 2000;
-  while (
-    (metadataRelease.length !== filesystemBatchSize || streamRelease.length !== filesystemStreamLimit) &&
-    Date.now() < deadline
-  )
-    await new Promise<void>((resolve) => setImmediate(resolve));
-  const queuedMetadata = Array.from({ length: 5 }, (_, index) =>
-    filesystemMetadata(async () => {
-      metadataAcquired.push(index);
-      return (await lstat(filename)).isFile();
-    })
-  );
-  const queuedStreams = Array.from({ length: 5 }, (_, index) =>
-    withFilesystemStream(async () => {
-      streamsAcquired.push(index);
-      const handle = await open(filename, 'r');
-      try {
-        const bytes = Buffer.alloc(1);
-        await handle.read(bytes, 0, 1, 0);
-        return bytes.toString();
-      } finally {
-        await handle.close();
-      }
-    })
-  );
+  const heldResults = Promise.allSettled([...heldMetadata, ...heldStreams]);
+  let queuedMetadata: Promise<boolean>[] = [];
+  let queuedStreams: Promise<string>[] = [];
+  let completed: PromiseSettledResult<void>[] = [];
   try {
+    await acquired;
+    queuedMetadata = Array.from({ length: 5 }, (_, index) =>
+      filesystemMetadata(async () => {
+        metadataAcquired.push(index);
+        return (await lstat(filename)).isFile();
+      })
+    );
+    queuedStreams = Array.from({ length: 5 }, (_, index) =>
+      withFilesystemStream(async () => {
+        streamsAcquired.push(index);
+        const handle = await open(filename, 'r');
+        try {
+          const bytes = Buffer.alloc(1);
+          await handle.read(bytes, 0, 1, 0);
+          return bytes.toString();
+        } finally {
+          await handle.close();
+        }
+      })
+    );
     expect(metadataRelease).toHaveLength(filesystemBatchSize);
     expect(streamRelease).toHaveLength(filesystemStreamLimit);
     metadataRelease.shift()?.();
@@ -157,8 +184,11 @@ test('metadata and stream queues drain independently in FIFO order using real IO
     expect(await Promise.all(queuedStreams)).toEqual(Array(5).fill('o'));
     expect(streamsAcquired).toEqual([0, 1, 2, 3, 4]);
   } finally {
+    closing = true;
     for (const release of [...metadataRelease, ...streamRelease]) release();
-    await Promise.allSettled([...heldMetadata, ...heldStreams, ...queuedMetadata, ...queuedStreams]);
+    completed = await heldResults;
+    await Promise.allSettled([...queuedMetadata, ...queuedStreams]);
     await rm(root, { recursive: true, force: true });
   }
+  for (const result of completed) if (result.status === 'rejected') throw result.reason;
 });

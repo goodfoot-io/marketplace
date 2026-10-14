@@ -417,8 +417,16 @@ Vitest/Vite. It verifies plain Node imports and the executable, strict consumer
 types, cold/warm reuse, input/provider invalidation, failure twice and restored
 reuse. The release workflow requires this check before publishing.
 
+`yarn test` discovers the functional suite under `test/`. Run `yarn test:smoke`
+separately for CPU/RSS/timer observations and scheduling-dependent mutation or
+resource stress under `smoke/`. Correctness integrations remain in the default
+suite with bounded subprocess lifetimes. Smoke checks always execute
+uncached; they do not establish universal performance guarantees. Smoke children
+have bounded lifetimes and report owned progress, elapsed time, output tails and
+CPU pressure when they fail.
+
 The package typecheck runs two compiler programs. `tsconfig.json` checks source,
-tests, scripts and `vitest.config.ts`. `tsconfig.implementation.json` additionally
+tests, smoke checks, scripts and both Vitest configs. `tsconfig.implementation.json` additionally
 checks runtime JavaScript and TypeScript with stricter settings. Its explicit
 JavaScript roots prevent adjacent declaration files from hiding implementation
 bodies. The build cleans `dist`, emits checked TypeScript and JavaScript,

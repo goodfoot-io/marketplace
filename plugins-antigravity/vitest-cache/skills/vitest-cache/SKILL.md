@@ -29,7 +29,7 @@ Set workdir per exec or use `yarn workspace <name>`. Typecheck tests/config/UI; 
 
 ## Verify
 
-Read [Output policy](references/output-policy.md) before the first full run: own deliberate warnings/errors with exact scoped assertions. Bound synchronous subprocesses themselves before adjusting test budgets. Run scoped checks and actual tests with stable selection, environment (including `TMPDIR`) and installation:
+Read [Output policy](references/output-policy.md); assert deliberate diagnostics exactly. Keep timing/CPU/RSS stress in explicit uncached smoke suites. Budget default correctness tests for bounded subprocess sequences. Verify with stable selection, environment (`TMPDIR` included) and installation:
 
 1. Verify cold execution and positive warm reporter counts; list metadata can undercount.
 2. Mutate a real declared input (otherwise an imported source). Confirm consumer execution; require reuse only for eligible nonconsumers, otherwise report N/A. Restore source and rebuilt artifacts; do not invent fixtures.

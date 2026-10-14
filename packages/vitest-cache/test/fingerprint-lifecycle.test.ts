@@ -4,19 +4,13 @@
  */
 import { spawn } from 'node:child_process';
 import { closeSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, rmSync, writeFileSync } from 'node:fs';
-import { lstat, open } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { setImmediate } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { afterEach, expect, test } from 'vitest';
-import { filesystemBudget, filesystemMetadata, withFilesystemStream } from '../src/filesystem-batch.ts';
-import { FingerprintPool } from '../src/fingerprint-pool.ts';
-import { FingerprintRuntime } from '../src/fingerprint-runtime.ts';
+import { integrationTestTimeout, runScript } from './child-process.ts';
 
 const roots: string[] = [];
-const pools: FingerprintPool[] = [];
-const runtimes: FingerprintRuntime[] = [];
 function fixture() {
   const root = mkdtempSync(path.join(tmpdir(), 'vc-'));
   roots.push(root);
@@ -68,81 +62,8 @@ function child(source: string, args: string[] = [], expectedCode = 0): Promise<s
     });
   });
 }
-afterEach(async () => {
-  await Promise.all([
-    ...pools.splice(0).map((pool) => pool.dispose()),
-    ...runtimes.splice(0).map((runtime) => runtime.dispose())
-  ]);
+afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
-});
-
-test('shared slots enforce host and actual worker bounds and drain started streams on close', {
-  timeout: 15000
-}, async () => {
-  const root = fixture();
-  installed(root, 64 * 1024 * 1024);
-  const slots = new Int32Array(filesystemBudget);
-  const metadataHeld: (() => void)[] = [];
-  const streamsHeld: (() => void)[] = [];
-  const host = [
-    ...Array.from({ length: 32 }, () =>
-      filesystemMetadata(async () => {
-        await lstat(path.join(root, 'node_modules/tool/large'));
-        await new Promise<void>((resolve) => {
-          metadataHeld.push(resolve);
-        });
-      })
-    ),
-    ...Array.from({ length: 3 }, () =>
-      withFilesystemStream(async () => {
-        const handle = await open(path.join(root, 'node_modules/tool/large'), 'r');
-        try {
-          await handle.read(Buffer.alloc(4096), 0, 4096, 0);
-          await new Promise<void>((resolve) => {
-            streamsHeld.push(resolve);
-          });
-        } finally {
-          await handle.close();
-        }
-      })
-    )
-  ];
-  const pool = new FingerprintPool();
-  pools.push(pool);
-  const phase = { kind: 'closure', phase: 1, root, folder: null, paths: [], toolchain: ['tool'], toolchainRoot: root };
-  const started = pool.run('closure', { ...phase, kind: 'closure' });
-  const queued = pool.run('closure', { ...phase, kind: 'closure', phase: 2 });
-  const settled = Promise.allSettled([started, queued]);
-  let maximumMetadata = 0;
-  let maximumStreams = 0;
-  let observedStream = false;
-  const deadline = Date.now() + 10000;
-  try {
-    while (!observedStream && Date.now() < deadline) {
-      maximumMetadata = Math.max(maximumMetadata, Array.from(slots.slice(0, 32)).filter(Boolean).length);
-      maximumStreams = Math.max(maximumStreams, Array.from(slots.slice(32, 36)).filter(Boolean).length);
-      // Release host metadata after proving the closure is blocked by the same budget.
-      if (metadataHeld.length === 32 && streamsHeld.length === 3) {
-        const metadata = metadataHeld.splice(0);
-        for (const release of metadata) release();
-      }
-      observedStream = Array.from(slots.slice(32, 36)).some((owner) => owner > 1);
-      await setImmediate();
-    }
-    expect(observedStream).toBe(true);
-    expect(maximumMetadata).toBe(32);
-    expect(maximumStreams).toBeLessThanOrEqual(4);
-    await pool.dispose();
-    expect((await settled).every((result) => result.status === 'rejected')).toBe(true);
-    expect(Array.from(slots.slice(0, 36)).every((owner) => owner === 0 || owner === 1)).toBe(true);
-  } finally {
-    for (const release of [...metadataHeld.splice(0), ...streamsHeld.splice(0)]) release();
-    await Promise.all(host);
-  }
-  expect(Array.from(slots.slice(0, 36)).every((owner) => owner === 0)).toBe(true);
-  const restored = new FingerprintRuntime(root, null);
-  runtimes.push(restored);
-  await expect(restored.closure(restored.phase(), [], ['tool'], root)).resolves.toMatch(/^[a-f0-9]{64}$/);
 });
 
 test.each(['src', 'dist'])('idle %s workers permit process exit without explicit disposal', async (directory) => {
@@ -277,67 +198,8 @@ test.each(['digest', 'duplicate'])(
   }
 );
 
-test('pooled large-file hashing keeps the main event loop responsive and shifts thread CPU', async () => {
-  const root = fixture();
-  installed(root, 64 * 1024 * 1024);
-  const runtimeSource = new URL('../src/fingerprint-runtime.ts', import.meta.url).href;
-  const originalSource = new URL('../src/fingerprint.ts', import.meta.url).href;
-  const storeSource = new URL('../src/digest-store.ts', import.meta.url).href;
-  const measurement: {
-    equal: boolean;
-    baseline: { mainCpu: number; totalCpu: number; beats: number; maximumGap: number };
-    worker: { mainCpu: number; totalCpu: number; beats: number; maximumGap: number };
-  } = JSON.parse(
-    await child(`
-    import { FingerprintRuntime } from ${JSON.stringify(runtimeSource)};
-    import { FingerprintPhase } from ${JSON.stringify(originalSource)};
-    import { DigestStore } from ${JSON.stringify(storeSource)};
-    import { setTimeout as pause } from 'node:timers/promises';
-    const root = ${JSON.stringify(root)};
-    const runtime = new FingerprintRuntime(root, null);
-    await runtime.local(runtime.phase(), [], [], [], {});
-    async function measure(operation) {
-      let beats = 0;
-      let maximumGap = 0;
-      let previous = performance.now();
-      const timer = setInterval(() => {
-        const current = performance.now();
-        maximumGap = Math.max(maximumGap, current - previous);
-        previous = current;
-        beats++;
-      }, 1);
-      await pause(10);
-      beats = 0;
-      maximumGap = 0;
-      previous = performance.now();
-      const main = process.threadCpuUsage();
-      const total = process.cpuUsage();
-      const digest = await operation();
-      const mainUsed = process.threadCpuUsage(main);
-      const totalUsed = process.cpuUsage(total);
-      const activeBeats = beats;
-      await pause(3);
-      clearInterval(timer);
-      return {digest, mainCpu:mainUsed.user+mainUsed.system, totalCpu:totalUsed.user+totalUsed.system, beats:activeBeats, maximumGap};
-    }
-    const files = ['node_modules/tool/large'];
-    const baseline = await measure(() => new FingerprintPhase(root, {store:new DigestStore(null)}).graphDigest(files));
-    const worker = await measure(async () => (await runtime.local(runtime.phase(), files, [], [], {})).inputDigest);
-    await runtime.dispose();
-    console.log(JSON.stringify({equal:baseline.digest===worker.digest, baseline, worker}));
-  `)
-  );
-  expect(measurement.equal).toBe(true);
-  expect(measurement.baseline.beats).toBeGreaterThan(0);
-  expect(measurement.worker.beats).toBeGreaterThan(0);
-  expect(measurement.worker.mainCpu).toBeLessThan(measurement.baseline.mainCpu / 2);
-  expect(measurement.worker.totalCpu).toBeGreaterThan(measurement.worker.mainCpu);
-  expect(measurement.baseline.maximumGap).toBeGreaterThan(0);
-  expect(measurement.worker.maximumGap).toBeGreaterThan(0);
-});
-
 test('serialized reporter runs retain healthy workers while reobserving inputs, environment and executables', {
-  timeout: 20000
+  timeout: integrationTestTimeout
 }, async () => {
   const root = mkdtempSync(fileURLToPath(new URL('../.retained-runtime-', import.meta.url)));
   roots.push(root);
@@ -361,7 +223,7 @@ test('serialized reporter runs retain healthy workers while reobserving inputs, 
   const controller = new URL('../dist/index.js', import.meta.url).href;
   const runtime = new URL('../dist/fingerprint-runtime.js', import.meta.url).href;
   const consumer = new URL('../node_modules/vitest/dist/node.js', import.meta.url).href;
-  const output = await child(`
+  const output = await runScript(`
     import { createVitest } from ${JSON.stringify(consumer)};
     import { ContentCacheReporter, ContentCacheSequencer } from ${JSON.stringify(controller)};
     import { FingerprintRuntime } from ${JSON.stringify(runtime)};
@@ -378,12 +240,12 @@ test('serialized reporter runs retain healthy workers while reobserving inputs, 
       observed.push({runtime:this,...value});
       return value;
     };
-    const ctx=await createVitest('test',{root,config:path.join(root,'vitest.config.mjs'),watch:false});
-    const reporter=new ContentCacheReporter(); ctx.config.reporters=[reporter]; reporter.onInit(ctx);
+    smokeCheckpoint('create Vitest'); const ctx=await createVitest('test',{root,config:path.join(root,'vitest.config.mjs'),watch:false});
+    smokeCheckpoint('Vitest ready'); const reporter=new ContentCacheReporter(); ctx.config.reporters=[reporter]; reporter.onInit(ctx);
     const sequencer=new ContentCacheSequencer(ctx);
     const specifications=await ctx.globTestSpecifications();
     if(specifications.length!==1) throw new Error('fixture selection changed');
-    const run=async()=>{await reporter.onTestRunStart(specifications);await sequencer.sort(specifications);return observed.at(-1);};
+    let runNumber=0;const run=async()=>{smokeCheckpoint('planning run '+(++runNumber));await reporter.onTestRunStart(specifications);smokeCheckpoint('sorting run '+runNumber);await sequencer.sort(specifications);smokeCheckpoint('finished run '+runNumber);return observed.at(-1);};
     try {
       const first=await run();
       await fs.writeFile(path.join(root,'input'),'equal');
@@ -411,7 +273,7 @@ test('serialized reporter runs retain healthy workers while reobserving inputs, 
       delete process.env.DISABLE_TEST_CACHE;
       const restored=await run();
       if(restored.runtime===recovered.runtime) throw new Error('retired runtime was reused');
-      await ctx.close();
+      smokeCheckpoint('closing context');await ctx.close();smokeCheckpoint('context closed');
       if(restored.runtime.reusable) throw new Error('context close retained workers');
       console.log('retained and revalidated');
     } finally {
@@ -424,7 +286,7 @@ test('serialized reporter runs retain healthy workers while reobserving inputs, 
 });
 
 test('final global teardown failure vetoes the positive stage from a later real runner invocation', {
-  timeout: 20000
+  timeout: integrationTestTimeout
 }, async () => {
   const root = mkdtempSync(fileURLToPath(new URL('../.retained-teardown-', import.meta.url)));
   roots.push(root);
@@ -444,7 +306,7 @@ test('final global teardown failure vetoes the positive stage from a later real 
   const controller = new URL('../dist/index.js', import.meta.url).href;
   const runtime = new URL('../dist/fingerprint-runtime.js', import.meta.url).href;
   const consumer = new URL('../node_modules/vitest/dist/node.js', import.meta.url).href;
-  const output = await child(
+  const output = await runScript(
     `
     import { createVitest } from ${JSON.stringify(consumer)};
     import { ContentCacheReporter, ContentCacheSequencer } from ${JSON.stringify(controller)};
@@ -480,7 +342,7 @@ test('final global teardown failure vetoes the positive stage from a later real 
       originalWarn(...args);
     };
     try {
-      await ctx.start(); await ctx.start();
+      smokeCheckpoint('first actual run');await ctx.start();smokeCheckpoint('second actual run');await ctx.start();smokeCheckpoint('both actual runs complete');
       if(keys.length!==6 || new Set(keys).size!==1) throw new Error('later run did not revalidate a stable positive result');
       await ctx.close();
       let published=false;

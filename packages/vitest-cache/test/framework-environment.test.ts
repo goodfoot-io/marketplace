@@ -3,31 +3,38 @@
  *
  * @summary Verify Vite-resolved environment cache invalidation without direct env-file reads.
  */
-import { spawnSync } from 'node:child_process';
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from 'vitest';
+import { integrationChildTimeout, runProcess } from './child-process.ts';
 
-test('changing Vite-resolved worker env executes the file after a warm hit', { timeout: 90000 }, () => {
+test('changing Vite-resolved worker env executes the file after a warm hit', {
+  timeout: integrationChildTimeout * 3 + 15000
+}, async () => {
   const root = mkdtempSync(fileURLToPath(new URL('../.framework-env-', import.meta.url)));
   try {
+    const progress = path.join(root, 'progress.json');
     const results = path.join(root, 'results');
     mkdirSync(results);
     symlinkSync(fileURLToPath(new URL('../node_modules', import.meta.url)), path.join(root, 'node_modules'), 'dir');
     writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'framework-env-fixture', type: 'module' }));
     writeFileSync(
       path.join(root, 'vitest.config.ts'),
-      `import { defineConfig } from 'vitest/config';
+      `import { writeFileSync } from 'node:fs';
+writeFileSync(${JSON.stringify(progress)}, JSON.stringify({stage:'configuration evaluated',cpu:process.threadCpuUsage(),rss:process.memoryUsage().rss}));
+import { defineConfig } from 'vitest/config';
 import { withTestOutput } from '@goodfoot/vitest-cache/policy';
 export default withTestOutput(defineConfig({ test: { include: ['probe.test.ts'], maxWorkers: 1 } }), { fallback: [] });\n`
     );
     writeFileSync(
       path.join(root, 'probe.test.ts'),
-      `import { appendFileSync } from 'node:fs';
+      `import { appendFileSync, writeFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
 test('observes resolved worker env', () => {
   expect(['initial', 'changed']).toContain(import.meta.env.VITE_CACHE_ENV_PROBE);
+  writeFileSync(${JSON.stringify(progress)}, JSON.stringify({stage:'body executed',cpu:process.threadCpuUsage(),rss:process.memoryUsage().rss}));
   appendFileSync(process.env.CACHE_ENV_EXECUTIONS, 'executed\\n');
 });\n`
     );
@@ -41,8 +48,9 @@ test('observes resolved worker env', () => {
       DISABLE_TEST_CACHE: 'false'
     };
     delete environment.VITE_CACHE_ENV_PROBE;
-    const run = () => {
-      const result = spawnSync(
+    const run = async (label: string) => {
+      writeFileSync(progress, JSON.stringify({ stage: `launching ${label}` }));
+      const result = await runProcess(
         process.execPath,
         [
           fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url)),
@@ -52,21 +60,19 @@ test('observes resolved worker env', () => {
           '--config',
           path.join(root, 'vitest.config.ts')
         ],
-        { encoding: 'utf8', env: environment, timeout: 25000 }
+        { environment, progress, label: `framework env ${label}` }
       );
-      if (result.error) throw result.error;
-      expect(result.status, result.stdout + result.stderr).toBe(0);
       return result.stdout + result.stderr;
     };
     const count = () => readFileSync(marker, 'utf8').trim().split('\n').length;
     // Only synthetic owned fixture values are written; Vite reads them normally.
     writeFileSync(path.join(root, '.env.test'), 'VITE_CACHE_ENV_PROBE=initial\n');
-    run();
+    await run('cold');
     expect(count()).toBe(1);
-    expect(run()).toContain('1 passing test(s) reused');
+    expect(await run('warm')).toContain('1 passing test(s) reused');
     expect(count()).toBe(1);
     writeFileSync(path.join(root, '.env.test'), 'VITE_CACHE_ENV_PROBE=changed\n');
-    expect(run()).toContain('1 file(s) executed');
+    expect(await run('changed env')).toContain('1 file(s) executed');
     expect(count()).toBe(2);
   } finally {
     rmSync(root, { recursive: true, force: true });
