@@ -126,9 +126,12 @@ console or `process.stderr.write` spies with exact payload/count assertions and
 restoration in `finally`. Specify expected payloads independently per case,
 defaulting to empty; comparing captured calls against captured text does not own
 diagnostics. For runtime-created errors, validate type, message and phase before
-asserting the original stack. Synchronous subprocesses need their
-own timeout: Vitest's timer cannot interrupt a blocking call. Use a direct executable
-and set its bound below the outer test budget when fixing slow CLI tests.
+asserting the original stack. Bound every subprocess sequence below its outer
+test budget, allowing setup and cleanup; Vitest's timer cannot interrupt blocking
+children. Terminate owned process groups on timeout and await direct-child close
+to settle captured output. Bound capture and fail on overflow; distinguish actual
+application exits from transport failures, reporting elapsed time, code/signal
+and output tails. Use a direct executable when fixing slow CLI tests.
 
 For Vitest 5 migrations, review public `Matchers` augmentation, `provide`/`inject`
 transport and `task.fullTestName` teardown keys. Assert real cleanup state between

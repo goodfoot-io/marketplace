@@ -17,17 +17,17 @@ export default withTestOutput(
 );
 ```
 
-Keep declarations in `vitest.cache.json`; paths are Git-root-relative. For partial adoption list reviewed `files` and omit `fallback`. Use `fallback: []` only after auditing every unlisted file. Use `{ uncached: 'reason' }` directly for uncontrolled suites; verify full execution. `loadCacheContract` loads cached objects asynchronously. Object configs return promises; await loaders/configs before reading fields.
+Use Git-root-relative paths in `vitest.cache.json`. For partial adoption declare reviewed `files` without `fallback`; allow `fallback: []` after auditing all unlisted files. Use `{ uncached: 'reason' }` for uncontrolled suites; verify full execution. Await asynchronous loaders/object configs before reading fields.
 
 Set workdir per exec or use `yarn workspace <name>`. Typecheck tests/config/UI; preserve build roots. Fix types without casts; review unsafe lint fixes. Check generated ignores from package cwd; `yarn exec <tool>` bypasses script aliases.
 
 ## Verify
 
-Read [Output policy](references/output-policy.md); assert deliberate diagnostics exactly. Keep timing/CPU/RSS stress in explicit uncached smoke suites. Budget default correctness tests for bounded subprocess sequences. Verify with stable selection, environment (`TMPDIR` included) and installation:
+Read [Output policy](references/output-policy.md); assert diagnostics exactly. Keep timing/CPU/RSS stress in explicit uncached smoke suites. Bound correctness subprocess sequences below outer deadlines; terminate owned groups, await direct-child close and distinguish transport failures from application exits. Verify stable selection, environment (`TMPDIR` included) and installation:
 
 1. Verify cold execution and positive warm reporter counts; list metadata can undercount.
-2. Mutate a real declared input (otherwise an imported source). Confirm consumer execution; require reuse only for eligible nonconsumers, otherwise report N/A. Restore source and rebuilt artifacts; do not invent fixtures.
-3. Require failing assertions to execute and return nonzero twice; restore and rebuild.
+2. Mutate a declared input or imported source. Require consumer execution; eligible nonconsumers reuse, otherwise report N/A. Restore source/artifacts; do not invent fixtures.
+3. Require failing assertions to execute nonzero twice; restore and rebuild.
 
 An all-hit run can print `No test files found, exiting with code 0`; require positive reuse counts. Report executed plus reused coverage.
 
