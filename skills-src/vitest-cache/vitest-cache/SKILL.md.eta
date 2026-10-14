@@ -19,7 +19,7 @@ export default withTestOutput(
 
 Keep declarations in `vitest.cache.json`; paths are Git-root-relative. For partial adoption list reviewed `files` and omit `fallback`. Use `fallback: []` only after auditing every unlisted file. Use `{ uncached: 'reason' }` directly for uncontrolled suites; verify full execution. `loadCacheContract` loads cached objects asynchronously. Object configs return promises; await loaders/configs before reading fields.
 
-Set workdir per exec or use `yarn workspace <name>`. Typecheck tests/config/UI; preserve build roots. Require edits/installs to succeed. Fix types without casts; review unsafe lint fixes. Check generated ignores from package cwd; `yarn exec <tool>` bypasses script aliases.
+Set workdir per exec or use `yarn workspace <name>`. Typecheck tests/config/UI; preserve build roots. Fix types without casts; review unsafe lint fixes. Check generated ignores from package cwd; `yarn exec <tool>` bypasses script aliases.
 
 ## Verify
 
@@ -36,7 +36,7 @@ An all-hit run can print `No test files found, exiting with code 0`; require pos
 ## Diagnose
 
 - `new`, `unrecorded`, `forced`: absent pass, revoked record, requested execution.
-- `invocation`, `execution`, `inputs`, `packages`, `executables`: compare config/CLI/environment, selection/pool/isolation/resolved worker env, graphs/declarations, installed closures, executable bytes.
+- `invocation`, `execution`, `inputs`, `packages`, `executables`: compare config/CLI/environment, selection/pool/isolation/resolved worker env, graphs/declarations, installed bytes/modes/edges, executable bytes.
 - Intentional unlisted files execute uncached. Repair unresolved imports, missing inputs or package-location ambiguity; never mask them with empty import domains, broad globs or renamed cache directories.
 - Profile cold with fresh `TMPDIR` and `new` misses; preserve warm env. Alternate matched runs; compare main/worker/total CPU, timer gaps, startup, queue/service time and CPU pressure. Collect stats after phase release; backend zero bytes excludes graph/record reads. FORCE leaves digests warm.
 - Global setup uses `setupNeeded(project, predicate?)` from `@goodfoot/vitest-cache/plan`; unknown plans require setup.

@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "goodfoot",
   "displayName": "Goodfoot",
-  "version": "1.0.313",
+  "version": "1.0.314",
   "metadata": {
     "description": "Professional development workflows, MCP servers, and productivity tools from Goodfoot. Includes project management, browser automation, VSCode integration, code quality enforcement, and comprehensive development utilities."
   },
@@ -149,7 +149,7 @@
     },
     {
       "name": "vitest-cache",
-      "version": "1.0.5",
+      "version": "1.0.6",
       "source": "./plugins-claude/vitest-cache",
       "tags": [
         "vitest",

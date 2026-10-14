@@ -257,6 +257,13 @@ revoked, or `forced`. Files whose key cannot be computed (an undeclared
 dynamic import, a file outside the contract) run and are counted as
 uncacheable, with the reason printed before the run.
 
+Cross-worktree reuse requires matching effective installed bytes, file/directory
+permission modes and resolved dependency edges. Matching lockfiles can still
+produce `packages` misses when installation modes differ. Compare reached package
+trees before treating those misses as a cache defect; preserve mode-sensitive
+hashing and fresh validation. Establish equivalent installations for a sharing
+smoke test without changing the cache key or weakening its guards.
+
 The per-file options come from `parseCLI`. Arguments that only select files,
 projects, shards, or output (`--project`, `--shard`, positional filters,
 `--silent`, `--bail`, …) are excluded, so `vitest run`, `vitest run a.test.ts`
