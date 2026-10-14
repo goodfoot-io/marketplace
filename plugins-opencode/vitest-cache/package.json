@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/opencode-vitest-cache",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "OpenCode registration for the vitest-cache skill",
   "type": "module",
   "main": "./index.js",
