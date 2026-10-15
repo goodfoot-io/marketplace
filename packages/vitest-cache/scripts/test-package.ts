@@ -64,7 +64,7 @@ try {
   assert(members.every((name) => !name.endsWith('.node')));
   assert(
     members.every((name) =>
-      /^package\/(?:dist\/|native\/(?:(?:metadata\.c|timestamp\.h)$|node-api\/(?:node_api(?:_types)?\.h$|js_native_api(?:_types)?\.h$|LICENSE$))|scripts\/install-native\.mjs$|package\.json$|README\.md$|OUTPUT\.md$)/.test(
+      /^package\/(?:dist\/|native\/(?:(?:metadata\.c|timestamp\.h)$|node-api\/(?:node_api(?:_types)?\.h$|js_native_api(?:_types)?\.h$|LICENSE$))|scripts\/install-native\.mjs$|package\.json$|README\.md$|CHANGELOG\.md$|OUTPUT\.md$)/.test(
         name
       )
     ),
