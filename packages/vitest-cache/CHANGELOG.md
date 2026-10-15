@@ -1,5 +1,9 @@
 # @goodfoot/vitest-cache npm package changelog
 
+## 1.0.5
+
+- Added repository metadata required for npm provenance verification.
+
 ## 1.0.4
 
 - Fixed installed-package validation in CI by allowing the fixture to generate its initial lockfile before checking immutable installation.

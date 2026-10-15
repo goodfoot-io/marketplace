@@ -1,7 +1,7 @@
 {
   "name": "@goodfoot/vitest-cache",
   "description": "Content-hash result caching and output policy for Vitest",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "exports": {
     ".": {
@@ -70,5 +70,10 @@
   "peerDependencies": {
     "vite": "^8.3.4",
     "vitest": "^5.0.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodfoot-io/marketplace.git",
+    "directory": "packages/vitest-cache"
   }
 }
