@@ -94,7 +94,7 @@ try {
   );
   write('yarn.lock', '');
   write('.yarnrc.yml', 'nodeLinker: node-modules\n');
-  const installed = run('yarn', ['install']);
+  const installed = run('yarn', ['install', '--no-immutable']);
   assert(!/YN0002|YN0060|YN0086/.test(installed), installed);
   run('yarn', ['install', '--immutable']);
   run(process.execPath, [
