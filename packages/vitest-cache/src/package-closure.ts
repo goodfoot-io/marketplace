@@ -373,19 +373,26 @@ export function createPackagePhase(repositoryRoot: string, store: DigestStore) {
     let value = closures.get(key);
     if (value) return value;
     const visited = new Set<string>();
-    const pending = [...starts];
     const items: string[] = [];
-    for (let directory = pending.pop(); directory !== undefined; directory = pending.pop()) {
-      if (visited.has(directory)) continue;
-      visited.add(directory);
+    // Expand the dependency graph a frontier at a time: independent packages verify concurrently,
+    // bounded by the shared filesystem permits, and the sorted item list keeps the digest order-free.
+    let frontier = [...starts];
+    while (frontier.length) {
+      const next: string[] = [];
+      const fresh = frontier.filter((directory) => !visited.has(directory) && visited.add(directory));
       // Fresh installed-package hashes can block worker stop acknowledgements.
-      // Let their IPC callbacks run between package directories.
+      // Let their IPC callbacks run between frontiers.
       await setImmediate();
-      const record = await node(directory);
-      items.push(
-        JSON.stringify({ locator: record.locator, lock: record.lock, content: record.content, edges: record.edges })
-      );
-      pending.push(...record.dependsOn);
+      const settled = await Promise.allSettled(fresh.map((directory) => node(directory)));
+      for (const result of settled) {
+        if (result.status === 'rejected') throw result.reason;
+        const record = result.value;
+        items.push(
+          JSON.stringify({ locator: record.locator, lock: record.lock, content: record.content, edges: record.edges })
+        );
+        next.push(...record.dependsOn);
+      }
+      frontier = next;
     }
     const hash = createHash('sha256');
     hash.update('vitest-installed-package-closure-v2\0');

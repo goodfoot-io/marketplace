@@ -3,6 +3,7 @@
  *
  * @summary Walk the transformed Vite input graph with phase-scoped observations.
  */
+import { createHash, randomUUID } from 'node:crypto';
 import fsp from 'node:fs/promises';
 import { createRequire, isBuiltin } from 'node:module';
 import path from 'node:path';
@@ -171,6 +172,74 @@ async function cachedStatSignature(file: string, cache: Map<string, string>) {
   return signature;
 }
 
+/** Persisted pre-resolution import specifiers of one transformed module; resolution is always redone. */
+type PersistedSpecifiers = {
+  schema: 1;
+  signature: string;
+  recordedAtNs: string;
+  specifiers: string[];
+  unresolved: boolean;
+};
+const racyWindowNs = 2_000_000_000n;
+
+function specifierRecordPath(folder: string, environmentKey: string, absolute: string) {
+  const id = createHash('sha256').update(`${environmentKey}\0${absolute}`).digest('hex');
+  return path.join(folder, `${id}.json`);
+}
+
+/**
+ * Read previously derived import specifiers for an unchanged module under an identical transform environment.
+ * A record is trusted only when the file's signature is unchanged and its newest timestamp predates the record by the racy window.
+ *
+ * @param folder - Persistent specifier record folder.
+ * @param environmentKey - Digest of the transform environment the record must have been derived under.
+ * @param absolute - Absolute module path.
+ * @param signature - Current stat signature of the module.
+ * @param newestNs - Newest mtime/ctime of the module in nanoseconds.
+ * @returns The record when it is current and outside the racy window, otherwise null.
+ */
+async function readSpecifiers(
+  folder: string,
+  environmentKey: string,
+  absolute: string,
+  signature: string,
+  newestNs: bigint
+): Promise<PersistedSpecifiers | null> {
+  try {
+    const value: unknown = JSON.parse(
+      await fsp.readFile(specifierRecordPath(folder, environmentKey, absolute), 'utf8')
+    );
+    if (
+      typeof value !== 'object' ||
+      value === null ||
+      (value as PersistedSpecifiers).schema !== 1 ||
+      (value as PersistedSpecifiers).signature !== signature ||
+      !Array.isArray((value as PersistedSpecifiers).specifiers) ||
+      !(value as PersistedSpecifiers).specifiers.every((entry) => typeof entry === 'string') ||
+      typeof (value as PersistedSpecifiers).unresolved !== 'boolean' ||
+      typeof (value as PersistedSpecifiers).recordedAtNs !== 'string' ||
+      !/^\d+$/.test((value as PersistedSpecifiers).recordedAtNs)
+    )
+      return null;
+    const record = value as PersistedSpecifiers;
+    return newestNs <= BigInt(record.recordedAtNs) - racyWindowNs ? record : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeSpecifiers(folder: string, environmentKey: string, absolute: string, record: PersistedSpecifiers) {
+  const file = specifierRecordPath(folder, environmentKey, absolute);
+  const temporary = path.join(folder, `.${randomUUID()}.tmp`);
+  try {
+    await fsp.mkdir(folder, { recursive: true, mode: 0o700 });
+    await fsp.writeFile(temporary, JSON.stringify(record), { flag: 'wx', mode: 0o600 });
+    await fsp.rename(temporary, file);
+  } catch {
+    await fsp.rm(temporary, { force: true }).catch(() => undefined);
+  }
+}
+
 /**
  * Discover transformed physical input edges without evaluating test modules; unsafe or unresolved inputs throw, and the enclosing runner may turn that failure into a cache miss.
  *
@@ -181,6 +250,9 @@ async function cachedStatSignature(file: string, cache: Map<string, string>) {
  * @param options.opaqueImports - Generated outputs whose declared build inputs are fingerprinted instead.
  * @param options.dynamicImports - Declared dependency globs for nonliteral imports.
  * @param options.cache - Shared observations scoped to this fingerprint phase.
+ * @param options.persist - Cross-process specifier records and the transform-environment key they are valid under.
+ * @param options.persist.folder - Persistent specifier record folder.
+ * @param options.persist.environmentKey - Digest of the transform environment the records are valid under.
  * @returns Sorted local files, external installed paths and declared dynamic-domain globs.
  * @throws For unsafe/unmapped/virtual input, unsupported environment, unresolved import or parse/transform failure.
  */
@@ -192,6 +264,7 @@ export async function collectInputGraph(
     opaqueImports?: string[];
     dynamicImports?: Record<string, string[]>;
     cache?: WalkCache;
+    persist?: { folder: string; environmentKey: string };
   } = {}
 ): Promise<InputGraph> {
   const root = await physicalPath(repositoryRoot);
@@ -229,11 +302,13 @@ export async function collectInputGraph(
   const walked = new Set<string>();
   const externalPaths = new Set<string>();
   const declared = new Set<string>();
-  for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
+  // Visit the import graph one frontier at a time: modules in a frontier transform and resolve
+  // concurrently, while the membership checks below run synchronously between awaits.
+  const visit = async (id: string): Promise<string[]> => {
     const relative = await localFile(root, id, externalPaths, cache.classify);
-    if (relative === null) continue;
+    if (relative === null) return [];
     files.add(relative);
-    if (leafRequest(id, relative) || walked.has(relative)) continue;
+    if (leafRequest(id, relative) || walked.has(relative)) return [];
     walked.add(relative);
     const absolute = path.join(root, relative);
     // A changed file signature makes a cached transform stale even under the
@@ -250,15 +325,38 @@ export async function collectInputGraph(
     let edges = edgeCache.get(edgeKey);
     if (!edges) {
       edges = (async () => {
-        const transformed = await environment.transformRequest(absolute);
-        if (!transformed) throw new Error(`cannot transform test dependency: ${relative}`);
-        let tree: ReturnType<typeof parseAst>;
-        try {
-          tree = parseAst(transformed.code);
-        } catch (error) {
-          throw new Error(`cannot parse transformed dependency ${relative}: ${errorMessage(error)}`);
+        const [, , mtime = '0', ctime = '0'] = signature.split(':');
+        const newest = BigInt(mtime) > BigInt(ctime) ? BigInt(mtime) : BigInt(ctime);
+        const persisted = options.persist
+          ? await readSpecifiers(options.persist.folder, options.persist.environmentKey, absolute, signature, newest)
+          : null;
+        let specifiers: string[];
+        let unresolved: boolean;
+        if (persisted) {
+          specifiers = persisted.specifiers;
+          unresolved = persisted.unresolved;
+        } else {
+          const transformed = await environment.transformRequest(absolute);
+          if (!transformed) throw new Error(`cannot transform test dependency: ${relative}`);
+          let tree: ReturnType<typeof parseAst>;
+          try {
+            tree = parseAst(transformed.code);
+          } catch (error) {
+            throw new Error(`cannot parse transformed dependency ${relative}: ${errorMessage(error)}`);
+          }
+          const found = moduleEdges(tree);
+          unresolved = found.unresolved;
+          specifiers = [...(transformed.deps ?? []), ...(transformed.dynamicDeps ?? []), ...found.imports];
+          if (options.persist) {
+            await writeSpecifiers(options.persist.folder, options.persist.environmentKey, absolute, {
+              schema: 1,
+              signature,
+              recordedAtNs: String(BigInt(Date.now()) * 1_000_000n),
+              specifiers,
+              unresolved
+            });
+          }
         }
-        const { imports: dynamic, unresolved } = moduleEdges(tree);
         const declaredGlobs: string[] = [];
         if (unresolved) {
           const globs = dynamicImportDeclarations[relative];
@@ -270,19 +368,17 @@ export async function collectInputGraph(
           declaredGlobs.push(...globs);
         }
         const dependencies = await Promise.all(
-          [...(transformed.deps ?? []), ...(transformed.dynamicDeps ?? []), ...dynamic].map((imported) =>
-            resolveImport(environment, imported, absolute, opaqueImports)
-          )
+          specifiers.map((imported) => resolveImport(environment, imported, absolute, opaqueImports))
         );
         return { dependencies, declaredGlobs };
       })();
       edgeCache.set(edgeKey, edges);
     }
     const result = await edges;
-    for (const dependency of result.dependencies) {
-      if (dependency) pending.push(dependency);
-    }
     for (const glob of result.declaredGlobs) declared.add(glob);
-  }
+    return result.dependencies.filter((dependency): dependency is string => Boolean(dependency));
+  };
+  let frontier = pending;
+  while (frontier.length) frontier = (await Promise.all(frontier.map(visit))).flat();
   return { files: [...files].sort(), externalPaths: [...externalPaths].sort(), declared: [...declared].sort() };
 }
