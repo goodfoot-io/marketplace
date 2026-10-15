@@ -1,5 +1,10 @@
 # @goodfoot/vitest-cache npm package changelog
 
+## 1.0.2
+
+- Fixed immutable dependency installation by synchronizing the CLI path in the Yarn lockfile.
+- Fixed package validation to allow the changelog included in release tarballs.
+
 ## 1.0.1
 
 - Added content-based caching of passing Vitest results, with output checks and automatic invalidation when test inputs change.
