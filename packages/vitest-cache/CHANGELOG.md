@@ -1,5 +1,9 @@
 # @goodfoot/vitest-cache npm package changelog
 
+## 1.0.3
+
+- Fixed release linting by building the linked jsdoczoom workspace before validation.
+
 ## 1.0.2
 
 - Fixed immutable dependency installation by synchronizing the CLI path in the Yarn lockfile.

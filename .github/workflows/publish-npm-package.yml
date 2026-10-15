@@ -162,6 +162,10 @@ jobs:
         continue-on-error: true
         run: yarn test
 
+      - name: Build Vitest cache lint dependency
+        if: steps.extract.outputs.package == 'vitest-cache'
+        run: yarn workspace jsdoczoom build
+
       - name: Run lint
         id: lint
         working-directory: packages/${{ steps.extract.outputs.package }}
