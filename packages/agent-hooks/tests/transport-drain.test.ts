@@ -29,16 +29,21 @@ describe("drive() waits for output delivery before exiting", () => {
       deliveredAtExit = [...delivered];
       throw new ProcessExitError(code);
     });
-    for (const [name, stream] of [["stdout", process.stdout], ["stderr", process.stderr]] as const) {
-      vi.spyOn(stream, "write").mockImplementation((chunk: unknown, encodingOrCallback?: unknown, callback?: unknown) => {
-        const done = typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
-        setImmediate(() => {
-          delivered.push(`${name}:${String(chunk)}`);
-          if (typeof done === "function") done();
-        });
-        // Accepted into the buffer does not mean delivered to the reader.
-        return true;
-      });
+    for (const [name, stream] of [
+      ["stdout", process.stdout],
+      ["stderr", process.stderr],
+    ] as const) {
+      vi.spyOn(stream, "write").mockImplementation(
+        (chunk: unknown, encodingOrCallback?: unknown, callback?: unknown) => {
+          const done = typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
+          setImmediate(() => {
+            delivered.push(`${name}:${String(chunk)}`);
+            if (typeof done === "function") done();
+          });
+          // Accepted into the buffer does not mean delivered to the reader.
+          return true;
+        },
+      );
     }
   });
 
@@ -70,7 +75,10 @@ describe("drive() waits for output delivery before exiting", () => {
         return { stdout: "unused", exitCode: 0 };
       },
     };
-    if (phase === "cleanup") vi.spyOn(logger, "close").mockImplementation(() => { throw error; });
+    if (phase === "cleanup")
+      vi.spyOn(logger, "close").mockImplementation(() => {
+        throw error;
+      });
     const hook = defineHook("Test", {}, () => ({}));
     const failure = await drive(transport, hook).catch((caught: unknown) => caught);
     expect(failure).toBeInstanceOf(ProcessExitError);
@@ -81,18 +89,19 @@ describe("drive() waits for output delivery before exiting", () => {
   it.each(["error", "continue"] as const)("handles asynchronous stdout failures under %s policy", async (policy) => {
     const error = new Error("asynchronous EPIPE");
     const onUnexpectedError = vi.fn();
-    const stdoutWrite = vi.spyOn(process.stdout, "write").mockImplementation(
-      (_chunk: unknown, encodingOrCallback?: unknown, callback?: unknown) => {
+    const stdoutWrite = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation((_chunk: unknown, encodingOrCallback?: unknown, callback?: unknown) => {
         const done = typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
         setImmediate(() => {
           if (typeof done === "function") done(error);
         });
         return false;
-      },
-    );
+      });
     const hook = defineHook("Test", { unexpectedError: policy, onUnexpectedError }, () => ({}));
-    const failure = await drive({ finalize: () => ({ stdout: "payload", exitCode: 0 }) }, hook)
-      .catch((caught: unknown) => caught);
+    const failure = await drive({ finalize: () => ({ stdout: "payload", exitCode: 0 }) }, hook).catch(
+      (caught: unknown) => caught,
+    );
     expect(failure).toBeInstanceOf(ProcessExitError);
     expect((failure as ProcessExitError).code).toBe(policy === "continue" ? 0 : 1);
     expect(stdoutWrite).toHaveBeenCalledTimes(1);
@@ -103,5 +112,4 @@ describe("drive() waits for output delivery before exiting", () => {
       expect(deliveredAtExit).toEqual([`stderr:${error.stack}\n`]);
     }
   });
-
 });

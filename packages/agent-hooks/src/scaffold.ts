@@ -167,7 +167,7 @@ function generatePackageJson(projectName: string, outputPath: string): string {
       typecheck: "tsc --noEmit",
     },
     dependencies: {
-      "@goodfoot/agent-hooks": "^1.0.11",
+      "@goodfoot/agent-hooks": "^1.0.12",
     },
     devDependencies: {
       "@biomejs/biome": "2.4.16",

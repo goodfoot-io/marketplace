@@ -111,8 +111,14 @@ describe("drive() outcome × policy matrix", () => {
     _exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
       throw new ProcessExitError(code);
     }) as never);
-    vi.spyOn(process.stdout, "write").mockReturnValue(true);
-    vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    vi.spyOn(process.stdout, "write").mockImplementation((_chunk: unknown, callback?: unknown) => {
+      if (typeof callback === "function") callback();
+      return true;
+    });
+    vi.spyOn(process.stderr, "write").mockImplementation((_chunk: unknown, callback?: unknown) => {
+      if (typeof callback === "function") callback();
+      return true;
+    });
   });
 
   afterEach(() => {
@@ -264,8 +270,14 @@ describe("HookBlockError precedence (classified before policy)", () => {
     _exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
       throw new ProcessExitError(code);
     }) as never);
-    vi.spyOn(process.stdout, "write").mockReturnValue(true);
-    vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    vi.spyOn(process.stdout, "write").mockImplementation((_chunk: unknown, callback?: unknown) => {
+      if (typeof callback === "function") callback();
+      return true;
+    });
+    vi.spyOn(process.stderr, "write").mockImplementation((_chunk: unknown, callback?: unknown) => {
+      if (typeof callback === "function") callback();
+      return true;
+    });
   });
 
   afterEach(() => {
@@ -333,8 +345,14 @@ describe("stdin parse/read failure behavior (faithful to both sources)", () => {
     _exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
       throw new ProcessExitError(code);
     }) as never);
-    vi.spyOn(process.stdout, "write").mockReturnValue(true);
-    vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    vi.spyOn(process.stdout, "write").mockImplementation((_chunk: unknown, callback?: unknown) => {
+      if (typeof callback === "function") callback();
+      return true;
+    });
+    vi.spyOn(process.stderr, "write").mockImplementation((_chunk: unknown, callback?: unknown) => {
+      if (typeof callback === "function") callback();
+      return true;
+    });
     loggedErrors = [];
     logger.on("error", (event) => {
       loggedErrors.push(event.message);

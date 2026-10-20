@@ -190,17 +190,27 @@ function classify<TOutput>(
   return { kind: "handlerError", error, phase };
 }
 
+// A successful write return value only describes buffering; its callback confirms delivery.
+function writeStream(stream: NodeJS.WritableStream, content: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    stream.write(content, (error?: Error | null) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
+
 /**
  * Writes an unexpected (non-handler, runtime-owned) error's stacktrace to
  * stderr. Used for cleanup/finalize failures under the default `"error"`
  * policy, which exit with code 1 — these are not the handler's own
  * intentional signal.
  */
-function writeUnexpectedErrorStderr(error: unknown): void {
+async function writeUnexpectedErrorStderr(error: unknown): Promise<void> {
   if (error instanceof Error) {
-    process.stderr.write(`${error.stack ?? error.message}\n`);
+    await writeStream(process.stderr, `${error.stack ?? error.message}\n`);
   } else {
-    process.stderr.write(`${String(error)}\n`);
+    await writeStream(process.stderr, `${String(error)}\n`);
   }
 }
 
@@ -281,7 +291,7 @@ export async function drive<TInput, TOutput>(
       cleanupQuietly();
       process.exit(FALLBACK_EXIT_SUCCESS);
     }
-    writeUnexpectedErrorStderr(error);
+    await writeUnexpectedErrorStderr(error);
     cleanupQuietly();
     process.exit(FALLBACK_EXIT_ERROR);
   }
@@ -289,23 +299,23 @@ export async function drive<TInput, TOutput>(
   try {
     cleanup(policy, onUnexpectedError);
   } catch (error) {
-    writeUnexpectedErrorStderr(error);
+    await writeUnexpectedErrorStderr(error);
     process.exit(FALLBACK_EXIT_ERROR);
   }
 
   if (finalized.stderr !== undefined) {
-    process.stderr.write(finalized.stderr);
+    await writeStream(process.stderr, finalized.stderr);
   }
   if (finalized.stdout !== undefined) {
     try {
-      process.stdout.write(finalized.stdout);
+      await writeStream(process.stdout, finalized.stdout);
     } catch (error) {
       if (policy === "continue") {
         reportUnexpectedError(onUnexpectedError, error, "write");
         cleanupQuietly();
         process.exit(FALLBACK_EXIT_SUCCESS);
       }
-      writeUnexpectedErrorStderr(error);
+      await writeUnexpectedErrorStderr(error);
       cleanupQuietly();
       process.exit(FALLBACK_EXIT_ERROR);
     }

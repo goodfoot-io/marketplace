@@ -1,5 +1,9 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.12
+
+Waits for stdout and stderr writes to complete before exiting, preventing truncated hook responses and error diagnostics when output is piped. Asynchronous stdout write failures now follow the existing unexpected-error policy without retrying the payload.
+
 ## 1.0.11
 
 Moves generated-file tracking out of `hooks.json` into a sibling `hooks.meta.json`, because Claude Code rejects a hooks manifest carrying any key besides `hooks`. The manifest is now a pure function of its inputs, so a rebuild that changes nothing writes identical bytes and leaves the host's hook-trust hash intact. A missing or unreadable sidecar is treated as "nothing tracked as generated", which preserves the entries already in the manifest rather than pruning them.

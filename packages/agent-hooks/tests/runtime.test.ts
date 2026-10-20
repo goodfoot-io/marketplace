@@ -324,12 +324,14 @@ async function runExecuteWithStdin<TInput extends HookInput, TOutput extends Spe
 
   let stdout = "";
   let stderr = "";
-  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk: unknown) => {
+  const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk: unknown, callback?: unknown) => {
     stdout += String(chunk);
+    if (typeof callback === "function") callback();
     return true;
   });
-  const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation((chunk: unknown) => {
+  const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation((chunk: unknown, callback?: unknown) => {
     stderr += String(chunk);
+    if (typeof callback === "function") callback();
     return true;
   });
   const exitSpy = vi.spyOn(process, "exit").mockImplementation((code?: number | string | null): never => {
@@ -356,7 +358,7 @@ async function runExecuteWithStdin<TInput extends HookInput, TOutput extends Spe
     const result = await runPromise;
     const exitCode = result instanceof ProcessExitSignal ? result.code : undefined;
 
-    expect(stderrSpy.mock.calls).toEqual(expectedStderr === "" ? [] : [[expectedStderr]]);
+    expect(stderrSpy.mock.calls.map(([chunk]) => [chunk])).toEqual(expectedStderr === "" ? [] : [[expectedStderr]]);
     return { exitCode, stdout, stderr };
   } finally {
     stdoutSpy.mockRestore();
@@ -464,7 +466,10 @@ describe("execute", () => {
       const exitSpy = vi.spyOn(process, "exit").mockImplementation((code?: number | string | null): never => {
         throw new ProcessExitSignal(typeof code === "number" ? code : undefined);
       });
-      const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+      const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation((_chunk: unknown, callback?: unknown) => {
+        if (typeof callback === "function") callback();
+        return true;
+      });
       let writeAttempts = 0;
       const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => {
         writeAttempts += 1;
