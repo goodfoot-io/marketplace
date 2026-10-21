@@ -245,14 +245,24 @@ subscriptions in the cleanup function returned by `setup`.
 Configuration contributions use domain transforms such as `ctx.skill.transform`.
 There is no returned V1 `config` callback or global mutable config object.
 
-Compile plugins with the unified CLI. The output is a directory of ESM artifacts:
+Compile plugins with the unified CLI:
 
 ```bash
 npx -y @goodfoot/agent-hooks --agent opencode -i "src/**/*.ts" -o "./.opencode/plugins"
 ```
 
-The compiler validates each default export as a V2 `{ id, setup }` definition.
-Point the `plugins` list in `opencode.json` at the resulting `.mjs` files.
+Each source emits a plugin package directory: `src/my-plugin.ts` produces
+`.opencode/plugins/my-plugin/package.json` and `index.js`. The compiler validates
+the entrypoint as a V2 `{ id, setup }` definition. OpenCode discovers these
+package directories under `.opencode/plugins/` automatically.
+
+For output elsewhere, add each generated package directory to `plugins`:
+
+```json
+{ "plugins": ["./build/plugins/my-plugin"] }
+```
+
+OpenCode 2.1.2 rejects individual `.js` or `.mjs` paths in that list.
 `@opencode/plugin@^2.1.2` is an optional peer dependency, required only for the
 OpenCode entry point. See the [official V2 plugin migration guide](https://opencode.ai/v2/docs/build/plugins/migrate-v1/)
 for domain hooks, transforms, and cleanup.

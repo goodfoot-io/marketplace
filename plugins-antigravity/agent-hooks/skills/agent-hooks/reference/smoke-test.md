@@ -60,12 +60,12 @@ The compiled artifact differs by host, so the artifact-level check differs too.
 | --- | --- | --- | --- |
 | Claude Code | stdio executable + manifest | Pipe a synthetic event JSON to the bundle | `claude -p` with a prompt that forces the tool call |
 | Codex | stdio executable + manifest | Pipe a synthetic event JSON to the bundle | `codex exec` with the same prompt |
-| OpenCode | plugin module, no manifest | Import `{ id, setup }`, invoke setup with test domains, and assert registrations | `opencode run` with the same prompt |
+| OpenCode | package directory (`package.json`, `index.js`) | Resolve the manifest entrypoint, import `{ id, setup }`, and assert registrations | `opencode run` with the same prompt |
 | Antigravity | stdio executable + manifest | Pipe a synthetic event JSON to the bundle | `agy --print-timeout 45s -p='<prompt>'` with the same prompt |
 
 Pipe synthetic input only in the wire shape the host's own reference documents; a hand-invented envelope tests your guess, not the contract.
 
-OpenCode compiles to in-process plugin modules with no stdio driver and no manifest, so it has no pipe-based check. Its build already imports each output and rejects a module whose default export does not match the loader contract — that validation is `structural`, and only running the host makes it `behavioral`.
+OpenCode compiles to in-process plugin packages with no stdio driver. Register each package directory, never its individual module file. The build imports the package entrypoint and validates its default export; only observed host callbacks prove installation works.
 
 Antigravity reaches `behavioral`. Install with `agy plugin install <dir>`; `agy plugin list` must report `hooks` in `components`. Its throwaway `HOME` needs `~/.gemini/antigravity-cli/antigravity-oauth-token` copied in, or `agy -p` opens an interactive OAuth flow and hangs. Report a missing credential as `blocked`.
 

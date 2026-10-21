@@ -1,5 +1,9 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.14
+
+Compiles each OpenCode source into an installable plugin directory containing `package.json` and `index.js`. OpenCode 2.1.2 rejects the previous bare `.mjs` configuration paths. Generated packages support discovery under `.opencode/plugins/` and explicit directory entries in `plugins`.
+
 ## 1.0.13
 
 Targets OpenCode 2.1.2 with the `@opencode/plugin` SDK. Plugin definitions now use `id` and `setup`, hook types follow V2 domain registrations with one mutable event, and compilation rejects V1 entrypoints.

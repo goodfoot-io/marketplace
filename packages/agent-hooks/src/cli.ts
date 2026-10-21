@@ -150,7 +150,7 @@ interface HooksMeta {
 // Constants
 // ============================================================================
 
-const VERSION = "1.0.13";
+const VERSION = "1.0.14";
 /** Filename of the tracking sidecar written beside hooks.json. */
 const HOOKS_META_FILENAME = "hooks.meta.json";
 const DEFAULT_ESBUILD_LOADERS: HookLoaderMap = {
@@ -196,8 +196,8 @@ Required Arguments:
       The agent runtime the hooks are built for. Determines the hook surface
       validated at build time and the runtime module linked into each compiled
       bundle. There is no default: omitting this flag is an error.
-      With --agent opencode, -o/--output is treated as a plugin artifact
-      directory (no hooks.json manifest is generated).
+      With --agent opencode, -o/--output contains one plugin package directory
+      per source (package.json and index.js; no hooks.json is generated).
       With --agent antigravity, -o/--output is the hooks.json path at the
       plugin root; bundles are written to a bin/ directory beside it and the
       generated commands are relative to the manifest, which is the working
@@ -1663,7 +1663,7 @@ async function main(): Promise<void> {
         sourcemap: args.sourcemap,
       });
       process.stdout.write(
-        `Generated ${compiled.length} plugin artifact(s) in ${path.resolve(process.cwd(), args.output)}\n`,
+        `Generated ${compiled.length} plugin package(s) in ${path.resolve(process.cwd(), args.output)}\n`,
       );
       process.exit(0);
     } catch (error) {

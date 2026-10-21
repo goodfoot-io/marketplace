@@ -1,5 +1,5 @@
-packages/agent-hooks/package.json#L3-L3 rk64:a8dc6e379fa69407
-packages/agent-hooks/src/agents/antigravity/scaffold.ts#L71-L71 rk64:c045a85dc98de2ca
-packages/agent-hooks/src/cli.ts#L153-L153 rk64:225a71cbe8777a7d
+packages/agent-hooks/package.json#L3-L3 rk64:a8dfd4379fa97730
+packages/agent-hooks/src/agents/antigravity/scaffold.ts#L71-L71 rk64:604054661fc39f5b
+packages/agent-hooks/src/cli.ts#L153-L153 rk64:225dd7cbe87a5da6
 
 The npm package's version, the CLI's reported VERSION string, and the Antigravity scaffold's dependency pin carry one release number across three files that nothing holds together, while the Claude and Codex scaffold pins are compared against package.json by their own scaffold tests and package.json is compared against the release tag by the publish workflow. A release that bumps only package.json ships a CLI reporting the previous version and scaffolds Antigravity projects pinned to the previous release line.

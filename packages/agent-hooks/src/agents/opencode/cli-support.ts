@@ -1,12 +1,12 @@
 /**
- * OpenCode-specific CLI internals: bundling each selected plugin entry to a
- * standalone ESM artifact and validating its V2 `{ id, setup }` contract
+ * OpenCode-specific CLI internals: bundling each selected plugin entry to an
+ * ESM plugin directory and validating its V2 `{ id, setup }` contract
  * against a real dynamic import of the built output — not a hand-rolled AST check, which could pass a shape the
  * actual OpenCode loader would still reject.
  *
  * Unlike Codex's `compileCodexHook`, there is no wrapper content and no
  * `execute()` runtime module to link: OpenCode imports the plugin author's
- * own default export directly, so the bundle *is* the artifact — no
+ * own default export directly from the package entry point — no
  * stdin/stdout driver, no `hooks.json` manifest, no shebang.
  *
  * Driver-level primitives (loader parsing, glob discovery) are imported from
@@ -94,22 +94,41 @@ async function compileAllOpenCodePlugins(
   loaders: HookLoaderMap,
   sourcemap: boolean,
 ): Promise<CompiledOpenCodePlugin[]> {
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
+  const outputPaths = pluginFiles.map((sourcePath) =>
+    path.join(outputDir, path.basename(sourcePath, path.extname(sourcePath))),
+  );
+  if (new Set(outputPaths).size !== outputPaths.length) {
+    throw new Error("OpenCode plugin source basenames must be unique within the output directory");
   }
+  fs.mkdirSync(outputDir, { recursive: true });
+  const stagingDir = fs.mkdtempSync(path.join(outputDir, ".opencode-build-"));
   const compiled: CompiledOpenCodePlugin[] = [];
-  for (const sourcePath of pluginFiles) {
-    const content = await compileOpenCodePlugin(sourcePath, loaders, sourcemap);
-    const baseName = path.basename(sourcePath, path.extname(sourcePath));
-    const outputPath = path.join(outputDir, `${baseName}.mjs`);
-    fs.writeFileSync(outputPath, content, { encoding: "utf-8" });
-    try {
-      await validateOpenCodePluginModule(outputPath);
-    } catch (error) {
-      fs.rmSync(outputPath);
-      throw error;
+  try {
+    // Validate fresh modules before replacing any previously built entry points.
+    // Unique staging paths also prevent dynamic import's cache hiding rebuild errors.
+    for (const [index, sourcePath] of pluginFiles.entries()) {
+      const content = await compileOpenCodePlugin(sourcePath, loaders, sourcemap);
+      const stagedPath = path.join(stagingDir, String(index));
+      fs.mkdirSync(stagedPath);
+      fs.writeFileSync(
+        path.join(stagedPath, "package.json"),
+        `${JSON.stringify({ private: true, type: "module", main: "index.js", exports: "./index.js" }, null, 2)}\n`,
+        "utf-8",
+      );
+      const entryPath = path.join(stagedPath, "index.js");
+      fs.writeFileSync(entryPath, content, "utf-8");
+      await validateOpenCodePluginModule(entryPath);
+      compiled.push({ sourcePath, outputPath: outputPaths[index] as string });
     }
-    compiled.push({ sourcePath, outputPath });
+    for (const [index, { outputPath }] of compiled.entries()) {
+      fs.mkdirSync(outputPath, { recursive: true });
+      for (const filename of ["package.json", "index.js"]) {
+        fs.renameSync(path.join(stagingDir, String(index), filename), path.join(outputPath, filename));
+      }
+    }
+  } finally {
+    // Only remove compiler-owned staging data; preserve other files in plugin directories.
+    fs.rmSync(stagingDir, { recursive: true, force: true });
   }
   return compiled;
 }
@@ -135,9 +154,9 @@ export function validateOpenCodeArgs(args: OpenCodeCliArgs): string | undefined 
 
 /**
  * Runs the OpenCode build branch of the unified CLI: discovers plugin entry
- * files matching `--input`, bundles each to a standalone ESM artifact under
- * `--output` (treated as a directory — OpenCode plugin config references
- * these files directly, there is no manifest), and validates each artifact's
+ * files matching `--input`, bundles each to a package directory under
+ * `--output`. OpenCode plugin config references these directories; each contains
+ * package.json and index.js. Validates each entry point's
  * default export against OpenCode's real loader contract.
  */
 export async function runOpenCodeCli(args: OpenCodeCliArgs): Promise<CompiledOpenCodePlugin[]> {

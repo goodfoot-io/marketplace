@@ -9,6 +9,12 @@
     ],
     "packages/agent-hooks/tests/codex/schema-coverage.test.ts": [
       "packages/agent-hooks/src/agents/codex/schema/generated/*.schema.json"
-    ]
+    ],
+    "packages/agent-hooks/tests/agents/opencode/plugin-directory.test.ts": [],
+    "packages/agent-hooks/tests/agents/opencode/plugin-directory-rebuild.test.ts": []
+  },
+  "dynamicImports": {
+    "packages/agent-hooks/tests/agents/opencode/plugin-directory.test.ts": [],
+    "packages/agent-hooks/src/agents/opencode/cli-support.ts": []
   }
 }

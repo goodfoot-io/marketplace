@@ -8,14 +8,14 @@
 - `reference/antigravity.md` — Antigravity hooks (`@goodfoot/agent-hooks/antigravity`): the 5 events, the named-hook `hooks.json` shape, and the exit-0 wire invariant. Load whenever Antigravity hooks come up.
 - `reference/smoke-test.md` — host-independent: how to prove a compiled hook installs and fires, and how to label the result. Load before claiming a hook works on any host.
 
-OpenCode 2.1.2 uses `@goodfoot/agent-hooks/opencode` with `@opencode/plugin@^2.1.2`.
-Build with `--agent opencode -i "src/**/*.ts" -o .opencode/plugins`.
-Default-export `defineOpenCodePlugin({ id, async setup(ctx) { ... } })`;
-register native hooks with `await ctx.tool.hook("execute.before", event => { ... })`.
-Callbacks receive one mutable event; tool arguments live in `event.input`.
-Use `ctx.skill.transform` for skill contributions and `ctx.event.subscribe` for events.
-Return cleanup from `setup` for owned resources. Configuration uses `plugins`.
-V1 functions, `{ server }` exports, returned hook maps, and `config` callbacks are unsupported.
+OpenCode 2.1.2: import `@goodfoot/agent-hooks/opencode` with `@opencode/plugin@^2.1.2`.
+Default-export `defineOpenCodePlugin({ id, async setup(ctx) { ... } })`.
+Build: `--agent opencode -i "src/**/*.ts" -o .opencode/plugins`.
+Each source emits a package directory (`package.json`, `index.js`), discovered automatically there.
+For output elsewhere, configure directory paths in `plugins`; file paths are rejected.
+Register hooks with `await ctx.tool.hook("execute.before", event => { ... })`;
+arguments are in `event.input`. Use `ctx.skill.transform` for skill contributions and `ctx.event.subscribe` for events.
+Return cleanup from `setup`. V1 plugin exports are unsupported.
 
 Builds omit inline sourcemaps by default for smaller, reviewable, reproducible artifacts. Pass `--sourcemap` explicitly when original TypeScript locations are needed in runtime stack traces.
 
