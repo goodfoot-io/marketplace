@@ -1,10 +1,14 @@
 {
   "name": "@goodfoot/opencode-vitest-cache",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "OpenCode registration for the vitest-cache skill",
   "type": "module",
   "main": "./index.js",
   "exports": {
     ".": "./index.js"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.1.2",
+    "js-yaml": "^4.1.0"
   }
 }

@@ -484,8 +484,6 @@ function diagnose(content: string, sourcePath: string, platform: Platform, outpu
     for (const key of Object.keys(data ?? {}))
       if (!allowed.includes(key))
         add("frontmatter-key", `Unsupported frontmatter key ${key}`, content.indexOf(`${key}:`));
-    if (platform === "opencode" && (typeof data?.name !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(data.name)))
-      add("opencode-name", "OpenCode skill name must be lowercase kebab-case", content.indexOf("name:"));
   }
   const reference = /\$?[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*/g;
   for (const match of visible.matchAll(reference)) {
@@ -512,7 +510,6 @@ const LINT_RULES = new Set<Diagnostic["rule"]>([
   "literal-platform-prose",
   "plugin-root-variable",
   "skill-relative-path",
-  "opencode-name",
   "broken-link",
 ]);
 function markdownVisible(content: string, preserveInlineCode = false): string {

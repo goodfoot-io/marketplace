@@ -19,7 +19,7 @@ Take [REQUEST] from the user's message for this invocation — the `<user-reques
 
 Pick the methods that fit [REQUEST] and launch them together, one subagent per method:
 
-Spawn `general-purpose` sub-agents in parallel (`spawn_agent` with `agent_type: general-purpose`)
+Delegate to the `general-purpose` agent in parallel with the `subagent` tool (`agent: general-purpose`); provide a short description and complete prompt.
 
 - **Code changes, bugs, or features in this codebase**: Filesystem trace.
 - **Technical questions, API behavior, or library capabilities**: Technical spike.

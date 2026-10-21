@@ -78,12 +78,15 @@ export function createHelpers(platform: Platform, options: HelperFactoryOptions 
       const kind = value("skillInvoke", platform, definition.skillInvoke);
       if (kind === "tool-block") return `<skill>\n<name>${name}</name>\n</skill>`;
       if (kind === "mention") return `Use $${name}.`;
+      if (kind === "skill-tool") return `Load the \`${name}\` skill with the \`skill\` tool (\`id: ${name}\`).`;
       return `Use the ${name} skill.`;
     },
     agentRef: (id) => {
       if (!AGENT_ID.test(id)) invalid("it.agentRef", platform, `invalid agent id ${id}`);
       const naming = value("agentRef", platform, definition.agentNaming);
-      return naming === "colon" ? `\`${id}\`` : `\`$${id.split(":").slice(1).join("-")}\``;
+      if (naming === "colon") return `\`${id}\``;
+      const name = id.split(":").slice(1).join("-");
+      return `\`${naming === "flattened" ? "$" : ""}${name}\``;
     },
     agentSlotVar: (name) =>
       `[${role("it.agentSlotVar", platform, name)}_${value("agentSlotVar", platform, definition.agentSlotSuffix)}]`,
@@ -129,6 +132,8 @@ export function createHelpers(platform: Platform, options: HelperFactoryOptions 
         if (opts.taskName !== undefined && !/^[a-z][a-z0-9_-]*$/.test(opts.taskName))
           invalid("subagent.dispatch", platform, `invalid taskName ${opts.taskName}`);
         const dialect = value("subagent.dispatch", platform, definition.subagents);
+        if (dialect === "opencode")
+          return `Delegate to the \`${type}\` agent${opts.parallel ? " in parallel" : ""} with the \`subagent\` tool (\`agent: ${type}\`${opts.background ? ", `background: true`" : ""}); provide a short description and complete prompt${opts.taskName ? ` for \`${opts.taskName}\`` : ""}.`;
         if (dialect === "antigravity") return `Delegate to the \`${type}\` subagent with \`invoke_subagent\`.`;
         if (dialect === "claude")
           return `Spawn \`${type[0]?.toUpperCase()}${type.slice(1)}\` subagents${opts.parallel ? " in parallel" : ""}${opts.background ? " with `run_in_background: true`" : ""}${opts.taskName ? ` for \`${opts.taskName}\`` : ""}`;
@@ -136,6 +141,8 @@ export function createHelpers(platform: Platform, options: HelperFactoryOptions 
       },
       reengage: (opts = {}) => {
         const dialect = value("subagent.reengage", platform, definition.subagents);
+        if (dialect === "opencode")
+          return "continue the child conversation with the `subagent` tool and its returned `sessionID`";
         if (dialect === "antigravity") {
           if (opts.live === true) return "contact it with `send_message`";
           if (opts.live === false) return "inspect its state with `manage_subagents`";
@@ -149,6 +156,8 @@ export function createHelpers(platform: Platform, options: HelperFactoryOptions 
           : "re-engage it (`send_message` if live, `resume_agent` if completed)";
       },
       resultChannel: (orchestrator = true) => {
+        if (value("subagent.resultChannel", platform, definition.subagents) === "opencode")
+          return "to the parent session in the final response";
         const recipient = orchestrator ? "to me, the orchestrator" : "to `team-lead`";
         return value("subagent.resultChannel", platform, definition.subagents) === "antigravity"
           ? `${recipient}${orchestrator ? "," : ""} with \`send_message\``
@@ -156,14 +165,18 @@ export function createHelpers(platform: Platform, options: HelperFactoryOptions 
       },
     },
     worktree: {
-      enter: () =>
-        value("worktree.enter", platform, definition.worktree) === "tools"
-          ? "Use the `EnterWorktree` tool."
-          : "Run `create-worktree`.",
-      remove: () =>
-        value("worktree.remove", platform, definition.worktree) === "tools"
-          ? "Use the `ExitWorktree` tool."
-          : "Run `remove-worktree`.",
+      enter: () => {
+        const dialect = value("worktree.enter", platform, definition.worktree);
+        if (dialect === "opencode")
+          return "Use `execute` to call `opencode.worktree_create` with a name, then `opencode.session_move` with the returned directory; continue destination-dependent work in a later call.";
+        return dialect === "tools" ? "Use the `EnterWorktree` tool." : "Run `create-worktree`.";
+      },
+      remove: () => {
+        const dialect = value("worktree.remove", platform, definition.worktree);
+        if (dialect === "opencode")
+          return "Use `execute` to call `opencode.worktree_remove` for the recorded worktree directory.";
+        return dialect === "tools" ? "Use the `ExitWorktree` tool." : "Run `remove-worktree`.";
+      },
     },
   };
   return helpers;

@@ -9,9 +9,9 @@ Treat platform output as a dialect selected from one typed definition table, not
 ## Verified platform distinctions
 
 - Claude Code uses `CLAUDE.md` for repository conventions, while Codex and OpenCode use `AGENTS.md`.
-- Skill references retain namespaces for Claude Code and Codex. OpenCode drops the namespace. Codex and OpenCode use their native skill sigils where required; Claude Code invocation is a block-level Skill-tool form.
+- Skill references retain namespaces for Claude Code and Codex. OpenCode drops the namespace. Codex uses `$`, OpenCode 2 uses `@`; OpenCode activation calls `skill` with an `id`, while Claude Code uses a block-level Skill-tool form.
 - Canonical agent IDs have three segments. Codex and OpenCode flatten the latter two segments for their native form; templates must not pre-flatten them.
-- Claude Code agent effort slots use a model placeholder. Codex and OpenCode use an effort placeholder.
+- Claude Code agent effort slots use a model placeholder. Codex uses an effort placeholder. OpenCode 2 uses configured `provider/model#variant` values and has no effort-slot helper.
 - Worktree, subagent, plugin-root, frontmatter, and destination syntax is platform-defined. Use helpers instead of spelling these values in portable templates.
 
 Consult the sibling reference `helper-reference.md` for the current helper-by-platform classifications. A `verified` cell is grounded in a supported repository or host surface. A `provisional` cell is visibly tentative. An `unavailable` cell must fail during rendering rather than inherit a value from another platform.
@@ -31,11 +31,11 @@ Keep the declared platform set honest. A build target that intentionally renders
 | Platform | Structural check | Behavioral check |
 | --- | --- | --- |
 | Claude Code | `claude plugin eval`; `claude plugin details <name>` for a component inventory | Invoke a sentinel-bearing skill with `claude -p` |
-| OpenCode | `opencode debug skill` names every loaded skill | Invoke a sentinel-bearing skill with `opencode run` |
+| OpenCode 2 | Import the plugin and inspect its V2 descriptor | Invoke a sentinel-bearing skill with `opencode run` |
 | Codex | `codex plugin list` reports id, version, source, and install status — no component inventory | Invoke a sentinel-bearing skill with `codex exec` |
 | Antigravity | `agy plugin list` reports component kinds, never skill names | From an authenticated session, invoke a sentinel-bearing skill with `agy --print-timeout 45s -p='<prompt>'` |
 
-`opencode debug skill` emits whole skill bodies. Redirect it to a file and search there; piping it to `head` truncates the JSON mid-string and reports a present skill as missing.
+OpenCode 2 skill IDs come from file paths for native discovery, or from explicit plugin registrations. Frontmatter `name` is a display label, not a native ID.
 
 Use Codex's table output, not `--json`: through 0.150.1 the JSON mode returns an empty `available` array even when the table lists every uninstalled plugin, so automation must not read availability from it. Installing has three more traps: the subcommand is `codex plugin add`, not `install`; it demands `<plugin>@<marketplace>` even with one marketplace configured; and `CODEX_HOME` must already exist. A Codex install lands under `$CODEX_HOME/plugins/cache/<marketplace>/<plugin>/<version>/`.
 
@@ -57,22 +57,10 @@ Where a plugin ships a companion binary as per-platform npm packages, `npm pack`
 
 `plugins-opencode/<name>/package.json` is both the npm publishing manifest and a version-bearing release surface, so it is hand-maintained; only the generated skill leaf beneath it is build output.
 
-The installer detects targets from that manifest alone, never from the module's exports. A package exposing only `exports["."]` is rejected with `No plugin targets found` even though the code is correct. Declare `main`, `exports["./tui"]`, or `exports["./server"]`. Adding one is inert for consumers: OpenCode patches its config with the package name, so runtime resolution still goes through `exports["."]`.
+OpenCode 2.1.2 loads plugins from the `plugins` array. Configure local package paths directly; `opencode plugin add` handles global package installations. V1 plugin functions and `config` hooks do not run in V2.
 
-`config.plugin` and `config.skills` are disjoint keys and `opencode plugin <path>` appends only to the former, so a bare install delivers the module without any skill it bundles. That is a default, not a platform limit: the plugin `Hooks` interface includes `config`, which mutates the resolved config before use, so a plugin can register its own skill leaf and make the bare install sufficient.
+Use the V2 plugin descriptor to register each bundled skill as a contribution. Give every registered skill a unique ID. Native file discovery derives IDs from paths and treats frontmatter `name` as a display label; changing that field alone cannot resolve a native ID collision.
 
-```javascript
-const own = join(dirname(fileURLToPath(import.meta.url)), "skills");
+For native discovery without a plugin, append an absolute skill-root path to the V2 `config.skills` array. Resolve plugin-owned resources from `import.meta.url`, so installation outside the repository does not depend on `process.cwd()`.
 
-export default async function plugin() {
-  return {
-    config: async (config) => {
-      config.skills ??= {};
-      const paths = config.skills.paths ?? [];
-      if (!paths.includes(own)) config.skills.paths = [...paths, own];
-    },
-  };
-}
-```
-
-Resolve that path from `import.meta.url`; the package installs outside the repository, so `process.cwd()` and literals both break. Deduplicate against paths already present, because a developer working in the source repository normally registers the same leaf by hand. Skip a leaf another registered root already serves — duplicate names across two roots collide.
+See [V2 plugin configuration](https://opencode.ai/v2/docs/plugins/) and [V2 skill discovery](https://opencode.ai/v2/docs/skills/).

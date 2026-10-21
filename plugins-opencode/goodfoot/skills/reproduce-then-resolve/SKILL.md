@@ -42,7 +42,7 @@ Initialize [REPRODUCTION_ATTEMPT] = 0, then repeat until the test fails against 
 
 Increment [REPRODUCTION_ATTEMPT], up to a maximum of 2.
 
-Spawn `general-purpose` sub-agents (`spawn_agent` with `agent_type: general-purpose`)
+Delegate to the `general-purpose` agent with the `subagent` tool (`agent: general-purpose`); provide a short description and complete prompt.
 
 Give it this prompt:
 
@@ -118,7 +118,7 @@ Any fix must alter [DATA_FLOW_PATH] so that correct data reaches the symptom. Ve
 
 Increment [RESOLVE_ATTEMPT], up to a maximum of 2, then dispatch:
 
-Spawn `general-purpose` sub-agents (`spawn_agent` with `agent_type: general-purpose`)
+Delegate to the `general-purpose` agent with the `subagent` tool (`agent: general-purpose`); provide a short description and complete prompt.
 
 Give it this prompt:
 

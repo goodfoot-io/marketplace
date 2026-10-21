@@ -48,7 +48,7 @@ Then distribute:
 
 ## 4. Dispatch
 
-Spawn `general-purpose` sub-agents in parallel (`spawn_agent` with `agent_type: general-purpose`)
+Delegate to the `general-purpose` agent in parallel with the `subagent` tool (`agent: general-purpose`); provide a short description and complete prompt.
 
 Give each subagent [TASK_NAME] as its name, [TASK] as the work, and [TASK_CONTEXT] as context, and close with this instruction:
 

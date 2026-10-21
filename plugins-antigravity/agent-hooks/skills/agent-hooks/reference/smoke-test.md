@@ -22,7 +22,7 @@ Passing the artifact level while the host level is blocked is a `structural` res
 
 ## Isolate first
 
-Run every install into a throwaway `HOME`, and a throwaway `CODEX_HOME` that you create before invoking Codex — Codex errors if it points at a missing path. Use a throwaway working directory too: Claude reads project `.claude/settings*.json`, while `opencode plugin <path>` writes a project-local `.opencode/opencode.json` under the current directory. Leftover state from a previous run is the most common cause of a smoke test that passes without proving anything. Trap cleanup so temporary homes, project configs, caches, and registrations are removed even when a step fails.
+Run every install into a throwaway `HOME`, and a throwaway `CODEX_HOME` that you create before invoking Codex — Codex errors if it points at a missing path. Use a throwaway working directory too: Claude reads project `.claude/settings*.json`, while OpenCode discovers plugins in `.opencode/plugins/` or the `plugins` config list. Leftover state from a previous run is the most common cause of a smoke test that passes without proving anything. Trap cleanup so temporary homes, project configs, caches, and registrations are removed even when a step fails.
 
 ## Procedure
 
@@ -60,7 +60,7 @@ The compiled artifact differs by host, so the artifact-level check differs too.
 | --- | --- | --- | --- |
 | Claude Code | stdio executable + manifest | Pipe a synthetic event JSON to the bundle | `claude -p` with a prompt that forces the tool call |
 | Codex | stdio executable + manifest | Pipe a synthetic event JSON to the bundle | `codex exec` with the same prompt |
-| OpenCode | plugin module, no manifest | Import the module and assert its default export | `opencode run` with the same prompt |
+| OpenCode | plugin module, no manifest | Import `{ id, setup }`, invoke setup with test domains, and assert registrations | `opencode run` with the same prompt |
 | Antigravity | stdio executable + manifest | Pipe a synthetic event JSON to the bundle | `agy --print-timeout 45s -p='<prompt>'` with the same prompt |
 
 Pipe synthetic input only in the wire shape the host's own reference documents; a hand-invented envelope tests your guess, not the contract.

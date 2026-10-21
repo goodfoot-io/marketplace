@@ -1,8 +1,7 @@
 /**
  * OpenCode-specific CLI internals: bundling each selected plugin entry to a
- * standalone ESM artifact and validating its `{ id, server }` (or bare
- * function) default-export contract against a real dynamic import of the
- * built output — not a hand-rolled AST check, which could pass a shape the
+ * standalone ESM artifact and validating its V2 `{ id, setup }` contract
+ * against a real dynamic import of the built output — not a hand-rolled AST check, which could pass a shape the
  * actual OpenCode loader would still reject.
  *
  * Unlike Codex's `compileCodexHook`, there is no wrapper content and no
@@ -68,24 +67,24 @@ export async function compileOpenCodePlugin(
 
 /**
  * Validates that `outputPath`'s default export matches OpenCode's real
- * loader contract (`getServerPlugin`): either a bare function, or an object
- * with a `server` function property. Imports the built artifact itself
+ * V2 loader contract: an object with a stable non-empty `id` and a
+ * `setup` function. Imports the built artifact itself
  * rather than statically analyzing source, so the check exercises exactly
  * what OpenCode's loader will see.
- * @throws Error when the default export matches neither shape.
+ * @throws Error when the default export is not a V2 plugin definition.
  */
 export async function validateOpenCodePluginModule(outputPath: string): Promise<void> {
   const imported: unknown = await import(pathToFileURL(outputPath).href);
   const defaultExport = (imported as { default?: unknown }).default;
-  const isBareFunction = typeof defaultExport === "function";
-  const isServerModule =
-    typeof defaultExport === "object" &&
-    defaultExport !== null &&
-    typeof (defaultExport as { server?: unknown }).server === "function";
-  if (!isBareFunction && !isServerModule) {
-    throw new Error(
-      `${outputPath}: default export must be a function or a { server } object (OpenCode's loader contract), got ${typeof defaultExport}`,
-    );
+  const definition = defaultExport as { id?: unknown; setup?: unknown } | null;
+  if (
+    typeof definition !== "object" ||
+    definition === null ||
+    typeof definition.id !== "string" ||
+    definition.id.trim().length === 0 ||
+    typeof definition.setup !== "function"
+  ) {
+    throw new Error(`${outputPath}: default export must be a V2 { id, setup } plugin definition`);
   }
 }
 

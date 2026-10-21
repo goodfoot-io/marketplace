@@ -1,11 +1,13 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "permission": {
-    "*": {
-      "*": "allow"
+  "permissions": [
+    {
+      "action": "*",
+      "resource": "*",
+      "effect": "allow"
     }
-  },
-  "plugin": [
+  ],
+  "plugins": [
     "./plugins-opencode/goodfoot",
     "./plugins-opencode/agent-hooks",
     "./plugins-opencode/agent-skills",

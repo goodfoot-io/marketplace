@@ -1,30 +1,41 @@
-// OpenCode plugins are code modules loaded as a default-export factory.
-// `opencode plugin <target>` writes only opencode.json's "plugin" key, never
-// the disjoint "skills.paths", so installing this package does not by itself
-// surface its skills. The Hooks interface's `config` hook runs against the
-// resolved config before use, so this factory registers its own bundled
-// skills/ leaf there: the path derives from import.meta.url to resolve
-// wherever the package is installed, and is appended only when already absent
-// so a config that lists it does not gain a duplicate.
-//
-// The manifest declares `main` alongside `exports["."]`, which looks redundant
-// and is not: `opencode plugin` detects install targets from the manifest
-// alone, never from this module's exports, and rejects a package without one
-// with "No plugin targets found". Node still resolves this module through
-// `exports`. Deleting `main` therefore breaks installation without breaking
-// the runtime, so nothing here would catch it.
+import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { Plugin } from "@opencode/plugin";
+import { load } from "js-yaml";
 
-const own = join(dirname(fileURLToPath(import.meta.url)), "skills");
+// Resolve bundled skills from the installed module, independently of the project.
+const own = new URL("./skills/", import.meta.url);
 
-export default async function agentHooks() {
-  return {
-    config: async (config) => {
-      config.skills = config.skills ?? {};
-      config.skills.paths = config.skills.paths ?? [];
-      if (!config.skills.paths.includes(own)) config.skills.paths.push(own);
-    },
-    "tool.execute.after": async () => {},
-  };
-}
+export default Plugin.define({
+  id: "goodfoot.agent-hooks",
+  async setup(ctx) {
+    const entries = await readdir(own, { withFileTypes: true });
+    const skills = await Promise.all(
+      entries.filter((entry) => entry.isDirectory()).map(async (entry) => {
+        const url = new URL(`${entry.name}/SKILL.md`, own);
+        const source = await readFile(url, "utf8");
+        const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(source);
+        if (!match) throw new Error(`Missing skill frontmatter: ${url}`);
+        const metadata = load(match[1]);
+        if (
+          !metadata || typeof metadata !== "object" ||
+          typeof metadata.name !== "string" || !metadata.name ||
+          typeof metadata.description !== "string"
+        ) throw new Error(`Invalid skill frontmatter: ${url}`);
+        return {
+          id: metadata.name,
+          name: metadata.name,
+          description: metadata.description,
+          autoinvoke: metadata.metadata?.opencode?.autoinvoke ??
+            metadata["disable-model-invocation"] !== true,
+          path: fileURLToPath(url),
+          content: source.slice(match[0].length),
+        };
+      }),
+    );
+    // Transforms replay synchronously; read and parse the files before registration.
+    await ctx.skill.transform((editor) => {
+      for (const skill of skills) editor.add(skill);
+    });
+  },
+});

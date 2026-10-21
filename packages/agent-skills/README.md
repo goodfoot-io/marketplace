@@ -78,33 +78,23 @@ in `~/.gemini/config/plugins/agent-skills/`. Verify with `agy plugin list`, whic
 
 #### OpenCode
 
-These plugin packages are not published to npm, so `opencode plugin` takes a path into a
-checkout rather than a module name:
+These packages target OpenCode **2.1.2**. Clone the repository and add the local
+package's absolute path to the `plugins` array in your project's `opencode.jsonc`
+(or `~/.config/opencode/opencode.jsonc` for every project):
 
-```bash
-git clone https://github.com/goodfoot-io/marketplace.git
-opencode plugin "$PWD/marketplace/plugins-opencode/agent-skills"
+```jsonc
+{
+  "plugins": ["/absolute/path/marketplace/plugins-opencode/agent-skills"]
+}
 ```
 
-Pass a path, not a bare name. `opencode plugin` resolves a specifier containing a
-separator as a path — absolute, `./`-prefixed, and plain relative forms all load on
-OpenCode 1.18.23. A single segment with no separator (`agent-skills`) is instead resolved as an
-npm package name and silently fails to load, with nothing logged. The absolute form
-above avoids the ambiguity.
+The V2 plugin registers its bundled skills with the host. Local paths belong in
+configuration; `opencode plugin add` installs package targets globally. Restart
+with `opencode service restart` after updating an unwatched local dependency.
+See [OpenCode V2 plugin configuration](https://opencode.ai/v2/docs/plugins/).
 
-That is the whole install — no `opencode.json` editing. `opencode plugin` writes only the
-top-level `plugin` key, and OpenCode keeps `plugin` and `skills` as disjoint config keys,
-so registering the module would not by itself surface its skills. The plugin closes that
-gap from the inside: its `config` hook runs against the resolved config before use and
-appends its own bundled `skills/` directory to `skills.paths`, resolved relative to
-wherever the package was installed. Installing is enough.
-
-Without flags this installs into the current project's `.opencode/opencode.json`. Add
-`-g` to install into the global config instead.
-
-Verify with `opencode debug skill`. Its output is large and embeds whole skill bodies:
-redirect it to a file and search there. Piping it to `head` truncates the JSON mid-string
-and reports a present skill as missing.
+Load a bundled skill by its registered ID and require the host to return a
+sentinel from its body to verify behavior. A package import alone checks structure.
 
 #### Updating an existing install
 
@@ -117,7 +107,7 @@ Re-running the install command does not move the version on every host.
   there is no separate plugin-update command.
 - **Antigravity** — re-run `agy plugin install`.
 - **OpenCode** — pull the checkout; the plugin resolves its skills from that directory, so
-  no reinstall is needed. Re-run with `-f` to replace a pinned plugin version.
+  no reinstall is needed. Restart the service to reload an unwatched dependency.
 
 Check the installed version rather than the exit code. Several hosts report success while
 leaving a stale version in place, and a newer directory in a host's cache proves only that

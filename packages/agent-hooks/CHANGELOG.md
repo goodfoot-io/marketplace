@@ -1,5 +1,9 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.13
+
+Targets OpenCode 2.1.2 with the `@opencode/plugin` SDK. Plugin definitions now use `id` and `setup`, hook types follow V2 domain registrations with one mutable event, and compilation rejects V1 entrypoints.
+
 ## 1.0.12
 
 Waits for stdout and stderr writes to complete before exiting, preventing truncated hook responses and error diagnostics when output is piped. Asynchronous stdout write failures now follow the existing unexpected-error policy without retrying the payload.

@@ -13,7 +13,14 @@ description: Load this skill immediately after a user mentions
 - `reference/antigravity.md` — Antigravity hooks (`@goodfoot/agent-hooks/antigravity`): the 5 events, the named-hook `hooks.json` shape, and the exit-0 wire invariant. Load whenever Antigravity hooks come up.
 - `reference/smoke-test.md` — host-independent: how to prove a compiled hook installs and fires, and how to label the result. Load before claiming a hook works on any host.
 
-`--agent opencode` also builds, emitting plugin modules rather than a manifest; it has no dedicated reference yet.
+OpenCode 2.1.2 uses `@goodfoot/agent-hooks/opencode` with `@opencode/plugin@^2.1.2`.
+Build with `--agent opencode -i "src/**/*.ts" -o .opencode/plugins`.
+Default-export `defineOpenCodePlugin({ id, async setup(ctx) { ... } })`;
+register native hooks with `await ctx.tool.hook("execute.before", event => { ... })`.
+Callbacks receive one mutable event; tool arguments live in `event.input`.
+Use `ctx.skill.transform` for skill contributions and `ctx.event.subscribe` for events.
+Return cleanup from `setup` for owned resources. Configuration uses `plugins`.
+V1 functions, `{ server }` exports, returned hook maps, and `config` callbacks are unsupported.
 
 Builds omit inline sourcemaps by default for smaller, reviewable, reproducible artifacts. Pass `--sourcemap` explicitly when original TypeScript locations are needed in runtime stack traces.
 

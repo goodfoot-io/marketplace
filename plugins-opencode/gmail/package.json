@@ -1,11 +1,15 @@
 {
   "name": "@goodfoot/opencode-gmail",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "description": "OpenCode plugin registration for the gmail skill set (gmail).",
   "type": "module",
   "main": "./index.js",
   "exports": {
     ".": "./index.js"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.1.2",
+    "js-yaml": "^4.1.0"
   }
 }

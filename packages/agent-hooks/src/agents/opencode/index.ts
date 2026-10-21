@@ -1,10 +1,10 @@
 /**
  * `@goodfoot/agent-hooks/opencode` — the OpenCode agent surface.
  *
- * Re-exports OpenCode-native types (narrowed from `@opencode-ai/plugin`),
+ * Re-exports OpenCode-native types (narrowed from `@opencode/plugin`),
  * the advisory/policy-enforcing callback split, the shared error-policy
  * vocabulary, and the plugin authoring primitives. No default export at this
- * subpath — `defineOpenCodePlugin`'s *return value* is the `{ id, server }`
+ * subpath — `defineOpenCodePlugin`'s *return value* is the `{ id, setup }`
  * default export a plugin author's own module produces, not something this
  * barrel exports itself.
  * @module
@@ -25,7 +25,7 @@ export { createRootSessionRegistry, defineOpenCodePlugin, guardAdvisory } from "
 // Shared error-policy vocabulary (re-exported from core)
 export type { UnexpectedErrorHandler, UnexpectedErrorPolicy } from "./policy.js";
 export { applyOpenCodeErrorPolicy } from "./policy.js";
-// OpenCode-native types (re-exported/narrowed from @opencode-ai/plugin)
+// OpenCode-native types (re-exported/narrowed from @opencode/plugin)
 export type {
   Hooks,
   OpenCodeHookHandler,

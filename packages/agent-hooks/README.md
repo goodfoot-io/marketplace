@@ -104,34 +104,16 @@ the root `plugin.json` required by that install command.
 
 #### OpenCode
 
-These plugin packages are not published to npm, so `opencode plugin` takes a path into a
-checkout rather than a module name:
+Clone this repository and register the built plugin directory in OpenCode V2's
+`opencode.json`, using an absolute path to your checkout:
 
-```bash
-git clone https://github.com/goodfoot-io/marketplace.git
-opencode plugin "$PWD/marketplace/plugins-opencode/agent-hooks"
+```json
+{
+  "plugins": ["/absolute/path/to/marketplace/plugins-opencode/agent-hooks"]
+}
 ```
 
-Pass a path, not a bare name. `opencode plugin` resolves a specifier containing a
-separator as a path — absolute, `./`-prefixed, and plain relative forms all load on
-OpenCode 1.18.23. A single segment with no separator (`agent-hooks`) is instead resolved as an
-npm package name and silently fails to load, with nothing logged. The absolute form
-above avoids the ambiguity.
-
-That is the whole install — no `opencode.json` editing. `opencode plugin` writes only the
-top-level `plugin` key, and OpenCode keeps `plugin` and `skills` as disjoint config keys,
-so registering the module would not by itself surface its skills. The plugin closes that
-gap from the inside: its `config` hook runs against the resolved config before use and
-appends its own bundled `skills/` directory to `skills.paths`, resolved relative to
-wherever the package was installed. Installing is enough.
-
-Without flags this installs into the current project's `.opencode/opencode.json`. Add
-`-g` to install into the global config instead.
-
-Verify with `opencode debug skill`. Its output is large and embeds whole skill bodies:
-redirect it to a file and search there. Piping it to `head` truncates the JSON mid-string
-and reports a present skill as missing.
-
+The plugin contributes its bundled authoring skills through `ctx.skill.transform`.
 Installing this skill is separate from compiling hooks *for* OpenCode, covered in
 [OpenCode](#opencode) below.
 
@@ -235,69 +217,45 @@ or `@goodfoot/agent-hooks/codex`) — do not mix events or output builders acros
 
 ## OpenCode
 
-OpenCode's plugin model is a long-lived, in-process JS module with a stable callback map
-(`Hooks`) — not the one-shot stdin/stdout command-hook model Claude Code and Codex use, so
-`@goodfoot/agent-hooks/opencode` does **not** route through `defineHook`/`Transport`/`drive`.
-It ships its own primitives instead:
+OpenCode 2.1.2 loads a long-lived plugin definition with a stable `id` and
+`setup(ctx)`. Register hooks on their owning domains during setup:
 
 ```typescript
-import { defineOpenCodePlugin, guardAdvisory, createRootSessionRegistry } from '@goodfoot/agent-hooks/opencode';
-
-const sessions = createRootSessionRegistry();
+import { defineOpenCodePlugin, guardAdvisory } from '@goodfoot/agent-hooks/opencode';
 
 export default defineOpenCodePlugin({
   id: 'my-plugin',
-  server: async ({ client }) => ({
-    event: guardAdvisory('event', async ({ event }) => {
-      if (event.type === 'session.created') {
-        sessions.observe(event.properties.info.id, event.properties.info.parentID);
-      } else if (event.type === 'session.updated') {
-        sessions.observeResumed(event.properties.info.id, event.properties.info.parentID);
+  async setup(ctx) {
+    await ctx.tool.hook('execute.before', guardAdvisory('tool.execute.before', async (event) => {
+      if (event.tool === 'bash') {
+        event.input = { ...(event.input as Record<string, unknown>), timeout: 30_000 };
       }
-    }, 'continue'),
-
-    'tool.execute.before': async (input, output) => {
-      if (input.tool === 'bash' && sessions.isRoot(input.sessionID)) {
-        output.args = { ...output.args, timeout: 30_000 };
-      }
-    },
-  }),
+    }, 'continue'));
+  },
 });
 ```
 
-- **`defineOpenCodePlugin({ id, server })`** validates and returns the `{ id, server }`
-  module shape OpenCode's real loader (`getServerPlugin`) accepts as a default export —
-  a bare `server` function also satisfies the loader and needs no wrapper.
-- **`guardAdvisory(name, handler, policy, onError?)`** applies the same opt-in
-  `"continue"` fail-open policy described below, restricted at the type level to
-  *advisory* callback names — `permission.ask` is the one policy-enforcing callback
-  (a real allow/deny security decision) and is rejected at compile time, since silently
-  swallowing its failure would skip that decision instead of making it.
-- **`createRootSessionRegistry()`** tracks session parentage and resumption across the
-  plugin's lifetime: a resumed session does not necessarily re-emit `session.created`, so
-  `observe`/`observeResumed` record first-seen-event distinctly and `isRoot`/`isResumed`
-  answer from that record.
+`guardAdvisory` accepts domain-prefixed V2 hook names and preserves the native
+single mutable event argument. Permission evaluation (`permission.evaluate`)
+always surfaces failures and cannot opt into `continue`.
+`createRootSessionRegistry()` remains available for tracking observed session
+parentage and resumption; consume events with `ctx.event.subscribe()` and abort
+subscriptions in the cleanup function returned by `setup`.
 
-`Hooks` also includes `config?: (input: Config) => Promise<void>`, which runs against the
-resolved config before use and can mutate it. That is how a plugin contributes
-configuration it would otherwise need the user to hand-write — the plugins in this
-repository use it to append their own `skills/` directory to `skills.paths`, so installing
-one delivers its skills without any `opencode.json` edit.
+Configuration contributions use domain transforms such as `ctx.skill.transform`.
+There is no returned V1 `config` callback or global mutable config object.
 
-Compile with the same unified CLI, but `--agent opencode` treats `-o`/`--output` as a
-plugin-artifact **directory**, not a manifest path — OpenCode config references built
-files directly, so there is no `hooks.json`-equivalent manifest or shebang wrapper:
+Compile plugins with the unified CLI. The output is a directory of ESM artifacts:
 
 ```bash
-npx -y @goodfoot/agent-hooks --agent opencode -i "src/**/*.ts" -o "./.opencode/plugin"
+npx -y @goodfoot/agent-hooks --agent opencode -i "src/**/*.ts" -o "./.opencode/plugins"
 ```
 
-Point `opencode.json`'s plugin list (or the equivalent config in your OpenCode host) at
-the compiled `.mjs` file(s) under that output directory.
-
-`@opencode-ai/plugin` is an **optional peer dependency** — only required if you import
-`@goodfoot/agent-hooks/opencode`; Claude Code and Codex hook authors never need it
-installed.
+The compiler validates each default export as a V2 `{ id, setup }` definition.
+Point the `plugins` list in `opencode.json` at the resulting `.mjs` files.
+`@opencode/plugin@^2.1.2` is an optional peer dependency, required only for the
+OpenCode entry point. See the [official V2 plugin migration guide](https://opencode.ai/v2/docs/build/plugins/migrate-v1/)
+for domain hooks, transforms, and cleanup.
 
 ## Fail-open advisory hooks
 

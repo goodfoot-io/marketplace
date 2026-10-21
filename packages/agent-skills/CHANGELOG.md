@@ -1,5 +1,13 @@
 # @goodfoot/agent-skills npm package changelog
 
+## 1.0.28
+
+Targets OpenCode 2.1.2: skill references use `@`, activation uses the `skill` tool,
+subagents use `subagent` and `sessionID`, and worktrees use the `opencode` Code
+Mode namespace. OpenCode agent references no longer inherit Codex's `$` syntax;
+unsupported effort placeholders fail closed. Accepts V2 skill display names,
+optional names, metadata, and invocation controls instead of imposing V1 name rules.
+
 ## 1.0.27
 
 Adds `it.hostAgentName` and its `hostAgentName` platform fact: the name of the agent that reads a rendered file (Claude, Codex, OpenCode, Antigravity), for prose addressed to that reader. It stays separate from `hostIdentity`, the sentence a host injects into a sub-agent and empty on Claude Code, because instructions that say "write for whoever is reading this" need the name even where the host injects nothing — and on Claude Code the product (`Claude Code`) and its agent (`Claude`) are different words. goodfoot's instructions, skillify, and documentation skills, which named Claude as their reader in fifteen places, now name each platform's own agent; Claude Code's rendered trees are byte-identical to before.

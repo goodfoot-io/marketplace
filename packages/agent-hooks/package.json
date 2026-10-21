@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/agent-hooks",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "Unified agent hooks library: shared core runtime with per-agent entry points for Claude Code, Codex, and Antigravity",
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/agent-hooks",
   "repository": {
@@ -61,10 +61,10 @@
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "@opencode-ai/plugin": "^1.18.23"
+    "@opencode/plugin": "^2.1.2"
   },
   "peerDependenciesMeta": {
-    "@opencode-ai/plugin": {
+    "@opencode/plugin": {
       "optional": true
     }
   },
@@ -74,7 +74,7 @@
     "@biomejs/biome": "2.4.16",
     "@goodfoot/vitest-cache": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@opencode-ai/plugin": "1.18.23",
+    "@opencode/plugin": "2.1.2",
     "@types/node": "^26.6.5",
     "tsx": "^4.20.6",
     "vite": "8.3.4",

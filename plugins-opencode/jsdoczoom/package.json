@@ -1,11 +1,15 @@
 {
   "name": "@goodfoot/opencode-jsdoczoom",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "private": true,
   "description": "OpenCode plugin registration for the jsdoczoom skill set (style, cli).",
   "type": "module",
   "main": "./index.js",
   "exports": {
     ".": "./index.js"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.1.2",
+    "js-yaml": "^4.1.0"
   }
 }

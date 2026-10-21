@@ -32,10 +32,10 @@ export type { UnexpectedErrorHandler, UnexpectedErrorPolicy };
  */
 export function applyOpenCodeErrorPolicy<TArgs extends unknown[]>(
   _name: string,
-  handler: (...args: TArgs) => Promise<void>,
+  handler: (...args: TArgs) => Promise<void> | void,
   policy: UnexpectedErrorPolicy | undefined,
   onError?: UnexpectedErrorHandler,
-): (...args: TArgs) => Promise<void> {
+): (...args: TArgs) => Promise<void> | void {
   if (policy !== "continue") {
     return handler;
   }

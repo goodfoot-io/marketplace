@@ -1,5 +1,5 @@
 {
   "name": "gmail",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Gmail SDK skill for email operations via googleapis"
 }

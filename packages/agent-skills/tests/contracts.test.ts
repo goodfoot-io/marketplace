@@ -50,7 +50,7 @@ describe("portable helper contract", () => {
   it("renders platform-specific skill references", () => {
     expect(createHelpers("claude-code").skillRef("cards:markdown")).toBe("`cards:markdown`");
     expect(createHelpers("codex").skillRef("cards:markdown")).toBe("`$cards:markdown`");
-    expect(createHelpers("opencode").skillRef("cards:markdown")).toBe("`$markdown`");
+    expect(createHelpers("opencode").skillRef("cards:markdown")).toBe("`@markdown`");
   });
 
   it("renders native Claude embedded bash", () => {
@@ -85,6 +85,30 @@ describe("portable helper contract", () => {
       "shared",
     );
     expect(createHelpers("antigravity").subagent.dispatch("explorer")).toContain("invoke_subagent");
+  });
+
+  it("renders OpenCode 2 skills, subagents, and worktrees without Codex tools", () => {
+    const helpers = createHelpers("opencode");
+    expect(helpers.skillInvoke("cards:markdown")).toBe(
+      "Load the `markdown` skill with the `skill` tool (`id: markdown`).",
+    );
+    expect(helpers.agentRef("goodfoot:review:code")).toBe("`review-code`");
+    expect(() => helpers.agentSlotVar("review")).toThrow(/agentSlotVar.*opencode/);
+    expect(helpers.subagent.dispatch("explore", { background: true, parallel: true, taskName: "audit" })).toBe(
+      "Delegate to the `explore` agent in parallel with the `subagent` tool (`agent: explore`, `background: true`); provide a short description and complete prompt for `audit`.",
+    );
+    for (const live of [true, false, undefined]) {
+      expect(helpers.subagent.reengage({ live })).toBe(
+        "continue the child conversation with the `subagent` tool and its returned `sessionID`",
+      );
+    }
+    expect(helpers.subagent.resultChannel(false)).toBe("to the parent session in the final response");
+    expect(helpers.worktree.enter()).toContain("opencode.worktree_create");
+    expect(helpers.worktree.enter()).toContain("opencode.session_move");
+    expect(helpers.worktree.remove()).toContain("opencode.worktree_remove");
+    expect(
+      helpers.frontmatter({ name: "Git Release", description: "Release", metadata: { "opencode/autoinvoke": false } }),
+    ).toContain("name: Git Release");
   });
 
   it("renders documented Antigravity subagent operations", () => {
@@ -172,6 +196,28 @@ describe("render, build, and lint", () => {
     expect(result.manifests.size).toBe(1);
   });
 
+  it("accepts OpenCode 2 display names and optional frontmatter names", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "agent-skills-v2-"));
+    ownedDirectories.add(parent);
+    const root = join(parent, "src");
+    await import("node:fs/promises").then(({ mkdir }) => mkdir(root));
+    await writeFile(
+      join(root, "SKILL.md.eta"),
+      "---\nname: Git Release\ndescription: Release\nmetadata:\n  opencode/autoinvoke: false\n---\nRelease.\n",
+    );
+    const options = {
+      root,
+      patterns: ["SKILL.md.eta"],
+      targets: [{ platform: "opencode" as const, outDir: join(parent, "out") }],
+    };
+    expect((await lint(options)).ok).toBe(true);
+    await writeFile(
+      join(root, "SKILL.md.eta"),
+      "---\ndescription: Release\ndisable-model-invocation: true\n---\nRelease.\n",
+    );
+    expect((await lint(options)).ok).toBe(true);
+  });
+
   it("aggregates deterministic lint diagnostics", async () => {
     const parent = await mkdtemp(join(tmpdir(), "agent-skills-lint-"));
     ownedDirectories.add(parent);
@@ -188,7 +234,7 @@ describe("render, build, and lint", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.diagnostics.map((item) => item.rule)).toEqual(
-      expect.arrayContaining(["frontmatter-key", "plugin-root-variable", "opencode-name"]),
+      expect.arrayContaining(["frontmatter-key", "plugin-root-variable"]),
     );
   });
 });

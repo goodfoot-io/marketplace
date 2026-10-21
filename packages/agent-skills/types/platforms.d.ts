@@ -8,11 +8,11 @@ export interface PlatformDefinition {
     readonly embeddedBash: PlatformFact<boolean>;
     readonly skillSigil: PlatformFact<string>;
     readonly skillNamespace: PlatformFact<"preserve" | "strip">;
-    readonly skillInvoke: PlatformFact<"tool-block" | "mention" | "prose">;
-    readonly subagents: PlatformFact<"claude" | "codex" | "antigravity">;
-    readonly agentNaming: PlatformFact<"colon" | "flattened">;
+    readonly skillInvoke: PlatformFact<"tool-block" | "mention" | "prose" | "skill-tool">;
+    readonly subagents: PlatformFact<"claude" | "codex" | "opencode" | "antigravity">;
+    readonly agentNaming: PlatformFact<"colon" | "flattened" | "flattened-id">;
     readonly agentSlotSuffix: PlatformFact<"MODEL" | "EFFORT">;
-    readonly worktree: PlatformFact<"tools" | "commands">;
+    readonly worktree: PlatformFact<"tools" | "commands" | "opencode">;
     readonly conventionsFile: PlatformFact<string>;
     readonly hostIdentity: PlatformFact<string>;
     /**
@@ -65,11 +65,11 @@ export declare const PLATFORM_DEFINITIONS: {
         readonly embeddedBash: PlatformFact<boolean>;
         readonly skillSigil: PlatformFact<string>;
         readonly skillNamespace: PlatformFact<"strip">;
-        readonly skillInvoke: PlatformFact<"mention">;
-        readonly subagents: PlatformFact<"codex">;
-        readonly agentNaming: PlatformFact<"flattened">;
-        readonly agentSlotSuffix: PlatformFact<"EFFORT">;
-        readonly worktree: PlatformFact<"commands">;
+        readonly skillInvoke: PlatformFact<"skill-tool">;
+        readonly subagents: PlatformFact<"opencode">;
+        readonly agentNaming: PlatformFact<"flattened-id">;
+        readonly agentSlotSuffix: PlatformFact<"EFFORT" | "MODEL">;
+        readonly worktree: PlatformFact<"opencode">;
         readonly conventionsFile: PlatformFact<string>;
         readonly hostIdentity: PlatformFact<string>;
         readonly hostAgentName: PlatformFact<string>;
@@ -83,9 +83,9 @@ export declare const PLATFORM_DEFINITIONS: {
         readonly skillNamespace: PlatformFact<"strip">;
         readonly skillInvoke: PlatformFact<"prose">;
         readonly subagents: PlatformFact<"antigravity">;
-        readonly agentNaming: PlatformFact<"colon" | "flattened">;
+        readonly agentNaming: PlatformFact<"colon" | "flattened" | "flattened-id">;
         readonly agentSlotSuffix: PlatformFact<"EFFORT" | "MODEL">;
-        readonly worktree: PlatformFact<"commands" | "tools">;
+        readonly worktree: PlatformFact<"commands" | "opencode" | "tools">;
         readonly conventionsFile: PlatformFact<string>;
         readonly hostIdentity: PlatformFact<string>;
         readonly hostAgentName: PlatformFact<string>;

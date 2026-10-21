@@ -10,11 +10,11 @@ export interface PlatformDefinition {
   readonly embeddedBash: PlatformFact<boolean>;
   readonly skillSigil: PlatformFact<string>;
   readonly skillNamespace: PlatformFact<"preserve" | "strip">;
-  readonly skillInvoke: PlatformFact<"tool-block" | "mention" | "prose">;
-  readonly subagents: PlatformFact<"claude" | "codex" | "antigravity">;
-  readonly agentNaming: PlatformFact<"colon" | "flattened">;
+  readonly skillInvoke: PlatformFact<"tool-block" | "mention" | "prose" | "skill-tool">;
+  readonly subagents: PlatformFact<"claude" | "codex" | "opencode" | "antigravity">;
+  readonly agentNaming: PlatformFact<"colon" | "flattened" | "flattened-id">;
   readonly agentSlotSuffix: PlatformFact<"MODEL" | "EFFORT">;
-  readonly worktree: PlatformFact<"tools" | "commands">;
+  readonly worktree: PlatformFact<"tools" | "commands" | "opencode">;
   readonly conventionsFile: PlatformFact<string>;
   readonly hostIdentity: PlatformFact<string>;
   /**
@@ -86,21 +86,29 @@ export const PLATFORM_DEFINITIONS = {
     logicalPaths: logicalPaths("AGENTS.md"),
     frontmatterKeys: verified(["name", "description"]),
   },
+  // OpenCode 2.1.2: https://opencode.ai/v2/docs/tools/ and /skills/.
   opencode: {
     embeddedBash: unavailable(),
-    skillSigil: verified("$"),
+    skillSigil: verified("@"),
     skillNamespace: verified("strip"),
-    skillInvoke: verified("mention"),
-    subagents: verified("codex"),
-    agentNaming: verified("flattened"),
-    agentSlotSuffix: verified("EFFORT"),
-    worktree: verified("commands"),
+    skillInvoke: verified("skill-tool"),
+    subagents: verified("opencode"),
+    agentNaming: verified("flattened-id"),
+    agentSlotSuffix: unavailable(),
+    worktree: verified("opencode"),
     conventionsFile: verified("AGENTS.md"),
     hostIdentity: verified("You are a sub-agent running in OpenCode"),
     hostAgentName: verified("OpenCode"),
     pluginRootVar: unavailable(),
     logicalPaths: logicalPaths("AGENTS.md"),
-    frontmatterKeys: verified(["name", "description"]),
+    frontmatterKeys: verified([
+      "name",
+      "description",
+      "metadata",
+      "disable-model-invocation",
+      "license",
+      "compatibility",
+    ]),
   },
   antigravity: {
     // Neither the official skills nor plugin documentation defines render-time

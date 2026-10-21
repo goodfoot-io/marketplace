@@ -6,7 +6,7 @@ Installing is delivery, not function. Verify both and keep the verdicts separate
 
 Point `HOME`, and `CODEX_HOME` for Codex, at throwaway directories before any install. Host state otherwise leaks between runs and a leftover registration reads as a pass. Create `CODEX_HOME` first: Codex aborts when the directory does not exist.
 
-Isolation is rarely total. Use a throwaway working directory too: Claude still reads project `.claude/settings*.json`, and `opencode plugin <path>` writes `.opencode/opencode.json` under the current project rather than under `HOME`. A Claude install under a throwaway `HOME` still reported a marketplace "declared in user settings" when run from a configured repository, and `claude plugin enable` edited that repository's settings. Run host commands from the throwaway directory, pass source/plugin paths as absolute paths, and confirm what the run actually wrote instead of trusting the sandbox.
+Isolation is rarely total. Use a throwaway working directory too: Claude still reads project `.claude/settings*.json`, and OpenCode reads project `opencode.json(c)` and `.opencode/opencode.json(c)` in addition to global configuration. A Claude install under a throwaway `HOME` still reported a marketplace "declared in user settings" when run from a configured repository, and `claude plugin enable` edited that repository's settings. Run host commands from the throwaway directory, pass source/plugin paths as absolute paths, and confirm what the run actually wrote instead of trusting the sandbox.
 
 ## Route and check per host
 
@@ -14,18 +14,18 @@ Isolation is rarely total. Use a throwaway working directory too: Claude still r
 | --- | --- | --- | --- |
 | Claude Code | `claude plugin marketplace add <root>`, then `claude plugin install <name>@<marketplace>` | `claude plugin details <name>` for inventory; an eval case or `claude -p` for execution | structural / behavioral |
 | Codex | `codex plugin marketplace add <root>`, then `codex plugin add <name>@<marketplace>` | `codex plugin list` | structural |
-| OpenCode | from a throwaway cwd, `opencode plugin <absolute-path>` | `opencode debug skill`, redirected to a file; `opencode run` for execution | structural / behavioral |
+| OpenCode 2 | put the absolute local package path in the throwaway project’s `plugins` array | Import and inspect the V2 plugin descriptor; `opencode run` for execution | structural / behavioral |
 | Antigravity | `agy plugin install <local path or git URL with the in-repo path appended>` | `agy plugin list` | structural |
 
 Codex traps: the subcommand is `add`, never `install`, and `<plugin>@<marketplace>` stays mandatory with a single marketplace configured. Read the plain table, not `--json` — through 0.150.1 the JSON form returns an empty `available` array while the table lists every uninstalled plugin. Installed files land under `$CODEX_HOME/plugins/cache/<marketplace>/<plugin>/<version>/`.
 
-`opencode debug skill` emits whole skill bodies. Redirect it and search the file; piping to `head` truncates the JSON mid-string and reports a present skill as missing. It is the only host command that names everything loaded.
+OpenCode 2 package imports prove descriptor structure; loading a sentinel-bearing skill through the running host proves behavior.
 
 `agy plugin install` prints a per-component processed count and `agy plugin list` reports component kinds, never names. Installed files land in `~/.gemini/config/plugins/<name>/`.
 
 ## Assert on host identities
 
-A directory name, frontmatter `name:`, and host-visible identity can be different strings. Read `name:` from each SKILL.md, then apply the host's namespace rule. Claude Code and Codex can distinguish the same leaf name in different plugins; do not flag their two entries named `cli` as a collision. OpenCode exposes flattened names such as `jsdoczoom-cli` and `claude-code-skill-reader-cli`. Assert against the names the host reports, not directory names or a raw global set of frontmatter values.
+A directory name, frontmatter `name:`, and host-visible identity can be different strings. Apply each host’s namespace and registration rules. Claude Code and Codex can distinguish the same leaf name in different plugins; do not flag their two entries named `cli` as a collision. OpenCode 2 native discovery derives IDs from paths; its frontmatter `name` is only a display label. These plugins explicitly register IDs such as `jsdoczoom-cli` and `claude-code-skill-reader-cli`. Assert against the names the host reports, not directory names or a raw global set of frontmatter values.
 
 ## Count occurrences
 
@@ -33,7 +33,7 @@ Two registered roots serving one host identity collide, and a duplicate satisfie
 
 ## A/B every causal claim
 
-A patched install that succeeds does not show the patch caused it. Run the unpatched copy at the same version in the same harness, alternate the order, and repeat each arm. Two confidently reported findings dissolved under that treatment — a supposed `./` prefix loading failure, and a supposed suppression of global discovery by `config.skills.paths`. Both were single-run artifacts.
+A patched install that succeeds does not show the patch caused it. Run the unpatched copy at the same version in the same harness, alternate the order, and repeat each arm. Repeat any claimed discovery failure under isolation before reporting it as a host limitation.
 
 ## Label the result
 

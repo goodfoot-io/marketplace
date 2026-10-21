@@ -8,40 +8,47 @@
  * is CARD.md's Desired Functionality section (committed to the card
  * repository): "Advisory callbacks can opt into guarded fail-open behavior
  * with observable diagnostics; policy-enforcing callbacks default to
- * surfacing failures." `events.ts` names `permission.ask` as the sole
+ * surfacing failures." `events.ts` names `permission.evaluate` as the sole
  * policy-enforcing callback — the only one whose output is an allow/deny
  * security decision. This file is the second, independent transcription of
  * that same derivation, written directly below rather than imported.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { ADVISORY_EVENTS, OPENCODE_HOOK_NAMES, POLICY_ENFORCING_EVENTS } from "../../../src/agents/opencode/index.js";
 
 /** Second independent transcription of the CARD.md-derived split. */
-const TEST_POLICY_ENFORCING: readonly string[] = ["permission.ask"];
+const TEST_POLICY_ENFORCING: readonly string[] = ["permission.evaluate"];
 const TEST_ADVISORY: readonly string[] = [
-  "event",
-  "config",
-  "chat.message",
-  "chat.params",
-  "chat.headers",
-  "command.execute.before",
+  "aisdk.sdk",
+  "aisdk.language",
+  "session.prompt",
+  "session.context",
+  "session.compaction",
+  "session.generate",
+  "session.title",
+  "session.model.request",
+  "session.http.request",
+  "session.http.response",
+  "session.experimental.ws.handshake",
+  "session.experimental.ws.send",
+  "session.experimental.ws.receive",
+  "session.retry",
+  "shell.create.before",
   "tool.execute.before",
-  "shell.env",
   "tool.execute.after",
-  "experimental.chat.messages.transform",
-  "experimental.chat.system.transform",
-  "experimental.provider.small_model",
-  "experimental.session.compacting",
-  "experimental.compaction.autocontinue",
-  "experimental.text.complete",
-  "tool.definition",
 ];
 
 describe("opencode advisory/policy-enforcing split derivation", () => {
-  it("OPENCODE_HOOK_NAMES holds exactly 17 unique entries", () => {
-    expect(OPENCODE_HOOK_NAMES).toHaveLength(17);
-    expect(new Set(OPENCODE_HOOK_NAMES).size).toBe(17);
+  it("enumerates every native callback represented in Hooks", () => {
+    type Surface = typeof import("../../../src/agents/opencode/index.js");
+    type HookMap = import("../../../src/agents/opencode/index.js").Hooks;
+    expectTypeOf<Exclude<keyof HookMap, Surface["OPENCODE_HOOK_NAMES"][number]>>().toEqualTypeOf<never>();
+  });
+
+  it("OPENCODE_HOOK_NAMES holds exactly 18 unique entries", () => {
+    expect(OPENCODE_HOOK_NAMES).toHaveLength(18);
+    expect(new Set(OPENCODE_HOOK_NAMES).size).toBe(18);
   });
 
   it("POLICY_ENFORCING_EVENTS equals the second transcription of the CARD.md-derived set", () => {

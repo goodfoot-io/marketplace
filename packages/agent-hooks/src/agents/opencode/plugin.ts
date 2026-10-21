@@ -1,36 +1,17 @@
-/**
- * Plugin authoring primitives for `@goodfoot/agent-hooks/opencode`.
- *
- * `defineOpenCodePlugin` validates the `{ id, server }` module contract that
- * OpenCode's real loader (`getServerPlugin`, verified live against
- * `sst/opencode`'s `packages/opencode/src/plugin/index.ts`) accepts as a
- * default export. `createRootSessionRegistry` and `guardAdvisory` are
- * optional composition helpers a `server` factory may call — not a required
- * framework, since a plugin author can also return a raw {@link Hooks}
- * object built directly from `./types.js`.
- * @module
- */
-
+/** OpenCode V2 plugin authoring helpers. @module */
 import type { AdvisoryEventName } from "./events.js";
 import { applyOpenCodeErrorPolicy, type UnexpectedErrorHandler, type UnexpectedErrorPolicy } from "./policy.js";
-import type { OpenCodeHookHandler, Plugin, PluginInput, PluginModule } from "./types.js";
+import type { OpenCodeHookHandler, PluginInput, PluginModule } from "./types.js";
 
-/**
- * Validates and returns an OpenCode plugin module definition.
- *
- * @param definition - `id` must be a non-empty string; `server` must be a
- * function matching upstream's {@link Plugin} signature.
- * @returns `definition`, unchanged, once validated.
- * @throws Error when `id` is missing/empty or `server` is not a function.
- */
-export function defineOpenCodePlugin(definition: { id: string; server: Plugin }): PluginModule {
-  if (typeof definition.id !== "string" || definition.id.length === 0) {
-    throw new Error(`defineOpenCodePlugin: "id" must be a non-empty string, got ${JSON.stringify(definition.id)}`);
+/** Validates a V2 plugin definition before OpenCode loads it. */
+export function defineOpenCodePlugin(definition: PluginModule): PluginModule {
+  if (typeof definition.id !== "string" || definition.id.trim().length === 0) {
+    throw new Error('defineOpenCodePlugin: "id" must be a non-empty string');
   }
-  if (typeof definition.server !== "function") {
-    throw new Error(`defineOpenCodePlugin: "server" must be a function, got ${typeof definition.server}`);
+  if (typeof definition.setup !== "function") {
+    throw new Error('defineOpenCodePlugin: "setup" must be a function');
   }
-  return { id: definition.id, server: definition.server };
+  return definition;
 }
 
 /**
@@ -120,7 +101,7 @@ export function guardAdvisory<TName extends AdvisoryEventName>(
 ): OpenCodeHookHandler<TName> {
   return applyOpenCodeErrorPolicy(
     name,
-    handler as (...args: unknown[]) => Promise<void>,
+    handler as (...args: unknown[]) => Promise<void> | void,
     policy,
     onError,
   ) as OpenCodeHookHandler<TName>;

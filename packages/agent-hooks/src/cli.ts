@@ -150,7 +150,7 @@ interface HooksMeta {
 // Constants
 // ============================================================================
 
-const VERSION = "1.0.12";
+const VERSION = "1.0.13";
 /** Filename of the tracking sidecar written beside hooks.json. */
 const HOOKS_META_FILENAME = "hooks.meta.json";
 const DEFAULT_ESBUILD_LOADERS: HookLoaderMap = {
