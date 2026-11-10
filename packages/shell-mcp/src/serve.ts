@@ -3,12 +3,11 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { toNodeHandler } from "@modelcontextprotocol/node";
-import { createMcpHandler } from "@modelcontextprotocol/server";
 import { DEFAULT_LIMITS, LISTEN_HOST, MCP_PATH, type ServerConfig } from "./config.js";
 import { IsolatedLogger, type Logger } from "./logging/logger.js";
 import { captureStartupWarnings } from "./logging/sdk-diagnostics.js";
 import { ProcessManager } from "./process-manager.js";
+import { createMcpHandler, toNodeHandler } from "./sdk.js";
 import { createServer } from "./server.js";
 
 export interface ReadyFile {

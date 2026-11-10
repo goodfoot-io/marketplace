@@ -1,9 +1,10 @@
 /** MCP registration for the complete five-tool managed-shell surface. */
-import { McpServer, type StandardSchemaWithJSON } from "@modelcontextprotocol/server";
+import type { StandardSchemaWithJSON } from "@modelcontextprotocol/server";
 import manifest from "../package.json" with { type: "json" };
 import { descriptions, inputs, outputSchema, type ToolName } from "./contracts.js";
 import { DomainError } from "./errors.js";
 import type { ProcessManager } from "./process-manager.js";
+import { McpServer } from "./sdk.js";
 
 export const SERVER_NAME = "shell-mcp";
 /**

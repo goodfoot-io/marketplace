@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/shell-mcp",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "sideEffects": false,
   "description": "Remote managed Bash MCP server over Streamable HTTP, reached through an OpenAI Secure MCP Tunnel.",
@@ -40,15 +40,15 @@
     "release:dry-run": "bash ../../scripts/release-package.sh shell-mcp --dry-run"
   },
   "dependencies": {
-    "@modelcontextprotocol/node": "2.0.0",
-    "@modelcontextprotocol/server": "2.0.0",
+    "@modelcontextprotocol/node": "2.1.2",
+    "@modelcontextprotocol/server": "2.4.0",
     "hono": "4.13.8",
     "zod": "4.6.5"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
     "@goodfoot/vitest-cache": "workspace:*",
-    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/client": "2.4.0",
     "@types/node": "^26.6.5",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.13",

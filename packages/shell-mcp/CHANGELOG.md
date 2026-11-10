@@ -1,6 +1,8 @@
 # @goodfoot/shell-mcp npm package changelog
 
-## Unreleased
+## 1.0.5
+- Load the MCP SDK through its CommonJS exports so an incomplete npx installation missing the server ESM entry can still start
+- Update the MCP server and client to 2.4.0 and Node adapter to 2.1.2
 - Bounded operation identity retention to 64 recent sessions, evicting the oldest fully completed session under admission pressure instead of permanently refusing new commands after a lifetime limit
 - Reclaimed evicted transcripts and write acknowledgements as one session unit, while protecting active work and in-flight observations
 - Made process-list pagination stable when earlier completed sessions are evicted
