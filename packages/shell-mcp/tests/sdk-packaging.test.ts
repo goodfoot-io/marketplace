@@ -9,13 +9,13 @@ import { expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 
-function packageDirectory(name: string): string {
-  let directory = dirname(require.resolve(name));
+function packageDirectory(name: string, resolveFrom = require): string {
+  let directory = dirname(resolveFrom.resolve(name));
   while (!existsSync(join(directory, "package.json"))) directory = dirname(directory);
   return directory;
 }
 
-it("loads the server when the SDK archive has CJS but lacks its advertised ESM entry", async () => {
+it("loads the server when an incomplete SDK installation has CJS but lacks its advertised ESM entry", async () => {
   const scratch = mkdtempSync(join(tmpdir(), "shell-mcp-sdk-packaging-"));
   try {
     const modules = join(scratch, "node_modules");
@@ -24,14 +24,21 @@ it("loads the server when the SDK archive has CJS but lacks its advertised ESM e
       mkdirSync(dirname(target), { recursive: true });
       cpSync(packageDirectory(name), target, { recursive: true });
     }
-    for (const name of ["@modelcontextprotocol/core", "@hono/node-server", "hono", "zod"]) {
+    const serverRequire = createRequire(join(packageDirectory("@modelcontextprotocol/server"), "package.json"));
+    const nodeRequire = createRequire(join(packageDirectory("@modelcontextprotocol/node"), "package.json"));
+    for (const [name, resolveFrom] of [
+      ["@modelcontextprotocol/core", serverRequire],
+      ["@hono/node-server", nodeRequire],
+      ["hono", nodeRequire],
+      ["zod", serverRequire],
+    ] as const) {
       const target = join(modules, name);
       mkdirSync(dirname(target), { recursive: true });
-      symlinkSync(packageDirectory(name), target, "dir");
+      symlinkSync(packageDirectory(name, resolveFrom), target, "dir");
     }
     const server = join(modules, "@modelcontextprotocol/server");
     const manifest = JSON.parse(readFileSync(join(server, "package.json"), "utf8"));
-    // Reproduce the published SDK archive without touching the installed SDK.
+    // Reproduce an incomplete SDK installation without touching the installed SDK.
     rmSync(join(server, manifest.exports["."].import.default), { force: true });
     expect(existsSync(join(server, manifest.exports["."].require.default))).toBe(true);
 
