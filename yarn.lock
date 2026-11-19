@@ -2587,7 +2587,7 @@ __metadata:
     "@opencode/plugin":
       optional: true
   bin:
-    agent-hooks: ./dist/cli.js
+    agent-hooks: dist/cli.js
   languageName: unknown
   linkType: soft
 

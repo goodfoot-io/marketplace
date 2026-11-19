@@ -1,6 +1,6 @@
 {
   "name": "@goodfoot/agent-hooks",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "Unified agent hooks library: shared core runtime with per-agent entry points for Claude Code, Codex, Antigravity, OpenCode, and Cursor",
   "homepage": "https://github.com/goodfoot-io/marketplace/tree/main/packages/agent-hooks",
   "repository": {
@@ -25,7 +25,8 @@
     "lint": "biome check --write --unsafe --max-diagnostics 500 ./src ./tests ./e2e ./scripts ./vitest.config.ts && node ./scripts/check-stale-imports.mjs",
     "test": "node ./scripts/check-stale-imports.mjs && node ./scripts/check-agent-duplication.mjs && vitest run",
     "release": "bash ../../scripts/release-package.sh agent-hooks",
-    "release:dry-run": "bash ../../scripts/release-package.sh agent-hooks --dry-run"
+    "release:dry-run": "bash ../../scripts/release-package.sh agent-hooks --dry-run",
+    "prepublishOnly": "node scripts/prepare-publish.mjs"
   },
   "exports": {
     ".": {
@@ -53,9 +54,7 @@
       "types": "./types/agents/cursor/index.d.ts"
     }
   },
-  "bin": {
-    "agent-hooks": "dist/cli.js"
-  },
+  "bin": "dist/cli.js",
   "dependencies": {
     "esbuild": "^0.28.2",
     "glob": "^11.0.0",

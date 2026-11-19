@@ -116,12 +116,24 @@ describe("root-export lint", () => {
 });
 
 describe("publish manifest", () => {
-  it("declares the CLI without npm normalization or unsupported publishConfig overrides", () => {
+  it("keeps the workspace lockfile CLI entry aligned with the package manifest", () => {
     const pkg = JSON.parse(readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf8")) as {
-      bin: Record<string, string>;
+      bin: string | Record<string, string>;
+    };
+    const lockfile = readFileSync(resolve(PACKAGE_ROOT, "../../yarn.lock"), "utf8");
+    const entry = lockfile.split("\n\n").find((block) => block.startsWith('"@goodfoot/agent-hooks@workspace:'));
+    expect(entry).toBeDefined();
+    const target = typeof pkg.bin === "string" ? pkg.bin : pkg.bin["agent-hooks"];
+    expect(entry).toContain(`  bin:\n    agent-hooks: ${target}\n`);
+  });
+
+  it("declares the canonical CLI target without unsupported publishConfig overrides", () => {
+    const pkg = JSON.parse(readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf8")) as {
+      bin: string | Record<string, string>;
       publishConfig?: { bin?: unknown };
     };
-    expect(pkg.bin).toStrictEqual({ "agent-hooks": "dist/cli.js" });
+    const target = typeof pkg.bin === "string" ? pkg.bin : pkg.bin["agent-hooks"];
+    expect(target).toBe("dist/cli.js");
     expect(pkg.publishConfig?.bin).toBeUndefined();
   });
 });

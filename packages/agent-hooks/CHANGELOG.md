@@ -1,5 +1,9 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.17
+
+Synchronizes the workspace lockfile with the normalized CLI entry point so immutable installs succeed. Performs npm-specific bin-map normalization in a publication-only hook because Yarn rewrites single-command maps during installation. Adds regression coverage for manifest/lockfile consistency and publication metadata. Includes Cursor support; 1.0.16 was blocked by CI before npm publication.
+
 ## 1.0.16
 
 Normalizes the CLI `bin` map and removes the unsupported `publishConfig.bin` override, eliminating npm publication warnings without changing the installed command. Adds a regression check for the published CLI manifest. Includes the Cursor target introduced in 1.0.15.
