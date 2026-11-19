@@ -20,18 +20,15 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
-import * as esbuild from "esbuild";
+import type * as esbuild from "esbuild";
 import ts from "typescript";
 import {
   buildEsbuildLoaderMap,
   discoverHookSourceFiles,
-  moduleWorkingDir,
   parseEsbuildLoaderFlag,
   pruneStaleHashedBundles,
-  sha256Prefix8,
-  symlinkVisiblePath,
 } from "../../cli.js";
+import { compileHookBundle } from "../../cli-bundle.js";
 import { DEFAULT_TIMEOUT_SECONDS, GROUPED_EVENTS, HOOK_FACTORY_TO_EVENT } from "./constants.js";
 import { HOOK_EVENT_NAMES } from "./events.js";
 import type { HookEventName } from "./types.js";
@@ -165,47 +162,7 @@ export async function compileAntigravityHook(
   loaders: Record<string, esbuild.Loader>,
   sourcemap: boolean = false,
 ): Promise<{ content: string; contentHash: string }> {
-  const resolveDir = path.dirname(sourcePath);
-  const runtimeAbsolute = symlinkVisiblePath(
-    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./transport.js"),
-    resolveDir,
-  );
-  const absWorkingDir = moduleWorkingDir(runtimeAbsolute, resolveDir);
-  const runtimeRelative = path.relative(resolveDir, runtimeAbsolute).replace(/\\/g, "/");
-  const runtimeSpecifier = runtimeRelative.startsWith(".") ? runtimeRelative : `./${runtimeRelative}`;
-  const entry = [
-    `import hook from ${JSON.stringify(`./${path.basename(sourcePath)}`)};`,
-    `import { execute } from ${JSON.stringify(runtimeSpecifier)};`,
-    `execute(hook);`,
-    ``,
-  ].join("\n");
-
-  const built = await esbuild.build({
-    absWorkingDir,
-    stdin: {
-      contents: entry,
-      resolveDir,
-      sourcefile: `${path.basename(sourcePath, path.extname(sourcePath))}-entry.ts`,
-      loader: "ts",
-    },
-    loader: loaders,
-    format: "esm",
-    platform: "node",
-    target: "node20",
-    bundle: true,
-    sourcemap: sourcemap ? "inline" : false,
-    write: false,
-    external: ["node:*", "fs", "path", "os", "crypto", "module", "url"],
-    mainFields: ["module", "main"],
-    conditions: ["import", "node"],
-    preserveSymlinks: true,
-  });
-
-  const content = built.outputFiles?.[0]?.text;
-  if (content === undefined) {
-    throw new Error(`esbuild produced no output for ${sourcePath}`);
-  }
-  return { content, contentHash: sha256Prefix8(content) };
+  return compileHookBundle(sourcePath, new URL("./transport.js", import.meta.url), loaders, sourcemap);
 }
 
 /**

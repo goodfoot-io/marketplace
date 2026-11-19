@@ -1,5 +1,13 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.15
+
+Adds the `@goodfoot/agent-hooks/cursor` entry point and `--agent cursor` compiler target for `sessionStart`, `preToolUse`, `postToolUse`, `beforeSubmitPrompt`, `stop`, and `subagentStop`. Includes typed native inputs and output builders, plugin scaffolding, flat versioned manifests, and milliseconds-to-seconds timeout conversion.
+
+Detects `.cursor-plugin/` and defaults plugin output to `hooks/hooks.json`. Generated commands handle the separate plugin-root and workspace-root working directories, including relocated installations. Permission hooks default to host-enforced `failClosed: true`; invalid or computed build configuration is rejected rather than silently losing safety settings. Session-start hooks remain separate commands without invented matchers.
+
+Reuses the shared runtime and an extracted ESM bundler, with subprocess, manifest, type, scaffold, relocation, and regression coverage. Documents the six-event scope and POSIX shell command requirement.
+
 ## 1.0.14
 
 Compiles each OpenCode source into an installable plugin directory containing `package.json` and `index.js`. OpenCode 2.1.2 rejects the previous bare `.mjs` configuration paths. Generated packages support discovery under `.opencode/plugins/` and explicit directory entries in `plugins`.

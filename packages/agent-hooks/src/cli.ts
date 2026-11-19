@@ -43,7 +43,7 @@ type HookContext = "plugin" | "agent";
  * Command-line arguments parsed from process.argv.
  */
 interface CliArgs {
-  /** Target agent runtime (required): "claude-code" | "codex" | "antigravity" | "opencode". */
+  /** Target agent runtime (required): "claude-code" | "codex" | "antigravity" | "opencode" | "cursor". */
   agent: string;
   /** Glob pattern for hook source files. */
   input: string;
@@ -150,7 +150,7 @@ interface HooksMeta {
 // Constants
 // ============================================================================
 
-const VERSION = "1.0.14";
+const VERSION = "1.0.15";
 /** Filename of the tracking sidecar written beside hooks.json. */
 const HOOKS_META_FILENAME = "hooks.meta.json";
 const DEFAULT_ESBUILD_LOADERS: HookLoaderMap = {
@@ -174,7 +174,7 @@ const VALID_ESBUILD_LOADERS: readonly esbuild.Loader[] = [
 ];
 
 const HELP_TEXT = `
-@goodfoot/agent-hooks - Type-safe, compiled hooks for Claude Code, Codex, and Antigravity
+@goodfoot/agent-hooks - Type-safe, compiled hooks for Claude Code, Codex, Antigravity, OpenCode, and Cursor
 
 Description:
   This tool acts as a build system for agent hooks. It scans your TypeScript files for
@@ -192,7 +192,7 @@ Usage:
                             under a .codex/ directory use git-toplevel-relative commands.
 
 Required Arguments:
-  --agent <claude-code|codex|antigravity|opencode>
+  --agent <claude-code|codex|antigravity|opencode|cursor>
       The agent runtime the hooks are built for. Determines the hook surface
       validated at build time and the runtime module linked into each compiled
       bundle. There is no default: omitting this flag is an error.
@@ -202,6 +202,8 @@ Required Arguments:
       plugin root; bundles are written to a bin/ directory beside it and the
       generated commands are relative to the manifest, which is the working
       directory Antigravity runs each handler in.
+      With --agent cursor, a .cursor-plugin/ marker enables portable plugin commands
+      and defaults -o to <plugin-root>/hooks/hooks.json. Project hooks use .cursor/hooks.json.
       Example: --agent claude-code
 
 Build Mode (compile existing hooks):
@@ -227,6 +229,8 @@ Scaffold Mode (create new hook project):
                    SubagentStart, SubagentStop, PreCompact, PermissionRequest
       With --agent antigravity the valid types are: PreToolUse, PostToolUse,
                    PreInvocation, PostInvocation, Stop
+      With --agent cursor the valid types are: sessionStart, preToolUse, postToolUse,
+                   beforeSubmitPrompt, stop, subagentStop (case-insensitive).
       Example: --hooks Stop,SubagentStop,PreToolUse
 
   -o, --output <path>
@@ -472,13 +476,13 @@ function validateArgs(args: CliArgs): string | undefined {
   // --agent is required and never inferred (plan step 2.3). Validate the
   // value against the agents this release knows, so a typo fails closed
   // instead of silently building for the wrong runtime.
-  const VALID_AGENTS = ["claude-code", "codex", "antigravity", "opencode"] as const;
+  const VALID_AGENTS = ["claude-code", "codex", "antigravity", "opencode", "cursor"] as const;
   type ValidAgent = (typeof VALID_AGENTS)[number];
   const isKnownAgent = (value: string): value is ValidAgent => (VALID_AGENTS as readonly string[]).includes(value);
 
   if (!isKnownAgent(args.agent)) {
     return args.agent === ""
-      ? "Missing required argument: --agent <claude-code|codex|antigravity|opencode>"
+      ? "Missing required argument: --agent <claude-code|codex|antigravity|opencode|cursor>"
       : `Invalid --agent value: ${args.agent}. Valid agents: ${VALID_AGENTS.join(", ")}`;
   }
 
@@ -487,7 +491,7 @@ function validateArgs(args: CliArgs): string | undefined {
     if (args.hooks === undefined || args.hooks === "") {
       return "Scaffold mode requires --hooks argument (comma-separated hook types)";
     }
-    if (args.output === "") {
+    if (args.output === "" && args.agent !== "cursor") {
       return "Scaffold mode requires -o/--output argument (path for generated hooks.json)";
     }
     // In scaffold mode, --input is not required
@@ -503,7 +507,7 @@ function validateArgs(args: CliArgs): string | undefined {
     return "Missing required argument: -i/--input <glob>";
   }
 
-  if (args.output === "") {
+  if (args.output === "" && args.agent !== "cursor") {
     return "Missing required argument: -o/--output <path>";
   }
 
@@ -1611,6 +1615,20 @@ async function main(): Promise<void> {
     process.stderr.write(`Error: ${validationError}\n\n`);
     process.stdout.write(HELP_TEXT);
     process.exit(1);
+  }
+
+  if (args.agent === "cursor") {
+    try {
+      const { runCursorCli } = await import("./agents/cursor/cli-support.js");
+      const result = await runCursorCli({ ...args, loaderFlags: args.loaderFlags ?? [] });
+      process.stdout.write(`Generated ${result.outputPath} with ${result.count} Cursor hook(s)\n`);
+      process.exit(0);
+    } catch (error) {
+      process.stderr.write(`Error: ${error instanceof Error ? error.message : String(error)}\n`);
+      process.exit(1);
+    } finally {
+      closeLog();
+    }
   }
 
   // Codex parity (plan step 3): its own AST analysis (statusMessage-aware),

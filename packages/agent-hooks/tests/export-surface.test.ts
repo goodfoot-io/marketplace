@@ -73,7 +73,14 @@ describe("root-export lint", () => {
     const pkg = JSON.parse(readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf-8")) as PackageExportsFixture;
     // Every agent surface gets an explicit subpath in the step its target
     // files first exist. The list stays closed — no "./*" wildcard, ever.
-    expect(Object.keys(pkg.exports)).toStrictEqual([".", "./claude-code", "./codex", "./opencode", "./antigravity"]);
+    expect(Object.keys(pkg.exports)).toStrictEqual([
+      ".",
+      "./claude-code",
+      "./codex",
+      "./opencode",
+      "./antigravity",
+      "./cursor",
+    ]);
     expect(pkg.exports["."]).toStrictEqual({
       import: "./dist/index.js",
       types: "./types/index.d.ts",
@@ -93,6 +100,10 @@ describe("root-export lint", () => {
     expect(pkg.exports["./antigravity"]).toStrictEqual({
       import: "./dist/agents/antigravity/index.js",
       types: "./types/agents/antigravity/index.d.ts",
+    });
+    expect(pkg.exports["./cursor"]).toStrictEqual({
+      import: "./dist/agents/cursor/index.js",
+      types: "./types/agents/cursor/index.d.ts",
     });
     expect(() => assertClosedExportMap(pkg.exports)).not.toThrow();
   });

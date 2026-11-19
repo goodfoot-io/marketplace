@@ -8,15 +8,17 @@ Compiled bundles omit inline sourcemaps by default. Pass `--sourcemap` when orig
 `@goodfoot/codex-hooks`: a shared agent-neutral core (hook factory primitive, transport
 driver, `Logger`, env/stdin utilities) with a per-agent entry point on top. Write
 TypeScript hooks, compile them with the bundled CLI, and run the resulting
-self-contained executables under Claude Code, Codex, OpenCode, or Antigravity.
+self-contained executables under Claude Code, Codex, OpenCode, Antigravity, or Cursor.
 
-**Status: `1.0.8`.** Four host entry points ship: `@goodfoot/agent-hooks/claude-code`
+**Five host entry points ship:** `@goodfoot/agent-hooks/claude-code`
 (full parity with `@goodfoot/claude-code-hooks`), `@goodfoot/agent-hooks/codex` (full
 parity with `@goodfoot/codex-hooks`), `@goodfoot/agent-hooks/opencode` (native support
 for OpenCode's in-process plugin model — see [OpenCode](#opencode) below), and
 `@goodfoot/agent-hooks/antigravity` (five typed events, host-native output builders,
 manifest generation, scaffolding, and an exit-0 payload transport). The Antigravity
 surface is pinned to and behaviorally verified against `agy` 1.1.22.
+`@goodfoot/agent-hooks/cursor` provides six native hook events, flat versioned manifests,
+plugin scaffolding, and portable plugin commands (see [Cursor](#cursor)).
 
 ## Install
 
@@ -420,3 +422,66 @@ yarn workspace @goodfoot/agent-hooks run build
 yarn workspace @goodfoot/agent-hooks run lint
 yarn workspace @goodfoot/agent-hooks run test
 ```
+
+## Cursor
+
+Import from `@goodfoot/agent-hooks/cursor` and select `--agent cursor` explicitly.
+The initial surface includes `sessionStart`, `postToolUse`, `preToolUse`,
+`beforeSubmitPrompt`, `stop`, and `subagentStop` (not the full Cursor hook catalog).
+
+```typescript
+import { sessionStartHook, sessionStartOutput } from '@goodfoot/agent-hooks/cursor';
+
+export default sessionStartHook({}, () => sessionStartOutput({
+  additionalContext: 'Run the relevant checks before reporting completion.',
+  env: { PROJECT_MODE: 'development' },
+}));
+```
+
+```typescript
+import { postToolUseHook, postToolUseOutput } from '@goodfoot/agent-hooks/cursor';
+
+export default postToolUseHook({ matcher: 'Shell', timeout: 4500 }, () =>
+  postToolUseOutput({ additionalContext: 'Review the command result before proceeding.' }),
+);
+```
+
+From a plugin with a `.cursor-plugin/` marker, no output flag is needed:
+
+```bash
+yarn agent-hooks --agent cursor -i 'src/**/*.ts'
+# Writes hooks/hooks.json and hooks/bin/*.mjs at the plugin root.
+
+# Project-level hooks:
+yarn agent-hooks --agent cursor -i 'src/**/*.ts' -o .cursor/hooks.json
+
+# Complete plugin scaffold (event names are case-insensitive):
+yarn agent-hooks --agent cursor --scaffold ./my-cursor-hooks \
+  --hooks sessionStart,postToolUse,preToolUse,beforeSubmitPrompt,stop,subagentStop
+```
+
+Factories use millisecond timeouts; the manifest converts them to whole seconds.
+Permission-bearing `preToolUse` and `beforeSubmitPrompt` default to `failClosed: true`.
+Only advisory `sessionStart` and `postToolUse` accept `unexpectedError: 'continue'`.
+Configuration must be an inline object with literal metadata; the compiler rejects
+computed settings rather than silently dropping safety options.
+
+Outputs use camelCase builder options and native snake_case JSON. Use
+`preToolUseOutput({ permission: 'deny', userMessage: 'Reason' })` to block a tool;
+`beforeSubmitPromptOutput({ continue: false, userMessage: 'Reason' })` to block a
+prompt; and `stopOutput({ followupMessage: 'Finish the checks.' })` for a follow-up.
+`loopLimit` belongs in the stop/subagentStop factory config (default 5 in Cursor,
+`null` for unlimited). `ask` is deliberately unsupported because Cursor does not
+enforce that permission decision. Prompt submission cannot inject context.
+
+Session initialization is fire-and-forget and has no matcher. Multiple sessionStart
+hooks are emitted as separate commands, without synthetic matchers. Post-tool replies
+can replace MCP results via `updatedMcpToolOutput`; Cursor's cloud HTTP MCP restrictions
+still apply. Input `tool_output` is a JSON string, not parsed output.
+
+Ordinary plugin hooks run from the installed plugin root. Stop/subagentStop run from
+the workspace root, so generated commands use shell-expanded `CURSOR_PLUGIN_ROOT`
+and fail if it is absent. Plugin bundles use stable names by default. Generated
+commands use POSIX shell quoting; PowerShell command generation is not implemented.
+The default manifest is **`hooks/hooks.json`**, not `.cursor-plugin/hooks.json`.
+See [the pinned contract](src/agents/cursor/CONTRACT.md) for source references and limitations.
