@@ -1,6 +1,11 @@
 {
   "name": "@goodfoot/test-utilities",
-  "version": "1.0.4",
+  "version": "1.0.5",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodfoot-io/marketplace.git",
+    "directory": "packages/test-utilities"
+  },
   "sideEffects": false,
   "type": "module",
   "scripts": {
