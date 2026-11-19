@@ -114,3 +114,14 @@ describe("root-export lint", () => {
     expect(() => assertClosedExportMap(leaky)).toThrow(/wildcard/);
   });
 });
+
+describe("publish manifest", () => {
+  it("declares the CLI without npm normalization or unsupported publishConfig overrides", () => {
+    const pkg = JSON.parse(readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf8")) as {
+      bin: Record<string, string>;
+      publishConfig?: { bin?: unknown };
+    };
+    expect(pkg.bin).toStrictEqual({ "agent-hooks": "dist/cli.js" });
+    expect(pkg.publishConfig?.bin).toBeUndefined();
+  });
+});

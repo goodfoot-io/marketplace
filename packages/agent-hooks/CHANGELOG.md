@@ -1,5 +1,9 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.16
+
+Normalizes the CLI `bin` map and removes the unsupported `publishConfig.bin` override, eliminating npm publication warnings without changing the installed command. Adds a regression check for the published CLI manifest. Includes the Cursor target introduced in 1.0.15.
+
 ## 1.0.15
 
 Adds the `@goodfoot/agent-hooks/cursor` entry point and `--agent cursor` compiler target for `sessionStart`, `preToolUse`, `postToolUse`, `beforeSubmitPrompt`, `stop`, and `subagentStop`. Includes typed native inputs and output builders, plugin scaffolding, flat versioned manifests, and milliseconds-to-seconds timeout conversion.
