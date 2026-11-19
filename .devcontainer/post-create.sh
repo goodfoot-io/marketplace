@@ -15,8 +15,8 @@ if ! pgrep -x "dbus-daemon" > /dev/null; then
     sudo mkdir -p /run/dbus /var/run/dbus
     sudo chmod 755 /run/dbus /var/run/dbus
 
-    # Start system dbus daemon
-    sudo dbus-daemon --system --fork
+    # Container snapshots/restarts can retain stale PID files; use process checks instead.
+    sudo dbus-daemon --system --fork --nopidfile
 
     # Wait for socket to be created
     sleep 1

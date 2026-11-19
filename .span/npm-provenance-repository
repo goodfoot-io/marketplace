@@ -1,0 +1,5 @@
+.github/workflows/publish-npm-package.yml#L211-L218 rk64:dff32077630404cf
+packages/test-utilities/package.json#L4-L8 rk64:0575e34eac2eec0b
+packages/vitest-cache/package.json#L74-L78 rk64:a01961c279abd207
+
+For npm provenance, each published package's repository URL identifies the GitHub repository that runs the publish workflow, and its repository directory identifies the package within that checkout. npm separately authorizes the workflow to publish each package even when provenance signing succeeds.
