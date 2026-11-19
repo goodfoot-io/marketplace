@@ -31,6 +31,21 @@ else
     echo "✓ System dbus daemon already running"
 fi
 
+# --- Linear CLI (linctl) auth --------------------------------------------------
+# linctl (built in the Dockerfile) uses a real Linear personal API key here —
+# unlike the milesrowan container, the devcontainer does not go through OneCLI.
+# The key is LINCTL_API_KEY in the gitignored .devcontainer/.env, which
+# docker-compose.yml loads via env_file. `linctl auth status` exits 0 even when
+# unauthenticated, so match its output instead. Report-only: a missing key must
+# not block container creation.
+if command -v linctl >/dev/null 2>&1; then
+  if LINCTL_SKIP_AUTO_MCP_SYNC=1 linctl auth status 2>&1 | grep -q 'Not authenticated'; then
+    echo "⚠ linctl is not authenticated — set LINCTL_API_KEY in .devcontainer/.env (Linear → Settings → API → Personal API keys) and rebuild"
+  else
+    echo "✓ linctl authenticated"
+  fi
+fi
+
 # Create X11 unix directory with proper permissions for Xvfb
 sudo mkdir -p /tmp/.X11-unix
 sudo chmod 1777 /tmp/.X11-unix
