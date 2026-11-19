@@ -66,6 +66,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { CLI_SPAWN_TIMEOUT_MS } from "./helpers/cli-timeouts.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -196,7 +197,7 @@ describe("compileHook install-topology reproducibility", () => {
       {
         cwd: checkoutDir,
         encoding: "utf-8",
-        timeout: 45000,
+        timeout: CLI_SPAWN_TIMEOUT_MS,
       },
     );
     if (result.status !== 0) {
@@ -252,7 +253,7 @@ describe("compileHook install-topology reproducibility", () => {
     // module order, collision suffixes, module-boundary comments, and
     // sourcesContent — must be independent of install topology.
     expect(checkoutDContent).toBe(checkoutSContent);
-  }, 60000);
+  });
 
   it("produces byte-identical output when the package is symlinked out of node_modules into the checkout's own source tree", () => {
     const { checkoutSContent, checkoutEContent } = compileFromEveryTopology();
@@ -266,7 +267,7 @@ describe("compileHook install-topology reproducibility", () => {
     // the checkout is nested. The output must match the single-path topology
     // byte for byte.
     expect(checkoutEContent).toBe(checkoutSContent);
-  }, 60000);
+  });
 
   it("anchors the single-path wrapper's runtime import inside the checkout's node_modules", () => {
     const { checkoutSContent } = compileFromEveryTopology();
@@ -281,7 +282,7 @@ describe("compileHook install-topology reproducibility", () => {
     expect(entryWrapper).toContain(
       `import { execute } from './node_modules/@goodfoot/agent-hooks/src/agents/claude-code/transport`,
     );
-  }, 60000);
+  });
 
   it("uses bare node_modules paths when dependencies are hoisted above the invoking cwd", () => {
     const consumerDir = path.join(checkoutH, "packages", "consumer");
@@ -297,5 +298,5 @@ describe("compileHook install-topology reproducibility", () => {
     expect(
       sourcemap.sources.some((source: string) => source.startsWith("../") && source.includes("node_modules")),
     ).toBe(false);
-  }, 60000);
+  });
 });

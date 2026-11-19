@@ -56,6 +56,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { CLI_SPAWN_TIMEOUT_MS } from "../helpers/cli-timeouts.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -186,7 +187,7 @@ describe("compileHook install-topology reproducibility", () => {
     const result = spawnSync(
       process.execPath,
       [TSX_CLI_PATH, cliPath, "--agent", "codex", "-i", hookPath, "-o", hooksJsonPath, "--stable-names", "--sourcemap"],
-      { cwd: checkoutDir, encoding: "utf-8", timeout: 45000 },
+      { cwd: checkoutDir, encoding: "utf-8", timeout: CLI_SPAWN_TIMEOUT_MS },
     );
     if (result.status !== 0) {
       throw new Error(`CLI compile failed (exit ${String(result.status)}):\n${result.stdout}\n${result.stderr}`);
@@ -246,5 +247,5 @@ describe("compileHook install-topology reproducibility", () => {
     // into it.
     expect(dualPathContent).toBe(singlePathContent);
     expect(siblingTreeContent).toBe(singlePathContent);
-  }, 60000);
+  });
 });

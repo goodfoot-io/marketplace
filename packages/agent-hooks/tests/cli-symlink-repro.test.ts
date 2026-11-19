@@ -50,6 +50,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { CLI_SPAWN_TIMEOUT_MS } from "./helpers/cli-timeouts.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -142,7 +143,7 @@ describe("compileHook symlinked dependency reproducibility", () => {
       {
         cwd: checkoutDir,
         encoding: "utf-8",
-        timeout: 45000,
+        timeout: CLI_SPAWN_TIMEOUT_MS,
       },
     );
     if (result.status !== 0) {
@@ -195,7 +196,7 @@ describe("compileHook symlinked dependency reproducibility", () => {
     // `sourcesContent` — must be independent of how deeply the checkout
     // happens to be nested on disk.
     expect(deepContent).toBe(shallowContent);
-  }, 60000);
+  });
 
   it("embeds a checkout-depth-independent runtime import in the entry wrapper's sourcesContent", () => {
     const { shallowContent, deepContent } = compileFromShallowAndDeepCheckouts();
@@ -214,5 +215,5 @@ describe("compileHook symlinked dependency reproducibility", () => {
     expect(shallowEntry).toContain(
       `import { execute } from './node_modules/@goodfoot/agent-hooks/src/agents/claude-code/transport`,
     );
-  }, 60000);
+  });
 });

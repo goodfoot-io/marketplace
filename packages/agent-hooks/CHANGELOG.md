@@ -1,5 +1,11 @@
 # @goodfoot/agent-hooks npm package changelog
 
+## 1.0.18
+
+Fixes GOO-143's load-dependent release-test timeouts. The unit project now allows 150 seconds per test (three sequential 45-second CLI builds plus 15 seconds of headroom) and 60 seconds per setup/teardown hook. CLI subprocesses retain their 45-second bound, shared with the project budget; shorter per-test overrides no longer truncate topology and symlink tests.
+
+Adds regression checks for the wrapped project configuration and the running worker's effective deadline. Also repairs the workspace's OpenCode 2.1.2 transitive peer declarations and aligns its Effect integration to the existing 4.0.1 dependency, so immutable installation completes without peer warnings.
+
 ## 1.0.17
 
 Synchronizes the workspace lockfile with the normalized CLI entry point so immutable installs succeed. Performs npm-specific bin-map normalization in a publication-only hook because Yarn rewrites single-command maps during installation. Adds regression coverage for manifest/lockfile consistency and publication metadata. Includes Cursor support; 1.0.16 was blocked by CI before npm publication.

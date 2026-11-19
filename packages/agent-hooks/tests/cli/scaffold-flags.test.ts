@@ -19,6 +19,7 @@ import * as os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { CLI_SPAWN_TIMEOUT_MS } from "../helpers/cli-timeouts.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_PATH = path.resolve(__dirname, "..", "..", "src", "cli.ts");
@@ -31,7 +32,7 @@ function runCli(args: string[], cwd?: string): SpawnSyncReturns<string> {
   return spawnSync(process.execPath, [tsxCliPath, CLI_PATH, ...args], {
     encoding: "utf-8",
     stdio: "pipe",
-    timeout: 45000,
+    timeout: CLI_SPAWN_TIMEOUT_MS,
     ...(cwd === undefined ? {} : { cwd }),
   });
 }
